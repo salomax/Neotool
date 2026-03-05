@@ -26,6 +26,14 @@ kafka:
     import-file-requested: banking.import.file-requested
     import-file-requested-dlt: banking.import.file-requested.DLT
     import-job-completed: banking.import.job-completed
+    pdf:
+      extractor-submitted: pdf-extractor.submitted
+      extractor-extracted: pdf-extractor.extracted
+      extractor-dlq: pdf-extractor.dlq
+      banking-reader-done: assistant.banking-pdf-reader.done
+  consumers:
+    pdf-status:
+      group-id: banking-service-pdf-status
 redis:
   enabled: false
 # Assets service URL for import file storage IT (MockWebServer on 18092)

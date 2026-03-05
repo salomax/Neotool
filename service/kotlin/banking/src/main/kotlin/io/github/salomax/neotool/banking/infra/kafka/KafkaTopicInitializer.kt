@@ -26,6 +26,14 @@ class KafkaTopicInitializer(
     private val importFileRequestedDlt: String,
     @Property(name = "kafka.topics.import-job-completed")
     private val importJobCompleted: String,
+    @Property(name = "kafka.topics.pdf.extractor-submitted")
+    private val pdfExtractorSubmitted: String,
+    @Property(name = "kafka.topics.pdf.extractor-extracted")
+    private val pdfExtractorExtracted: String,
+    @Property(name = "kafka.topics.pdf.extractor-dlq")
+    private val pdfExtractorDlq: String,
+    @Property(name = "kafka.topics.pdf.banking-reader-done")
+    private val pdfBankingReaderDone: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -58,6 +66,38 @@ class KafkaTopicInitializer(
                     .configs(
                         mapOf(
                             TopicConfig.RETENTION_MS_CONFIG to (24 * 60 * 60 * 1000).toString(), // 24 hours
+                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                        ),
+                    ),
+                NewTopic(pdfExtractorSubmitted, 6, 1)
+                    .configs(
+                        mapOf(
+                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
+                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
+                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                        ),
+                    ),
+                NewTopic(pdfExtractorExtracted, 6, 1)
+                    .configs(
+                        mapOf(
+                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
+                            TopicConfig.RETENTION_BYTES_CONFIG to (500L * 1024 * 1024).toString(), // 500 MB
+                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                        ),
+                    ),
+                NewTopic(pdfExtractorDlq, 1, 1)
+                    .configs(
+                        mapOf(
+                            TopicConfig.RETENTION_MS_CONFIG to (90L * 24 * 60 * 60 * 1000).toString(), // 90 days
+                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
+                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                        ),
+                    ),
+                NewTopic(pdfBankingReaderDone, 6, 1)
+                    .configs(
+                        mapOf(
+                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
+                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
                             TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
                         ),
                     ),

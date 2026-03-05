@@ -107,19 +107,22 @@ PDF import has zero recurring cost per import (only LLM API call, ~R$ 0.003–0.
 [1] Banking Service
     User submits PDF via GQL mutation
     → Validates: MIME type, size ≤ 20MB, SHA-256 hash (idempotency check)
-    → Upload PDF to object storage (S3): pdf-imports/{account_id}/{job_id}/fatura.pdf
-    → INSERT pdf_import_jobs (status=PENDING)
+    → POST /assets to Asset Service: { file, account_id, content_type: "application/pdf" }
+    ← Asset Service returns: { asset_id, download_url }   (signed URL, 2h TTL)
+    → INSERT pdf_import_jobs (status=PENDING, asset_id=...)
     → Publish to Kafka: pdf-extractor.submitted
          {
            job_id:          "bank-123",
-           s3_key:          "pdf-imports/tenant-abc/bank-123/fatura.pdf",
+           asset_id:        "uuid",
+           download_url:    "https://assets.invistus.com/pdf-imports/.../fatura.pdf?sig=...",
            document_type:   "CREDIT_CARD_BILL",
            callback_context: { job_id: "bank-123", account_id: "tenant-abc", user_id: "user-xyz" }
          }
 
 [2] Python PDF Extractor Worker  (invistus/workers/python/pdf-extractor/)
     Reads: pdf-extractor.submitted   [all document_types — fully generic, no filtering]
-    → Download PDF from S3 using s3_key
+    → GET download_url  (plain HTTPS — no AWS credentials, no Asset Service dependency)
+    → On 403/410 (signed URL expired): error → DLQ  [see note below]
     → Extract text + tables with pdfplumber (extract_tables() preferred, extract_text() fallback)
     → Serialize tables as markdown (pipe-delimited) — compact and LLM-friendly
     → Clean: remove boilerplate, collapse whitespace, cap at 12k chars
@@ -183,7 +186,8 @@ PDF import has zero recurring cost per import (only LLM API call, ~R$ 0.003–0.
 - **Workers pass `callback_context` through unchanged.** They never inspect or branch on it.
 - **Banking service is the sole writer** of `pdf_import_jobs` and `banking.transactions`.
 - **Kafka messages carry all data needed** by the next stage. Workers are stateless — they process and forget.
-- **Object storage (S3) is the only shared external state.** Workers have read-only access to the PDF prefix. The PDF is never stored in a Kafka message or the DB.
+- **The PDF is fetched via signed URL** — the worker performs a plain HTTPS GET. It has no AWS credentials, no Asset Service auth. The signed URL (2h TTL) is embedded in the Kafka message by the banking service at submission time.
+- **Asset Service owns all file storage.** Banking service never integrates with S3/R2 directly. The PDF is never stored in a Kafka message or the DB.
 - **Extracted text travels in the Kafka message** (not S3) — after cleaning it is typically 5–30 KB, well within Kafka's 1 MB default limit.
 
 ### Kafka topics
@@ -257,7 +261,7 @@ banking service                          financial_data service
 (job_id=bank-123)                        (job_id=fin-456)
 document_type=CREDIT_CARD_BILL           document_type=INVESTMENT_IR_REPORT
        │                                         │
-       │ s3_key=pdf-imports/.../bank-123/...     │ s3_key=pdf-imports/.../fin-456/...
+       │ asset_id=... + signed download_url      │ asset_id=... + signed download_url
        └──────────────────┬──────────────────────┘
                           ▼
                pdf-extractor.submitted
@@ -329,16 +333,16 @@ invistus/workers/python/pdf-extractor/
 ├── consumer.py       # Kafka consumer loop — reads pdf-extractor.submitted (all document_types)
 ├── extractor.py      # pdfplumber extraction: extract_tables() preferred, extract_text() fallback
 ├── cleaner.py        # Remove boilerplate, normalize whitespace, cap at 12k chars
-├── s3_client.py      # Download PDF from S3 using s3_key from Kafka message
+├── downloader.py     # GET download_url (plain HTTPS, no credentials) → PDF bytes
 ├── schema.py         # Pydantic: ExtractionResult, ExtractionMetadata (no domain types)
 ├── publisher.py      # Publish to pdf-extractor.extracted / pdf-extractor.dlq
 ├── config.py         # All settings from env vars: KAFKA_BROKER, TOPIC_IN, TOPIC_OUT, TOPIC_DLQ,
-│                     #   AWS_S3_BUCKET, AWS_S3_ENDPOINT, AWS_REGION
+│                     #   DOWNLOAD_TIMEOUT_SECONDS (no AWS credentials)
 ├── tests/
 │   ├── test_extractor.py
 │   ├── test_cleaner.py
 │   └── fixtures/     # Anonymized real-bank PDFs: nubank.pdf, itau.pdf, bradesco_multi_card.pdf
-├── requirements.txt  # Pinned: pdfplumber, confluent-kafka, boto3, pydantic, pytest
+├── requirements.txt  # Pinned: pdfplumber, confluent-kafka, httpx, pydantic, pytest
 └── Dockerfile        # python:3.12-slim base
 ```
 
@@ -357,7 +361,7 @@ Tracks the full lifecycle of a PDF import job. Written **exclusively** by the ba
 | `account_id` | UUID FK → security.accounts | Tenant |
 | `created_by_user_id` | UUID FK → security.users | |
 | `status` | VARCHAR(32) NOT NULL | See job status lifecycle below |
-| `s3_key` | VARCHAR(512) NOT NULL | Object storage path for the uploaded PDF |
+| `asset_id` | UUID NOT NULL | Reference to the Asset Service record for this PDF |
 | `file_name` | VARCHAR(255) | Original filename (display only) |
 | `file_hash` | VARCHAR(64) NOT NULL | SHA-256 of raw PDF bytes — job-level idempotency key |
 | `extracted_text` | TEXT | Output of pdfplumber after cleaning; stored for audit/debug |
@@ -371,7 +375,7 @@ Tracks the full lifecycle of a PDF import job. Written **exclusively** by the ba
 **Job status lifecycle**:
 
 ```
-PENDING          — PDF uploaded to S3, job row created, published to pdf-extractor.submitted
+PENDING          — PDF uploaded via Asset Service, job row created, published to pdf-extractor.submitted
                    (set by: submitPdfBillImport mutation)
 
 EXTRACTING       — Python worker has started downloading/processing the PDF
@@ -541,7 +545,7 @@ Installment info extracted from PDF (`installment.current`, `installment.total`)
 
 **Description**: Create the `banking.pdf_import_jobs` table as specified in the Data Model section. Also add `PDF_BILL` to the `source` CHECK constraint on `banking.transactions`.
 
-**File**: `src/main/resources/db/migration/V0_12__create_pdf_import_jobs.sql`
+**File**: `src/main/resources/db/migration/V0_14__create_pdf_import_jobs.sql`
 
 ```sql
 CREATE TABLE banking.pdf_import_jobs (
@@ -550,7 +554,7 @@ CREATE TABLE banking.pdf_import_jobs (
     account_id            UUID NOT NULL REFERENCES security.accounts(id),
     created_by_user_id    UUID NOT NULL,
     status                VARCHAR(32) NOT NULL DEFAULT 'PENDING',
-    s3_key                VARCHAR(512) NOT NULL,
+    asset_id              UUID NOT NULL,
     file_name             VARCHAR(255),
     file_hash             VARCHAR(64) NOT NULL,
     extracted_text        TEXT,
@@ -568,31 +572,42 @@ CREATE INDEX idx_pdf_import_jobs_account_status
 ```
 
 **Acceptance criteria**:
-- Migration runs cleanly via `./gradlew :banking:flywayMigrate`
+- Migration runs cleanly when the banking service starts with Flyway enabled
 - Table and constraints exist as specified
 - `source` CHECK on `banking.transactions` includes `PDF_BILL`
 
 ---
 
-#### PDF-02 — Object storage integration
+#### PDF-02 — Asset Service integration in banking service
 
-**Description**: Add S3 (or compatible: MinIO for local dev, S3 for production) client to the banking service. Define the upload key convention: `pdf-imports/{account_id}/{job_id}/{file_name}`.
+**Description**: Integrate with the existing Asset Service for PDF upload. The banking service must not create any direct connection to S3/R2. All file storage goes through the Asset Service, which returns an `asset_id` and a time-limited signed `download_url`.
 
-**Where**: `infrastructure/storage/ObjectStorageService.kt`
+**Where**: `infra/assets/AssetsServiceClient.kt` (banking service), using `common/security/service/GraphQLServiceClient` for service-to-service GraphQL calls via Apollo Router.
 
 ```kotlin
-interface ObjectStorageService {
-    fun upload(key: String, bytes: ByteArray, contentType: String): String  // returns key
-    fun presignedDownloadUrl(key: String, expiresIn: Duration): String
+interface AssetsServiceClient {
+    fun upload(accountId: UUID, fileName: String, bytes: ByteArray, contentType: String): AssetUploadResult
 }
+
+data class AssetUploadResult(
+    val assetId: UUID,
+    val downloadUrl: String    // signed URL, 2h TTL — embedded in Kafka message
+)
 ```
 
-Config properties: `aws.s3.bucket`, `aws.s3.region`, `aws.s3.endpoint` (MinIO override in dev).
+The `download_url` is passed in the Kafka message so the Python worker can fetch the PDF via plain HTTPS with no credentials. If the signed URL expires before the worker processes the message (high Kafka lag scenario), the worker publishes to the DLQ and the job transitions to FAILED — the user re-submits.
+
+Config: `banking.assets-service.url`, `graphql.router.url`, `security.service.id`, `security.service.secret`.
+
+Integration rule: use the common `GraphQLServiceClient` as the transport/auth layer for Asset Service GraphQL operations (service token + target audience). Avoid creating a parallel raw HTTP integration path for production calls.
+
+**Signed URL TTL**: 2 hours — sufficient for any realistic Kafka processing lag. If lag consistently exceeds this, the KEDA ScaledObject (PDF-23) will have scaled up workers to clear the backlog.
 
 **Acceptance criteria**:
-- `upload()` stores file and returns the s3 key
-- MinIO works in local dev via Docker Compose
-- No PDF bytes stored in Kafka messages or DB columns
+- `upload()` calls Asset Service and returns `asset_id` + `download_url`
+- No AWS credentials anywhere in the banking service for PDF storage
+- `asset_id` stored in `pdf_import_jobs`; `download_url` never persisted (only in Kafka message)
+- Works against local Asset Service instance in dev Docker Compose
 
 ---
 
@@ -628,7 +643,7 @@ Config: all topic names externalized as env vars / `application.yml` properties.
 
 #### PDF-04 — GraphQL mutation: `submitPdfBillImport`
 
-**Description**: Entry point for the import flow. Receives the PDF, uploads to S3, creates the job, and publishes to `pdf-extractor.submitted`.
+**Description**: Entry point for the import flow. Receives the PDF, uploads via Asset Service, creates the job, and publishes to `pdf-extractor.submitted`.
 
 **GraphQL schema addition**:
 
@@ -668,13 +683,14 @@ enum PdfImportJobStatus {
 1. Validate: file extension `.pdf`, MIME type `application/pdf`, size ≤ 20 MB
 2. Compute `file_hash` = SHA-256 of raw bytes
 3. Query `pdf_import_jobs` for `(account_id, file_hash)` — if found and not FAILED, return existing job
-4. Upload PDF to S3 at `pdf-imports/{account_id}/{newJobId}/{fileName}`
-5. INSERT `pdf_import_jobs` (status=PENDING)
+4. Call `AssetServiceClient.upload(accountId, fileName, bytes)` → `{ asset_id, download_url }`
+5. INSERT `pdf_import_jobs` (status=PENDING, asset_id=...)
 6. Publish to `pdf-extractor.submitted`:
    ```json
    {
-     "job_id": "<newJobId>",
-     "s3_key": "pdf-imports/.../fatura.pdf",
+     "job_id":        "<newJobId>",
+     "asset_id":      "<assetId>",
+     "download_url":  "https://assets.invistus.com/...?sig=...",
      "document_type": "CREDIT_CARD_BILL",
      "callback_context": { "job_id": "<newJobId>", "account_id": "...", "user_id": "..." }
    }
@@ -683,8 +699,9 @@ enum PdfImportJobStatus {
 
 **Acceptance criteria**:
 - Duplicate file (same hash, non-FAILED) → returns existing job without reprocessing
-- PDF > 20 MB → validation error, no S3 upload
+- PDF > 20 MB → validation error, Asset Service not called
 - Wrong MIME type → validation error
+- Asset Service unavailable → mutation fails; no job row created
 - Kafka publish failure → job row rolled back (transactional outbox or at-least-once with dedup)
 
 ---
@@ -743,7 +760,7 @@ type Query {
 **Dependencies** (pinned in `requirements.txt`):
 - `pdfplumber` — PDF extraction
 - `confluent-kafka` — Kafka client
-- `boto3` — S3 download
+- `httpx` — download PDF via signed HTTPS URL
 - `pydantic` — schema validation and serialization
 - `pytest` — unit tests
 
@@ -756,9 +773,7 @@ type Query {
 | `KAFKA_TOPIC_IN` | `pdf-extractor.submitted` |
 | `KAFKA_TOPIC_OUT` | `pdf-extractor.extracted` |
 | `KAFKA_TOPIC_DLQ` | `pdf-extractor.dlq` |
-| `AWS_S3_BUCKET` | Bucket name |
-| `AWS_S3_ENDPOINT` | Override for MinIO in dev |
-| `AWS_REGION` | AWS region |
+| `DOWNLOAD_TIMEOUT_SECONDS` | HTTP timeout for signed URL download |
 
 **Deliverables**:
 - `Dockerfile` (python:3.12-slim)
@@ -767,7 +782,7 @@ type Query {
 
 **Acceptance criteria**:
 - `docker compose up pdf-extractor` starts without errors
-- Worker connects to Kafka and S3 on startup
+- Worker connects to Kafka on startup
 - All config readable from env vars — no hardcoded values
 
 ---
@@ -776,13 +791,13 @@ type Query {
 
 **File**: `consumer.py`
 
-**Description**: Subscribe to `pdf-extractor.submitted`. For each message: download PDF from S3, invoke extractor, publish result to `pdf-extractor.extracted`. Passes `document_type` and `callback_context` through unchanged — never reads or branches on their contents.
+**Description**: Subscribe to `pdf-extractor.submitted`. For each message: download PDF from signed `download_url`, invoke extractor, publish result to `pdf-extractor.extracted`. Passes `document_type` and `callback_context` through unchanged — never reads or branches on their contents.
 
 **Processing flow**:
 ```python
 for message in consumer.poll():
     payload = deserialize(message)
-    pdf_bytes = s3_client.download(payload.s3_key)          # retry up to 3x
+    pdf_bytes = downloader.get(payload.download_url)         # plain HTTPS GET, retry up to 3x
     result = extractor.extract(pdf_bytes)                    # extract + clean
     publisher.publish_extracted(
         job_id=payload.job_id,
@@ -795,9 +810,10 @@ for message in consumer.poll():
 ```
 
 **Error handling**:
-- S3 download failure after 3 retries (exponential backoff) → publish to `pdf-extractor.dlq`
+- HTTP 403/410 on `download_url` (signed URL expired) → publish to `pdf-extractor.dlq`; job → FAILED; user re-submits
+- Download failure after 3 retries (exponential backoff, other HTTP errors) → same DLQ path
 - Unhandled extraction exception → publish to `pdf-extractor.dlq`
-- DLQ message payload: `{ job_id, s3_key, document_type, error, callback_context }`
+- DLQ message payload: `{ job_id, asset_id, document_type, error, callback_context }`
 - Never crash the consumer loop — catch all exceptions at the message level
 
 **Acceptance criteria**:
@@ -1283,8 +1299,8 @@ data:
   KAFKA_TOPIC_IN: "pdf-extractor.submitted"
   KAFKA_TOPIC_OUT: "pdf-extractor.extracted"
   KAFKA_TOPIC_DLQ: "pdf-extractor.dlq"
-  AWS_S3_BUCKET: "invistus-pdf-imports"
-  AWS_REGION: "us-east-1"
+  DOWNLOAD_TIMEOUT_SECONDS: "30"
+  # No S3/R2 config — PDF fetched via signed URL from Kafka message (no credentials needed)
 ```
 
 **`externalsecret.yaml`**:
@@ -1306,10 +1322,7 @@ spec:
       remoteRef: { key: invistus/pdf-extractor, property: kafka_sasl_username }
     - secretKey: KAFKA_SASL_PASSWORD
       remoteRef: { key: invistus/pdf-extractor, property: kafka_sasl_password }
-    - secretKey: AWS_ACCESS_KEY_ID
-      remoteRef: { key: invistus/pdf-extractor, property: aws_access_key_id }
-    - secretKey: AWS_SECRET_ACCESS_KEY
-      remoteRef: { key: invistus/pdf-extractor, property: aws_secret_access_key }
+  # No AWS credentials — worker fetches PDF via signed URL (plain HTTPS, no auth)
 ```
 
 **`deployment.yaml`**:

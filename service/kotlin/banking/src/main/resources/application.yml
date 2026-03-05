@@ -134,12 +134,19 @@ kafka:
     import-file-requested: banking.import.file-requested
     import-file-requested-dlt: banking.import.file-requested.DLT
     import-job-completed: banking.import.job-completed
+    pdf:
+      extractor-submitted: ${KAFKA_TOPIC_PDF_EXTRACTOR_SUBMITTED:pdf-extractor.submitted}
+      extractor-extracted: ${KAFKA_TOPIC_PDF_EXTRACTOR_EXTRACTED:pdf-extractor.extracted}
+      extractor-dlq: ${KAFKA_TOPIC_PDF_EXTRACTOR_DLQ:pdf-extractor.dlq}
+      banking-reader-done: ${KAFKA_TOPIC_PDF_BANKING_READER_DONE:assistant.banking-pdf-reader.done}
   consumers:
     import-file:
       group-id: banking-import-consumer
       max-poll-records: 1  # process one import at a time per partition
       enable-auto-commit: false
       auto-offset-reset: earliest
+    pdf-status:
+      group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-pdf-status}
   producers:
     default:
       acks: all
