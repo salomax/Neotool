@@ -123,14 +123,6 @@ export function CategorySelect({
         PaperProps={{
           sx: { width: 300, maxHeight: 400, display: 'flex', flexDirection: 'column' }
         }}
-        marginThreshold={0}
-        slotProps={{
-          paper: {
-            sx: {
-              mt: 0.5
-            }
-          }
-        }}
       >
         <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
           <TextField
