@@ -13,6 +13,7 @@ import {
   Slider as MuiSlider,
   useTheme,
 } from "@mui/material";
+import { Label } from "@/shared/components/ui/primitives";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
@@ -266,19 +267,9 @@ export function FixedIncomeSimulatorForm({
           >
           {/* Product group - Tipo de Ativo */}
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 2,
-              }}
-            >
+            <Label sx={{ mb: 2, display: "block" }}>
               {t(`${ns}.productGroup`)}
-            </Typography>
+            </Label>
             <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
               <Box>
                 <Typography
@@ -352,19 +343,9 @@ export function FixedIncomeSimulatorForm({
 
           {/* Indexador - Rate model (same style as Tipo de Ativo, single line) */}
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 2,
-              }}
-            >
+            <Label sx={{ mb: 2, display: "block" }}>
               {t(`${ns}.rateModel`)}
-            </Typography>
+            </Label>
             <Box
               sx={{
                 display: "flex",
@@ -405,19 +386,9 @@ export function FixedIncomeSimulatorForm({
 
           {/* Taxa do título (%): default empty, right-aligned, max 2 decimals, no spinner, reset (circle-x) */}
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 1,
-              }}
-            >
+            <Label sx={{ mb: 1, display: "block" }}>
               {t(`${ns}.contractedRate`)}
-            </Typography>
+            </Label>
             <Controller
               name="contractedRateValue"
               control={methods.control}
@@ -479,19 +450,9 @@ export function FixedIncomeSimulatorForm({
             }}
           >
             <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "text.secondary",
-                  mb: 1,
-                }}
-              >
+              <Label sx={{ mb: 1, display: "block" }}>
                 {t(`${ns}.startDate`)}
-              </Typography>
+              </Label>
               <Controller
                 name="startDate"
                 control={methods.control}
@@ -516,19 +477,9 @@ export function FixedIncomeSimulatorForm({
               />
             </Box>
             <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "text.secondary",
-                  mb: 1,
-                }}
-              >
+              <Label sx={{ mb: 1, display: "block" }}>
                 {t(`${ns}.endDate`)}
-              </Typography>
+              </Label>
               <Controller
                 name="endDate"
                 control={methods.control}
@@ -585,16 +536,9 @@ export function FixedIncomeSimulatorForm({
                 mb: 2,
               }}
             >
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  color: "text.primary",
-                }}
-              >
+              <Label color="text.primary" sx={{ fontWeight: 800 }}>
                 {t(`${ns}.marketProjections`)}
-              </Typography>
+              </Label>
               <Button
                 type="button"
                 size="small"

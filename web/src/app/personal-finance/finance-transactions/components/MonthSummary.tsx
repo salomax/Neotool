@@ -6,6 +6,7 @@ import {
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
+import { Label } from '@/shared/components/ui/primitives/Label';
 
 export interface MonthSummaryData {
   year: number;
@@ -115,9 +116,9 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <Typography variant="overline" color="text.secondary" sx={{ fontWeight: 700, letterSpacing: 1 }}>
+        <Label>
           {t('financeTransactions.monthSummary.balance')}
-        </Typography>
+        </Label>
         <Typography 
           variant="h3" 
           component="div"

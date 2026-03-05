@@ -15,6 +15,7 @@ export { Switch } from './Switch';
 export { Select } from './Select';
 export { TextField, type TextFieldProps } from './TextField';
 export { LoadingSpinner } from './LoadingSpinner';
+export { Label, type LabelProps } from './Label';
 export { Skeleton } from './Skeleton';
 export { PageSkeleton } from './PageSkeleton';
 export { ErrorBoundary } from './ErrorBoundary';

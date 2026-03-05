@@ -28,8 +28,18 @@ enum class TransactionStatus { POSTED, PENDING, FUTURE }
 
 /**
  * How the transaction entered the system.
+ * Tracks the import channel/format — not the specific provider or bank.
+ * Provider (e.g. Pluggy, Belvo) and bank are implementation details captured elsewhere.
  */
-enum class TransactionSource { MANUAL, OPEN_FINANCE, PLUGGY }
+enum class TransactionSource {
+    MANUAL,        // Typed by the user
+    OPEN_FINANCE,  // Via Open Finance Brasil API (any aggregator: Pluggy, Belvo, etc.)
+    OFX,           // File upload: OFX format
+    CSV,           // File upload: CSV format (bank-specific parser = ImportSource concern)
+    PDF,           // File upload: PDF format (any document type: bill, statement, etc.)
+    NFC_E,         // NFC-e receipt scan
+    RECEIPT_OCR,   // Receipt photo OCR
+}
 
 /**
  * Category applicability.

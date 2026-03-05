@@ -27,6 +27,7 @@ import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountType } 
 import { useTranslation, i18n } from '@/shared/i18n';
 import { useEffect, useRef, useMemo, useState, Fragment } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
+import { Label } from '@/shared/components/ui/primitives/Label';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
 
@@ -212,17 +213,29 @@ export function TransactionTable({
   const colSpan = selectedAccountId ? 6 : 7;
 
   return (
-    <TableContainer component={Paper} variant="outlined">
-      <Table sx={{ minWidth: 650 }} aria-label="transactions table">
+    <TableContainer component={Paper} elevation={0} sx={{ bgColor: 'transparent', border: 'none' }}>
+      <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="transactions table">
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox" sx={{ pl: 2 }}></TableCell>
-            <TableCell>{t('financeTransactions.transactionTable.columns.description')}</TableCell>
-            <TableCell>{t('financeTransactions.transactionTable.columns.category')}</TableCell>
-            <TableCell>{t('financeTransactions.tags')}</TableCell>
-            {!selectedAccountId && <TableCell>{t('financeTransactions.issuer')}</TableCell>}
-            <TableCell align="right">{t('financeTransactions.value')}</TableCell>
-            <TableCell align="center"></TableCell>
+            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: 'none', bgColor: 'transparent' }}></TableCell>
+            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+              <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
+            </TableCell>
+            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+              <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
+            </TableCell>
+            <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+              <Label>{t('financeTransactions.tags')}</Label>
+            </TableCell>
+            {!selectedAccountId && (
+              <TableCell sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+                <Label>{t('financeTransactions.issuer')}</Label>
+              </TableCell>
+            )}
+            <TableCell align="right" sx={{ borderBottom: 'none', bgColor: 'transparent' }}>
+              <Label>{t('financeTransactions.value')}</Label>
+            </TableCell>
+            <TableCell align="center" sx={{ borderBottom: 'none', bgColor: 'transparent' }}></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -236,16 +249,18 @@ export function TransactionTable({
           )}
           {groupedTransactions.map((group) => (
             <>
-              <TableRow key={`header-${group.date}`} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03) }}>
-                <TableCell colSpan={colSpan} sx={{ py: 1 }}>
-                  <Typography variant="subtitle2" fontWeight="bold" color="text.secondary">
+              <TableRow key={`header-${group.date}`} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: 'none' }}>
+                <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
+                  <Label>
                     {formatDateHeader(group.date)}
-                  </Typography>
+                  </Label>
                 </TableCell>
               </TableRow>
-              {group.transactions.map((transaction) => {
+              {group.transactions.map((transaction, index) => {
                 const isEditing = editedTransaction?.id === transaction.id;
                 const isDeleting = deletedTransactionId === transaction.id;
+                const isFirst = index === 0;
+                const isLast = index === group.transactions.length - 1;
                 
                 return (
                   <Fragment key={transaction.id}>
@@ -256,6 +271,18 @@ export function TransactionTable({
                         pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
                         filter: isDeleting ? 'none' : (isEditing && isEditFormOpen ? 'grayscale(0.5)' : 'none'),
                         transition: 'opacity 0.3s ease, filter 0.2s',
+                        '& .MuiTableCell-root': {
+                          bgcolor: 'background.paper',
+                          borderColor: 'transparent', // Ensure borders don't interfere
+                        },
+                        '& .MuiTableCell-root:first-of-type': {
+                          borderTopLeftRadius: isFirst ? (theme.custom?.radius?.md ?? 12) : 0,
+                          borderBottomLeftRadius: isLast ? (theme.custom?.radius?.md ?? 12) : 0,
+                        },
+                        '& .MuiTableCell-root:last-of-type': {
+                          borderTopRightRadius: isFirst ? (theme.custom?.radius?.md ?? 12) : 0,
+                          borderBottomRightRadius: isLast ? (theme.custom?.radius?.md ?? 12) : 0,
+                        }
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ pl: 2 }}>

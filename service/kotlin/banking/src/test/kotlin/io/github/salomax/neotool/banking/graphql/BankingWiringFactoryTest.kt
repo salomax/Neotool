@@ -8,6 +8,7 @@ import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
+import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
@@ -31,6 +32,7 @@ class BankingWiringFactoryTest {
     private lateinit var financialAccountResolver: FinancialAccountResolver
     private lateinit var transactionResolver: TransactionResolver
     private lateinit var importResolver: ImportResolver
+    private lateinit var pdfImportResolver: PdfImportResolver
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
     private lateinit var wiringFactory: BankingWiringFactory
@@ -43,6 +45,7 @@ class BankingWiringFactoryTest {
         financialAccountResolver = mock()
         transactionResolver = mock()
         importResolver = mock()
+        pdfImportResolver = mock()
         authorizationChecker = mock()
 
         val decoder =
@@ -63,6 +66,7 @@ class BankingWiringFactoryTest {
                 financialAccountResolver,
                 transactionResolver,
                 importResolver,
+                pdfImportResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )
@@ -129,6 +133,19 @@ class BankingWiringFactoryTest {
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_CREATE))
         }
+
+        @Test
+        fun `submitPdfBillImport requires banking_transaction_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["submitPdfBillImport"]!!
+
+            val env = envWithToken(
+                arguments = mapOf("input" to emptyMap<String, Any?>()),
+            )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_CREATE))
+        }
     }
 }
-

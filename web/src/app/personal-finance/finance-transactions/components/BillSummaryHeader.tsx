@@ -9,6 +9,7 @@ import {
   useTheme,
   alpha,
 } from '@mui/material';
+import { Label } from '@/shared/components/ui/primitives';
 import { useTranslation } from 'react-i18next';
 import { BillStatus, getBillStatusColor } from '../hooks/billUtils';
 import { formatCurrency } from '@/shared/components/ui/forms/components/masks/br';
@@ -101,18 +102,9 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
       {/* Header - Bill Amount */}
       <Box sx={{ mb: 3 }}>
         <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.5 }}>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{ 
-              textTransform: 'uppercase', 
-              fontSize: '0.7rem', 
-              fontWeight: 600, 
-              letterSpacing: 0.5,
-            }}
-          >
+          <Label>
             {t('financeTransactions.billSummary.billValue')}
-          </Typography>
+          </Label>
 
           {loading ? (
             <Skeleton variant="rectangular" width={80} height={24} />
@@ -169,19 +161,9 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
       {/* Details Row - Due Date & Available Limit */}
       <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
         <Box sx={{ flex: 1 }}>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{ 
-              textTransform: 'uppercase', 
-              fontSize: '0.7rem', 
-              fontWeight: 600, 
-              letterSpacing: 0.5,
-              mb: 0.5 
-            }}
-          >
+          <Label>
             {t('financeTransactions.billSummary.closingDate')}
-          </Typography>
+          </Label>
           <Typography variant="body1" sx={{ fontWeight: 500 }}>
             {loading ? (
               <Skeleton width={120} />
@@ -195,19 +177,9 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
         </Box>
 
         <Box sx={{ flex: 1 }}>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{ 
-              textTransform: 'uppercase', 
-              fontSize: '0.7rem', 
-              fontWeight: 600, 
-              letterSpacing: 0.5,
-              mb: 0.5 
-            }}
-          >
+          <Label>
             {t('financeTransactions.billSummary.dueDate')}
-          </Typography>
+          </Label>
           <Typography variant="body1" sx={{ fontWeight: 500 }}>
             {loading ? (
               <Skeleton width={120} />
@@ -224,18 +196,9 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
       <Stack direction="row" spacing={4} sx={{ mb: 3 }}>
         <Box sx={{ width: '100%' }}>
           <Stack direction="row" justifyContent="space-between" alignItems="baseline" sx={{ mb: 0.5 }}>
-            <Typography
-              variant="subtitle2"
-              color="text.secondary"
-              sx={{ 
-                textTransform: 'uppercase', 
-                fontSize: '0.7rem', 
-                fontWeight: 600, 
-                letterSpacing: 0.5,
-              }}
-            >
+            <Label>
               {t('financeTransactions.billSummary.availableLimit')}
-            </Typography>
+            </Label>
             <Typography variant="body1" sx={{ fontWeight: 500 }}>
               {loading ? (
                 <Skeleton width={100} />

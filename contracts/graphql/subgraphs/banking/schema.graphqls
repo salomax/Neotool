@@ -170,6 +170,7 @@ enum TransactionSource {
   MANUAL
   OPEN_FINANCE
   PLUGGY
+  PDF_BILL
 }
 
 """
@@ -202,6 +203,17 @@ enum ImportStatus {
   COMPLETED
   FAILED
   REVIEW_REQUIRED
+}
+
+enum PdfImportJobStatus {
+  PENDING
+  EXTRACTING
+  EXTRACTED
+  LLM_PROCESSING
+  AWAITING_REVIEW
+  IMPORTING
+  DONE
+  FAILED
 }
 
 """
@@ -569,6 +581,12 @@ input ImportTransactionsFileInput {
   fileBase64: String!
 }
 
+input SubmitPdfBillImportInput {
+  financialAccountId: ID
+  fileName: String!
+  fileBase64: String!
+}
+
 # ============================================================================
 # Transaction Import Types
 # ============================================================================
@@ -611,6 +629,15 @@ type TransactionImport {
 
 type ImportResult {
   import: TransactionImport!
+}
+
+type PdfImportJob {
+  id: ID!
+  status: PdfImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: JSON
+  errorMessage: String
 }
 
 # ============================================================================
@@ -664,6 +691,8 @@ extend type Query {
   ): TransactionConnection!
   transactionImports(financialAccountId: ID): [TransactionImport!]!
   transactionImport(id: ID!): TransactionImport
+  pdfImportJob(jobId: ID!): PdfImportJob
+  pdfImportJobs(financialAccountId: ID): [PdfImportJob!]!
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
   ordered by closing date descending.
@@ -703,6 +732,7 @@ extend type Mutation {
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
+  submitPdfBillImport(input: SubmitPdfBillImportInput!): PdfImportJob!
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.

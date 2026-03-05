@@ -3,7 +3,7 @@ title: Phase 4 — PDF Credit Card Bill Import
 type: feature-spec
 category: personal-finance
 status: planned
-version: 1.1.0
+version: 1.2.0
 tags: [feature, personal-finance, credit-card, pdf, import, kafka, llm, extraction, pipeline, generic-extractor]
 ai_optimized: true
 search_keywords: [pdf, fatura, credit card bill, bank statement, IR report, import, pdfplumber, kafka, llm, extraction, pipeline, python worker, pdf_import_jobs, AWAITING_REVIEW, document_type, pdf-extractor, assistant.banking-pdf-reader, callback_context]
@@ -174,7 +174,7 @@ PDF import has zero recurring cost per import (only LLM API call, ~R$ 0.003–0.
     → For each included transaction:
         - Compute import_fingerprint = SHA-256(financialAccountId || date || amount_cents || normalized_description)
         - Dedup check against existing transactions (same as Phase 2.5 machinery)
-        - INSERT transaction (source=PDF_BILL, import_job_id=job_id)
+        - INSERT transaction (source=PDF, import_job_id=job_id)
     → Call CreditCardBillService.recomputeBill() for each affected bill
     → UPDATE pdf_import_jobs SET status=DONE, completed_at=now()
 ```
@@ -210,7 +210,7 @@ The LLM Service is the **only component that knows the routing** from `document_
 
 | `document_type` | Originating service | LLM output topic | LLM extracts |
 |---|---|---|---|
-| `CREDIT_CARD_BILL` | Banking Service | `assistant.banking-pdfđ-reader.done` | Cards, transactions, closing/due dates |
+| `CREDIT_CARD_BILL` | Banking Service | `assistant.banking-pdf-reader.done` | Cards, transactions, closing/due dates |
 | `BANK_STATEMENT` | Banking Service | `assistant.banking-pdf-reader.done` | Transactions, opening/closing balance |
 | `INVESTMENT_IR_REPORT` | Investments Service (future) | `assistant.investments-pdf-reader.done` | Assets, income events, tax basis |
 | `BROKERAGE_NOTE` | Investments Service (future) | `assistant.investments-pdf-reader.done` | Trades, fees, settlement dates |
@@ -357,8 +357,8 @@ Tracks the full lifecycle of a PDF import job. Written **exclusively** by the ba
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID PK | Job identifier; propagated as `callback_context.job_id` |
-| `financial_account_id` | UUID FK → banking.financial_accounts? | Target account if known at submission; null if PDF covers unknown cards |
-| `account_id` | UUID FK → security.accounts | Tenant |
+| `financial_account_id` | UUID FK → banking.financial_accounts? | Target account if known at submission; null if PDF covers multiple/unknown cards |
+| `account_id` | UUID FK → security.accounts | Tenant — **denormalized intentionally**: `financial_account_id` is nullable so `account_id` cannot always be derived from it via JOIN; all banking tables carry `account_id` directly for tenant isolation without joins (security filter never requires a JOIN through another table) |
 | `created_by_user_id` | UUID FK → security.users | |
 | `status` | VARCHAR(32) NOT NULL | See job status lifecycle below |
 | `asset_id` | UUID NOT NULL | Reference to the Asset Service record for this PDF |
@@ -404,16 +404,27 @@ FAILED           — Unrecoverable error at any stage; error_message populated
 
 **Unique constraint**: `uq_pdf_import_jobs_account_hash (account_id, file_hash)` — prevents reprocessing the same PDF within the same tenant. Jobs with status=FAILED are **not** excluded — retrying a failed job creates a new row (the old one remains for audit).
 
-### `banking.transactions` — new source value
+### `banking.transactions` — source values
 
-Add `PDF_BILL` to the existing source CHECK constraint:
+`TransactionSource` tracks the import channel/format only. Provider (Pluggy, Belvo) and bank name are implementation details not stored here.
 
 ```sql
-CHECK (source IN ('MANUAL','OPEN_FINANCE','PLUGGY','OFX','CSV_NUBANK','CSV_ITAU',
-                  'CSV_BRADESCO','NFC_E','RECEIPT_OCR','PDF_BILL'))
+CHECK (source IN ('MANUAL','OPEN_FINANCE','OFX','CSV','PDF','NFC_E','RECEIPT_OCR'))
 ```
 
-Transactions imported from PDF carry `source = 'PDF_BILL'` and `import_job_id` pointing to the `pdf_import_jobs` row.
+| Value | Meaning |
+|---|---|
+| `MANUAL` | Typed by the user |
+| `OPEN_FINANCE` | Via Open Finance Brasil API (any aggregator) |
+| `OFX` | File upload: OFX format |
+| `CSV` | File upload: CSV format (bank-specific parser lives in `ImportSource`) |
+| `PDF` | File upload: PDF format (any document type: bill, statement, etc.) |
+| `NFC_E` | NFC-e receipt scan |
+| `RECEIPT_OCR` | Receipt photo OCR |
+
+Transactions imported from PDF carry `source = 'PDF'` and `import_job_id` pointing to the `pdf_import_jobs` row.
+
+Migration `V0_15__normalize_transaction_source.sql` normalizes existing rows (`PLUGGY` → `OPEN_FINANCE`, `CSV_*` → `CSV`, `PDF_BILL` → `PDF`) and replaces the old CHECK constraint.
 
 ### Flyway migration
 
@@ -514,7 +525,7 @@ The `closing_date` and `due_date` extracted from the PDF are used **only to vali
 
 **Job level**: `file_hash` on `pdf_import_jobs` prevents reprocessing the same PDF. On `submitPdfBillImport`, if a job with the same `(account_id, file_hash)` already exists and is not FAILED, the banking service returns the existing job immediately — no new upload, no new Kafka event.
 
-**Transaction level**: Standard dedup machinery from Phase 2.5 applies. PDF-imported transactions carry `source = 'PDF_BILL'`. The dedup fingerprint is:
+**Transaction level**: Standard dedup machinery from Phase 2.5 applies. PDF-imported transactions carry `source = 'PDF'`. The dedup fingerprint is:
 
 ```
 fingerprint = SHA-256( financial_account_id || date_iso || amount_cents || normalized_description )
@@ -543,7 +554,7 @@ Installment info extracted from PDF (`installment.current`, `installment.total`)
 
 #### PDF-01 — Flyway migration: `pdf_import_jobs`
 
-**Description**: Create the `banking.pdf_import_jobs` table as specified in the Data Model section. Also add `PDF_BILL` to the `source` CHECK constraint on `banking.transactions`.
+**Description**: Create the `banking.pdf_import_jobs` table as specified in the Data Model section. The `source` CHECK constraint is managed by `V0_15__normalize_transaction_source.sql` (already includes `PDF`).
 
 **File**: `src/main/resources/db/migration/V0_14__create_pdf_import_jobs.sql`
 
@@ -574,7 +585,7 @@ CREATE INDEX idx_pdf_import_jobs_account_status
 **Acceptance criteria**:
 - Migration runs cleanly when the banking service starts with Flyway enabled
 - Table and constraints exist as specified
-- `source` CHECK on `banking.transactions` includes `PDF_BILL`
+- `source` CHECK on `banking.transactions` includes `PDF` (via V0_15)
 
 ---
 
@@ -1000,7 +1011,7 @@ input ConfirmPdfTransactionInput {
      - Compute `import_fingerprint`
      - Level-1 dedup: skip if fingerprint exists (same source)
      - Level-2 dedup: flag if same date+amount exists from different source (Phase 2.5 machinery)
-     - INSERT transaction: `source=PDF_BILL`, `import_job_id=jobId`
+     - INSERT transaction: `source=PDF`, `import_job_id=jobId`
    - Call `CreditCardBillService.recomputeBill()` for the bill affected by this card's transactions
 4. UPDATE `status = DONE`, `completed_at = now()`
 5. Return final job DTO
@@ -1015,25 +1026,50 @@ input ConfirmPdfTransactionInput {
 
 #### PDF-14 — Card association logic
 
-**Description**: When banking status consumer receives `assistant.banking-pdf-reader.done`, auto-match each extracted card (by `lastFourDigits`) to existing financial accounts before persisting `review_payload`.
+**Description**: When the banking status consumer receives `assistant.banking-pdf-reader.done`, auto-match each extracted card (by `lastFourDigits`) to existing `financial_accounts` before persisting `review_payload`. The result drives the frontend review UI.
 
-**Matching query**:
+**Design decision — match vs prompt vs auto-create**:
+
+PDFs frequently contain multiple cards (main + supplementary, or two different issuers on one statement). `pdf_import_jobs.financial_account_id` is nullable for this reason; association happens per-card at review time, not at submission time.
+
+Three outcomes per extracted card:
+
+| Outcome | Condition | Backend action | Frontend UX |
+|---|---|---|---|
+| **Auto-matched** | Exactly 1 non-deleted `financial_account` with `card_last_four_digits = lastFourDigits` in the tenant | Set `matchedFinancialAccountId` | Show matched account name; user can change |
+| **Ambiguous** | 2+ accounts share the same last 4 digits | Leave `matchedFinancialAccountId` null; set `matchAmbiguous = true` | Show disambiguation selector listing all candidates |
+| **Unknown** | 0 matching accounts | Leave `matchedFinancialAccountId` null; `matchAmbiguous = false` | Show selector: pick existing account **or** create new — never auto-create silently |
+
+**Rationale**: Silent auto-create creates ghost accounts (accounts named "Card ending 1234" that the user never set up). Industry benchmarks (Nubank app, Organizze, Mobills) all require user confirmation for unmatched cards. Auto-match where unambiguous is safe and reduces friction for the common case (user already has the card registered).
+
+**Matching query** (run per card in LLM output):
 ```sql
-SELECT id FROM banking.financial_accounts
-WHERE account_id = :accountId
-  AND subtype IN ('CREDIT_CARD', 'CHARGE_CARD')
+SELECT id, name
+FROM banking.financial_accounts
+WHERE account_id   = :accountId
+  AND subtype      IN ('CREDIT_CARD', 'CHARGE_CARD')
   AND card_last_four_digits = :lastFourDigits
-  AND deleted_at IS NULL
+  AND deleted_at   IS NULL
 ```
 
 If `card_last_four_digits` column does not exist on `financial_accounts`, add via `V0_13__add_card_last_four_digits.sql`.
 
-Matching result is stored in the `review_payload` JSONB as `matchedFinancialAccountId` per card before persisting — frontend reads it directly from the review payload.
+**Enriched card in review_payload**:
+```json
+{
+  "cardLastFour": "1234",
+  "matchedFinancialAccountId": "uuid-or-null",
+  "matchAmbiguous": false,
+  "matchCandidates": []
+}
+```
+`matchCandidates` is populated (with `{ id, name }` entries) when `matchAmbiguous = true` — frontend renders a dropdown.
 
 **Acceptance criteria**:
-- Exact match → `matchedFinancialAccountId` populated in review_payload
-- No match → null; frontend shows card selector
-- Multiple matches → null; frontend shows disambiguation
+- Exactly 1 match → `matchedFinancialAccountId` set, `matchAmbiguous = false`
+- 0 matches → `matchedFinancialAccountId` null, `matchAmbiguous = false`, `matchCandidates` empty
+- 2+ matches → `matchedFinancialAccountId` null, `matchAmbiguous = true`, `matchCandidates` populated
+- Frontend must not allow confirm without all cards associated to an account
 - `card_last_four_digits` migration applied if column was missing
 
 ---
@@ -1470,3 +1506,16 @@ This is the only change needed in the cluster directory — the rest of the depe
 | OQ-3 | `extracted_text` in DB TEXT column vs S3 — at ≤100 KB DB is fine; revisit if volume grows | Backend | Low |
 | OQ-4 | DLQ consumer strategy — dedicated banking service consumer vs manual ops intervention + alerting | Backend | Medium |
 | OQ-5 | `card_last_four_digits` on `financial_accounts` — confirm if exists in Phase 1 schema or needs PDF-14 migration | Backend | High |
+
+## Architectural Decisions
+
+Decisions already taken and no longer open for debate. Captured here for onboarding and audit trail.
+
+| Decision | Rationale |
+|---|---|
+| **`account_id` stored directly on `pdf_import_jobs`** (denormalization) | `financial_account_id` is nullable (PDF may cover cards not yet in the system), so `account_id` cannot always be derived via JOIN. Consistent with all other banking tables where `account_id` is stored directly for tenant isolation without requiring a JOIN. The unique constraint `uq_pdf_import_jobs_account_hash (account_id, file_hash)` also requires it directly. |
+| **Multi-card association: auto-match unambiguous, prompt otherwise, never auto-create** | Auto-matching by `card_last_four_digits` where exactly 1 account exists reduces friction for the common case. Prompting for 0 or 2+ matches prevents ghost accounts. Silent auto-create is rejected — it creates user-visible accounts with auto-generated names that pollute the account list. Consistent with Nubank, Organizze, Mobills UX patterns. |
+| **Asset Service for PDF storage (not direct S3/R2)** | Asset Service is the existing abstraction for all binary storage in the platform. Worker receives a signed URL (2h TTL) via Kafka — no AWS credentials needed in the worker. PDF-02 handles the Asset Service upload step. |
+| **Python for PDF extractor worker** | `pdfplumber` is the most capable digital-PDF text/table extractor for the Brazilian banking PDF format. Native table extraction avoids regex fragility. Cost of a new Python service is low (Dockerfile ~10 lines, single-purpose consumer). OCR rejected — not needed for digital PDFs and adds latency + infra complexity. |
+| **Kafka retention 30 days (`pdf-extractor.extracted`, `assistant.banking-pdf-reader.done`)** | Enables bug investigation, LLM quality analysis, and replay without re-uploading PDFs. DLQ retention set to 90 days (investigation window is longer for errors). |
+| **LLM Service is sole router from `document_type` → output topic** | Banking Service and other domain services are pure Kafka consumers — they never call LLM APIs directly. The LLM Service contract (topic names, JSON schema) is versioned in this spec. |

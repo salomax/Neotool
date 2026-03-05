@@ -122,6 +122,8 @@ banking:
     url: ${ASSETS_SERVICE_URL:}
     graphql-path: /graphql
     import-namespace: ${ASSETS_IMPORT_NAMESPACE:transaction-imports}
+    pdf-import-namespace: ${ASSETS_PDF_IMPORT_NAMESPACE:pdf-imports}
+    pdf-download-ttl-seconds: ${ASSETS_PDF_DOWNLOAD_TTL_SECONDS:7200}
 
 # Kafka — import file requested / job completed (set KAFKA_BROKERS in deployment).
 # Use host:port format (example: localhost:9094), without http://
