@@ -1,0 +1,46 @@
+meta {
+  name: Message Stream (Subscription)
+  type: graphql
+  seq: 5
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  subscription MessageStream($conversationId: ID!, $input: MessageInput!) {
+    messageStream(conversationId: $conversationId, input: $input) {
+      delta
+      finishReason
+      escalate
+      usage {
+        promptTokens
+        completionTokens
+        totalTokens
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "conversationId": "assistant-stream-001",
+    "input": {
+      "role": "USER",
+      "content": "Stream a short response about the market open"
+    }
+  }
+}
+
+tests {
+  test("status 200 or 400 (subscription transport may differ)", function() {
+    expect([200, 400]).to.include(res.getStatus());
+  });
+}

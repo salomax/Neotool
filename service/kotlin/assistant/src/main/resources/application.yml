@@ -22,6 +22,14 @@ micronaut:
             - "*"
           allow-credentials: true
           max-age: 3600
+  metrics:
+    enabled: true
+    export:
+      prometheus:
+        enabled: true
+        step: PT15S
+  observation:
+    enabled: true
 
 # OpenTelemetry: keep propagation enabled, disable exporting by default for local development.
 # Production should set OTEL_TRACES_EXPORTER=otlp and OTEL_EXPORTER_OTLP_ENDPOINT.
@@ -34,10 +42,35 @@ otel:
 llm:
   provider: ${LLM_PROVIDER:gemini}
   gemini:
+    base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com}
     api-key: ${GEMINI_API_KEY:}
+    generate-content-path: ${GEMINI_GENERATE_CONTENT_PATH:/v1beta/models/__MODEL__:generateContent}
+    request-timeout-ms: ${GEMINI_REQUEST_TIMEOUT_MS:60000}
+    user-agent: ${GEMINI_USER_AGENT:neotool-assistant/1.0}
     model: ${GEMINI_MODEL:gemini-2.5-flash}
     temperature: ${GEMINI_TEMPERATURE:0.7}
     max-tokens: ${GEMINI_MAX_TOKENS:2048}
+  openai:
+    base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+    api-key-ref: ${OPENAI_API_KEY_REF:OPENAI_API_KEY}
+    chat-completions-path: ${OPENAI_CHAT_COMPLETIONS_PATH:/v1/chat/completions}
+    request-timeout-ms: ${OPENAI_REQUEST_TIMEOUT_MS:60000}
+    user-agent: ${OPENAI_USER_AGENT:neotool-assistant/1.0}
+  retry:
+    max-attempts: ${LLM_RETRY_MAX_ATTEMPTS:4}
+    initial-delay: ${LLM_RETRY_INITIAL_DELAY_MS:250}
+    max-delay: ${LLM_RETRY_MAX_DELAY_MS:2000}
+    multiplier: ${LLM_RETRY_MULTIPLIER:2.0}
+    retryable-errors:
+      - RATE_LIMIT
+      - TIMEOUT
+      - SERVER_ERROR
+  circuit-breaker:
+    failure-threshold: ${LLM_CIRCUIT_BREAKER_FAILURE_THRESHOLD:5}
+    failure-window-ms: ${LLM_CIRCUIT_BREAKER_FAILURE_WINDOW_MS:60000}
+    timeout-ms: ${LLM_CIRCUIT_BREAKER_TIMEOUT_MS:60000}
+    half-open-requests: ${LLM_CIRCUIT_BREAKER_HALF_OPEN_REQUESTS:1}
+    success-threshold: ${LLM_CIRCUIT_BREAKER_SUCCESS_THRESHOLD:2}
 
 # GraphQL Client Configuration
 graphql:
@@ -87,17 +120,6 @@ vault:
   # Can be set via VAULT_READ_TIMEOUT environment variable
   read-timeout: ${VAULT_READ_TIMEOUT:5000}
 
-# Micrometer Configuration for Metrics Collection
-  metrics:
-    enabled: true
-    export:
-      prometheus:
-        enabled: true
-        step: PT15S
-  # Enable automatic HTTP request metrics
-  observation:
-    enabled: true
-
 # Management Endpoints Configuration
 management:
   endpoints:
@@ -111,3 +133,44 @@ management:
       enabled: true
       path: /prometheus
       sensitive: false  # No authentication required
+
+# Datasource (required for Flyway and future JPA entities)
+datasources:
+  default:
+    enabled: true
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:6432}/${POSTGRES_DB:neotool_db}
+    driverClassName: org.postgresql.Driver
+    username: ${POSTGRES_USER:neotool}
+    password: ${POSTGRES_PASSWORD:neotool}
+    dialect: POSTGRES
+    hikari:
+      maximum-pool-size: ${HIKARI_MAX_POOL_SIZE:20}
+      minimum-idle: ${HIKARI_MIN_IDLE:5}
+      connection-timeout: ${HIKARI_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${HIKARI_IDLE_TIMEOUT:600000}
+      max-lifetime: ${HIKARI_MAX_LIFETIME:1800000}
+      connection-test-query: "SELECT 1"
+      validation-timeout: ${HIKARI_VALIDATION_TIMEOUT:5000}
+      auto-commit: false
+
+# JPA entities are used by completion and conversation flows.
+jpa:
+  default:
+    enabled: ${JPA_DEFAULT_ENABLED:true}
+    properties:
+      hibernate:
+        hbm2ddl:
+          auto: none
+
+# Flyway migrations (run after security schema exists on same DB)
+flyway:
+  datasources:
+    default:
+      enabled: true
+      baseline-on-migrate: true
+      baseline-version: 0
+      table: flyway_schema_history_assistant
+      create-schemas: true
+      schemas:
+        - public
+        - assistant

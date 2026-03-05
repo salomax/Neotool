@@ -16,3 +16,7 @@ subgraphs:
     routing_url: http://neotool-banking-service:8080/graphql
     schema:
       file: ../subgraphs/banking/schema.graphqls
+  assistant:
+    routing_url: http://neotool-assistant-service:8080/graphql
+    schema:
+      file: ../subgraphs/assistant/schema.graphqls
