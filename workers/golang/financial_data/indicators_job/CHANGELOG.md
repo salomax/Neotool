@@ -1,3 +1,13 @@
+## 0.2.5 (2026-03-06)
+
+### 🩹 Fixes
+
+- Add support for COMEXSTAT CA certificate configuration ([f21e6cc3](https://github.com/invistus/invistus/commit/f21e6cc3))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.2.4 (2026-02-26)
 
 This was a version bump only for indicators-job to align it with other projects, there were no code changes.
