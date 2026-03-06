@@ -7,15 +7,22 @@ import java.util.UUID
  * All queries are scoped by [financialAccountId] (with [accountId] for tenant safety).
  */
 interface MonthlyBalanceSnapshotRepository {
-
     /** Returns the snapshot for the given (account, year, month), or null if none exists. */
-    fun findByYearMonth(financialAccountId: UUID, year: Int, month: Int): MonthlyBalanceSnapshot?
+    fun findByYearMonth(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthlyBalanceSnapshot?
 
     /**
      * Returns the most recent clean (is_dirty = false) snapshot strictly before (year, month).
      * Used to find the nearest valid starting point for a chain recompute.
      */
-    fun findLatestCleanBefore(financialAccountId: UUID, year: Int, month: Int): MonthlyBalanceSnapshot?
+    fun findLatestCleanBefore(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthlyBalanceSnapshot?
 
     /**
      * Returns all snapshots for the given financial account ordered by (year ASC, month ASC).
@@ -39,5 +46,9 @@ interface MonthlyBalanceSnapshotRepository {
      * Marks all snapshots for the account at or after (year, month) as dirty.
      * Called when a transaction write fails partway through the chain recompute.
      */
-    fun markDirtyFromMonth(financialAccountId: UUID, year: Int, month: Int)
+    fun markDirtyFromMonth(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    )
 }

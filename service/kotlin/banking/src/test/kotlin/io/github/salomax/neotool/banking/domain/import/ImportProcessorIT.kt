@@ -23,7 +23,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("ImportProcessor IT")
 class ImportProcessorIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var importProcessor: ImportProcessor
 
@@ -56,39 +55,46 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
         }
     }
 
-    private fun job(source: ImportSource = ImportSource.OFX) = ImportJob(
-        id = null,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = userId,
-        source = source,
-        fileHash = "it-${UUID.randomUUID()}",
-        status = ImportJobStatus.PENDING,
-        createdAt = now,
-        updatedAt = now,
-    )
-
-    private fun parsed(providerId: String? = "fitid-1", amount: BigDecimal = BigDecimal("10.00"), description: String = "Item") =
-        ParsedTransaction(
-            providerTransactionId = providerId,
-            creditDebitType = CreditDebitType.DEBIT,
-            amount = amount,
-            date = today,
-            description = description,
-            currencyCode = "BRL",
+    private fun job(source: ImportSource = ImportSource.OFX) =
+        ImportJob(
+            id = null,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            source = source,
+            fileHash = "it-${UUID.randomUUID()}",
+            status = ImportJobStatus.PENDING,
+            createdAt = now,
+            updatedAt = now,
         )
+
+    private fun parsed(
+        providerId: String? = "fitid-1",
+        amount: BigDecimal =
+            BigDecimal(
+                "10.00",
+            ),
+        description: String = "Item",
+    ) = ParsedTransaction(
+        providerTransactionId = providerId,
+        creditDebitType = CreditDebitType.DEBIT,
+        amount = amount,
+        date = today,
+        description = description,
+        currencyCode = "BRL",
+    )
 
     @Nested
     @DisplayName("process — import path")
     inner class ProcessImportPathTests {
-
         @Test
         fun `imports rows and sets import_job_id and import_fingerprint on each`() {
             val savedJob = importJobRepository.save(job())
-            val rows = listOf(
-                parsed(providerId = "fp-a", amount = BigDecimal("25.50"), description = "Coffee"),
-                parsed(providerId = "fp-b", amount = BigDecimal("30.00"), description = "Lunch"),
-            )
+            val rows =
+                listOf(
+                    parsed(providerId = "fp-a", amount = BigDecimal("25.50"), description = "Coffee"),
+                    parsed(providerId = "fp-b", amount = BigDecimal("30.00"), description = "Lunch"),
+                )
 
             val result = importProcessor.process(savedJob, rows)
 
@@ -110,7 +116,6 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("process — Level 1 skip")
     inner class ProcessLevel1SkipTests {
-
         @Test
         fun `skips row when same provider id and source already exists`() {
             val savedJob = importJobRepository.save(job())
@@ -133,7 +138,11 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
                 ),
             )
 
-            val result = importProcessor.process(savedJob, listOf(parsed(providerId = providerId, amount = BigDecimal("50.00"), description = "Duplicate")))
+            val result =
+                importProcessor.process(
+                    savedJob,
+                    listOf(parsed(providerId = providerId, amount = BigDecimal("50.00"), description = "Duplicate")),
+                )
 
             assertThat(result.imported).isEmpty()
             assertThat(result.skipped).isEqualTo(1)
@@ -145,7 +154,6 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("process — Level 2 duplicate candidates")
     inner class ProcessLevel2Tests {
-
         @Test
         fun `Level 2 candidates are not inserted and appear in duplicateCandidates`() {
             val savedJob = importJobRepository.save(job(source = ImportSource.OPEN_FINANCE))
@@ -168,16 +176,17 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
                 ),
             )
 
-            val rows = listOf(
-                ParsedTransaction(
-                    providerTransactionId = "ofx-1",
-                    creditDebitType = CreditDebitType.DEBIT,
-                    amount = matchAmount,
-                    date = matchDate,
-                    description = "Incoming OPEN_FINANCE",
-                    currencyCode = "BRL",
-                ),
-            )
+            val rows =
+                listOf(
+                    ParsedTransaction(
+                        providerTransactionId = "ofx-1",
+                        creditDebitType = CreditDebitType.DEBIT,
+                        amount = matchAmount,
+                        date = matchDate,
+                        description = "Incoming OPEN_FINANCE",
+                        currencyCode = "BRL",
+                    ),
+                )
             val result = importProcessor.process(savedJob, rows)
 
             assertThat(result.imported).isEmpty()
@@ -193,22 +202,22 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("process — errors")
     inner class ProcessErrorsTests {
-
         @Test
         fun `row that causes exception is added to errors and processing continues`() {
             val savedJob = importJobRepository.save(job())
-            val rows = listOf(
-                parsed(description = "Good"),
-                ParsedTransaction(
-                    providerTransactionId = "bad",
-                    creditDebitType = CreditDebitType.DEBIT,
-                    amount = BigDecimal("1E20"),
-                    date = today,
-                    description = "Huge amount",
-                    currencyCode = "BRL",
-                ),
-                parsed(providerId = "good-2", description = "Good second"),
-            )
+            val rows =
+                listOf(
+                    parsed(description = "Good"),
+                    ParsedTransaction(
+                        providerTransactionId = "bad",
+                        creditDebitType = CreditDebitType.DEBIT,
+                        amount = BigDecimal("1E20"),
+                        date = today,
+                        description = "Huge amount",
+                        currencyCode = "BRL",
+                    ),
+                    parsed(providerId = "good-2", description = "Good second"),
+                )
 
             val result = importProcessor.process(savedJob, rows)
 
@@ -222,9 +231,8 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("process — acceptance scenario")
     inner class ProcessAcceptanceScenarioTests {
-
         @Test
-        fun `100 rows with 10 L1 duplicates 3 L2 candidates 2 error rows yields 85 imported 10 skipped 3 candidates 2 errors`() {
+        fun `100 rows 10 L1 dup 3 L2 cand 2 err yields 85 imp 10 skip 3 cand 2 err`() {
             val savedJob = importJobRepository.save(job(source = ImportSource.OPEN_FINANCE))
             val l1ProviderIds = (0 until 10).map { "accept-fitid-$it" }
             l1ProviderIds.forEach { pid ->
@@ -236,7 +244,7 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
                         creditDebitType = CreditDebitType.DEBIT,
                         type = TransactionType.OTHER_EXPENSE,
                         status = TransactionStatus.POSTED,
-                        source = TransactionSource.MANUAL,
+                        source = TransactionSource.OPEN_FINANCE,
                         amount = BigDecimal("1.00"),
                         date = today,
                         description = "L1 duplicate",
@@ -267,28 +275,41 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
                 )
             }
 
-            val rows = (0 until 100).map { i ->
-                when {
-                    i < 10 -> parsed(providerId = l1ProviderIds[i], amount = BigDecimal("${i + 1}.00"), description = "Row $i")
-                    i in 50..52 -> ParsedTransaction(
-                        providerTransactionId = "ofx-l2-$i",
-                        creditDebitType = CreditDebitType.DEBIT,
-                        amount = l2Amounts[i - 50],
-                        date = l2Date,
-                        description = "Row $i L2",
-                        currencyCode = "BRL",
-                    )
-                    i == 60 || i == 70 -> ParsedTransaction(
-                        providerTransactionId = "ofx-err-$i",
-                        creditDebitType = CreditDebitType.DEBIT,
-                        amount = BigDecimal("1E30"),
-                        date = today,
-                        description = "Row $i overflow",
-                        currencyCode = "BRL",
-                    )
-                    else -> parsed(providerId = "ofx-$i", amount = BigDecimal("${i + 1}.00"), description = "Row $i")
+            val rows =
+                (0 until 100).map { i ->
+                    when {
+                        i < 10 ->
+                            parsed(
+                                providerId = l1ProviderIds[i],
+                                amount = BigDecimal("${i + 1}.00"),
+                                description = "Row $i",
+                            )
+                        i in 50..52 ->
+                            ParsedTransaction(
+                                providerTransactionId = "ofx-l2-$i",
+                                creditDebitType = CreditDebitType.DEBIT,
+                                amount = l2Amounts[i - 50],
+                                date = l2Date,
+                                description = "Row $i L2",
+                                currencyCode = "BRL",
+                            )
+                        i == 60 || i == 70 ->
+                            ParsedTransaction(
+                                providerTransactionId = "ofx-err-$i",
+                                creditDebitType = CreditDebitType.DEBIT,
+                                amount = BigDecimal("1E30"),
+                                date = today,
+                                description = "Row $i overflow",
+                                currencyCode = "BRL",
+                            )
+                        else ->
+                            parsed(
+                                providerId = "ofx-$i",
+                                amount = BigDecimal("${i + 1}.00"),
+                                description = "Row $i",
+                            )
+                    }
                 }
-            }
 
             val result = importProcessor.process(savedJob, rows)
 

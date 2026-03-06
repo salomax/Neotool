@@ -8,7 +8,6 @@ import java.nio.charset.StandardCharsets
 
 @DisplayName("ImportTextDecoder")
 class ImportTextDecoderTest {
-
     @Test
     fun `decodes utf8 bytes using utf8`() {
         val bytes = "Lançamento Fácil".toByteArray(StandardCharsets.UTF_8)

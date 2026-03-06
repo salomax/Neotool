@@ -162,3 +162,21 @@ tasks.withType<Jar> {
 tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
     archiveVersion.set("")
 }
+
+// Banking-specific Kover exclusions:
+// keep coverage gate focused on business logic, excluding transport/adapters.
+afterEvaluate {
+    extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
+        reports {
+            filters {
+                excludes {
+                    classes(
+                        "io.github.salomax.neotool.banking.graphql.*",
+                        "io.github.salomax.neotool.banking.infra.*",
+                        "io.github.salomax.neotool.banking.infrastructure.*",
+                    )
+                }
+            }
+        }
+    }
+}

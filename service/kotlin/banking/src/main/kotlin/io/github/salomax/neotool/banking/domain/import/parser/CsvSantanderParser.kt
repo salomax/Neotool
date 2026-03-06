@@ -94,10 +94,11 @@ object CsvSantanderParser : BankCsvReader {
 
     override fun parse(bytes: ByteArray): List<ParsedTransaction> {
         val text = ImportTextDecoder.decode(bytes).text
-        val lines = text.lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .toList()
+        val lines =
+            text.lineSequence()
+                .map { it.trimEnd('\r') }
+                .filter { it.isNotBlank() }
+                .toList()
         if (lines.size < 2) return emptyList()
 
         val delimiter = CsvParserSupport.detectDelimiter(lines.first())
@@ -119,7 +120,14 @@ object CsvSantanderParser : BankCsvReader {
 
             val description = row.getOrNull(descriptionIdx)?.trim().orEmpty().ifBlank { "Imported transaction" }
             val providerId = idIdx?.let { row.getOrNull(it)?.trim()?.takeIf { value -> value.isNotBlank() } }
-            val transactionDatetime = parseTransactionDatetime(date, timeIdx?.let { idx -> row.getOrNull(idx).orEmpty() })
+            val transactionDatetime =
+                parseTransactionDatetime(
+                    date,
+                    timeIdx?.let {
+                            idx ->
+                        row.getOrNull(idx).orEmpty()
+                    },
+                )
 
             ParsedTransaction(
                 providerTransactionId = providerId,
@@ -137,13 +145,17 @@ object CsvSantanderParser : BankCsvReader {
         }
     }
 
-    private fun parseTransactionDatetime(date: java.time.LocalDate, timeRaw: String?): Instant? {
+    private fun parseTransactionDatetime(
+        date: java.time.LocalDate,
+        timeRaw: String?,
+    ): Instant? {
         val timeValue = timeRaw?.trim().orEmpty()
         if (timeValue.isBlank()) return null
 
-        val time = runCatching { LocalTime.parse(timeValue, TIME_FORMAT_HH_MM) }.getOrNull()
-            ?: runCatching { LocalTime.parse(timeValue, TIME_FORMAT_HH_MM_SS) }.getOrNull()
-            ?: return null
+        val time =
+            runCatching { LocalTime.parse(timeValue, TIME_FORMAT_HH_MM) }.getOrNull()
+                ?: runCatching { LocalTime.parse(timeValue, TIME_FORMAT_HH_MM_SS) }.getOrNull()
+                ?: return null
 
         return LocalDateTime.of(date, time).atZone(SAO_PAULO_ZONE).toInstant()
     }

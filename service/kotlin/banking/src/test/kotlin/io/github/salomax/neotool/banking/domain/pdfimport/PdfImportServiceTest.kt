@@ -13,7 +13,6 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.infra.assets.PdfImportAssetStorage
 import io.github.salomax.neotool.banking.infra.assets.PdfImportAssetUploadResult
@@ -41,7 +40,6 @@ import java.util.UUID
 
 @DisplayName("PdfImportService")
 class PdfImportServiceTest {
-
     private lateinit var repository: PdfImportJobRepository
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var transactionRepository: TransactionRepository
@@ -69,23 +67,23 @@ class PdfImportServiceTest {
         creditCardBillService = mock()
         pdfImportAssetStorage = mock()
         submittedProducer = mock()
-        service = PdfImportService(
-            repository = repository,
-            financialAccountRepository = financialAccountRepository,
-            transactionRepository = transactionRepository,
-            importFingerprintService = importFingerprintService,
-            snapshotComputationService = snapshotComputationService,
-            creditCardBillService = creditCardBillService,
-            pdfImportAssetStorage = pdfImportAssetStorage,
-            submittedProducer = submittedProducer,
-            objectMapper = objectMapper,
-        )
+        service =
+            PdfImportService(
+                repository = repository,
+                financialAccountRepository = financialAccountRepository,
+                transactionRepository = transactionRepository,
+                importFingerprintService = importFingerprintService,
+                snapshotComputationService = snapshotComputationService,
+                creditCardBillService = creditCardBillService,
+                pdfImportAssetStorage = pdfImportAssetStorage,
+                submittedProducer = submittedProducer,
+                objectMapper = objectMapper,
+            )
     }
 
     @Nested
     @DisplayName("submit")
     inner class SubmitTests {
-
         @Test
         fun `submit new PDF creates pending job and publishes extractor event`() {
             val assetId = UUID.randomUUID()
@@ -104,13 +102,14 @@ class PdfImportServiceTest {
                 job.copy(id = savedJobId)
             }
 
-            val result = service.submitPdfBillImport(
-                accountId = accountId,
-                userId = userId,
-                financialAccountId = financialAccountId,
-                fileName = "fatura.pdf",
-                fileBytes = fileBytes,
-            )
+            val result =
+                service.submitPdfBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    financialAccountId = financialAccountId,
+                    fileName = "fatura.pdf",
+                    fileBytes = fileBytes,
+                )
 
             assertThat(result.id).isEqualTo(savedJobId)
             assertThat(result.status).isEqualTo(PdfImportJobStatus.PENDING)
@@ -165,7 +164,6 @@ class PdfImportServiceTest {
     @Nested
     @DisplayName("confirm")
     inner class ConfirmTests {
-
         @Test
         fun `confirm happy path inserts transactions recomputes bills and marks DONE`() {
             val jobId = UUID.randomUUID()
@@ -187,7 +185,9 @@ class PdfImportServiceTest {
                 "$account-$date"
             }
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
-            whenever(creditCardBillService.resolveBillForTransaction(any(), any(), eq(TransactionType.CARD))).thenAnswer {
+            whenever(
+                creditCardBillService.resolveBillForTransaction(any(), any(), eq(TransactionType.CARD)),
+            ).thenAnswer {
                 val account = it.getArgument<FinancialAccount>(0)
                 if (account.id == cardA) billA else billB
             }
@@ -212,39 +212,46 @@ class PdfImportServiceTest {
             val cardA = UUID.randomUUID()
             val billA = UUID.randomUUID()
             val job = awaitingReviewJob(jobId)
-            val command = ConfirmPdfBillImportCommand(
-                jobId = jobId,
-                cards = listOf(
-                    ConfirmPdfCardCommand(
-                        lastFourDigits = "1234",
-                        financialAccountId = cardA,
-                        transactions = listOf(
-                            ConfirmPdfTransactionCommand(
-                                date = LocalDate.of(2026, 1, 15),
-                                description = "MERCADO",
-                                amount = BigDecimal("45.90"),
-                                creditDebitType = CreditDebitType.DEBIT,
-                                include = false,
-                            ),
-                            ConfirmPdfTransactionCommand(
-                                date = LocalDate.of(2026, 1, 20),
-                                description = "IFOOD",
-                                amount = BigDecimal("12.00"),
-                                creditDebitType = CreditDebitType.DEBIT,
-                                include = true,
+            val command =
+                ConfirmPdfBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmPdfCardCommand(
+                                lastFourDigits = "1234",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmPdfTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 15),
+                                            description = "MERCADO",
+                                            amount = BigDecimal("45.90"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = false,
+                                        ),
+                                        ConfirmPdfTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 20),
+                                            description = "IFOOD",
+                                            amount = BigDecimal("12.00"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                    ),
                             ),
                         ),
-                    ),
-                ),
-            )
+                )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-1")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(creditCardBillService.resolveBillForTransaction(any(), any(), any())).thenReturn(billA)
-            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
+            whenever(
+                transactionRepository.save(any()),
+            ).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
 
             val result = service.confirmPdfBillImport(accountId, userId, command)
 
@@ -258,40 +265,47 @@ class PdfImportServiceTest {
             val cardA = UUID.randomUUID()
             val billA = UUID.randomUUID()
             val job = awaitingReviewJob(jobId)
-            val command = ConfirmPdfBillImportCommand(
-                jobId = jobId,
-                cards = listOf(
-                    ConfirmPdfCardCommand(
-                        lastFourDigits = "1234",
-                        financialAccountId = cardA,
-                        transactions = listOf(
-                            ConfirmPdfTransactionCommand(
-                                date = LocalDate.of(2026, 1, 15),
-                                description = "MERCADO",
-                                amount = BigDecimal("45.90"),
-                                creditDebitType = CreditDebitType.DEBIT,
-                                include = true,
-                            ),
-                            ConfirmPdfTransactionCommand(
-                                date = LocalDate.of(2026, 1, 20),
-                                description = "IFOOD",
-                                amount = BigDecimal("12.00"),
-                                creditDebitType = CreditDebitType.DEBIT,
-                                include = true,
+            val command =
+                ConfirmPdfBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmPdfCardCommand(
+                                lastFourDigits = "1234",
+                                financialAccountId = cardA,
+                                transactions =
+                                    listOf(
+                                        ConfirmPdfTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 15),
+                                            description = "MERCADO",
+                                            amount = BigDecimal("45.90"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                        ConfirmPdfTransactionCommand(
+                                            date = LocalDate.of(2026, 1, 20),
+                                            description = "IFOOD",
+                                            amount = BigDecimal("12.00"),
+                                            creditDebitType = CreditDebitType.DEBIT,
+                                            include = true,
+                                        ),
+                                    ),
                             ),
                         ),
-                    ),
-                ),
-            )
+                )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-1", "fp-2")
             whenever(importFingerprintService.isDuplicate(cardA, "fp-1")).thenReturn(true)
             whenever(importFingerprintService.isDuplicate(cardA, "fp-2")).thenReturn(false)
             whenever(creditCardBillService.resolveBillForTransaction(any(), any(), any())).thenReturn(billA)
-            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
+            whenever(
+                transactionRepository.save(any()),
+            ).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
 
             val result = service.confirmPdfBillImport(accountId, userId, command)
 
@@ -317,13 +331,14 @@ class PdfImportServiceTest {
                 ),
             )
 
-            val ex = assertThrows<ValidationException> {
-                service.confirmPdfBillImport(
-                    accountId,
-                    userId,
-                    ConfirmPdfBillImportCommand(jobId = jobId, cards = emptyList()),
-                )
-            }
+            val ex =
+                assertThrows<ValidationException> {
+                    service.confirmPdfBillImport(
+                        accountId,
+                        userId,
+                        ConfirmPdfBillImportCommand(jobId = jobId, cards = emptyList()),
+                    )
+                }
 
             assertThat(ex.field).isEqualTo("jobId")
             verify(transactionRepository, never()).save(any())
@@ -332,26 +347,28 @@ class PdfImportServiceTest {
         @Test
         fun `confirm on DONE is idempotent and returns existing job`() {
             val jobId = UUID.randomUUID()
-            val doneJob = PdfImportJob(
-                id = jobId,
-                financialAccountId = null,
-                accountId = accountId,
-                createdByUserId = userId,
-                status = PdfImportJobStatus.DONE,
-                assetId = UUID.randomUUID(),
-                fileName = "fatura.pdf",
-                fileHash = "hash",
-                completedAt = now,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val doneJob =
+                PdfImportJob(
+                    id = jobId,
+                    financialAccountId = null,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    status = PdfImportJobStatus.DONE,
+                    assetId = UUID.randomUUID(),
+                    fileName = "fatura.pdf",
+                    fileHash = "hash",
+                    completedAt = now,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(repository.findById(jobId, accountId)).thenReturn(doneJob)
 
-            val result = service.confirmPdfBillImport(
-                accountId,
-                userId,
-                ConfirmPdfBillImportCommand(jobId = jobId, cards = emptyList()),
-            )
+            val result =
+                service.confirmPdfBillImport(
+                    accountId,
+                    userId,
+                    ConfirmPdfBillImportCommand(jobId = jobId, cards = emptyList()),
+                )
 
             assertThat(result.status).isEqualTo(PdfImportJobStatus.DONE)
             verify(repository, never()).update(any())
@@ -362,7 +379,6 @@ class PdfImportServiceTest {
     @Nested
     @DisplayName("card association")
     inner class CardAssociationTests {
-
         @Test
         fun `markAwaitingReview exact match sets matchedFinancialAccountId`() {
             val jobId = UUID.randomUUID()
@@ -377,7 +393,11 @@ class PdfImportServiceTest {
 
             val updatedCaptor = argumentCaptor<PdfImportJob>()
             verify(repository).update(updatedCaptor.capture())
-            val payload = objectMapper.readValue(updatedCaptor.firstValue.reviewPayload, PdfBillExtractionResult::class.java)
+            val payload =
+                objectMapper.readValue(
+                    updatedCaptor.firstValue.reviewPayload,
+                    PdfBillExtractionResult::class.java,
+                )
             assertThat(payload.cards).hasSize(1)
             assertThat(payload.cards[0].matchedFinancialAccountId).isEqualTo(matchedAccountId)
             assertThat(payload.cards[0].matchAmbiguous).isFalse()
@@ -387,14 +407,20 @@ class PdfImportServiceTest {
         fun `markAwaitingReview no match keeps association null`() {
             val jobId = UUID.randomUUID()
             whenever(repository.findById(jobId, accountId)).thenReturn(baseJob(jobId))
-            whenever(financialAccountRepository.findCardAccountsByLastFourDigits(accountId, "1234")).thenReturn(emptyList())
+            whenever(
+                financialAccountRepository.findCardAccountsByLastFourDigits(accountId, "1234"),
+            ).thenReturn(emptyList())
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
 
             service.markAwaitingReview(jobId, accountId, llmPayload("1234"))
 
             val updatedCaptor = argumentCaptor<PdfImportJob>()
             verify(repository).update(updatedCaptor.capture())
-            val payload = objectMapper.readValue(updatedCaptor.firstValue.reviewPayload, PdfBillExtractionResult::class.java)
+            val payload =
+                objectMapper.readValue(
+                    updatedCaptor.firstValue.reviewPayload,
+                    PdfBillExtractionResult::class.java,
+                )
             assertThat(payload.cards[0].matchedFinancialAccountId).isNull()
             assertThat(payload.cards[0].matchAmbiguous).isFalse()
             assertThat(payload.cards[0].matchCandidates).isEmpty()
@@ -418,17 +444,24 @@ class PdfImportServiceTest {
 
             val updatedCaptor = argumentCaptor<PdfImportJob>()
             verify(repository).update(updatedCaptor.capture())
-            val payload = objectMapper.readValue(updatedCaptor.firstValue.reviewPayload, PdfBillExtractionResult::class.java)
+            val payload =
+                objectMapper.readValue(
+                    updatedCaptor.firstValue.reviewPayload,
+                    PdfBillExtractionResult::class.java,
+                )
             assertThat(payload.cards[0].matchedFinancialAccountId).isNull()
             assertThat(payload.cards[0].matchAmbiguous).isTrue()
             assertThat(payload.cards[0].matchCandidates.map { it.id }).containsExactlyInAnyOrder(candidateA, candidateB)
         }
     }
 
-    private fun validPdfBytes(content: String): ByteArray =
-        ("%PDF-1.7\\n$content").toByteArray(Charsets.US_ASCII)
+    private fun validPdfBytes(content: String): ByteArray = ("%PDF-1.7\\n$content").toByteArray(Charsets.US_ASCII)
 
-    private fun cardAccount(id: UUID, lastFour: String, name: String = "Card $lastFour"): FinancialAccount =
+    private fun cardAccount(
+        id: UUID,
+        lastFour: String,
+        name: String = "Card $lastFour",
+    ): FinancialAccount =
         FinancialAccount(
             id = id,
             accountId = accountId,
@@ -457,17 +490,19 @@ class PdfImportServiceTest {
         )
 
     private fun awaitingReviewJob(jobId: UUID): PdfImportJob {
-        val payload = PdfBillExtractionResult(
-            bankName = "Nubank",
-            statementPeriod = DateRange(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 2, 7)),
-            cards = listOf(
-                PdfExtractedCard(lastFourDigits = "1234", transactions = emptyList()),
-                PdfExtractedCard(lastFourDigits = "5678", transactions = emptyList()),
-            ),
-            extractionConfidence = 0.98,
-            needsReview = false,
-            warnings = emptyList(),
-        )
+        val payload =
+            PdfBillExtractionResult(
+                bankName = "Nubank",
+                statementPeriod = DateRange(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 2, 7)),
+                cards =
+                    listOf(
+                        PdfExtractedCard(lastFourDigits = "1234", transactions = emptyList()),
+                        PdfExtractedCard(lastFourDigits = "5678", transactions = emptyList()),
+                    ),
+                extractionConfidence = 0.98,
+                needsReview = false,
+                warnings = emptyList(),
+            )
         return PdfImportJob(
             id = jobId,
             financialAccountId = null,
@@ -483,54 +518,63 @@ class PdfImportServiceTest {
         )
     }
 
-    private fun confirmCommand(jobId: UUID, cardA: UUID, cardB: UUID): ConfirmPdfBillImportCommand {
-        val txsA = (1..5).map { idx ->
-            ConfirmPdfTransactionCommand(
-                date = LocalDate.of(2026, 1, 10 + idx),
-                description = "Card A tx $idx",
-                amount = BigDecimal("10.0$idx"),
-                creditDebitType = CreditDebitType.DEBIT,
-                include = true,
-            )
-        }
-        val txsB = (1..5).map { idx ->
-            ConfirmPdfTransactionCommand(
-                date = LocalDate.of(2026, 1, 20 + idx),
-                description = "Card B tx $idx",
-                amount = BigDecimal("20.0$idx"),
-                creditDebitType = CreditDebitType.DEBIT,
-                include = true,
-            )
-        }
+    private fun confirmCommand(
+        jobId: UUID,
+        cardA: UUID,
+        cardB: UUID,
+    ): ConfirmPdfBillImportCommand {
+        val txsA =
+            (1..5).map { idx ->
+                ConfirmPdfTransactionCommand(
+                    date = LocalDate.of(2026, 1, 10 + idx),
+                    description = "Card A tx $idx",
+                    amount = BigDecimal("10.0$idx"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = true,
+                )
+            }
+        val txsB =
+            (1..5).map { idx ->
+                ConfirmPdfTransactionCommand(
+                    date = LocalDate.of(2026, 1, 20 + idx),
+                    description = "Card B tx $idx",
+                    amount = BigDecimal("20.0$idx"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = true,
+                )
+            }
         return ConfirmPdfBillImportCommand(
             jobId = jobId,
-            cards = listOf(
-                ConfirmPdfCardCommand(lastFourDigits = "1234", financialAccountId = cardA, transactions = txsA),
-                ConfirmPdfCardCommand(lastFourDigits = "5678", financialAccountId = cardB, transactions = txsB),
-            ),
+            cards =
+                listOf(
+                    ConfirmPdfCardCommand(lastFourDigits = "1234", financialAccountId = cardA, transactions = txsA),
+                    ConfirmPdfCardCommand(lastFourDigits = "5678", financialAccountId = cardB, transactions = txsB),
+                ),
         )
     }
 
     private fun llmPayload(lastFour: String): Map<String, Any?> =
         mapOf(
             "bank_name" to "Nubank",
-            "statement_period" to mapOf(
-                "from" to "2026-01-08",
-                "to" to "2026-02-07",
-            ),
-            "cards" to listOf(
+            "statement_period" to
                 mapOf(
-                    "last_four_digits" to lastFour,
-                    "holder_name" to "JOAO",
-                    "closing_date" to "2026-02-07",
-                    "due_date" to "2026-02-15",
-                    "declared_total" to 100.0,
-                    "computed_total" to 100.0,
-                    "total_matches_declared" to true,
-                    "transactions" to emptyList<Map<String, Any?>>(),
-                    "confidence" to 0.99,
+                    "from" to "2026-01-08",
+                    "to" to "2026-02-07",
                 ),
-            ),
+            "cards" to
+                listOf(
+                    mapOf(
+                        "last_four_digits" to lastFour,
+                        "holder_name" to "JOAO",
+                        "closing_date" to "2026-02-07",
+                        "due_date" to "2026-02-15",
+                        "declared_total" to 100.0,
+                        "computed_total" to 100.0,
+                        "total_matches_declared" to true,
+                        "transactions" to emptyList<Map<String, Any?>>(),
+                        "confidence" to 0.99,
+                    ),
+                ),
             "extraction_confidence" to 0.99,
             "needs_review" to false,
             "warnings" to emptyList<String>(),

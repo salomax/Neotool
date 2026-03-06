@@ -11,11 +11,28 @@ enum class CreditDebitType { CREDIT, DEBIT }
  */
 enum class TransactionType {
     // Payment types (OFB-aligned)
-    PIX, TED, DOC, BOLETO, TRANSFER,
+    PIX,
+    TED,
+    DOC,
+    BOLETO,
+    TRANSFER,
+
     // Income types
-    SALARY, DEPOSIT, CASHBACK, INVESTMENT_RETURN, OTHER_INCOME,
+    SALARY,
+    DEPOSIT,
+    CASHBACK,
+    INVESTMENT_RETURN,
+    OTHER_INCOME,
+
     // Expense types
-    CARD, WITHDRAWAL, FEE, INTEREST, LOAN_PAYMENT, TAX, OTHER_EXPENSE,
+    CARD,
+    WITHDRAWAL,
+    FEE,
+    INTEREST,
+    LOAN_PAYMENT,
+    TAX,
+    OTHER_EXPENSE,
+
     // Neutral
     BALANCE_ADJUSTMENT,
 }
@@ -32,13 +49,13 @@ enum class TransactionStatus { POSTED, PENDING, FUTURE }
  * Provider (e.g. Pluggy, Belvo) and bank are implementation details captured elsewhere.
  */
 enum class TransactionSource {
-    MANUAL,        // Typed by the user
-    OPEN_FINANCE,  // Via Open Finance Brasil API (any aggregator: Pluggy, Belvo, etc.)
-    OFX,           // File upload: OFX format
-    CSV,           // File upload: CSV format (bank-specific parser = ImportSource concern)
-    PDF,           // File upload: PDF format (any document type: bill, statement, etc.)
-    NFC_E,         // NFC-e receipt scan
-    RECEIPT_OCR,   // Receipt photo OCR
+    MANUAL, // Typed by the user
+    OPEN_FINANCE, // Via Open Finance Brasil API (any aggregator: Pluggy, Belvo, etc.)
+    OFX, // File upload: OFX format
+    CSV, // File upload: CSV format (bank-specific parser = ImportSource concern)
+    PDF, // File upload: PDF format (any document type: bill, statement, etc.)
+    NFC_E, // NFC-e receipt scan
+    RECEIPT_OCR, // Receipt photo OCR
 }
 
 /**

@@ -9,7 +9,6 @@ import java.nio.charset.Charset
 
 @DisplayName("ImportSourceDetector")
 class ImportSourceDetectorTest {
-
     private val nubankCardHeader = "date,transaction_type,title,amount,category,charges,Identificador"
     private val nubankAccountHeader = "Data,Valor,Identificador,Descrição"
     private val itauHeader = "Data lançamento;Histórico;Documento;Valor;Saldo"
@@ -19,7 +18,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — OFX")
     inner class DetectOfxTests {
-
         @Test
         fun `returns OFX when first bytes contain OFXHEADER marker`() {
             val bytes = "OFXHEADER:100\nDATA:OFXSGML\n".toByteArray(Charsets.UTF_8)
@@ -70,7 +68,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — CSV Nubank")
     inner class DetectCsvNubankTests {
-
         @Test
         fun `returns CSV_NUBANK when first line is Nubank header`() {
             val content = "$nubankCardHeader\n2024-01-15,debit,Store,-50.00,Category,,id-1"
@@ -145,7 +142,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — CSV Itaú")
     inner class DetectCsvItauTests {
-
         @Test
         fun `returns CSV_ITAU when first line matches common Itau header`() {
             val content = "$itauHeader\n01/12/2025;PIX RECEBIDO;123;100,00;100,00"
@@ -160,7 +156,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — CSV Bradesco")
     inner class DetectCsvBradescoTests {
-
         @Test
         fun `returns CSV_BRADESCO when first line matches common Bradesco header`() {
             val content = "$bradescoHeader\n01/11/2025;PIX RECEBIDO;998877;100,00;0,00;100,00"
@@ -175,7 +170,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — CSV Santander")
     inner class DetectCsvSantanderTests {
-
         @Test
         fun `returns CSV_SANTANDER when first line matches common Santander header`() {
             val content = "$santanderHeader\n01/11/2025;10:34;PIX RECEBIDO;100,00;100,00"
@@ -190,14 +184,14 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — unsupported")
     inner class DetectUnsupportedTests {
-
         @Test
         fun `throws UnsupportedImportSourceException when content is unrecognized`() {
             val bytes = "random,csv,columns\nrow1,row2".toByteArray(Charsets.UTF_8)
 
-            val ex = assertThrows<UnsupportedImportSourceException> {
-                ImportSourceDetector.detect(bytes, "unknown.csv")
-            }
+            val ex =
+                assertThrows<UnsupportedImportSourceException> {
+                    ImportSourceDetector.detect(bytes, "unknown.csv")
+                }
 
             assertThat(ex.message).contains("Cannot determine import source")
             assertThat(ex.message).contains("unknown.csv")
@@ -207,9 +201,10 @@ class ImportSourceDetectorTest {
         fun `throws UnsupportedImportSourceException when file is empty`() {
             val bytes = ByteArray(0)
 
-            val ex = assertThrows<UnsupportedImportSourceException> {
-                ImportSourceDetector.detect(bytes, "empty.txt")
-            }
+            val ex =
+                assertThrows<UnsupportedImportSourceException> {
+                    ImportSourceDetector.detect(bytes, "empty.txt")
+                }
 
             assertThat(ex.message).contains("empty.txt")
         }
@@ -218,9 +213,10 @@ class ImportSourceDetectorTest {
         fun `throws UnsupportedImportSourceException when fileName is null and content unrecognized`() {
             val bytes = "not,ofx,nor,nubank".toByteArray(Charsets.UTF_8)
 
-            val ex = assertThrows<UnsupportedImportSourceException> {
-                ImportSourceDetector.detect(bytes, null)
-            }
+            val ex =
+                assertThrows<UnsupportedImportSourceException> {
+                    ImportSourceDetector.detect(bytes, null)
+                }
 
             assertThat(ex.message).contains("Cannot determine import source")
             assertThat(ex.message).contains("null")
@@ -230,7 +226,6 @@ class ImportSourceDetectorTest {
     @Nested
     @DisplayName("detect — order of checks")
     inner class DetectOrderTests {
-
         @Test
         fun `OFX takes precedence when OFX marker in first 256 bytes even if first line looks like CSV`() {
             val content = "OFXHEADER:100\n$nubankCardHeader\n"

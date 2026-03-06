@@ -22,7 +22,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("TransactionRepository IT")
 class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var transactionRepository: TransactionRepository
 
@@ -51,23 +50,23 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("save")
     inner class SaveTests {
-
         @Test
         fun `row exists in DB id is populated created_at and updated_at set`() {
-            val tx = Transaction(
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                status = TransactionStatus.POSTED,
-                source = TransactionSource.MANUAL,
-                amount = BigDecimal("100.00"),
-                date = today,
-                description = "Save test",
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            )
+            val tx =
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    status = TransactionStatus.POSTED,
+                    source = TransactionSource.MANUAL,
+                    amount = BigDecimal("100.00"),
+                    date = today,
+                    description = "Save test",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             val saved = transactionRepository.save(tx)
             assertThat(saved.id).isNotNull
             assertThat(saved.createdAt).isNotNull
@@ -80,21 +79,21 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findByFinancialAccount")
     inner class FindByFinancialAccountTests {
-
         @Test
         fun `returns rows ordered by date DESC created_at DESC and excludes soft-deleted`() {
-            val base = Transaction(
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                amount = BigDecimal("10.00"),
-                date = today,
-                description = "X",
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            )
+            val base =
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "X",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             val t1 = transactionRepository.save(base.copy(description = "First", date = today.minusDays(1)))
             val t2 = transactionRepository.save(base.copy(description = "Second", date = today))
             val t3 = transactionRepository.save(base.copy(description = "Third", date = today.minusDays(2)))
@@ -110,23 +109,23 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findById")
     inner class FindByIdTests {
-
         @Test
         fun `returns null when accountId does not match tenant isolation`() {
-            val tx = transactionRepository.save(
-                Transaction(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
-                    amount = BigDecimal("1.00"),
-                    date = today,
-                    description = "X",
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now(),
-                ),
-            )
+            val tx =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        amount = BigDecimal("1.00"),
+                        date = today,
+                        description = "X",
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
             val otherAccountId = UUID.randomUUID()
             val found = transactionRepository.findById(tx.id!!, otherAccountId)
             assertThat(found).isNull()
@@ -136,23 +135,23 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("softDelete")
     inner class SoftDeleteTests {
-
         @Test
         fun `sets deleted_at subsequent findById returns null returns false when id not found`() {
-            val tx = transactionRepository.save(
-                Transaction(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
-                    amount = BigDecimal("1.00"),
-                    date = today,
-                    description = "To delete",
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now(),
-                ),
-            )
+            val tx =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        amount = BigDecimal("1.00"),
+                        date = today,
+                        description = "To delete",
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
             val result = transactionRepository.softDelete(tx.id!!, accountId)
             assertThat(result).isTrue
             assertThat(transactionRepository.findById(tx.id!!, accountId)).isNull()
@@ -164,34 +163,35 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("update")
     inner class UpdateTests {
-
         @Test
         fun `persists changed fields source and financial_account_id remain unchanged`() {
-            val tx = transactionRepository.save(
-                Transaction(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
-                    status = TransactionStatus.POSTED,
-                    source = TransactionSource.MANUAL,
-                    amount = BigDecimal("50.00"),
-                    date = today,
-                    description = "Original",
-                    notes = "Notes",
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now(),
-                ),
-            )
-            val updated = transactionRepository.update(
-                tx.copy(
-                    description = "Updated",
-                    amount = BigDecimal("75.00"),
-                    notes = "New notes",
-                    updatedAt = Instant.now(),
-                ),
-            )
+            val tx =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        status = TransactionStatus.POSTED,
+                        source = TransactionSource.MANUAL,
+                        amount = BigDecimal("50.00"),
+                        date = today,
+                        description = "Original",
+                        notes = "Notes",
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            val updated =
+                transactionRepository.update(
+                    tx.copy(
+                        description = "Updated",
+                        amount = BigDecimal("75.00"),
+                        notes = "New notes",
+                        updatedAt = Instant.now(),
+                    ),
+                )
             assertThat(updated.description).isEqualTo("Updated")
             assertThat(updated.amount).isEqualByComparingTo("75.00")
             assertThat(updated.notes).isEqualTo("New notes")
@@ -203,39 +203,40 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("uq_transactions_provider")
     inner class UniqueConstraintTests {
-
         @Test
         fun `inserting same financial_account_id and provider_transaction_id twice throws`() {
             val providerId = "ofb-${UUID.randomUUID()}"
-            val tx1 = transactionRepository.save(
+            val tx1 =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        amount = BigDecimal("10.00"),
+                        date = today,
+                        description = "OFB",
+                        providerTransactionId = providerId,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            assertThat(tx1.id).isNotNull
+            val tx2 =
                 Transaction(
                     financialAccountId = financialAccountId,
                     accountId = accountId,
                     createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.OTHER_INCOME,
                     amount = BigDecimal("10.00"),
                     date = today,
-                    description = "OFB",
+                    description = "OFB duplicate",
                     providerTransactionId = providerId,
                     createdAt = Instant.now(),
                     updatedAt = Instant.now(),
-                ),
-            )
-            assertThat(tx1.id).isNotNull
-            val tx2 = Transaction(
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.CREDIT,
-                type = TransactionType.OTHER_INCOME,
-                amount = BigDecimal("10.00"),
-                date = today,
-                description = "OFB duplicate",
-                providerTransactionId = providerId,
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            )
+                )
             org.junit.jupiter.api.assertThrows<Exception> {
                 transactionRepository.save(tx2)
             }
@@ -245,7 +246,6 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("listBelongsToOptions")
     inner class ListBelongsToOptionsTests {
-
         @Test
         fun `returns distinct user ids and names from account transactions`() {
             transactionRepository.save(
@@ -307,7 +307,6 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("listTags")
     inner class ListTagsTests {
-
         @Test
         fun `returns distinct tags used by account transactions`() {
             transactionRepository.save(
@@ -348,21 +347,22 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
 
         @Test
         fun `persists and loads tags on transaction save and find`() {
-            val saved = transactionRepository.save(
-                Transaction(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = userId,
-                    creditDebitType = CreditDebitType.DEBIT,
-                    type = TransactionType.OTHER_EXPENSE,
-                    amount = BigDecimal("15.00"),
-                    date = today,
-                    description = "Tagged",
-                    tags = listOf("A", "B"),
-                    createdAt = Instant.now(),
-                    updatedAt = Instant.now(),
-                ),
-            )
+            val saved =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        amount = BigDecimal("15.00"),
+                        date = today,
+                        description = "Tagged",
+                        tags = listOf("A", "B"),
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
 
             val loaded = transactionRepository.findById(saved.id!!, accountId)
 

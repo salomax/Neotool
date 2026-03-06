@@ -23,10 +23,13 @@ open class FinancialAccountService(
     private val issuerRepository: IssuerRepository,
     private val transactionService: TransactionService,
 ) {
-    fun listByAccount(accountId: UUID): List<FinancialAccount> =
-        financialAccountRepository.findByAccountId(accountId)
+    fun listByAccount(accountId: UUID): List<FinancialAccount> = financialAccountRepository.findByAccountId(accountId)
 
-    fun create(command: CreateFinancialAccountCommand, accountId: UUID, userId: UUID): FinancialAccount {
+    fun create(
+        command: CreateFinancialAccountCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): FinancialAccount {
         // TODO(billing): enforce plan-based quota before creation.
         //   Gate: plan_allows("banking:account:create") AND quota("financial_accounts.max") not exceeded.
         //   Planned limits — FREE: 5, BASIC: 20, PRO: 100.
@@ -44,33 +47,37 @@ open class FinancialAccountService(
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
 
-        val effectiveName = command.name?.takeIf { it.isNotBlank() }
-            ?: issuer?.name
-            ?: command.issuerName
-            ?: throw IllegalArgumentException("Account name could not be resolved; provide name or a valid issuerId")
+        val effectiveName =
+            command.name?.takeIf { it.isNotBlank() }
+                ?: issuer?.name
+                ?: command.issuerName
+                ?: throw IllegalArgumentException(
+                    "Account name could not be resolved; provide name or a valid issuerId",
+                )
 
         val now = Instant.now()
-        val account = FinancialAccount(
-            accountId = accountId,
-            createdByUserId = userId,
-            type = command.type,
-            subtype = command.subtype,
-            name = effectiveName,
-            currencyCode = command.currencyCode?.takeIf { it.isNotBlank() } ?: "BRL",
-            includeInNetWorth = command.includeInNetWorth ?: true,
-            includeInDashboard = command.includeInDashboard ?: true,
-            issuerId = command.issuerId,
-            themeColor = command.themeColor,
-            issuerName = issuer?.name ?: command.issuerName,
-            issuerCountry = issuer?.countryCode,
-            issuerCompeCode = issuer?.compeCode,
-            issuerIspb = issuer?.ispb,
-            cardLastFourDigits = extractLastFourDigits(command.cardData?.maskedNumber),
-            bankData = command.bankData,
-            cardData = command.cardData,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val account =
+            FinancialAccount(
+                accountId = accountId,
+                createdByUserId = userId,
+                type = command.type,
+                subtype = command.subtype,
+                name = effectiveName,
+                currencyCode = command.currencyCode?.takeIf { it.isNotBlank() } ?: "BRL",
+                includeInNetWorth = command.includeInNetWorth ?: true,
+                includeInDashboard = command.includeInDashboard ?: true,
+                issuerId = command.issuerId,
+                themeColor = command.themeColor,
+                issuerName = issuer?.name ?: command.issuerName,
+                issuerCountry = issuer?.countryCode,
+                issuerCompeCode = issuer?.compeCode,
+                issuerIspb = issuer?.ispb,
+                cardLastFourDigits = extractLastFourDigits(command.cardData?.maskedNumber),
+                bankData = command.bankData,
+                cardData = command.cardData,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         val saved = financialAccountRepository.save(account)
 
@@ -81,7 +88,12 @@ open class FinancialAccountService(
             transactionService.create(
                 CreateTransactionCommand(
                     financialAccountId = saved.id!!,
-                    creditDebitType = if (command.initialBalance > BigDecimal.ZERO) CreditDebitType.CREDIT else CreditDebitType.DEBIT,
+                    creditDebitType =
+                        if (command.initialBalance > BigDecimal.ZERO) {
+                            CreditDebitType.CREDIT
+                        } else {
+                            CreditDebitType.DEBIT
+                        },
                     type = TransactionType.BALANCE_ADJUSTMENT,
                     amount = command.initialBalance.abs(),
                     date = command.initialBalanceDate,

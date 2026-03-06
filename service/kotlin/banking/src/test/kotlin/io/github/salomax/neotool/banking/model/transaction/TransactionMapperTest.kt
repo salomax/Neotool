@@ -15,7 +15,6 @@ import java.util.UUID
 
 @DisplayName("TransactionMapper")
 class TransactionMapperTest {
-
     private val accountId = UUID.randomUUID()
     private val financialAccountId = UUID.randomUUID()
     private val createdByUserId = UUID.randomUUID()
@@ -24,42 +23,43 @@ class TransactionMapperTest {
 
     @Test
     fun `toDomain maps all fields correctly including Short to Int for installments`() {
-        val entity = TransactionEntity(
-            id = UUID.randomUUID(),
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = createdByUserId,
-            creditDebitType = CreditDebitType.DEBIT,
-            type = TransactionType.OTHER_EXPENSE,
-            status = TransactionStatus.POSTED,
-            source = TransactionSource.MANUAL,
-            amount = BigDecimal("100.50"),
-            currencyCode = "BRL",
-            amountBrl = null,
-            date = today,
-            transactionDatetime = now,
-            description = "Coffee",
-            descriptionRaw = "CAFE PAGO",
-            notes = "Note",
-            categoryId = UUID.randomUUID(),
-            counterpartyName = "Store",
-            counterpartyDocument = "123",
-            counterpartyBankCode = "001",
-            counterpartyAccountNumber = "12345",
-            paymentReason = null,
-            transferPeerTransactionId = null,
-            billId = null,
-            installmentNumber = 2.toShort(),
-            totalInstallments = 3.toShort(),
-            payeeMcc = 5411,
-            cardIdentifier = "****1234",
-            billPostDate = null,
-            providerTransactionId = "ofb-1",
-            providerAccountId = "acc-1",
-            deletedAt = null,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val entity =
+            TransactionEntity(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = createdByUserId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("100.50"),
+                currencyCode = "BRL",
+                amountBrl = null,
+                date = today,
+                transactionDatetime = now,
+                description = "Coffee",
+                descriptionRaw = "CAFE PAGO",
+                notes = "Note",
+                categoryId = UUID.randomUUID(),
+                counterpartyName = "Store",
+                counterpartyDocument = "123",
+                counterpartyBankCode = "001",
+                counterpartyAccountNumber = "12345",
+                paymentReason = null,
+                transferPeerTransactionId = null,
+                billId = null,
+                installmentNumber = 2.toShort(),
+                totalInstallments = 3.toShort(),
+                payeeMcc = 5411,
+                cardIdentifier = "****1234",
+                billPostDate = null,
+                providerTransactionId = "ofb-1",
+                providerAccountId = "acc-1",
+                deletedAt = null,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         val domain = TransactionMapper.toDomain(entity)
 
@@ -92,26 +92,27 @@ class TransactionMapperTest {
 
     @Test
     fun `toEntity sets id to null and converts Int to Short for installments`() {
-        val domain = Transaction(
-            id = UUID.randomUUID(),
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = createdByUserId,
-            creditDebitType = CreditDebitType.CREDIT,
-            type = TransactionType.OTHER_INCOME,
-            status = TransactionStatus.POSTED,
-            source = TransactionSource.MANUAL,
-            amount = BigDecimal("50.00"),
-            currencyCode = "BRL",
-            date = today,
-            description = "Refund",
-            notes = null,
-            categoryId = null,
-            installmentNumber = 1,
-            totalInstallments = 12,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val domain =
+            Transaction(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = createdByUserId,
+                creditDebitType = CreditDebitType.CREDIT,
+                type = TransactionType.OTHER_INCOME,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("50.00"),
+                currencyCode = "BRL",
+                date = today,
+                description = "Refund",
+                notes = null,
+                categoryId = null,
+                installmentNumber = 1,
+                totalInstallments = 12,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         val entity = TransactionMapper.toEntity(domain)
 
@@ -132,57 +133,59 @@ class TransactionMapperTest {
     }
 
     @Test
-    fun `updateEntity updates only mutable fields and does not touch source financialAccountId accountId createdByUserId`() {
+    fun `updateEntity updates only mutable fields not source financialAccountId accountId createdByUserId`() {
         val originalSource = TransactionSource.OPEN_FINANCE
         val originalFinancialAccountId = UUID.randomUUID()
         val originalAccountId = UUID.randomUUID()
         val originalCreatedByUserId = UUID.randomUUID()
 
-        val entity = TransactionEntity(
-            id = UUID.randomUUID(),
-            financialAccountId = originalFinancialAccountId,
-            accountId = originalAccountId,
-            createdByUserId = originalCreatedByUserId,
-            creditDebitType = CreditDebitType.DEBIT,
-            type = TransactionType.OTHER_EXPENSE,
-            status = TransactionStatus.POSTED,
-            source = originalSource,
-            amount = BigDecimal("10.00"),
-            currencyCode = "BRL",
-            date = today,
-            description = "Old",
-            notes = "Old notes",
-            categoryId = null,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val entity =
+            TransactionEntity(
+                id = UUID.randomUUID(),
+                financialAccountId = originalFinancialAccountId,
+                accountId = originalAccountId,
+                createdByUserId = originalCreatedByUserId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = originalSource,
+                amount = BigDecimal("10.00"),
+                currencyCode = "BRL",
+                date = today,
+                description = "Old",
+                notes = "Old notes",
+                categoryId = null,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         val otherFinancialAccountId = UUID.randomUUID()
         val otherAccountId = UUID.randomUUID()
         val otherUserId = UUID.randomUUID()
         val updatedNow = now.plusSeconds(60)
 
-        val domain = Transaction(
-            id = entity.id,
-            financialAccountId = otherFinancialAccountId,
-            accountId = otherAccountId,
-            createdByUserId = otherUserId,
-            creditDebitType = CreditDebitType.CREDIT,
-            type = TransactionType.OTHER_INCOME,
-            status = TransactionStatus.PENDING,
-            source = TransactionSource.MANUAL,
-            amount = BigDecimal("99.99"),
-            currencyCode = "USD",
-            amountBrl = BigDecimal("500.00"),
-            date = today.plusDays(1),
-            transactionDatetime = updatedNow,
-            description = "New",
-            notes = "New notes",
-            categoryId = UUID.randomUUID(),
-            counterpartyName = "Other",
-            createdAt = now,
-            updatedAt = updatedNow,
-        )
+        val domain =
+            Transaction(
+                id = entity.id,
+                financialAccountId = otherFinancialAccountId,
+                accountId = otherAccountId,
+                createdByUserId = otherUserId,
+                creditDebitType = CreditDebitType.CREDIT,
+                type = TransactionType.OTHER_INCOME,
+                status = TransactionStatus.PENDING,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("99.99"),
+                currencyCode = "USD",
+                amountBrl = BigDecimal("500.00"),
+                date = today.plusDays(1),
+                transactionDatetime = updatedNow,
+                description = "New",
+                notes = "New notes",
+                categoryId = UUID.randomUUID(),
+                counterpartyName = "Other",
+                createdAt = now,
+                updatedAt = updatedNow,
+            )
 
         TransactionMapper.updateEntity(entity, domain)
 

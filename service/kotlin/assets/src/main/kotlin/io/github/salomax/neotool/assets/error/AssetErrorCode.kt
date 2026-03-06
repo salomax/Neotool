@@ -61,4 +61,14 @@ enum class AssetErrorCode(
         defaultMessage = "Idempotency key conflict for asset upload",
         httpStatus = 409,
     ),
+    ASSET_INVALID_ID(
+        code = "ASSET_INVALID_ID",
+        defaultMessage = "Invalid asset identifier",
+        httpStatus = 400,
+    ),
+    ASSET_INPUT_REQUIRED(
+        code = "ASSET_INPUT_REQUIRED",
+        defaultMessage = "Required input is missing",
+        httpStatus = 400,
+    ),
 }

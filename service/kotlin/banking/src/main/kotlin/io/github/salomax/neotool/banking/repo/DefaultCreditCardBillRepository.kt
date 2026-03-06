@@ -6,6 +6,8 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillReposi
 import io.github.salomax.neotool.banking.model.transaction.CreditCardBillMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -16,17 +18,26 @@ import java.util.UUID
 @Singleton
 open class DefaultCreditCardBillRepository(
     private val entityRepository: CreditCardBillEntityRepository,
+    @PersistenceContext private val entityManager: EntityManager,
 ) : CreditCardBillRepository {
-
-    override fun findById(id: UUID, accountId: UUID): CreditCardBill? =
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): CreditCardBill? =
         entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
             ?.let(CreditCardBillMapper::toDomain)
 
-    override fun findByClosingDate(financialAccountId: UUID, closingDate: LocalDate): CreditCardBill? =
+    override fun findByClosingDate(
+        financialAccountId: UUID,
+        closingDate: LocalDate,
+    ): CreditCardBill? =
         entityRepository.findByFinancialAccountIdAndClosingDateAndDeletedAtIsNull(financialAccountId, closingDate)
             ?.let(CreditCardBillMapper::toDomain)
 
-    override fun listByAccount(financialAccountId: UUID, accountId: UUID): List<CreditCardBill> =
+    override fun listByAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<CreditCardBill> =
         entityRepository
             .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByClosingDateDesc(financialAccountId, accountId)
             .map(CreditCardBillMapper::toDomain)
@@ -47,30 +58,46 @@ open class DefaultCreditCardBillRepository(
     }
 
     @Transactional
-    override fun recomputeTotal(billId: UUID, accountId: UUID): CreditCardBill {
-        val entity = entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)
-            ?: throw NoSuchElementException("CreditCardBill $billId not found")
+    override fun recomputeTotal(
+        billId: UUID,
+        accountId: UUID,
+    ): CreditCardBill {
+        val entity =
+            entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)
+                ?: throw NoSuchElementException("CreditCardBill $billId not found")
         val newStatus = computeStatus(entity.closingDate, entity.dueDate, entity.status)
         entityRepository.updateTotalAndStatus(
             billId = billId,
             status = newStatus.name,
             updatedAt = Instant.now(),
         )
+        // Native UPDATE bypasses the persistence context; clear to avoid stale total/status reads.
+        entityManager.clear()
         return entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)!!
             .let(CreditCardBillMapper::toDomain)
     }
 
-    override fun setStatus(billId: UUID, status: BillStatus, accountId: UUID) {
+    override fun setStatus(
+        billId: UUID,
+        status: BillStatus,
+        accountId: UUID,
+    ) {
         entityRepository.updateStatus(billId, accountId, status.name, Instant.now())
+        // Keep subsequent reads in the same transaction consistent with DB state.
+        entityManager.clear()
     }
 
-    private fun computeStatus(closingDate: LocalDate, dueDate: LocalDate, current: BillStatus): BillStatus {
+    private fun computeStatus(
+        closingDate: LocalDate,
+        dueDate: LocalDate,
+        current: BillStatus,
+    ): BillStatus {
         if (current == BillStatus.PAID) return BillStatus.PAID
         val today = LocalDate.now()
         return when {
             closingDate >= today -> BillStatus.OPEN
-            dueDate < today     -> BillStatus.OVERDUE
-            else                -> BillStatus.CLOSED
+            dueDate < today -> BillStatus.OVERDUE
+            else -> BillStatus.CLOSED
         }
     }
 }

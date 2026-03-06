@@ -18,7 +18,9 @@ data class ImportParseOutcome(
 interface ImportParserStrategy {
     val id: String
     val priority: Int get() = 0
+
     fun supports(context: ImportParsingContext): Boolean
+
     fun parse(context: ImportParsingContext): ImportParseOutcome
 }
 

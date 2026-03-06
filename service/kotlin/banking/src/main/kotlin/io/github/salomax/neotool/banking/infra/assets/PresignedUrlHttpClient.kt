@@ -5,6 +5,11 @@ package io.github.salomax.neotool.banking.infra.assets
  * Allows mocking in unit tests.
  */
 interface PresignedUrlHttpClient {
-    fun put(url: String, bytes: ByteArray, contentType: String)
+    fun put(
+        url: String,
+        bytes: ByteArray,
+        contentType: String,
+    )
+
     fun get(url: String): ByteArray
 }

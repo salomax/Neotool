@@ -34,7 +34,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("PDF import workflow IT")
 class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var pdfImportService: PdfImportService
 
@@ -90,10 +89,11 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         statusConsumer.onBankingReaderDone(
             readerDoneEvent(
                 jobId = jobId,
-                llmOutput = llmOutput(
-                    warning = "Total mismatch for card 1234",
-                    totalMatchesDeclared = false,
-                ),
+                llmOutput =
+                    llmOutput(
+                        warning = "Total mismatch for card 1234",
+                        totalMatchesDeclared = false,
+                    ),
             ),
         )
         val awaiting = currentJob(jobId)
@@ -158,24 +158,29 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         assertThat(imported).hasSize(9)
     }
 
-    private fun createCardAccount(name: String, lastFour: String): UUID {
-        val saved = financialAccountRepository.save(
-            FinancialAccount(
-                accountId = accountId,
-                createdByUserId = userId,
-                type = FinancialAccountType.CREDIT,
-                subtype = FinancialAccountSubtype.CREDIT_CARD,
-                name = name,
-                cardLastFourDigits = lastFour,
-                cardData = CardData(
-                    maskedNumber = "**** $lastFour",
-                    closingDay = 7,
-                    dueDay = 15,
+    private fun createCardAccount(
+        name: String,
+        lastFour: String,
+    ): UUID {
+        val saved =
+            financialAccountRepository.save(
+                FinancialAccount(
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = name,
+                    cardLastFourDigits = lastFour,
+                    cardData =
+                        CardData(
+                            maskedNumber = "**** $lastFour",
+                            closingDay = 7,
+                            dueDay = 15,
+                        ),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
                 ),
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            ),
-        )
+            )
         return requireNotNull(saved.id)
     }
 
@@ -211,8 +216,7 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         return currentJob(jobId)
     }
 
-    private fun currentJob(jobId: UUID): PdfImportJob =
-        requireNotNull(pdfImportService.getJob(jobId, accountId))
+    private fun currentJob(jobId: UUID): PdfImportJob = requireNotNull(pdfImportService.getJob(jobId, accountId))
 
     private fun callbackContext(jobId: UUID): Map<String, Any> =
         mapOf(
@@ -239,7 +243,10 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
             "callback_context" to callbackContext(jobId),
         )
 
-    private fun readerDoneEvent(jobId: UUID, llmOutput: Map<String, Any?>): Map<String, Any?> =
+    private fun readerDoneEvent(
+        jobId: UUID,
+        llmOutput: Map<String, Any?>,
+    ): Map<String, Any?> =
         mapOf(
             "job_id" to jobId.toString(),
             "llm_output" to llmOutput,
@@ -252,34 +259,36 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
     ): Map<String, Any?> =
         mapOf(
             "bank_name" to "Nubank",
-            "statement_period" to mapOf(
-                "from" to "2026-01-08",
-                "to" to "2026-02-07",
-            ),
-            "cards" to listOf(
+            "statement_period" to
                 mapOf(
-                    "last_four_digits" to "1234",
-                    "holder_name" to "Main",
-                    "closing_date" to "2026-02-07",
-                    "due_date" to "2026-02-15",
-                    "declared_total" to 250.0,
-                    "computed_total" to 250.0,
-                    "total_matches_declared" to totalMatchesDeclared,
-                    "transactions" to emptyList<Map<String, Any?>>(),
-                    "confidence" to 0.98,
+                    "from" to "2026-01-08",
+                    "to" to "2026-02-07",
                 ),
-                mapOf(
-                    "last_four_digits" to "5678",
-                    "holder_name" to "Second",
-                    "closing_date" to "2026-02-07",
-                    "due_date" to "2026-02-15",
-                    "declared_total" to 250.0,
-                    "computed_total" to 250.0,
-                    "total_matches_declared" to totalMatchesDeclared,
-                    "transactions" to emptyList<Map<String, Any?>>(),
-                    "confidence" to 0.98,
+            "cards" to
+                listOf(
+                    mapOf(
+                        "last_four_digits" to "1234",
+                        "holder_name" to "Main",
+                        "closing_date" to "2026-02-07",
+                        "due_date" to "2026-02-15",
+                        "declared_total" to 250.0,
+                        "computed_total" to 250.0,
+                        "total_matches_declared" to totalMatchesDeclared,
+                        "transactions" to emptyList<Map<String, Any?>>(),
+                        "confidence" to 0.98,
+                    ),
+                    mapOf(
+                        "last_four_digits" to "5678",
+                        "holder_name" to "Second",
+                        "closing_date" to "2026-02-07",
+                        "due_date" to "2026-02-15",
+                        "declared_total" to 250.0,
+                        "computed_total" to 250.0,
+                        "total_matches_declared" to totalMatchesDeclared,
+                        "transactions" to emptyList<Map<String, Any?>>(),
+                        "confidence" to 0.98,
+                    ),
                 ),
-            ),
             "extraction_confidence" to 0.96,
             "needs_review" to false,
             "warnings" to listOfNotNull(warning),
@@ -289,38 +298,41 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         jobId: UUID,
         excluded: Pair<UUID, Int>?,
     ): ConfirmPdfBillImportCommand {
-        val cardATransactions = (1..5).map { idx ->
-            ConfirmPdfTransactionCommand(
-                date = LocalDate.of(2026, 1, 10 + idx),
-                description = "CARD_A_$idx",
-                amount = BigDecimal("10.0$idx"),
-                creditDebitType = CreditDebitType.DEBIT,
-                include = excluded != (cardAId to idx),
-            )
-        }
-        val cardBTransactions = (1..5).map { idx ->
-            ConfirmPdfTransactionCommand(
-                date = LocalDate.of(2026, 1, 20 + idx),
-                description = "CARD_B_$idx",
-                amount = BigDecimal("20.0$idx"),
-                creditDebitType = CreditDebitType.DEBIT,
-                include = excluded != (cardBId to idx),
-            )
-        }
+        val cardATransactions =
+            (1..5).map { idx ->
+                ConfirmPdfTransactionCommand(
+                    date = LocalDate.of(2026, 1, 10 + idx),
+                    description = "CARD_A_$idx",
+                    amount = BigDecimal("10.0$idx"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = excluded != (cardAId to idx),
+                )
+            }
+        val cardBTransactions =
+            (1..5).map { idx ->
+                ConfirmPdfTransactionCommand(
+                    date = LocalDate.of(2026, 1, 20 + idx),
+                    description = "CARD_B_$idx",
+                    amount = BigDecimal("20.0$idx"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = excluded != (cardBId to idx),
+                )
+            }
         return ConfirmPdfBillImportCommand(
             jobId = jobId,
-            cards = listOf(
-                ConfirmPdfCardCommand(
-                    lastFourDigits = "1234",
-                    financialAccountId = cardAId,
-                    transactions = cardATransactions,
+            cards =
+                listOf(
+                    ConfirmPdfCardCommand(
+                        lastFourDigits = "1234",
+                        financialAccountId = cardAId,
+                        transactions = cardATransactions,
+                    ),
+                    ConfirmPdfCardCommand(
+                        lastFourDigits = "5678",
+                        financialAccountId = cardBId,
+                        transactions = cardBTransactions,
+                    ),
                 ),
-                ConfirmPdfCardCommand(
-                    lastFourDigits = "5678",
-                    financialAccountId = cardBId,
-                    transactions = cardBTransactions,
-                ),
-            ),
         )
     }
 }

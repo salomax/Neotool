@@ -3,7 +3,6 @@ package io.github.salomax.neotool.banking.graphql
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
-import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
@@ -27,7 +26,6 @@ import java.util.UUID
 
 @DisplayName("BankingWiringFactory permissions")
 class BankingWiringFactoryTest {
-
     private lateinit var issuerResolver: IssuerResolver
     private lateinit var financialAccountResolver: FinancialAccountResolver
     private lateinit var transactionResolver: TransactionResolver
@@ -87,7 +85,6 @@ class BankingWiringFactoryTest {
     @Nested
     @DisplayName("Query permissions")
     inner class QueryPermissionsTests {
-
         @Test
         fun `issuers requires banking_issuer_view permission`() {
             val wiring = wiringFactory.build()
@@ -116,18 +113,18 @@ class BankingWiringFactoryTest {
     @Nested
     @DisplayName("Mutation permissions")
     inner class MutationPermissionsTests {
-
         @Test
         fun `createFinancialAccount requires banking_account_create permission`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["createFinancialAccount"]!!
 
-            val env = envWithToken(
-                arguments =
-                    mapOf(
-                        "input" to emptyMap<String, Any?>(),
-                    ),
-            )
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "input" to emptyMap<String, Any?>(),
+                        ),
+                )
 
             dataFetcher.get(env)
 
@@ -139,9 +136,10 @@ class BankingWiringFactoryTest {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["submitPdfBillImport"]!!
 
-            val env = envWithToken(
-                arguments = mapOf("input" to emptyMap<String, Any?>()),
-            )
+            val env =
+                envWithToken(
+                    arguments = mapOf("input" to emptyMap<String, Any?>()),
+                )
 
             dataFetcher.get(env)
 
@@ -153,9 +151,10 @@ class BankingWiringFactoryTest {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["confirmPdfBillImport"]!!
 
-            val env = envWithToken(
-                arguments = mapOf("input" to emptyMap<String, Any?>()),
-            )
+            val env =
+                envWithToken(
+                    arguments = mapOf("input" to emptyMap<String, Any?>()),
+                )
 
             dataFetcher.get(env)
 

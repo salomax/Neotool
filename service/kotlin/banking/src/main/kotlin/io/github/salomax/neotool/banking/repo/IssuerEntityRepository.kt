@@ -11,6 +11,8 @@ import java.util.UUID
 @Repository
 interface IssuerEntityRepository : JpaRepository<IssuerEntity, UUID> {
     fun findByIsActiveTrue(): List<IssuerEntity>
+
     fun findByLogoKeyIsNullAndDomainIsNotNull(): List<IssuerEntity>
+
     fun findByIdIn(ids: Collection<UUID>): List<IssuerEntity>
 }

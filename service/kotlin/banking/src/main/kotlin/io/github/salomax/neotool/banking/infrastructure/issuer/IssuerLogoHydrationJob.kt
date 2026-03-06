@@ -51,11 +51,12 @@ open class IssuerLogoHydrationJob(
         pending.forEach { issuer ->
             runCatching {
                 val bytes = logoDevClient.fetch(issuer.domain!!)
-                val key = assetUploadPort.upload(
-                    key = "issuers/${issuer.id}.png",
-                    bytes = bytes,
-                    contentType = "image/png",
-                )
+                val key =
+                    assetUploadPort.upload(
+                        key = "issuers/${issuer.id}.png",
+                        bytes = bytes,
+                        contentType = "image/png",
+                    )
                 issuerRepository.updateLogoKey(issuer.id!!, key)
                 success++
                 Thread.sleep(200) // respect logo.dev rate limit (~5 req/s on free tier)

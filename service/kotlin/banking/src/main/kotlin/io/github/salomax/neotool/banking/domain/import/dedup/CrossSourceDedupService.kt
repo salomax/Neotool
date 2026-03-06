@@ -18,7 +18,6 @@ import java.util.UUID
 open class CrossSourceDedupService(
     private val transactionEntityRepository: TransactionEntityRepository,
 ) {
-
     /**
      * Returns existing transactions that match the parsed row on date and amount
      * for the same financial account but with a different source.

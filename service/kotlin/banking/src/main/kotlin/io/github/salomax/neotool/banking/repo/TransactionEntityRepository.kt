@@ -15,20 +15,17 @@ import java.util.UUID
  */
 @Repository
 interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
-
     fun findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
         financialAccountId: UUID,
         accountId: UUID,
     ): List<TransactionEntity>
 
-        fun findByBillIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
-            billId: UUID,
-            accountId: UUID,
-        ): List<TransactionEntity>
-
-    fun findByAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
+    fun findByBillIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
+        billId: UUID,
         accountId: UUID,
     ): List<TransactionEntity>
+
+    fun findByAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(accountId: UUID): List<TransactionEntity>
 
     @Query(
         """
@@ -56,7 +53,10 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
     )
     fun findDistinctBelongsToNames(accountId: UUID): List<String>
 
-    fun findByIdAndAccountIdAndDeletedAtIsNull(id: UUID, accountId: UUID): TransactionEntity?
+    fun findByIdAndAccountIdAndDeletedAtIsNull(
+        id: UUID,
+        accountId: UUID,
+    ): TransactionEntity?
 
     fun existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
         financialAccountId: UUID,
@@ -98,7 +98,11 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         """,
         nativeQuery = true,
     )
-    fun softDelete(id: UUID, accountId: UUID, deletedAt: Instant): Int
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+        deletedAt: Instant,
+    ): Int
 
     @Query(
         """

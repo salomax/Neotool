@@ -8,7 +8,6 @@ import java.util.UUID
  * Implementation delegates to the assets service.
  */
 interface ImportFileStoragePort {
-
     /**
      * Stores the file and returns an [assetId] that can be used to retrieve it later.
      *
@@ -18,7 +17,12 @@ interface ImportFileStoragePort {
      * @param mimeType file MIME type
      * @return assetId (UUID) — store in ImportJob for the consumer to use
      */
-    fun store(accountId: UUID, bytes: ByteArray, fileName: String, mimeType: String): UUID
+    fun store(
+        accountId: UUID,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): UUID
 
     /**
      * Retrieves the file bytes using a presigned download URL from the assets service.

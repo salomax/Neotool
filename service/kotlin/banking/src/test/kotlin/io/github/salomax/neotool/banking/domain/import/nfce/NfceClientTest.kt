@@ -15,7 +15,6 @@ import java.math.BigDecimal
 
 @DisplayName("NfceClient")
 class NfceClientTest {
-
     private lateinit var httpFetcher: NfceHttpFetcher
     private lateinit var client: DefaultNfceClient
 
@@ -35,7 +34,7 @@ class NfceClientTest {
             <emit><CNPJ>$cnpj</CNPJ><xNome>Store</xNome><enderEmit><xMun>São Paulo</xMun><UF>SP</UF></enderEmit></emit>
           </infNFe>
         </nfe>
-    """.trimIndent()
+        """.trimIndent()
 
     @BeforeEach
     fun setUp() {
@@ -46,7 +45,6 @@ class NfceClientTest {
     @Nested
     @DisplayName("fetch — success")
     inner class FetchSuccessTests {
-
         @Test
         fun `returns NfceData when HTTP 200 and valid XML`() {
             whenever(httpFetcher.fetch(eq(qrCodeUrl)))
@@ -67,7 +65,8 @@ class NfceClientTest {
 
         @Test
         fun `uses chNFe from URL when 44 digits present in URL`() {
-            val xmlWithoutChNFe = """
+            val xmlWithoutChNFe =
+                """
                 <nfe>
                   <infNFe>
                     <ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>
@@ -75,7 +74,7 @@ class NfceClientTest {
                     <emit><CNPJ>11111111000111</CNPJ></emit>
                   </infNFe>
                 </nfe>
-            """.trimIndent()
+                """.trimIndent()
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xmlWithoutChNFe))
 
             val result = client.fetch(qrCodeUrl)
@@ -85,7 +84,8 @@ class NfceClientTest {
 
         @Test
         fun `parses items from det prod nodes`() {
-            val xmlWithItems = """
+            val xmlWithItems =
+                """
                 <nfe>
                   <infNFe>
                     <chNFe>12345678901234567890123456789012345678901234</chNFe>
@@ -96,7 +96,7 @@ class NfceClientTest {
                     <det><prod><xProd>Item B</xProd><vProd>10.00</vProd><qCom>2</qCom></prod></det>
                   </infNFe>
                 </nfe>
-            """.trimIndent()
+                """.trimIndent()
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xmlWithItems))
 
             val result = client.fetch(qrCodeUrl)
@@ -115,11 +115,19 @@ class NfceClientTest {
 
         @Test
         fun `accepts cStat 100 and 150`() {
-            val xml100 = "<nfe><infNFe><cStat>100</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe><ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide><total><ICMSTot><vNF>1</vNF></ICMSTot></total><emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
+            val xml100 =
+                "<nfe><infNFe><cStat>100</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe>" +
+                    "<ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>" +
+                    "<total><ICMSTot><vNF>1</vNF></ICMSTot></total>" +
+                    "<emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xml100))
             assertThat(client.fetch(qrCodeUrl).chNFe).isNotNull()
 
-            val xml150 = "<nfe><infNFe><cStat>150</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe><ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide><total><ICMSTot><vNF>1</vNF></ICMSTot></total><emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
+            val xml150 =
+                "<nfe><infNFe><cStat>150</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe>" +
+                    "<ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>" +
+                    "<total><ICMSTot><vNF>1</vNF></ICMSTot></total>" +
+                    "<emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xml150))
             assertThat(client.fetch(qrCodeUrl).chNFe).isNotNull()
         }
@@ -128,7 +136,6 @@ class NfceClientTest {
     @Nested
     @DisplayName("fetch — HTTP errors")
     inner class FetchHttpErrorTests {
-
         @Test
         fun `throws NfceUnavailableException when status is not 200`() {
             whenever(httpFetcher.fetch(eq(qrCodeUrl))).thenReturn(NfceHttpResponse(404, "Not Found"))
@@ -152,7 +159,6 @@ class NfceClientTest {
     @Nested
     @DisplayName("fetch — invalid content")
     inner class FetchInvalidContentTests {
-
         @Test
         fun `throws NfceInvalidException when response body is empty`() {
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, ""))
@@ -182,7 +188,11 @@ class NfceClientTest {
 
         @Test
         fun `throws NfceInvalidException when cStat is not 100 or 150`() {
-            val xmlCancelled = "<nfe><infNFe><cStat>101</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe><ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide><total><ICMSTot><vNF>1</vNF></ICMSTot></total><emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
+            val xmlCancelled =
+                "<nfe><infNFe><cStat>101</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe>" +
+                    "<ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>" +
+                    "<total><ICMSTot><vNF>1</vNF></ICMSTot></total>" +
+                    "<emit><CNPJ>12345678000199</CNPJ></emit></infNFe></nfe>"
             whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xmlCancelled))
 
             val ex = assertThrows<NfceInvalidException> { client.fetch(qrCodeUrl) }

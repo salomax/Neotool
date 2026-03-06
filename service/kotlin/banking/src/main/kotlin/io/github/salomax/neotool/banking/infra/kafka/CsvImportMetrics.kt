@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
-import io.micronaut.core.annotation.Nullable
 import io.micrometer.core.instrument.MeterRegistry
+import io.micronaut.core.annotation.Nullable
 import jakarta.inject.Singleton
 
 /**

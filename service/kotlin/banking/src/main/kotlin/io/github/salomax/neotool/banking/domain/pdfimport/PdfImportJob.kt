@@ -26,4 +26,3 @@ data class PdfImportJob(
     val createdAt: Instant,
     val updatedAt: Instant,
 )
-

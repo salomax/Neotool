@@ -14,7 +14,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("TransactionCategoryRepository IT")
 class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var categoryRepository: TransactionCategoryRepository
 
@@ -25,11 +24,9 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
         accountId = UUID.randomUUID()
     }
 
-
     @Nested
     @DisplayName("findAll")
     inner class FindAllTests {
-
         @Test
         fun `returns all system categories and user-defined for account excludes soft-deleted`() {
             val all = categoryRepository.findAll(accountId)
@@ -62,12 +59,16 @@ class TransactionCategoryRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findById")
     inner class FindByIdTests {
-
         @Test
         fun `returns null for soft-deleted category`() {
             val container = getPgContainer()
             val catId = UUID.randomUUID()
-            DriverManager.getConnection(buildJdbcUrlWithSslDisabled(container.jdbcUrl), container.username, container.password).use { conn ->
+            DriverManager.getConnection(
+                buildJdbcUrlWithSslDisabled(container.jdbcUrl),
+                container.username,
+                container.password,
+            ).use {
+                    conn ->
                 conn.createStatement().executeUpdate(
                     """
                     INSERT INTO banking.transaction_categories (id, account_id, name, applicable_to, is_system, sort_order, created_at, updated_at)

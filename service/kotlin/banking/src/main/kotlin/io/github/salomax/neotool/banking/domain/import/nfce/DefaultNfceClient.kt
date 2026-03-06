@@ -1,14 +1,13 @@
 package io.github.salomax.neotool.banking.domain.import.nfce
 
 import jakarta.inject.Singleton
+import org.w3c.dom.Node
+import org.xml.sax.InputSource
+import java.io.StringReader
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.format.DateTimeFormatter
-import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
-import org.w3c.dom.Document
-import org.w3c.dom.Node
-import org.xml.sax.InputSource
 
 private val CHNFE_PATTERN = Regex("""\d{44}""")
 private val DH_EMI_FORMAT = DateTimeFormatter.ISO_DATE_TIME
@@ -22,15 +21,15 @@ private val DH_EMI_FORMAT = DateTimeFormatter.ISO_DATE_TIME
 open class DefaultNfceClient(
     private val httpFetcher: NfceHttpFetcher,
 ) : NfceClient {
-
     override fun fetch(qrCodeUrl: String): NfceData {
         val chNFeFromUrl = CHNFE_PATTERN.find(qrCodeUrl)?.value
 
-        val response = try {
-            httpFetcher.fetch(qrCodeUrl)
-        } catch (e: Exception) {
-            throw NfceUnavailableException("NFC-e fetch failed: ${e.message}", e)
-        }
+        val response =
+            try {
+                httpFetcher.fetch(qrCodeUrl)
+            } catch (e: Exception) {
+                throw NfceUnavailableException("NFC-e fetch failed: ${e.message}", e)
+            }
 
         if (response.statusCode != 200) {
             throw NfceUnavailableException("NFC-e returned HTTP ${response.statusCode}")
@@ -44,51 +43,64 @@ open class DefaultNfceClient(
         return parseXml(xml, chNFeFromUrl)
     }
 
-    private fun parseXml(xml: String, chNFeFromUrl: String?): NfceData {
-        val doc = try {
-            val factory = DocumentBuilderFactory.newInstance().apply {
-                isNamespaceAware = true
+    private fun parseXml(
+        xml: String,
+        chNFeFromUrl: String?,
+    ): NfceData {
+        val doc =
+            try {
+                val factory =
+                    DocumentBuilderFactory.newInstance().apply {
+                        isNamespaceAware = true
+                    }
+                factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
+            } catch (e: Exception) {
+                throw NfceInvalidException("NFC-e XML is malformed: ${e.message}", e)
             }
-            factory.newDocumentBuilder().parse(InputSource(StringReader(xml)))
-        } catch (e: Exception) {
-            throw NfceInvalidException("NFC-e XML is malformed: ${e.message}", e)
-        }
 
         val infNFeForCh = firstElementByLocalName(doc.documentElement, "infNFe") ?: doc.documentElement
-        val chNFe = chNFeFromUrl
-            ?: textContent(infNFeForCh, "chNFe") ?: textContent(doc.documentElement, "chNFe")
-            ?: throw NfceInvalidException("NFC-e chNFe not found in URL or XML")
+        val chNFe =
+            chNFeFromUrl
+                ?: textContent(infNFeForCh, "chNFe") ?: textContent(doc.documentElement, "chNFe")
+                ?: throw NfceInvalidException("NFC-e chNFe not found in URL or XML")
 
-        val cStat = textContent(doc.documentElement, "cStat")
-            ?: textContent(infNFeForCh, "cStat")
+        val cStat =
+            textContent(doc.documentElement, "cStat")
+                ?: textContent(infNFeForCh, "cStat")
         if (cStat != null && cStat != "100" && cStat != "150") {
             throw NfceInvalidException("NFC-e is not authorized or is cancelled (cStat=$cStat)")
         }
 
         val ide = firstElementByLocalName(infNFeForCh, "ide")
-        val dhEmiStr = textContent(ide, "dhEmi") ?: textContent(infNFeForCh, "dhEmi")
-            ?: throw NfceInvalidException("NFC-e dhEmi not found")
-        val dhEmi = try {
-            Instant.from(DH_EMI_FORMAT.parse(dhEmiStr.replace(" ", "T")))
-        } catch (e: Exception) {
-            throw NfceInvalidException("NFC-e dhEmi invalid: $dhEmiStr", e)
-        }
+        val dhEmiStr =
+            textContent(ide, "dhEmi") ?: textContent(infNFeForCh, "dhEmi")
+                ?: throw NfceInvalidException("NFC-e dhEmi not found")
+        val dhEmi =
+            try {
+                Instant.from(DH_EMI_FORMAT.parse(dhEmiStr.replace(" ", "T")))
+            } catch (e: Exception) {
+                throw NfceInvalidException("NFC-e dhEmi invalid: $dhEmiStr", e)
+            }
 
         val total = firstElementByLocalName(infNFeForCh, "total")
         val icmsTot = total?.let { firstElementByLocalName(it, "ICMSTot") }
-        val vNFStr = textContent(icmsTot, "vNF") ?: textContent(total, "vNF") ?: textContent(infNFeForCh, "vNF")
-            ?: throw NfceInvalidException("NFC-e vNF not found")
-        val vNF = runCatching { BigDecimal(vNFStr.trim()) }.getOrElse {
-            throw NfceInvalidException("NFC-e vNF invalid: $vNFStr", it)
-        }
+        val vNFStr =
+            textContent(icmsTot, "vNF") ?: textContent(total, "vNF") ?: textContent(infNFeForCh, "vNF")
+                ?: throw NfceInvalidException("NFC-e vNF not found")
+        val vNF =
+            runCatching { BigDecimal(vNFStr.trim()) }.getOrElse {
+                throw NfceInvalidException("NFC-e vNF invalid: $vNFStr", it)
+            }
 
-        val infNFe = firstElementByLocalName(doc.documentElement, "infNFe")
-            ?: doc.documentElement
+        val infNFe =
+            firstElementByLocalName(doc.documentElement, "infNFe")
+                ?: doc.documentElement
         val emit = firstElementByLocalName(infNFe, "emit")
         val enderEmit = emit?.let { firstElementByLocalName(it, "enderEmit") }
 
-        val cnpjEmitente = textContent(emit, "CNPJ") ?: textContent(infNFe, "CNPJ")
-            ?: throw NfceInvalidException("NFC-e emit CNPJ not found")
+        val cnpjEmitente =
+            textContent(emit, "CNPJ") ?: textContent(infNFe, "CNPJ")
+                ?: throw NfceInvalidException("NFC-e emit CNPJ not found")
         val nomeEmitente = textContent(emit, "xNome") ?: ""
         val municipio = textContent(enderEmit, "xMun") ?: ""
         val uf = textContent(enderEmit, "UF") ?: ""
@@ -120,12 +132,18 @@ open class DefaultNfceClient(
         )
     }
 
-    private fun textContent(parent: Node?, localName: String): String? {
+    private fun textContent(
+        parent: Node?,
+        localName: String,
+    ): String? {
         val el = firstElementByLocalName(parent, localName) ?: return null
         return el.textContent?.trim()?.takeIf { it.isNotEmpty() }
     }
 
-    private fun firstElementByLocalName(parent: Node?, localName: String): Node? {
+    private fun firstElementByLocalName(
+        parent: Node?,
+        localName: String,
+    ): Node? {
         if (parent == null) return null
         val list = parent.childNodes
         for (i in 0 until list.length) {

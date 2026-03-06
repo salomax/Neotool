@@ -34,7 +34,6 @@ import java.util.concurrent.TimeUnit
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Tag("integration")
 class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationTest {
-
     companion object {
         private val assetsMock = MockWebServer()
 
@@ -112,7 +111,8 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
 
         val downloadPath = "/download-$assetId"
         val downloadUrl = "${assetsBaseUrl()}$downloadPath"
-        val minimalOfx = """
+        val minimalOfx =
+            """
             OFXHEADER:100
             DATA:OFXSGML
             <OFX>
@@ -125,7 +125,7 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
             </STMTTRN>
             </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>
             </OFX>
-        """.trimIndent()
+            """.trimIndent()
 
         assetsMock.enqueue(
             MockResponse()
@@ -325,10 +325,11 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
     private fun ensureKafkaTopics() {
         val props = mapOf(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG to getKafkaContainer().bootstrapServers)
         AdminClient.create(props).use { admin ->
-            val topics = listOf(
-                NewTopic("banking.import.file-requested", 1, 1),
-                NewTopic("banking.import.job-completed", 1, 1),
-            )
+            val topics =
+                listOf(
+                    NewTopic("banking.import.file-requested", 1, 1),
+                    NewTopic("banking.import.job-completed", 1, 1),
+                )
             try {
                 admin.createTopics(topics).all().get()
             } catch (e: Exception) {

@@ -18,7 +18,6 @@ import java.util.UUID
 
 @DisplayName("MonthSummaryQueryService")
 class MonthSummaryQueryServiceTest {
-
     private lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var snapshotComputationService: SnapshotComputationService
@@ -94,15 +93,15 @@ class MonthSummaryQueryServiceTest {
     @Nested
     @DisplayName("when snapshot is clean")
     inner class CleanSnapshotTests {
-
         @Test
         fun `returns values from snapshot without recomputation`() {
-            val snap = snapshot(
-                openingBalance = BigDecimal("1000.00"),
-                closingBalance = BigDecimal("1200.00"),
-                totalIncome = BigDecimal("300.00"),
-                totalExpenses = BigDecimal("100.00"),
-            )
+            val snap =
+                snapshot(
+                    openingBalance = BigDecimal("1000.00"),
+                    closingBalance = BigDecimal("1200.00"),
+                    totalIncome = BigDecimal("300.00"),
+                    totalExpenses = BigDecimal("100.00"),
+                )
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth)).thenReturn(snap)
             whenever(transactionRepository.getMonthTransferTotals(financialAccountId, pastYear, pastMonth))
                 .thenReturn(transferTotals(transfersIn = BigDecimal("50.00")))
@@ -123,7 +122,9 @@ class MonthSummaryQueryServiceTest {
         fun `isCurrentMonth is true when year and month match today`() {
             val today = LocalDate.now()
             val snap = snapshot(year = today.year, month = today.monthValue)
-            whenever(snapshotRepository.findByYearMonth(financialAccountId, today.year, today.monthValue)).thenReturn(snap)
+            whenever(
+                snapshotRepository.findByYearMonth(financialAccountId, today.year, today.monthValue),
+            ).thenReturn(snap)
             whenever(transactionRepository.getMonthTransferTotals(financialAccountId, today.year, today.monthValue))
                 .thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(financialAccountId, today.year, today.monthValue))
@@ -179,15 +180,15 @@ class MonthSummaryQueryServiceTest {
     @Nested
     @DisplayName("when snapshot is dirty")
     inner class DirtySnapshotTests {
-
         @Test
         fun `heals snapshot via recomputeChain and returns healed values`() {
             val dirty = snapshot(isDirty = true, closingBalance = BigDecimal("999.99"))
-            val healed = snapshot(isDirty = false, closingBalance = BigDecimal("900.00"), totalIncome = BigDecimal("150.00"))
+            val healed =
+                snapshot(isDirty = false, closingBalance = BigDecimal("900.00"), totalIncome = BigDecimal("150.00"))
 
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth))
-                .thenReturn(dirty)    // first call: dirty
-                .thenReturn(healed)   // second call after healing
+                .thenReturn(dirty) // first call: dirty
+                .thenReturn(healed) // second call after healing
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
 
@@ -204,13 +205,12 @@ class MonthSummaryQueryServiceTest {
     @Nested
     @DisplayName("when snapshot does not exist")
     inner class MissingSnapshotTests {
-
         @Test
         fun `computes snapshot on demand and returns it`() {
             val computed = snapshot(closingBalance = BigDecimal("250.00"), totalIncome = BigDecimal("300.00"))
 
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth))
-                .thenReturn(null)     // first call: missing
+                .thenReturn(null) // first call: missing
                 .thenReturn(computed) // second call after computation
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
@@ -241,7 +241,6 @@ class MonthSummaryQueryServiceTest {
     @Nested
     @DisplayName("getAggregateMonthlySummary")
     inner class AggregateMonthlySummaryTests {
-
         @Test
         fun `no accounts returns zero summary`() {
             whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId)).thenReturn(emptyList())
@@ -264,21 +263,23 @@ class MonthSummaryQueryServiceTest {
                 .thenReturn(listOf(faId1, faId2))
 
             // Account 1: income=300, expenses=100, closing=1200, opening=1000
-            val snap1 = MonthlyBalanceSnapshot(
-                financialAccountId = faId1, accountId = accountId,
-                year = pastYear, month = pastMonth,
-                openingBalance = BigDecimal("1000.00"), closingBalance = BigDecimal("1200.00"),
-                totalIncome = BigDecimal("300.00"), totalExpenses = BigDecimal("100.00"),
-                computedAt = now, createdAt = now, updatedAt = now,
-            )
+            val snap1 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId1, accountId = accountId,
+                    year = pastYear, month = pastMonth,
+                    openingBalance = BigDecimal("1000.00"), closingBalance = BigDecimal("1200.00"),
+                    totalIncome = BigDecimal("300.00"), totalExpenses = BigDecimal("100.00"),
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
             // Account 2: income=500, expenses=200, closing=2300, opening=2000
-            val snap2 = MonthlyBalanceSnapshot(
-                financialAccountId = faId2, accountId = accountId,
-                year = pastYear, month = pastMonth,
-                openingBalance = BigDecimal("2000.00"), closingBalance = BigDecimal("2300.00"),
-                totalIncome = BigDecimal("500.00"), totalExpenses = BigDecimal("200.00"),
-                computedAt = now, createdAt = now, updatedAt = now,
-            )
+            val snap2 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId2, accountId = accountId,
+                    year = pastYear, month = pastMonth,
+                    openingBalance = BigDecimal("2000.00"), closingBalance = BigDecimal("2300.00"),
+                    totalIncome = BigDecimal("500.00"), totalExpenses = BigDecimal("200.00"),
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
             whenever(snapshotRepository.findByYearMonth(faId1, pastYear, pastMonth)).thenReturn(snap1)
             whenever(snapshotRepository.findByYearMonth(faId2, pastYear, pastMonth)).thenReturn(snap2)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
@@ -297,13 +298,14 @@ class MonthSummaryQueryServiceTest {
             val faId1 = UUID.randomUUID()
             whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId))
                 .thenReturn(listOf(faId1))
-            val snap = MonthlyBalanceSnapshot(
-                financialAccountId = faId1, accountId = accountId,
-                year = pastYear, month = pastMonth,
-                openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("500.00"),
-                totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
-                computedAt = now, createdAt = now, updatedAt = now,
-            )
+            val snap =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId1, accountId = accountId,
+                    year = pastYear, month = pastMonth,
+                    openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("500.00"),
+                    totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
             whenever(snapshotRepository.findByYearMonth(faId1, pastYear, pastMonth)).thenReturn(snap)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any()))
@@ -321,20 +323,22 @@ class MonthSummaryQueryServiceTest {
             whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId))
                 .thenReturn(listOf(faId1, faId2))
 
-            val snap1 = MonthlyBalanceSnapshot(
-                financialAccountId = faId1, accountId = accountId,
-                year = pastYear, month = pastMonth,
-                openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("1000.00"),
-                totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
-                computedAt = now, createdAt = now, updatedAt = now,
-            )
-            val snap2 = MonthlyBalanceSnapshot(
-                financialAccountId = faId2, accountId = accountId,
-                year = pastYear, month = pastMonth,
-                openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("2000.00"),
-                totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
-                computedAt = now, createdAt = now, updatedAt = now,
-            )
+            val snap1 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId1, accountId = accountId,
+                    year = pastYear, month = pastMonth,
+                    openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("1000.00"),
+                    totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
+            val snap2 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId2, accountId = accountId,
+                    year = pastYear, month = pastMonth,
+                    openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("2000.00"),
+                    totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
             whenever(snapshotRepository.findByYearMonth(faId1, pastYear, pastMonth)).thenReturn(snap1)
             whenever(snapshotRepository.findByYearMonth(faId2, pastYear, pastMonth)).thenReturn(snap2)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())

@@ -15,14 +15,11 @@ open class TransactionTagEntity(
     @Id
     @Column(name = "transaction_id", nullable = false)
     open var transactionId: UUID,
-
     @Id
     @Column(name = "tag", nullable = false)
     open var tag: String,
-
     @Column(name = "account_id", nullable = false)
     open var accountId: UUID,
-
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
 )

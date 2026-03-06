@@ -28,7 +28,6 @@ import java.util.UUID
 
 @DisplayName("ImportResolver")
 class ImportResolverTest {
-
     private lateinit var importJobService: ImportJobService
     private lateinit var resolver: ImportResolver
 
@@ -38,46 +37,49 @@ class ImportResolverTest {
     private val jobId = UUID.randomUUID()
     private val now = Instant.now()
 
-    private fun principal() = RequestPrincipal(
-        principalType = PrincipalType.USER,
-        userId = userId,
-        serviceId = null,
-        token = "test-token",
-        permissionsFromToken = emptyList(),
-        currentAccountId = accountId,
-    )
+    private fun principal() =
+        RequestPrincipal(
+            principalType = PrincipalType.USER,
+            userId = userId,
+            serviceId = null,
+            token = "test-token",
+            permissionsFromToken = emptyList(),
+            currentAccountId = accountId,
+        )
 
-    private fun pendingJob() = ImportJob(
-        id = jobId,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = userId,
-        source = ImportSource.OFX,
-        fileName = "export.ofx",
-        fileHash = "abc123",
-        status = ImportJobStatus.PENDING,
-        createdAt = now,
-        updatedAt = now,
-    )
+    private fun pendingJob() =
+        ImportJob(
+            id = jobId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            source = ImportSource.OFX,
+            fileName = "export.ofx",
+            fileHash = "abc123",
+            status = ImportJobStatus.PENDING,
+            createdAt = now,
+            updatedAt = now,
+        )
 
-    private fun completedJob() = ImportJob(
-        id = jobId,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = userId,
-        source = ImportSource.NFC_E,
-        fileName = null,
-        fileHash = "chNFe123",
-        status = ImportJobStatus.COMPLETED,
-        totalRows = 1,
-        importedCount = 1,
-        skippedCount = 0,
-        duplicateReviewCount = 0,
-        errorCount = 0,
-        completedAt = now,
-        createdAt = now,
-        updatedAt = now,
-    )
+    private fun completedJob() =
+        ImportJob(
+            id = jobId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            source = ImportSource.NFC_E,
+            fileName = null,
+            fileHash = "chNFe123",
+            status = ImportJobStatus.COMPLETED,
+            totalRows = 1,
+            importedCount = 1,
+            skippedCount = 0,
+            duplicateReviewCount = 0,
+            errorCount = 0,
+            completedAt = now,
+            createdAt = now,
+            updatedAt = now,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -88,7 +90,6 @@ class ImportResolverTest {
     @Nested
     @DisplayName("transactionImports")
     inner class TransactionImportsTests {
-
         @Test
         fun `returns list of DTOs from service`() {
             val jobs = listOf(pendingJob())
@@ -116,7 +117,6 @@ class ImportResolverTest {
     @Nested
     @DisplayName("transactionImport")
     inner class TransactionImportTests {
-
         @Test
         fun `returns DTO when job exists`() {
             val job = pendingJob()
@@ -144,16 +144,16 @@ class ImportResolverTest {
     @Nested
     @DisplayName("importTransactionsFile")
     inner class ImportTransactionsFileTests {
-
         @Test
         fun `returns ImportResultDTO with PENDING status`() {
             val fileBytes = "small file".toByteArray()
             val fileBase64 = Base64.getEncoder().encodeToString(fileBytes)
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "export.ofx",
-                "fileBase64" to fileBase64,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "export.ofx",
+                    "fileBase64" to fileBase64,
+                )
             val job = pendingJob()
             whenever(
                 importJobService.initiateFileImport(
@@ -185,11 +185,12 @@ class ImportResolverTest {
         fun `throws ValidationException when file exceeds 3 MB`() {
             val threeMbPlus = ByteArray(3 * 1024 * 1024 + 1)
             val fileBase64 = Base64.getEncoder().encodeToString(threeMbPlus)
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "large.ofx",
-                "fileBase64" to fileBase64,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "large.ofx",
+                    "fileBase64" to fileBase64,
+                )
 
             assertThrows<ValidationException> {
                 resolver.importTransactionsFile(input, principal())
@@ -209,12 +210,13 @@ class ImportResolverTest {
         fun `accepts CSV_AUTO source and forwards enum to service`() {
             val fileBytes = "small file".toByteArray()
             val fileBase64 = Base64.getEncoder().encodeToString(fileBytes)
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "extrato.csv",
-                "source" to "CSV_AUTO",
-                "fileBase64" to fileBase64,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "extrato.csv",
+                    "source" to "CSV_AUTO",
+                    "fileBase64" to fileBase64,
+                )
             val job = pendingJob().copy(source = ImportSource.CSV_AUTO, fileName = "extrato.csv")
             whenever(
                 importJobService.initiateFileImport(
@@ -242,12 +244,13 @@ class ImportResolverTest {
 
         @Test
         fun `throws ValidationException when source is invalid`() {
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "invalid.csv",
-                "source" to "CSV_UNKNOWN",
-                "fileBase64" to Base64.getEncoder().encodeToString("small".toByteArray()),
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "invalid.csv",
+                    "source" to "CSV_UNKNOWN",
+                    "fileBase64" to Base64.getEncoder().encodeToString("small".toByteArray()),
+                )
 
             assertThrows<ValidationException> {
                 resolver.importTransactionsFile(input, principal())
@@ -267,12 +270,13 @@ class ImportResolverTest {
         fun `accepts CSV_SANTANDER source and forwards enum to service`() {
             val fileBytes = "small file".toByteArray()
             val fileBase64 = Base64.getEncoder().encodeToString(fileBytes)
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "santander.csv",
-                "source" to "CSV_SANTANDER",
-                "fileBase64" to fileBase64,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "santander.csv",
+                    "source" to "CSV_SANTANDER",
+                    "fileBase64" to fileBase64,
+                )
             val job = pendingJob().copy(source = ImportSource.CSV_SANTANDER, fileName = "santander.csv")
             whenever(
                 importJobService.initiateFileImport(
@@ -300,12 +304,13 @@ class ImportResolverTest {
 
         @Test
         fun `throws ValidationException when source is not allowed for file import`() {
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "invalid.csv",
-                "source" to "OPEN_FINANCE",
-                "fileBase64" to Base64.getEncoder().encodeToString("small".toByteArray()),
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "invalid.csv",
+                    "source" to "OPEN_FINANCE",
+                    "fileBase64" to Base64.getEncoder().encodeToString("small".toByteArray()),
+                )
 
             assertThrows<ValidationException> {
                 resolver.importTransactionsFile(input, principal())
@@ -325,14 +330,14 @@ class ImportResolverTest {
     @Nested
     @DisplayName("importNfce")
     inner class ImportNfceTests {
-
         @Test
         fun `returns ImportResultDTO with COMPLETED status`() {
             val qrCodeUrl = "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx?chNFe=123"
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "qrCodeUrl" to qrCodeUrl,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "qrCodeUrl" to qrCodeUrl,
+                )
             val job = completedJob()
             whenever(
                 importJobService.importNfce(
@@ -357,10 +362,11 @@ class ImportResolverTest {
 
         @Test
         fun `throws ValidationException when qrCodeUrl is invalid`() {
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "qrCodeUrl" to "not-a-valid-url:::",
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "qrCodeUrl" to "not-a-valid-url:::",
+                )
 
             assertThrows<ValidationException> {
                 resolver.importNfce(input, principal())
@@ -378,14 +384,14 @@ class ImportResolverTest {
     @Nested
     @DisplayName("resolveImportDuplicate")
     inner class ResolveImportDuplicateTests {
-
         @Test
         fun `returns updated TransactionImportDTO`() {
-            val input = mapOf(
-                "jobId" to jobId.toString(),
-                "rowIndex" to 0,
-                "resolution" to "KEEP_BOTH",
-            )
+            val input =
+                mapOf(
+                    "jobId" to jobId.toString(),
+                    "rowIndex" to 0,
+                    "resolution" to "KEEP_BOTH",
+                )
             val updatedJob = pendingJob().copy(status = ImportJobStatus.REVIEW_REQUIRED)
             whenever(
                 importJobService.resolveImportDuplicate(

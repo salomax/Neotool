@@ -10,7 +10,6 @@ import java.util.UUID
  */
 @Repository
 interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategoryEntity, UUID> {
-
     /**
      * Returns all system categories + user-defined categories for the given account.
      * Excludes soft-deleted rows.

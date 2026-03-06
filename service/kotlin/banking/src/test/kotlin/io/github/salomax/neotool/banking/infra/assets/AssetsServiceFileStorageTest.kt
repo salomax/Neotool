@@ -16,7 +16,6 @@ import java.util.UUID
 
 @DisplayName("AssetsServiceFileStorage")
 class AssetsServiceFileStorageTest {
-
     private lateinit var assetsClient: AssetsServiceClient
     private lateinit var presignedUrlHttpClient: PresignedUrlHttpClient
     private lateinit var storage: ImportFileStoragePort
@@ -40,7 +39,6 @@ class AssetsServiceFileStorageTest {
     @Nested
     @DisplayName("store")
     inner class StoreTests {
-
         @Test
         fun `calls createAssetUpload PUT and confirmAssetUpload returns assetId`() {
             whenever(
@@ -89,7 +87,6 @@ class AssetsServiceFileStorageTest {
     @Nested
     @DisplayName("read")
     inner class ReadTests {
-
         @Test
         fun `fetches asset gets downloadUrl and returns bytes from GET`() {
             whenever(assetsClient.getAsset(eq(assetId), eq(3600)))
@@ -115,7 +112,6 @@ class AssetsServiceFileStorageTest {
     @Nested
     @DisplayName("delete")
     inner class DeleteTests {
-
         @Test
         fun `calls deleteAsset and does not throw`() {
             whenever(assetsClient.deleteAsset(eq(assetId))).thenReturn(true)

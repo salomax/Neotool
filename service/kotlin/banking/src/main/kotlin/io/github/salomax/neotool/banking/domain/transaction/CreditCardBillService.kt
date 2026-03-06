@@ -22,13 +22,13 @@ import java.util.UUID
 open class CreditCardBillService(
     private val billRepository: CreditCardBillRepository,
 ) {
-
     companion object {
         /** Account subtypes for which billing cycle logic applies. */
-        val CARD_SUBTYPES = setOf(
-            FinancialAccountSubtype.CREDIT_CARD,
-            FinancialAccountSubtype.CHARGE_CARD,
-        )
+        val CARD_SUBTYPES =
+            setOf(
+                FinancialAccountSubtype.CREDIT_CARD,
+                FinancialAccountSubtype.CHARGE_CARD,
+            )
     }
 
     // ── Date arithmetic ───────────────────────────────────────────────────────
@@ -47,7 +47,10 @@ open class CreditCardBillService(
      *   Jan 31, closingDay=31 → Jan 31
      *   Feb 28, closingDay=31 → Feb 28  (clamped: Feb has only 28 days)
      */
-    fun computeClosingDate(transactionDate: LocalDate, closingDay: Int): LocalDate {
+    fun computeClosingDate(
+        transactionDate: LocalDate,
+        closingDay: Int,
+    ): LocalDate {
         val effectiveDay = closingDay.coerceAtMost(transactionDate.lengthOfMonth())
         return if (transactionDate.dayOfMonth <= effectiveDay) {
             transactionDate.withDayOfMonth(effectiveDay)
@@ -71,7 +74,10 @@ open class CreditCardBillService(
      * Examples (closingDay=25, dueDay=10):
      *   closingDate=Mar 25 → candidate=Mar 10 → Mar 10 <= Mar 25 → dueDate=Apr 10
      */
-    fun computeDueDate(closingDate: LocalDate, dueDay: Int): LocalDate {
+    fun computeDueDate(
+        closingDate: LocalDate,
+        dueDay: Int,
+    ): LocalDate {
         val candidate = closingDate.withDayOfMonth(dueDay.coerceAtMost(closingDate.lengthOfMonth()))
         return if (candidate.isAfter(closingDate)) {
             candidate
@@ -120,7 +126,10 @@ open class CreditCardBillService(
      * Recomputes [CreditCardBill.totalAmount] and [CreditCardBill.status] for the given bill.
      * No-op if [billId] is null.
      */
-    fun recomputeBill(billId: UUID?, accountId: UUID) {
+    fun recomputeBill(
+        billId: UUID?,
+        accountId: UUID,
+    ) {
         if (billId == null) return
         billRepository.recomputeTotal(billId, accountId)
     }
@@ -129,7 +138,10 @@ open class CreditCardBillService(
      * Marks a bill as PAID (terminal status) and returns the updated bill.
      * The caller is responsible for ensuring the bill is not already paid.
      */
-    fun markAsPaid(billId: UUID, accountId: UUID): CreditCardBill {
+    fun markAsPaid(
+        billId: UUID,
+        accountId: UUID,
+    ): CreditCardBill {
         billRepository.setStatus(billId, BillStatus.PAID, accountId)
         return requireBillForAccount(billId, accountId)
     }
@@ -138,20 +150,29 @@ open class CreditCardBillService(
      * Ensures that the given [billId] belongs to [accountId], throwing if not found or not owned.
      * Returns the resolved [CreditCardBill] for callers that need its attributes.
      */
-    fun requireBillForAccount(billId: UUID, accountId: UUID): CreditCardBill =
+    fun requireBillForAccount(
+        billId: UUID,
+        accountId: UUID,
+    ): CreditCardBill =
         billRepository.findById(billId, accountId)
             ?: throw NoSuchElementException("CreditCardBill $billId not found for account $accountId")
 
     // ── Queries ───────────────────────────────────────────────────────────────
 
-    fun listBills(financialAccountId: UUID, accountId: UUID): List<CreditCardBill> =
-        billRepository.listByAccount(financialAccountId, accountId)
+    fun listBills(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<CreditCardBill> = billRepository.listByAccount(financialAccountId, accountId)
 
     /**
      * Finds a specific bill by [closingDate], or the current open/most-recent bill when
      * [closingDate] is null.
      */
-    fun findBill(financialAccountId: UUID, accountId: UUID, closingDate: LocalDate?): CreditCardBill? {
+    fun findBill(
+        financialAccountId: UUID,
+        accountId: UUID,
+        closingDate: LocalDate?,
+    ): CreditCardBill? {
         if (closingDate != null) {
             return billRepository.findByClosingDate(financialAccountId, closingDate)
         }

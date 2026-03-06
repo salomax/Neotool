@@ -9,7 +9,6 @@ import java.util.UUID
 
 @DisplayName("ImportFileProducer")
 class ImportFileProducerTest {
-
     private lateinit var client: ImportFileProducerKafkaClient
     private lateinit var producer: ImportFileProducer
 
@@ -26,13 +25,14 @@ class ImportFileProducerTest {
 
     @Test
     fun `publish sends to client with jobId as key and full event`() {
-        val event = ImportFileRequestedEvent(
-            jobId = jobId,
-            assetId = assetId,
-            source = ImportSource.OFX,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-        )
+        val event =
+            ImportFileRequestedEvent(
+                jobId = jobId,
+                assetId = assetId,
+                source = ImportSource.OFX,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+            )
 
         producer.publish(event)
 

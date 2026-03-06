@@ -29,7 +29,6 @@ class BankingWiringFactory(
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
-
     override fun registerQueryResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
         type
             .dataFetcher(
@@ -96,8 +95,9 @@ class BankingWiringFactory(
                 "transaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         transactionResolver.transaction(id, principal)
                     }
                 },
@@ -134,8 +134,9 @@ class BankingWiringFactory(
                 "transactionImport",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         importResolver.transactionImport(id, principal)
                     }
                 },
@@ -144,8 +145,9 @@ class BankingWiringFactory(
                 "pdfImportJob",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val jobId = env.getArgument<String>("jobId")
-                            ?: throw IllegalArgumentException("jobId is required")
+                        val jobId =
+                            env.getArgument<String>("jobId")
+                                ?: throw IllegalArgumentException("jobId is required")
                         pdfImportResolver.pdfImportJob(jobId, principal)
                     }
                 },
@@ -163,8 +165,9 @@ class BankingWiringFactory(
                 "creditCardBills",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val financialAccountId = env.getArgument<String>("financialAccountId")
-                            ?: throw IllegalArgumentException("financialAccountId is required")
+                        val financialAccountId =
+                            env.getArgument<String>("financialAccountId")
+                                ?: throw IllegalArgumentException("financialAccountId is required")
                         transactionResolver.creditCardBills(financialAccountId, principal)
                     }
                 },
@@ -173,8 +176,9 @@ class BankingWiringFactory(
                 "creditCardBill",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val financialAccountId = env.getArgument<String>("financialAccountId")
-                            ?: throw IllegalArgumentException("financialAccountId is required")
+                        val financialAccountId =
+                            env.getArgument<String>("financialAccountId")
+                                ?: throw IllegalArgumentException("financialAccountId is required")
                         val closingDate = env.getArgument<String?>("closingDate")
                         transactionResolver.creditCardBill(financialAccountId, closingDate, principal)
                     }
@@ -187,8 +191,9 @@ class BankingWiringFactory(
                 "createFinancialAccount",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_ACCOUNT_CREATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         financialAccountResolver.create(input, principal)
                     }
                 },
@@ -197,8 +202,9 @@ class BankingWiringFactory(
                 "createTransaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         transactionResolver.createTransaction(input, principal)
                     }
                 },
@@ -207,10 +213,12 @@ class BankingWiringFactory(
                 "updateTransaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         transactionResolver.updateTransaction(id, input, principal)
                     }
                 },
@@ -219,8 +227,9 @@ class BankingWiringFactory(
                 "deleteTransaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_DELETE) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         transactionResolver.deleteTransaction(id, principal)
                     }
                 },
@@ -229,8 +238,9 @@ class BankingWiringFactory(
                 "importTransactionsFile",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         importResolver.importTransactionsFile(input, principal)
                     }
                 },
@@ -239,14 +249,17 @@ class BankingWiringFactory(
                 "importNfce",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val financialAccountId = env.getArgument<String>("financialAccountId")
-                            ?: throw IllegalArgumentException("financialAccountId is required")
-                        val qrCodeUrl = env.getArgument<String>("qrCodeUrl")
-                            ?: throw IllegalArgumentException("qrCodeUrl is required")
-                        val input = mapOf(
-                            "financialAccountId" to financialAccountId,
-                            "qrCodeUrl" to qrCodeUrl,
-                        )
+                        val financialAccountId =
+                            env.getArgument<String>("financialAccountId")
+                                ?: throw IllegalArgumentException("financialAccountId is required")
+                        val qrCodeUrl =
+                            env.getArgument<String>("qrCodeUrl")
+                                ?: throw IllegalArgumentException("qrCodeUrl is required")
+                        val input =
+                            mapOf(
+                                "financialAccountId" to financialAccountId,
+                                "qrCodeUrl" to qrCodeUrl,
+                            )
                         importResolver.importNfce(input, principal)
                     }
                 },
@@ -255,8 +268,9 @@ class BankingWiringFactory(
                 "resolveImportDuplicate",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         importResolver.resolveImportDuplicate(input, principal)
                     }
                 },
@@ -265,8 +279,9 @@ class BankingWiringFactory(
                 "submitPdfBillImport",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         pdfImportResolver.submitPdfBillImport(input, principal)
                     }
                 },
@@ -275,8 +290,9 @@ class BankingWiringFactory(
                 "confirmPdfBillImport",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val input = env.getArgument<Map<String, Any?>>("input")
-                            ?: throw IllegalArgumentException("input is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
                         pdfImportResolver.confirmPdfBillImport(input, principal)
                     }
                 },
@@ -285,10 +301,12 @@ class BankingWiringFactory(
                 "payBill",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val billId = env.getArgument<String>("billId")
-                            ?: throw IllegalArgumentException("billId is required")
-                        val amount = env.getArgument<Double>("amount")
-                            ?: throw IllegalArgumentException("amount is required")
+                        val billId =
+                            env.getArgument<String>("billId")
+                                ?: throw IllegalArgumentException("billId is required")
+                        val amount =
+                            env.getArgument<Double>("amount")
+                                ?: throw IllegalArgumentException("amount is required")
                         val sourceAccountId = env.getArgument<String?>("sourceAccountId")
                         transactionResolver.payBill(billId, amount, sourceAccountId, principal)
                     }

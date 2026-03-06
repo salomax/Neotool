@@ -17,5 +17,9 @@ interface AssetUploadPort {
      * @param contentType MIME type, e.g. "image/png"
      * @return opaque asset identifier returned by the storage backend (asset UUID when using the assets service)
      */
-    fun upload(key: String, bytes: ByteArray, contentType: String): String
+    fun upload(
+        key: String,
+        bytes: ByteArray,
+        contentType: String,
+    ): String
 }

@@ -11,9 +11,9 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
 import org.junit.jupiter.api.assertThrows
@@ -30,7 +30,6 @@ import java.util.UUID
 @Tag("integration")
 @Tag("banking")
 class ImportSseControllerIT : BankingPostgresIntegrationTest() {
-
     @Inject
     @Client("/")
     lateinit var client: HttpClient
@@ -72,9 +71,10 @@ class ImportSseControllerIT : BankingPostgresIntegrationTest() {
     @Test
     @Disabled("SSE streaming + blocking client can fail; happy path covered by ImportSseControllerTest")
     fun `GET imports jobId events returns 200 and text-event-stream when job is COMPLETED`() {
-        val request = HttpRequest.GET<Any>("/imports/$jobId/events")
-            .header("Authorization", "Bearer ${BankingTestTokenPrincipalDecoder.TEST_TOKEN}")
-            .accept(MediaType.TEXT_EVENT_STREAM)
+        val request =
+            HttpRequest.GET<Any>("/imports/$jobId/events")
+                .header("Authorization", "Bearer ${BankingTestTokenPrincipalDecoder.TEST_TOKEN}")
+                .accept(MediaType.TEXT_EVENT_STREAM)
         val body = client.toBlocking().retrieve(request)
         assertThat(body).contains(jobId.toString())
         assertThat(body).containsIgnoringCase("COMPLETED")
@@ -83,24 +83,28 @@ class ImportSseControllerIT : BankingPostgresIntegrationTest() {
     @Test
     fun `GET imports non-existent jobId returns 404 or 500`() {
         val missingId = UUID.randomUUID()
-        val request = HttpRequest.GET<Any>("/imports/$missingId/events")
-            .header("Authorization", "Bearer ${BankingTestTokenPrincipalDecoder.TEST_TOKEN}")
-            .accept(MediaType.TEXT_EVENT_STREAM)
+        val request =
+            HttpRequest.GET<Any>("/imports/$missingId/events")
+                .header("Authorization", "Bearer ${BankingTestTokenPrincipalDecoder.TEST_TOKEN}")
+                .accept(MediaType.TEXT_EVENT_STREAM)
 
-        val ex = assertThrows<HttpClientResponseException> {
-            client.toBlocking().retrieve(request)
-        }
+        val ex =
+            assertThrows<HttpClientResponseException> {
+                client.toBlocking().retrieve(request)
+            }
         assertThat(ex.response.status.code).isIn(404, 500)
     }
 
     @Test
     fun `GET without Authorization returns 401 or 500`() {
-        val request = HttpRequest.GET<Any>("/imports/$jobId/events")
-            .accept(MediaType.TEXT_EVENT_STREAM)
+        val request =
+            HttpRequest.GET<Any>("/imports/$jobId/events")
+                .accept(MediaType.TEXT_EVENT_STREAM)
 
-        val ex = assertThrows<HttpClientResponseException> {
-            client.toBlocking().retrieve(request)
-        }
+        val ex =
+            assertThrows<HttpClientResponseException> {
+                client.toBlocking().retrieve(request)
+            }
         assertThat(ex.response.status.code).isIn(401, 500)
     }
 }

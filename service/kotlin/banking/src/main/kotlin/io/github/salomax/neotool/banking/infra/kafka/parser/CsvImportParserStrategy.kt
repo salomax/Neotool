@@ -21,21 +21,23 @@ import org.slf4j.LoggerFactory
 class CsvImportParserStrategy(
     private val csvImportMetrics: CsvImportMetrics,
 ) : BaseImportParserStrategy(
-    id = "csv-parser",
-    priority = 90,
-) {
+        id = "csv-parser",
+        priority = 90,
+    ) {
     private val dateHeaderHints = setOf("data", "date", "lancamento", "dt_lancamento", "data_lancamento")
     private val amountHeaderHints = setOf("valor", "amount", "credito", "debito", "value", "valor_rs")
     private val log = LoggerFactory.getLogger(javaClass)
-    private val csvReaderRegistry = CsvReaderRegistry(
-        readers = listOf(
-            CsvNubankParser,
-            CsvBancoDoBrasilParser,
-            CsvItauParser,
-            CsvBradescoParser,
-            CsvSantanderParser,
-        ),
-    )
+    private val csvReaderRegistry =
+        CsvReaderRegistry(
+            readers =
+                listOf(
+                    CsvNubankParser,
+                    CsvBancoDoBrasilParser,
+                    CsvItauParser,
+                    CsvBradescoParser,
+                    CsvSantanderParser,
+                ),
+        )
 
     override fun supports(context: ImportParsingContext): Boolean {
         if (context.requestedSource.isCsvSource()) {
@@ -48,15 +50,20 @@ class CsvImportParserStrategy(
     }
 
     override fun parse(context: ImportParsingContext): ImportParseOutcome {
-        val sourceName = when {
-            context.requestedSource.isCsvSource() -> context.requestedSource.name
-            context.discovery.detectedSource?.isCsvSource() == true -> context.discovery.detectedSource.name
-            else -> ImportSource.CSV_AUTO.name
-        }
+        val sourceName =
+            when {
+                context.requestedSource.isCsvSource() -> context.requestedSource.name
+                context.discovery.detectedSource?.isCsvSource() == true -> context.discovery.detectedSource.name
+                else -> ImportSource.CSV_AUTO.name
+            }
         return parseCsvWithFallback(context.bytes, sourceName, context.fileName)
     }
 
-    private fun parseCsvWithFallback(bytes: ByteArray, sourceName: String, fileName: String?): ImportParseOutcome {
+    private fun parseCsvWithFallback(
+        bytes: ByteArray,
+        sourceName: String,
+        fileName: String?,
+    ): ImportParseOutcome {
         val fingerprint = CsvFingerprintBuilder.build(bytes)
         val selection = csvReaderRegistry.select(fingerprint)
         selection.selectedMatch?.let { match ->
@@ -82,7 +89,10 @@ class CsvImportParserStrategy(
             val failureReason: String? = null,
         )
 
-        fun parseSafely(readerId: String, parser: () -> List<ParsedTransaction>): ParseAttempt {
+        fun parseSafely(
+            readerId: String,
+            parser: () -> List<ParsedTransaction>,
+        ): ParseAttempt {
             return try {
                 val rows = parser()
                 if (rows.isEmpty()) {
@@ -108,23 +118,39 @@ class CsvImportParserStrategy(
 
         var genericAlreadyAttempted = false
         var parserUsedReaderId: String? = null
-        val primaryAttempt = when (selection.mode) {
-            CsvReaderSelectionMode.SPECIFIC_ONLY -> {
-                parserUsedReaderId = selection.selectedReader?.id()
-                parseSafely(selection.selectedReader?.id() ?: "unknown") { selection.selectedReader?.parse(bytes).orEmpty() }
-            }
-
-            CsvReaderSelectionMode.SPECIFIC_THEN_GENERIC_FALLBACK -> {
-                val specificAttempt = parseSafely(selection.selectedReader?.id() ?: "unknown") {
-                    selection.selectedReader?.parse(bytes).orEmpty()
-                }
-                if (specificAttempt.rows.isNotEmpty()) {
+        val primaryAttempt =
+            when (selection.mode) {
+                CsvReaderSelectionMode.SPECIFIC_ONLY -> {
                     parserUsedReaderId = selection.selectedReader?.id()
-                    specificAttempt
-                } else {
+                    parseSafely(
+                        selection.selectedReader?.id() ?: "unknown",
+                    ) { selection.selectedReader?.parse(bytes).orEmpty() }
+                }
+
+                CsvReaderSelectionMode.SPECIFIC_THEN_GENERIC_FALLBACK -> {
+                    val specificAttempt =
+                        parseSafely(selection.selectedReader?.id() ?: "unknown") {
+                            selection.selectedReader?.parse(bytes).orEmpty()
+                        }
+                    if (specificAttempt.rows.isNotEmpty()) {
+                        parserUsedReaderId = selection.selectedReader?.id()
+                        specificAttempt
+                    } else {
+                        csvImportMetrics.recordFallback(
+                            source = sourceName,
+                            reason = "specific_then_generic",
+                            selectedReaderId = selection.selectedReader?.id(),
+                        )
+                        genericAlreadyAttempted = true
+                        parserUsedReaderId = GenericCsvReader.id()
+                        parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
+                    }
+                }
+
+                CsvReaderSelectionMode.GENERIC_ONLY -> {
                     csvImportMetrics.recordFallback(
                         source = sourceName,
-                        reason = "specific_then_generic",
+                        reason = "generic_only_mode",
                         selectedReaderId = selection.selectedReader?.id(),
                     )
                     genericAlreadyAttempted = true
@@ -132,18 +158,6 @@ class CsvImportParserStrategy(
                     parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
                 }
             }
-
-            CsvReaderSelectionMode.GENERIC_ONLY -> {
-                csvImportMetrics.recordFallback(
-                    source = sourceName,
-                    reason = "generic_only_mode",
-                    selectedReaderId = selection.selectedReader?.id(),
-                )
-                genericAlreadyAttempted = true
-                parserUsedReaderId = GenericCsvReader.id()
-                parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
-            }
-        }
 
         if (primaryAttempt.rows.isNotEmpty()) {
             log.info(
@@ -194,13 +208,14 @@ class CsvImportParserStrategy(
         if (!isHeaderOnlyEmptyStatementAllowed(bytes, fingerprint, selection.selectedReader != null)) {
             throw BusinessRuleException(
                 errorCode = BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED,
-                parameters = mapOf(
-                    "fileName" to (fileName ?: ""),
-                    "source" to sourceName,
-                    "reason" to "csv_no_parseable_rows",
-                    "mode" to selection.mode.name,
-                    "selectedReaderId" to (selection.selectedReader?.id() ?: ""),
-                ),
+                parameters =
+                    mapOf(
+                        "fileName" to (fileName ?: ""),
+                        "source" to sourceName,
+                        "reason" to "csv_no_parseable_rows",
+                        "mode" to selection.mode.name,
+                        "selectedReaderId" to (selection.selectedReader?.id() ?: ""),
+                    ),
             )
         }
 
@@ -228,11 +243,12 @@ class CsvImportParserStrategy(
         return hasDate && hasAmount
     }
 
-    private fun readerIdToImportSource(readerId: String?): ImportSource? = when (readerId) {
-        CsvNubankParser.id() -> ImportSource.CSV_NUBANK
-        CsvItauParser.id() -> ImportSource.CSV_ITAU
-        CsvBradescoParser.id() -> ImportSource.CSV_BRADESCO
-        CsvSantanderParser.id() -> ImportSource.CSV_SANTANDER
-        else -> null
-    }
+    private fun readerIdToImportSource(readerId: String?): ImportSource? =
+        when (readerId) {
+            CsvNubankParser.id() -> ImportSource.CSV_NUBANK
+            CsvItauParser.id() -> ImportSource.CSV_ITAU
+            CsvBradescoParser.id() -> ImportSource.CSV_BRADESCO
+            CsvSantanderParser.id() -> ImportSource.CSV_SANTANDER
+            else -> null
+        }
 }

@@ -18,14 +18,13 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
-import java.time.LocalDate
 import java.time.Instant
+import java.time.LocalDate
 import java.util.Base64
 import java.util.UUID
 
 @DisplayName("PdfImportResolver")
 class PdfImportResolverTest {
-
     private lateinit var pdfImportService: PdfImportService
     private lateinit var resolver: PdfImportResolver
 
@@ -35,14 +34,15 @@ class PdfImportResolverTest {
     private val jobId = UUID.randomUUID()
     private val now = Instant.now()
 
-    private fun principal() = RequestPrincipal(
-        principalType = PrincipalType.USER,
-        userId = userId,
-        serviceId = null,
-        token = "test-token",
-        permissionsFromToken = emptyList(),
-        currentAccountId = accountId,
-    )
+    private fun principal() =
+        RequestPrincipal(
+            principalType = PrincipalType.USER,
+            userId = userId,
+            serviceId = null,
+            token = "test-token",
+            permissionsFromToken = emptyList(),
+            currentAccountId = accountId,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -53,18 +53,19 @@ class PdfImportResolverTest {
     @Test
     fun `submitPdfBillImport decodes base64 and returns job dto`() {
         val bytes = "%PDF-1.7 sample".toByteArray()
-        val job = PdfImportJob(
-            id = jobId,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            status = PdfImportJobStatus.PENDING,
-            assetId = UUID.randomUUID(),
-            fileName = "fatura.pdf",
-            fileHash = "hash",
-            createdAt = now,
-            updatedAt = now,
-        )
+        val job =
+            PdfImportJob(
+                id = jobId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                status = PdfImportJobStatus.PENDING,
+                assetId = UUID.randomUUID(),
+                fileName = "fatura.pdf",
+                fileHash = "hash",
+                createdAt = now,
+                updatedAt = now,
+            )
         whenever(
             pdfImportService.submitPdfBillImport(
                 eq(accountId),
@@ -75,14 +76,16 @@ class PdfImportResolverTest {
             ),
         ).thenReturn(job)
 
-        val result = resolver.submitPdfBillImport(
-            input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "fileName" to "fatura.pdf",
-                "fileBase64" to Base64.getEncoder().encodeToString(bytes),
-            ),
-            principal = principal(),
-        )
+        val result =
+            resolver.submitPdfBillImport(
+                input =
+                    mapOf(
+                        "financialAccountId" to financialAccountId.toString(),
+                        "fileName" to "fatura.pdf",
+                        "fileBase64" to Base64.getEncoder().encodeToString(bytes),
+                    ),
+                principal = principal(),
+            )
 
         assertThat(result.id).isEqualTo(jobId)
         assertThat(result.status).isEqualTo(PdfImportJobStatus.PENDING)
@@ -97,10 +100,11 @@ class PdfImportResolverTest {
 
     @Test
     fun `submitPdfBillImport throws validation error for invalid base64`() {
-        val input = mapOf(
-            "fileName" to "fatura.pdf",
-            "fileBase64" to "%%%invalid%%%",
-        )
+        val input =
+            mapOf(
+                "fileName" to "fatura.pdf",
+                "fileBase64" to "%%%invalid%%%",
+            )
 
         assertThrows<ValidationException> {
             resolver.submitPdfBillImport(input, principal())
@@ -109,19 +113,20 @@ class PdfImportResolverTest {
 
     @Test
     fun `pdfImportJob returns reviewPayload only for awaiting review status`() {
-        val awaiting = PdfImportJob(
-            id = jobId,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            status = PdfImportJobStatus.AWAITING_REVIEW,
-            assetId = UUID.randomUUID(),
-            fileName = "fatura.pdf",
-            fileHash = "hash",
-            reviewPayload = """{"cards":[{"last_four_digits":"1234"}]}""",
-            createdAt = now,
-            updatedAt = now,
-        )
+        val awaiting =
+            PdfImportJob(
+                id = jobId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                status = PdfImportJobStatus.AWAITING_REVIEW,
+                assetId = UUID.randomUUID(),
+                fileName = "fatura.pdf",
+                fileHash = "hash",
+                reviewPayload = """{"cards":[{"last_four_digits":"1234"}]}""",
+                createdAt = now,
+                updatedAt = now,
+            )
         whenever(pdfImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
 
         val result = resolver.pdfImportJob(jobId.toString(), principal())
@@ -132,42 +137,47 @@ class PdfImportResolverTest {
 
     @Test
     fun `confirmPdfBillImport forwards command to service`() {
-        val doneJob = PdfImportJob(
-            id = jobId,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            status = PdfImportJobStatus.DONE,
-            assetId = UUID.randomUUID(),
-            fileName = "fatura.pdf",
-            fileHash = "hash",
-            completedAt = now,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val doneJob =
+            PdfImportJob(
+                id = jobId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                status = PdfImportJobStatus.DONE,
+                assetId = UUID.randomUUID(),
+                fileName = "fatura.pdf",
+                fileHash = "hash",
+                completedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
         whenever(pdfImportService.confirmPdfBillImport(eq(accountId), eq(userId), any())).thenReturn(doneJob)
 
-        val result = resolver.confirmPdfBillImport(
-            input = mapOf(
-                "jobId" to jobId.toString(),
-                "cards" to listOf(
+        val result =
+            resolver.confirmPdfBillImport(
+                input =
                     mapOf(
-                        "lastFourDigits" to "1234",
-                        "financialAccountId" to financialAccountId.toString(),
-                        "transactions" to listOf(
-                            mapOf(
-                                "date" to LocalDate.now().toString(),
-                                "description" to "MERCADO",
-                                "amount" to BigDecimal("45.90"),
-                                "creditDebitType" to "DEBIT",
-                                "include" to true,
+                        "jobId" to jobId.toString(),
+                        "cards" to
+                            listOf(
+                                mapOf(
+                                    "lastFourDigits" to "1234",
+                                    "financialAccountId" to financialAccountId.toString(),
+                                    "transactions" to
+                                        listOf(
+                                            mapOf(
+                                                "date" to LocalDate.now().toString(),
+                                                "description" to "MERCADO",
+                                                "amount" to BigDecimal("45.90"),
+                                                "creditDebitType" to "DEBIT",
+                                                "include" to true,
+                                            ),
+                                        ),
+                                ),
                             ),
-                        ),
                     ),
-                ),
-            ),
-            principal = principal(),
-        )
+                principal = principal(),
+            )
 
         assertThat(result.id).isEqualTo(jobId)
         assertThat(result.status).isEqualTo(PdfImportJobStatus.DONE)

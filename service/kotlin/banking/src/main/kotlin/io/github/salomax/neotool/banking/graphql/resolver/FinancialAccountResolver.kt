@@ -3,12 +3,12 @@ package io.github.salomax.neotool.banking.graphql.resolver
 import io.github.salomax.neotool.banking.domain.account.BankData
 import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.domain.account.CreditCardLevel
+import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.account.CreditCardLevel
-import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.dto.BankAccountDataDTO
@@ -42,7 +42,10 @@ class FinancialAccountResolver(
         return accounts.map { it.toDTO(issuersById[it.issuerId]) }
     }
 
-    fun create(input: Map<String, Any?>, principal: RequestPrincipal): FinancialAccountDTO {
+    fun create(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): FinancialAccountDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
@@ -66,27 +69,29 @@ class FinancialAccountResolver(
             themeColor = themeColor,
             issuer = issuer?.toDTO(),
             issuerName = issuerName,
-            bankData = bankData?.let {
-                BankAccountDataDTO(
-                    branchCode = it.branchCode,
-                    number = it.number,
-                    checkDigit = it.checkDigit,
-                    maskedNumber = it.maskedNumber,
-                )
-            },
-            cardData = cardData?.let {
-                CardDataDTO(
-                    maskedNumber = it.maskedNumber,
-                    bin = it.bin,
-                    cardNetwork = it.cardNetwork,
-                    cardLevel = it.cardLevel,
-                    creditLimit = it.creditLimit?.toDouble(),
-                    availableCreditLimit = it.availableCreditLimit?.toDouble(),
-                    minimumPaymentPercentage = it.minimumPaymentPercentage?.toDouble(),
-                    closingDay = it.closingDay,
-                    dueDay = it.dueDay,
-                )
-            },
+            bankData =
+                bankData?.let {
+                    BankAccountDataDTO(
+                        branchCode = it.branchCode,
+                        number = it.number,
+                        checkDigit = it.checkDigit,
+                        maskedNumber = it.maskedNumber,
+                    )
+                },
+            cardData =
+                cardData?.let {
+                    CardDataDTO(
+                        maskedNumber = it.maskedNumber,
+                        bin = it.bin,
+                        cardNetwork = it.cardNetwork,
+                        cardLevel = it.cardLevel,
+                        creditLimit = it.creditLimit?.toDouble(),
+                        availableCreditLimit = it.availableCreditLimit?.toDouble(),
+                        minimumPaymentPercentage = it.minimumPaymentPercentage?.toDouble(),
+                        closingDay = it.closingDay,
+                        dueDay = it.dueDay,
+                    )
+                },
             connectionStatus = connectionStatus,
             consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
             lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
@@ -120,25 +125,27 @@ class FinancialAccountResolver(
             currencyCode = this["currencyCode"] as? String,
             includeInNetWorth = this["includeInNetWorth"] as? Boolean,
             includeInDashboard = this["includeInDashboard"] as? Boolean,
-            bankData = bankDataInput?.let {
-                BankData(
-                    branchCode = it["branchCode"] as? String,
-                    number = it["number"] as? String,
-                    checkDigit = it["checkDigit"] as? String,
-                    maskedNumber = it["maskedNumber"] as? String,
-                )
-            },
-            cardData = cardDataInput?.let {
-                CardData(
-                    maskedNumber = it["maskedNumber"] as? String,
-                    bin = it["bin"] as? String,
-                    cardNetwork = (it["cardNetwork"] as? String)?.let { v -> CreditCardNetwork.valueOf(v) },
-                    cardLevel = (it["cardLevel"] as? String)?.let { v -> CreditCardLevel.valueOf(v) },
-                    creditLimit = (it["creditLimit"] as? Number)?.let { v -> BigDecimal(v.toString()) },
-                    closingDay = it["closingDay"] as? Int,
-                    dueDay = it["dueDay"] as? Int,
-                )
-            },
+            bankData =
+                bankDataInput?.let {
+                    BankData(
+                        branchCode = it["branchCode"] as? String,
+                        number = it["number"] as? String,
+                        checkDigit = it["checkDigit"] as? String,
+                        maskedNumber = it["maskedNumber"] as? String,
+                    )
+                },
+            cardData =
+                cardDataInput?.let {
+                    CardData(
+                        maskedNumber = it["maskedNumber"] as? String,
+                        bin = it["bin"] as? String,
+                        cardNetwork = (it["cardNetwork"] as? String)?.let { v -> CreditCardNetwork.valueOf(v) },
+                        cardLevel = (it["cardLevel"] as? String)?.let { v -> CreditCardLevel.valueOf(v) },
+                        creditLimit = (it["creditLimit"] as? Number)?.let { v -> BigDecimal(v.toString()) },
+                        closingDay = it["closingDay"] as? Int,
+                        dueDay = it["dueDay"] as? Int,
+                    )
+                },
             initialBalance = (this["initialBalance"] as? Number)?.let { BigDecimal(it.toString()) },
             initialBalanceDate = (this["initialBalanceDate"] as? String)?.let { LocalDate.parse(it) },
         )

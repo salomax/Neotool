@@ -14,7 +14,6 @@ import java.util.UUID
 open class SameSourceDedupService(
     private val transactionEntityRepository: TransactionEntityRepository,
 ) {
-
     /**
      * Returns true if a non-deleted transaction exists with the given
      * financialAccountId, providerTransactionId, and source.

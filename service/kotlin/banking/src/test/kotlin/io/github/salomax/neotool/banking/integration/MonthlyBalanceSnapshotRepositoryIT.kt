@@ -23,8 +23,8 @@ import java.util.UUID
 
 @MicronautTest(startApplication = true)
 @DisplayName("MonthlyBalanceSnapshotRepository IT")
+@org.junit.jupiter.api.Tag("integration")
 class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
 
@@ -103,7 +103,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("upsert")
     inner class UpsertTests {
-
         @Test
         fun `inserts snapshot and returns it with populated createdAt`() {
             val saved = snapshotRepository.upsert(snapshot(2024, 3, closingBalance = BigDecimal("1500.00")))
@@ -118,7 +117,10 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
         @Test
         fun `second upsert for same (account, year, month) updates fields without creating duplicate`() {
             snapshotRepository.upsert(snapshot(2024, 4, closingBalance = BigDecimal("100.00")))
-            val updated = snapshotRepository.upsert(snapshot(2024, 4, closingBalance = BigDecimal("200.00"), totalIncome = BigDecimal("500.00")))
+            val updated =
+                snapshotRepository.upsert(
+                    snapshot(2024, 4, closingBalance = BigDecimal("200.00"), totalIncome = BigDecimal("500.00")),
+                )
 
             assertThat(updated.closingBalance).isEqualByComparingTo("200.00")
             assertThat(updated.totalIncome).isEqualByComparingTo("500.00")
@@ -143,7 +145,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findByYearMonth")
     inner class FindByYearMonthTests {
-
         @Test
         fun `returns null for non-existent (account, year, month)`() {
             val result = snapshotRepository.findByYearMonth(financialAccountId, 2099, 1)
@@ -152,7 +153,9 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
 
         @Test
         fun `returns snapshot for correct key`() {
-            snapshotRepository.upsert(snapshot(2024, 6, openingBalance = BigDecimal("50.00"), closingBalance = BigDecimal("150.00")))
+            snapshotRepository.upsert(
+                snapshot(2024, 6, openingBalance = BigDecimal("50.00"), closingBalance = BigDecimal("150.00")),
+            )
 
             val result = snapshotRepository.findByYearMonth(financialAccountId, 2024, 6)
 
@@ -167,7 +170,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findLatestCleanBefore")
     inner class FindLatestCleanBeforeTests {
-
         @Test
         fun `returns null when no snapshots exist`() {
             val result = snapshotRepository.findLatestCleanBefore(financialAccountId, 2025, 1)
@@ -208,7 +210,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("markDirtyFromMonth")
     inner class MarkDirtyFromMonthTests {
-
         @Test
         fun `marks all snapshots at or after the given month as dirty`() {
             snapshotRepository.upsert(snapshot(2024, 1))
@@ -239,7 +240,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findFinancialAccountIdsWithDirtySnapshots")
     inner class FindDirtyAccountIdsTests {
-
         @Test
         fun `returns financial account id when it has at least one dirty snapshot`() {
             snapshotRepository.upsert(snapshot(2024, 7, isDirty = true))
@@ -264,7 +264,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("TransactionRepository.getMonthTotals")
     inner class GetMonthTotalsTests {
-
         @Test
         fun `returns all zeros for a month with no transactions`() {
             val result = transactionRepository.getMonthTotals(financialAccountId, 2030, 1)
@@ -312,8 +311,20 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
         @Test
         fun `FUTURE transactions go into totalFutureCredit and totalFutureDebit only`() {
             val month = LocalDate.of(2024, 11, 1)
-            saveTx(month, BigDecimal("100.00"), CreditDebitType.CREDIT, TransactionType.SALARY, TransactionStatus.POSTED)
-            saveTx(month, BigDecimal("60.00"), CreditDebitType.DEBIT, TransactionType.OTHER_EXPENSE, TransactionStatus.FUTURE)
+            saveTx(
+                month,
+                BigDecimal("100.00"),
+                CreditDebitType.CREDIT,
+                TransactionType.SALARY,
+                TransactionStatus.POSTED,
+            )
+            saveTx(
+                month,
+                BigDecimal("60.00"),
+                CreditDebitType.DEBIT,
+                TransactionType.OTHER_EXPENSE,
+                TransactionStatus.FUTURE,
+            )
 
             val result = transactionRepository.getMonthTotals(financialAccountId, 2024, 11)
 
@@ -327,7 +338,6 @@ class MonthlyBalanceSnapshotRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("TransactionRepository.getMonthTransferTotals")
     inner class GetMonthTransferTotalsTests {
-
         @Test
         fun `returns zeros when no transfer transactions in month`() {
             val result = transactionRepository.getMonthTransferTotals(financialAccountId, 2030, 1)

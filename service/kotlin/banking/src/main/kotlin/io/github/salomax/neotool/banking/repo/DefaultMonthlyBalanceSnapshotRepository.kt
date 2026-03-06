@@ -4,6 +4,8 @@ import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapsh
 import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.model.transaction.MonthlyBalanceSnapshotMapper
 import jakarta.inject.Singleton
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import java.time.Instant
 import java.util.UUID
 
@@ -13,9 +15,13 @@ import java.util.UUID
 @Singleton
 open class DefaultMonthlyBalanceSnapshotRepository(
     private val entityRepository: MonthlyBalanceSnapshotEntityRepository,
+    @PersistenceContext private val entityManager: EntityManager,
 ) : MonthlyBalanceSnapshotRepository {
-
-    override fun findByYearMonth(financialAccountId: UUID, year: Int, month: Int): MonthlyBalanceSnapshot? =
+    override fun findByYearMonth(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthlyBalanceSnapshot? =
         entityRepository.findByKey(financialAccountId, year, month)
             ?.let(MonthlyBalanceSnapshotMapper::toDomain)
 
@@ -45,14 +51,23 @@ open class DefaultMonthlyBalanceSnapshotRepository(
             closingBalance = snapshot.closingBalance,
             totalIncome = snapshot.totalIncome,
             totalExpenses = snapshot.totalExpenses,
+            isDirty = snapshot.isDirty,
             computedAt = snapshot.computedAt ?: Instant.now(),
         )
+        // Native UPSERT bypasses first-level cache. Clear to avoid stale reads by key.
+        entityManager.clear()
         // Re-read to get DB-stamped timestamps
         return entityRepository.findByKey(snapshot.financialAccountId, snapshot.year, snapshot.month)!!
             .let(MonthlyBalanceSnapshotMapper::toDomain)
     }
 
-    override fun markDirtyFromMonth(financialAccountId: UUID, year: Int, month: Int) {
+    override fun markDirtyFromMonth(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ) {
         entityRepository.markDirtyFromMonth(financialAccountId, year, month)
+        // Native UPDATE bypasses first-level cache. Clear so subsequent reads observe dirty flags.
+        entityManager.clear()
     }
 }

@@ -16,7 +16,6 @@ import java.time.LocalDate
 import java.util.UUID
 
 class CreditCardBillServiceTest {
-
     private val repository: CreditCardBillRepository = mock()
     private val service = CreditCardBillService(repository)
 
@@ -102,9 +101,9 @@ class CreditCardBillServiceTest {
         // If logic pushes to next month, it should be Feb 29
         val closingDate = LocalDate.of(2024, 1, 31)
         val dueDay = 31
-        
+
         val result = service.computeDueDate(closingDate, dueDay)
-        
+
         assertThat(result).isEqualTo(LocalDate.of(2024, 2, 29))
     }
 
@@ -114,62 +113,68 @@ class CreditCardBillServiceTest {
 
     @Test
     fun `resolveBillForTransaction - non-card account returns null`() {
-        val account = FinancialAccount(
-            id = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            type = FinancialAccountType.BANK,
-            subtype = FinancialAccountSubtype.CONTA_CORRENTE,
-            name = "Bank",
-            currencyCode = "BRL",
-            cardData = null,
-            createdAt = now,
-            updatedAt = now
-        )
-        
-        val result = service.resolveBillForTransaction(
-            account,
-            LocalDate.now(),
-            TransactionType.CARD
-        )
-        
+        val account =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                type = FinancialAccountType.BANK,
+                subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                name = "Bank",
+                currencyCode = "BRL",
+                cardData = null,
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        val result =
+            service.resolveBillForTransaction(
+                account,
+                LocalDate.now(),
+                TransactionType.CARD,
+            )
+
         assertThat(result).isNull()
     }
 
     @Test
     fun `resolveBillForTransaction - BALANCE_ADJUSTMENT returns null`() {
         val account = creditCardAccount()
-        
-        val result = service.resolveBillForTransaction(
-            account,
-            LocalDate.now(),
-            TransactionType.BALANCE_ADJUSTMENT
-        )
-        
+
+        val result =
+            service.resolveBillForTransaction(
+                account,
+                LocalDate.now(),
+                TransactionType.BALANCE_ADJUSTMENT,
+            )
+
         assertThat(result).isNull()
     }
 
     @Test
     fun `resolveBillForTransaction - no cardData returns null`() {
-        val account = FinancialAccount(
-            id = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            type = FinancialAccountType.CREDIT,
-            subtype = FinancialAccountSubtype.CREDIT_CARD,
-            name = "Card",
-            currencyCode = "BRL",
-            cardData = null, // Missing
-            createdAt = now,
-            updatedAt = now
-        )
-        
-        val result = service.resolveBillForTransaction(
-            account,
-            LocalDate.now(),
-            TransactionType.CARD
-        )
-        
+        val account =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                type = FinancialAccountType.CREDIT,
+                subtype = FinancialAccountSubtype.CREDIT_CARD,
+                name = "Card",
+                currencyCode = "BRL",
+                // Missing
+                cardData = null,
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        val result =
+            service.resolveBillForTransaction(
+                account,
+                LocalDate.now(),
+                TransactionType.CARD,
+            )
+
         assertThat(result).isNull()
     }
 
@@ -178,26 +183,27 @@ class CreditCardBillServiceTest {
         val account = creditCardAccount()
         val txDate = LocalDate.of(2024, 2, 15) // Closing day 10 -> Next month (Mar 10)
         // Due day 20 -> Mar 20
-        
+
         val expectedBillId = UUID.randomUUID()
         val bill = mock<CreditCardBill>()
         whenever(bill.id).thenReturn(expectedBillId)
-        
+
         whenever(repository.findOrCreate(any(), any(), any(), any())).thenReturn(bill)
-        
-        val result = service.resolveBillForTransaction(
-            account,
-            txDate,
-            TransactionType.CARD
-        )
-        
+
+        val result =
+            service.resolveBillForTransaction(
+                account,
+                txDate,
+                TransactionType.CARD,
+            )
+
         assertThat(result).isEqualTo(expectedBillId)
-        
+
         verify(repository).findOrCreate(
             financialAccountId = financialAccountId,
             accountId = accountId,
             closingDate = LocalDate.of(2024, 3, 10),
-            dueDate = LocalDate.of(2024, 3, 20)
+            dueDate = LocalDate.of(2024, 3, 20),
         )
     }
 
@@ -224,13 +230,14 @@ class CreditCardBillServiceTest {
             subtype = FinancialAccountSubtype.CREDIT_CARD,
             name = "My Card",
             currencyCode = "BRL",
-            cardData = CardData(
-                closingDay = 10,
-                dueDay = 20,
-                creditLimit = 1000.toBigDecimal()
-            ),
+            cardData =
+                CardData(
+                    closingDay = 10,
+                    dueDay = 20,
+                    creditLimit = 1000.toBigDecimal(),
+                ),
             createdAt = now,
-            updatedAt = now
+            updatedAt = now,
         )
     }
 }

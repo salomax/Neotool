@@ -12,8 +12,10 @@ import java.util.UUID
  */
 @Repository
 interface TransactionImportEntityRepository : JpaRepository<TransactionImportEntity, UUID> {
-
-    fun findByIdAndAccountId(id: UUID, accountId: UUID): TransactionImportEntity?
+    fun findByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): TransactionImportEntity?
 
     fun findByFinancialAccountIdAndFileHash(
         financialAccountId: UUID,
@@ -35,5 +37,8 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
         """,
         nativeQuery = true,
     )
-    fun updateStatus(id: UUID, status: String): Int
+    fun updateStatus(
+        id: UUID,
+        status: String,
+    ): Int
 }

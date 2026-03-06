@@ -18,7 +18,6 @@ import java.util.UUID
 open class SecurityAccountMembershipValidationPort(
     private val graphQLServiceClient: GraphQLServiceClient,
 ) : AccountMembershipValidationPort {
-
     private val logger = KotlinLogging.logger {}
 
     override fun isUserActiveMemberOfAccount(

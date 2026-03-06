@@ -17,11 +17,12 @@ class CsvReaderSelectionPolicy(
         }
     }
 
-    fun modeFor(score: Double): CsvReaderSelectionMode = when {
-        score >= specificThreshold -> CsvReaderSelectionMode.SPECIFIC_ONLY
-        score >= trySpecificThenFallbackThreshold -> CsvReaderSelectionMode.SPECIFIC_THEN_GENERIC_FALLBACK
-        else -> CsvReaderSelectionMode.GENERIC_ONLY
-    }
+    fun modeFor(score: Double): CsvReaderSelectionMode =
+        when {
+            score >= specificThreshold -> CsvReaderSelectionMode.SPECIFIC_ONLY
+            score >= trySpecificThenFallbackThreshold -> CsvReaderSelectionMode.SPECIFIC_THEN_GENERIC_FALLBACK
+            else -> CsvReaderSelectionMode.GENERIC_ONLY
+        }
 }
 
 enum class CsvReaderSelectionMode {

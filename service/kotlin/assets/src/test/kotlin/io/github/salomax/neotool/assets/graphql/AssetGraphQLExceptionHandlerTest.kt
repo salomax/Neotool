@@ -8,6 +8,7 @@ import io.github.salomax.neotool.assets.error.AssetErrorCode
 import io.github.salomax.neotool.assets.exception.StorageUnavailableException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
 import org.assertj.core.api.Assertions.assertThat
 import org.hibernate.StaleStateException
 import org.junit.jupiter.api.BeforeEach
@@ -43,13 +44,12 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.defaultMessage)
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.code)
-            assertThat(errorResult.errors[0].extensions).containsEntry("parameters", mapOf("mimeType" to "application/pdf"))
-            assertThat(errorResult.errors[0].extensions).containsEntry("field", listOf("mimeType"))
-            assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_FORMAT_UNSUPPORTED.code)
+            assertThat(result.errors[0].extensions).containsEntry("parameters", mapOf("mimeType" to "application/pdf"))
+            assertThat(result.errors[0].extensions).containsEntry("field", listOf("mimeType"))
+            assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
@@ -61,10 +61,9 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
         }
 
         @Test
@@ -75,11 +74,10 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo("State error message")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_STATE.code)
-            assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo("Access denied")
+            assertThat(result.errors[0].extensions).containsEntry("code", "AUTH_AUTHORIZATION_DENIED")
+            assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
@@ -90,10 +88,9 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo(CommonErrorCode.INVALID_STATE.defaultMessage)
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_STATE.code)
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.INVALID_INPUT.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.INVALID_INPUT.code)
         }
 
         @Test
@@ -104,11 +101,10 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            assertThat(errorResult.errors[0].message).isEqualTo("Storage unavailable message")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
-            assertThat(errorResult.errors[0].extensions).containsEntry("service", "assets")
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
+            assertThat(result.errors[0].extensions).containsEntry("service", "assets")
         }
 
         @Test
@@ -119,11 +115,9 @@ class AssetGraphQLExceptionHandlerTest {
             val result = handler.handleException(parameters).get()
 
             // Assert
-            val errorResult = result.get()
-            assertThat(errorResult.errors).hasSize(1)
-            // Empty string is used, not the default message
-            assertThat(errorResult.errors[0].message).isEqualTo("")
-            assertThat(errorResult.errors[0].extensions).containsEntry("code", AssetErrorCode.ASSET_STORAGE_UNAVAILABLE.code)
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].message).isEqualTo(CommonErrorCode.OPTIMISTIC_LOCK_ERROR.defaultMessage)
+            assertThat(result.errors[0].extensions).containsEntry("code", CommonErrorCode.OPTIMISTIC_LOCK_ERROR.code)
         }
 
         @Test

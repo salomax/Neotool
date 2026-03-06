@@ -14,45 +14,49 @@ import java.time.format.DateTimeFormatter
  * - description
  */
 object GenericCsvReader : BankCsvReader {
-    private val DATE_HEADERS = setOf(
-        "data",
-        "date",
-        "posted_at",
-        "transaction_date",
-        "lancamento",
-        "dt_lancamento",
-    )
-    private val AMOUNT_HEADERS = setOf(
-        "valor",
-        "amount",
-        "value",
-        "valor_rs",
-        "gross_value",
-        "net_value",
-        "quantia",
-    )
+    private val DATE_HEADERS =
+        setOf(
+            "data",
+            "date",
+            "posted_at",
+            "transaction_date",
+            "lancamento",
+            "dt_lancamento",
+        )
+    private val AMOUNT_HEADERS =
+        setOf(
+            "valor",
+            "amount",
+            "value",
+            "valor_rs",
+            "gross_value",
+            "net_value",
+            "quantia",
+        )
     private val DEBIT_HEADERS = setOf("debit", "debito", "saidas", "saida")
     private val CREDIT_HEADERS = setOf("credit", "credito", "entradas", "entrada")
-    private val DESCRIPTION_HEADERS = setOf(
-        "descricao",
-        "description",
-        "lancamento",
-        "tipo_lancamento",
-        "historico",
-        "memo",
-        "details",
-        "title",
-        "narrative",
-        "desc",
-    )
-    private val ID_HEADERS = setOf(
-        "identificador",
-        "id",
-        "transaction_id",
-        "codigo",
-        "hash",
-        "chave",
-    )
+    private val DESCRIPTION_HEADERS =
+        setOf(
+            "descricao",
+            "description",
+            "lancamento",
+            "tipo_lancamento",
+            "historico",
+            "memo",
+            "details",
+            "title",
+            "narrative",
+            "desc",
+        )
+    private val ID_HEADERS =
+        setOf(
+            "identificador",
+            "id",
+            "transaction_id",
+            "codigo",
+            "hash",
+            "chave",
+        )
 
     private val ISO_DATE = DateTimeFormatter.ISO_LOCAL_DATE
     private val BR_DATE_SLASH = DateTimeFormatter.ofPattern("dd/MM/yyyy")
@@ -92,10 +96,11 @@ object GenericCsvReader : BankCsvReader {
     override fun parse(bytes: ByteArray): List<ParsedTransaction> {
         val fingerprint = CsvFingerprintBuilder.build(bytes)
         val text = ImportTextDecoder.decode(bytes).text
-        val rawLines = text.lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .toList()
+        val rawLines =
+            text.lineSequence()
+                .map { it.trimEnd('\r') }
+                .filter { it.isNotBlank() }
+                .toList()
         if (rawLines.isEmpty()) return emptyList()
 
         val rows = rawLines.map { parseCsvLine(it, fingerprint.delimiter) }
@@ -112,7 +117,10 @@ object GenericCsvReader : BankCsvReader {
             val creditDebitType = if (parsedAmount.signum() < 0) CreditDebitType.DEBIT else CreditDebitType.CREDIT
 
             ParsedTransaction(
-                providerTransactionId = row.getOrNull(effectiveProviderIdIndex ?: -1)?.trim()?.takeIf { it.isNotBlank() },
+                providerTransactionId =
+                    row.getOrNull(
+                        effectiveProviderIdIndex ?: -1,
+                    )?.trim()?.takeIf { it.isNotBlank() },
                 creditDebitType = creditDebitType,
                 amount = parsedAmount.abs(),
                 date = parsedDate,
@@ -127,24 +135,32 @@ object GenericCsvReader : BankCsvReader {
         }
     }
 
-    private fun resolveMapping(rows: List<List<String>>, fingerprint: CsvFingerprint): GenericCsvMapping {
+    private fun resolveMapping(
+        rows: List<List<String>>,
+        fingerprint: CsvFingerprint,
+    ): GenericCsvMapping {
         val header = if (fingerprint.hasHeader) fingerprint.normalizedColumns else emptyList()
         val dataRows = if (fingerprint.hasHeader) rows.drop(1) else rows
 
         val inferredDateIdx = inferDateIndex(dataRows)
         val inferredAmountIdx = inferAmountIndex(dataRows, excluded = setOfNotNull(inferredDateIdx))
-        val inferredDescriptionIdx = inferDescriptionIndex(dataRows, excluded = setOfNotNull(inferredDateIdx, inferredAmountIdx))
+        val inferredDescriptionIdx =
+            inferDescriptionIndex(dataRows, excluded = setOfNotNull(inferredDateIdx, inferredAmountIdx))
 
         val dateIndex = header.indexOfFirstHeader(DATE_HEADERS).takeIf { it >= 0 } ?: inferredDateIdx
         val debitIndex = header.indexOfFirstHeader(DEBIT_HEADERS).takeIf { it >= 0 }
         val creditIndex = header.indexOfFirstHeader(CREDIT_HEADERS).takeIf { it >= 0 }
         val explicitAmountIndex = header.indexOfFirstHeader(AMOUNT_HEADERS).takeIf { it >= 0 }
-        val amountIndex = when {
-            explicitAmountIndex != null -> explicitAmountIndex
-            debitIndex != null || creditIndex != null -> null
-            else -> inferredAmountIdx
-        }
-        val descriptionIndex = header.indexOfFirstHeader(DESCRIPTION_HEADERS).takeIf { it >= 0 } ?: inferredDescriptionIdx
+        val amountIndex =
+            when {
+                explicitAmountIndex != null -> explicitAmountIndex
+                debitIndex != null || creditIndex != null -> null
+                else -> inferredAmountIdx
+            }
+        val descriptionIndex =
+            header.indexOfFirstHeader(
+                DESCRIPTION_HEADERS,
+            ).takeIf { it >= 0 } ?: inferredDescriptionIdx
         val idIndex = header.indexOfFirstHeader(ID_HEADERS).takeIf { it >= 0 }
 
         return GenericCsvMapping(
@@ -157,7 +173,10 @@ object GenericCsvReader : BankCsvReader {
         )
     }
 
-    private fun resolveAmount(row: List<String>, mapping: GenericCsvMapping): BigDecimal? {
+    private fun resolveAmount(
+        row: List<String>,
+        mapping: GenericCsvMapping,
+    ): BigDecimal? {
         mapping.amountIndex?.let { idx ->
             parseAmount(row.getOrNull(idx).orEmpty())?.let { return it }
         }
@@ -168,24 +187,34 @@ object GenericCsvReader : BankCsvReader {
         return credit.subtract(debit)
     }
 
-    private fun resolveDescription(row: List<String>, mapping: GenericCsvMapping): String {
+    private fun resolveDescription(
+        row: List<String>,
+        mapping: GenericCsvMapping,
+    ): String {
         val preferred = row.getOrNull(mapping.descriptionIndex)?.trim().orEmpty()
         if (preferred.isNotBlank()) return preferred
 
-        val blocked = setOfNotNull(
-            mapping.dateIndex,
-            mapping.amountIndex,
-            mapping.debitIndex,
-            mapping.creditIndex,
-            mapping.idIndex,
-        )
+        val blocked =
+            setOfNotNull(
+                mapping.dateIndex,
+                mapping.amountIndex,
+                mapping.debitIndex,
+                mapping.creditIndex,
+                mapping.idIndex,
+            )
         return row.mapIndexedNotNull { idx, value ->
-            if (idx in blocked) null
-            else value.trim().takeIf { it.isNotBlank() }
+            if (idx in blocked) {
+                null
+            } else {
+                value.trim().takeIf { it.isNotBlank() }
+            }
         }.joinToString(" ").trim()
     }
 
-    private fun resolveProviderIdIndex(dataRows: List<List<String>>, candidateIndex: Int?): Int? {
+    private fun resolveProviderIdIndex(
+        dataRows: List<List<String>>,
+        candidateIndex: Int?,
+    ): Int? {
         val idx = candidateIndex ?: return null
         val ids = dataRows.mapNotNull { row -> row.getOrNull(idx)?.trim()?.takeIf { it.isNotBlank() } }
         if (ids.size < 3) return idx
@@ -198,10 +227,15 @@ object GenericCsvReader : BankCsvReader {
     private fun inferDateIndex(rows: List<List<String>>): Int? =
         bestIndexByScore(rows) { value -> if (parseDate(value) != null) 1.0 else 0.0 }
 
-    private fun inferAmountIndex(rows: List<List<String>>, excluded: Set<Int>): Int? =
-        bestIndexByScore(rows, excluded) { value -> if (parseAmount(value) != null) 1.0 else 0.0 }
+    private fun inferAmountIndex(
+        rows: List<List<String>>,
+        excluded: Set<Int>,
+    ): Int? = bestIndexByScore(rows, excluded) { value -> if (parseAmount(value) != null) 1.0 else 0.0 }
 
-    private fun inferDescriptionIndex(rows: List<List<String>>, excluded: Set<Int>): Int? {
+    private fun inferDescriptionIndex(
+        rows: List<List<String>>,
+        excluded: Set<Int>,
+    ): Int? {
         val maxColumns = rows.maxOfOrNull { it.size } ?: return null
         var bestIndex: Int? = null
         var bestScore = Double.NEGATIVE_INFINITY
@@ -260,19 +294,21 @@ object GenericCsvReader : BankCsvReader {
 
         val parenthesizedNegative = clean.startsWith("(") && clean.endsWith(")")
         clean = clean.removePrefix("(").removeSuffix(")")
-        clean = clean.replace("R$", "", ignoreCase = true)
-            .replace(" ", "")
-            .replace("[^0-9,\\.\\-+]".toRegex(), "")
+        clean =
+            clean.replace("R$", "", ignoreCase = true)
+                .replace(" ", "")
+                .replace("[^0-9,\\.\\-+]".toRegex(), "")
         if (clean.isBlank()) return null
 
-        val normalized = when {
-            clean.contains(",") && clean.contains(".") && clean.lastIndexOf(',') > clean.lastIndexOf('.') ->
-                clean.replace(".", "").replace(",", ".")
-            clean.contains(",") && clean.contains(".") ->
-                clean.replace(",", "")
-            clean.contains(",") -> clean.replace(",", ".")
-            else -> clean
-        }
+        val normalized =
+            when {
+                clean.contains(",") && clean.contains(".") && clean.lastIndexOf(',') > clean.lastIndexOf('.') ->
+                    clean.replace(".", "").replace(",", ".")
+                clean.contains(",") && clean.contains(".") ->
+                    clean.replace(",", "")
+                clean.contains(",") -> clean.replace(",", ".")
+                else -> clean
+            }
 
         val parsed = runCatching { BigDecimal(normalized) }.getOrNull() ?: return null
         return if (parenthesizedNegative) parsed.negate() else parsed
@@ -281,7 +317,10 @@ object GenericCsvReader : BankCsvReader {
     private fun List<String>.indexOfFirstHeader(candidates: Set<String>): Int =
         indexOfFirst { header -> candidates.any { candidate -> header == candidate || header.contains(candidate) } }
 
-    private fun parseCsvLine(line: String, delimiter: Char): List<String> {
+    private fun parseCsvLine(
+        line: String,
+        delimiter: Char,
+    ): List<String> {
         val result = mutableListOf<String>()
         val current = StringBuilder()
         var inQuotes = false

@@ -25,11 +25,15 @@ class TestImportFileRequestedConsumer {
     private val received = ConcurrentLinkedQueue<Pair<String, ImportFileRequestedEvent>>()
 
     @Topic(ImportTopics.FILE_REQUESTED)
-    fun receive(@KafkaKey key: String, event: ImportFileRequestedEvent) {
+    fun receive(
+        @KafkaKey key: String,
+        event: ImportFileRequestedEvent,
+    ) {
         received.offer(key to event)
     }
 
     fun getReceived(): List<Pair<String, ImportFileRequestedEvent>> = received.toList()
+
     fun clear() = received.clear()
 }
 
@@ -37,13 +41,16 @@ class TestImportFileRequestedConsumer {
 @DisplayName("ImportFileProducer IT")
 @Tag("integration")
 class ImportFileProducerIT : BaseIntegrationTest(), KafkaIntegrationTest {
-
     override fun getProperties(): MutableMap<String, String> {
         val props = super.getProperties().toMutableMap()
         props["datasources.default.enabled"] = "false"
         props["flyway.enabled"] = "false"
-        props["kafka.consumers.banking-import-file-producer-it.key-deserializer"] = StringDeserializer::class.java.name
-        props["kafka.consumers.banking-import-file-producer-it.value-deserializer"] = "io.micronaut.serde.kafka.KafkaSerdeDeserializer"
+        props["kafka.consumers.import-file.enabled"] = "false"
+        props["kafka.consumers.pdf-status.enabled"] = "false"
+        props["kafka.consumers.banking-import-file-producer-it.key-deserializer"] =
+            StringDeserializer::class.java.name
+        props["kafka.consumers.banking-import-file-producer-it.value-deserializer"] =
+            "io.micronaut.serde.kafka.KafkaSerdeDeserializer"
         return props
     }
 
@@ -60,13 +67,14 @@ class ImportFileProducerIT : BaseIntegrationTest(), KafkaIntegrationTest {
         val assetId = UUID.randomUUID()
         val financialAccountId = UUID.randomUUID()
         val accountId = UUID.randomUUID()
-        val event = ImportFileRequestedEvent(
-            jobId = jobId,
-            assetId = assetId,
-            source = ImportSource.CSV_NUBANK,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-        )
+        val event =
+            ImportFileRequestedEvent(
+                jobId = jobId,
+                assetId = assetId,
+                source = ImportSource.CSV_NUBANK,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+            )
 
         producer.publish(event)
 

@@ -93,10 +93,11 @@ object CsvBancoDoBrasilParser : BankCsvReader {
 
     override fun parse(bytes: ByteArray): List<ParsedTransaction> {
         val text = ImportTextDecoder.decode(bytes).text
-        val lines = text.lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .toList()
+        val lines =
+            text.lineSequence()
+                .map { it.trimEnd('\r') }
+                .filter { it.isNotBlank() }
+                .toList()
         if (lines.size < 2) return emptyList()
 
         val delimiter = CsvParserSupport.detectDelimiter(lines.first())
@@ -138,7 +139,10 @@ object CsvBancoDoBrasilParser : BankCsvReader {
         }
     }
 
-    private fun composeDescription(launch: String, details: String): String {
+    private fun composeDescription(
+        launch: String,
+        details: String,
+    ): String {
         if (details.isBlank()) return launch
         if (launch.isBlank()) return details
         if (details.equals(launch, ignoreCase = true)) return details

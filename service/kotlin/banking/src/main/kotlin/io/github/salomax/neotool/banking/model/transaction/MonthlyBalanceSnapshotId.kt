@@ -13,10 +13,8 @@ import java.util.UUID
 data class MonthlyBalanceSnapshotId(
     @Column(name = "financial_account_id", nullable = false)
     val financialAccountId: UUID,
-
     @Column(name = "year", nullable = false)
     val year: Int,
-
     @Column(name = "month", nullable = false)
     val month: Int,
 ) : Serializable

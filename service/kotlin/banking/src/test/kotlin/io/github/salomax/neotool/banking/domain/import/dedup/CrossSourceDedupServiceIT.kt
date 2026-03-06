@@ -24,7 +24,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("CrossSourceDedupService IT")
 class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var crossSourceDedupService: CrossSourceDedupService
 
@@ -54,7 +53,10 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         }
     }
 
-    private fun baseTransaction(description: String, source: TransactionSource) = Transaction(
+    private fun baseTransaction(
+        description: String,
+        source: TransactionSource,
+    ) = Transaction(
         financialAccountId = financialAccountId,
         accountId = accountId,
         createdByUserId = userId,
@@ -72,22 +74,23 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findCandidates — SQL correctness")
     inner class FindCandidatesSqlTests {
-
         @Test
         fun `returns existing transaction when date amount and financial_account_id match and source differs`() {
             transactionRepository.save(baseTransaction("MANUAL row", TransactionSource.MANUAL))
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Incoming OPEN_FINANCE",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Incoming OPEN_FINANCE",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).hasSize(1)
             assertThat(candidates[0].source).isEqualTo(TransactionSource.MANUAL)
@@ -100,17 +103,19 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         fun `does NOT return same-source match Level 1 is separate`() {
             transactionRepository.save(baseTransaction("MANUAL only", TransactionSource.MANUAL))
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Also MANUAL",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.MANUAL,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Also MANUAL",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.MANUAL,
+                )
 
             assertThat(candidates).isEmpty()
         }
@@ -120,34 +125,38 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
             val saved = transactionRepository.save(baseTransaction("To delete", TransactionSource.MANUAL))
             transactionRepository.softDelete(saved.id!!, accountId)
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Incoming",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Incoming",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).isEmpty()
         }
 
         @Test
         fun `returns empty when no cross-source conflict`() {
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "No existing",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "No existing",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).isEmpty()
         }
@@ -156,17 +165,19 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         fun `returns empty when amount differs`() {
             transactionRepository.save(baseTransaction("MANUAL", TransactionSource.MANUAL))
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = BigDecimal("99.99"),
-                date = today,
-                description = "Different amount",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = BigDecimal("99.99"),
+                    date = today,
+                    description = "Different amount",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).isEmpty()
         }
@@ -175,17 +186,19 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         fun `returns empty when date differs`() {
             transactionRepository.save(baseTransaction("MANUAL", TransactionSource.MANUAL))
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today.plusDays(1),
-                description = "Different date",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today.plusDays(1),
+                    description = "Different date",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).isEmpty()
         }
@@ -206,17 +219,19 @@ class CrossSourceDedupServiceIT : BankingPostgresIntegrationTest() {
                 )
             }
 
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Incoming",
-            )
-            val candidates = crossSourceDedupService.findCandidates(
-                financialAccountId = otherFinancialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Incoming",
+                )
+            val candidates =
+                crossSourceDedupService.findCandidates(
+                    financialAccountId = otherFinancialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(candidates).isEmpty()
         }

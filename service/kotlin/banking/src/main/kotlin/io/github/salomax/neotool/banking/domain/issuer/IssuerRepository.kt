@@ -9,8 +9,15 @@ import java.util.UUID
  */
 interface IssuerRepository {
     fun findAllActive(): List<Issuer>
+
     fun findAllPendingLogoHydration(): List<Issuer>
+
     fun findById(id: UUID): Issuer?
+
     fun findByIds(ids: Collection<UUID>): List<Issuer>
-    fun updateLogoKey(id: UUID, logoKey: String)
+
+    fun updateLogoKey(
+        id: UUID,
+        logoKey: String,
+    )
 }

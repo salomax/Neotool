@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.repo
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -21,17 +21,21 @@ open class DefaultFinancialAccountRepository(
     private val cardDataRepository: FinancialAccountCardDataEntityRepository,
 ) : FinancialAccountRepository {
     companion object {
-        private val CARD_MATCHABLE_SUBTYPES = setOf(
-            FinancialAccountSubtype.CREDIT_CARD,
-            FinancialAccountSubtype.CHARGE_CARD,
-        )
+        private val CARD_MATCHABLE_SUBTYPES =
+            setOf(
+                FinancialAccountSubtype.CREDIT_CARD,
+                FinancialAccountSubtype.CHARGE_CARD,
+            )
     }
 
     override fun findByAccountId(accountId: UUID): List<FinancialAccount> =
         entityRepository.findByAccountIdAndDeletedAtIsNull(accountId)
             .map(FinancialAccountMapper::toDomain)
 
-    override fun findCardAccountsByLastFourDigits(accountId: UUID, lastFourDigits: String): List<FinancialAccount> =
+    override fun findCardAccountsByLastFourDigits(
+        accountId: UUID,
+        lastFourDigits: String,
+    ): List<FinancialAccount> =
         entityRepository.findByAccountIdAndSubtypeInAndCardLastFourDigitsAndDeletedAtIsNull(
             accountId = accountId,
             subtypes = CARD_MATCHABLE_SUBTYPES,

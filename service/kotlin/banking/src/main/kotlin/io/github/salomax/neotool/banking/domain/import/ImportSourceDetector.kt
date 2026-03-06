@@ -5,42 +5,48 @@ import java.text.Normalizer
 private const val PEEK_BYTES = 256
 private val OFX_HEADER_MARKER = "OFXHEADER:"
 private val OFX_TAG_MARKER = "<OFX"
-private val NUBANK_CSV_HEADERS_NORMALIZED = setOf(
-    "date,transaction_type,title,amount,category,charges,identificador",
-    "data,valor,identificador,descricao",
-)
-private val ITAU_CSV_HEADER_HINTS = setOf(
-    "data_lancamento",
-    "historico",
-    "documento",
-    "valor",
-)
-private val BRADESCO_CSV_HEADER_HINTS = setOf(
-    "data",
-    "historico",
-    "docto",
-    "credito",
-    "debito",
-)
-private val SANTANDER_CSV_HEADER_HINTS = setOf(
-    "data",
-    "hora",
-    "descricao",
-    "valor",
-    "saldo",
-)
+private val NUBANK_CSV_HEADERS_NORMALIZED =
+    setOf(
+        "date,transaction_type,title,amount,category,charges,identificador",
+        "data,valor,identificador,descricao",
+    )
+private val ITAU_CSV_HEADER_HINTS =
+    setOf(
+        "data_lancamento",
+        "historico",
+        "documento",
+        "valor",
+    )
+private val BRADESCO_CSV_HEADER_HINTS =
+    setOf(
+        "data",
+        "historico",
+        "docto",
+        "credito",
+        "debito",
+    )
+private val SANTANDER_CSV_HEADER_HINTS =
+    setOf(
+        "data",
+        "hora",
+        "descricao",
+        "valor",
+        "saldo",
+    )
 
 /**
  * Detects [ImportSource] from file bytes and optional file name.
  * Order of checks matters; matching is case-insensitive.
  */
 object ImportSourceDetector {
-
     /**
      * @return The detected import source
      * @throws UnsupportedImportSourceException if source cannot be determined
      */
-    fun detect(fileBytes: ByteArray, fileName: String?): ImportSource {
+    fun detect(
+        fileBytes: ByteArray,
+        fileName: String?,
+    ): ImportSource {
         val decoded = ImportTextDecoder.decode(fileBytes)
         val peek = decoded.text.take(PEEK_BYTES)
         val peekLower = peek.lowercase()
@@ -49,11 +55,12 @@ object ImportSourceDetector {
             return ImportSource.OFX
         }
 
-        val firstLine = decoded.text
-            .lineSequence()
-            .firstOrNull()
-            ?.normalizeCsvHeader()
-            ?: ""
+        val firstLine =
+            decoded.text
+                .lineSequence()
+                .firstOrNull()
+                ?.normalizeCsvHeader()
+                ?: ""
 
         if (firstLine in NUBANK_CSV_HEADERS_NORMALIZED) {
             return ImportSource.CSV_NUBANK
@@ -105,10 +112,11 @@ private fun matchesSantander(columns: List<String>): Boolean {
 }
 
 private fun parseColumns(normalizedHeaderLine: String): List<String> {
-    val delimiter = when {
-        normalizedHeaderLine.count { it == ';' } > normalizedHeaderLine.count { it == ',' } -> ';'
-        else -> ','
-    }
+    val delimiter =
+        when {
+            normalizedHeaderLine.count { it == ';' } > normalizedHeaderLine.count { it == ',' } -> ';'
+            else -> ','
+        }
     return normalizedHeaderLine.split(delimiter)
         .map { raw ->
             raw.trim()

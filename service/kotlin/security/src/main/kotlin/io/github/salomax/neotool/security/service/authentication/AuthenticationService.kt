@@ -9,8 +9,8 @@ import io.github.salomax.neotool.common.security.exception.AuthenticationRequire
 import io.github.salomax.neotool.common.security.jwt.JwtTokenValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
 import io.github.salomax.neotool.common.security.principal.PrincipalType
-import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.common.tracing.TraceExecution
+import io.github.salomax.neotool.security.domain.rbac.GroupMembership
 import io.github.salomax.neotool.security.error.SecurityErrorCode
 import io.github.salomax.neotool.security.model.PrincipalEntity
 import io.github.salomax.neotool.security.model.UserEntity
@@ -788,10 +788,11 @@ open class AuthenticationService(
      * Soft-fails if the group does not exist (e.g., on a fresh environment without the V0_26 migration).
      */
     private fun addUserToDefaultGroup(userId: UUID) {
-        val group = groupRepository.findByName(DEFAULT_USER_GROUP).orElse(null) ?: run {
-            logger.warn { "Default group '$DEFAULT_USER_GROUP' not found; skipping auto-join for user $userId" }
-            return
-        }
+        val group =
+            groupRepository.findByName(DEFAULT_USER_GROUP).orElse(null) ?: run {
+                logger.warn { "Default group '$DEFAULT_USER_GROUP' not found; skipping auto-join for user $userId" }
+                return
+            }
         val groupId = requireNotNull(group.id) { "Group ID is required" }
         val existing = groupMembershipRepository.findByUserIdAndGroupId(userId, groupId)
         if (existing.isNotEmpty()) return

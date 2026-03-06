@@ -2,10 +2,10 @@ package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
@@ -25,7 +25,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("CreditCardBill lifecycle IT")
 class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var transactionService: TransactionService
 
@@ -132,7 +131,6 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("bill auto-creation and totals")
     inner class BillCreationTests {
-
         @Test
         fun `create transaction on card auto-creates bill with correct closing and due date`() {
             val txDate = LocalDate.of(today.year, today.month, 1)
@@ -185,7 +183,6 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("bill movement on update and delete")
     inner class BillMutationTests {
-
         @Test
         fun `updating transaction date across cycle boundary moves amount between bills`() {
             val feb1 = LocalDate.of(2026, 2, 1)
@@ -194,14 +191,15 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
             val tx = createCardTransaction(BigDecimal("100.00"), feb1)
             val originalBillId = tx.billId!!
 
-            val updated = transactionService.update(
-                id = tx.id!!,
-                command =
-                    io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand(
-                        date = feb8,
-                    ),
-                accountId = accountId,
-            )
+            val updated =
+                transactionService.update(
+                    id = tx.id!!,
+                    command =
+                        io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand(
+                            date = feb8,
+                        ),
+                    accountId = accountId,
+                )
 
             val newBillId = updated.billId!!
             assertThat(newBillId).isNotEqualTo(originalBillId)
@@ -254,7 +252,6 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("payBill integration")
     inner class PayBillTests {
-
         @Test
         fun `payBill with full amount marks bill as PAID and creates transfer`() {
             val tx = createCardTransaction(BigDecimal("200.00"), today.minusDays(10))
@@ -307,7 +304,6 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("list and find helpers")
     inner class ListAndFindTests {
-
         @Test
         fun `creditCardBills returns bills ordered by closingDate DESC`() {
             // Three cycles: Jan, Feb, Mar
@@ -337,4 +333,3 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
         }
     }
 }
-

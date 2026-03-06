@@ -10,13 +10,19 @@ import java.util.UUID
  */
 interface TransactionRepository {
     /** Returns transactions for a financial account, ordered by date DESC, createdAt DESC. */
-    fun findByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<Transaction>
+    fun findByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<Transaction>
 
     /** Returns all transactions for an account across all financial accounts, ordered by date DESC, createdAt DESC. */
     fun findByAccount(accountId: UUID): List<Transaction>
 
     /** Returns all transactions linked to a specific credit card bill, ordered by date DESC, createdAt DESC. */
-    fun findByBillId(billId: UUID, accountId: UUID): List<Transaction>
+    fun findByBillId(
+        billId: UUID,
+        accountId: UUID,
+    ): List<Transaction>
 
     /** Returns all distinct "belongs to" options used in transactions for the account. */
     fun listBelongsToOptions(accountId: UUID): List<TransactionBelongsToOption>
@@ -24,27 +30,41 @@ interface TransactionRepository {
     /** Returns all distinct tags used in transactions for the account. */
     fun listTags(accountId: UUID): List<String>
 
-    fun findById(id: UUID, accountId: UUID): Transaction?
+    fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): Transaction?
 
     fun save(transaction: Transaction): Transaction
 
     fun update(transaction: Transaction): Transaction
 
     /** Soft-deletes a transaction (sets deleted_at = now). Returns false if not found. */
-    fun softDelete(id: UUID, accountId: UUID): Boolean
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean
 
     /**
      * Returns aggregate totals for one (financialAccountId, year, month).
      * Used by [SnapshotComputationService] to recompute monthly balance snapshots.
      * Never returns null — returns zero totals when no transactions exist for the period.
      */
-    fun getMonthTotals(financialAccountId: UUID, year: Int, month: Int): MonthTransactionTotals
+    fun getMonthTotals(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthTransactionTotals
 
     /**
      * Returns TRANSFER totals (in/out) for one (financialAccountId, year, month).
      * On-demand; not cached in the snapshot.
      */
-    fun getMonthTransferTotals(financialAccountId: UUID, year: Int, month: Int): MonthTransferTotals
+    fun getMonthTransferTotals(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthTransferTotals
 
     /**
      * Returns all financial account IDs that belong to the given [accountId] (tenant).

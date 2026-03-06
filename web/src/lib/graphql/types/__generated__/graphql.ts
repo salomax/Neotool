@@ -1770,6 +1770,8 @@ export enum TransactionType {
   Ted = 'TED',
   Transfer = 'TRANSFER',
   Withdrawal = 'WITHDRAWAL'
+}
+
 export enum TopInstitutionMetric {
   BasileiaIndex = 'BASILEIA_INDEX',
   MobilizationIndex = 'MOBILIZATION_INDEX',

@@ -17,23 +17,26 @@ class ImportParserRouter(
     ): ImportParseOutcome {
         val source = requestedSource ?: ImportSource.AUTO
         val discovery = discoveryService.discover(bytes, fileName)
-        val context = ImportParsingContext(
-            bytes = bytes,
-            fileName = fileName,
-            requestedSource = source,
-            discovery = discovery,
-        )
-        val strategy = orderedStrategies.firstOrNull { it.supports(context) }
-            ?: throw BusinessRuleException(
-                errorCode = BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED,
-                parameters = mapOf(
-                    "fileName" to (fileName ?: ""),
-                    "requestedSource" to source.name,
-                    "detectedFormat" to discovery.format.name,
-                    "detectedSource" to (discovery.detectedSource?.name ?: ""),
-                    "reason" to discovery.reason,
-                ),
+        val context =
+            ImportParsingContext(
+                bytes = bytes,
+                fileName = fileName,
+                requestedSource = source,
+                discovery = discovery,
             )
+        val strategy =
+            orderedStrategies.firstOrNull { it.supports(context) }
+                ?: throw BusinessRuleException(
+                    errorCode = BankingErrorCode.IMPORT_FILE_FORMAT_NOT_SUPPORTED,
+                    parameters =
+                        mapOf(
+                            "fileName" to (fileName ?: ""),
+                            "requestedSource" to source.name,
+                            "detectedFormat" to discovery.format.name,
+                            "detectedSource" to (discovery.detectedSource?.name ?: ""),
+                            "reason" to discovery.reason,
+                        ),
+                )
         return strategy.parse(context)
     }
 }

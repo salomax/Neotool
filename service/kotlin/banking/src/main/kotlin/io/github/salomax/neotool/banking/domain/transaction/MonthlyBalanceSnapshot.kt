@@ -21,12 +21,10 @@ data class MonthlyBalanceSnapshot(
     val accountId: UUID,
     val year: Int,
     val month: Int,
-
     val openingBalance: BigDecimal,
     val closingBalance: BigDecimal,
     val totalIncome: BigDecimal,
     val totalExpenses: BigDecimal,
-
     val isDirty: Boolean = false,
     val computedAt: Instant? = null,
     val createdAt: Instant = Instant.now(),

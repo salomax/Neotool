@@ -23,7 +23,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("SameSourceDedupService IT")
 class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var sameSourceDedupService: SameSourceDedupService
 
@@ -53,7 +52,10 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         }
     }
 
-    private fun transactionWithProvider(description: String, source: TransactionSource) = Transaction(
+    private fun transactionWithProvider(
+        description: String,
+        source: TransactionSource,
+    ) = Transaction(
         financialAccountId = financialAccountId,
         accountId = accountId,
         createdByUserId = userId,
@@ -72,27 +74,28 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("isDuplicate — SQL correctness")
     inner class IsDuplicateSqlTests {
-
         @Test
         fun `returns true when exact match exists same financial_account_id provider_transaction_id and source`() {
             transactionRepository.save(transactionWithProvider("Existing", TransactionSource.MANUAL))
 
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = financialAccountId,
-                providerTransactionId = providerTxId,
-                source = TransactionSource.MANUAL,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = financialAccountId,
+                    providerTransactionId = providerTxId,
+                    source = TransactionSource.MANUAL,
+                )
 
             assertThat(result).isTrue()
         }
 
         @Test
         fun `returns false when no row matches`() {
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = financialAccountId,
-                providerTransactionId = "nonexistent-id",
-                source = TransactionSource.MANUAL,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = financialAccountId,
+                    providerTransactionId = "nonexistent-id",
+                    source = TransactionSource.MANUAL,
+                )
 
             assertThat(result).isFalse()
         }
@@ -101,11 +104,12 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         fun `returns false when provider_transaction_id differs`() {
             transactionRepository.save(transactionWithProvider("Existing", TransactionSource.MANUAL))
 
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = financialAccountId,
-                providerTransactionId = "other-provider-id",
-                source = TransactionSource.MANUAL,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = financialAccountId,
+                    providerTransactionId = "other-provider-id",
+                    source = TransactionSource.MANUAL,
+                )
 
             assertThat(result).isFalse()
         }
@@ -114,11 +118,12 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
         fun `returns false when source differs same provider id`() {
             transactionRepository.save(transactionWithProvider("MANUAL row", TransactionSource.MANUAL))
 
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = financialAccountId,
-                providerTransactionId = providerTxId,
-                source = TransactionSource.OPEN_FINANCE,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = financialAccountId,
+                    providerTransactionId = providerTxId,
+                    source = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(result).isFalse()
         }
@@ -128,11 +133,12 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
             val saved = transactionRepository.save(transactionWithProvider("To delete", TransactionSource.MANUAL))
             transactionRepository.softDelete(saved.id!!, accountId)
 
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = financialAccountId,
-                providerTransactionId = providerTxId,
-                source = TransactionSource.MANUAL,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = financialAccountId,
+                    providerTransactionId = providerTxId,
+                    source = TransactionSource.MANUAL,
+                )
 
             assertThat(result).isFalse()
         }
@@ -153,11 +159,12 @@ class SameSourceDedupServiceIT : BankingPostgresIntegrationTest() {
                 )
             }
 
-            val result = sameSourceDedupService.isDuplicate(
-                financialAccountId = otherFinancialAccountId,
-                providerTransactionId = providerTxId,
-                source = TransactionSource.MANUAL,
-            )
+            val result =
+                sameSourceDedupService.isDuplicate(
+                    financialAccountId = otherFinancialAccountId,
+                    providerTransactionId = providerTxId,
+                    source = TransactionSource.MANUAL,
+                )
 
             assertThat(result).isFalse()
         }

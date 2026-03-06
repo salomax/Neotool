@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.integration
 
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
-import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -16,7 +15,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("TransactionMigration IT")
 class TransactionMigrationIT : BankingPostgresIntegrationTest() {
-
     private lateinit var accountId: UUID
     private lateinit var userId: UUID
     private lateinit var financialAccountId: UUID
@@ -41,7 +39,6 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("migrations")
     inner class MigrationsTests {
-
         @Test
         fun `V0_4 V0_5 V0_6 V0_7 V0_8 apply cleanly on fresh schema`() {
             val container = getPgContainer()
@@ -55,11 +52,20 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     assertThat(versions).contains("0.4", "0.5", "0.6", "0.7", "0.8")
                 }
                 conn.createStatement().executeQuery(
-                    "SELECT table_name FROM information_schema.tables WHERE table_schema = 'banking' AND table_name IN ('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags')",
+                    "SELECT table_name FROM information_schema.tables " +
+                        "WHERE table_schema = 'banking' AND table_name IN " +
+                        "('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags')",
                 ).use { rs ->
                     val tables = mutableListOf<String>()
                     while (rs.next()) tables.add(rs.getString("table_name"))
-                    assertThat(tables).containsExactlyInAnyOrder("transactions", "transaction_categories", "credit_card_bills", "transaction_tags")
+                    assertThat(
+                        tables,
+                    ).containsExactlyInAnyOrder(
+                        "transactions",
+                        "transaction_categories",
+                        "credit_card_bills",
+                        "transaction_tags",
+                    )
                 }
             }
         }
@@ -68,14 +74,14 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("transaction_categories seed")
     inner class TransactionCategoriesSeedTests {
-
         @Test
         fun `exactly 22 root categories subcategory parent_ids resolve`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
                 conn.createStatement().executeQuery(
-                    "SELECT COUNT(*) AS cnt FROM banking.transaction_categories WHERE parent_id IS NULL AND deleted_at IS NULL",
+                    "SELECT COUNT(*) AS cnt FROM banking.transaction_categories " +
+                        "WHERE parent_id IS NULL AND deleted_at IS NULL",
                 ).use { rs ->
                     rs.next()
                     assertThat(rs.getInt("cnt")).isEqualTo(22)
@@ -96,7 +102,6 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("transactions partial unique index")
     inner class TransactionsUniqueIndexTests {
-
         @Test
         fun `two NULLs for provider_transaction_id on same account allowed no conflict`() {
             val container = getPgContainer()
@@ -115,7 +120,8 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     """.trimIndent(),
                 )
                 conn.createStatement().executeQuery(
-                    "SELECT COUNT(*) AS cnt FROM banking.transactions WHERE financial_account_id = '$financialAccountId' AND provider_transaction_id IS NULL",
+                    "SELECT COUNT(*) AS cnt FROM banking.transactions " +
+                        "WHERE financial_account_id = '$financialAccountId' AND provider_transaction_id IS NULL",
                 ).use { rs ->
                     rs.next()
                     assertThat(rs.getInt("cnt")).isEqualTo(2)

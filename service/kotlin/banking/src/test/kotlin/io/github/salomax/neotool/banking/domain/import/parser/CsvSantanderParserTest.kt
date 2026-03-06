@@ -14,7 +14,6 @@ import java.time.ZoneId
 
 @DisplayName("CsvSantanderParser")
 class CsvSantanderParserTest {
-
     private val saoPaulo = ZoneId.of("America/Sao_Paulo")
 
     private fun loadFixture(name: String): ByteArray =
@@ -23,7 +22,6 @@ class CsvSantanderParserTest {
     @Nested
     @DisplayName("reader contract")
     inner class ReaderContractTests {
-
         @Test
         fun `returns stable reader id`() {
             assertThat(CsvSantanderParser.id()).isEqualTo("csv-santander")
@@ -43,11 +41,12 @@ class CsvSantanderParserTest {
 
         @Test
         fun `returns low score for unrelated fingerprint`() {
-            val csv = """
+            val csv =
+                """
                 posted_at;gross_value;memo
                 2026-01-01;1000,00;Settlement reference
                 2026-01-02;250,00;Other credit
-            """.trimIndent()
+                """.trimIndent()
             val fingerprint = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
             val match = CsvSantanderParser.supports(fingerprint)
@@ -59,7 +58,6 @@ class CsvSantanderParserTest {
     @Nested
     @DisplayName("parse")
     inner class ParseTests {
-
         @Test
         fun `parses santander fixture with time and amount`() {
             val bytes = loadFixture("santander_account_sample.csv")
@@ -91,11 +89,12 @@ class CsvSantanderParserTest {
 
         @Test
         fun `parses without time column and keeps datetime null`() {
-            val csv = """
+            val csv =
+                """
                 Data;Descricao;Valor;Saldo
                 02/01/2026;PIX RECEBIDO;100,00;100,00
                 03/01/2026;Pagamento boleto;-50,00;50,00
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvSantanderParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 

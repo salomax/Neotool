@@ -7,14 +7,13 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
-import java.util.UUID
 
 /**
  * Result of processing a batch of [ParsedTransaction] rows for an [ImportJob].
@@ -47,11 +46,12 @@ data class ImportRowError(
 /**
  * Maps [ImportSource] to [TransactionSource] for stored transactions.
  */
-private fun ImportSource.toTransactionSource(): TransactionSource = when (this) {
-    ImportSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
-    ImportSource.PLUGGY -> TransactionSource.OPEN_FINANCE
-    else -> TransactionSource.MANUAL
-}
+private fun ImportSource.toTransactionSource(): TransactionSource =
+    when (this) {
+        ImportSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
+        ImportSource.PLUGGY -> TransactionSource.OPEN_FINANCE
+        else -> TransactionSource.MANUAL
+    }
 
 /**
  * Processes a list of [ParsedTransaction] items for a given [ImportJob].
@@ -64,7 +64,6 @@ open class ImportProcessor(
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
 ) {
-
     /**
      * Processes each row: Level 1 (provider id) skip, Level 1b (fingerprint) skip,
      * Level 2 (cross-source) → duplicateCandidates without insert, else save.
@@ -86,8 +85,11 @@ open class ImportProcessor(
 
         // Cache initial balance date once per job (null when allowCrossSourceDuplicates = resolveImportDuplicate path)
         val initialBalanceDate: LocalDate? =
-            if (allowCrossSourceDuplicates) null
-            else transactionRepository.findInitialBalanceDate(financialAccountId)
+            if (allowCrossSourceDuplicates) {
+                null
+            } else {
+                transactionRepository.findInitialBalanceDate(financialAccountId)
+            }
 
         val imported = mutableListOf<Transaction>()
         var skipped = 0
@@ -111,13 +113,17 @@ open class ImportProcessor(
                 }
 
                 // 2. Fingerprint and Level 1b: fingerprint duplicate
-                val amountCents = parsed.amount.multiply(BigDecimal(100)).setScale(0, RoundingMode.HALF_UP).longValueExact()
-                val fingerprint = importFingerprintService.compute(
-                    financialAccountId = financialAccountId,
-                    date = parsed.date,
-                    amountCents = amountCents,
-                    normalizedDescription = parsed.description,
-                )
+                val amountCents =
+                    parsed.amount.multiply(
+                        BigDecimal(100),
+                    ).setScale(0, RoundingMode.HALF_UP).longValueExact()
+                val fingerprint =
+                    importFingerprintService.compute(
+                        financialAccountId = financialAccountId,
+                        date = parsed.date,
+                        amountCents = amountCents,
+                        normalizedDescription = parsed.description,
+                    )
                 val fingerprintDuplicate =
                     fingerprintDuplicateCache.getOrPut(fingerprint) {
                         importFingerprintService.isDuplicate(financialAccountId, fingerprint)
@@ -132,7 +138,9 @@ open class ImportProcessor(
                     errors.add(
                         ImportRowError(
                             rowIndex = index,
-                            reason = "Transaction date ${parsed.date} is before the account's initial balance date $initialBalanceDate (TRANSACTION_BEFORE_INITIAL_BALANCE)",
+                            reason =
+                                "Transaction date ${parsed.date} is before the account's initial balance date " +
+                                    "$initialBalanceDate (TRANSACTION_BEFORE_INITIAL_BALANCE)",
                         ),
                     )
                     return@forEachIndexed
@@ -140,11 +148,12 @@ open class ImportProcessor(
 
                 // 5. Level 2: cross-source candidates → do NOT insert
                 if (!allowCrossSourceDuplicates) {
-                    val candidates = crossSourceDedupService.findCandidates(
-                        financialAccountId = financialAccountId,
-                        parsed = parsed,
-                        incomingSource = transactionSource,
-                    )
+                    val candidates =
+                        crossSourceDedupService.findCandidates(
+                            financialAccountId = financialAccountId,
+                            parsed = parsed,
+                            incomingSource = transactionSource,
+                        )
                     if (candidates.isNotEmpty()) {
                         duplicateCandidates.add(
                             ImportDuplicateCandidate(rowIndex = index, parsed = parsed, candidates = candidates),
@@ -154,33 +163,35 @@ open class ImportProcessor(
                 }
 
                 // 6. No conflict: create and save transaction
-                val type = when (parsed.creditDebitType) {
-                    CreditDebitType.DEBIT -> TransactionType.OTHER_EXPENSE
-                    CreditDebitType.CREDIT -> TransactionType.OTHER_INCOME
-                }
-                val transaction = Transaction(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = createdByUserId,
-                    creditDebitType = parsed.creditDebitType,
-                    type = type,
-                    status = TransactionStatus.POSTED,
-                    source = transactionSource,
-                    amount = parsed.amount,
-                    currencyCode = parsed.currencyCode,
-                    date = parsed.date,
-                    transactionDatetime = parsed.transactionDatetime,
-                    description = parsed.description,
-                    descriptionRaw = parsed.descriptionRaw,
-                    counterpartyName = parsed.counterpartyName,
-                    counterpartyDocument = parsed.counterpartyDocument,
-                    providerTransactionId = parsed.providerTransactionId,
-                    totalInstallments = parsed.totalInstallments,
-                    importFingerprint = fingerprint,
-                    importJobId = importJobId,
-                    createdAt = now,
-                    updatedAt = now,
-                )
+                val type =
+                    when (parsed.creditDebitType) {
+                        CreditDebitType.DEBIT -> TransactionType.OTHER_EXPENSE
+                        CreditDebitType.CREDIT -> TransactionType.OTHER_INCOME
+                    }
+                val transaction =
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = createdByUserId,
+                        creditDebitType = parsed.creditDebitType,
+                        type = type,
+                        status = TransactionStatus.POSTED,
+                        source = transactionSource,
+                        amount = parsed.amount,
+                        currencyCode = parsed.currencyCode,
+                        date = parsed.date,
+                        transactionDatetime = parsed.transactionDatetime,
+                        description = parsed.description,
+                        descriptionRaw = parsed.descriptionRaw,
+                        counterpartyName = parsed.counterpartyName,
+                        counterpartyDocument = parsed.counterpartyDocument,
+                        providerTransactionId = parsed.providerTransactionId,
+                        totalInstallments = parsed.totalInstallments,
+                        importFingerprint = fingerprint,
+                        importJobId = importJobId,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
                 val saved = transactionRepository.save(transaction)
                 imported.add(saved)
             } catch (e: Exception) {

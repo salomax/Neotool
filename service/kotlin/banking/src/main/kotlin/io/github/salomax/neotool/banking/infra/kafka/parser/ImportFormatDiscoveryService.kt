@@ -15,8 +15,10 @@ data class ImportFormatDiscoveryResult(
  * Content-first format discovery to support source AUTO mode.
  */
 class ImportFormatDiscoveryService {
-
-    fun discover(bytes: ByteArray, fileName: String?): ImportFormatDiscoveryResult {
+    fun discover(
+        bytes: ByteArray,
+        fileName: String?,
+    ): ImportFormatDiscoveryResult {
         if (looksLikeOfx(bytes)) {
             return ImportFormatDiscoveryResult(
                 format = ImportFileFormat.OFX,
@@ -35,21 +37,24 @@ class ImportFormatDiscoveryService {
         val detected = runCatching { ImportSourceDetector.detect(bytes, fileName) }.getOrNull()
         if (detected != null) {
             return when {
-                detected == ImportSource.OFX -> ImportFormatDiscoveryResult(
-                    format = ImportFileFormat.OFX,
-                    detectedSource = ImportSource.OFX,
-                    reason = "detector_ofx",
-                )
-                detected.isCsvSource() -> ImportFormatDiscoveryResult(
-                    format = ImportFileFormat.CSV,
-                    detectedSource = detected,
-                    reason = "detector_csv",
-                )
-                else -> ImportFormatDiscoveryResult(
-                    format = ImportFileFormat.UNKNOWN,
-                    detectedSource = detected,
-                    reason = "detector_non_file_source",
-                )
+                detected == ImportSource.OFX ->
+                    ImportFormatDiscoveryResult(
+                        format = ImportFileFormat.OFX,
+                        detectedSource = ImportSource.OFX,
+                        reason = "detector_ofx",
+                    )
+                detected.isCsvSource() ->
+                    ImportFormatDiscoveryResult(
+                        format = ImportFileFormat.CSV,
+                        detectedSource = detected,
+                        reason = "detector_csv",
+                    )
+                else ->
+                    ImportFormatDiscoveryResult(
+                        format = ImportFileFormat.UNKNOWN,
+                        detectedSource = detected,
+                        reason = "detector_non_file_source",
+                    )
             }
         }
 

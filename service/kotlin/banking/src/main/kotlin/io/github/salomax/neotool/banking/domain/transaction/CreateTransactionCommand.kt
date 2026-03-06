@@ -27,22 +27,18 @@ data class CreateTransactionCommand(
     val categoryId: UUID? = null,
     val belongsToUserId: UUID? = null,
     val belongsToName: String? = null,
-
     // Counterparty
     val counterpartyName: String? = null,
     val counterpartyDocument: String? = null,
     val counterpartyBankCode: String? = null,
     val counterpartyAccountNumber: String? = null,
     val paymentReason: String? = null,
-
     // Installments (parcelamento): per-installment amount, tracked by position
     val installmentNumber: Int? = null,
     val totalInstallments: Int? = null,
-
     // Card
     val cardIdentifier: String? = null,
     val payeeMcc: Int? = null,
-
     /** When set (e.g. for payBill), used instead of resolving bill from date. */
     val billId: UUID? = null,
     /** Peer transaction ID for the other leg of a transfer (e.g. payBill bank leg). */

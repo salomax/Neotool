@@ -27,11 +27,13 @@ open class DefaultTransactionRepository(
     private val transactionTagEntityRepository: TransactionTagEntityRepository,
     @PersistenceContext private val entityManager: EntityManager,
 ) : TransactionRepository {
-
-    override fun findByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<Transaction> =
+    override fun findByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<Transaction> =
         withTags(
             entityRepository
-                    .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
+                .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
                     financialAccountId,
                     accountId,
                 )
@@ -39,21 +41,24 @@ open class DefaultTransactionRepository(
             accountId,
         )
 
-        override fun findByBillId(billId: UUID, accountId: UUID): List<Transaction> =
-            withTags(
-                entityRepository
-                    .findByBillIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
-                        billId,
-                        accountId,
-                    )
-                    .map(TransactionMapper::toDomain),
-                accountId,
-            )
+    override fun findByBillId(
+        billId: UUID,
+        accountId: UUID,
+    ): List<Transaction> =
+        withTags(
+            entityRepository
+                .findByBillIdAndAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(
+                    billId,
+                    accountId,
+                )
+                .map(TransactionMapper::toDomain),
+            accountId,
+        )
 
     override fun findByAccount(accountId: UUID): List<Transaction> =
         withTags(
             entityRepository
-            .findByAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(accountId)
+                .findByAccountIdAndDeletedAtIsNullOrderByDateDescAndCreatedAtDesc(accountId)
                 .map(TransactionMapper::toDomain),
             accountId,
         )
@@ -71,7 +76,10 @@ open class DefaultTransactionRepository(
     override fun listTags(accountId: UUID): List<String> =
         transactionTagEntityRepository.findDistinctTagsByAccountId(accountId)
 
-    override fun findById(id: UUID, accountId: UUID): Transaction? =
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): Transaction? =
         entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
             ?.let(TransactionMapper::toDomain)
             ?.let { withTags(listOf(it), accountId).first() }
@@ -88,48 +96,63 @@ open class DefaultTransactionRepository(
     @Transactional
     override fun update(transaction: Transaction): Transaction {
         val id = requireNotNull(transaction.id) { "Transaction id is required for update" }
-        val entity = entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, transaction.accountId)
-            ?: throw NoSuchElementException("Transaction $id not found")
+        val entity =
+            entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, transaction.accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
         TransactionMapper.updateEntity(entity, transaction)
         val saved = entityRepository.update(entity)
+        // Ensure bill/date changes are visible to subsequent native recomputes in the same transaction.
+        entityManager.flush()
         syncTags(id, transaction.accountId, transaction.tags)
         return withTags(listOf(TransactionMapper.toDomain(saved)), transaction.accountId).first()
     }
 
-    override fun softDelete(id: UUID, accountId: UUID): Boolean =
-        entityRepository.softDelete(id, accountId, Instant.now()) > 0
+    override fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean = entityRepository.softDelete(id, accountId, Instant.now()) > 0
 
     @Transactional(readOnly = true)
-    override fun getMonthTotals(financialAccountId: UUID, year: Int, month: Int): MonthTransactionTotals {
+    override fun getMonthTotals(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthTransactionTotals {
         @Suppress("UNCHECKED_CAST")
-        val cols = entityManager.createNativeQuery(MONTH_TOTALS_SQL)
-            .setParameter("financialAccountId", financialAccountId.toString())
-            .setParameter("year", year)
-            .setParameter("month", month)
-            .singleResult as Array<Any?>
+        val cols =
+            entityManager.createNativeQuery(MONTH_TOTALS_SQL)
+                .setParameter("financialAccountId", financialAccountId.toString())
+                .setParameter("year", year)
+                .setParameter("month", month)
+                .singleResult as Array<Any?>
         return MonthTransactionTotals(
             financialAccountId = financialAccountId,
             year = year,
             month = month,
-            totalCredit     = cols[0] as BigDecimal,
-            totalDebit      = cols[1] as BigDecimal,
-            totalIncome     = cols[2] as BigDecimal,
-            totalExpenses   = cols[3] as BigDecimal,
+            totalCredit = cols[0] as BigDecimal,
+            totalDebit = cols[1] as BigDecimal,
+            totalIncome = cols[2] as BigDecimal,
+            totalExpenses = cols[3] as BigDecimal,
             totalFutureCredit = cols[4] as BigDecimal,
-            totalFutureDebit  = cols[5] as BigDecimal,
+            totalFutureDebit = cols[5] as BigDecimal,
         )
     }
 
     @Transactional(readOnly = true)
-    override fun getMonthTransferTotals(financialAccountId: UUID, year: Int, month: Int): MonthTransferTotals {
+    override fun getMonthTransferTotals(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthTransferTotals {
         @Suppress("UNCHECKED_CAST")
-        val cols = entityManager.createNativeQuery(MONTH_TRANSFER_TOTALS_SQL)
-            .setParameter("financialAccountId", financialAccountId.toString())
-            .setParameter("year", year)
-            .setParameter("month", month)
-            .singleResult as Array<Any?>
+        val cols =
+            entityManager.createNativeQuery(MONTH_TRANSFER_TOTALS_SQL)
+                .setParameter("financialAccountId", financialAccountId.toString())
+                .setParameter("year", year)
+                .setParameter("month", month)
+                .singleResult as Array<Any?>
         return MonthTransferTotals(
-            transfersIn  = cols[0] as BigDecimal,
+            transfersIn = cols[0] as BigDecimal,
             transfersOut = cols[1] as BigDecimal,
         )
     }
@@ -141,7 +164,8 @@ open class DefaultTransactionRepository(
         entityRepository.findEarliestBalanceAdjustmentDate(financialAccountId.toString())
 
     companion object {
-        private val MONTH_TOTALS_SQL = """
+        private val MONTH_TOTALS_SQL =
+            """
             SELECT
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status IN ('POSTED','PENDING')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')), 0),
@@ -156,9 +180,10 @@ open class DefaultTransactionRepository(
               AND EXTRACT(YEAR  FROM date) = :year
               AND EXTRACT(MONTH FROM date) = :month
               AND deleted_at IS NULL
-        """.trimIndent()
+            """.trimIndent()
 
-        private val MONTH_TRANSFER_TOTALS_SQL = """
+        private val MONTH_TRANSFER_TOTALS_SQL =
+            """
             SELECT
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'),  0)
@@ -169,7 +194,7 @@ open class DefaultTransactionRepository(
               AND EXTRACT(YEAR  FROM date) = :year
               AND EXTRACT(MONTH FROM date) = :month
               AND deleted_at IS NULL
-        """.trimIndent()
+            """.trimIndent()
     }
 
     private fun withTags(
@@ -191,7 +216,11 @@ open class DefaultTransactionRepository(
         }
     }
 
-    private fun syncTags(transactionId: UUID, accountId: UUID, tags: List<String>) {
+    private fun syncTags(
+        transactionId: UUID,
+        accountId: UUID,
+        tags: List<String>,
+    ) {
         transactionTagEntityRepository.deleteByTransactionIdAndAccountId(transactionId, accountId)
         if (tags.isEmpty()) return
         val now = Instant.now()
@@ -215,7 +244,6 @@ open class DefaultTransactionRepository(
 open class DefaultTransactionCategoryRepository(
     private val entityRepository: TransactionCategoryEntityRepository,
 ) : TransactionCategoryRepository {
-
     override fun findAll(accountId: UUID): List<TransactionCategory> =
         entityRepository.findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId)
             .map(TransactionMapper::toDomain)

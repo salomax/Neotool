@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJob
 
 object PdfImportJobMapper {
-
     private val objectMapper = ObjectMapper()
 
     fun toDomain(entity: PdfImportJobEntity): PdfImportJob =
@@ -45,7 +44,10 @@ object PdfImportJobMapper {
             updatedAt = job.updatedAt,
         )
 
-    fun updateEntity(entity: PdfImportJobEntity, job: PdfImportJob) {
+    fun updateEntity(
+        entity: PdfImportJobEntity,
+        job: PdfImportJob,
+    ) {
         entity.financialAccountId = job.financialAccountId
         entity.status = job.status
         entity.assetId = job.assetId
@@ -59,7 +61,5 @@ object PdfImportJobMapper {
         entity.updatedAt = job.updatedAt
     }
 
-    private fun deserializeJsonb(value: String?): String? =
-        value?.let { objectMapper.readTree(it).toString() }
+    private fun deserializeJsonb(value: String?): String? = value?.let { objectMapper.readTree(it).toString() }
 }
-

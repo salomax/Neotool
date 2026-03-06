@@ -19,10 +19,10 @@ import java.time.format.DateTimeFormatter
  * - Account: Data,Valor,Identificador,Descrição
  */
 object CsvNubankParser : BankCsvReader {
-
     private val CREDIT_CARD_HEADER = "date,transaction_type,title,amount,category,charges,Identificador"
     private val ACCOUNT_HEADER_NORMALIZED = "data,valor,identificador,descricao"
-    private val CREDIT_CARD_COLUMNS = listOf("date", "transaction_type", "title", "amount", "category", "charges", "identificador")
+    private val CREDIT_CARD_COLUMNS =
+        listOf("date", "transaction_type", "title", "amount", "category", "charges", "identificador")
     private val ACCOUNT_COLUMNS = listOf("data", "valor", "identificador", "descricao")
     private val ACCOUNT_MIN_COLUMNS = setOf("data", "valor", "identificador")
     private val CARD_MIN_COLUMNS = setOf("date", "transaction_type", "title", "amount", "identificador")
@@ -73,11 +73,17 @@ object CsvNubankParser : BankCsvReader {
             }
         }
 
-        if (fingerprint.datePatterns.contains(CsvDatePattern.BR_DD_MM_YYYY_SLASH) && columns.toSet().containsAll(ACCOUNT_MIN_COLUMNS)) {
+        if (fingerprint.datePatterns.contains(
+                CsvDatePattern.BR_DD_MM_YYYY_SLASH,
+            ) && columns.toSet().containsAll(ACCOUNT_MIN_COLUMNS)
+        ) {
             score += 0.03
             reasons += "account_date_pattern_match"
         }
-        if (fingerprint.datePatterns.contains(CsvDatePattern.ISO_YYYY_MM_DD) && columns.toSet().containsAll(CARD_MIN_COLUMNS)) {
+        if (fingerprint.datePatterns.contains(
+                CsvDatePattern.ISO_YYYY_MM_DD,
+            ) && columns.toSet().containsAll(CARD_MIN_COLUMNS)
+        ) {
             score += 0.03
             reasons += "card_date_pattern_match"
         }
@@ -90,7 +96,10 @@ object CsvNubankParser : BankCsvReader {
             reasons += "amount_pattern_match"
         }
 
-        if (fingerprint.descriptionTokens.intersect(setOf("pix", "transferencia", "pagamento", "boleto")).isNotEmpty()) {
+        if (fingerprint.descriptionTokens.intersect(
+                setOf("pix", "transferencia", "pagamento", "boleto"),
+            ).isNotEmpty()
+        ) {
             score += 0.02
             reasons += "description_token_match"
         }
@@ -117,20 +126,22 @@ object CsvNubankParser : BankCsvReader {
         return lines.drop(1).mapNotNull { line -> parseRow(line, format, delimiter) }
     }
 
-    private fun detectFormat(header: String): CsvFormat? = when {
-        header.equals(CREDIT_CARD_HEADER, ignoreCase = true) -> CsvFormat.CREDIT_CARD
-        header == ACCOUNT_HEADER_NORMALIZED -> CsvFormat.ACCOUNT
-        else -> null
-    }
+    private fun detectFormat(header: String): CsvFormat? =
+        when {
+            header.equals(CREDIT_CARD_HEADER, ignoreCase = true) -> CsvFormat.CREDIT_CARD
+            header == ACCOUNT_HEADER_NORMALIZED -> CsvFormat.ACCOUNT
+            else -> null
+        }
 
     private fun parseRow(
         line: String,
         format: CsvFormat,
         delimiter: Char,
-    ): ParsedTransaction? = when (format) {
-        CsvFormat.CREDIT_CARD -> parseCreditCardRow(line, delimiter)
-        CsvFormat.ACCOUNT -> parseAccountRow(line, delimiter)
-    }
+    ): ParsedTransaction? =
+        when (format) {
+            CsvFormat.CREDIT_CARD -> parseCreditCardRow(line, delimiter)
+            CsvFormat.ACCOUNT -> parseAccountRow(line, delimiter)
+        }
 
     private fun parseCreditCardRow(
         line: String,
@@ -151,11 +162,12 @@ object CsvNubankParser : BankCsvReader {
         val amount = parseAmount(amountStr) ?: return null
         if (amount.signum() < 0) return null
 
-        val creditDebitType = when (transactionType) {
-            in DEBIT_TYPES -> CreditDebitType.DEBIT
-            in CREDIT_TYPES -> CreditDebitType.CREDIT
-            else -> CreditDebitType.DEBIT
-        }
+        val creditDebitType =
+            when (transactionType) {
+                in DEBIT_TYPES -> CreditDebitType.DEBIT
+                in CREDIT_TYPES -> CreditDebitType.CREDIT
+                else -> CreditDebitType.DEBIT
+            }
 
         val totalInstallments = chargesStr?.toIntOrNull()?.takeIf { it >= 1 }
 
@@ -209,12 +221,13 @@ object CsvNubankParser : BankCsvReader {
 
     private fun parseAmount(raw: String): BigDecimal? {
         val clean = raw.trim().replace(" ", "")
-        val normalized = when {
-            clean.contains(",") && clean.contains(".") && clean.indexOf('.') < clean.indexOf(',') ->
-                clean.replace(".", "").replace(",", ".")
-            clean.contains(",") -> clean.replace(",", ".")
-            else -> clean
-        }
+        val normalized =
+            when {
+                clean.contains(",") && clean.contains(".") && clean.indexOf('.') < clean.indexOf(',') ->
+                    clean.replace(".", "").replace(",", ".")
+                clean.contains(",") -> clean.replace(",", ".")
+                else -> clean
+            }
         return runCatching { BigDecimal(normalized) }.getOrNull()
     }
 

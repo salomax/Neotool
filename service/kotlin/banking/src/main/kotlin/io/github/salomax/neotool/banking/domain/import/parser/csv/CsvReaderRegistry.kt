@@ -7,9 +7,10 @@ class CsvReaderRegistry(
     readers: List<BankCsvReader>,
     private val policy: CsvReaderSelectionPolicy = CsvReaderSelectionPolicy(),
 ) {
-    private val readersById: Map<String, BankCsvReader> = readers.associateBy { it.id() }.also { mapped ->
-        require(mapped.size == readers.size) { "Reader ids must be unique" }
-    }
+    private val readersById: Map<String, BankCsvReader> =
+        readers.associateBy { it.id() }.also { mapped ->
+            require(mapped.size == readers.size) { "Reader ids must be unique" }
+        }
 
     fun rank(fingerprint: CsvFingerprint): List<CsvReaderMatch> =
         readersById.values
@@ -21,13 +22,14 @@ class CsvReaderRegistry(
 
     fun select(fingerprint: CsvFingerprint): CsvReaderSelectionResult {
         val ranked = rank(fingerprint)
-        val best = ranked.firstOrNull()
-            ?: return CsvReaderSelectionResult(
-                mode = CsvReaderSelectionMode.GENERIC_ONLY,
-                selectedReader = null,
-                selectedMatch = null,
-                rankedMatches = emptyList(),
-            )
+        val best =
+            ranked.firstOrNull()
+                ?: return CsvReaderSelectionResult(
+                    mode = CsvReaderSelectionMode.GENERIC_ONLY,
+                    selectedReader = null,
+                    selectedMatch = null,
+                    rankedMatches = emptyList(),
+                )
 
         val mode = policy.modeFor(best.score)
         val selectedReader = if (mode == CsvReaderSelectionMode.GENERIC_ONLY) null else readersById[best.readerId]

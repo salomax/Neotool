@@ -10,4 +10,3 @@ enum class PdfImportJobStatus {
     DONE,
     FAILED,
 }
-

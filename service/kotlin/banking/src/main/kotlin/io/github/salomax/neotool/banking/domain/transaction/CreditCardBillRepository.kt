@@ -8,15 +8,23 @@ import java.util.UUID
  * All queries are scoped by accountId (tenant).
  */
 interface CreditCardBillRepository {
+    fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): CreditCardBill?
 
-    fun findById(id: UUID, accountId: UUID): CreditCardBill?
-
-    fun findByClosingDate(financialAccountId: UUID, closingDate: LocalDate): CreditCardBill?
+    fun findByClosingDate(
+        financialAccountId: UUID,
+        closingDate: LocalDate,
+    ): CreditCardBill?
 
     /**
      * All non-deleted bills for the account ordered by [CreditCardBill.closingDate] descending.
      */
-    fun listByAccount(financialAccountId: UUID, accountId: UUID): List<CreditCardBill>
+    fun listByAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<CreditCardBill>
 
     /**
      * Returns the bill for the given [closingDate], creating a new OPEN bill if none exists.
@@ -35,10 +43,17 @@ interface CreditCardBillRepository {
      * and updates [CreditCardBill.status] based on [closingDate]/[dueDate] and today's date.
      * Returns the updated bill.
      */
-    fun recomputeTotal(billId: UUID, accountId: UUID): CreditCardBill
+    fun recomputeTotal(
+        billId: UUID,
+        accountId: UUID,
+    ): CreditCardBill
 
     /**
      * Sets the bill status (e.g. PAID). Used after full payment; does not recompute totalAmount.
      */
-    fun setStatus(billId: UUID, status: BillStatus, accountId: UUID)
+    fun setStatus(
+        billId: UUID,
+        status: BillStatus,
+        accountId: UUID,
+    )
 }

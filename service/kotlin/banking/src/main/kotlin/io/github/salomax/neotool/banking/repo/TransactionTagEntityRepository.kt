@@ -9,9 +9,15 @@ import java.util.UUID
 
 @Repository
 interface TransactionTagEntityRepository : JpaRepository<TransactionTagEntity, TransactionTagId> {
-    fun findByTransactionIdInAndAccountId(transactionIds: List<UUID>, accountId: UUID): List<TransactionTagEntity>
+    fun findByTransactionIdInAndAccountId(
+        transactionIds: List<UUID>,
+        accountId: UUID,
+    ): List<TransactionTagEntity>
 
-    fun deleteByTransactionIdAndAccountId(transactionId: UUID, accountId: UUID): Long
+    fun deleteByTransactionIdAndAccountId(
+        transactionId: UUID,
+        accountId: UUID,
+    ): Long
 
     @Query(
         """

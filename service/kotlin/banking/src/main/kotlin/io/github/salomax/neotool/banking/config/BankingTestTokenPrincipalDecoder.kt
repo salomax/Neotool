@@ -18,7 +18,6 @@ import java.util.UUID
 @Primary
 @Requires(env = ["test"])
 class BankingTestTokenPrincipalDecoder : TokenPrincipalDecoder {
-
     companion object {
         val TEST_ACCOUNT_ID: UUID = UUID.fromString("10000000-0000-0000-0000-000000000001")
         val TEST_USER_ID: UUID = UUID.fromString("00000000-0000-0000-0000-000000000001")

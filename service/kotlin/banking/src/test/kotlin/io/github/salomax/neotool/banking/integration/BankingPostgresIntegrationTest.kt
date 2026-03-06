@@ -12,7 +12,6 @@ import org.junit.jupiter.api.TestInstance
 @Tag("integration")
 @Tag("banking")
 abstract class BankingPostgresIntegrationTest : BaseIntegrationTest(), PostgresIntegrationTest {
-
     override fun getProperties(): MutableMap<String, String> {
         val props = super.getProperties().toMutableMap()
         props["datasources.default.url"] = buildJdbcUrlWithSslDisabled(props.getValue("datasources.default.url"))

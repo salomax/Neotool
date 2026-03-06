@@ -4,7 +4,6 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import java.math.BigDecimal
 
 object CreditCardBillMapper {
-
     fun toDomain(entity: CreditCardBillEntity): CreditCardBill =
         CreditCardBill(
             id = entity.id,

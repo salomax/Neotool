@@ -12,14 +12,12 @@ import java.time.LocalDate
 
 @DisplayName("CsvBradescoParser")
 class CsvBradescoParserTest {
-
     private fun loadFixture(name: String): ByteArray =
         javaClass.getResourceAsStream("/fixtures/csv/$name")!!.readBytes()
 
     @Nested
     @DisplayName("reader contract")
     inner class ReaderContractTests {
-
         @Test
         fun `returns stable reader id`() {
             assertThat(CsvBradescoParser.id()).isEqualTo("csv-bradesco")
@@ -39,11 +37,12 @@ class CsvBradescoParserTest {
 
         @Test
         fun `returns low score for unrelated fingerprint`() {
-            val csv = """
+            val csv =
+                """
                 reference|amount|memo
                 2026-01-01|1000.00|Settlement reference
                 2026-01-02|250.00|Other credit
-            """.trimIndent()
+                """.trimIndent()
             val fingerprint = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
             val match = CsvBradescoParser.supports(fingerprint)
@@ -55,7 +54,6 @@ class CsvBradescoParserTest {
     @Nested
     @DisplayName("parse")
     inner class ParseTests {
-
         @Test
         fun `parses bradesco fixture with debit and credit columns`() {
             val bytes = loadFixture("bradesco_account_sample.csv")
@@ -85,11 +83,12 @@ class CsvBradescoParserTest {
 
         @Test
         fun `parses single amount variant when signed value is present`() {
-            val csv = """
+            val csv =
+                """
                 Data;Historico;Documento;Valor
                 01/11/2025;Transferencia recebida;B-1;100,00
                 02/11/2025;Pagamento boleto;B-2;-50,00
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvBradescoParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 

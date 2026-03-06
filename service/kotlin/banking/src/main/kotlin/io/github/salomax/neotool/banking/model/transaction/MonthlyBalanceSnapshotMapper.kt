@@ -3,7 +3,6 @@ package io.github.salomax.neotool.banking.model.transaction
 import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapshot
 
 object MonthlyBalanceSnapshotMapper {
-
     fun toDomain(entity: MonthlyBalanceSnapshotEntity): MonthlyBalanceSnapshot =
         MonthlyBalanceSnapshot(
             financialAccountId = entity.id.financialAccountId,
@@ -22,11 +21,12 @@ object MonthlyBalanceSnapshotMapper {
 
     fun toEntity(domain: MonthlyBalanceSnapshot): MonthlyBalanceSnapshotEntity =
         MonthlyBalanceSnapshotEntity(
-            id = MonthlyBalanceSnapshotId(
-                financialAccountId = domain.financialAccountId,
-                year = domain.year,
-                month = domain.month,
-            ),
+            id =
+                MonthlyBalanceSnapshotId(
+                    financialAccountId = domain.financialAccountId,
+                    year = domain.year,
+                    month = domain.month,
+                ),
             accountId = domain.accountId,
             openingBalance = domain.openingBalance,
             closingBalance = domain.closingBalance,

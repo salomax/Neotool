@@ -13,8 +13,10 @@ import java.util.UUID
  */
 @Repository
 interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, UUID> {
-
-    fun findByIdAndAccountIdAndDeletedAtIsNull(id: UUID, accountId: UUID): CreditCardBillEntity?
+    fun findByIdAndAccountIdAndDeletedAtIsNull(
+        id: UUID,
+        accountId: UUID,
+    ): CreditCardBillEntity?
 
     fun findByFinancialAccountIdAndClosingDateAndDeletedAtIsNull(
         financialAccountId: UUID,
@@ -69,7 +71,11 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         """,
         nativeQuery = true,
     )
-    fun updateTotalAndStatus(billId: UUID, status: String, updatedAt: Instant)
+    fun updateTotalAndStatus(
+        billId: UUID,
+        status: String,
+        updatedAt: Instant,
+    )
 
     /**
      * Updates only status and updated_at (used when marking bill as PAID after full payment).
@@ -84,5 +90,10 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         """,
         nativeQuery = true,
     )
-    fun updateStatus(billId: UUID, accountId: UUID, status: String, updatedAt: Instant)
+    fun updateStatus(
+        billId: UUID,
+        accountId: UUID,
+        status: String,
+        updatedAt: Instant,
+    )
 }

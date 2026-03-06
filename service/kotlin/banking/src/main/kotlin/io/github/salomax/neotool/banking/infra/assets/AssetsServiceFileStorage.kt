@@ -17,17 +17,22 @@ open class AssetsServiceFileStorage(
     @Property(name = "banking.assets-service.import-namespace", defaultValue = "transaction-imports")
     private val importNamespace: String,
 ) : ImportFileStoragePort {
-
     private val log = KotlinLogging.logger {}
 
-    override fun store(accountId: UUID, bytes: ByteArray, fileName: String, mimeType: String): UUID {
-        val upload = assetsClient.createAssetUpload(
-            namespace = importNamespace,
-            ownerId = accountId.toString(),
-            mimeType = mimeType,
-            originalFilename = fileName,
-            sizeBytes = bytes.size.toLong(),
-        )
+    override fun store(
+        accountId: UUID,
+        bytes: ByteArray,
+        fileName: String,
+        mimeType: String,
+    ): UUID {
+        val upload =
+            assetsClient.createAssetUpload(
+                namespace = importNamespace,
+                ownerId = accountId.toString(),
+                mimeType = mimeType,
+                originalFilename = fileName,
+                sizeBytes = bytes.size.toLong(),
+            )
         presignedUrlHttpClient.put(upload.uploadUrl, bytes, mimeType)
         assetsClient.confirmAssetUpload(upload.id)
         return upload.id
@@ -35,8 +40,9 @@ open class AssetsServiceFileStorage(
 
     override fun read(assetId: UUID): ByteArray {
         val asset = assetsClient.getAsset(assetId, downloadTtlSeconds = 3600)
-        val downloadUrl = asset.downloadUrl
-            ?: throw IllegalStateException("Asset $assetId has no download URL (may not be READY)")
+        val downloadUrl =
+            asset.downloadUrl
+                ?: throw IllegalStateException("Asset $assetId has no download URL (may not be READY)")
         return presignedUrlHttpClient.get(downloadUrl)
     }
 

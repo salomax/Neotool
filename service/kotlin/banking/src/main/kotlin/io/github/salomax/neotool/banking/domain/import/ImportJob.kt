@@ -10,17 +10,13 @@ import java.util.UUID
  */
 data class ImportJob(
     val id: UUID? = null,
-
     val financialAccountId: UUID,
     val accountId: UUID,
     val createdByUserId: UUID,
-
     val source: ImportSource,
     val fileName: String? = null,
     val fileHash: String,
-
     val status: ImportJobStatus,
-
     val totalRows: Int? = null,
     val importedCount: Int? = null,
     val skippedCount: Int? = null,
@@ -30,11 +26,9 @@ data class ImportJob(
     val errorDetails: String? = null,
     /** JSON string (from JSONB). */
     val reviewPayload: String? = null,
-
     val dateFrom: LocalDate? = null,
     val dateTo: LocalDate? = null,
     val completedAt: Instant? = null,
-
     val createdAt: Instant,
     val updatedAt: Instant,
 )

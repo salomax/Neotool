@@ -9,14 +9,12 @@ import java.nio.charset.StandardCharsets
 
 @DisplayName("CsvFingerprintBuilder")
 class CsvFingerprintBuilderTest {
-
     private fun loadFixture(name: String): ByteArray =
         javaClass.getResourceAsStream("/fixtures/csv/$name")!!.readBytes()
 
     @Nested
     @DisplayName("build")
     inner class BuildTests {
-
         @Test
         fun `builds fingerprint for nubank account fixture`() {
             val bytes = loadFixture("nubank_account_sample.csv")
@@ -36,11 +34,12 @@ class CsvFingerprintBuilderTest {
 
         @Test
         fun `detects semicolon delimiter and br amount format with thousands`() {
-            val csv = """
+            val csv =
+                """
                 Data;Valor;Descrição
                 01/01/2026;-1.234,56;Transferência enviada via Pix
                 02/01/2026;950,10;Pagamento de boleto
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -55,10 +54,11 @@ class CsvFingerprintBuilderTest {
 
         @Test
         fun `detects data-only csv without header`() {
-            val csv = """
+            val csv =
+                """
                 2026-01-01,-10.50,Pix enviado
                 2026-01-02,25.00,Transferencia recebida
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -95,10 +95,11 @@ class CsvFingerprintBuilderTest {
 
         @Test
         fun `detects latin1 encoded csv and normalizes accent headers`() {
-            val csv = """
+            val csv =
+                """
                 "Data","Lançamento","Detalhes","Nº documento","Valor","Tipo Lançamento"
                 "03/02/2026","BB Rende Fácil","Rende Facil","9903","50,00","Entrada"
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvFingerprintBuilder.build(csv.toByteArray(Charset.forName("ISO-8859-1")))
 

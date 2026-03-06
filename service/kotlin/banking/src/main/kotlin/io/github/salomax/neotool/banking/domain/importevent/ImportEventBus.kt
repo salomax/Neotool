@@ -1,4 +1,4 @@
-package io.github.salomax.neotool.banking.domain.import_
+package io.github.salomax.neotool.banking.domain.importevent
 
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus

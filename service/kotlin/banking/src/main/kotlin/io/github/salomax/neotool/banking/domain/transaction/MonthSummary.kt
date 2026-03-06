@@ -11,28 +11,20 @@ import java.math.BigDecimal
 data class MonthSummary(
     val year: Int,
     val month: Int,
-
     /** Entradas — CREDIT excl. TRANSFER & BALANCE_ADJUSTMENT (POSTED/PENDING only). */
     val totalIncome: BigDecimal,
-
     /** Saídas — DEBIT excl. TRANSFER & BALANCE_ADJUSTMENT (POSTED/PENDING only). */
     val totalExpenses: BigDecimal,
-
     /** Saldo total at end of month (includes TRANSFER & BALANCE_ADJUSTMENT, excludes FUTURE). */
     val closingBalance: BigDecimal,
-
     /** Balance at start of month (prior month's closingBalance). */
     val openingBalance: BigDecimal,
-
     /** CREDIT of type TRANSFER in the month (single-account view). */
     val transfersIn: BigDecimal,
-
     /** DEBIT of type TRANSFER in the month (single-account view). */
     val transfersOut: BigDecimal,
-
     /** closingBalance + FUTURE transactions (projeção). Null when no FUTURE transactions exist. */
     val projectedClosingBalance: BigDecimal?,
-
     /** True when (year, month) equals the current calendar month. */
     val isCurrentMonth: Boolean,
 )

@@ -15,11 +15,12 @@ data class DecodedImportText(
  */
 object ImportTextDecoder {
     private val WINDOWS_1252 = Charset.forName("windows-1252")
-    private val CANDIDATES = listOf(
-        StandardCharsets.UTF_8,
-        WINDOWS_1252,
-        StandardCharsets.ISO_8859_1,
-    ).distinctBy(Charset::name)
+    private val CANDIDATES =
+        listOf(
+            StandardCharsets.UTF_8,
+            WINDOWS_1252,
+            StandardCharsets.ISO_8859_1,
+        ).distinctBy(Charset::name)
 
     fun decode(bytes: ByteArray): DecodedImportText {
         CANDIDATES.forEach { charset ->
@@ -37,7 +38,10 @@ object ImportTextDecoder {
         )
     }
 
-    private fun decodeStrict(bytes: ByteArray, charset: Charset): String? =
+    private fun decodeStrict(
+        bytes: ByteArray,
+        charset: Charset,
+    ): String? =
         runCatching {
             charset.newDecoder()
                 .onMalformedInput(CodingErrorAction.REPORT)

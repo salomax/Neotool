@@ -7,7 +7,6 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
  * Maps between domain models and JPA entities for transactions and categories.
  */
 object TransactionMapper {
-
     // ── TransactionCategory ──────────────────────────────────────────────────
 
     fun toDomain(entity: TransactionCategoryEntity): TransactionCategory =
@@ -128,7 +127,10 @@ object TransactionMapper {
             updatedAt = domain.updatedAt,
         )
 
-    fun updateEntity(entity: TransactionEntity, domain: Transaction) {
+    fun updateEntity(
+        entity: TransactionEntity,
+        domain: Transaction,
+    ) {
         entity.creditDebitType = domain.creditDebitType
         entity.type = domain.type
         entity.status = domain.status

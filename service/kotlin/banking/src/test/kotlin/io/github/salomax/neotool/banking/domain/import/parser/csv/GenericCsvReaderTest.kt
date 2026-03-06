@@ -11,18 +11,17 @@ import java.time.LocalDate
 
 @DisplayName("GenericCsvReader")
 class GenericCsvReaderTest {
-
     @Nested
     @DisplayName("parse")
     inner class ParseTests {
-
         @Test
         fun `parses csv with explicit headers and amount column`() {
-            val csv = """
+            val csv =
+                """
                 date,amount,description,id
                 2026-01-01,-10.50,Coffee,tx-1
                 2026-01-02,25.00,Refund,tx-2
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -41,11 +40,12 @@ class GenericCsvReaderTest {
 
         @Test
         fun `parses semicolon csv with br date and amount formats`() {
-            val csv = """
+            val csv =
+                """
                 Data;Valor;Descrição;Identificador
                 01/01/2026;-1.234,56;Transferência enviada via Pix;abc-1
                 02/01/2026;950,10;Pagamento de boleto;abc-2
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -62,10 +62,11 @@ class GenericCsvReaderTest {
 
         @Test
         fun `parses csv without header using inferred columns`() {
-            val csv = """
+            val csv =
+                """
                 2026-01-01,-10.50,Pix enviado para Joao
                 2026-01-02,20.00,Transferencia recebida
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -80,11 +81,12 @@ class GenericCsvReaderTest {
 
         @Test
         fun `parses csv with debit and credit columns when amount is absent`() {
-            val csv = """
+            val csv =
+                """
                 Data,Debito,Credito,Historico
                 01/01/2026,50,0,Compra mercado
                 02/01/2026,0,100,Transferencia recebida
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -97,12 +99,13 @@ class GenericCsvReaderTest {
 
         @Test
         fun `skips rows that do not have minimum parseable fields`() {
-            val csv = """
+            val csv =
+                """
                 date,amount,description
                 invalid,-10.00,Row invalid date
                 2026-01-02,abc,Row invalid amount
                 2026-01-03,20.00,Row valid
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -113,12 +116,13 @@ class GenericCsvReaderTest {
 
         @Test
         fun `ignores provider transaction id when document column repeats heavily`() {
-            val csv = """
+            val csv =
+                """
                 Data,Valor,Descrição,Nº documento
                 01/02/2026,-10,Pix enviado,9903
                 02/02/2026,-20,Compra mercado,9903
                 03/02/2026,50,Transferência,9903
-            """.trimIndent()
+                """.trimIndent()
 
             val result = GenericCsvReader.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -129,10 +133,11 @@ class GenericCsvReaderTest {
 
     @Test
     fun `supports returns high score when date and amount patterns exist`() {
-        val csv = """
+        val csv =
+            """
             date,amount,description
             2026-01-01,-10.50,Pix enviado
-        """.trimIndent()
+            """.trimIndent()
         val fingerprint = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
         val match = GenericCsvReader.supports(fingerprint)

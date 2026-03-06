@@ -27,7 +27,6 @@ open class MonthSummaryQueryService(
     private val transactionRepository: TransactionRepository,
     private val snapshotComputationService: SnapshotComputationService,
 ) {
-
     /**
      * Returns the [MonthSummary] for the given [financialAccountId], [year], and [month].
      *
@@ -73,7 +72,11 @@ open class MonthSummaryQueryService(
      * Each account's summary is computed independently via [getMonthSummary] and the
      * numeric fields are summed. When no accounts exist, a zero-value summary is returned.
      */
-    fun getAggregateMonthlySummary(accountId: UUID, year: Int, month: Int): MonthSummary {
+    fun getAggregateMonthlySummary(
+        accountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthSummary {
         val financialAccountIds = transactionRepository.findFinancialAccountIdsByAccount(accountId)
         if (financialAccountIds.isEmpty()) {
             val today = LocalDate.now()
@@ -104,8 +107,12 @@ open class MonthSummaryQueryService(
             openingBalance = summaries.fold(BigDecimal.ZERO) { acc, s -> acc + s.openingBalance },
             transfersIn = summaries.fold(BigDecimal.ZERO) { acc, s -> acc + s.transfersIn },
             transfersOut = summaries.fold(BigDecimal.ZERO) { acc, s -> acc + s.transfersOut },
-            projectedClosingBalance = if (projectedClosingBalances.isEmpty()) null
-                                      else projectedClosingBalances.fold(BigDecimal.ZERO, BigDecimal::add),
+            projectedClosingBalance =
+                if (projectedClosingBalances.isEmpty()) {
+                    null
+                } else {
+                    projectedClosingBalances.fold(BigDecimal.ZERO, BigDecimal::add)
+                },
             isCurrentMonth = year == today.year && month == today.monthValue,
         )
     }

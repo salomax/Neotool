@@ -1,10 +1,9 @@
 package io.github.salomax.neotool.banking.rest
 
 import io.github.salomax.neotool.banking.domain.import.ImportJobService
-import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
+import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
-import io.github.salomax.neotool.banking.domain.import_.ImportJobStatusPayload
-import io.github.salomax.neotool.banking.domain.import_.ImportEventBus
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
@@ -34,35 +33,40 @@ open class ImportSseController(
     private val requestPrincipalProvider: RequestPrincipalProvider,
     private val authorizationChecker: AuthorizationChecker,
 ) {
-
     @Get("/{jobId}/events", produces = [MediaType.TEXT_EVENT_STREAM])
     open fun importJobEvents(
         @PathVariable jobId: UUID,
         request: HttpRequest<*>,
     ): Flux<Event<ImportJobStatusPayload>> {
-        val token = extractBearerToken(request)
-            ?: throw io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException("Authentication required")
+        val token =
+            extractBearerToken(request)
+                ?: throw io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException(
+                    "Authentication required",
+                )
         val principal: RequestPrincipal = requestPrincipalProvider.fromToken(token)
         authorizationChecker.require(principal, BankingPermissions.BANKING_ACCOUNT_VIEW)
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
 
-        val current = importJobService.getJob(jobId, accountId)
-            ?: throw NoSuchElementException("Import job not found: $jobId")
+        val current =
+            importJobService.getJob(jobId, accountId)
+                ?: throw NoSuchElementException("Import job not found: $jobId")
 
         if (current.status.isTerminal()) {
             return Flux.just(Event.of(ImportJobStatusPayload.from(current)))
         }
 
-        val busEvents = importEventBus.asFlux()
-            .filter { it.jobId == jobId && it.accountId == accountId }
+        val busEvents =
+            importEventBus.asFlux()
+                .filter { it.jobId == jobId && it.accountId == accountId }
 
         // Poll terminal status as a safety net for race conditions where the terminal bus event
         // may be emitted before this subscriber is fully attached.
-        val terminalPoll = Flux.interval(Duration.ofSeconds(2))
-            .map { importJobService.getJob(jobId, accountId) }
-            .filter { it != null }
-            .map { ImportJobStatusPayload.from(it!!) }
-            .filter { it.status.isTerminal() }
+        val terminalPoll =
+            Flux.interval(Duration.ofSeconds(2))
+                .map { importJobService.getJob(jobId, accountId) }
+                .filter { it != null }
+                .map { ImportJobStatusPayload.from(it!!) }
+                .filter { it.status.isTerminal() }
 
         return Flux.merge(busEvents, terminalPoll)
             .startWith(ImportJobStatusPayload.from(current))

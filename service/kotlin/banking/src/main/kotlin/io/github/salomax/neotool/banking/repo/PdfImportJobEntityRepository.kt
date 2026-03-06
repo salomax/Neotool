@@ -7,10 +7,15 @@ import java.util.UUID
 
 @Repository
 interface PdfImportJobEntityRepository : JpaRepository<PdfImportJobEntity, UUID> {
+    fun findByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): PdfImportJobEntity?
 
-    fun findByIdAndAccountId(id: UUID, accountId: UUID): PdfImportJobEntity?
-
-    fun findByAccountIdAndFileHash(accountId: UUID, fileHash: String): PdfImportJobEntity?
+    fun findByAccountIdAndFileHash(
+        accountId: UUID,
+        fileHash: String,
+    ): PdfImportJobEntity?
 
     fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<PdfImportJobEntity>
 
@@ -19,4 +24,3 @@ interface PdfImportJobEntityRepository : JpaRepository<PdfImportJobEntity, UUID>
         accountId: UUID,
     ): List<PdfImportJobEntity>
 }
-

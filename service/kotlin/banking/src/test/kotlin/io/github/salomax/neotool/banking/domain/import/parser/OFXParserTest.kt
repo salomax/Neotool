@@ -11,14 +11,12 @@ import java.time.LocalDate
 
 @DisplayName("OFXParser")
 class OFXParserTest {
-
     private fun loadFixture(name: String): ByteArray =
         javaClass.getResourceAsStream("/fixtures/ofx/$name")!!.readBytes()
 
     @Nested
     @DisplayName("parse — SGML fixture")
     inner class ParseSgmlFixtureTests {
-
         @Test
         fun `parses ofx_sgml_sample and returns expected transactions`() {
             val bytes = loadFixture("ofx_sgml_sample.ofx")
@@ -58,7 +56,6 @@ class OFXParserTest {
     @Nested
     @DisplayName("parse — XML fixture")
     inner class ParseXmlFixtureTests {
-
         @Test
         fun `parses ofx_xml_sample and returns expected transactions`() {
             val bytes = loadFixture("ofx_xml_sample.ofx")
@@ -89,7 +86,6 @@ class OFXParserTest {
     @Nested
     @DisplayName("parse — format detection")
     inner class ParseFormatDetectionTests {
-
         @Test
         fun `returns empty list when content does not start with OFX header or XML`() {
             val bytes = "plain,text,csv\nrow1".toByteArray(StandardCharsets.UTF_8)
@@ -108,7 +104,8 @@ class OFXParserTest {
 
         @Test
         fun `detects SGML via OFXHEADER`() {
-            val sgml = """
+            val sgml =
+                """
                 OFXHEADER:100
                 DATA:OFXSGML
                 <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
@@ -118,7 +115,7 @@ class OFXParserTest {
                 <FITID>detect-sgml
                 </STMTTRN>
                 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
-            """.trimIndent()
+                """.trimIndent()
             val result = OFXParser.parse(sgml.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)
@@ -139,7 +136,8 @@ class OFXParserTest {
 
         @Test
         fun `returns empty list when XML contains DOCTYPE external entity`() {
-            val xml = """
+            val xml =
+                """
                 <?xml version="1.0"?>
                 <!DOCTYPE foo [
                   <!ELEMENT foo ANY >
@@ -154,7 +152,7 @@ class OFXParserTest {
                     </STMTTRN>
                   </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1>
                 </OFX>
-            """.trimIndent()
+                """.trimIndent()
 
             val result = OFXParser.parse(xml.toByteArray(StandardCharsets.UTF_8))
 
@@ -165,10 +163,10 @@ class OFXParserTest {
     @Nested
     @DisplayName("parse — mapping")
     inner class ParseMappingTests {
-
         @Test
         fun `uses PAYEE when NAME absent and description defaults from MEMO`() {
-            val sgml = """
+            val sgml =
+                """
                 OFXHEADER:100
                 DATA:OFXSGML
                 <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
@@ -179,7 +177,7 @@ class OFXParserTest {
                 <MEMO>Invoice 123
                 </STMTTRN>
                 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
-            """.trimIndent()
+                """.trimIndent()
             val result = OFXParser.parse(sgml.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)
@@ -189,7 +187,8 @@ class OFXParserTest {
 
         @Test
         fun `negative TRNAMT is DEBIT positive is CREDIT`() {
-            val sgml = """
+            val sgml =
+                """
                 OFXHEADER:100
                 DATA:OFXSGML
                 <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
@@ -198,7 +197,7 @@ class OFXParserTest {
                 <STMTTRN><DTPOSTED>20240102<TRNAMT>50.00<FITID>c
                 </STMTTRN>
                 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
-            """.trimIndent()
+                """.trimIndent()
             val result = OFXParser.parse(sgml.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result[0].creditDebitType).isEqualTo(CreditDebitType.DEBIT)
@@ -209,7 +208,8 @@ class OFXParserTest {
 
         @Test
         fun `amount uses abs and description falls back to OFX when no NAME or PAYEE or MEMO`() {
-            val sgml = """
+            val sgml =
+                """
                 OFXHEADER:100
                 DATA:OFXSGML
                 <OFX><BANKMSGSRSV1><STMTTRNRS><STMTRS><BANKTRANLIST>
@@ -219,7 +219,7 @@ class OFXParserTest {
                 <FITID>minimal
                 </STMTTRN>
                 </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>
-            """.trimIndent()
+                """.trimIndent()
             val result = OFXParser.parse(sgml.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)

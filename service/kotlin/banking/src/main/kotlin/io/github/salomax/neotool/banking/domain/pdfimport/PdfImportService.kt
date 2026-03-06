@@ -2,8 +2,8 @@ package io.github.salomax.neotool.banking.domain.pdfimport
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
@@ -43,7 +43,6 @@ open class PdfImportService(
     private val submittedProducer: PdfExtractorSubmittedProducer?,
     private val objectMapper: ObjectMapper,
 ) {
-
     @Transactional
     open fun submitPdfBillImport(
         accountId: UUID,
@@ -55,10 +54,11 @@ open class PdfImportService(
         validateInputs(fileName, fileBytes)
         validateFinancialAccountOwnership(financialAccountId, accountId)
 
-        val producer = submittedProducer ?: throw BusinessRuleException(
-            errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
-            parameters = mapOf("kafkaEnabled" to false, "pipeline" to "pdf"),
-        )
+        val producer =
+            submittedProducer ?: throw BusinessRuleException(
+                errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
+                parameters = mapOf("kafkaEnabled" to false, "pipeline" to "pdf"),
+            )
 
         val fileHash = sha256Hex(fileBytes)
         val existing = repository.findByAccountIdAndFileHash(accountId, fileHash)
@@ -66,43 +66,45 @@ open class PdfImportService(
             return existing
         }
 
-        val uploadedAsset = pdfImportAssetStorage.uploadPdf(
-            accountId = accountId,
-            fileName = fileName,
-            bytes = fileBytes,
-        )
+        val uploadedAsset =
+            pdfImportAssetStorage.uploadPdf(
+                accountId = accountId,
+                fileName = fileName,
+                bytes = fileBytes,
+            )
 
         val now = Instant.now()
-        val job = if (existing != null) {
-            repository.update(
-                existing.copy(
-                    financialAccountId = financialAccountId,
-                    status = PdfImportJobStatus.PENDING,
-                    assetId = uploadedAsset.assetId,
-                    fileName = fileName,
-                    extractedText = null,
-                    extractionMetadata = null,
-                    reviewPayload = null,
-                    errorMessage = null,
-                    completedAt = null,
-                    updatedAt = now,
-                ),
-            )
-        } else {
-            repository.save(
-                PdfImportJob(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    createdByUserId = userId,
-                    status = PdfImportJobStatus.PENDING,
-                    assetId = uploadedAsset.assetId,
-                    fileName = fileName,
-                    fileHash = fileHash,
-                    createdAt = now,
-                    updatedAt = now,
-                ),
-            )
-        }
+        val job =
+            if (existing != null) {
+                repository.update(
+                    existing.copy(
+                        financialAccountId = financialAccountId,
+                        status = PdfImportJobStatus.PENDING,
+                        assetId = uploadedAsset.assetId,
+                        fileName = fileName,
+                        extractedText = null,
+                        extractionMetadata = null,
+                        reviewPayload = null,
+                        errorMessage = null,
+                        completedAt = null,
+                        updatedAt = now,
+                    ),
+                )
+            } else {
+                repository.save(
+                    PdfImportJob(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        status = PdfImportJobStatus.PENDING,
+                        assetId = uploadedAsset.assetId,
+                        fileName = fileName,
+                        fileHash = fileHash,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
 
         val savedJobId = requireNotNull(job.id) { "PdfImportJob id is required after save" }
         producer.publish(
@@ -111,21 +113,27 @@ open class PdfImportService(
                 asset_id = uploadedAsset.assetId,
                 download_url = uploadedAsset.downloadUrl,
                 document_type = PDF_DOCUMENT_TYPE,
-                callback_context = PdfImportCallbackContext(
-                    job_id = savedJobId,
-                    account_id = accountId,
-                    user_id = userId,
-                ),
+                callback_context =
+                    PdfImportCallbackContext(
+                        job_id = savedJobId,
+                        account_id = accountId,
+                        user_id = userId,
+                    ),
             ),
         )
 
         return job
     }
 
-    open fun getJob(jobId: UUID, accountId: UUID): PdfImportJob? =
-        repository.findById(jobId, accountId)
+    open fun getJob(
+        jobId: UUID,
+        accountId: UUID,
+    ): PdfImportJob? = repository.findById(jobId, accountId)
 
-    open fun listJobs(financialAccountId: UUID?, accountId: UUID): List<PdfImportJob> =
+    open fun listJobs(
+        financialAccountId: UUID?,
+        accountId: UUID,
+    ): List<PdfImportJob> =
         if (financialAccountId == null) {
             repository.findByAccount(accountId)
         } else {
@@ -133,7 +141,10 @@ open class PdfImportService(
         }
 
     @Transactional
-    open fun markExtracting(jobId: UUID, accountId: UUID): PdfImportJob? {
+    open fun markExtracting(
+        jobId: UUID,
+        accountId: UUID,
+    ): PdfImportJob? {
         val job = repository.findById(jobId, accountId) ?: return null
         return repository.update(
             job.copy(
@@ -153,14 +164,15 @@ open class PdfImportService(
         val job = repository.findById(jobId, accountId) ?: return null
         val metadataJson = extractionMetadata?.let { objectMapper.writeValueAsString(it) }
         val now = Instant.now()
-        val extracted = repository.update(
-            job.copy(
-                status = PdfImportJobStatus.EXTRACTED,
-                extractedText = extractedText,
-                extractionMetadata = metadataJson,
-                updatedAt = now,
-            ),
-        )
+        val extracted =
+            repository.update(
+                job.copy(
+                    status = PdfImportJobStatus.EXTRACTED,
+                    extractedText = extractedText,
+                    extractionMetadata = metadataJson,
+                    updatedAt = now,
+                ),
+            )
         return repository.update(
             extracted.copy(
                 status = PdfImportJobStatus.LLM_PROCESSING,
@@ -193,8 +205,9 @@ open class PdfImportService(
         userId: UUID,
         command: ConfirmPdfBillImportCommand,
     ): PdfImportJob {
-        val job = repository.findById(command.jobId, accountId)
-            ?: throw NoSuchElementException("PdfImportJob ${command.jobId} not found")
+        val job =
+            repository.findById(command.jobId, accountId)
+                ?: throw NoSuchElementException("PdfImportJob ${command.jobId} not found")
         if (job.status == PdfImportJobStatus.DONE) {
             return job
         }
@@ -213,79 +226,86 @@ open class PdfImportService(
             )
         }
 
-        val tenantAccountsById = financialAccountRepository.findByAccountId(accountId)
-            .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
+        val tenantAccountsById =
+            financialAccountRepository.findByAccountId(accountId)
+                .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
         val reviewPayload = parsePdfReviewPayload(job.reviewPayload)
         validateConfirmInput(command, tenantAccountsById, reviewPayload)
 
-        val importingJob = repository.update(
-            job.copy(
-                status = PdfImportJobStatus.IMPORTING,
-                updatedAt = Instant.now(),
-            ),
-        )
+        val importingJob =
+            repository.update(
+                job.copy(
+                    status = PdfImportJobStatus.IMPORTING,
+                    updatedAt = Instant.now(),
+                ),
+            )
 
         return try {
             val affectedBills = mutableSetOf<UUID>()
             val snapshotRecomputeByAccount = mutableMapOf<UUID, Pair<Int, Int>>()
 
             command.cards.forEach { card ->
-                val account = tenantAccountsById[card.financialAccountId]
-                    ?: throw ValidationException(
-                        CommonErrorCode.INVALID_INPUT,
-                        field = "financialAccountId",
-                        parameters = mapOf("reason" to "Financial account does not belong to current account"),
-                    )
+                val account =
+                    tenantAccountsById[card.financialAccountId]
+                        ?: throw ValidationException(
+                            CommonErrorCode.INVALID_INPUT,
+                            field = "financialAccountId",
+                            parameters = mapOf("reason" to "Financial account does not belong to current account"),
+                        )
                 card.transactions
                     .filter { it.include }
                     .forEach { tx ->
                         val amountCents = toAmountCents(tx.amount)
-                        val fingerprint = importFingerprintService.compute(
-                            financialAccountId = card.financialAccountId,
-                            date = tx.date,
-                            amountCents = amountCents,
-                            normalizedDescription = tx.description,
-                        )
+                        val fingerprint =
+                            importFingerprintService.compute(
+                                financialAccountId = card.financialAccountId,
+                                date = tx.date,
+                                amountCents = amountCents,
+                                normalizedDescription = tx.description,
+                            )
                         val duplicate = importFingerprintService.isDuplicate(card.financialAccountId, fingerprint)
                         if (duplicate) return@forEach
 
-                        val billId = creditCardBillService.resolveBillForTransaction(
-                            account = account,
-                            transactionDate = tx.date,
-                            type = TransactionType.CARD,
-                        )
-                        val now = Instant.now()
-                        val saved = transactionRepository.save(
-                            Transaction(
-                                financialAccountId = card.financialAccountId,
-                                accountId = accountId,
-                                createdByUserId = userId,
-                                belongsToUserId = userId,
-                                creditDebitType = tx.creditDebitType,
+                        val billId =
+                            creditCardBillService.resolveBillForTransaction(
+                                account = account,
+                                transactionDate = tx.date,
                                 type = TransactionType.CARD,
-                                status = TransactionStatus.POSTED,
-                                source = TransactionSource.PDF,
-                                amount = tx.amount,
-                                currencyCode = "BRL",
-                                date = tx.date,
-                                description = tx.description.trim(),
-                                billId = billId,
-                                cardIdentifier = normalizeLastFourDigits(card.lastFourDigits),
-                                importFingerprint = fingerprint,
-                                importJobId = command.jobId,
-                                createdAt = now,
-                                updatedAt = now,
-                            ),
-                        )
+                            )
+                        val now = Instant.now()
+                        val saved =
+                            transactionRepository.save(
+                                Transaction(
+                                    financialAccountId = card.financialAccountId,
+                                    accountId = accountId,
+                                    createdByUserId = userId,
+                                    belongsToUserId = userId,
+                                    creditDebitType = tx.creditDebitType,
+                                    type = TransactionType.CARD,
+                                    status = TransactionStatus.POSTED,
+                                    source = TransactionSource.PDF,
+                                    amount = tx.amount,
+                                    currencyCode = "BRL",
+                                    date = tx.date,
+                                    description = tx.description.trim(),
+                                    billId = billId,
+                                    cardIdentifier = normalizeLastFourDigits(card.lastFourDigits),
+                                    importFingerprint = fingerprint,
+                                    importJobId = command.jobId,
+                                    createdAt = now,
+                                    updatedAt = now,
+                                ),
+                            )
                         saved.billId?.let(affectedBills::add)
                         val current = snapshotRecomputeByAccount[saved.financialAccountId]
                         val candidate = saved.date.year to saved.date.monthValue
-                        snapshotRecomputeByAccount[saved.financialAccountId] = when {
-                            current == null -> candidate
-                            saved.date.year < current.first -> candidate
-                            saved.date.year == current.first && saved.date.monthValue < current.second -> candidate
-                            else -> current
-                        }
+                        snapshotRecomputeByAccount[saved.financialAccountId] =
+                            when {
+                                current == null -> candidate
+                                saved.date.year < current.first -> candidate
+                                saved.date.year == current.first && saved.date.monthValue < current.second -> candidate
+                                else -> current
+                            }
                     }
             }
 
@@ -325,7 +345,11 @@ open class PdfImportService(
     }
 
     @Transactional
-    open fun markFailed(jobId: UUID, accountId: UUID, errorMessage: String?): PdfImportJob? {
+    open fun markFailed(
+        jobId: UUID,
+        accountId: UUID,
+        errorMessage: String?,
+    ): PdfImportJob? {
         val job = repository.findById(jobId, accountId) ?: return null
         val now = Instant.now()
         return repository.update(
@@ -338,7 +362,10 @@ open class PdfImportService(
         )
     }
 
-    private fun validateInputs(fileName: String, fileBytes: ByteArray) {
+    private fun validateInputs(
+        fileName: String,
+        fileBytes: ByteArray,
+    ) {
         if (!fileName.endsWith(".pdf", ignoreCase = true)) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
@@ -350,10 +377,11 @@ open class PdfImportService(
             throw ValidationException(
                 CommonErrorCode.VALIDATION_ERROR,
                 field = "fileBase64",
-                parameters = mapOf(
-                    "maxSizeBytes" to MAX_PDF_FILE_SIZE_BYTES,
-                    "actualSizeBytes" to fileBytes.size,
-                ),
+                parameters =
+                    mapOf(
+                        "maxSizeBytes" to MAX_PDF_FILE_SIZE_BYTES,
+                        "actualSizeBytes" to fileBytes.size,
+                    ),
             )
         }
         if (!looksLikePdf(fileBytes)) {
@@ -365,12 +393,16 @@ open class PdfImportService(
         }
     }
 
-    private fun validateFinancialAccountOwnership(financialAccountId: UUID?, accountId: UUID) {
+    private fun validateFinancialAccountOwnership(
+        financialAccountId: UUID?,
+        accountId: UUID,
+    ) {
         if (financialAccountId == null) {
             return
         }
-        val accountBelongsToTenant = financialAccountRepository.findByAccountId(accountId)
-            .any { it.id == financialAccountId }
+        val accountBelongsToTenant =
+            financialAccountRepository.findByAccountId(accountId)
+                .any { it.id == financialAccountId }
         if (!accountBelongsToTenant) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
@@ -380,45 +412,58 @@ open class PdfImportService(
         }
     }
 
-    private fun enrichReviewPayloadWithCardMatches(llmOutput: Any?, accountId: UUID): String? {
+    private fun enrichReviewPayloadWithCardMatches(
+        llmOutput: Any?,
+        accountId: UUID,
+    ): String? {
         if (llmOutput == null) return null
-        val parsed = runCatching { objectMapper.convertValue(llmOutput, PdfBillExtractionResult::class.java) }.getOrNull()
-            ?: return objectMapper.writeValueAsString(llmOutput)
-        val enrichedCards = parsed.cards.map { card ->
-            val normalizedLastFour = normalizeLastFourDigits(card.lastFourDigits)
-            if (normalizedLastFour.length != 4) {
-                card.copy(
-                    lastFourDigits = normalizedLastFour,
-                    matchedFinancialAccountId = null,
-                    matchAmbiguous = false,
-                    matchCandidates = emptyList(),
-                )
-            } else {
-                val matches = financialAccountRepository.findCardAccountsByLastFourDigits(accountId, normalizedLastFour)
-                when {
-                    matches.size == 1 -> card.copy(
-                        lastFourDigits = normalizedLastFour,
-                        matchedFinancialAccountId = matches.first().id,
-                        matchAmbiguous = false,
-                        matchCandidates = emptyList(),
-                    )
-                    matches.isEmpty() -> card.copy(
+        val parsed =
+            runCatching { objectMapper.convertValue(llmOutput, PdfBillExtractionResult::class.java) }.getOrNull()
+                ?: return objectMapper.writeValueAsString(llmOutput)
+        val enrichedCards =
+            parsed.cards.map { card ->
+                val normalizedLastFour = normalizeLastFourDigits(card.lastFourDigits)
+                if (normalizedLastFour.length != 4) {
+                    card.copy(
                         lastFourDigits = normalizedLastFour,
                         matchedFinancialAccountId = null,
                         matchAmbiguous = false,
                         matchCandidates = emptyList(),
                     )
-                    else -> card.copy(
-                        lastFourDigits = normalizedLastFour,
-                        matchedFinancialAccountId = null,
-                        matchAmbiguous = true,
-                        matchCandidates = matches.mapNotNull { match ->
-                            match.id?.let { PdfMatchCandidate(id = it, name = match.name) }
-                        },
-                    )
+                } else {
+                    val matches =
+                        financialAccountRepository.findCardAccountsByLastFourDigits(
+                            accountId,
+                            normalizedLastFour,
+                        )
+                    when {
+                        matches.size == 1 ->
+                            card.copy(
+                                lastFourDigits = normalizedLastFour,
+                                matchedFinancialAccountId = matches.first().id,
+                                matchAmbiguous = false,
+                                matchCandidates = emptyList(),
+                            )
+                        matches.isEmpty() ->
+                            card.copy(
+                                lastFourDigits = normalizedLastFour,
+                                matchedFinancialAccountId = null,
+                                matchAmbiguous = false,
+                                matchCandidates = emptyList(),
+                            )
+                        else ->
+                            card.copy(
+                                lastFourDigits = normalizedLastFour,
+                                matchedFinancialAccountId = null,
+                                matchAmbiguous = true,
+                                matchCandidates =
+                                    matches.mapNotNull { match ->
+                                        match.id?.let { PdfMatchCandidate(id = it, name = match.name) }
+                                    },
+                            )
+                    }
                 }
             }
-        }
         return objectMapper.writeValueAsString(parsed.copy(cards = enrichedCards))
     }
 
@@ -500,8 +545,7 @@ open class PdfImportService(
         }
     }
 
-    private fun normalizeLastFourDigits(value: String): String =
-        value.filter(Char::isDigit).takeLast(4)
+    private fun normalizeLastFourDigits(value: String): String = value.filter(Char::isDigit).takeLast(4)
 
     private fun looksLikePdf(fileBytes: ByteArray): Boolean {
         if (fileBytes.size < 5) {

@@ -18,23 +18,28 @@ open class PdfImportAssetStorage(
     @Property(name = "banking.assets-service.pdf-download-ttl-seconds", defaultValue = "7200")
     private val downloadTtlSeconds: Int,
 ) {
-    fun uploadPdf(accountId: UUID, fileName: String, bytes: ByteArray): PdfImportAssetUploadResult {
-        val upload = assetsClient.createAssetUpload(
-            namespace = pdfImportNamespace,
-            ownerId = accountId.toString(),
-            mimeType = "application/pdf",
-            originalFilename = fileName,
-            sizeBytes = bytes.size.toLong(),
-        )
+    fun uploadPdf(
+        accountId: UUID,
+        fileName: String,
+        bytes: ByteArray,
+    ): PdfImportAssetUploadResult {
+        val upload =
+            assetsClient.createAssetUpload(
+                namespace = pdfImportNamespace,
+                ownerId = accountId.toString(),
+                mimeType = "application/pdf",
+                originalFilename = fileName,
+                sizeBytes = bytes.size.toLong(),
+            )
         presignedUrlHttpClient.put(upload.uploadUrl, bytes, "application/pdf")
         assetsClient.confirmAssetUpload(upload.id)
         val asset = assetsClient.getAsset(upload.id, downloadTtlSeconds = downloadTtlSeconds)
-        val downloadUrl = asset.downloadUrl
-            ?: throw IllegalStateException("Asset ${upload.id} has no download URL after confirm")
+        val downloadUrl =
+            asset.downloadUrl
+                ?: throw IllegalStateException("Asset ${upload.id} has no download URL after confirm")
         return PdfImportAssetUploadResult(
             assetId = upload.id,
             downloadUrl = downloadUrl,
         )
     }
 }
-

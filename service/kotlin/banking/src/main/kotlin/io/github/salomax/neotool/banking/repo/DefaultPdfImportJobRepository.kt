@@ -11,17 +11,24 @@ import java.util.UUID
 open class DefaultPdfImportJobRepository(
     private val entityRepository: PdfImportJobEntityRepository,
 ) : PdfImportJobRepository {
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): PdfImportJob? = entityRepository.findByIdAndAccountId(id, accountId)?.let(PdfImportJobMapper::toDomain)
 
-    override fun findById(id: UUID, accountId: UUID): PdfImportJob? =
-        entityRepository.findByIdAndAccountId(id, accountId)?.let(PdfImportJobMapper::toDomain)
-
-    override fun findByAccountIdAndFileHash(accountId: UUID, fileHash: String): PdfImportJob? =
+    override fun findByAccountIdAndFileHash(
+        accountId: UUID,
+        fileHash: String,
+    ): PdfImportJob? =
         entityRepository.findByAccountIdAndFileHash(accountId, fileHash)?.let(PdfImportJobMapper::toDomain)
 
     override fun findByAccount(accountId: UUID): List<PdfImportJob> =
         entityRepository.findByAccountIdOrderByCreatedAtDesc(accountId).map(PdfImportJobMapper::toDomain)
 
-    override fun findByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<PdfImportJob> =
+    override fun findByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<PdfImportJob> =
         entityRepository.findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
             financialAccountId,
             accountId,
@@ -36,11 +43,11 @@ open class DefaultPdfImportJobRepository(
     @Transactional
     override fun update(job: PdfImportJob): PdfImportJob {
         val id = requireNotNull(job.id) { "PdfImportJob id is required for update" }
-        val entity = entityRepository.findByIdAndAccountId(id, job.accountId)
-            ?: throw NoSuchElementException("PdfImportJob $id not found")
+        val entity =
+            entityRepository.findByIdAndAccountId(id, job.accountId)
+                ?: throw NoSuchElementException("PdfImportJob $id not found")
         PdfImportJobMapper.updateEntity(entity, job)
         val saved = entityRepository.update(entity)
         return PdfImportJobMapper.toDomain(saved)
     }
 }
-

@@ -7,12 +7,11 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
-import java.time.LocalDate
 import java.nio.charset.StandardCharsets
+import java.time.LocalDate
 
 @DisplayName("CsvNubankParser")
 class CsvNubankParserTest {
-
     private val expectedCardHeader = "date,transaction_type,title,amount,category,charges,Identificador"
     private val expectedAccountHeader = "Data,Valor,Identificador,Descrição"
 
@@ -22,7 +21,6 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("reader contract")
     inner class ReaderContractTests {
-
         @Test
         fun `returns stable reader id`() {
             assertThat(CsvNubankParser.id()).isEqualTo("csv-nubank")
@@ -54,11 +52,12 @@ class CsvNubankParserTest {
 
         @Test
         fun `returns low score for unrelated fingerprint`() {
-            val csv = """
+            val csv =
+                """
                 posted_at;gross_value;memo
                 2026-01-01;1000,00;Settlement reference
                 2026-01-02;250,00;Other credit
-            """.trimIndent()
+                """.trimIndent()
             val fingerprint = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
             val match = CsvNubankParser.supports(fingerprint)
@@ -71,7 +70,6 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("parse — fixture")
     inner class ParseFixtureTests {
-
         @Test
         fun `parses nubank_sample csv and returns expected transactions`() {
             val bytes = loadFixture("nubank_sample.csv")
@@ -140,12 +138,13 @@ class CsvNubankParserTest {
 
         @Test
         fun `parses real nubank account sample with accents and masked document`() {
-            val csv = """
+            val csv =
+                """
                 Data,Valor,Identificador,Descrição
                 01/11/2025,-300.00,69064c80-bd30-48e2-b312-e6fc65485a31,Transferência enviada pelo Pix - MARIA JOSE DA SILVA - •••.311.704-•• - BCO SANTANDER (BRASIL) S.A. (0033) Agência: 3200 Conta: 2000051-7
                 03/11/2025,35206.39,6908ac71-4354-4dfb-87b7-297cfc9bd1d2,Transferência Recebida - MARCOS AFONSO SALOMAO JUNIOR - •••.885.958-•• - XP Investimentos Corretora de Câmbio Títulos e Valores Mobiliários S.A. (0102) Agência: 1 Conta: 297233-5
                 03/11/2025,-75000.00,6908dc8c-43e3-4bd8-9bcb-86565e95c2b3,Transferência enviada pelo Pix - Marcos Afonso Salomao Junior - •••.885.958-•• - BANCO BTG PACTUAL S.A. (0208) Agência: 1 Conta: 572434-9
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
@@ -168,7 +167,6 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("parse — header")
     inner class ParseHeaderTests {
-
         @Test
         fun `returns empty list when header does not match`() {
             val csv = "other,columns,here\n2024-01-01,purchase,Title,10.00,,,id-1"
@@ -193,7 +191,9 @@ class CsvNubankParserTest {
 
         @Test
         fun `accepts header case insensitive`() {
-            val csv = "DATE,TRANSACTION_TYPE,TITLE,AMOUNT,CATEGORY,CHARGES,IDENTIFICADOR\n2024-01-01,purchase,Title,10.00,,,id-1"
+            val csv =
+                "DATE,TRANSACTION_TYPE,TITLE,AMOUNT,CATEGORY,CHARGES,IDENTIFICADOR\n" +
+                    "2024-01-01,purchase,Title,10.00,,,id-1"
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)
@@ -228,15 +228,15 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("parse — row filtering")
     inner class ParseRowFilteringTests {
-
         @Test
         fun `skips rows with blank Identificador`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,purchase,With Id,10.00,,,id-a
                 2024-01-02,purchase,No Id,20.00,,,
                 2024-01-03,debit,With Id 2,30.00,,,id-b
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(2)
@@ -246,10 +246,11 @@ class CsvNubankParserTest {
 
         @Test
         fun `skips rows with negative amount`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,purchase,Negative,-15.00,,,id-neg
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).isEmpty()
@@ -257,10 +258,11 @@ class CsvNubankParserTest {
 
         @Test
         fun `skips rows with fewer than 7 fields`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,purchase,Short
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).isEmpty()
@@ -270,14 +272,14 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("parse — transaction type")
     inner class ParseTransactionTypeTests {
-
         @Test
         fun `maps payment and credit to CREDIT`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,payment,Pay,100.00,,,id-1
                 2024-01-02,credit,Refund,50.00,,,id-2
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result[0].creditDebitType).isEqualTo(CreditDebitType.CREDIT)
@@ -286,12 +288,13 @@ class CsvNubankParserTest {
 
         @Test
         fun `maps purchase debit compra to DEBIT`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,purchase,Purchase,10.00,,,id-1
                 2024-01-02,debit,Debit,20.00,,,id-2
                 2024-01-03,compra,Compra,30.00,,,id-3
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).allMatch { it.creditDebitType == CreditDebitType.DEBIT }
@@ -299,10 +302,11 @@ class CsvNubankParserTest {
 
         @Test
         fun `defaults unknown transaction_type to DEBIT`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,unknown,Other,5.00,,,id-1
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)
@@ -313,13 +317,13 @@ class CsvNubankParserTest {
     @Nested
     @DisplayName("parse — amount and format")
     inner class ParseAmountTests {
-
         @Test
         fun `parses amount with comma as decimal separator when quoted`() {
-            val csv = """
+            val csv =
+                """
                 $expectedCardHeader
                 2024-01-01,purchase,Item,"99,99",,,id-1
-            """.trimIndent()
+                """.trimIndent()
             val result = CsvNubankParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 
             assertThat(result).hasSize(1)

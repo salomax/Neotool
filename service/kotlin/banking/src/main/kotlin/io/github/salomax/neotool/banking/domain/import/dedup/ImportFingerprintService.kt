@@ -15,7 +15,6 @@ import java.util.UUID
 open class ImportFingerprintService(
     private val transactionEntityRepository: TransactionEntityRepository,
 ) {
-
     /**
      * Computes a deterministic 64-char hex fingerprint from account, date, amount in cents, and description.
      * Description is normalized: trim + lowercase before hashing.
@@ -36,7 +35,10 @@ open class ImportFingerprintService(
      * Returns true if a non-deleted transaction exists with the given
      * financialAccountId and importFingerprint.
      */
-    fun isDuplicate(financialAccountId: UUID, fingerprint: String): Boolean =
+    fun isDuplicate(
+        financialAccountId: UUID,
+        fingerprint: String,
+    ): Boolean =
         transactionEntityRepository.existsByFinancialAccountIdAndImportFingerprintAndDeletedAtIsNull(
             financialAccountId = financialAccountId,
             importFingerprint = fingerprint,

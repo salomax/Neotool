@@ -41,7 +41,9 @@ open class MonthlySnapshotSweeperJob(
             return
         }
 
-        logger.info { "MonthlySnapshotSweeper: healing ${dirtyAccountIds.size} financial account(s) with dirty snapshots" }
+        logger.info {
+            "MonthlySnapshotSweeper: healing ${dirtyAccountIds.size} financial account(s) with dirty snapshots"
+        }
         var healed = 0
         var failed = 0
 
@@ -58,10 +60,14 @@ open class MonthlySnapshotSweeperJob(
                     fromMonth = earliest.month,
                 )
                 healed++
-                logger.debug { "MonthlySnapshotSweeper: healed $financialAccountId from ${earliest.year}-${earliest.month}" }
+                logger.debug {
+                    "MonthlySnapshotSweeper: healed $financialAccountId from ${earliest.year}-${earliest.month}"
+                }
             }.onFailure { e ->
                 failed++
-                logger.warn { "MonthlySnapshotSweeper: failed to heal $financialAccountId: ${e.message}" }
+                logger.warn {
+                    "MonthlySnapshotSweeper: failed to heal $financialAccountId: ${e.message}"
+                }
             }
         }
 

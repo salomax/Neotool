@@ -3,8 +3,8 @@ package io.github.salomax.neotool.banking.rest
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobService
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
-import io.github.salomax.neotool.banking.domain.import_.ImportEventBus
-import io.github.salomax.neotool.banking.domain.import_.ImportJobStatusPayload
+import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
+import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -28,7 +28,6 @@ import java.util.UUID
 
 @DisplayName("ImportSseController")
 class ImportSseControllerTest {
-
     private lateinit var importEventBus: ImportEventBus
     private lateinit var importJobService: ImportJobService
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
@@ -46,22 +45,24 @@ class ImportSseControllerTest {
         importJobService = mock()
         requestPrincipalProvider = mock()
         authorizationChecker = mock()
-        controller = ImportSseController(
-            importEventBus = importEventBus,
-            importJobService = importJobService,
-            requestPrincipalProvider = requestPrincipalProvider,
-            authorizationChecker = authorizationChecker,
-        )
+        controller =
+            ImportSseController(
+                importEventBus = importEventBus,
+                importJobService = importJobService,
+                requestPrincipalProvider = requestPrincipalProvider,
+                authorizationChecker = authorizationChecker,
+            )
         jobId = UUID.randomUUID()
         accountId = UUID.randomUUID()
-        principal = RequestPrincipal(
-            principalType = PrincipalType.USER,
-            userId = UUID.randomUUID(),
-            serviceId = null,
-            token = "test-token",
-            permissionsFromToken = listOf("banking:account:view"),
-            currentAccountId = accountId,
-        )
+        principal =
+            RequestPrincipal(
+                principalType = PrincipalType.USER,
+                userId = UUID.randomUUID(),
+                serviceId = null,
+                token = "test-token",
+                permissionsFromToken = listOf("banking:account:view"),
+                currentAccountId = accountId,
+            )
     }
 
     private fun requestWithBearer(token: String): HttpRequest<*> =
@@ -70,24 +71,24 @@ class ImportSseControllerTest {
     @Nested
     @DisplayName("importJobEvents")
     inner class ImportJobEventsTests {
-
         @Test
         fun `returns single event and completes when job is already terminal`() {
-            val job = ImportJob(
-                id = jobId,
-                financialAccountId = UUID.randomUUID(),
-                accountId = accountId,
-                createdByUserId = principal.userId!!,
-                source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
-                fileHash = "h",
-                status = ImportJobStatus.COMPLETED,
-                importedCount = 10,
-                skippedCount = 0,
-                duplicateReviewCount = 0,
-                errorCount = 0,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = UUID.randomUUID(),
+                    accountId = accountId,
+                    createdByUserId = principal.userId!!,
+                    source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.COMPLETED,
+                    importedCount = 10,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(requestPrincipalProvider.fromToken("test-token")).thenReturn(principal)
             whenever(importJobService.getJob(jobId, accountId)).thenReturn(job)
 
@@ -102,17 +103,18 @@ class ImportSseControllerTest {
 
         @Test
         fun `streams events from bus until terminal when job not terminal`() {
-            val job = ImportJob(
-                id = jobId,
-                financialAccountId = UUID.randomUUID(),
-                accountId = accountId,
-                createdByUserId = principal.userId!!,
-                source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
-                fileHash = "h",
-                status = ImportJobStatus.PENDING,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = UUID.randomUUID(),
+                    accountId = accountId,
+                    createdByUserId = principal.userId!!,
+                    source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(requestPrincipalProvider.fromToken("test-token")).thenReturn(principal)
             whenever(importJobService.getJob(jobId, accountId)).thenReturn(job)
 
@@ -120,7 +122,9 @@ class ImportSseControllerTest {
 
             StepVerifier.create(flux)
                 .then {
-                    importEventBus.emit(ImportJobStatusPayload(jobId, accountId, ImportJobStatus.PROCESSING, null, null, null, null))
+                    importEventBus.emit(
+                        ImportJobStatusPayload(jobId, accountId, ImportJobStatus.PROCESSING, null, null, null, null),
+                    )
                     importEventBus.emit(ImportJobStatusPayload(jobId, accountId, ImportJobStatus.COMPLETED, 5, 1, 0, 0))
                 }
                 .expectNextMatches { e -> e.data.status == ImportJobStatus.PENDING }
@@ -133,17 +137,18 @@ class ImportSseControllerTest {
         @Test
         fun `filters events by jobId and accountId so other account does not receive`() {
             val otherAccountId = UUID.randomUUID()
-            val job = ImportJob(
-                id = jobId,
-                financialAccountId = UUID.randomUUID(),
-                accountId = accountId,
-                createdByUserId = principal.userId!!,
-                source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
-                fileHash = "h",
-                status = ImportJobStatus.PENDING,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = UUID.randomUUID(),
+                    accountId = accountId,
+                    createdByUserId = principal.userId!!,
+                    source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(requestPrincipalProvider.fromToken("test-token")).thenReturn(principal)
             whenever(importJobService.getJob(jobId, accountId)).thenReturn(job)
 
@@ -151,7 +156,9 @@ class ImportSseControllerTest {
 
             StepVerifier.create(flux)
                 .then {
-                    importEventBus.emit(ImportJobStatusPayload(jobId, otherAccountId, ImportJobStatus.COMPLETED, 1, 0, 0, 0))
+                    importEventBus.emit(
+                        ImportJobStatusPayload(jobId, otherAccountId, ImportJobStatus.COMPLETED, 1, 0, 0, 0),
+                    )
                     importEventBus.emit(ImportJobStatusPayload(jobId, accountId, ImportJobStatus.COMPLETED, 1, 0, 0, 0))
                 }
                 .expectNextMatches { e -> e.data.status == ImportJobStatus.PENDING && e.data.accountId == accountId }
@@ -162,26 +169,28 @@ class ImportSseControllerTest {
 
         @Test
         fun `polls job status and emits terminal when bus event is missed`() {
-            val pendingJob = ImportJob(
-                id = jobId,
-                financialAccountId = UUID.randomUUID(),
-                accountId = accountId,
-                createdByUserId = principal.userId!!,
-                source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
-                fileHash = "h",
-                status = ImportJobStatus.PENDING,
-                createdAt = now,
-                updatedAt = now,
-            )
-            val completedJob = pendingJob.copy(
-                status = ImportJobStatus.COMPLETED,
-                importedCount = 3,
-                skippedCount = 0,
-                duplicateReviewCount = 0,
-                errorCount = 0,
-                updatedAt = now.plusSeconds(5),
-                completedAt = now.plusSeconds(5),
-            )
+            val pendingJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = UUID.randomUUID(),
+                    accountId = accountId,
+                    createdByUserId = principal.userId!!,
+                    source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val completedJob =
+                pendingJob.copy(
+                    status = ImportJobStatus.COMPLETED,
+                    importedCount = 3,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    updatedAt = now.plusSeconds(5),
+                    completedAt = now.plusSeconds(5),
+                )
 
             whenever(requestPrincipalProvider.fromToken("test-token")).thenReturn(principal)
             whenever(importJobService.getJob(jobId, accountId))
@@ -220,23 +229,29 @@ class ImportSseControllerTest {
 
         @Test
         fun `calls authorizationChecker with principal and BANKING_ACCOUNT_VIEW`() {
-            val job = ImportJob(
-                id = jobId,
-                financialAccountId = UUID.randomUUID(),
-                accountId = accountId,
-                createdByUserId = principal.userId!!,
-                source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
-                fileHash = "h",
-                status = ImportJobStatus.COMPLETED,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = UUID.randomUUID(),
+                    accountId = accountId,
+                    createdByUserId = principal.userId!!,
+                    source = io.github.salomax.neotool.banking.domain.import.ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.COMPLETED,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(requestPrincipalProvider.fromToken("test-token")).thenReturn(principal)
             whenever(importJobService.getJob(jobId, accountId)).thenReturn(job)
 
             controller.importJobEvents(jobId, requestWithBearer("test-token")).blockFirst()
 
-            verify(authorizationChecker).require(eq(principal), eq(io.github.salomax.neotool.banking.domain.rbac.BankingPermissions.BANKING_ACCOUNT_VIEW))
+            verify(
+                authorizationChecker,
+            ).require(
+                eq(principal),
+                eq(io.github.salomax.neotool.banking.domain.rbac.BankingPermissions.BANKING_ACCOUNT_VIEW),
+            )
         }
     }
 }

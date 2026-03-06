@@ -24,7 +24,6 @@ open class SnapshotComputationService(
     private val transactionRepository: TransactionRepository,
     private val snapshotRepository: MonthlyBalanceSnapshotRepository,
 ) {
-
     /**
      * Recomputes the snapshot for a single (financialAccountId, year, month).
      *
@@ -43,17 +42,18 @@ open class SnapshotComputationService(
         val totals = transactionRepository.getMonthTotals(financialAccountId, year, month)
         val closingBalance = openingBalance + totals.totalCredit - totals.totalDebit
 
-        val snapshot = MonthlyBalanceSnapshot(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            year = year,
-            month = month,
-            openingBalance = openingBalance,
-            closingBalance = closingBalance,
-            totalIncome = totals.totalIncome,
-            totalExpenses = totals.totalExpenses,
-            isDirty = false,
-        )
+        val snapshot =
+            MonthlyBalanceSnapshot(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                year = year,
+                month = month,
+                openingBalance = openingBalance,
+                closingBalance = closingBalance,
+                totalIncome = totals.totalIncome,
+                totalExpenses = totals.totalExpenses,
+                isDirty = false,
+            )
         return snapshotRepository.upsert(snapshot)
     }
 
@@ -88,13 +88,14 @@ open class SnapshotComputationService(
         var cursor = startYearMonth
         while (!cursor.isAfter(currentYearMonth)) {
             try {
-                val snapshot = recomputeSnapshot(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    year = cursor.year,
-                    month = cursor.monthValue,
-                    openingBalance = openingBalance,
-                )
+                val snapshot =
+                    recomputeSnapshot(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        year = cursor.year,
+                        month = cursor.monthValue,
+                        openingBalance = openingBalance,
+                    )
                 openingBalance = snapshot.closingBalance
                 cursor = cursor.plusMonths(1)
             } catch (ex: Exception) {

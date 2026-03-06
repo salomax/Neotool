@@ -13,7 +13,9 @@ plugins {
 }
 
 allprojects {
-    if (project.hasProperty("workspaceRoot")) {
+    // Exclude root project to avoid Nx "Unable to parse dependency" errors - root project
+    // has no Nx project node, so root->subproject dependencies cannot be resolved
+    if (project != rootProject && project.hasProperty("workspaceRoot")) {
         apply(plugin = "dev.nx.gradle.project-graph")
     }
     group = "io.github.salomax.neotool"

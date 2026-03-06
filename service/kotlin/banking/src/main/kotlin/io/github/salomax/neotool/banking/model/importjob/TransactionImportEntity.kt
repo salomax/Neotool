@@ -28,65 +28,46 @@ open class TransactionImportEntity(
     @Generated(event = [EventType.INSERT])
     @Column(columnDefinition = "uuid", insertable = false, updatable = false)
     override val id: UUID? = null,
-
     @Column(name = "financial_account_id", nullable = false)
     open var financialAccountId: UUID,
-
     @Column(name = "account_id", nullable = false)
     open var accountId: UUID,
-
     @Column(name = "created_by_user_id", nullable = false)
     open var createdByUserId: UUID,
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var source: ImportSource,
-
     @Column(name = "file_name", length = 255)
     open var fileName: String? = null,
-
     @Column(name = "file_hash", nullable = false, length = 64)
     open var fileHash: String,
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var status: ImportJobStatus,
-
     @Column(name = "total_rows")
     open var totalRows: Int? = null,
-
     @Column(name = "imported_count")
     open var importedCount: Int? = null,
-
     @Column(name = "skipped_count")
     open var skippedCount: Int? = null,
-
     @Column(name = "duplicate_review_count")
     open var duplicateReviewCount: Int? = null,
-
     @Column(name = "error_count")
     open var errorCount: Int? = null,
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "error_details", columnDefinition = "jsonb")
     open var errorDetails: String? = null,
-
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "review_payload", columnDefinition = "jsonb")
     open var reviewPayload: String? = null,
-
     @Column(name = "date_from")
     open var dateFrom: LocalDate? = null,
-
     @Column(name = "date_to")
     open var dateTo: LocalDate? = null,
-
     @Column(name = "completed_at")
     open var completedAt: Instant? = null,
-
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
-
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
 ) : BaseEntity<UUID?>(id)

@@ -11,6 +11,7 @@ import java.util.UUID
 
 @Singleton
 @Requires(property = "kafka.enabled", value = "true")
+@Requires(property = "kafka.consumers.pdf-status.enabled", notEquals = "false", defaultValue = "true")
 @KafkaListener(
     groupId = "\${kafka.consumers.pdf-status.group-id:banking-service-pdf-status}",
     offsetReset = OffsetReset.EARLIEST,
@@ -92,10 +93,10 @@ class PdfImportStatusConsumer(
         }
     }
 
-    private fun toUuid(value: Any?): UUID? = when (value) {
-        null -> null
-        is UUID -> value
-        else -> runCatching { UUID.fromString(value.toString()) }.getOrNull()
-    }
+    private fun toUuid(value: Any?): UUID? =
+        when (value) {
+            null -> null
+            is UUID -> value
+            else -> runCatching { UUID.fromString(value.toString()) }.getOrNull()
+        }
 }
-

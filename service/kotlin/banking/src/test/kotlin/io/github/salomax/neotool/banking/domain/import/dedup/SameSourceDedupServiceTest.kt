@@ -16,7 +16,6 @@ import java.util.UUID
 
 @DisplayName("SameSourceDedupService")
 class SameSourceDedupServiceTest {
-
     private lateinit var transactionEntityRepository: TransactionEntityRepository
     private lateinit var service: SameSourceDedupService
 
@@ -33,15 +32,15 @@ class SameSourceDedupServiceTest {
     @Nested
     @DisplayName("isDuplicate")
     inner class IsDuplicateTests {
-
         @Test
         fun `returns true when repository returns true`() {
             whenever(
-                transactionEntityRepository.existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
-                    financialAccountId = eq(financialAccountId),
-                    providerTransactionId = eq(providerTransactionId),
-                    source = eq(source),
-                ),
+                transactionEntityRepository
+                    .existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
+                        financialAccountId = eq(financialAccountId),
+                        providerTransactionId = eq(providerTransactionId),
+                        source = eq(source),
+                    ),
             ).thenReturn(true)
 
             val result = service.isDuplicate(financialAccountId, providerTransactionId, source)
@@ -52,11 +51,12 @@ class SameSourceDedupServiceTest {
         @Test
         fun `returns false when repository returns false`() {
             whenever(
-                transactionEntityRepository.existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
-                    financialAccountId = any(),
-                    providerTransactionId = any(),
-                    source = any(),
-                ),
+                transactionEntityRepository
+                    .existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
+                        financialAccountId = any(),
+                        providerTransactionId = any(),
+                        source = any(),
+                    ),
             ).thenReturn(false)
 
             val result = service.isDuplicate(financialAccountId, providerTransactionId, source)
@@ -67,16 +67,19 @@ class SameSourceDedupServiceTest {
         @Test
         fun `calls repository with correct financialAccountId providerTransactionId and source`() {
             whenever(
-                transactionEntityRepository.existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
-                    financialAccountId = any(),
-                    providerTransactionId = any(),
-                    source = any(),
-                ),
+                transactionEntityRepository
+                    .existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
+                        financialAccountId = any(),
+                        providerTransactionId = any(),
+                        source = any(),
+                    ),
             ).thenReturn(false)
 
             service.isDuplicate(financialAccountId, providerTransactionId, source)
 
-            verify(transactionEntityRepository).existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
+            verify(
+                transactionEntityRepository,
+            ).existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
                 financialAccountId = financialAccountId,
                 providerTransactionId = providerTransactionId,
                 source = source,

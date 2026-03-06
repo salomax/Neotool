@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.domain.import
 
-import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
@@ -17,10 +16,10 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.infra.kafka.parser.ImportFileFormat
-import io.github.salomax.neotool.banking.infra.kafka.parser.ImportFormatDiscoveryService
 import io.github.salomax.neotool.banking.infra.kafka.ImportFileProducer
 import io.github.salomax.neotool.banking.infra.kafka.ImportFileRequestedEvent
+import io.github.salomax.neotool.banking.infra.kafka.parser.ImportFileFormat
+import io.github.salomax.neotool.banking.infra.kafka.parser.ImportFormatDiscoveryService
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.ConflictException
 import jakarta.inject.Singleton
@@ -47,7 +46,6 @@ open class ImportJobService(
     private val transactionRepository: TransactionRepository,
     private val snapshotComputationService: SnapshotComputationService,
 ) {
-
     private val objectMapper = jacksonObjectMapper().apply { registerModule(JavaTimeModule()) }
     private val importFormatDiscoveryService = ImportFormatDiscoveryService()
 
@@ -63,20 +61,22 @@ open class ImportJobService(
         fileName: String,
         source: ImportSource?,
     ): ImportJob {
-        val producer = importFileProducer
-            ?: throw BusinessRuleException(
-                errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
-                parameters = mapOf("kafkaEnabled" to false),
-            )
+        val producer =
+            importFileProducer
+                ?: throw BusinessRuleException(
+                    errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
+                    parameters = mapOf("kafkaEnabled" to false),
+                )
 
         validateFinancialAccountOwnership(financialAccountId, accountId)
         val fileHash = sha256Hex(fileBytes)
         val discovery = importFormatDiscoveryService.discover(fileBytes, fileName)
-        val resolvedSource = source ?: when (discovery.format) {
-            ImportFileFormat.OFX -> ImportSource.OFX
-            ImportFileFormat.CSV -> discovery.detectedSource?.takeIf { it.isCsvSource() } ?: ImportSource.CSV_AUTO
-            else -> ImportSource.AUTO
-        }
+        val resolvedSource =
+            source ?: when (discovery.format) {
+                ImportFileFormat.OFX -> ImportSource.OFX
+                ImportFileFormat.CSV -> discovery.detectedSource?.takeIf { it.isCsvSource() } ?: ImportSource.CSV_AUTO
+                else -> ImportSource.AUTO
+            }
 
         val existing = importJobRepository.findByFileHash(financialAccountId, fileHash)
         if (existing != null) {
@@ -94,49 +94,52 @@ open class ImportJobService(
         }
 
         val now = Instant.now()
-        val job = ImportJob(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            source = resolvedSource,
-            fileName = fileName,
-            fileHash = fileHash,
-            status = ImportJobStatus.PENDING,
-            createdAt = now,
-            updatedAt = now,
-        )
-        val saved = try {
-            importJobRepository.save(job)
-        } catch (e: Exception) {
-            if (isDuplicateFileHashConstraintViolation(e)) {
-                val concurrentExisting = importJobRepository.findByFileHash(financialAccountId, fileHash)
-                if (concurrentExisting != null) {
-                    return handleExistingImportJob(
-                        existing = concurrentExisting,
-                        financialAccountId = financialAccountId,
-                        accountId = accountId,
-                        userId = userId,
-                        fileHash = fileHash,
-                        fileBytes = fileBytes,
-                        fileName = fileName,
-                        source = resolvedSource,
-                        producer = producer,
+        val job =
+            ImportJob(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                source = resolvedSource,
+                fileName = fileName,
+                fileHash = fileHash,
+                status = ImportJobStatus.PENDING,
+                createdAt = now,
+                updatedAt = now,
+            )
+        val saved =
+            try {
+                importJobRepository.save(job)
+            } catch (e: Exception) {
+                if (isDuplicateFileHashConstraintViolation(e)) {
+                    val concurrentExisting = importJobRepository.findByFileHash(financialAccountId, fileHash)
+                    if (concurrentExisting != null) {
+                        return handleExistingImportJob(
+                            existing = concurrentExisting,
+                            financialAccountId = financialAccountId,
+                            accountId = accountId,
+                            userId = userId,
+                            fileHash = fileHash,
+                            fileBytes = fileBytes,
+                            fileName = fileName,
+                            source = resolvedSource,
+                            producer = producer,
+                        )
+                    }
+                    throw ConflictException(
+                        errorCode = BankingErrorCode.IMPORT_FILE_ALREADY_EXISTS,
+                        field = "fileBase64",
+                        parameters =
+                            mapOf(
+                                "financialAccountId" to financialAccountId.toString(),
+                                "fileHash" to fileHash,
+                                "existingJobId" to concurrentExisting?.id?.toString().orEmpty(),
+                                "existingStatus" to concurrentExisting?.status?.name.orEmpty(),
+                            ),
+                        cause = e,
                     )
                 }
-                throw ConflictException(
-                    errorCode = BankingErrorCode.IMPORT_FILE_ALREADY_EXISTS,
-                    field = "fileBase64",
-                    parameters = mapOf(
-                        "financialAccountId" to financialAccountId.toString(),
-                        "fileHash" to fileHash,
-                        "existingJobId" to concurrentExisting?.id?.toString().orEmpty(),
-                        "existingStatus" to concurrentExisting?.status?.name.orEmpty(),
-                    ),
-                    cause = e,
-                )
+                throw e
             }
-            throw e
-        }
         return enqueueImportJob(saved, financialAccountId, accountId, fileBytes, fileName, resolvedSource, producer)
     }
 
@@ -159,23 +162,24 @@ open class ImportJobService(
         }
 
         val now = Instant.now()
-        val job = ImportJob(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            source = ImportSource.NFC_E,
-            fileName = null,
-            fileHash = nfce.chNFe,
-            status = ImportJobStatus.COMPLETED,
-            totalRows = 1,
-            importedCount = 1,
-            skippedCount = 0,
-            duplicateReviewCount = 0,
-            errorCount = 0,
-            completedAt = now,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val job =
+            ImportJob(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                source = ImportSource.NFC_E,
+                fileName = null,
+                fileHash = nfce.chNFe,
+                status = ImportJobStatus.COMPLETED,
+                totalRows = 1,
+                importedCount = 1,
+                skippedCount = 0,
+                duplicateReviewCount = 0,
+                errorCount = 0,
+                completedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
         val savedJob = importJobRepository.save(job)
         val jobId = requireNotNull(savedJob.id) { "ImportJob must have id after save" }
 
@@ -190,10 +194,15 @@ open class ImportJobService(
         return savedJob
     }
 
-    open fun getJob(id: UUID, accountId: UUID): ImportJob? =
-        importJobRepository.findById(id, accountId)
+    open fun getJob(
+        id: UUID,
+        accountId: UUID,
+    ): ImportJob? = importJobRepository.findById(id, accountId)
 
-    open fun listJobs(financialAccountId: UUID?, accountId: UUID): List<ImportJob> =
+    open fun listJobs(
+        financialAccountId: UUID?,
+        accountId: UUID,
+    ): List<ImportJob> =
         if (financialAccountId != null) {
             importJobRepository.findByFinancialAccount(financialAccountId, accountId)
         } else {
@@ -210,8 +219,9 @@ open class ImportJobService(
         resolution: DuplicateResolution,
         accountId: UUID,
     ): ImportJob {
-        val job = importJobRepository.findById(jobId, accountId)
-            ?: throw NoSuchElementException("ImportJob not found: $jobId")
+        val job =
+            importJobRepository.findById(jobId, accountId)
+                ?: throw NoSuchElementException("ImportJob not found: $jobId")
         require(job.status == ImportJobStatus.REVIEW_REQUIRED) {
             "Import job must be in REVIEW_REQUIRED status, got ${job.status}"
         }
@@ -228,30 +238,33 @@ open class ImportJobService(
                     val deleted = transactionRepository.softDelete(existing.id, accountId)
                     require(deleted) { "Failed to delete existing transaction ${existing.id}" }
                 }
-                val result = importProcessor.process(
-                    job = job,
-                    rows = listOf(candidate.parsed),
-                    allowCrossSourceDuplicates = true,
-                )
+                val result =
+                    importProcessor.process(
+                        job = job,
+                        rows = listOf(candidate.parsed),
+                        allowCrossSourceDuplicates = true,
+                    )
                 require(result.imported.size == 1) { "Expected one imported transaction" }
             }
             DuplicateResolution.KEEP_BOTH -> {
-                val result = importProcessor.process(
-                    job = job,
-                    rows = listOf(candidate.parsed),
-                    allowCrossSourceDuplicates = true,
-                )
+                val result =
+                    importProcessor.process(
+                        job = job,
+                        rows = listOf(candidate.parsed),
+                        allowCrossSourceDuplicates = true,
+                    )
                 require(result.imported.size == 1) { "Expected one imported transaction" }
             }
             DuplicateResolution.KEEP_EXISTING -> { /* no insert, no delete */ }
         }
 
         if (resolution != DuplicateResolution.KEEP_EXISTING) {
-            val fromDate = when (resolution) {
-                DuplicateResolution.USE_INCOMING ->
-                    (candidate.candidates.map { it.date } + candidate.parsed.date).min()
-                else -> candidate.parsed.date
-            }
+            val fromDate =
+                when (resolution) {
+                    DuplicateResolution.USE_INCOMING ->
+                        (candidate.candidates.map { it.date } + candidate.parsed.date).min()
+                    else -> candidate.parsed.date
+                }
             snapshotComputationService.recomputeChain(
                 financialAccountId = job.financialAccountId,
                 accountId = accountId,
@@ -263,24 +276,29 @@ open class ImportJobService(
         val remaining = candidates.filter { it.rowIndex != incomingId }
         val newPayload = if (remaining.isEmpty()) null else objectMapper.writeValueAsString(remaining)
         val newDuplicateReviewCount = (job.duplicateReviewCount ?: 0) - 1
-        val newImportedCount = when (resolution) {
-            DuplicateResolution.KEEP_EXISTING -> job.importedCount ?: 0
-            else -> (job.importedCount ?: 0) + 1
-        }
+        val newImportedCount =
+            when (resolution) {
+                DuplicateResolution.KEEP_EXISTING -> job.importedCount ?: 0
+                else -> (job.importedCount ?: 0) + 1
+            }
         val newStatus = if (remaining.isEmpty()) ImportJobStatus.COMPLETED else ImportJobStatus.REVIEW_REQUIRED
         val now = Instant.now()
-        val updated = job.copy(
-            status = newStatus,
-            importedCount = newImportedCount,
-            duplicateReviewCount = newDuplicateReviewCount,
-            reviewPayload = newPayload,
-            completedAt = if (remaining.isEmpty()) now else job.completedAt,
-            updatedAt = now,
-        )
+        val updated =
+            job.copy(
+                status = newStatus,
+                importedCount = newImportedCount,
+                duplicateReviewCount = newDuplicateReviewCount,
+                reviewPayload = newPayload,
+                completedAt = if (remaining.isEmpty()) now else job.completedAt,
+                updatedAt = now,
+            )
         return importJobRepository.update(updated)
     }
 
-    private fun validateFinancialAccountOwnership(financialAccountId: UUID, accountId: UUID) {
+    private fun validateFinancialAccountOwnership(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ) {
         val accounts = financialAccountRepository.findByAccountId(accountId)
         require(accounts.any { it.id == financialAccountId }) {
             "Financial account $financialAccountId does not belong to account $accountId"
@@ -292,13 +310,17 @@ open class ImportJobService(
         return digest.joinToString("") { "%02x".format(it) }
     }
 
-    private fun mimeType(fileName: String): String = when {
-        fileName.endsWith(".ofx", ignoreCase = true) -> "application/x-ofx"
-        fileName.endsWith(".csv", ignoreCase = true) -> "text/csv"
-        fileName.endsWith(".xlsx", ignoreCase = true) -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        fileName.endsWith(".xls", ignoreCase = true) -> "application/vnd.ms-excel"
-        else -> DEFAULT_MIME
-    }
+    private fun mimeType(fileName: String): String =
+        when {
+            fileName.endsWith(".ofx", ignoreCase = true) -> "application/x-ofx"
+            fileName.endsWith(".csv", ignoreCase = true) -> "text/csv"
+            fileName.endsWith(
+                ".xlsx",
+                ignoreCase = true,
+            ) -> "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            fileName.endsWith(".xls", ignoreCase = true) -> "application/vnd.ms-excel"
+            else -> DEFAULT_MIME
+        }
 
     private fun createSkippedNfceJob(
         financialAccountId: UUID,
@@ -307,23 +329,24 @@ open class ImportJobService(
         chNFe: String,
     ): ImportJob {
         val now = Instant.now()
-        val job = ImportJob(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            source = ImportSource.NFC_E,
-            fileName = null,
-            fileHash = chNFe,
-            status = ImportJobStatus.COMPLETED,
-            totalRows = 1,
-            importedCount = 0,
-            skippedCount = 1,
-            duplicateReviewCount = 0,
-            errorCount = 0,
-            completedAt = now,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val job =
+            ImportJob(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                source = ImportSource.NFC_E,
+                fileName = null,
+                fileHash = chNFe,
+                status = ImportJobStatus.COMPLETED,
+                totalRows = 1,
+                importedCount = 0,
+                skippedCount = 1,
+                duplicateReviewCount = 0,
+                errorCount = 0,
+                completedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
         return importJobRepository.save(job)
     }
 
@@ -354,12 +377,13 @@ open class ImportJobService(
             else -> throw ConflictException(
                 errorCode = BankingErrorCode.IMPORT_FILE_ALREADY_EXISTS,
                 field = "fileBase64",
-                parameters = mapOf(
-                    "financialAccountId" to financialAccountId.toString(),
-                    "fileHash" to fileHash,
-                    "existingJobId" to existing.id?.toString().orEmpty(),
-                    "existingStatus" to existing.status.name,
-                ),
+                parameters =
+                    mapOf(
+                        "financialAccountId" to financialAccountId.toString(),
+                        "fileHash" to fileHash,
+                        "existingJobId" to existing.id?.toString().orEmpty(),
+                        "existingStatus" to existing.status.name,
+                    ),
             )
         }
     }
@@ -439,24 +463,29 @@ open class ImportJobService(
             markAsFailedAfterInitiationError(job, e)
             throw BusinessRuleException(
                 errorCode = BankingErrorCode.IMPORT_JOB_START_FAILED,
-                parameters = mapOf(
-                    "jobId" to jobId.toString(),
-                    "financialAccountId" to financialAccountId.toString(),
-                    "reason" to (e.message ?: "unknown"),
-                ),
+                parameters =
+                    mapOf(
+                        "jobId" to jobId.toString(),
+                        "financialAccountId" to financialAccountId.toString(),
+                        "reason" to (e.message ?: "unknown"),
+                    ),
                 cause = e,
             )
         }
     }
 
-    private fun markAsFailedAfterInitiationError(saved: ImportJob, e: Exception) {
+    private fun markAsFailedAfterInitiationError(
+        saved: ImportJob,
+        e: Exception,
+    ) {
         val now = Instant.now()
-        val errorDetails = objectMapper.writeValueAsString(
-            mapOf(
-                "message" to (e.message ?: "Failed to start import job"),
-                "stage" to "initiateFileImport",
-            ),
-        )
+        val errorDetails =
+            objectMapper.writeValueAsString(
+                mapOf(
+                    "message" to (e.message ?: "Failed to start import job"),
+                    "stage" to "initiateFileImport",
+                ),
+            )
         runCatching {
             importJobRepository.update(
                 saved.copy(

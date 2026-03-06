@@ -12,14 +12,12 @@ import java.time.LocalDate
 
 @DisplayName("CsvItauParser")
 class CsvItauParserTest {
-
     private fun loadFixture(name: String): ByteArray =
         javaClass.getResourceAsStream("/fixtures/csv/$name")!!.readBytes()
 
     @Nested
     @DisplayName("reader contract")
     inner class ReaderContractTests {
-
         @Test
         fun `returns stable reader id`() {
             assertThat(CsvItauParser.id()).isEqualTo("csv-itau")
@@ -39,11 +37,12 @@ class CsvItauParserTest {
 
         @Test
         fun `returns low score for unrelated fingerprint`() {
-            val csv = """
+            val csv =
+                """
                 posted_at;gross_value;memo
                 2026-01-01;1000,00;Settlement reference
                 2026-01-02;250,00;Other credit
-            """.trimIndent()
+                """.trimIndent()
             val fingerprint = CsvFingerprintBuilder.build(csv.toByteArray(StandardCharsets.UTF_8))
 
             val match = CsvItauParser.supports(fingerprint)
@@ -55,7 +54,6 @@ class CsvItauParserTest {
     @Nested
     @DisplayName("parse")
     inner class ParseTests {
-
         @Test
         fun `parses itau fixture with signed amount column`() {
             val bytes = loadFixture("itau_account_sample.csv")
@@ -85,11 +83,12 @@ class CsvItauParserTest {
 
         @Test
         fun `parses csv with debit and credit columns`() {
-            val csv = """
+            val csv =
+                """
                 Data;Histórico;Débito;Crédito;Documento
                 01/12/2025;Compra mercado;50,00;0,00;A-1
                 02/12/2025;TED recebida;0,00;500,00;A-2
-            """.trimIndent()
+                """.trimIndent()
 
             val result = CsvItauParser.parse(csv.toByteArray(StandardCharsets.UTF_8))
 

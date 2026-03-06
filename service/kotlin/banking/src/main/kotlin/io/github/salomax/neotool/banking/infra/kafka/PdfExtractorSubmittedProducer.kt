@@ -43,4 +43,3 @@ class PdfExtractorSubmittedProducer(
         client.send(event.job_id.toString(), event)
     }
 }
-

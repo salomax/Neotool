@@ -16,7 +16,6 @@ import java.util.UUID
 @Repository
 interface MonthlyBalanceSnapshotEntityRepository :
     JpaRepository<MonthlyBalanceSnapshotEntity, MonthlyBalanceSnapshotId> {
-
     @Query(
         """
         SELECT s FROM MonthlyBalanceSnapshotEntity s
@@ -25,7 +24,11 @@ interface MonthlyBalanceSnapshotEntityRepository :
           AND s.id.month = :month
         """,
     )
-    fun findByKey(financialAccountId: UUID, year: Int, month: Int): MonthlyBalanceSnapshotEntity?
+    fun findByKey(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    ): MonthlyBalanceSnapshotEntity?
 
     /**
      * Latest clean snapshot strictly before (year, month).
@@ -74,14 +77,14 @@ interface MonthlyBalanceSnapshotEntityRepository :
         VALUES
             (:financialAccountId, :accountId, :year, :month,
              :openingBalance, :closingBalance, :totalIncome, :totalExpenses,
-             false, :computedAt, NOW(), NOW())
+             :isDirty, :computedAt, NOW(), NOW())
         ON CONFLICT (financial_account_id, year, month)
         DO UPDATE SET
             opening_balance = EXCLUDED.opening_balance,
             closing_balance = EXCLUDED.closing_balance,
             total_income    = EXCLUDED.total_income,
             total_expenses  = EXCLUDED.total_expenses,
-            is_dirty        = false,
+            is_dirty        = EXCLUDED.is_dirty,
             computed_at     = EXCLUDED.computed_at,
             updated_at      = NOW()
         """,
@@ -96,6 +99,7 @@ interface MonthlyBalanceSnapshotEntityRepository :
         closingBalance: BigDecimal,
         totalIncome: BigDecimal,
         totalExpenses: BigDecimal,
+        isDirty: Boolean,
         computedAt: Instant,
     )
 
@@ -109,5 +113,9 @@ interface MonthlyBalanceSnapshotEntityRepository :
         """,
         nativeQuery = true,
     )
-    fun markDirtyFromMonth(financialAccountId: UUID, year: Int, month: Int)
+    fun markDirtyFromMonth(
+        financialAccountId: UUID,
+        year: Int,
+        month: Int,
+    )
 }

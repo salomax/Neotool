@@ -2,15 +2,12 @@ package io.github.salomax.neotool.banking.model.importjob
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
-import io.github.salomax.neotool.banking.domain.import.ImportSource
 
 /**
  * Maps between [TransactionImportEntity] and [ImportJob].
  * JSONB fields are serialized/deserialized with [ObjectMapper].
  */
 object TransactionImportMapper {
-
     private val objectMapper = ObjectMapper()
 
     fun toDomain(entity: TransactionImportEntity): ImportJob =
@@ -61,7 +58,10 @@ object TransactionImportMapper {
             updatedAt = job.updatedAt,
         )
 
-    fun updateEntity(entity: TransactionImportEntity, job: ImportJob) {
+    fun updateEntity(
+        entity: TransactionImportEntity,
+        job: ImportJob,
+    ) {
         entity.source = job.source
         entity.status = job.status
         entity.totalRows = job.totalRows
@@ -81,6 +81,5 @@ object TransactionImportMapper {
      * Deserializes a JSONB string with ObjectMapper (validates and normalizes).
      * Returns null for null input.
      */
-    private fun deserializeJsonb(value: String?): String? =
-        value?.let { objectMapper.readTree(it).toString() }
+    private fun deserializeJsonb(value: String?): String? = value?.let { objectMapper.readTree(it).toString() }
 }

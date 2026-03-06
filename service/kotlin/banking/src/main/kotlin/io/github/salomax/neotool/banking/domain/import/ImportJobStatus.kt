@@ -9,7 +9,7 @@ enum class ImportJobStatus {
     COMPLETED,
     FAILED,
     REVIEW_REQUIRED,
-;
+    ;
 
     fun isTerminal(): Boolean = this in setOf(COMPLETED, FAILED, REVIEW_REQUIRED)
 }

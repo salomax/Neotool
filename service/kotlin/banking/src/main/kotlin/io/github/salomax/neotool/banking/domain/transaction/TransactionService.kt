@@ -32,15 +32,16 @@ open class TransactionService(
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
 ) {
-
     // ── Categories ───────────────────────────────────────────────────────────
 
-    fun listCategories(accountId: UUID): List<TransactionCategory> =
-        categoryRepository.findAll(accountId)
+    fun listCategories(accountId: UUID): List<TransactionCategory> = categoryRepository.findAll(accountId)
 
     // ── Transactions ─────────────────────────────────────────────────────────
 
-    fun listByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<Transaction> {
+    fun listByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<Transaction> {
         requireAccountOwnsFinancialAccount(financialAccountId, accountId)
         return transactionRepository.findByFinancialAccount(financialAccountId, accountId)
     }
@@ -48,8 +49,7 @@ open class TransactionService(
     fun listBelongsToOptions(accountId: UUID): List<TransactionBelongsToOption> =
         transactionRepository.listBelongsToOptions(accountId)
 
-    fun listTags(accountId: UUID): List<String> =
-        transactionRepository.listTags(accountId)
+    fun listTags(accountId: UUID): List<String> = transactionRepository.listTags(accountId)
 
     /**
      * List transactions for the authenticated account with optional financialAccountId filter,
@@ -88,8 +88,10 @@ open class TransactionService(
                 creditCardBillService.requireBillForAccount(billId, accountId)
                 val allForBill = transactionRepository.findByBillId(billId, accountId)
                 allForBill.filter { tx ->
-                    val belongsToUserMatches = belongsToUserId == null || tx.belongsToUserId == belongsToUserId
-                    val belongsToNameMatches = normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
+                    val belongsToUserMatches =
+                        belongsToUserId == null || tx.belongsToUserId == belongsToUserId
+                    val belongsToNameMatches =
+                        normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
                     val tagsMatch =
                         normalizedTagFilterSet == null ||
                             normalizedTagFilterSet.isEmpty() ||
@@ -116,9 +118,12 @@ open class TransactionService(
 
                 // Filter by month/year window (inclusive)
                 allTransactions.filter { tx ->
-                    val dateMatches = !tx.date.isBefore(fromDate) && !tx.date.isAfter(toDate)
-                    val belongsToUserMatches = belongsToUserId == null || tx.belongsToUserId == belongsToUserId
-                    val belongsToNameMatches = normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
+                    val dateMatches =
+                        !tx.date.isBefore(fromDate) && !tx.date.isAfter(toDate)
+                    val belongsToUserMatches =
+                        belongsToUserId == null || tx.belongsToUserId == belongsToUserId
+                    val belongsToNameMatches =
+                        normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
                     val tagsMatch =
                         normalizedTagFilterSet == null ||
                             normalizedTagFilterSet.isEmpty() ||
@@ -169,11 +174,18 @@ open class TransactionService(
         )
     }
 
-    fun findById(id: UUID, accountId: UUID): Transaction =
+    fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): Transaction =
         transactionRepository.findById(id, accountId)
             ?: throw NoSuchElementException("Transaction $id not found")
 
-    fun create(command: CreateTransactionCommand, accountId: UUID, userId: UUID): Transaction {
+    fun create(
+        command: CreateTransactionCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): Transaction {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         validateCreateCommand(command)
         val (belongsToUserId, belongsToName) = resolveBelongsToForCreate(command, userId)
@@ -185,43 +197,45 @@ open class TransactionService(
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
         val cardAccount = resolveCardAccount(command.financialAccountId, accountId)
-        val resolvedBillId = command.billId
-            ?: cardAccount?.let {
-                creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
-            }
+        val resolvedBillId =
+            command.billId
+                ?: cardAccount?.let {
+                    creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
+                }
 
         val now = Instant.now()
-        val transaction = Transaction(
-            financialAccountId = command.financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            belongsToUserId = belongsToUserId,
-            belongsToName = belongsToName,
-            creditDebitType = command.creditDebitType,
-            type = command.type,
-            status = command.status,
-            source = TransactionSource.MANUAL,
-            amount = command.amount,
-            currencyCode = command.currencyCode,
-            date = command.date,
-            description = command.description,
-            notes = command.notes,
-            tags = normalizedTags,
-            categoryId = command.categoryId,
-            counterpartyName = command.counterpartyName,
-            counterpartyDocument = command.counterpartyDocument,
-            counterpartyBankCode = command.counterpartyBankCode,
-            counterpartyAccountNumber = command.counterpartyAccountNumber,
-            paymentReason = command.paymentReason,
-            transferPeerTransactionId = command.transferPeerTransactionId,
-            billId = resolvedBillId,
-            installmentNumber = command.installmentNumber,
-            totalInstallments = command.totalInstallments,
-            cardIdentifier = command.cardIdentifier,
-            payeeMcc = command.payeeMcc,
-            createdAt = now,
-            updatedAt = now,
-        )
+        val transaction =
+            Transaction(
+                financialAccountId = command.financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                belongsToUserId = belongsToUserId,
+                belongsToName = belongsToName,
+                creditDebitType = command.creditDebitType,
+                type = command.type,
+                status = command.status,
+                source = TransactionSource.MANUAL,
+                amount = command.amount,
+                currencyCode = command.currencyCode,
+                date = command.date,
+                description = command.description,
+                notes = command.notes,
+                tags = normalizedTags,
+                categoryId = command.categoryId,
+                counterpartyName = command.counterpartyName,
+                counterpartyDocument = command.counterpartyDocument,
+                counterpartyBankCode = command.counterpartyBankCode,
+                counterpartyAccountNumber = command.counterpartyAccountNumber,
+                paymentReason = command.paymentReason,
+                transferPeerTransactionId = command.transferPeerTransactionId,
+                billId = resolvedBillId,
+                installmentNumber = command.installmentNumber,
+                totalInstallments = command.totalInstallments,
+                cardIdentifier = command.cardIdentifier,
+                payeeMcc = command.payeeMcc,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         if (command.type != TransactionType.BALANCE_ADJUSTMENT) {
             val initialBalanceDate = transactionRepository.findInitialBalanceDate(command.financialAccountId)
@@ -245,51 +259,60 @@ open class TransactionService(
         return saved
     }
 
-    fun update(id: UUID, command: UpdateTransactionCommand, accountId: UUID): Transaction {
-        val existing = transactionRepository.findById(id, accountId)
-            ?: throw NoSuchElementException("Transaction $id not found")
+    fun update(
+        id: UUID,
+        command: UpdateTransactionCommand,
+        accountId: UUID,
+    ): Transaction {
+        val existing =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
         val updatedBelongsTo = resolveBelongsToForUpdate(command)
         if (command.belongsToProvided && command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
         }
-        val updatedBelongsToUserId = updatedBelongsTo?.first ?: if (updatedBelongsTo == null) existing.belongsToUserId else null
-        val updatedBelongsToName = updatedBelongsTo?.second ?: if (updatedBelongsTo == null) existing.belongsToName else null
+        val updatedBelongsToUserId =
+            updatedBelongsTo?.first ?: if (updatedBelongsTo == null) existing.belongsToUserId else null
+        val updatedBelongsToName =
+            updatedBelongsTo?.second ?: if (updatedBelongsTo == null) existing.belongsToName else null
         val updatedTags = resolveTagsForUpdate(command, existing.tags)
 
         // Resolve new bill if the date changed (may move to a different billing cycle).
         val newDate = command.date ?: existing.date
-        val newBillId: UUID? = if (command.date != null) {
-            val cardAccount = resolveCardAccount(existing.financialAccountId, accountId)
-            cardAccount?.let {
-                creditCardBillService.resolveBillForTransaction(it, newDate, existing.type)
-            } ?: existing.billId
-        } else {
-            existing.billId
-        }
+        val newBillId: UUID? =
+            if (command.date != null) {
+                val cardAccount = resolveCardAccount(existing.financialAccountId, accountId)
+                cardAccount?.let {
+                    creditCardBillService.resolveBillForTransaction(it, newDate, existing.type)
+                } ?: existing.billId
+            } else {
+                existing.billId
+            }
 
-        val updated = existing.copy(
-            creditDebitType = command.creditDebitType ?: existing.creditDebitType,
-            type = command.type ?: existing.type,
-            amount = command.amount ?: existing.amount,
-            date = newDate,
-            description = command.description ?: existing.description,
-            status = command.status ?: existing.status,
-            notes = command.notes ?: existing.notes,
-            tags = updatedTags,
-            categoryId = command.categoryId ?: existing.categoryId,
-            belongsToUserId = updatedBelongsToUserId,
-            belongsToName = updatedBelongsToName,
-            counterpartyName = command.counterpartyName ?: existing.counterpartyName,
-            counterpartyDocument = command.counterpartyDocument ?: existing.counterpartyDocument,
-            counterpartyBankCode = command.counterpartyBankCode ?: existing.counterpartyBankCode,
-            counterpartyAccountNumber = command.counterpartyAccountNumber ?: existing.counterpartyAccountNumber,
-            paymentReason = command.paymentReason ?: existing.paymentReason,
-            transferPeerTransactionId = command.transferPeerTransactionId ?: existing.transferPeerTransactionId,
-            billId = newBillId,
-            cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
-            payeeMcc = command.payeeMcc ?: existing.payeeMcc,
-            updatedAt = Instant.now(),
-        )
+        val updated =
+            existing.copy(
+                creditDebitType = command.creditDebitType ?: existing.creditDebitType,
+                type = command.type ?: existing.type,
+                amount = command.amount ?: existing.amount,
+                date = newDate,
+                description = command.description ?: existing.description,
+                status = command.status ?: existing.status,
+                notes = command.notes ?: existing.notes,
+                tags = updatedTags,
+                categoryId = command.categoryId ?: existing.categoryId,
+                belongsToUserId = updatedBelongsToUserId,
+                belongsToName = updatedBelongsToName,
+                counterpartyName = command.counterpartyName ?: existing.counterpartyName,
+                counterpartyDocument = command.counterpartyDocument ?: existing.counterpartyDocument,
+                counterpartyBankCode = command.counterpartyBankCode ?: existing.counterpartyBankCode,
+                counterpartyAccountNumber = command.counterpartyAccountNumber ?: existing.counterpartyAccountNumber,
+                paymentReason = command.paymentReason ?: existing.paymentReason,
+                transferPeerTransactionId = command.transferPeerTransactionId ?: existing.transferPeerTransactionId,
+                billId = newBillId,
+                cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
+                payeeMcc = command.payeeMcc ?: existing.payeeMcc,
+                updatedAt = Instant.now(),
+            )
 
         require(updated.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
 
@@ -323,9 +346,13 @@ open class TransactionService(
         return saved
     }
 
-    fun delete(id: UUID, accountId: UUID): Boolean {
-        val exists = transactionRepository.findById(id, accountId)
-            ?: throw NoSuchElementException("Transaction $id not found")
+    fun delete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val exists =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
         check(exists.source == TransactionSource.MANUAL) {
             "Only MANUAL transactions can be deleted; OFB-synced transactions must be hidden via the provider"
         }
@@ -363,31 +390,34 @@ open class TransactionService(
 
         // Create the bank debit first so its ID can be set on the card credit in one pass,
         // avoiding a second update() call (and a redundant recomputeChain on the card account).
-        val bankTxId: UUID? = if (sourceAccountId != null) {
-            requireAccountOwnsFinancialAccount(sourceAccountId, accountId)
-            val bankCommand = CreateTransactionCommand(
-                financialAccountId = sourceAccountId,
-                creditDebitType = CreditDebitType.DEBIT,
+        val bankTxId: UUID? =
+            if (sourceAccountId != null) {
+                requireAccountOwnsFinancialAccount(sourceAccountId, accountId)
+                val bankCommand =
+                    CreateTransactionCommand(
+                        financialAccountId = sourceAccountId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.TRANSFER,
+                        amount = amount,
+                        date = paymentDate,
+                        description = "Pagamento fatura (cartão)",
+                    )
+                create(bankCommand, accountId, userId).id
+            } else {
+                null
+            }
+
+        val cardCommand =
+            CreateTransactionCommand(
+                financialAccountId = bill.financialAccountId,
+                creditDebitType = CreditDebitType.CREDIT,
                 type = TransactionType.TRANSFER,
                 amount = amount,
                 date = paymentDate,
-                description = "Pagamento fatura (cartão)",
+                description = "Pagamento fatura",
+                billId = billId,
+                transferPeerTransactionId = bankTxId,
             )
-            create(bankCommand, accountId, userId).id
-        } else {
-            null
-        }
-
-        val cardCommand = CreateTransactionCommand(
-            financialAccountId = bill.financialAccountId,
-            creditDebitType = CreditDebitType.CREDIT,
-            type = TransactionType.TRANSFER,
-            amount = amount,
-            date = paymentDate,
-            description = "Pagamento fatura",
-            billId = billId,
-            transferPeerTransactionId = bankTxId,
-        )
         create(cardCommand, accountId, userId)
 
         return if (amount >= totalBeforePayment) {
@@ -403,13 +433,20 @@ open class TransactionService(
      * Returns the [FinancialAccount] if it is a credit/charge card account, null otherwise.
      * Reuses the accounts already fetched by [requireAccountOwnsFinancialAccount].
      */
-    private fun resolveCardAccount(financialAccountId: UUID, accountId: UUID): FinancialAccount? {
-        val account = financialAccountRepository.findByAccountId(accountId)
-            .firstOrNull { it.id == financialAccountId } ?: return null
+    private fun resolveCardAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): FinancialAccount? {
+        val account =
+            financialAccountRepository.findByAccountId(accountId)
+                .firstOrNull { it.id == financialAccountId } ?: return null
         return if (account.subtype in CreditCardBillService.CARD_SUBTYPES) account else null
     }
 
-    private fun requireAccountOwnsFinancialAccount(financialAccountId: UUID, accountId: UUID) {
+    private fun requireAccountOwnsFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ) {
         val accounts = financialAccountRepository.findByAccountId(accountId)
         require(accounts.any { it.id == financialAccountId }) {
             "Financial account $financialAccountId does not belong to account $accountId"
@@ -482,7 +519,10 @@ open class TransactionService(
         return command.belongsToUserId to normalizedName
     }
 
-    private fun resolveTagsForUpdate(command: UpdateTransactionCommand, existingTags: List<String>): List<String> {
+    private fun resolveTagsForUpdate(
+        command: UpdateTransactionCommand,
+        existingTags: List<String>,
+    ): List<String> {
         if (!command.tagsProvided) return existingTags
         return normalizeTags(command.tags ?: emptyList())
     }

@@ -21,9 +21,10 @@ class IssuerResolver(
                 ispb = issuer.ispb,
                 countryCode = issuer.countryCode,
                 logoKey = issuer.logoKey,
-                logoAsset = issuer.logoKey?.let { key ->
-                    mapOf("__typename" to "Asset", "id" to key)
-                },
+                logoAsset =
+                    issuer.logoKey?.let { key ->
+                        mapOf("__typename" to "Asset", "id" to key)
+                    },
             )
         }
 }

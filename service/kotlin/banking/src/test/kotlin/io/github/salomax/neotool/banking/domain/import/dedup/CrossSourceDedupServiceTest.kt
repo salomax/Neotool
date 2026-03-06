@@ -24,7 +24,6 @@ import java.util.UUID
 
 @DisplayName("CrossSourceDedupService")
 class CrossSourceDedupServiceTest {
-
     private lateinit var transactionEntityRepository: TransactionEntityRepository
     private lateinit var service: CrossSourceDedupService
 
@@ -43,32 +42,33 @@ class CrossSourceDedupServiceTest {
     @Nested
     @DisplayName("findCandidates")
     inner class FindCandidatesTests {
-
         @Test
         fun `calls repository with parsed date amount and incomingSource name returns mapped domain list`() {
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Coffee",
-            )
-            val entity = TransactionEntity(
-                id = UUID.randomUUID(),
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                belongsToUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                status = TransactionStatus.POSTED,
-                source = TransactionSource.MANUAL,
-                amount = amount,
-                currencyCode = "BRL",
-                date = today,
-                description = "Existing MANUAL",
-                createdAt = Instant.now(),
-                updatedAt = Instant.now(),
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Coffee",
+                )
+            val entity =
+                TransactionEntity(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    belongsToUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    status = TransactionStatus.POSTED,
+                    source = TransactionSource.MANUAL,
+                    amount = amount,
+                    currencyCode = "BRL",
+                    date = today,
+                    description = "Existing MANUAL",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
             whenever(
                 transactionEntityRepository.findCrossSourceCandidates(
                     financialAccountId = eq(financialAccountId),
@@ -78,11 +78,12 @@ class CrossSourceDedupServiceTest {
                 ),
             ).thenReturn(listOf(entity))
 
-            val result = service.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val result =
+                service.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(result).hasSize(1)
             assertThat(result[0].id).isEqualTo(entity.id)
@@ -99,12 +100,13 @@ class CrossSourceDedupServiceTest {
 
         @Test
         fun `returns empty list when repository returns empty`() {
-            val parsed = ParsedTransaction(
-                creditDebitType = CreditDebitType.DEBIT,
-                amount = amount,
-                date = today,
-                description = "Only",
-            )
+            val parsed =
+                ParsedTransaction(
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = amount,
+                    date = today,
+                    description = "Only",
+                )
             whenever(
                 transactionEntityRepository.findCrossSourceCandidates(
                     financialAccountId = any(),
@@ -114,11 +116,12 @@ class CrossSourceDedupServiceTest {
                 ),
             ).thenReturn(emptyList())
 
-            val result = service.findCandidates(
-                financialAccountId = financialAccountId,
-                parsed = parsed,
-                incomingSource = TransactionSource.OPEN_FINANCE,
-            )
+            val result =
+                service.findCandidates(
+                    financialAccountId = financialAccountId,
+                    parsed = parsed,
+                    incomingSource = TransactionSource.OPEN_FINANCE,
+                )
 
             assertThat(result).isEmpty()
         }

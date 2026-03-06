@@ -46,5 +46,5 @@ Health responses:
 ## Tests
 ```bash
 cd workers/python/pdf-extractor
-pytest -q
+PYTHONPATH=. pytest -q
 ```

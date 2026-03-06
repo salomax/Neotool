@@ -2,6 +2,8 @@ package io.github.salomax.neotool.banking.domain.import.parser
 
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import org.w3c.dom.Document
+import org.w3c.dom.Node
 import java.math.BigDecimal
 import java.nio.charset.StandardCharsets
 import java.time.Instant
@@ -10,15 +12,12 @@ import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.util.regex.Pattern
 import javax.xml.parsers.DocumentBuilderFactory
-import org.w3c.dom.Document
-import org.w3c.dom.Node
 
 /**
  * Parses OFX 1.x (SGML) and OFX 2.x (XML) file bytes into [ParsedTransaction] list.
  * Uses a lightweight implementation (no ofx4j); OFX SGML is not valid XML.
  */
 object OFXParser {
-
     private val SGML_HEADER = "OFXHEADER:"
     private val XML_OFX_PREFIX = "<?OFX"
     private val XML_DECL_PREFIX = "<?xml"
@@ -160,17 +159,19 @@ object OFXParser {
             in 12..14 -> {
                 val date = LocalDate.parse(cleaned.take(8), DTPOSTED_FORMAT_DATE)
                 val time = cleaned.drop(8).padEnd(6, '0').take(6)
-                val instant = runCatching {
-                    val hour = time.take(2).toIntOrNull() ?: 0
-                    val min = time.take(4).drop(2).toIntOrNull() ?: 0
-                    val sec = time.take(6).drop(4).toIntOrNull() ?: 0
-                    date.atTime(hour, min, sec).toInstant(ZoneOffset.UTC)
-                }.getOrNull()
+                val instant =
+                    runCatching {
+                        val hour = time.take(2).toIntOrNull() ?: 0
+                        val min = time.take(4).drop(2).toIntOrNull() ?: 0
+                        val sec = time.take(6).drop(4).toIntOrNull() ?: 0
+                        date.atTime(hour, min, sec).toInstant(ZoneOffset.UTC)
+                    }.getOrNull()
                 Pair(date, instant)
             }
             else -> {
-                val date = runCatching { LocalDate.parse(cleaned.take(8), DTPOSTED_FORMAT_DATE) }
-                    .getOrElse { LocalDate.now() }
+                val date =
+                    runCatching { LocalDate.parse(cleaned.take(8), DTPOSTED_FORMAT_DATE) }
+                        .getOrElse { LocalDate.now() }
                 Pair(date, null)
             }
         }

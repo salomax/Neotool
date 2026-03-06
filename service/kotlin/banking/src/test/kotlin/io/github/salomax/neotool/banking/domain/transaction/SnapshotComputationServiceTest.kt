@@ -22,7 +22,6 @@ import java.util.UUID
 
 @DisplayName("SnapshotComputationService")
 class SnapshotComputationServiceTest {
-
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var snapshotRepository: MonthlyBalanceSnapshotRepository
     private lateinit var service: SnapshotComputationService
@@ -93,12 +92,18 @@ class SnapshotComputationServiceTest {
     @Nested
     @DisplayName("recomputeSnapshot")
     inner class RecomputeSnapshotTests {
-
         @Test
         fun `closingBalance = openingBalance + totalCredit - totalDebit`() {
             val opening = BigDecimal("1000.00")
             whenever(transactionRepository.getMonthTotals(financialAccountId, 2024, 3))
-                .thenReturn(totals(totalCredit = BigDecimal("500.00"), totalDebit = BigDecimal("200.00"), year = 2024, month = 3))
+                .thenReturn(
+                    totals(
+                        totalCredit = BigDecimal("500.00"),
+                        totalDebit = BigDecimal("200.00"),
+                        year = 2024,
+                        month = 3,
+                    ),
+                )
             val saved = snapshot(2024, 3, openingBalance = opening, closingBalance = BigDecimal("1300.00"))
             whenever(snapshotRepository.upsert(any())).thenReturn(saved)
 
@@ -115,12 +120,14 @@ class SnapshotComputationServiceTest {
         @Test
         fun `totalIncome and totalExpenses come from the aggregate, not derived from closing`() {
             whenever(transactionRepository.getMonthTotals(financialAccountId, 2024, 1))
-                .thenReturn(totals(
-                    totalCredit = BigDecimal("300.00"),
-                    totalDebit = BigDecimal("100.00"),
-                    totalIncome = BigDecimal("250.00"),
-                    totalExpenses = BigDecimal("80.00"),
-                ))
+                .thenReturn(
+                    totals(
+                        totalCredit = BigDecimal("300.00"),
+                        totalDebit = BigDecimal("100.00"),
+                        totalIncome = BigDecimal("250.00"),
+                        totalExpenses = BigDecimal("80.00"),
+                    ),
+                )
             val saved = snapshot(2024, 1, totalIncome = BigDecimal("250.00"), totalExpenses = BigDecimal("80.00"))
             whenever(snapshotRepository.upsert(any())).thenReturn(saved)
 
@@ -153,7 +160,6 @@ class SnapshotComputationServiceTest {
     @Nested
     @DisplayName("recomputeChain")
     inner class RecomputeChainTests {
-
         /**
          * Stubs all months from [from] through current month with zero-activity totals
          * and returns the upserted snapshot via identity (returns the argument).
@@ -224,7 +230,14 @@ class SnapshotComputationServiceTest {
 
             // Jan: credit 500, debit 100 → closing = 400
             whenever(transactionRepository.getMonthTotals(financialAccountId, 2024, 1))
-                .thenReturn(totals(totalCredit = BigDecimal("500.00"), totalDebit = BigDecimal("100.00"), year = 2024, month = 1))
+                .thenReturn(
+                    totals(
+                        totalCredit = BigDecimal("500.00"),
+                        totalDebit = BigDecimal("100.00"),
+                        year = 2024,
+                        month = 1,
+                    ),
+                )
 
             // All remaining months (Feb 2024 → current): zero activity
             var cursor = feb

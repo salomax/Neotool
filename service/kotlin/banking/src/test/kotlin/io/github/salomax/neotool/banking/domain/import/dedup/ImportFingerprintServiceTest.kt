@@ -16,7 +16,6 @@ import java.util.UUID
 
 @DisplayName("ImportFingerprintService")
 class ImportFingerprintServiceTest {
-
     private lateinit var transactionEntityRepository: TransactionEntityRepository
     private lateinit var service: ImportFingerprintService
 
@@ -34,7 +33,6 @@ class ImportFingerprintServiceTest {
     @Nested
     @DisplayName("compute")
     inner class ComputeTests {
-
         @Test
         fun `same inputs produce same fingerprint deterministic`() {
             val fp1 = service.compute(financialAccountId, date, amountCents, description)
@@ -97,7 +95,6 @@ class ImportFingerprintServiceTest {
     @Nested
     @DisplayName("isDuplicate")
     inner class IsDuplicateTests {
-
         @Test
         fun `returns true when repository returns true`() {
             val fingerprint = service.compute(financialAccountId, date, amountCents, description)

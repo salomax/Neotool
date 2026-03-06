@@ -43,65 +43,78 @@ class KafkaTopicInitializer(
             log.warn("kafka.bootstrap.servers is blank; skipping topic creation")
             return
         }
-        val props = Properties().apply {
-            setProperty("bootstrap.servers", bootstrapServers)
-        }
+        val props =
+            Properties().apply {
+                setProperty("bootstrap.servers", bootstrapServers)
+            }
         Admin.create(props).use { admin ->
-            val topics = listOf(
-                NewTopic(importFileRequested, 6, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (7 * 24 * 60 * 60 * 1000).toString(), // 7 days
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+            val topics =
+                listOf(
+                    NewTopic(importFileRequested, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 7 days
+                                TopicConfig.RETENTION_MS_CONFIG to (7 * 24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(importFileRequestedDlt, 1, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (30 * 24 * 60 * 60 * 1000).toString(), // 30 days
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(importFileRequestedDlt, 1, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30 * 24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(importJobCompleted, 6, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (24 * 60 * 60 * 1000).toString(), // 24 hours
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(importJobCompleted, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 24 hours
+                                TopicConfig.RETENTION_MS_CONFIG to (24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(pdfExtractorSubmitted, 6, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
-                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(pdfExtractorSubmitted, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(),
+                                // 200 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(pdfExtractorExtracted, 6, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
-                            TopicConfig.RETENTION_BYTES_CONFIG to (500L * 1024 * 1024).toString(), // 500 MB
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(pdfExtractorExtracted, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(),
+                                // 500 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (500L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(pdfExtractorDlq, 1, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (90L * 24 * 60 * 60 * 1000).toString(), // 90 days
-                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(pdfExtractorDlq, 1, 1)
+                        .configs(
+                            mapOf(
+                                // 90 days
+                                TopicConfig.RETENTION_MS_CONFIG to (90L * 24 * 60 * 60 * 1000).toString(),
+                                // 200 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-                NewTopic(pdfBankingReaderDone, 6, 1)
-                    .configs(
-                        mapOf(
-                            TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(), // 30 days
-                            TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(), // 200 MB
-                            TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                    NewTopic(pdfBankingReaderDone, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(),
+                                // 200 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
                         ),
-                    ),
-            )
+                )
             admin.createTopics(topics).all().get()
             log.info("Kafka import topics created or already exist: {}", topics.map { it.name() })
         }

@@ -15,16 +15,24 @@ import java.util.UUID
 open class DefaultImportJobRepository(
     private val entityRepository: TransactionImportEntityRepository,
 ) : ImportJobRepository {
-
-    override fun findById(id: UUID, accountId: UUID): ImportJob? =
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): ImportJob? =
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(TransactionImportMapper::toDomain)
 
-    override fun findByFileHash(financialAccountId: UUID, fileHash: String): ImportJob? =
+    override fun findByFileHash(
+        financialAccountId: UUID,
+        fileHash: String,
+    ): ImportJob? =
         entityRepository.findByFinancialAccountIdAndFileHash(financialAccountId, fileHash)
             ?.let(TransactionImportMapper::toDomain)
 
-    override fun findByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<ImportJob> =
+    override fun findByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<ImportJob> =
         entityRepository.findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
             financialAccountId,
             accountId,
@@ -44,8 +52,9 @@ open class DefaultImportJobRepository(
     @Transactional
     override fun update(job: ImportJob): ImportJob {
         val id = requireNotNull(job.id) { "ImportJob id is required for update" }
-        val entity = entityRepository.findByIdAndAccountId(id, job.accountId)
-            ?: throw NoSuchElementException("ImportJob $id not found")
+        val entity =
+            entityRepository.findByIdAndAccountId(id, job.accountId)
+                ?: throw NoSuchElementException("ImportJob $id not found")
         TransactionImportMapper.updateEntity(entity, job)
         val saved = entityRepository.update(entity)
         return TransactionImportMapper.toDomain(saved)

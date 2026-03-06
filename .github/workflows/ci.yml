@@ -256,7 +256,7 @@ jobs:
         working-directory: ./${{ matrix.path }}
 
       - name: Run Python tests
-        run: pytest tests/ -v --tb=short
+        run: PYTHONPATH=. pytest tests/ -v --tb=short
         working-directory: ./${{ matrix.path }}
 
   security-scan:

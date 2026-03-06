@@ -86,10 +86,11 @@ object CsvItauParser : BankCsvReader {
 
     override fun parse(bytes: ByteArray): List<ParsedTransaction> {
         val text = ImportTextDecoder.decode(bytes).text
-        val lines = text.lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .toList()
+        val lines =
+            text.lineSequence()
+                .map { it.trimEnd('\r') }
+                .filter { it.isNotBlank() }
+                .toList()
         if (lines.size < 2) return emptyList()
 
         val delimiter = CsvParserSupport.detectDelimiter(lines.first())
@@ -142,8 +143,18 @@ object CsvItauParser : BankCsvReader {
             CsvParserSupport.parseAmount(row.getOrNull(idx).orEmpty())?.let { return it }
         }
 
-        val debit = debitIdx?.let { CsvParserSupport.parseAmount(row.getOrNull(it).orEmpty())?.abs() } ?: BigDecimal.ZERO
-        val credit = creditIdx?.let { CsvParserSupport.parseAmount(row.getOrNull(it).orEmpty())?.abs() } ?: BigDecimal.ZERO
+        val debit =
+            debitIdx?.let {
+                CsvParserSupport.parseAmount(
+                    row.getOrNull(it).orEmpty(),
+                )?.abs()
+            } ?: BigDecimal.ZERO
+        val credit =
+            creditIdx?.let {
+                CsvParserSupport.parseAmount(
+                    row.getOrNull(it).orEmpty(),
+                )?.abs()
+            } ?: BigDecimal.ZERO
         if (debit == BigDecimal.ZERO && credit == BigDecimal.ZERO) return null
         return credit.subtract(debit)
     }

@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.infra.assets
 
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
-import okhttp3.mockwebserver.MockResponse
-import okhttp3.mockwebserver.MockWebServer
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -15,7 +15,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("AssetsServiceFileStorage IT")
 class AssetsServiceFileStorageIT {
-
     companion object {
         private const val MOCK_SERVER_PORT = 18092
 
@@ -31,10 +30,11 @@ class AssetsServiceFileStorageIT {
         private fun baseUrl() = "http://localhost:$MOCK_SERVER_PORT"
 
         @JvmStatic
-        private fun graphqlResponse(body: String) = MockResponse()
-            .setResponseCode(200)
-            .addHeader("Content-Type", "application/json")
-            .setBody(body)
+        private fun graphqlResponse(body: String) =
+            MockResponse()
+                .setResponseCode(200)
+                .addHeader("Content-Type", "application/json")
+                .setBody(body)
     }
 
     @Inject
@@ -46,7 +46,6 @@ class AssetsServiceFileStorageIT {
     @Nested
     @DisplayName("store")
     inner class StoreTests {
-
         @Test
         fun `store returns assetId when assets GraphQL and presigned PUT are stubbed`() {
             val uploadPath = "/upload-$assetId"
@@ -69,7 +68,6 @@ class AssetsServiceFileStorageIT {
     @Nested
     @DisplayName("read")
     inner class ReadTests {
-
         @Test
         fun `read returns bytes from presigned GET when asset query is stubbed`() {
             val downloadPath = "/download-$assetId"
@@ -91,7 +89,6 @@ class AssetsServiceFileStorageIT {
     @Nested
     @DisplayName("delete")
     inner class DeleteTests {
-
         @Test
         fun `delete on non-existent asset does not throw`() {
             val nonExistent = UUID.randomUUID()

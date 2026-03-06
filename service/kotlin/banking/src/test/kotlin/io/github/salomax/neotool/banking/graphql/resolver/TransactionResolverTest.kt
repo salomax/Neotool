@@ -6,15 +6,13 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummary
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
-import io.github.salomax.neotool.banking.graphql.dto.TransactionCategoryDTO
-import io.github.salomax.neotool.banking.graphql.dto.TransactionDTO
+import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import org.assertj.core.api.Assertions.assertThat
@@ -23,8 +21,8 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
-import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.anyOrNull
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -37,7 +35,6 @@ import java.util.UUID
 
 @DisplayName("TransactionResolver")
 class TransactionResolverTest {
-
     private lateinit var service: TransactionService
     private lateinit var categoryRepository: TransactionCategoryRepository
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
@@ -50,14 +47,15 @@ class TransactionResolverTest {
     private val now = Instant.now()
     private val today = LocalDate.now()
 
-    private fun principal() = RequestPrincipal(
-        principalType = PrincipalType.USER,
-        userId = userId,
-        serviceId = null,
-        token = "test-token",
-        permissionsFromToken = emptyList(),
-        currentAccountId = accountId,
-    )
+    private fun principal() =
+        RequestPrincipal(
+            principalType = PrincipalType.USER,
+            userId = userId,
+            serviceId = null,
+            token = "test-token",
+            permissionsFromToken = emptyList(),
+            currentAccountId = accountId,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -71,38 +69,39 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("createTransaction")
     inner class CreateTransactionTests {
-
         @Test
         fun `input map is correctly parsed into CreateTransactionCommand`() {
-            val input = mapOf(
-                "financialAccountId" to financialAccountId.toString(),
-                "creditDebitType" to "DEBIT",
-                "type" to "OTHER_EXPENSE",
-                "amount" to 99.99,
-                "date" to today.toString(),
-                "description" to "Test payment",
-                "status" to "POSTED",
-                "currencyCode" to "BRL",
-                "notes" to "My notes",
-                "tags" to listOf("Food", "Weekend"),
-                "categoryId" to UUID.randomUUID().toString(),
-            )
-            val savedTx = Transaction(
-                id = UUID.randomUUID(),
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                status = TransactionStatus.POSTED,
-                amount = BigDecimal("99.99"),
-                date = today,
-                description = "Test payment",
-                notes = "My notes",
-                categoryId = null,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "creditDebitType" to "DEBIT",
+                    "type" to "OTHER_EXPENSE",
+                    "amount" to 99.99,
+                    "date" to today.toString(),
+                    "description" to "Test payment",
+                    "status" to "POSTED",
+                    "currencyCode" to "BRL",
+                    "notes" to "My notes",
+                    "tags" to listOf("Food", "Weekend"),
+                    "categoryId" to UUID.randomUUID().toString(),
+                )
+            val savedTx =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    status = TransactionStatus.POSTED,
+                    amount = BigDecimal("99.99"),
+                    date = today,
+                    description = "Test payment",
+                    notes = "My notes",
+                    categoryId = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(service.create(org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(savedTx)
 
             resolver.createTransaction(input, principal())
@@ -128,27 +127,28 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("updateTransaction")
     inner class UpdateTransactionTests {
-
         @Test
         fun `partial input map produces correct UpdateTransactionCommand`() {
             val txId = UUID.randomUUID()
-            val input = mapOf(
-                "description" to "Updated desc",
-                "amount" to 50.0,
-            )
-            val updatedTx = Transaction(
-                id = txId,
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                amount = BigDecimal("50.00"),
-                date = today,
-                description = "Updated desc",
-                createdAt = now,
-                updatedAt = now,
-            )
+            val input =
+                mapOf(
+                    "description" to "Updated desc",
+                    "amount" to 50.0,
+                )
+            val updatedTx =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Updated desc",
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
 
             resolver.updateTransaction(txId.toString(), input, principal())
@@ -168,24 +168,26 @@ class TransactionResolverTest {
         @Test
         fun `update input with belongsToName marks attribution as provided`() {
             val txId = UUID.randomUUID()
-            val input = mapOf(
-                "belongsToName" to "Family",
-            )
-            val updatedTx = Transaction(
-                id = txId,
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                belongsToUserId = null,
-                belongsToName = "Family",
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                amount = BigDecimal("50.00"),
-                date = today,
-                description = "Updated desc",
-                createdAt = now,
-                updatedAt = now,
-            )
+            val input =
+                mapOf(
+                    "belongsToName" to "Family",
+                )
+            val updatedTx =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    belongsToUserId = null,
+                    belongsToName = "Family",
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Updated desc",
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
 
             resolver.updateTransaction(txId.toString(), input, principal())
@@ -200,23 +202,25 @@ class TransactionResolverTest {
         @Test
         fun `update input with tags marks tags as provided`() {
             val txId = UUID.randomUUID()
-            val input = mapOf(
-                "tags" to listOf("Food", "Weekend"),
-            )
-            val updatedTx = Transaction(
-                id = txId,
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                amount = BigDecimal("50.00"),
-                date = today,
-                description = "Updated desc",
-                tags = listOf("Food", "Weekend"),
-                createdAt = now,
-                updatedAt = now,
-            )
+            val input =
+                mapOf(
+                    "tags" to listOf("Food", "Weekend"),
+                )
+            val updatedTx =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Updated desc",
+                    tags = listOf("Food", "Weekend"),
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
 
             resolver.updateTransaction(txId.toString(), input, principal())
@@ -231,7 +235,6 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("deleteTransaction")
     inner class DeleteTransactionTests {
-
         @Test
         fun `delegates to service and returns boolean result`() {
             val txId = UUID.randomUUID()
@@ -257,37 +260,38 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("transactions")
     inner class TransactionsTests {
-
         @Test
         fun `resolves and attaches correct category DTO to each transaction`() {
             val catId = UUID.randomUUID()
-            val category = TransactionCategory(
-                id = catId,
-                accountId = null,
-                parentId = null,
-                name = "Food",
-                applicableTo = io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.EXPENSE,
-                icon = "x",
-                color = "#fff",
-                isSystem = true,
-                sortOrder = 0,
-                createdAt = now,
-                updatedAt = now,
-            )
-            val tx = Transaction(
-                id = UUID.randomUUID(),
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                creditDebitType = CreditDebitType.DEBIT,
-                type = TransactionType.OTHER_EXPENSE,
-                amount = BigDecimal("10.00"),
-                date = today,
-                description = "Lunch",
-                categoryId = catId,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val category =
+                TransactionCategory(
+                    id = catId,
+                    accountId = null,
+                    parentId = null,
+                    name = "Food",
+                    applicableTo = io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.EXPENSE,
+                    icon = "x",
+                    color = "#fff",
+                    isSystem = true,
+                    sortOrder = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val tx =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Lunch",
+                    categoryId = catId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             val connection =
                 io.github.salomax.neotool.common.graphql.pagination.Connection(
                     edges =
@@ -349,24 +353,24 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("transactionCategories")
     inner class TransactionCategoriesTests {
-
         @Test
         fun `returns full list for principal account`() {
-            val categories = listOf(
-                TransactionCategory(
-                    id = UUID.randomUUID(),
-                    accountId = null,
-                    parentId = null,
-                    name = "System",
-                    applicableTo = io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.ANY,
-                    icon = null,
-                    color = null,
-                    isSystem = true,
-                    sortOrder = 0,
-                    createdAt = now,
-                    updatedAt = now,
-                ),
-            )
+            val categories =
+                listOf(
+                    TransactionCategory(
+                        id = UUID.randomUUID(),
+                        accountId = null,
+                        parentId = null,
+                        name = "System",
+                        applicableTo = io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.ANY,
+                        icon = null,
+                        color = null,
+                        isSystem = true,
+                        sortOrder = 0,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
             whenever(service.listCategories(accountId)).thenReturn(categories)
 
             val result = resolver.transactionCategories(principal())
@@ -380,7 +384,6 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("invalid UUID")
     inner class InvalidUuidTests {
-
         @Test
         fun `transactions fails gracefully when financialAccountId is not valid UUID`() {
             assertThrows<IllegalArgumentException> {
@@ -401,14 +404,15 @@ class TransactionResolverTest {
 
         @Test
         fun `createTransaction fails when financialAccountId in input is not valid UUID`() {
-            val input = mapOf(
-                "financialAccountId" to "invalid",
-                "creditDebitType" to "DEBIT",
-                "type" to "OTHER_EXPENSE",
-                "amount" to 10.0,
-                "date" to today.toString(),
-                "description" to "X",
-            )
+            val input =
+                mapOf(
+                    "financialAccountId" to "invalid",
+                    "creditDebitType" to "DEBIT",
+                    "type" to "OTHER_EXPENSE",
+                    "amount" to 10.0,
+                    "date" to today.toString(),
+                    "description" to "X",
+                )
             assertThrows<IllegalArgumentException> {
                 resolver.createTransaction(input, principal())
             }
@@ -425,7 +429,6 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("transactionBelongsToOptions")
     inner class TransactionBelongsToOptionsTests {
-
         @Test
         fun `returns distinct options from service`() {
             whenever(service.listBelongsToOptions(accountId)).thenReturn(
@@ -448,7 +451,6 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("transactionTags")
     inner class TransactionTagsTests {
-
         @Test
         fun `returns distinct tags from service`() {
             whenever(service.listTags(accountId)).thenReturn(listOf("Food", "Bills"))
@@ -464,8 +466,10 @@ class TransactionResolverTest {
     @Nested
     @DisplayName("monthSummary")
     inner class MonthSummaryTests {
-
-        private fun summary(year: Int = 2024, month: Int = 1) = MonthSummary(
+        private fun summary(
+            year: Int = 2024,
+            month: Int = 1,
+        ) = MonthSummary(
             year = year, month = month,
             totalIncome = BigDecimal("500.00"),
             totalExpenses = BigDecimal("200.00"),

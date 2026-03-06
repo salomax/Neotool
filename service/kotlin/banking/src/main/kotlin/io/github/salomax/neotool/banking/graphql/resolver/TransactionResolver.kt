@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
-import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
@@ -26,7 +25,6 @@ import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -40,7 +38,6 @@ class TransactionResolver(
     private val monthSummaryQueryService: MonthSummaryQueryService,
     private val creditCardBillService: CreditCardBillService,
 ) {
-
     // ── Queries ──────────────────────────────────────────────────────────────
 
     fun transactionCategories(principal: RequestPrincipal): List<TransactionCategoryDTO> {
@@ -83,18 +80,19 @@ class TransactionResolver(
 
         val categories = categoryRepository.findAll(accountId).associateBy { it.id!! }
 
-        val connection = service.listTransactions(
-            accountId = accountId,
-            financialAccountId = faId,
-            belongsToUserId = belongsToUserUuid,
-            belongsToName = belongsToName,
-            tags = tags,
-            billId = billUuid,
-            month = month,
-            year = year,
-            first = first,
-            after = after,
-        )
+        val connection =
+            service.listTransactions(
+                accountId = accountId,
+                financialAccountId = faId,
+                belongsToUserId = belongsToUserUuid,
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billUuid,
+                month = month,
+                year = year,
+                first = first,
+                after = after,
+            )
 
         val edges =
             connection.edges.map { edge ->
@@ -122,7 +120,10 @@ class TransactionResolver(
         )
     }
 
-    fun transaction(id: String, principal: RequestPrincipal): TransactionDTO {
+    fun transaction(
+        id: String,
+        principal: RequestPrincipal,
+    ): TransactionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val txId = UUID.fromString(id)
 
@@ -143,11 +144,17 @@ class TransactionResolver(
         val targetMonth = month ?: today.monthValue
         require(targetMonth in 1..12) { "month must be between 1 and 12, got: $targetMonth" }
 
-        val summary = if (financialAccountId != null) {
-            monthSummaryQueryService.getMonthSummary(UUID.fromString(financialAccountId), accountId, targetYear, targetMonth)
-        } else {
-            monthSummaryQueryService.getAggregateMonthlySummary(accountId, targetYear, targetMonth)
-        }
+        val summary =
+            if (financialAccountId != null) {
+                monthSummaryQueryService.getMonthSummary(
+                    UUID.fromString(financialAccountId),
+                    accountId,
+                    targetYear,
+                    targetMonth,
+                )
+            } else {
+                monthSummaryQueryService.getAggregateMonthlySummary(accountId, targetYear, targetMonth)
+            }
         return MonthSummaryDTO(
             year = summary.year,
             month = summary.month,
@@ -162,7 +169,10 @@ class TransactionResolver(
         )
     }
 
-    fun creditCardBills(financialAccountId: String, principal: RequestPrincipal): List<CreditCardBillDTO> {
+    fun creditCardBills(
+        financialAccountId: String,
+        principal: RequestPrincipal,
+    ): List<CreditCardBillDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         return creditCardBillService.listBills(UUID.fromString(financialAccountId), accountId).map { it.toDTO() }
     }
@@ -179,7 +189,10 @@ class TransactionResolver(
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
-    fun createTransaction(input: Map<String, Any?>, principal: RequestPrincipal): TransactionDTO {
+    fun createTransaction(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransactionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
@@ -189,7 +202,11 @@ class TransactionResolver(
         return saved.toDTO(category)
     }
 
-    fun updateTransaction(id: String, input: Map<String, Any?>, principal: RequestPrincipal): TransactionDTO {
+    fun updateTransaction(
+        id: String,
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransactionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val txId = UUID.fromString(id)
 
@@ -199,7 +216,10 @@ class TransactionResolver(
         return updated.toDTO(category)
     }
 
-    fun deleteTransaction(id: String, principal: RequestPrincipal): Boolean {
+    fun deleteTransaction(
+        id: String,
+        principal: RequestPrincipal,
+    ): Boolean {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         return service.delete(UUID.fromString(id), accountId)
     }
@@ -220,17 +240,18 @@ class TransactionResolver(
 
     // ── Mapping helpers ───────────────────────────────────────────────────────
 
-    private fun CreditCardBill.toDTO() = CreditCardBillDTO(
-        id = id!!,
-        financialAccountId = financialAccountId,
-        closingDate = closingDate,
-        dueDate = dueDate,
-        totalAmount = totalAmount.toDouble(),
-        minimumPayment = minimumPayment?.toDouble(),
-        status = status,
-        createdAt = createdAt.atOffset(ZoneOffset.UTC),
-        updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
-    )
+    private fun CreditCardBill.toDTO() =
+        CreditCardBillDTO(
+            id = id!!,
+            financialAccountId = financialAccountId,
+            closingDate = closingDate,
+            dueDate = dueDate,
+            totalAmount = totalAmount.toDouble(),
+            minimumPayment = minimumPayment?.toDouble(),
+            status = status,
+            createdAt = createdAt.atOffset(ZoneOffset.UTC),
+            updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
+        )
 
     private fun TransactionCategory.toDTO(): TransactionCategoryDTO =
         TransactionCategoryDTO(
@@ -279,7 +300,10 @@ class TransactionResolver(
             updatedAt = updatedAt,
         )
 
-    private fun getDate(map: Map<String, Any?>, key: String): LocalDate? {
+    private fun getDate(
+        map: Map<String, Any?>,
+        key: String,
+    ): LocalDate? {
         val v = map[key] ?: return null
         return when (v) {
             is String -> LocalDate.parse(v)
@@ -297,8 +321,9 @@ class TransactionResolver(
             amount = BigDecimal((this["amount"] as Number).toString()),
             date = getDate(this, "date") ?: throw IllegalArgumentException("date is required"),
             description = this["description"] as String,
-            status = (this["status"] as? String)?.let { TransactionStatus.valueOf(it) }
-                ?: TransactionStatus.POSTED,
+            status =
+                (this["status"] as? String)?.let { TransactionStatus.valueOf(it) }
+                    ?: TransactionStatus.POSTED,
             currencyCode = (this["currencyCode"] as? String) ?: "BRL",
             notes = this["notes"] as? String,
             tags = (this["tags"] as? List<*>)?.map { it as String } ?: emptyList(),

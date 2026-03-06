@@ -8,29 +8,30 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
  * Maps between [FinancialAccount] domain and [FinancialAccountEntity] (and CTI extension entities).
  */
 object FinancialAccountMapper {
-
     fun toDomain(entity: FinancialAccountEntity): FinancialAccount {
-        val bankData = entity.bankData?.let { b ->
-            BankData(
-                branchCode = b.branchCode,
-                number = b.number,
-                checkDigit = b.checkDigit,
-                maskedNumber = b.maskedNumber,
-            )
-        }
-        val cardData = entity.cardData?.let { c ->
-            CardData(
-                maskedNumber = c.maskedNumber,
-                bin = c.bin,
-                cardNetwork = c.cardNetwork,
-                cardLevel = c.cardLevel,
-                creditLimit = c.creditLimit,
-                availableCreditLimit = c.availableCreditLimit,
-                minimumPaymentPercentage = c.minPaymentPercentage,
-                closingDay = c.closingDay,
-                dueDay = c.dueDay,
-            )
-        }
+        val bankData =
+            entity.bankData?.let { b ->
+                BankData(
+                    branchCode = b.branchCode,
+                    number = b.number,
+                    checkDigit = b.checkDigit,
+                    maskedNumber = b.maskedNumber,
+                )
+            }
+        val cardData =
+            entity.cardData?.let { c ->
+                CardData(
+                    maskedNumber = c.maskedNumber,
+                    bin = c.bin,
+                    cardNetwork = c.cardNetwork,
+                    cardLevel = c.cardLevel,
+                    creditLimit = c.creditLimit,
+                    availableCreditLimit = c.availableCreditLimit,
+                    minimumPaymentPercentage = c.minPaymentPercentage,
+                    closingDay = c.closingDay,
+                    dueDay = c.dueDay,
+                )
+            }
         return FinancialAccount(
             id = entity.id,
             accountId = entity.accountId,
@@ -97,8 +98,14 @@ object FinancialAccountMapper {
     /**
      * Builds [FinancialAccountBankDataEntity] for an existing account (call after base entity is persisted).
      */
-    fun toBankDataEntity(data: BankData, account: FinancialAccountEntity): FinancialAccountBankDataEntity {
-        val accountId = account.id ?: throw IllegalStateException("Account must be persisted before attaching bank data")
+    fun toBankDataEntity(
+        data: BankData,
+        account: FinancialAccountEntity,
+    ): FinancialAccountBankDataEntity {
+        val accountId =
+            account.id ?: throw IllegalStateException(
+                "Account must be persisted before attaching bank data",
+            )
         return FinancialAccountBankDataEntity(
             accountId = accountId,
             account = account,
@@ -112,8 +119,14 @@ object FinancialAccountMapper {
     /**
      * Builds [FinancialAccountCardDataEntity] for an existing account (call after base entity is persisted).
      */
-    fun toCardDataEntity(data: CardData, account: FinancialAccountEntity): FinancialAccountCardDataEntity {
-        val accountId = account.id ?: throw IllegalStateException("Account must be persisted before attaching card data")
+    fun toCardDataEntity(
+        data: CardData,
+        account: FinancialAccountEntity,
+    ): FinancialAccountCardDataEntity {
+        val accountId =
+            account.id ?: throw IllegalStateException(
+                "Account must be persisted before attaching card data",
+            )
         return FinancialAccountCardDataEntity(
             accountId = accountId,
             account = account,
@@ -132,7 +145,10 @@ object FinancialAccountMapper {
     /**
      * Updates existing entity fields from domain (for update path). Does not replace bankData/cardData.
      */
-    fun updateEntity(entity: FinancialAccountEntity, domain: FinancialAccount) {
+    fun updateEntity(
+        entity: FinancialAccountEntity,
+        domain: FinancialAccount,
+    ) {
         entity.accountId = domain.accountId
         entity.createdByUserId = domain.createdByUserId
         entity.type = domain.type

@@ -19,7 +19,6 @@ import java.util.UUID
 @MicronautTest(startApplication = true)
 @DisplayName("TransactionImportRepository IT")
 class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
-
     @Inject
     lateinit var importJobRepository: ImportJobRepository
 
@@ -65,7 +64,6 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("save")
     inner class SaveTests {
-
         @Test
         fun `persists job and returns with id and timestamps`() {
             val job = baseJob()
@@ -84,14 +82,15 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
 
         @Test
         fun `persists optional fields totalRows importedCount dateFrom dateTo`() {
-            val job = baseJob().copy(
-                totalRows = 10,
-                importedCount = 8,
-                skippedCount = 1,
-                errorCount = 1,
-                dateFrom = LocalDate.of(2024, 1, 1),
-                dateTo = LocalDate.of(2024, 1, 31),
-            )
+            val job =
+                baseJob().copy(
+                    totalRows = 10,
+                    importedCount = 8,
+                    skippedCount = 1,
+                    errorCount = 1,
+                    dateFrom = LocalDate.of(2024, 1, 1),
+                    dateTo = LocalDate.of(2024, 1, 31),
+                )
 
             val saved = importJobRepository.save(job)
 
@@ -108,7 +107,6 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findById")
     inner class FindByIdTests {
-
         @Test
         fun `returns job when id and accountId match`() {
             val saved = importJobRepository.save(baseJob())
@@ -134,7 +132,6 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findByFileHash")
     inner class FindByFileHashTests {
-
         @Test
         fun `returns job when financialAccountId and fileHash match`() {
             val fileHash = "hash-${UUID.randomUUID()}"
@@ -171,7 +168,6 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findByFinancialAccount")
     inner class FindByFinancialAccountTests {
-
         @Test
         fun `returns jobs for financial account and account ordered by created_at desc`() {
             val j1 = importJobRepository.save(baseJob(fileHash = "fa-1"))
@@ -198,7 +194,6 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("findByAccount")
     inner class FindByAccountTests {
-
         @Test
         fun `returns all jobs for account ordered by created_at desc`() {
             val j1 = importJobRepository.save(baseJob(fileHash = "acc-1"))
@@ -224,20 +219,20 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
     @Nested
     @DisplayName("update")
     inner class UpdateTests {
-
         @Test
         fun `updates status and counts`() {
             val saved = importJobRepository.save(baseJob(status = ImportJobStatus.PENDING))
 
-            val updated = importJobRepository.update(
-                saved.copy(
-                    status = ImportJobStatus.COMPLETED,
-                    totalRows = 5,
-                    importedCount = 5,
-                    completedAt = Instant.now(),
-                    updatedAt = Instant.now(),
-                ),
-            )
+            val updated =
+                importJobRepository.update(
+                    saved.copy(
+                        status = ImportJobStatus.COMPLETED,
+                        totalRows = 5,
+                        importedCount = 5,
+                        completedAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
 
             assertThat(updated.id).isEqualTo(saved.id)
             assertThat(updated.status).isEqualTo(ImportJobStatus.COMPLETED)

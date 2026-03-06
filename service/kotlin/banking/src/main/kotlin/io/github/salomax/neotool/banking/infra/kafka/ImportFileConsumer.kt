@@ -6,9 +6,9 @@ import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportProcessor
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
+import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
+import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
-import io.github.salomax.neotool.banking.domain.import_.ImportEventBus
-import io.github.salomax.neotool.banking.domain.import_.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.infra.kafka.parser.CsvImportParserStrategy
 import io.github.salomax.neotool.banking.infra.kafka.parser.ImportParserRouter
 import io.github.salomax.neotool.banking.infra.kafka.parser.OfxImportParserStrategy
@@ -29,6 +29,7 @@ import java.util.UUID
 
 @Singleton
 @Requires(property = "kafka.enabled", value = "true")
+@Requires(property = "kafka.consumers.import-file.enabled", notEquals = "false", defaultValue = "true")
 @KafkaListener(
     groupId = "banking-import-consumer",
     offsetReset = OffsetReset.EARLIEST,
@@ -50,12 +51,14 @@ class ImportFileConsumer(
     private val topicName: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
-    private val parserRouter = ImportParserRouter(
-        strategies = listOf(
-            OfxImportParserStrategy(),
-            CsvImportParserStrategy(csvImportMetrics),
-        ),
-    )
+    private val parserRouter =
+        ImportParserRouter(
+            strategies =
+                listOf(
+                    OfxImportParserStrategy(),
+                    CsvImportParserStrategy(csvImportMetrics),
+                ),
+        )
 
     @Topic("\${kafka.topics.import-file-requested:banking.import.file-requested}")
     fun receive(
@@ -71,12 +74,13 @@ class ImportFileConsumer(
 
         try {
             // 1. Load job; idempotent if already COMPLETED (crash recovery)
-            val job = importJobRepository.findById(jobId, accountId)
-                ?: run {
-                    log.warn("Import job not found: jobId={}, accountId={}; committing offset", jobId, accountId)
-                    commitOffset(consumer, partition, offset)
-                    return
-                }
+            val job =
+                importJobRepository.findById(jobId, accountId)
+                    ?: run {
+                        log.warn("Import job not found: jobId={}, accountId={}; committing offset", jobId, accountId)
+                        commitOffset(consumer, partition, offset)
+                        return
+                    }
             if (job.status == ImportJobStatus.COMPLETED) {
                 log.info("Import job already COMPLETED (idempotent skip): jobId={}", jobId)
                 commitOffset(consumer, partition, offset)
@@ -85,10 +89,11 @@ class ImportFileConsumer(
 
             // 2. Update → PROCESSING; emit PROCESSING
             val now = Instant.now()
-            var currentJob = job.copy(
-                status = ImportJobStatus.PROCESSING,
-                updatedAt = now,
-            )
+            var currentJob =
+                job.copy(
+                    status = ImportJobStatus.PROCESSING,
+                    updatedAt = now,
+                )
             importJobRepository.update(currentJob)
             emitStatus(currentJob)
 
@@ -96,33 +101,36 @@ class ImportFileConsumer(
             val bytes = fileStorage.read(assetId)
 
             // 4. Discover best parser strategy and parse
-            val parseOutcome = parserRouter.parse(
-                bytes = bytes,
-                fileName = currentJob.fileName,
-                requestedSource = event.source,
-            )
+            val parseOutcome =
+                parserRouter.parse(
+                    bytes = bytes,
+                    fileName = currentJob.fileName,
+                    requestedSource = event.source,
+                )
             val rows = parseOutcome.rows
             if (parseOutcome.resolvedSource != null && currentJob.source != parseOutcome.resolvedSource) {
-                currentJob = currentJob.copy(
-                    source = parseOutcome.resolvedSource,
-                    updatedAt = now,
-                )
+                currentJob =
+                    currentJob.copy(
+                        source = parseOutcome.resolvedSource,
+                        updatedAt = now,
+                    )
                 importJobRepository.update(currentJob)
             }
 
             if (rows.isEmpty()) {
-                currentJob = currentJob.copy(
-                    status = ImportJobStatus.COMPLETED,
-                    totalRows = 0,
-                    importedCount = 0,
-                    skippedCount = 0,
-                    duplicateReviewCount = 0,
-                    errorCount = 0,
-                    errorDetails = null,
-                    reviewPayload = null,
-                    completedAt = now,
-                    updatedAt = now,
-                )
+                currentJob =
+                    currentJob.copy(
+                        status = ImportJobStatus.COMPLETED,
+                        totalRows = 0,
+                        importedCount = 0,
+                        skippedCount = 0,
+                        duplicateReviewCount = 0,
+                        errorCount = 0,
+                        errorDetails = null,
+                        reviewPayload = null,
+                        completedAt = now,
+                        updatedAt = now,
+                    )
                 importJobRepository.update(currentJob)
                 emitStatus(currentJob)
                 jobCompletedProducer.publish(
@@ -167,30 +175,38 @@ class ImportFileConsumer(
             val errorCount = result.errors.size
 
             val reviewPayloadJson: String? =
-                if (result.duplicateCandidates.isEmpty()) null
-                else objectMapper.writeValueAsString(result.duplicateCandidates)
+                if (result.duplicateCandidates.isEmpty()) {
+                    null
+                } else {
+                    objectMapper.writeValueAsString(result.duplicateCandidates)
+                }
 
-            val finalStatus = when {
-                duplicateReviewCount > 0 -> ImportJobStatus.REVIEW_REQUIRED
-                importedCount == 0 && skippedCount == 0 && errorCount > 0 -> ImportJobStatus.FAILED
-                else -> ImportJobStatus.COMPLETED
-            }
+            val finalStatus =
+                when {
+                    duplicateReviewCount > 0 -> ImportJobStatus.REVIEW_REQUIRED
+                    importedCount == 0 && skippedCount == 0 && errorCount > 0 -> ImportJobStatus.FAILED
+                    else -> ImportJobStatus.COMPLETED
+                }
             val errorDetailsJson: String? =
-                if (errorCount > 0) objectMapper.writeValueAsString(result.errors.take(50))
-                else null
+                if (errorCount > 0) {
+                    objectMapper.writeValueAsString(result.errors.take(50))
+                } else {
+                    null
+                }
 
-            currentJob = currentJob.copy(
-                status = finalStatus,
-                totalRows = rows.size,
-                importedCount = importedCount,
-                skippedCount = skippedCount,
-                duplicateReviewCount = duplicateReviewCount,
-                errorCount = errorCount,
-                errorDetails = if (finalStatus == ImportJobStatus.FAILED) errorDetailsJson else null,
-                reviewPayload = reviewPayloadJson,
-                completedAt = now,
-                updatedAt = now,
-            )
+            currentJob =
+                currentJob.copy(
+                    status = finalStatus,
+                    totalRows = rows.size,
+                    importedCount = importedCount,
+                    skippedCount = skippedCount,
+                    duplicateReviewCount = duplicateReviewCount,
+                    errorCount = errorCount,
+                    errorDetails = if (finalStatus == ImportJobStatus.FAILED) errorDetailsJson else null,
+                    reviewPayload = reviewPayloadJson,
+                    completedAt = now,
+                    updatedAt = now,
+                )
             importJobRepository.update(currentJob)
 
             // 7. Emit terminal status
@@ -219,19 +235,21 @@ class ImportFileConsumer(
                 val failedJob = importJobRepository.findById(jobId, accountId)
                 if (failedJob != null) {
                     val now = Instant.now()
-                    val errorDetails = objectMapper.writeValueAsString(
-                        mapOf(
-                            "message" to (e.message ?: "Import processing failed"),
-                            "stackSummary" to stackSummary(e),
-                        ),
-                    )
-                    val updated = failedJob.copy(
-                        status = ImportJobStatus.FAILED,
-                        errorCount = (failedJob.errorCount ?: 0) + 1,
-                        errorDetails = errorDetails,
-                        completedAt = now,
-                        updatedAt = now,
-                    )
+                    val errorDetails =
+                        objectMapper.writeValueAsString(
+                            mapOf(
+                                "message" to (e.message ?: "Import processing failed"),
+                                "stackSummary" to stackSummary(e),
+                            ),
+                        )
+                    val updated =
+                        failedJob.copy(
+                            status = ImportJobStatus.FAILED,
+                            errorCount = (failedJob.errorCount ?: 0) + 1,
+                            errorDetails = errorDetails,
+                            completedAt = now,
+                            updatedAt = now,
+                        )
                     importJobRepository.update(updated)
                     emitStatus(
                         ImportJobStatusPayload(
@@ -295,7 +313,11 @@ class ImportFileConsumer(
         return e.stackTraceToString().lines().take(15).joinToString("\n")
     }
 
-    private fun commitOffset(consumer: Consumer<*, *>, partition: Int, offset: Long) {
+    private fun commitOffset(
+        consumer: Consumer<*, *>,
+        partition: Int,
+        offset: Long,
+    ) {
         val tp = TopicPartition(topicName, partition)
         consumer.commitSync(mapOf(tp to OffsetAndMetadata(offset + 1)))
     }

@@ -12,11 +12,9 @@ import java.time.LocalDate
 
 @DisplayName("CsvBancoDoBrasilParser")
 class CsvBancoDoBrasilParserTest {
-
     @Nested
     @DisplayName("reader contract")
     inner class ReaderContractTests {
-
         @Test
         fun `returns stable reader id`() {
             assertThat(CsvBancoDoBrasilParser.id()).isEqualTo("csv-banco-do-brasil")
@@ -24,10 +22,11 @@ class CsvBancoDoBrasilParserTest {
 
         @Test
         fun `supports banco do brasil fingerprint with high score`() {
-            val csv = """
+            val csv =
+                """
                 "Data","Lançamento","Detalhes","Nº documento","Valor","Tipo Lançamento"
                 "03/02/2026","Pix - Enviado","03/02 17:39 ROBERTA","20301","-50,00","Saída"
-            """.trimIndent()
+                """.trimIndent()
             val bytes = csv.toByteArray(Charset.forName("ISO-8859-1"))
             val fingerprint = CsvFingerprintBuilder.build(bytes)
 
@@ -42,16 +41,16 @@ class CsvBancoDoBrasilParserTest {
     @Nested
     @DisplayName("parse")
     inner class ParseTests {
-
         @Test
         fun `parses banco do brasil csv with latin encoding and fallback description`() {
-            val csv = """
+            val csv =
+                """
                 "Data","Lançamento","Detalhes","Nº documento","Valor","Tipo Lançamento"
                 "03/02/2026","Pix - Enviado","03/02 17:39 ROBERTA LOPES ADURENS","20301","-50,00","Saída"
                 "03/02/2026","BB Rende Fácil","Rende Facil","9903","50,00","Entrada"
                 "06/02/2026","Crédito Sistema CDA","","94532586","606,00","Entrada"
                 "00/00/0000","Saldo do dia","","","0,00",""
-            """.trimIndent()
+                """.trimIndent()
             val bytes = csv.toByteArray(Charset.forName("ISO-8859-1"))
 
             val result = CsvBancoDoBrasilParser.parse(bytes)

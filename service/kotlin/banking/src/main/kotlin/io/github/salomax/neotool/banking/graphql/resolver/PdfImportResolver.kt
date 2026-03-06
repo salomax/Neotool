@@ -35,115 +35,144 @@ class PdfImportResolver(
     private val pdfImportService: PdfImportService,
     private val objectMapper: ObjectMapper,
 ) {
-
-    fun submitPdfBillImport(input: Map<String, Any?>, principal: RequestPrincipal): PdfImportJobDTO {
+    fun submitPdfBillImport(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): PdfImportJobDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
-        val fileName = input["fileName"] as? String ?: throw ValidationException(
-            CommonErrorCode.INVALID_INPUT,
-            field = "fileName",
-            parameters = mapOf("reason" to "fileName is required"),
-        )
-        val fileBase64 = input["fileBase64"] as? String ?: throw ValidationException(
-            CommonErrorCode.INVALID_INPUT,
-            field = "fileBase64",
-            parameters = mapOf("reason" to "fileBase64 is required"),
-        )
-        val financialAccountId = (input["financialAccountId"] as? String)?.let { UUID.fromString(it) }
-        val fileBytes = try {
-            Base64.getDecoder().decode(fileBase64)
-        } catch (e: IllegalArgumentException) {
-            throw ValidationException(
+        val fileName =
+            input["fileName"] as? String ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = "fileName",
+                parameters = mapOf("reason" to "fileName is required"),
+            )
+        val fileBase64 =
+            input["fileBase64"] as? String ?: throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
                 field = "fileBase64",
-                parameters = mapOf("reason" to "Invalid base64"),
-                cause = e,
+                parameters = mapOf("reason" to "fileBase64 is required"),
             )
-        }
+        val financialAccountId = (input["financialAccountId"] as? String)?.let { UUID.fromString(it) }
+        val fileBytes =
+            try {
+                Base64.getDecoder().decode(fileBase64)
+            } catch (e: IllegalArgumentException) {
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = "fileBase64",
+                    parameters = mapOf("reason" to "Invalid base64"),
+                    cause = e,
+                )
+            }
 
-        val job = pdfImportService.submitPdfBillImport(
-            accountId = accountId,
-            userId = userId,
-            financialAccountId = financialAccountId,
-            fileName = fileName,
-            fileBytes = fileBytes,
-        )
+        val job =
+            pdfImportService.submitPdfBillImport(
+                accountId = accountId,
+                userId = userId,
+                financialAccountId = financialAccountId,
+                fileName = fileName,
+                fileBytes = fileBytes,
+            )
         return job.toDTO()
     }
 
-    fun confirmPdfBillImport(input: Map<String, Any?>, principal: RequestPrincipal): PdfImportJobDTO {
+    fun confirmPdfBillImport(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): PdfImportJobDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
         val jobId = parseUuid(input["jobId"] as? String, "jobId")
         val cardsInput = asMapList(input["cards"], "cards")
 
-        val command = ConfirmPdfBillImportCommand(
-            jobId = jobId,
-            cards = cardsInput.mapIndexed { cardIndex, cardInput ->
-                val cardLastFourDigits = cardInput["lastFourDigits"] as? String ?: throw ValidationException(
-                    CommonErrorCode.INVALID_INPUT,
-                    field = "cards[$cardIndex].lastFourDigits",
-                    parameters = mapOf("reason" to "lastFourDigits is required"),
-                )
-                val financialAccountId = parseUuid(
-                    cardInput["financialAccountId"] as? String,
-                    "cards[$cardIndex].financialAccountId",
-                )
-                val transactionsInput = asMapList(cardInput["transactions"], "cards[$cardIndex].transactions")
-                ConfirmPdfCardCommand(
-                    lastFourDigits = cardLastFourDigits,
-                    financialAccountId = financialAccountId,
-                    transactions = transactionsInput.mapIndexed { txIndex, txInput ->
-                        val date = parseDate(txInput["date"] as? String, "cards[$cardIndex].transactions[$txIndex].date")
-                        val description = txInput["description"] as? String ?: throw ValidationException(
-                            CommonErrorCode.INVALID_INPUT,
-                            field = "cards[$cardIndex].transactions[$txIndex].description",
-                            parameters = mapOf("reason" to "description is required"),
-                        )
-                        val amount = (txInput["amount"] as? Number)?.let { BigDecimal(it.toString()) }
-                            ?: throw ValidationException(
+        val command =
+            ConfirmPdfBillImportCommand(
+                jobId = jobId,
+                cards =
+                    cardsInput.mapIndexed { cardIndex, cardInput ->
+                        val cardLastFourDigits =
+                            cardInput["lastFourDigits"] as? String ?: throw ValidationException(
                                 CommonErrorCode.INVALID_INPUT,
-                                field = "cards[$cardIndex].transactions[$txIndex].amount",
-                                parameters = mapOf("reason" to "amount is required"),
+                                field = "cards[$cardIndex].lastFourDigits",
+                                parameters = mapOf("reason" to "lastFourDigits is required"),
                             )
-                        val creditDebitType = parseCreditDebitType(
-                            txInput["creditDebitType"] as? String,
-                            "cards[$cardIndex].transactions[$txIndex].creditDebitType",
-                        )
-                        val include = txInput["include"] as? Boolean ?: throw ValidationException(
-                            CommonErrorCode.INVALID_INPUT,
-                            field = "cards[$cardIndex].transactions[$txIndex].include",
-                            parameters = mapOf("reason" to "include is required"),
-                        )
-                        ConfirmPdfTransactionCommand(
-                            date = date,
-                            description = description,
-                            amount = amount,
-                            creditDebitType = creditDebitType,
-                            include = include,
+                        val financialAccountId =
+                            parseUuid(
+                                cardInput["financialAccountId"] as? String,
+                                "cards[$cardIndex].financialAccountId",
+                            )
+                        val transactionsInput = asMapList(cardInput["transactions"], "cards[$cardIndex].transactions")
+                        ConfirmPdfCardCommand(
+                            lastFourDigits = cardLastFourDigits,
+                            financialAccountId = financialAccountId,
+                            transactions =
+                                transactionsInput.mapIndexed { txIndex, txInput ->
+                                    val date =
+                                        parseDate(
+                                            txInput["date"] as? String,
+                                            "cards[$cardIndex].transactions[$txIndex].date",
+                                        )
+                                    val description =
+                                        txInput["description"] as? String ?: throw ValidationException(
+                                            CommonErrorCode.INVALID_INPUT,
+                                            field = "cards[$cardIndex].transactions[$txIndex].description",
+                                            parameters = mapOf("reason" to "description is required"),
+                                        )
+                                    val amount =
+                                        (txInput["amount"] as? Number)?.let { BigDecimal(it.toString()) }
+                                            ?: throw ValidationException(
+                                                CommonErrorCode.INVALID_INPUT,
+                                                field = "cards[$cardIndex].transactions[$txIndex].amount",
+                                                parameters = mapOf("reason" to "amount is required"),
+                                            )
+                                    val creditDebitType =
+                                        parseCreditDebitType(
+                                            txInput["creditDebitType"] as? String,
+                                            "cards[$cardIndex].transactions[$txIndex].creditDebitType",
+                                        )
+                                    val include =
+                                        txInput["include"] as? Boolean ?: throw ValidationException(
+                                            CommonErrorCode.INVALID_INPUT,
+                                            field = "cards[$cardIndex].transactions[$txIndex].include",
+                                            parameters = mapOf("reason" to "include is required"),
+                                        )
+                                    ConfirmPdfTransactionCommand(
+                                        date = date,
+                                        description = description,
+                                        amount = amount,
+                                        creditDebitType = creditDebitType,
+                                        include = include,
+                                    )
+                                },
                         )
                     },
-                )
-            },
-        )
+            )
 
-        val job = pdfImportService.confirmPdfBillImport(
-            accountId = accountId,
-            userId = userId,
-            command = command,
-        )
+        val job =
+            pdfImportService.confirmPdfBillImport(
+                accountId = accountId,
+                userId = userId,
+                command = command,
+            )
         return job.toDTO()
     }
 
-    fun pdfImportJob(jobId: String, principal: RequestPrincipal): PdfImportJobDTO? {
+    fun pdfImportJob(
+        jobId: String,
+        principal: RequestPrincipal,
+    ): PdfImportJobDTO? {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val job = pdfImportService.getJob(UUID.fromString(jobId), accountId) ?: return null
         return job.toDTO()
     }
 
-    fun pdfImportJobs(financialAccountId: String?, principal: RequestPrincipal): List<PdfImportJobDTO> {
+    fun pdfImportJobs(
+        financialAccountId: String?,
+        principal: RequestPrincipal,
+    ): List<PdfImportJobDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val faId = financialAccountId?.let { UUID.fromString(it) }
         return pdfImportService.listJobs(faId, accountId).map { it.toDTO() }
@@ -223,7 +252,10 @@ class PdfImportResolver(
             total = total,
         )
 
-    private fun parseUuid(value: String?, field: String): UUID {
+    private fun parseUuid(
+        value: String?,
+        field: String,
+    ): UUID {
         if (value.isNullOrBlank()) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
@@ -243,7 +275,10 @@ class PdfImportResolver(
         }
     }
 
-    private fun parseDate(value: String?, field: String): LocalDate {
+    private fun parseDate(
+        value: String?,
+        field: String,
+    ): LocalDate {
         if (value.isNullOrBlank()) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
@@ -263,7 +298,10 @@ class PdfImportResolver(
         }
     }
 
-    private fun parseCreditDebitType(value: String?, field: String): CreditDebitType {
+    private fun parseCreditDebitType(
+        value: String?,
+        field: String,
+    ): CreditDebitType {
         if (value.isNullOrBlank()) {
             throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,
@@ -284,12 +322,16 @@ class PdfImportResolver(
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun asMapList(value: Any?, field: String): List<Map<String, Any?>> {
-        val list = value as? List<*> ?: throw ValidationException(
-            CommonErrorCode.INVALID_INPUT,
-            field = field,
-            parameters = mapOf("reason" to "$field must be a list"),
-        )
+    private fun asMapList(
+        value: Any?,
+        field: String,
+    ): List<Map<String, Any?>> {
+        val list =
+            value as? List<*> ?: throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = field,
+                parameters = mapOf("reason" to "$field must be a list"),
+            )
         return list.mapIndexed { index, entry ->
             entry as? Map<String, Any?> ?: throw ValidationException(
                 CommonErrorCode.INVALID_INPUT,

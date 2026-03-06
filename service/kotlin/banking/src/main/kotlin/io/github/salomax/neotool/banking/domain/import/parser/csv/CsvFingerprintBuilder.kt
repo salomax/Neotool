@@ -10,58 +10,65 @@ import kotlin.math.max
 object CsvFingerprintBuilder {
     private const val DEFAULT_ENCODING = "UTF-8"
     private val DELIMITER_CANDIDATES = charArrayOf(',', ';', '\t', '|')
-    private val HEADER_HINTS = setOf(
-        "data",
-        "date",
-        "valor",
-        "amount",
-        "descricao",
-        "description",
-        "historico",
-        "title",
-        "identificador",
-        "id",
-        "transaction_type",
-        "category",
-        "charges",
-    )
-    private val DESCRIPTION_HEADER_HINTS = setOf(
-        "descricao",
-        "description",
-        "historico",
-        "memo",
-        "details",
-        "title",
-        "narrative",
-        "desc",
-    )
-    private val DESCRIPTION_KEYWORDS = setOf(
-        "pix",
-        "transferencia",
-        "pagamento",
-        "boleto",
-        "compra",
-        "debito",
-        "credito",
-        "ted",
-        "doc",
-        "saque",
-        "deposito",
-        "estorno",
-        "tarifa",
-        "rendimento",
-        "juros",
-    )
+    private val HEADER_HINTS =
+        setOf(
+            "data",
+            "date",
+            "valor",
+            "amount",
+            "descricao",
+            "description",
+            "historico",
+            "title",
+            "identificador",
+            "id",
+            "transaction_type",
+            "category",
+            "charges",
+        )
+    private val DESCRIPTION_HEADER_HINTS =
+        setOf(
+            "descricao",
+            "description",
+            "historico",
+            "memo",
+            "details",
+            "title",
+            "narrative",
+            "desc",
+        )
+    private val DESCRIPTION_KEYWORDS =
+        setOf(
+            "pix",
+            "transferencia",
+            "pagamento",
+            "boleto",
+            "compra",
+            "debito",
+            "credito",
+            "ted",
+            "doc",
+            "saque",
+            "deposito",
+            "estorno",
+            "tarifa",
+            "rendimento",
+            "juros",
+        )
 
-    fun build(bytes: ByteArray, maxLines: Int = 60): CsvFingerprint {
+    fun build(
+        bytes: ByteArray,
+        maxLines: Int = 60,
+    ): CsvFingerprint {
         val decoded = ImportTextDecoder.decode(bytes)
         val text = decoded.text
-        val lines = text
-            .lineSequence()
-            .map { it.trimEnd('\r') }
-            .filter { it.isNotBlank() }
-            .take(max(maxLines, 1))
-            .toList()
+        val lines =
+            text
+                .lineSequence()
+                .map { it.trimEnd('\r') }
+                .filter { it.isNotBlank() }
+                .take(max(maxLines, 1))
+                .toList()
 
         if (lines.isEmpty()) {
             return CsvFingerprint(
@@ -98,12 +105,13 @@ object CsvFingerprintBuilder {
             val parsed = sample.map { parseCsvLine(it, candidate) }
             val columnCounts = parsed.map { it.size }
             val multiColumnRows = columnCounts.count { it > 1 }
-            val modeCount = columnCounts
-                .groupingBy { it }
-                .eachCount()
-                .maxByOrNull { it.value }
-                ?.value
-                ?: 0
+            val modeCount =
+                columnCounts
+                    .groupingBy { it }
+                    .eachCount()
+                    .maxByOrNull { it.value }
+                    ?.value
+                    ?: 0
             val rawHits = sample.sumOf { line -> line.count { it == candidate } }
             (multiColumnRows * 100) + (modeCount * 10) + rawHits
         } ?: ','
@@ -195,18 +203,20 @@ object CsvFingerprintBuilder {
     ): Set<String> {
         if (rows.isEmpty()) return emptySet()
 
-        val descriptionIndexes = if (hasHeader) {
-            normalizedColumns.mapIndexedNotNull { idx, name ->
-                if (DESCRIPTION_HEADER_HINTS.any { hint -> name.contains(hint) }) idx else null
+        val descriptionIndexes =
+            if (hasHeader) {
+                normalizedColumns.mapIndexedNotNull { idx, name ->
+                    if (DESCRIPTION_HEADER_HINTS.any { hint -> name.contains(hint) }) idx else null
+                }
+            } else {
+                emptyList()
             }
-        } else {
-            emptyList()
-        }
 
-        val effectiveIndexes = when {
-            descriptionIndexes.isNotEmpty() -> descriptionIndexes
-            else -> listOf(inferDescriptionColumnIndex(rows))
-        }
+        val effectiveIndexes =
+            when {
+                descriptionIndexes.isNotEmpty() -> descriptionIndexes
+                else -> listOf(inferDescriptionColumnIndex(rows))
+            }
 
         val tokens = linkedSetOf<String>()
         rows.forEach { row ->
@@ -251,9 +261,10 @@ object CsvFingerprintBuilder {
 
     private fun normalizeCell(value: String): String {
         val noBom = value.removePrefix("\uFEFF").trim()
-        val normalized = Normalizer.normalize(noBom, Normalizer.Form.NFD)
-            .replace("\\p{Mn}+".toRegex(), "")
-            .lowercase()
+        val normalized =
+            Normalizer.normalize(noBom, Normalizer.Form.NFD)
+                .replace("\\p{Mn}+".toRegex(), "")
+                .lowercase()
         return normalized
             .replace("[^a-z0-9]+".toRegex(), "_")
             .replace("_+".toRegex(), "_")
@@ -266,9 +277,10 @@ object CsvFingerprintBuilder {
             .replace(" ", "")
 
     private fun normalizeTextForTokenScan(value: String): String {
-        val normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-            .replace("\\p{Mn}+".toRegex(), "")
-            .lowercase()
+        val normalized =
+            Normalizer.normalize(value, Normalizer.Form.NFD)
+                .replace("\\p{Mn}+".toRegex(), "")
+                .lowercase()
         return normalized.replace("[^a-z0-9 ]+".toRegex(), " ")
     }
 
@@ -292,7 +304,10 @@ object CsvFingerprintBuilder {
     /**
      * Splits a CSV line by delimiter, respecting quoted fields and escaped quotes.
      */
-    private fun parseCsvLine(line: String, delimiter: Char): List<String> {
+    private fun parseCsvLine(
+        line: String,
+        delimiter: Char,
+    ): List<String> {
         val result = mutableListOf<String>()
         val current = StringBuilder()
         var inQuotes = false

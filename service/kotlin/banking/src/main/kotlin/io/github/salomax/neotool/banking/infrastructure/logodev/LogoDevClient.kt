@@ -24,19 +24,21 @@ open class LogoDevClient(
     @Property(name = "banking.logodev.token") private val token: String,
 ) {
     private val logger = KotlinLogging.logger {}
-    private val httpClient: HttpClient = HttpClient.newBuilder()
-        .connectTimeout(Duration.ofSeconds(10))
-        .build()
+    private val httpClient: HttpClient =
+        HttpClient.newBuilder()
+            .connectTimeout(Duration.ofSeconds(10))
+            .build()
 
     fun fetch(domain: String): ByteArray {
         val url = "https://img.logo.dev/$domain?token=$token&size=128&format=png"
         logger.debug { "LogoDev: fetching $url" }
 
-        val request = HttpRequest.newBuilder()
-            .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(15))
-            .GET()
-            .build()
+        val request =
+            HttpRequest.newBuilder()
+                .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(15))
+                .GET()
+                .build()
 
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
 
