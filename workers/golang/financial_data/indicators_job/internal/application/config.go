@@ -68,6 +68,7 @@ type SourceConfig struct {
 	COMEXSTATMaxRetries       int           `env:"COMEXSTAT_MAX_RETRIES" envDefault:"2"`
 	COMEXSTATRetryWaitSeconds int           `env:"COMEXSTAT_RETRY_WAIT_SECONDS" envDefault:"10"`
 	COMEXSTATRetryWait        time.Duration `envDefault:"10s"`
+	COMEXSTATCACertB64        string        `env:"COMEXSTAT_CA_CERT_B64"`
 	IPEADATATimeoutSeconds    int           `env:"IPEADATA_TIMEOUT_SECONDS" envDefault:"60"`
 	IPEADATATimeout           time.Duration `envDefault:"60s"`
 	IPEADATABaseURL           string        `env:"IPEADATA_BASE_URL" envDefault:"http://www.ipeadata.gov.br/api/odata4"`
