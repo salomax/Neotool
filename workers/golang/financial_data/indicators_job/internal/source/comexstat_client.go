@@ -3,6 +3,8 @@ package source
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -43,7 +45,7 @@ type ComexStatClient struct {
 	retryWait   time.Duration
 }
 
-func NewComexStatClient(timeout time.Duration, minInterval time.Duration, maxRetries int, retryWait time.Duration, headers map[string]string) *ComexStatClient {
+func NewComexStatClient(timeout time.Duration, minInterval time.Duration, maxRetries int, retryWait time.Duration, headers map[string]string, caCertPEM []byte) *ComexStatClient {
 	copyHeaders := make(map[string]string, len(headers))
 	for k, v := range headers {
 		if v == "" {
@@ -51,8 +53,19 @@ func NewComexStatClient(timeout time.Duration, minInterval time.Duration, maxRet
 		}
 		copyHeaders[k] = v
 	}
+
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	if len(caCertPEM) > 0 {
+		certPool, err := x509.SystemCertPool()
+		if err != nil {
+			certPool = x509.NewCertPool()
+		}
+		certPool.AppendCertsFromPEM(caCertPEM)
+		transport.TLSClientConfig = &tls.Config{RootCAs: certPool}
+	}
+
 	return &ComexStatClient{
-		httpClient:  &http.Client{Timeout: timeout},
+		httpClient:  &http.Client{Timeout: timeout, Transport: transport},
 		headers:     copyHeaders,
 		minInterval: minInterval,
 		maxRetries:  maxRetries,
