@@ -61,7 +61,6 @@ export function TagsInput({
       renderTags={(value: readonly string[], getTagProps) =>
         value.map((option: string, index: number) => {
           const color = stringToColor(option);
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { key, ...tagProps } = getTagProps({ index });
           return (
             <Chip
@@ -96,7 +95,6 @@ export function TagsInput({
           InputProps={{
             ...params.InputProps,
             ...InputProps,
-            disableUnderline: InputProps?.disableUnderline,
             sx: {
               ...(variant === 'outlined' ? { borderRadius: '0.3rem' } : {}),
               ...(InputProps?.sx || {})

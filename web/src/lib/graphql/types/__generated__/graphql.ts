@@ -265,6 +265,19 @@ export enum BillStatus {
   Paid = 'PAID'
 }
 
+export enum BudgetPeriod {
+  Daily = 'DAILY',
+  Monthly = 'MONTHLY',
+  Weekly = 'WEEKLY'
+}
+
+export enum BudgetScope {
+  Account = 'ACCOUNT',
+  Feature = 'FEATURE',
+  Provider = 'PROVIDER',
+  Service = 'SERVICE'
+}
+
 /**
  * Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
  * creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
@@ -303,6 +316,54 @@ export enum CategoryApplicableTo {
   Transfer = 'TRANSFER'
 }
 
+export type ChatInput = {
+  message: Scalars['String']['input'];
+  sessionId: Scalars['String']['input'];
+};
+
+export type ChatResponse = {
+  __typename: 'ChatResponse';
+  conversation: Maybe<Conversation>;
+  escalate: Scalars['Boolean']['output'];
+  response: Scalars['String']['output'];
+  sessionId: Scalars['String']['output'];
+};
+
+export type CompletionChunk = {
+  __typename: 'CompletionChunk';
+  delta: Scalars['String']['output'];
+  escalate: Scalars['Boolean']['output'];
+  finishReason: Maybe<Scalars['String']['output']>;
+  usage: Maybe<TokenUsage>;
+};
+
+export type CompletionInput = {
+  maxTokens?: InputMaybe<Scalars['Int']['input']>;
+  messages?: InputMaybe<Array<MessageInput>>;
+  metadata?: InputMaybe<Scalars['JSON']['input']>;
+  modelPreference?: InputMaybe<Scalars['String']['input']>;
+  outputFormat?: InputMaybe<OutputFormat>;
+  promptId?: InputMaybe<Scalars['ID']['input']>;
+  promptVariables?: InputMaybe<Scalars['JSON']['input']>;
+  purpose: Scalars['String']['input'];
+  requiredCapabilities?: InputMaybe<Array<ModelCapability>>;
+  temperature?: InputMaybe<Scalars['Float']['input']>;
+  tools?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+export type CompletionResponse = {
+  __typename: 'CompletionResponse';
+  content: Scalars['String']['output'];
+  cost: Scalars['Float']['output'];
+  escalate: Scalars['Boolean']['output'];
+  finishReason: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  latencyMs: Scalars['Int']['output'];
+  model: Scalars['String']['output'];
+  toolCalls: Array<ToolCall>;
+  usage: TokenUsage;
+};
+
 /** Input for confirming an asset upload. */
 export type ConfirmAssetUploadInput = {
   /** ID of the asset to confirm */
@@ -314,6 +375,25 @@ export type ConfirmAssetUploadInput = {
   checksum?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type ConfirmPdfBillImportInput = {
+  cards: Array<ConfirmPdfCardInput>;
+  jobId: Scalars['ID']['input'];
+};
+
+export type ConfirmPdfCardInput = {
+  financialAccountId: Scalars['ID']['input'];
+  lastFourDigits: Scalars['String']['input'];
+  transactions: Array<ConfirmPdfTransactionInput>;
+};
+
+export type ConfirmPdfTransactionInput = {
+  amount: Scalars['Float']['input'];
+  creditDebitType: CreditDebitType;
+  date: Scalars['Date']['input'];
+  description: Scalars['String']['input'];
+  include: Scalars['Boolean']['input'];
+};
+
 export enum ConnectionStatus {
   Connected = 'CONNECTED',
   ConsentExpired = 'CONSENT_EXPIRED',
@@ -321,6 +401,27 @@ export enum ConnectionStatus {
   Disconnected = 'DISCONNECTED',
   Error = 'ERROR',
   Syncing = 'SYNCING'
+}
+
+export type Conversation = {
+  __typename: 'Conversation';
+  escalationReason: Maybe<Scalars['String']['output']>;
+  lastMessage: Maybe<Scalars['String']['output']>;
+  messageCount: Scalars['Int']['output'];
+  messages: Array<ConversationMessage>;
+  sessionId: Scalars['String']['output'];
+  status: ConversationStatus;
+};
+
+export type ConversationMessage = {
+  __typename: 'ConversationMessage';
+  content: Scalars['String']['output'];
+  role: MessageRole;
+};
+
+export enum ConversationStatus {
+  Active = 'ACTIVE',
+  Escalated = 'ESCALATED'
 }
 
 /** Input for creating a new asset upload. */
@@ -377,6 +478,19 @@ export type CreateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+export type CreatePromptInput = {
+  category: Scalars['String']['input'];
+  createdBy: Scalars['ID']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
+  modelRequirements?: InputMaybe<Scalars['JSON']['input']>;
+  name: Scalars['String']['input'];
+  outputFormat?: InputMaybe<OutputFormat>;
+  performanceMetrics?: InputMaybe<Scalars['JSON']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  template: Scalars['String']['input'];
+  variablesSchema?: InputMaybe<Scalars['JSON']['input']>;
 };
 
 export type CreateRoleInput = {
@@ -470,6 +584,12 @@ export enum DataRestrictionReason {
   InstitutionRequest = 'INSTITUTION_REQUEST'
 }
 
+export type DateRange = {
+  __typename: 'DateRange';
+  from: Maybe<Scalars['Date']['output']>;
+  to: Maybe<Scalars['Date']['output']>;
+};
+
 /** User resolution for a duplicate candidate (incoming row vs existing transaction(s)). */
 export enum DuplicateResolution {
   KeepBoth = 'KEEP_BOTH',
@@ -561,6 +681,16 @@ export type EmailSendResult = {
 export enum EmailSendStatus {
   Queued = 'QUEUED'
 }
+
+export type FeatureUsage = {
+  __typename: 'FeatureUsage';
+  completionTokens: Scalars['Int']['output'];
+  cost: Scalars['Float']['output'];
+  feature: Scalars['String']['output'];
+  promptTokens: Scalars['Int']['output'];
+  requests: Scalars['Int']['output'];
+  totalTokens: Scalars['Int']['output'];
+};
 
 /**
  * A personal finance account or card belonging to the authenticated user's account.
@@ -819,6 +949,12 @@ export type IndicatorRangeInput = {
   to?: InputMaybe<Scalars['Date']['input']>;
 };
 
+export type InstallmentInfo = {
+  __typename: 'InstallmentInfo';
+  current: Scalars['Int']['output'];
+  total: Scalars['Int']['output'];
+};
+
 export type InstitutionRating = {
   __typename: 'InstitutionRating';
   customParams: Maybe<Scalars['JSON']['output']>;
@@ -841,6 +977,37 @@ export type Issuer = {
   logoAsset: Maybe<Asset>;
   logoKey: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
+};
+
+export type MessageInput = {
+  content?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  role: MessageRole;
+  toolCallId?: InputMaybe<Scalars['String']['input']>;
+};
+
+export enum MessageRole {
+  Assistant = 'ASSISTANT',
+  System = 'SYSTEM',
+  Tool = 'TOOL',
+  User = 'USER'
+}
+
+export enum ModelCapability {
+  JsonMode = 'JSON_MODE',
+  Streaming = 'STREAMING',
+  Tools = 'TOOLS',
+  Vision = 'VISION'
+}
+
+export type ModelUsage = {
+  __typename: 'ModelUsage';
+  completionTokens: Scalars['Int']['output'];
+  cost: Scalars['Float']['output'];
+  modelId: Maybe<Scalars['ID']['output']>;
+  promptTokens: Scalars['Int']['output'];
+  requests: Scalars['Int']['output'];
+  totalTokens: Scalars['Int']['output'];
 };
 
 /**
@@ -875,6 +1042,8 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
+  chat: ChatResponse;
+  clearConversation: Scalars['Boolean']['output'];
   /**
    * Step 2: Confirm asset upload after client completes file upload.
    *
@@ -900,6 +1069,7 @@ export type Mutation = {
    * ```
    */
   confirmAssetUpload: Asset;
+  confirmPdfBillImport: PdfImportJob;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
    *
@@ -941,6 +1111,7 @@ export type Mutation = {
    */
   createFinancialAccount: FinancialAccount;
   createGroup: Group;
+  createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
   createTransaction: Transaction;
@@ -960,6 +1131,7 @@ export type Mutation = {
   deleteTransaction: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
+  generateCompletion: CompletionResponse;
   importNfce: ImportResult;
   importTransactionsFile: ImportResult;
   /**
@@ -967,7 +1139,9 @@ export type Mutation = {
    * Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
    */
   payBill: CreditCardBill;
+  publishPromptVersion: PromptVersion;
   refreshAccessToken: SignInPayload;
+  registerTool: Tool;
   removeGroupFromUser: User;
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
@@ -976,9 +1150,11 @@ export type Mutation = {
   resendVerificationEmail: ResendVerificationEmailPayload;
   resetPassword: ResetPasswordPayload;
   resolveImportDuplicate: TransactionImport;
+  setUsageBudget: UsageBudget;
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
+  submitPdfBillImport: PdfImportJob;
   updateGroup: Group;
   updateRole: Role;
   /** Update an existing manual transaction. */
@@ -1006,8 +1182,23 @@ export type MutationAssignRoleToGroupArgs = {
 };
 
 
+export type MutationChatArgs = {
+  input: ChatInput;
+};
+
+
+export type MutationClearConversationArgs = {
+  sessionId: Scalars['String']['input'];
+};
+
+
 export type MutationConfirmAssetUploadArgs = {
   input: ConfirmAssetUploadInput;
+};
+
+
+export type MutationConfirmPdfBillImportArgs = {
+  input: ConfirmPdfBillImportInput;
 };
 
 
@@ -1023,6 +1214,11 @@ export type MutationCreateFinancialAccountArgs = {
 
 export type MutationCreateGroupArgs = {
   input: CreateGroupInput;
+};
+
+
+export type MutationCreatePromptArgs = {
+  input: CreatePromptInput;
 };
 
 
@@ -1066,6 +1262,11 @@ export type MutationEnableUserArgs = {
 };
 
 
+export type MutationGenerateCompletionArgs = {
+  input: CompletionInput;
+};
+
+
 export type MutationImportNfceArgs = {
   financialAccountId: Scalars['ID']['input'];
   qrCodeUrl: Scalars['String']['input'];
@@ -1084,8 +1285,19 @@ export type MutationPayBillArgs = {
 };
 
 
+export type MutationPublishPromptVersionArgs = {
+  promptId: Scalars['ID']['input'];
+  versionId: Scalars['ID']['input'];
+};
+
+
 export type MutationRefreshAccessTokenArgs = {
   input: RefreshAccessTokenInput;
+};
+
+
+export type MutationRegisterToolArgs = {
+  input: RegisterToolInput;
 };
 
 
@@ -1127,6 +1339,11 @@ export type MutationResolveImportDuplicateArgs = {
 };
 
 
+export type MutationSetUsageBudgetArgs = {
+  input: SetBudgetInput;
+};
+
+
 export type MutationSignInArgs = {
   input: SignInInput;
 };
@@ -1139,6 +1356,11 @@ export type MutationSignInWithOAuthArgs = {
 
 export type MutationSignUpArgs = {
   input: SignUpInput;
+};
+
+
+export type MutationSubmitPdfBillImportArgs = {
+  input: SubmitPdfBillImportInput;
 };
 
 
@@ -1175,6 +1397,11 @@ export enum OrderDirection {
   Desc = 'DESC'
 }
 
+export enum OutputFormat {
+  Json = 'JSON',
+  Text = 'TEXT'
+}
+
 /** Relay-style page info for paginated lists. */
 export type PageInfo = {
   __typename: 'PageInfo';
@@ -1193,6 +1420,69 @@ export type ParsedImportRow = {
   currencyCode: Scalars['String']['output'];
   date: Scalars['Date']['output'];
   description: Scalars['String']['output'];
+};
+
+export type PdfBillExtractionResult = {
+  __typename: 'PdfBillExtractionResult';
+  bankName: Maybe<Scalars['String']['output']>;
+  cards: Array<PdfExtractedCard>;
+  extractionConfidence: Scalars['Float']['output'];
+  needsReview: Scalars['Boolean']['output'];
+  statementPeriod: Maybe<DateRange>;
+  warnings: Array<Scalars['String']['output']>;
+};
+
+export type PdfExtractedCard = {
+  __typename: 'PdfExtractedCard';
+  closingDate: Maybe<Scalars['Date']['output']>;
+  computedTotal: Scalars['Float']['output'];
+  confidence: Scalars['Float']['output'];
+  declaredTotal: Scalars['Float']['output'];
+  dueDate: Maybe<Scalars['Date']['output']>;
+  holderName: Maybe<Scalars['String']['output']>;
+  lastFourDigits: Scalars['String']['output'];
+  matchAmbiguous: Scalars['Boolean']['output'];
+  matchCandidates: Array<PdfMatchCandidate>;
+  matchedFinancialAccountId: Maybe<Scalars['ID']['output']>;
+  totalMatchesDeclared: Scalars['Boolean']['output'];
+  transactions: Array<PdfExtractedTransaction>;
+};
+
+export type PdfExtractedTransaction = {
+  __typename: 'PdfExtractedTransaction';
+  amount: Scalars['Float']['output'];
+  confidence: Scalars['Float']['output'];
+  creditDebitType: CreditDebitType;
+  date: Maybe<Scalars['Date']['output']>;
+  description: Scalars['String']['output'];
+  installment: Maybe<InstallmentInfo>;
+};
+
+export type PdfImportJob = {
+  __typename: 'PdfImportJob';
+  createdAt: Scalars['DateTime']['output'];
+  errorMessage: Maybe<Scalars['String']['output']>;
+  fileName: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  reviewPayload: Maybe<PdfBillExtractionResult>;
+  status: PdfImportJobStatus;
+};
+
+export enum PdfImportJobStatus {
+  AwaitingReview = 'AWAITING_REVIEW',
+  Done = 'DONE',
+  Extracted = 'EXTRACTED',
+  Extracting = 'EXTRACTING',
+  Failed = 'FAILED',
+  Importing = 'IMPORTING',
+  LlmProcessing = 'LLM_PROCESSING',
+  Pending = 'PENDING'
+}
+
+export type PdfMatchCandidate = {
+  __typename: 'PdfMatchCandidate';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
 };
 
 export type Permission = {
@@ -1238,6 +1528,50 @@ export type PopularInstitutionTopMetricItem = {
   rank: Scalars['Int']['output'];
 };
 
+export type Prompt = {
+  __typename: 'Prompt';
+  activeVersion: Maybe<PromptVersion>;
+  category: Scalars['String']['output'];
+  createdAt: Scalars['String']['output'];
+  createdBy: Scalars['ID']['output'];
+  description: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  tags: Array<Scalars['String']['output']>;
+  updatedAt: Scalars['String']['output'];
+};
+
+export type PromptVariable = {
+  __typename: 'PromptVariable';
+  defaultValue: Maybe<Scalars['JSON']['output']>;
+  name: Scalars['String']['output'];
+  required: Scalars['Boolean']['output'];
+  type: Maybe<Scalars['String']['output']>;
+  validation: Maybe<Scalars['JSON']['output']>;
+};
+
+export type PromptVersion = {
+  __typename: 'PromptVersion';
+  createdAt: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  modelRequirements: Maybe<Scalars['JSON']['output']>;
+  outputFormat: OutputFormat;
+  performanceMetrics: Maybe<Scalars['JSON']['output']>;
+  promptId: Scalars['ID']['output'];
+  status: PromptVersionStatus;
+  template: Scalars['String']['output'];
+  updatedAt: Scalars['String']['output'];
+  variables: Array<PromptVariable>;
+  variablesSchema: Scalars['JSON']['output'];
+  version: Scalars['Int']['output'];
+};
+
+export enum PromptVersionStatus {
+  Active = 'ACTIVE',
+  Deprecated = 'DEPRECATED',
+  Draft = 'DRAFT'
+}
+
 export type QuarterRangeInput = {
   from?: InputMaybe<Scalars['String']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -1265,10 +1599,12 @@ export type Query = {
    * Returns null if asset not found or user doesn't have access.
    */
   asset: Maybe<Asset>;
+  availableTools: Array<Tool>;
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
   checkPermission: AuthorizationResult;
+  conversation: Maybe<Conversation>;
   /**
    * A specific credit card bill by closing date.
    * When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
@@ -1295,13 +1631,20 @@ export type Query = {
    * When month/year are not provided, the current month/year are used.
    */
   monthSummary: MonthSummary;
+  myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
+  pdfImportJob: Maybe<PdfImportJob>;
+  pdfImportJobs: Array<PdfImportJob>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
+  prompt: Maybe<Prompt>;
+  promptVersions: Array<PromptVersion>;
+  prompts: Array<Prompt>;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
+  serviceUsage: UsageStats;
   /** Single transaction by ID (scoped to the authenticated account). */
   transaction: Maybe<Transaction>;
   /** Distinct values used in transaction attribution ("belongs to"), across all account transactions. */
@@ -1357,6 +1700,11 @@ export type QueryCheckPermissionArgs = {
 };
 
 
+export type QueryConversationArgs = {
+  sessionId: Scalars['String']['input'];
+};
+
+
 export type QueryCreditCardBillArgs = {
   closingDate?: InputMaybe<Scalars['Date']['input']>;
   financialAccountId: Scalars['ID']['input'];
@@ -1404,6 +1752,21 @@ export type QueryMonthSummaryArgs = {
 };
 
 
+export type QueryMyUsageArgs = {
+  period: UsagePeriod;
+};
+
+
+export type QueryPdfImportJobArgs = {
+  jobId: Scalars['ID']['input'];
+};
+
+
+export type QueryPdfImportJobsArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
 export type QueryPermissionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
@@ -1413,6 +1776,22 @@ export type QueryPermissionsArgs = {
 
 export type QueryPopularInstitutionsArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPromptArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryPromptVersionsArgs = {
+  promptId: Scalars['ID']['input'];
+};
+
+
+export type QueryPromptsArgs = {
+  category?: InputMaybe<Scalars['String']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 
@@ -1432,6 +1811,12 @@ export type QueryRolesArgs = {
 export type QuerySearchBacenInstitutionsAutocompleteArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
   query: Scalars['String']['input'];
+};
+
+
+export type QueryServiceUsageArgs = {
+  period: UsagePeriod;
+  serviceId: Scalars['String']['input'];
 };
 
 
@@ -1497,6 +1882,19 @@ export type RatingIssuer = {
 
 export type RefreshAccessTokenInput = {
   refreshToken: Scalars['String']['input'];
+};
+
+export type RegisterToolInput = {
+  category: Scalars['String']['input'];
+  description: Scalars['String']['input'];
+  executorEndpoint: Scalars['String']['input'];
+  executorService: Scalars['String']['input'];
+  inputSchema?: InputMaybe<Scalars['JSON']['input']>;
+  name: Scalars['String']['input'];
+  outputSchema?: InputMaybe<Scalars['JSON']['input']>;
+  retryPolicy?: InputMaybe<Scalars['JSON']['input']>;
+  status?: InputMaybe<ToolStatus>;
+  timeoutMs: Scalars['Int']['input'];
 };
 
 export type ReportAccount = {
@@ -1594,6 +1992,14 @@ export enum RoleOrderField {
   Name = 'NAME'
 }
 
+export type SetBudgetInput = {
+  alertThreshold: Scalars['Float']['input'];
+  limitAmount: Scalars['Float']['input'];
+  period: BudgetPeriod;
+  scope: BudgetScope;
+  scopeId: Scalars['ID']['input'];
+};
+
 export type SignInInput = {
   email: Scalars['String']['input'];
   password: Scalars['String']['input'];
@@ -1628,6 +2034,66 @@ export type SignUpPayload = {
   user: User;
 };
 
+export type SubmitPdfBillImportInput = {
+  fileBase64: Scalars['String']['input'];
+  fileName: Scalars['String']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+export type Subscription = {
+  __typename: 'Subscription';
+  messageStream: CompletionChunk;
+};
+
+
+export type SubscriptionMessageStreamArgs = {
+  conversationId: Scalars['ID']['input'];
+  input: MessageInput;
+};
+
+export type TokenUsage = {
+  __typename: 'TokenUsage';
+  completionTokens: Scalars['Int']['output'];
+  promptTokens: Scalars['Int']['output'];
+  totalTokens: Scalars['Int']['output'];
+};
+
+export type Tool = {
+  __typename: 'Tool';
+  category: Scalars['String']['output'];
+  createdAt: Scalars['String']['output'];
+  description: Scalars['String']['output'];
+  executorEndpoint: Scalars['String']['output'];
+  executorService: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  inputSchema: Scalars['JSON']['output'];
+  name: Scalars['String']['output'];
+  outputSchema: Scalars['JSON']['output'];
+  retryPolicy: Maybe<Scalars['JSON']['output']>;
+  status: ToolStatus;
+  timeoutMs: Scalars['Int']['output'];
+  updatedAt: Scalars['String']['output'];
+};
+
+export type ToolCall = {
+  __typename: 'ToolCall';
+  arguments: Scalars['String']['output'];
+  id: Scalars['String']['output'];
+  name: Scalars['String']['output'];
+  type: Scalars['String']['output'];
+};
+
+export enum ToolStatus {
+  Active = 'ACTIVE',
+  Disabled = 'DISABLED'
+}
+
+export enum TopInstitutionMetric {
+  BasileiaIndex = 'BASILEIA_INDEX',
+  MobilizationIndex = 'MOBILIZATION_INDEX',
+  Profit = 'PROFIT'
+}
+
 /** Core ledger transaction row. */
 export type Transaction = {
   __typename: 'Transaction';
@@ -1636,6 +2102,7 @@ export type Transaction = {
   amountBrl: Maybe<Scalars['Float']['output']>;
   belongsToName: Maybe<Scalars['String']['output']>;
   belongsToUserId: Maybe<Scalars['ID']['output']>;
+  billId: Maybe<Scalars['ID']['output']>;
   billPostDate: Maybe<Scalars['Date']['output']>;
   cardIdentifier: Maybe<Scalars['String']['output']>;
   category: Maybe<TransactionCategory>;
@@ -1728,6 +2195,7 @@ export type TransactionImport = {
 export enum TransactionSource {
   Manual = 'MANUAL',
   OpenFinance = 'OPEN_FINANCE',
+  PdfBill = 'PDF_BILL',
   Pluggy = 'PLUGGY'
 }
 
@@ -1772,12 +2240,6 @@ export enum TransactionType {
   Withdrawal = 'WITHDRAWAL'
 }
 
-export enum TopInstitutionMetric {
-  BasileiaIndex = 'BASILEIA_INDEX',
-  MobilizationIndex = 'MOBILIZATION_INDEX',
-  Profit = 'PROFIT'
-}
-
 export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -1815,6 +2277,39 @@ export type UpdateTransactionInput = {
 
 export type UpdateUserInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UsageBudget = {
+  __typename: 'UsageBudget';
+  alertThreshold: Scalars['Float']['output'];
+  createdAt: Scalars['String']['output'];
+  currentUsage: Scalars['Float']['output'];
+  id: Scalars['ID']['output'];
+  limitAmount: Scalars['Float']['output'];
+  period: BudgetPeriod;
+  scope: BudgetScope;
+  scopeId: Scalars['ID']['output'];
+  updatedAt: Scalars['String']['output'];
+};
+
+export enum UsagePeriod {
+  Daily = 'DAILY',
+  Monthly = 'MONTHLY',
+  Weekly = 'WEEKLY'
+}
+
+export type UsageStats = {
+  __typename: 'UsageStats';
+  completionTokens: Scalars['Int']['output'];
+  cost: Scalars['Float']['output'];
+  endTime: Scalars['String']['output'];
+  featureUsage: Array<FeatureUsage>;
+  modelUsage: Array<ModelUsage>;
+  period: UsagePeriod;
+  promptTokens: Scalars['Int']['output'];
+  requests: Scalars['Int']['output'];
+  startTime: Scalars['String']['output'];
+  totalTokens: Scalars['Int']['output'];
 };
 
 export type User = {
@@ -1876,6 +2371,7 @@ export type VerifyEmailPayload = {
 
 export enum Join__Graph {
   Assets = 'ASSETS',
+  Assistant = 'ASSISTANT',
   Banking = 'BANKING',
   Comms = 'COMMS',
   Financialdata = 'FINANCIALDATA',

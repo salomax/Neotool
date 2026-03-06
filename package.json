@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
+    "typecheck": "nx run web:typecheck",
+    "lint": "nx run web:lint",
     "nx": "nx",
     "check:api": "nx run-many --target=check --projects=security,assets,financialdata,assistant",
     "check:workers": "nx run-many --target=build,test,lint --projects=bacen-ifdata-cronjob,ratings-job,indicators-job,institution-enhancement-consumer,pdf-extractor",

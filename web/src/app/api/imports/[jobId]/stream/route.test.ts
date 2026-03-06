@@ -11,7 +11,7 @@ function createRequest(headers: Record<string, string> = {}): Request {
   });
 }
 
-describe('GET /api/imports/[jobId]/stream', () => {
+describe.sequential('GET /api/imports/[jobId]/stream', () => {
   const originalFetch = globalThis.fetch;
   const originalEnv = process.env.BANKING_SERVICE_INTERNAL_URL;
 

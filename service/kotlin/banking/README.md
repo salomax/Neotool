@@ -41,14 +41,14 @@ flowchart TD
     XLS_FP -->|Known profile| XLS_R[Specific Excel Reader]
     XLS_FP -->|Unknown profile| XLS_LLM[Excel text/structure builder]
     XLS_R --> NORM
-    XLS_LLM --> LLM[LLM Reader Service]
+    XLS_LLM --> |Fallback| LLM[LLM Reader Service]
 
     PDF --> PDF_EXT[PDF Extractor<br/>text + table extraction]
     PDF_EXT --> PDF_FP{Known PDF fingerprint?}
     PDF_FP -->|Yes| PDF_R[Specific PDF Reader<br/>deterministic]
-    PDF_FP -->|No| LLM
-    PDF_R --> NORM
+    PDF_FP -->|Fallback| LLM
     LLM --> NORM
+    PDF_R --> NORM
 
     NORM --> GATE{Confidence + validation gate}
     GATE -->|Pass| COMMIT[Commit import]

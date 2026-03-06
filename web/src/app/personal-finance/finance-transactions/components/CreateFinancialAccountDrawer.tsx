@@ -279,6 +279,7 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
         // If opening with initialType
         handleTypeSelect(initialType);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleTypeSelect is stable, initialType triggers the call
   }, [open, reset, initialType]);
 
   // Handle Issuer Selection

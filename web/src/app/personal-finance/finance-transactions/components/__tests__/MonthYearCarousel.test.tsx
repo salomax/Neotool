@@ -15,23 +15,16 @@ vi.mock('@/shared/i18n', () => ({
   },
 }));
 
-describe('MonthYearCarousel', () => {
+describe.sequential('MonthYearCarousel', () => {
   const theme = createTheme();
-  let container: HTMLElement | null = null;
   const mockOnChange = vi.fn();
 
   beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
     vi.clearAllMocks();
   });
 
   afterEach(() => {
     cleanup();
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null;
   });
 
   const renderWithTheme = (component: React.ReactNode) => {
@@ -39,7 +32,6 @@ describe('MonthYearCarousel', () => {
       <ThemeProvider theme={theme}>
         {component}
       </ThemeProvider>,
-      { container: container! }
     );
   };
 
@@ -71,8 +63,9 @@ describe('MonthYearCarousel', () => {
       />
     );
 
-    const prevButton = screen.getAllByRole('button')[0]; // First button is prev
-    fireEvent.click(prevButton);
+    const prevButton = screen.getAllByRole('button')[0];
+    expect(prevButton).toBeDefined();
+    fireEvent.click(prevButton!);
 
     expect(mockOnChange).toHaveBeenCalledWith(2, 2024);
   });
@@ -87,7 +80,8 @@ describe('MonthYearCarousel', () => {
     );
 
     const prevButton = screen.getAllByRole('button')[0];
-    fireEvent.click(prevButton);
+    expect(prevButton).toBeDefined();
+    fireEvent.click(prevButton!);
 
     expect(mockOnChange).toHaveBeenCalledWith(12, 2023);
   });
@@ -101,12 +95,9 @@ describe('MonthYearCarousel', () => {
       />
     );
 
-    const nextButton = screen.getAllByRole('button')[1]; // Second button is next (assuming order)
-    // Actually, looking at the code:
-    // Prev button -> Text -> Next button
-    // Prev is first button. Next is second button.
-    
-    fireEvent.click(nextButton);
+    const nextButton = screen.getAllByRole('button')[1];
+    expect(nextButton).toBeDefined();
+    fireEvent.click(nextButton!);
 
     expect(mockOnChange).toHaveBeenCalledWith(4, 2024);
   });
@@ -121,7 +112,8 @@ describe('MonthYearCarousel', () => {
     );
 
     const nextButton = screen.getAllByRole('button')[1];
-    fireEvent.click(nextButton);
+    expect(nextButton).toBeDefined();
+    fireEvent.click(nextButton!);
 
     expect(mockOnChange).toHaveBeenCalledWith(1, 2025);
   });

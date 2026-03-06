@@ -249,7 +249,7 @@ export function TransactionTable({
           )}
           {groupedTransactions.map((group) => (
             <>
-              <TableRow key={`header-${group.date}`} sx={{ bgcolor: alpha(theme.palette.primary.main, 0.03), borderBottom: 'none', bgcolor: 'transparent' }}>
+              <TableRow key={`header-${group.date}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
                 <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
                   <Label>
                     {formatDateHeader(group.date)}

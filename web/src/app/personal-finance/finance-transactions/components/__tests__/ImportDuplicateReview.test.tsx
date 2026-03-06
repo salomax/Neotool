@@ -71,7 +71,7 @@ vi.mock('@apollo/client/react', () => ({
   useMutation: vi.fn(),
 }));
 
-describe('ImportDuplicateReview', () => {
+describe.sequential('ImportDuplicateReview', () => {
   const onComplete = vi.fn();
   const onClose = vi.fn();
 
@@ -79,15 +79,13 @@ describe('ImportDuplicateReview', () => {
     mockResolve.mockClear();
     onComplete.mockClear();
     onClose.mockClear();
-    vi.mocked(useMutation).mockReturnValue([mockResolve, { loading: false, error: null }]);
-    vi.mocked(useQuery).mockImplementation(
-      (_doc: unknown, options?: { variables?: { id?: string }; skip?: boolean }) => {
-        const id = options?.variables?.id;
-        const skip = options?.skip ?? true;
-        if (skip || !id) return { data: null, loading: false, error: null };
-        return { data: { transactionImport: jobWithCandidates }, loading: false, error: null };
-      },
-    );
+    vi.mocked(useMutation).mockReturnValue([mockResolve, { loading: false, error: undefined }] as unknown as ReturnType<typeof useMutation>);
+    vi.mocked(useQuery).mockImplementation(((doc: unknown, opts?: { variables?: { id?: string }; skip?: boolean }) => {
+        const id = opts?.variables?.id;
+        const skip = opts?.skip ?? true;
+        if (skip || !id) return { data: null, loading: false, error: undefined };
+        return { data: { transactionImport: jobWithCandidates }, loading: false, error: undefined };
+      }) as typeof useQuery);
   });
 
   it('givenCandidates_whenRendered_thenAllShown', async () => {
@@ -170,4 +168,3 @@ describe('ImportDuplicateReview', () => {
     });
   });
 });
-

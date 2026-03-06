@@ -38,6 +38,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
   onCurrencyChange,
   fractionDigits,
   InputProps,
+  size: _size, // Omit size - NumericFormat expects number, TextField uses "small"|"medium"
   ...otherProps
 }) => {
   const { control } = useFormContext();
@@ -81,7 +82,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
               customInput={(props) => {
                 const { 
                   name, min, max, step, disabled, color, width, height, 
-                  size, style, className, id, tabIndex, autoFocus, 
+                  size: inputSize, style, className, id, tabIndex, autoFocus, 
                   autoComplete, autoCorrect, autoCapitalize, spellCheck,
                   placeholder, required, readOnly, form,
                   ...restProps 
@@ -89,6 +90,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
                 return (
                   <TextField
                     {...restProps}
+                    {...(typeof inputSize === 'string' && { size: inputSize })}
                     {...(label && { label })}
                     fullWidth={fullWidth}
                     error={!!fieldState.error}

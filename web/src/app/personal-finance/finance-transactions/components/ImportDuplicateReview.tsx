@@ -76,7 +76,7 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
   const [resolveDuplicate] = useMutation<unknown>(RESOLVE_IMPORT_DUPLICATE);
 
   const job = data?.transactionImport;
-  const candidates = job?.duplicateCandidates ?? [];
+  const candidates = React.useMemo(() => job?.duplicateCandidates ?? [], [job?.duplicateCandidates]);
   const count = candidates.length;
   const allResolved = count > 0 && candidates.every((c) => resolutions[c.rowIndex] != null);
   const canFinish = allResolved && !submitting;

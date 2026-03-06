@@ -19,7 +19,7 @@ vi.mock('@/shared/providers', () => ({
   useToast: () => mockToast,
 }));
 
-describe('ScanNfceButton', () => {
+describe.sequential('ScanNfceButton', () => {
   const onImportCompleted = vi.fn();
 
   beforeEach(() => {
@@ -35,7 +35,8 @@ describe('ScanNfceButton', () => {
   it('givenAccount_whenClick_thenPopoverWithUrlInputShown', async () => {
     render(<ScanNfceButton selectedAccountId="acc-1" />);
     const [scanBtn] = screen.getAllByRole('button', { name: /Scan NFC-e|Escanear NFC-e/ });
-    fireEvent.click(scanBtn);
+    expect(scanBtn).toBeDefined();
+    fireEvent.click(scanBtn!);
     await waitFor(() => {
       expect(
         screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ }),
@@ -58,7 +59,8 @@ describe('ScanNfceButton', () => {
       <ScanNfceButton selectedAccountId="acc-1" onImportCompleted={onImportCompleted} />,
     );
     const [scanBtn] = screen.getAllByRole('button', { name: /Scan NFC-e|Escanear NFC-e/ });
-    await user.click(scanBtn);
+    expect(scanBtn).toBeDefined();
+    await user.click(scanBtn!);
     await waitFor(() => {
       expect(
         screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ }),
@@ -66,10 +68,11 @@ describe('ScanNfceButton', () => {
     });
     const input = screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ });
     await user.type(input, 'https://sefaz.example/nfce?p=123');
-    let submitBtn: HTMLElement;
+    let submitBtn: HTMLElement | undefined;
     await waitFor(() => {
       const submitButtons = screen.getAllByRole('button', { name: /Import|Importar/ });
-      submitBtn = submitButtons[submitButtons.length - 1]!;
+      submitBtn = submitButtons[submitButtons.length - 1];
+      expect(submitBtn).toBeDefined();
       expect(submitBtn).not.toBeDisabled();
     });
     fireEvent.click(submitBtn!);
@@ -101,7 +104,8 @@ describe('ScanNfceButton', () => {
       <ScanNfceButton selectedAccountId="acc-1" onImportCompleted={onImportCompleted} />,
     );
     const [scanBtn] = screen.getAllByRole('button', { name: /Scan NFC-e|Escanear NFC-e/ });
-    await user.click(scanBtn);
+    expect(scanBtn).toBeDefined();
+    await user.click(scanBtn!);
     await waitFor(() => {
       expect(
         screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ }),
@@ -109,10 +113,11 @@ describe('ScanNfceButton', () => {
     });
     const input = screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ });
     await user.type(input, 'https://example.com/nfce');
-    let submitBtn: HTMLElement;
+    let submitBtn: HTMLElement | undefined;
     await waitFor(() => {
       const submitButtons = screen.getAllByRole('button', { name: /Import|Importar/ });
-      submitBtn = submitButtons[submitButtons.length - 1]!;
+      submitBtn = submitButtons[submitButtons.length - 1];
+      expect(submitBtn).toBeDefined();
       expect(submitBtn).not.toBeDisabled();
     });
     fireEvent.click(submitBtn!);
@@ -132,7 +137,8 @@ describe('ScanNfceButton', () => {
     mockMutate.mockRejectedValueOnce(new Error('SEFAZ timeout'));
     render(<ScanNfceButton selectedAccountId="acc-1" />);
     const [scanBtn] = screen.getAllByRole('button', { name: /Scan NFC-e|Escanear NFC-e/ });
-    await user.click(scanBtn);
+    expect(scanBtn).toBeDefined();
+    await user.click(scanBtn!);
     await waitFor(() => {
       expect(
         screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ }),
@@ -140,10 +146,11 @@ describe('ScanNfceButton', () => {
     });
     const input = screen.getByRole('textbox', { name: /Paste NFC-e URL|Cole a URL/ });
     await user.type(input, 'https://example.com/nfce');
-    let submitBtn: HTMLElement;
+    let submitBtn: HTMLElement | undefined;
     await waitFor(() => {
       const submitButtons = screen.getAllByRole('button', { name: /Import|Importar/ });
-      submitBtn = submitButtons[submitButtons.length - 1]!;
+      submitBtn = submitButtons[submitButtons.length - 1];
+      expect(submitBtn).toBeDefined();
       expect(submitBtn).not.toBeDisabled();
     });
     fireEvent.click(submitBtn!);
@@ -158,4 +165,3 @@ describe('ScanNfceButton', () => {
     });
   });
 });
-

@@ -6,11 +6,11 @@ import { useImportJobStatus } from '@/lib/hooks/useImportJobStatus';
 const mockMutate = vi.fn(() =>
   Promise.resolve({ data: { importTransactionsFile: { import: { id: 'job-123' } } } }),
 );
-const mockUseQuery = vi.fn(() => ({ data: { financialAccounts: [] }, loading: false }));
+const mockUseQuery = vi.fn((_query?: unknown, _options?: unknown) => ({ data: { financialAccounts: [] }, loading: false }));
 
 vi.mock('@apollo/client/react', () => ({
   useMutation: vi.fn(() => [mockMutate, { loading: false, error: null }]),
-  useQuery: (...args: unknown[]) => mockUseQuery(...args),
+  useQuery: (query: unknown, options?: unknown) => mockUseQuery(query, options),
 }));
 
 vi.mock('@/lib/hooks/useImportJobStatus', () => ({
@@ -23,7 +23,8 @@ class MockFileReader {
   onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => unknown) | null = null;
 
   readAsDataURL(_blob: Blob): void {
-    this.onload?.call(this as unknown as FileReader, new ProgressEvent('load'));
+    const ev = new ProgressEvent('load') as ProgressEvent<FileReader>;
+    this.onload?.call(this as unknown as FileReader, ev);
   }
 }
 
@@ -64,7 +65,7 @@ describe('ImportTransactionsDrawer', () => {
         ],
       },
       loading: false,
-    });
+    } as unknown as ReturnType<typeof mockUseQuery>);
     render(
       <ImportTransactionsDrawer open onClose={onClose} selectedAccountId={null} />,
     );

@@ -70,13 +70,10 @@ vi.mock('@apollo/client/react', () => ({
   useQuery: vi.fn(),
 }));
 
-describe('FinanceTransactionsPage', () => {
+describe.sequential('FinanceTransactionsPage', () => {
   const theme = createTheme();
-  let container: HTMLElement | null = null;
 
   beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
     vi.clearAllMocks();
 
     // Default useQuery mock implementation
@@ -100,10 +97,6 @@ describe('FinanceTransactionsPage', () => {
 
   afterEach(() => {
     cleanup();
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null;
   });
 
   const renderPage = () => {
@@ -111,7 +104,6 @@ describe('FinanceTransactionsPage', () => {
       <ThemeProvider theme={theme}>
         <FinanceTransactionsPage />
       </ThemeProvider>,
-      { container: container! }
     );
   };
 

@@ -88,11 +88,13 @@ export function BaseMoneyInput({
 
   // Sync with external value changes (e.g. form reset)
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- Controlled input sync with form value */
     if (value === undefined || value === null || value === "") {
       setLocalValue("");
     } else {
       setLocalValue(String(value));
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [value]);
 
   return (

@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { BillCarousel, CreditCardBillItem } from '../BillCarousel';
@@ -10,22 +11,17 @@ vi.mock('@/shared/i18n', () => ({
   i18n: {
     language: 'pt-BR',
   },
+  useTranslation: () => ({
+    t: (key: string, options?: { month?: string }) =>
+      key === 'financeTransactions.billCarousel.title' && options?.month
+        ? `${options.month}`
+        : key,
+  }),
 }));
 
-describe('BillCarousel', () => {
-  let container: HTMLElement;
-
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-  });
-
+describe.sequential('BillCarousel', () => {
   afterEach(() => {
     cleanup();
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null as any;
   });
 
   const renderWithTheme = (component: React.ReactNode) => {
@@ -33,7 +29,6 @@ describe('BillCarousel', () => {
       <ThemeProvider theme={theme}>
         {component}
       </ThemeProvider>,
-      { container: container! }
     );
   };
 

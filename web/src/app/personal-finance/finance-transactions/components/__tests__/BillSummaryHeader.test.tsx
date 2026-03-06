@@ -1,25 +1,35 @@
-
+import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { BillSummaryHeader, BillSummaryData } from '../BillSummaryHeader';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string) => {
+      const translations: Record<string, string> = {
+        'financeTransactions.billSummary.billValue': 'Valor da Fatura',
+        'financeTransactions.billSummary.closingDate': 'Fechamento',
+        'financeTransactions.billSummary.dueDate': 'Vencimento',
+        'financeTransactions.billSummary.availableLimit': 'Limite Disp.',
+        'financeTransactions.billSummary.payBill': 'Pagar Fatura',
+        'financeTransactions.billSummary.overdueMessage': 'Esta fatura está em atraso.',
+        'financeTransactions.billSummary.billStatus.OPEN': 'Aberta',
+        'financeTransactions.billSummary.billStatus.CLOSED': 'Fechada',
+        'financeTransactions.billSummary.billStatus.PAID': 'Paga',
+        'financeTransactions.billSummary.billStatus.OVERDUE': 'Em atraso',
+      };
+      return translations[key] ?? key;
+    },
+    i18n: { language: 'pt' },
+  }),
+}));
+
 const theme = createTheme();
 
-describe('BillSummaryHeader', () => {
-  let container: HTMLElement;
-
-  beforeEach(() => {
-    container = document.createElement('div');
-    document.body.appendChild(container);
-  });
-
+describe.sequential('BillSummaryHeader', () => {
   afterEach(() => {
     cleanup();
-    if (container && container.parentNode) {
-      container.parentNode.removeChild(container);
-    }
-    container = null as any;
   });
 
   const renderWithTheme = (component: React.ReactNode) => {
@@ -27,12 +37,12 @@ describe('BillSummaryHeader', () => {
       <ThemeProvider theme={theme}>
         {component}
       </ThemeProvider>,
-      { container }
     );
   };
 
   const mockBill: BillSummaryData = {
     totalAmount: 1500.50,
+    closingDate: '2024-03-10',
     dueDate: '2024-03-25',
     status: 'OPEN',
     creditLimit: 5000,
@@ -46,14 +56,17 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    // Check Total Amount (formatted)
-    expect(screen.getByText('R$ 1.500,50')).toBeInTheDocument();
+    // Check Total Amount (formatted - split across spans via formatToParts)
+    const amountElements = screen.getAllByText((_, element) =>
+      (element?.textContent ?? '').includes('1.500,50')
+    );
+    expect(amountElements.length).toBeGreaterThan(0);
 
-    // Check Due Date (formatted)
-    expect(screen.getByText(/25 de mar\. de 2024/i)).toBeInTheDocument();
+    // Check Due Date (formatted - pt-BR short format)
+    expect(screen.getByText(/25\/03\/2024/)).toBeInTheDocument();
 
     // Check Status Chip
-    expect(screen.getByText('ABERTA')).toBeInTheDocument();
+    expect(screen.getByText('Aberta')).toBeInTheDocument();
   });
 
   it('hides "Pagar fatura" when status = PAID', () => {
@@ -66,8 +79,8 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    expect(screen.queryByText('Pagar fatura')).not.toBeInTheDocument();
-    expect(screen.getByText('PAGA')).toBeInTheDocument();
+    expect(screen.queryByText('Pagar Fatura')).not.toBeInTheDocument();
+    expect(screen.getByText('Paga')).toBeInTheDocument();
   });
 
   it('shows "Pagar fatura" when status = CLOSED', () => {
@@ -80,8 +93,8 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    expect(screen.getByText('Pagar fatura')).toBeInTheDocument();
-    expect(screen.getByText('FECHADA')).toBeInTheDocument();
+    expect(screen.getByText('Pagar Fatura')).toBeInTheDocument();
+    expect(screen.getByText('Fechada')).toBeInTheDocument();
   });
 
   it('shows OVERDUE visual warning', () => {
@@ -94,7 +107,7 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    expect(screen.getByText('EM ATRASO')).toBeInTheDocument();
+    expect(screen.getByText('Em atraso')).toBeInTheDocument();
     expect(screen.getByText('Esta fatura está em atraso.')).toBeInTheDocument();
   });
 
@@ -110,7 +123,7 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    fireEvent.click(screen.getByText('Pagar fatura'));
+    fireEvent.click(screen.getByText('Pagar Fatura'));
     expect(onPayClick).toHaveBeenCalledTimes(1);
   });
 
@@ -122,9 +135,8 @@ describe('BillSummaryHeader', () => {
       />
     );
 
-    // Check for skeletons (MUI Skeleton usually has class MuiSkeleton-root)
-    // Or just check that text is not present
-    expect(screen.queryAllByText('R$ 1.500,50')).toHaveLength(0);
+    // Check for skeletons - formatted amount should not be present when loading
+    expect(screen.queryByText((_, el) => (el?.textContent ?? '').includes('1.500'))).toBeNull();
     
     // In this specific component implementation, if loading && !bill, it renders a different structure
     // We can check for the absence of specific text or presence of skeletons if we add data-testid

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
 import dayjs from 'dayjs';
 import { FinancialAccount, FinancialAccountSubtype } from '@/lib/graphql/types/__generated__/graphql';
@@ -47,16 +47,21 @@ export function useAccountDisplayMode(selectedAccount: FinancialAccount | null):
     }
   );
 
-  const bills: CreditCardBill[] = billsData?.creditCardBills ?? [];
+  const bills: CreditCardBill[] = useMemo(
+    () => billsData?.creditCardBills ?? [],
+    [billsData?.creditCardBills],
+  );
 
-  // Reset and auto-select bill in one effect when account or bills change
+  // Reset and auto-select bill when account or bills change (sync with external Apollo data)
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect -- Sync selected bill with Apollo query result */
     if (!isCreditCard || bills.length === 0) {
       setSelectedBill(null);
       return;
     }
     const openBill = bills.find((b) => b.status === 'OPEN');
     setSelectedBill(openBill ?? bills[0] ?? null);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [selectedAccount?.id, isCreditCard, bills]);
 
   if (isCreditCard) {

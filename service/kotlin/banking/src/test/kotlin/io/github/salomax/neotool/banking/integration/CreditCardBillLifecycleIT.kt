@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionRepositor
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
@@ -195,7 +196,7 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
                 transactionService.update(
                     id = tx.id!!,
                     command =
-                        io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand(
+                        UpdateTransactionCommand(
                             date = feb8,
                         ),
                     accountId = accountId,
