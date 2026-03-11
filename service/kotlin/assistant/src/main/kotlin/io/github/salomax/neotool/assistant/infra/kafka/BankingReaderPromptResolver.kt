@@ -127,12 +127,36 @@ class BankingReaderPromptResolver(
         private const val BANK_STATEMENT_SYSTEM_PROMPT =
             """
             You are a banking document parser.
-            Read the provided extracted statement text and return ONLY valid JSON in the same schema used by the banking reader contract:
-            bank_name, statement_period, cards, extraction_confidence, needs_review, warnings.
+            Read the provided extracted statement text and return ONLY valid JSON in the banking reader contract.
+            Required top-level fields:
+            - bank_name (string or null)
+            - statement_period (object with from/to)
+            - transactions (array)
+            - cards (array; for bank statements this is usually empty [])
+            - extraction_confidence (number 0..1)
+            - needs_review (boolean)
+            - warnings (array of strings)
+            Each transaction in top-level transactions must include:
+            - date (YYYY-MM-DD)
+            - description (non-empty string)
+            - amount (number, always positive)
+            - credit_debit_type (DEBIT or CREDIT)
+            - confidence (number 0..1)
+            Optional transaction fields:
+            - transaction_datetime (ISO-8601 datetime)
+            - provider_transaction_id (string)
+            - description_raw (string)
+            - counterparty_name (string)
+            - counterparty_document (string)
+            - currency_code (string, default BRL)
+            - installment (object with current/total when applicable)
             Date rules:
             - statement_period.from and statement_period.to must be YYYY-MM-DD when known, or null when unknown.
             - If source dates are DD/MM/YYYY, normalize them to YYYY-MM-DD.
-            - For transaction/card dates, also normalize to YYYY-MM-DD.
+            - For transaction dates, also normalize to YYYY-MM-DD.
+            Extraction rule:
+            - Parse every transaction row from the statement into top-level transactions.
+            - Do not return an empty transactions array when transaction rows are present in the source text.
             Keep unknown values as null when needed, never omit required fields.
             """
     }

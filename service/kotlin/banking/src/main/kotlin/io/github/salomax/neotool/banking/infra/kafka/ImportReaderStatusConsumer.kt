@@ -255,24 +255,37 @@ class ImportReaderStatusConsumer(
 
     private fun parseRowsFromLlmOutput(llmOutput: Map<*, *>): ParsedRowsResult {
         val transactionMaps = mutableListOf<Map<*, *>>()
+        val candidates =
+            buildList {
+                add(llmOutput)
+                WRAPPER_KEYS.forEach { key ->
+                    val nested = llmOutput[key] as? Map<*, *>
+                    if (nested != null) {
+                        add(nested)
+                    }
+                }
+            }
 
-        val topLevelTransactions = llmOutput["transactions"] as? List<*>
-        if (topLevelTransactions != null) {
-            topLevelTransactions.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
-        }
+        candidates.forEach { container ->
+            TRANSACTION_LIST_KEYS.forEach { key ->
+                val list = container[key] as? List<*> ?: return@forEach
+                list.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
+            }
 
-        val cards = llmOutput["cards"] as? List<*>
-        if (cards != null) {
-            cards.filterIsInstance<Map<*, *>>().forEach { card ->
-                val cardTransactions = card["transactions"] as? List<*>
-                if (cardTransactions != null) {
-                    cardTransactions.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
+            CARD_LIST_KEYS.forEach { cardsKey ->
+                val cards = container[cardsKey] as? List<*> ?: return@forEach
+                cards.filterIsInstance<Map<*, *>>().forEach { card ->
+                    CARD_TRANSACTION_LIST_KEYS.forEach { transactionsKey ->
+                        val list = card[transactionsKey] as? List<*> ?: return@forEach
+                        list.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
+                    }
                 }
             }
         }
 
-        val rows = transactionMaps.mapNotNull(::toParsedTransaction)
-        return ParsedRowsResult(rows = rows, invalidCount = transactionMaps.size - rows.size)
+        val distinctTransactions = transactionMaps.distinct()
+        val rows = distinctTransactions.mapNotNull(::toParsedTransaction)
+        return ParsedRowsResult(rows = rows, invalidCount = distinctTransactions.size - rows.size)
     }
 
     private fun extractValidationQuality(
@@ -460,6 +473,14 @@ class ImportReaderStatusConsumer(
             is UUID -> value
             else -> runCatching { UUID.fromString(value.toString()) }.getOrNull()
         }
+
+    private companion object {
+        val WRAPPER_KEYS = listOf("bank_statement", "statement", "account_statement", "extract", "data", "result", "output")
+        val TRANSACTION_LIST_KEYS =
+            listOf("transactions", "transaction_rows", "entries", "movements", "movimentacoes", "lancamentos", "transacoes")
+        val CARD_LIST_KEYS = listOf("cards", "card_statements", "cartoes")
+        val CARD_TRANSACTION_LIST_KEYS = listOf("transactions", "entries", "movements", "movimentacoes", "lancamentos", "transacoes")
+    }
 
     private data class ParsedRowsResult(
         val rows: List<ParsedTransaction>,

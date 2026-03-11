@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.domain.importevent
 
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.micronaut.serde.annotation.Serdeable
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
 import reactor.core.publisher.Flux
@@ -11,6 +12,7 @@ import java.util.UUID
 /**
  * Payload for import job status updates (in-process SSE / event bridge).
  */
+@Serdeable
 data class ImportJobStatusPayload(
     val jobId: UUID,
     val accountId: UUID,
