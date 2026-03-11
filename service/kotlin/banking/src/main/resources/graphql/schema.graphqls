@@ -292,6 +292,22 @@ type TransactionCategory {
   sortOrder: Int!
 }
 
+input CreateCategoryInput {
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+input UpdateCategoryInput {
+  name: String
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
 """
 Core ledger transaction row.
 """
@@ -809,4 +825,19 @@ extend type Mutation {
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
   """
   payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill!
+
+  """
+  Create a new custom transaction category for the authenticated account.
+  """
+  createTransactionCategory(input: CreateCategoryInput!): TransactionCategory!
+
+  """
+  Update a custom transaction category for the authenticated account.
+  """
+  updateTransactionCategory(id: ID!, input: UpdateCategoryInput!): TransactionCategory!
+
+  """
+  Soft-delete a custom transaction category (and its subcategories when deleting a root).
+  """
+  deleteTransactionCategory(id: ID!): Boolean!
 }

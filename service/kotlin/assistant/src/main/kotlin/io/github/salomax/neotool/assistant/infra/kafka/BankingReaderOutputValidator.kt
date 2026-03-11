@@ -3,7 +3,7 @@ package io.github.salomax.neotool.assistant.infra.kafka
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.inject.Singleton
 import java.time.LocalDate
-import java.time.format.DateTimeParseException
+import java.time.format.DateTimeFormatter
 
 @Singleton
 class BankingReaderOutputValidator {
@@ -35,8 +35,8 @@ class BankingReaderOutputValidator {
             errors += "statement_period must be an object"
             return
         }
-        validateIsoDate(node.path("from"), "statement_period.from", errors)
-        validateIsoDate(node.path("to"), "statement_period.to", errors)
+        validateDate(node.path("from"), "statement_period.from", errors, nullable = true)
+        validateDate(node.path("to"), "statement_period.to", errors, nullable = true)
     }
 
     private fun validateCards(
@@ -58,8 +58,8 @@ class BankingReaderOutputValidator {
             if (!digits.isTextual || !FOUR_DIGITS_REGEX.matches(digits.asText())) {
                 errors += "$prefix.last_four_digits must match ^[0-9]{4}$"
             }
-            validateIsoDate(card.path("closing_date"), "$prefix.closing_date", errors)
-            validateIsoDate(card.path("due_date"), "$prefix.due_date", errors)
+            validateDate(card.path("closing_date"), "$prefix.closing_date", errors)
+            validateDate(card.path("due_date"), "$prefix.due_date", errors)
             validateNumber(card.path("declared_total"), "$prefix.declared_total", errors)
             validateNumber(card.path("computed_total"), "$prefix.computed_total", errors)
             validateBoolean(card.path("total_matches_declared"), "$prefix.total_matches_declared", errors)
@@ -84,7 +84,7 @@ class BankingReaderOutputValidator {
                 return@forEachIndexed
             }
 
-            validateIsoDate(transaction.path("date"), "$txPrefix.date", errors)
+            validateDate(transaction.path("date"), "$txPrefix.date", errors)
             validateNonBlankString(transaction.path("description"), "$txPrefix.description", errors)
             validateNumber(transaction.path("amount"), "$txPrefix.amount", errors)
             validateConfidence(transaction.path("confidence"), "$txPrefix.confidence", errors)
@@ -192,21 +192,38 @@ class BankingReaderOutputValidator {
         }
     }
 
-    private fun validateIsoDate(
+    private fun validateDate(
         node: JsonNode,
         path: String,
         errors: MutableList<String>,
+        nullable: Boolean = false,
     ) {
+        if (node.isMissingNode || node.isNull) {
+            if (!nullable) {
+                errors += "$path must be an ISO date string"
+            }
+            return
+        }
         if (!node.isTextual) {
             errors += "$path must be an ISO date string"
             return
         }
+        val value = node.asText().trim()
+        if (value.isEmpty()) {
+            errors += "$path must be an ISO date string"
+            return
+        }
         try {
-            LocalDate.parse(node.asText())
-        } catch (_: DateTimeParseException) {
-            errors += "$path must be a valid ISO date (YYYY-MM-DD)"
+            parseDate(value)
+        } catch (_: IllegalArgumentException) {
+            errors += "$path must be a valid date (YYYY-MM-DD or DD/MM/YYYY)"
         }
     }
+
+    private fun parseDate(value: String): LocalDate =
+        runCatching { LocalDate.parse(value) }
+            .recoverCatching { LocalDate.parse(value, BR_DATE_FORMATTER) }
+            .getOrElse { throw IllegalArgumentException("Invalid date: $value", it) }
 
     private fun validateConfidence(
         node: JsonNode,
@@ -226,5 +243,6 @@ class BankingReaderOutputValidator {
     private companion object {
         val VALID_CREDIT_DEBIT_TYPES = setOf("DEBIT", "CREDIT")
         val FOUR_DIGITS_REGEX = Regex("^[0-9]{4}$")
+        val BR_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
     }
 }

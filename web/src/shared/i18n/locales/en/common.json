@@ -96,6 +96,7 @@
     "connectionTimeout": "The request took too long to complete. Please check your connection and try again.",
     "serviceUnavailable": "The service is temporarily unavailable. Please try again in a few moments.",
     "gatewayTimeout": "The server is taking too long to respond. Please try again later.",
+    "SUBREQUEST_HTTP_ERROR": "The service is temporarily unavailable. Please try again in a few moments.",
     "ASSET_UPLOAD_URL_EXPIRED": "Upload URL has expired",
     "AUTH_INVALID_CREDENTIALS": "Invalid email or password",
     "AUTH_SESSION_EXPIRED": "Session has expired. Please sign in again.",
@@ -145,6 +146,7 @@
     "ASSET_INPUT_REQUIRED": "Required input is missing.",
     "FIXED_INCOME_INVALID_EFFECTIVE_RATE": "Invalid effective annual rate.",
     "DUPLICATE_IMPORT": "This file has already been imported for this account.",
+    "IMPORT_FILE_ALREADY_EXISTS": "This file has already been imported or is currently being processed for this account.",
     "INVALID_INPUT": "Invalid input. Please review the form and try again.",
     "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
     "default": "An error occurred"

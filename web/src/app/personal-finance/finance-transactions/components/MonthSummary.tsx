@@ -8,6 +8,7 @@ import {
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 export interface MonthSummaryData {
   year: number;
@@ -25,7 +26,7 @@ export interface MonthSummaryData {
 interface MonthSummaryProps {
   summary: MonthSummaryData | undefined;
   loading: boolean;
-  unavailable?: boolean;
+  error?: unknown;
   onRetry?: () => void;
   isConsolidated?: boolean;
 }
@@ -33,10 +34,10 @@ interface MonthSummaryProps {
 export const MonthSummary: React.FC<MonthSummaryProps> = ({
   summary,
   loading,
-  unavailable = false,
+  error,
   onRetry,
 }) => {
-  const { t } = useTranslation(personalFinanceTranslations);
+  const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
 
   const formatCurrency = (value: number) => {
@@ -118,7 +119,11 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   const incomePercentage = totalVolume > 0 ? calculatePercentage(absIncome, totalVolume) : 0;
   const expensesPercentage = totalVolume > 0 ? calculatePercentage(absExpenses, totalVolume) : 0;
 
-  if (unavailable && !loading && !summary) {
+  if (error && !loading && !summary) {
+    const defaultErrorMessage = tCommon('errors.default');
+    const extracted = extractErrorMessage(error, defaultErrorMessage);
+    const description = extracted === defaultErrorMessage ? t('financeTransactions.monthSummary.unavailableDescription') : extracted;
+
     return (
       <Box
         sx={{
@@ -145,7 +150,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             {t('financeTransactions.monthSummary.unavailableTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {t('financeTransactions.monthSummary.unavailableDescription')}
+            {description}
           </Typography>
           {onRetry && (
             <Button variant="outlined" size="small" onClick={onRetry}>

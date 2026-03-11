@@ -375,6 +375,10 @@ open class ImportJobService(
                     enqueueImportJob(reset, financialAccountId, accountId, fileBytes, fileName, source, producer)
                 }
             }
+            ImportJobStatus.PROCESSING -> {
+                val reset = resetForRetry(existing, userId, source, fileName)
+                enqueueImportJob(reset, financialAccountId, accountId, fileBytes, fileName, source, producer)
+            }
             ImportJobStatus.FAILED -> {
                 val reset = resetForRetry(existing, userId, source, fileName)
                 enqueueImportJob(reset, financialAccountId, accountId, fileBytes, fileName, source, producer)
@@ -434,6 +438,7 @@ open class ImportJobService(
                 errorCount = null,
                 errorDetails = null,
                 reviewPayload = null,
+                assistantRequestPublishedAt = null,
                 dateFrom = null,
                 dateTo = null,
                 completedAt = null,

@@ -8,6 +8,7 @@ import { Container, Typography, Box, CircularProgress, Stack, Button, Alert, Div
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
+import { QueryErrorState } from '@/shared/components/ui/feedback';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -46,7 +47,7 @@ export default function FinanceTransactionsPage() {
   
   const theme = useTheme();
 
-  const { data, loading } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
+  const { data, loading, error: financialAccountsError, refetch: refetchFinancialAccounts } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
     errorPolicy: 'all',
   });
   
@@ -170,6 +171,16 @@ export default function FinanceTransactionsPage() {
     );
   }
 
+  if (financialAccountsError) {
+    return (
+      <Page>
+        <Container maxWidth="md" sx={{ py: 6 }}>
+          <QueryErrorState error={financialAccountsError} onRetry={() => refetchFinancialAccounts()} />
+        </Container>
+      </Page>
+    );
+  }
+
   const hasAccounts = data?.financialAccounts && data.financialAccounts.length > 0;
 
   if (!hasAccounts) {
@@ -204,7 +215,7 @@ export default function FinanceTransactionsPage() {
               <MonthSummary 
                   summary={monthSummaryData?.monthSummary}
                   loading={monthSummaryLoading}
-                  unavailable={Boolean(monthSummaryError) && !monthSummaryData?.monthSummary}
+                  error={monthSummaryError}
                   onRetry={() => refetchMonthSummary()}
                   isConsolidated={!selectedAccountId}
                 />
@@ -350,6 +361,7 @@ export default function FinanceTransactionsPage() {
           setReviewJobId(null);
         }}
         selectedAccountId={selectedAccountId}
+        selectedAccountType={selectedAccount?.type ?? null}
         onImportCompleted={handleImportCompleted}
         onRequestCreateAccount={() => {
           setIsImportDrawerOpen(false);

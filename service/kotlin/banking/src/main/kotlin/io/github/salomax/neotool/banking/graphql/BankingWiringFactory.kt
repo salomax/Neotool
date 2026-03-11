@@ -5,6 +5,7 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
+import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
@@ -24,6 +25,7 @@ class BankingWiringFactory(
     private val issuerResolver: IssuerResolver,
     private val financialAccountResolver: FinancialAccountResolver,
     private val transactionResolver: TransactionResolver,
+    private val transactionCategoryResolver: TransactionCategoryResolver,
     private val importResolver: ImportResolver,
     private val pdfImportResolver: PdfImportResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
@@ -309,6 +311,42 @@ class BankingWiringFactory(
                                 ?: throw IllegalArgumentException("amount is required")
                         val sourceAccountId = env.getArgument<String?>("sourceAccountId")
                         transactionResolver.payBill(billId, amount, sourceAccountId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createTransactionCategory",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        transactionCategoryResolver.createTransactionCategory(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateTransactionCategory",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        transactionCategoryResolver.updateTransactionCategory(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "deleteTransactionCategory",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        transactionCategoryResolver.deleteTransactionCategory(id, principal)
                     }
                 },
             )

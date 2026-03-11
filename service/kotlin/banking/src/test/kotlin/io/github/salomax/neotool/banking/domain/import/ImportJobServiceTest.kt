@@ -194,6 +194,7 @@ class ImportJobServiceTest {
                     status = ImportJobStatus.FAILED,
                     errorCount = 1,
                     errorDetails = """{"message":"old error"}""",
+                    assistantRequestPublishedAt = now,
                     completedAt = now,
                     createdAt = now,
                     updatedAt = now,
@@ -216,6 +217,7 @@ class ImportJobServiceTest {
             assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
             assertThat(result.errorCount).isNull()
             assertThat(result.errorDetails).isNull()
+            assertThat(result.assistantRequestPublishedAt).isNull()
             verify(importJobRepository, never()).save(any())
             verify(importFileProducer).publish(
                 eq(
@@ -223,6 +225,57 @@ class ImportJobServiceTest {
                         jobId = jobId,
                         assetId = assetId,
                         source = ImportSource.OFX,
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        fun `retries existing PROCESSING job with same hash by reusing job id`() {
+            val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
+            val fileName = "export.ofx"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
+            val processingJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.AUTO,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PROCESSING,
+                    assistantRequestPublishedAt = now,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(processingJob)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
+
+            val result =
+                service.initiateFileImport(
+                    financialAccountId,
+                    accountId,
+                    userId,
+                    fileBytes,
+                    fileName,
+                    ImportSource.AUTO,
+                )
+
+            assertThat(result.id).isEqualTo(jobId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
+            assertThat(result.assistantRequestPublishedAt).isNull()
+            verify(importJobRepository, never()).save(any())
+            verify(importFileProducer).publish(
+                eq(
+                    ImportFileRequestedEvent(
+                        jobId = jobId,
+                        assetId = assetId,
+                        source = ImportSource.AUTO,
                         financialAccountId = financialAccountId,
                         accountId = accountId,
                     ),

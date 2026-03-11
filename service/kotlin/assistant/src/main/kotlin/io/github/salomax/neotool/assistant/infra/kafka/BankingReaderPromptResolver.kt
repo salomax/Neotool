@@ -129,6 +129,10 @@ class BankingReaderPromptResolver(
             You are a banking document parser.
             Read the provided extracted statement text and return ONLY valid JSON in the same schema used by the banking reader contract:
             bank_name, statement_period, cards, extraction_confidence, needs_review, warnings.
+            Date rules:
+            - statement_period.from and statement_period.to must be YYYY-MM-DD when known, or null when unknown.
+            - If source dates are DD/MM/YYYY, normalize them to YYYY-MM-DD.
+            - For transaction/card dates, also normalize to YYYY-MM-DD.
             Keep unknown values as null when needed, never omit required fields.
             """
     }

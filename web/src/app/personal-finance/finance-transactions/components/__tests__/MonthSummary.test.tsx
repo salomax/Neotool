@@ -8,7 +8,12 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 vi.mock('@/shared/i18n', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
+    tCommon: (key: string) => key,
   }),
+}));
+
+vi.mock('@/shared/utils/error', () => ({
+  extractErrorMessage: vi.fn(() => 'friendly error'),
 }));
 
 describe.sequential('MonthSummary', () => {
@@ -79,10 +84,10 @@ describe.sequential('MonthSummary', () => {
   });
 
   it('renders unavailable state with contextual message and retry action', () => {
-    renderWithTheme(<MonthSummary summary={undefined} loading={false} unavailable={true} onRetry={vi.fn()} />);
+    renderWithTheme(<MonthSummary summary={undefined} loading={false} error={new Error('test')} onRetry={vi.fn()} />);
 
     expect(screen.getByText('financeTransactions.monthSummary.unavailableTitle')).toBeInTheDocument();
-    expect(screen.getByText('financeTransactions.monthSummary.unavailableDescription')).toBeInTheDocument();
+    expect(screen.getByText('friendly error')).toBeInTheDocument();
     expect(screen.getByText('financeTransactions.monthSummary.retry')).toBeInTheDocument();
 
     const bodyText = document.body.textContent ?? '';
@@ -91,7 +96,7 @@ describe.sequential('MonthSummary', () => {
 
   it('calls retry callback when clicking retry button in unavailable state', () => {
     const onRetry = vi.fn();
-    renderWithTheme(<MonthSummary summary={undefined} loading={false} unavailable={true} onRetry={onRetry} />);
+    renderWithTheme(<MonthSummary summary={undefined} loading={false} error={new Error('test')} onRetry={onRetry} />);
 
     fireEvent.click(screen.getByText('financeTransactions.monthSummary.retry'));
     expect(onRetry).toHaveBeenCalledTimes(1);

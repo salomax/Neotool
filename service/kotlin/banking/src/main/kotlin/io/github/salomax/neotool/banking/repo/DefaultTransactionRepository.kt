@@ -4,8 +4,6 @@ import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTota
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import io.github.salomax.neotool.banking.model.transaction.TransactionTagEntity
@@ -240,28 +238,5 @@ open class DefaultTransactionRepository(
                 )
             }
         transactionTagEntityRepository.saveAll(entities)
-    }
-}
-
-/**
- * Default implementation of [TransactionCategoryRepository] using JPA.
- */
-@Singleton
-open class DefaultTransactionCategoryRepository(
-    private val entityRepository: TransactionCategoryEntityRepository,
-) : TransactionCategoryRepository {
-    override fun findAll(accountId: UUID): List<TransactionCategory> =
-        entityRepository.findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId)
-            .map(TransactionMapper::toDomain)
-
-    override fun findById(id: UUID): TransactionCategory? =
-        entityRepository.findByIdAndDeletedAtIsNull(id)
-            ?.let(TransactionMapper::toDomain)
-
-    @Transactional
-    override fun save(category: TransactionCategory): TransactionCategory {
-        val entity = TransactionMapper.toEntity(category)
-        val saved = entityRepository.save(entity)
-        return TransactionMapper.toDomain(saved)
     }
 }

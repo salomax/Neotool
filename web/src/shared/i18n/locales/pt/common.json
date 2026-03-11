@@ -96,6 +96,7 @@
     "connectionTimeout": "A solicitação demorou muito para ser concluída. Por favor, verifique sua conexão e tente novamente.",
     "serviceUnavailable": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "gatewayTimeout": "O servidor está demorando muito para responder. Por favor, tente novamente mais tarde.",
+    "SUBREQUEST_HTTP_ERROR": "O serviço está temporariamente indisponível. Por favor, tente novamente em alguns instantes.",
     "ASSET_UPLOAD_URL_EXPIRED": "A URL de upload expirou",
     "AUTH_INVALID_CREDENTIALS": "E-mail ou senha inválidos",
     "AUTH_SESSION_EXPIRED": "A sessão expirou. Faça login novamente.",
@@ -145,6 +146,7 @@
     "ASSET_INPUT_REQUIRED": "Dados obrigatórios não foram informados.",
     "FIXED_INCOME_INVALID_EFFECTIVE_RATE": "Taxa efetiva anual inválida.",
     "DUPLICATE_IMPORT": "Este arquivo já foi importado para esta conta.",
+    "IMPORT_FILE_ALREADY_EXISTS": "Este arquivo já foi importado ou está sendo processado para esta conta.",
     "INVALID_INPUT": "Entrada inválida. Revise os dados e tente novamente.",
     "INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
     "default": "Ocorreu um erro"

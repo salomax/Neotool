@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.banking.repo
 
 import io.github.salomax.neotool.banking.model.transaction.TransactionCategoryEntity
+import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -17,4 +19,68 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
     fun findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId: UUID): List<TransactionCategoryEntity>
 
     fun findByIdAndDeletedAtIsNull(id: UUID): TransactionCategoryEntity?
+
+    @Query(
+        """
+        SELECT COUNT(*) > 0
+        FROM banking.transaction_categories
+        WHERE name = :name
+          AND account_id = :accountId
+          AND (
+            (:parentId IS NULL AND parent_id IS NULL) OR parent_id = :parentId
+          )
+          AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun existsByNameAndParentIdAndAccountIdAndDeletedAtIsNull(
+        name: String,
+        parentId: UUID?,
+        accountId: UUID,
+    ): Boolean
+
+    @Query(
+        """
+        SELECT MAX(sort_order)
+        FROM banking.transaction_categories
+        WHERE account_id = :accountId
+          AND (
+            (:parentId IS NULL AND parent_id IS NULL) OR parent_id = :parentId
+          )
+          AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun findMaxSortOrder(
+        accountId: UUID,
+        parentId: UUID?,
+    ): Int?
+
+    @Query(
+        """
+        UPDATE banking.transaction_categories
+        SET deleted_at = :now, updated_at = :now
+        WHERE id = :id AND account_id = :accountId AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+        now: Instant,
+    )
+
+    @Query(
+        """
+        UPDATE banking.transaction_categories
+        SET deleted_at = :now, updated_at = :now
+        WHERE parent_id = :parentId AND account_id = :accountId AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun softDeleteChildren(
+        parentId: UUID,
+        accountId: UUID,
+        now: Instant,
+    )
 }

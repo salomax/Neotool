@@ -527,6 +527,17 @@ input CreateAssetUploadInput
   idempotencyKey: String
 }
 
+input CreateCategoryInput
+  @join__type(graph: BANKING)
+{
+  parentId: ID
+  name: String!
+  applicableTo: CategoryApplicableTo!
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
 input CreateFinancialAccountInput
   @join__type(graph: BANKING)
 {
@@ -1419,6 +1430,11 @@ type Mutation
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
   """
   payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill! @join__field(graph: BANKING)
+
+  """
+  Create a new custom transaction category for the authenticated account.
+  """
+  createTransactionCategory(input: CreateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)

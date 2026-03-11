@@ -90,4 +90,25 @@ interface TransactionCategoryRepository {
     fun findById(id: UUID): TransactionCategory?
 
     fun save(category: TransactionCategory): TransactionCategory
+
+    fun existsByNameAndParentIdAndAccountIdAndDeletedAtIsNull(
+        name: String,
+        parentId: UUID?,
+        accountId: UUID,
+    ): Boolean
+
+    fun maxSortOrder(
+        accountId: UUID,
+        parentId: UUID?,
+    ): Int?
+
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    )
+
+    fun softDeleteChildren(
+        parentId: UUID,
+        accountId: UUID,
+    )
 }
