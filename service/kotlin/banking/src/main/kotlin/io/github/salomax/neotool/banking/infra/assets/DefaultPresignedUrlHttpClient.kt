@@ -28,7 +28,10 @@ open class DefaultPresignedUrlHttpClient : PresignedUrlHttpClient {
                 .build()
         val response = httpClient.send(request, HttpResponse.BodyHandlers.discarding())
         if (response.statusCode() !in 200..299) {
-            throw AssetsServiceException("Upload PUT failed with HTTP ${response.statusCode()}")
+            throw AssetsServiceException.transferFailed(
+                operation = "PUT",
+                statusCode = response.statusCode(),
+            )
         }
     }
 
@@ -41,7 +44,10 @@ open class DefaultPresignedUrlHttpClient : PresignedUrlHttpClient {
                 .build()
         val response = httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
         if (response.statusCode() !in 200..299) {
-            throw AssetsServiceException("Download GET failed with HTTP ${response.statusCode()}")
+            throw AssetsServiceException.transferFailed(
+                operation = "GET",
+                statusCode = response.statusCode(),
+            )
         }
         return response.body()
     }

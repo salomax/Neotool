@@ -22,8 +22,9 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { AccountBalance as BankIcon, CreditCard as CardIcon } from '@mui/icons-material';
-import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountSubtype, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { useEffect, useRef, useMemo, useState, Fragment } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
@@ -172,25 +173,43 @@ export function TransactionTable({
     }).format(amount);
   };
 
-  const formatType = (type: string) => {
-    return t(`financeTransactions.transactionType.${type}`);
+  const getCardLastFourDigits = (account: FinancialAccount, transaction: Transaction) => {
+    const raw = transaction.cardIdentifier || account.cardData?.maskedNumber || '';
+    const digits = raw.replace(/\D/g, '');
+    const last4 = digits.slice(-4);
+    return last4.length === 4 ? last4 : null;
   };
 
-  const getTransactionTypeIcon = (type: CreditDebitType) => {
+  const isCardAccount = (account: FinancialAccount) => {
+    if (account.cardData) return true;
+    return (
+      account.subtype === FinancialAccountSubtype.CreditCard ||
+      account.subtype === FinancialAccountSubtype.ChargeCard ||
+      account.subtype === FinancialAccountSubtype.PrepaidCard ||
+      account.subtype === FinancialAccountSubtype.VoucherCard
+    );
+  };
+
+  const getTransactionTypeIcon = (creditDebitType: CreditDebitType, transactionType: TransactionType) => {
     let icon = null;
     let color = '';
 
-    switch (type) {
-      case CreditDebitType.Credit:
-        icon = <ArrowUpwardIcon color="success" fontSize="small" />;
-        color = theme.palette.success.main;
-        break;
-      case CreditDebitType.Debit:
-        icon = <ArrowDownwardIcon color="error" fontSize="small" />;
-        color = theme.palette.error.main;
-        break;
-      default:
-        return null;
+    if (transactionType === TransactionType.Transfer) {
+      icon = <SwapHorizIcon color="info" fontSize="small" />;
+      color = theme.palette.info.main;
+    } else {
+      switch (creditDebitType) {
+        case CreditDebitType.Credit:
+          icon = <ArrowUpwardIcon color="success" fontSize="small" />;
+          color = theme.palette.success.main;
+          break;
+        case CreditDebitType.Debit:
+          icon = <ArrowDownwardIcon color="error" fontSize="small" />;
+          color = theme.palette.error.main;
+          break;
+        default:
+          return null;
+      }
     }
 
     return (
@@ -229,7 +248,7 @@ export function TransactionTable({
             </TableCell>
             {!selectedAccountId && (
               <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
-                <Label>{t('financeTransactions.issuer')}</Label>
+                <Label>{t('financeTransactions.financialAccount')}</Label>
               </TableCell>
             )}
             <TableCell align="right" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
@@ -286,7 +305,7 @@ export function TransactionTable({
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ pl: 2 }}>
-                        {getTransactionTypeIcon(transaction.creditDebitType)}
+                        {getTransactionTypeIcon(transaction.creditDebitType, transaction.type)}
                       </TableCell>
                       <TableCell component="th" scope="row">
                         <Typography variant="body2">{transaction.description}</Typography>
@@ -366,8 +385,8 @@ export function TransactionTable({
                             if (!account) return null;
 
                             const issuer = account.issuer;
-                            const issuerName = issuer?.name || account.issuerName || t('financeTransactions.selector.unknownIssuer');
                             const logoUrl = issuer?.logoAsset?.publicUrl;
+                            const last4 = isCardAccount(account) ? getCardLastFourDigits(account, transaction) : null;
 
                             return (
                               <Stack direction="row" spacing={1} alignItems="center">
@@ -383,7 +402,19 @@ export function TransactionTable({
                                 >
                                   {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardIcon sx={{ fontSize: '1rem' }} />)}
                                 </Avatar>
-                                <Typography variant="body2">{issuerName}</Typography>
+                                <Stack spacing={0} sx={{ minWidth: 0 }}>
+                                  <Typography variant="body2" sx={{ lineHeight: 1.25 }} noWrap>
+                                    {account.name}
+                                  </Typography>
+                                  {last4 && (
+                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                      <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                        •••• {last4}
+                                      </Typography>
+                                    </Stack>
+                                  )}
+                                </Stack>
                               </Stack>
                             );
                           })()}
@@ -392,7 +423,13 @@ export function TransactionTable({
                       <TableCell align="right">
                         <Typography 
                           variant="body2" 
-                          color={transaction.creditDebitType === CreditDebitType.Debit ? 'error.main' : 'success.main'}
+                          color={
+                            transaction.type === TransactionType.Transfer
+                              ? 'info.main'
+                              : transaction.creditDebitType === CreditDebitType.Debit
+                                ? 'error.main'
+                                : 'success.main'
+                          }
                           fontWeight="medium"
                         >
                           {formatCurrency(

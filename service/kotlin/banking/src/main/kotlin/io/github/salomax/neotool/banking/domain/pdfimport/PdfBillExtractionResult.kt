@@ -44,6 +44,7 @@ data class PdfExtractedTransaction(
     val amount: BigDecimal = BigDecimal.ZERO,
     val creditDebitType: CreditDebitType = CreditDebitType.DEBIT,
     val installment: InstallmentInfo? = null,
+    val isBillPayment: Boolean = false,
     val confidence: Double = 0.0,
 )
 

@@ -31,13 +31,45 @@ object OFXParser {
      * Parses OFX file bytes. Detects SGML vs XML via content.
      * @return List of parsed transactions (empty if none or parse error)
      */
-    fun parse(bytes: ByteArray): List<ParsedTransaction> {
+    fun parse(bytes: ByteArray): List<ParsedTransaction> = parseWithIntent(bytes).rows
+
+    /**
+     * Parses OFX file bytes and classifies high-level statement intent from message-set nodes.
+     */
+    fun parseWithIntent(bytes: ByteArray): OfxParseResult {
         val text = String(bytes, StandardCharsets.UTF_8)
+        val intent = classifyStatementIntent(text)
         return when {
-            text.trimStart().startsWith(SGML_HEADER, ignoreCase = true) -> parseSgml(text)
+            text.trimStart().startsWith(SGML_HEADER, ignoreCase = true) ->
+                OfxParseResult(
+                    rows = parseSgml(text),
+                    statementIntent = intent,
+                    format = OfxDocumentFormat.SGML,
+                )
             text.trimStart().startsWith(XML_OFX_PREFIX, ignoreCase = true) ||
-                text.trimStart().startsWith(XML_DECL_PREFIX, ignoreCase = true) -> parseXml(bytes)
-            else -> emptyList()
+                text.trimStart().startsWith(XML_DECL_PREFIX, ignoreCase = true) ->
+                OfxParseResult(
+                    rows = parseXml(bytes),
+                    statementIntent = intent,
+                    format = OfxDocumentFormat.XML,
+                )
+            else ->
+                OfxParseResult(
+                    rows = emptyList(),
+                    statementIntent = OfxStatementIntent.UNKNOWN,
+                    format = OfxDocumentFormat.UNKNOWN,
+                )
+        }
+    }
+
+    private fun classifyStatementIntent(text: String): OfxStatementIntent {
+        val normalized = text.uppercase()
+        val hasBankStatements = normalized.contains("<BANKMSGSRSV1")
+        val hasCreditCardStatements = normalized.contains("<CREDITCARDMSGSRSV1")
+        return when {
+            hasBankStatements && !hasCreditCardStatements -> OfxStatementIntent.BANK_STATEMENT
+            hasCreditCardStatements && !hasBankStatements -> OfxStatementIntent.CREDIT_CARD_STATEMENT
+            else -> OfxStatementIntent.UNKNOWN
         }
     }
 
@@ -177,3 +209,21 @@ object OFXParser {
         }
     }
 }
+
+enum class OfxStatementIntent {
+    BANK_STATEMENT,
+    CREDIT_CARD_STATEMENT,
+    UNKNOWN,
+}
+
+enum class OfxDocumentFormat {
+    SGML,
+    XML,
+    UNKNOWN,
+}
+
+data class OfxParseResult(
+    val rows: List<ParsedTransaction>,
+    val statementIntent: OfxStatementIntent,
+    val format: OfxDocumentFormat,
+)

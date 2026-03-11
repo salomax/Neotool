@@ -8,7 +8,7 @@ import java.util.UUID
  * Used by [SnapshotComputationService] to compute monthly balance snapshots.
  *
  * All amounts are positive; direction is carried by the field name.
- * FUTURE-status transactions are excluded.
+ * FUTURE-status transactions are excluded from the real totals.
  */
 data class MonthTransactionTotals(
     val financialAccountId: UUID,
@@ -26,6 +26,10 @@ data class MonthTransactionTotals(
     val totalFutureCredit: BigDecimal,
     /** SUM of FUTURE DEBIT amounts (for projectedClosingBalance). */
     val totalFutureDebit: BigDecimal,
+    /** SUM of FUTURE CREDIT amounts WHERE type NOT IN (TRANSFER, BALANCE_ADJUSTMENT). */
+    val totalFutureIncome: BigDecimal,
+    /** SUM of FUTURE DEBIT amounts WHERE type NOT IN (TRANSFER, BALANCE_ADJUSTMENT). */
+    val totalFutureExpenses: BigDecimal,
 )
 
 /**

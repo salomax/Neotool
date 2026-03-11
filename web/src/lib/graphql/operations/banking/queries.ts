@@ -240,6 +240,55 @@ export const CREDIT_CARD_BILL = gql`
   }
 `;
 
+/** Fetch a single PDF import job by ID — used for polling during extraction. */
+export const PDF_IMPORT_JOB = gql`
+  query PdfImportJob($jobId: ID!) {
+    pdfImportJob(jobId: $jobId) {
+      id
+      status
+      fileName
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+      reviewPayload {
+        bankName
+        extractionConfidence
+        needsReview
+        warnings
+        cards {
+          lastFourDigits
+          holderName
+          confidence
+          computedTotal
+          declaredTotal
+          totalMatchesDeclared
+          matchedFinancialAccountId
+          matchAmbiguous
+          closingDate
+          dueDate
+          matchCandidates {
+            id
+            name
+          }
+          transactions {
+            date
+            description
+            amount
+            creditDebitType
+            isBillPayment
+            confidence
+            installment {
+              current
+              total
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
 /** Transactions belonging to a specific credit card bill (Bill mode). */
 export const TRANSACTIONS_BY_BILL = gql`
   query GetTransactionsByBill($billId: ID!, $first: Int, $after: String) {

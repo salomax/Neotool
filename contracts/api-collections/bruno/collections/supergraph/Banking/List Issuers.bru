@@ -1,7 +1,7 @@
 meta {
   name: List Issuers
   type: graphql
-  seq: 1
+  seq: 2
 }
 
 post {
@@ -35,7 +35,7 @@ tests {
   test("status 200", function() {
     expect(res.getStatus()).to.equal(200);
   });
-
+  
   test("Has issuers array", function() {
     const data = res.getBody();
     expect(data.data).to.have.property("issuers");

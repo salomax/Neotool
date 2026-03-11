@@ -18,6 +18,7 @@ import java.util.UUID
  * @param currentAccountId Current/active account from token (user access tokens only). Null when absent.
  * @param accounts Account memberships (id + role) from token. Null when absent.
  * @param sessionVersion Revocation/version claim from token. Null when absent.
+ * @param delegatedBy Delegation context owner identifier (service tokens only).
  */
 data class RequestPrincipal(
     val principalType: PrincipalType,
@@ -29,6 +30,7 @@ data class RequestPrincipal(
     val currentAccountId: UUID? = null,
     val accounts: List<AccountSummary>? = null,
     val sessionVersion: Long? = null,
+    val delegatedBy: String? = null,
 ) {
     /**
      * List of account IDs the principal is a member of (from token).
@@ -54,6 +56,7 @@ data class RequestPrincipal(
         currentAccountId = null,
         accounts = null,
         sessionVersion = null,
+        delegatedBy = null,
     )
 
     /**

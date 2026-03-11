@@ -11,6 +11,7 @@ coverage.out
 .env
 .env.*
 venv
+.venv/
 .next/
 # Compiled binaries
 /cronjob
@@ -34,7 +35,35 @@ mobile/*.zip
 .run/
 
 .gocache/
+
+# Python
 __pycache__/
+/*.py[cod]
+*.pyo
+*.pyc
+*.pyd
+.Python
+env/
+venv/
+ENV/
+env.bak/
+*.egg
+*.egg-info/
+dist/
+build/
+pip-wheel-metadata/
+*.manifest
+*.spec
+.coverage
+htmlcov/
+.tox/
+.cache/
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pyre/
+.pytype/
+
 
 .expo/
 .expo-shared/

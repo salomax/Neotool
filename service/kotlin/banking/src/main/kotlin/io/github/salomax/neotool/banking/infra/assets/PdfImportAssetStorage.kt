@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.banking.infra.assets
 
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -13,7 +15,7 @@ data class PdfImportAssetUploadResult(
 open class PdfImportAssetStorage(
     private val assetsClient: AssetsServiceClient,
     private val presignedUrlHttpClient: PresignedUrlHttpClient,
-    @Property(name = "banking.assets-service.pdf-import-namespace", defaultValue = "pdf-imports")
+    @Property(name = "banking.assets-service.pdf-import-namespace", defaultValue = "transaction-imports")
     private val pdfImportNamespace: String,
     @Property(name = "banking.assets-service.pdf-download-ttl-seconds", defaultValue = "7200")
     private val downloadTtlSeconds: Int,
@@ -26,17 +28,26 @@ open class PdfImportAssetStorage(
         val upload =
             assetsClient.createAssetUpload(
                 namespace = pdfImportNamespace,
-                ownerId = accountId.toString(),
                 mimeType = "application/pdf",
                 originalFilename = fileName,
                 sizeBytes = bytes.size.toLong(),
+                delegatedBy = accountId.toString(),
             )
         presignedUrlHttpClient.put(upload.uploadUrl, bytes, "application/pdf")
-        assetsClient.confirmAssetUpload(upload.id)
-        val asset = assetsClient.getAsset(upload.id, downloadTtlSeconds = downloadTtlSeconds)
+        assetsClient.confirmAssetUpload(upload.id, delegatedBy = accountId.toString())
+        val asset =
+            assetsClient.getAsset(
+                upload.id,
+                downloadTtlSeconds = downloadTtlSeconds,
+                delegatedBy = accountId.toString(),
+            )
         val downloadUrl =
             asset.downloadUrl
-                ?: throw IllegalStateException("Asset ${upload.id} has no download URL after confirm")
+                ?: throw ConflictException(
+                    errorCode = BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING,
+                    field = "assetId",
+                    parameters = mapOf("assetId" to upload.id.toString()),
+                )
         return PdfImportAssetUploadResult(
             assetId = upload.id,
             downloadUrl = downloadUrl,

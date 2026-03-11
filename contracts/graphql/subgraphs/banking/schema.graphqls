@@ -216,6 +216,11 @@ enum PdfImportJobStatus {
   FAILED
 }
 
+enum ImportType {
+  CREDIT_CARD_BILL
+  BANK_STATEMENT
+}
+
 """
 User resolution for a duplicate candidate (incoming row vs existing transaction(s)).
 """
@@ -253,6 +258,8 @@ type CardData {
   minimumPaymentPercentage: Float
   closingDay: Int
   dueDay: Int
+  """Optional bank account that will receive the debit leg of bill-payment transfers."""
+  linkedBankAccountId: ID
 }
 
 """
@@ -382,6 +389,8 @@ type MonthSummary {
   projectedClosingBalance: Float
   """True when (year, month) equals the current calendar month."""
   isCurrentMonth: Boolean!
+  """True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted."""
+  isFutureMonth: Boolean!
 }
 
 """
@@ -480,6 +489,8 @@ input CardDataInput {
   closingDay: Int
   """Required for CREDIT_CARD."""
   dueDay: Int
+  """Optional bank account that will receive the debit leg of bill-payment transfers."""
+  linkedBankAccountId: ID
 }
 
 input CreateFinancialAccountInput {
@@ -500,7 +511,7 @@ input CreateFinancialAccountInput {
   bankData: BankAccountDataInput
   """Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD."""
   cardData: CardDataInput
-  """Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically."""
+  """Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically."""
   initialBalance: Float
   """Reference date for the initial balance. Required when initialBalance is provided."""
   initialBalanceDate: Date
@@ -583,6 +594,7 @@ input ImportTransactionsFileInput {
 }
 
 input SubmitPdfBillImportInput {
+  importType: ImportType!
   financialAccountId: ID
   fileName: String!
   fileBase64: String!
@@ -605,6 +617,7 @@ input ConfirmPdfTransactionInput {
   amount: Float!
   creditDebitType: CreditDebitType!
   include: Boolean!
+  isBillPayment: Boolean
 }
 
 # ============================================================================
@@ -653,11 +666,14 @@ type ImportResult {
 
 type PdfImportJob {
   id: ID!
+  importType: ImportType!
   status: PdfImportJobStatus!
   fileName: String
   createdAt: DateTime!
   reviewPayload: PdfBillExtractionResult
-  errorMessage: String
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
 }
 
 type PdfBillExtractionResult {
@@ -700,6 +716,7 @@ type PdfExtractedTransaction {
   amount: Float!
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
+  isBillPayment: Boolean!
   confidence: Float!
 }
 

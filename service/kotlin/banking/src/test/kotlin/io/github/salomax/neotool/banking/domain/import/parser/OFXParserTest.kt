@@ -15,6 +15,56 @@ class OFXParserTest {
         javaClass.getResourceAsStream("/fixtures/ofx/$name")!!.readBytes()
 
     @Nested
+    @DisplayName("parseWithIntent — message set classification")
+    inner class ParseWithIntentTests {
+        @Test
+        fun `classifies bank statement for SGML fixture`() {
+            val bytes = loadFixture("ofx_sgml_sample.ofx")
+
+            val result = OFXParser.parseWithIntent(bytes)
+
+            assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.BANK_STATEMENT)
+            assertThat(result.format).isEqualTo(OfxDocumentFormat.SGML)
+            assertThat(result.rows).hasSize(3)
+        }
+
+        @Test
+        fun `classifies bank statement for XML fixture`() {
+            val bytes = loadFixture("ofx_xml_sample.ofx")
+
+            val result = OFXParser.parseWithIntent(bytes)
+
+            assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.BANK_STATEMENT)
+            assertThat(result.format).isEqualTo(OfxDocumentFormat.XML)
+            assertThat(result.rows).hasSize(3)
+        }
+
+        @Test
+        fun `classifies credit card statement for SGML fixture`() {
+            val bytes = loadFixture("ofx_creditcard_sgml_sample.ofx")
+
+            val result = OFXParser.parseWithIntent(bytes)
+
+            assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.CREDIT_CARD_STATEMENT)
+            assertThat(result.format).isEqualTo(OfxDocumentFormat.SGML)
+            assertThat(result.rows).hasSize(1)
+            assertThat(result.rows[0].providerTransactionId).isEqualTo("cc-sgml-fitid-001")
+        }
+
+        @Test
+        fun `classifies credit card statement for XML fixture`() {
+            val bytes = loadFixture("ofx_creditcard_xml_sample.ofx")
+
+            val result = OFXParser.parseWithIntent(bytes)
+
+            assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.CREDIT_CARD_STATEMENT)
+            assertThat(result.format).isEqualTo(OfxDocumentFormat.XML)
+            assertThat(result.rows).hasSize(1)
+            assertThat(result.rows[0].providerTransactionId).isEqualTo("cc-xml-fitid-001")
+        }
+    }
+
+    @Nested
     @DisplayName("parse — SGML fixture")
     inner class ParseSgmlFixtureTests {
         @Test

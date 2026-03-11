@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.infra.assets
 
-import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.DomainException
+import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.micronaut.context.annotation.Property
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
@@ -28,14 +30,14 @@ open class AssetsServiceClient(
 ) {
     /**
      * Creates an asset upload and returns id + uploadUrl.
-     * @param ownerId tenant ID (accountId) for imports namespace
+     * @param delegatedBy tenant context (accountId) propagated via delegated service token claim
      */
     fun createAssetUpload(
         namespace: String,
-        ownerId: String,
         mimeType: String,
         originalFilename: String,
         sizeBytes: Long,
+        delegatedBy: String? = null,
     ): CreateAssetUploadResult {
         val mutation =
             """
@@ -54,22 +56,42 @@ open class AssetsServiceClient(
                         "filename" to originalFilename,
                         "mimeType" to mimeType,
                         "sizeBytes" to sizeBytes,
-                        "ownerId" to ownerId,
                     ),
             )
-        val response = executeMutation(mutation, variables)
+        val response = executeMutation(mutation, variables, delegatedBy)
         val data =
             response.data?.get("createAssetUpload") as? Map<*, *>
-                ?: throw AssetsServiceException("createAssetUpload returned no data: ${response.errors}")
-        val id = data["id"] as? String ?: throw AssetsServiceException("createAssetUpload returned no id")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload",
+                    details = response.errors?.toString(),
+                )
+        val id =
+            data["id"] as? String
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload.id",
+                )
         val uploadUrl =
-            data["uploadUrl"] as? String ?: throw AssetsServiceException(
-                "createAssetUpload returned no uploadUrl",
+            data["uploadUrl"] as? String ?: throw AssetsServiceException.invalidResponse(
+                operation = "createAssetUpload",
+                field = "createAssetUpload.uploadUrl",
             )
-        return CreateAssetUploadResult(id = UUID.fromString(id), uploadUrl = uploadUrl)
+        val parsedId =
+            runCatching { UUID.fromString(id) }.getOrElse {
+                throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload.id",
+                    details = "invalid UUID returned by assets service",
+                )
+            }
+        return CreateAssetUploadResult(id = parsedId, uploadUrl = uploadUrl)
     }
 
-    fun confirmAssetUpload(assetId: UUID): ConfirmAssetUploadResult {
+    fun confirmAssetUpload(
+        assetId: UUID,
+        delegatedBy: String? = null,
+    ): ConfirmAssetUploadResult {
         val mutation =
             """
             mutation ConfirmAssetUpload(${'$'}input: ConfirmAssetUploadInput!) {
@@ -83,13 +105,35 @@ open class AssetsServiceClient(
             mapOf(
                 "input" to mapOf("assetId" to assetId.toString()),
             )
-        val response = executeMutation(mutation, variables)
+        val response = executeMutation(mutation, variables, delegatedBy)
         val data =
             response.data?.get("confirmAssetUpload") as? Map<*, *>
-                ?: throw AssetsServiceException("confirmAssetUpload returned no data: ${response.errors}")
-        val id = data["id"] as? String ?: throw AssetsServiceException("confirmAssetUpload returned no id")
-        val status = data["status"] as? String ?: throw AssetsServiceException("confirmAssetUpload returned no status")
-        return ConfirmAssetUploadResult(id = UUID.fromString(id), status = status)
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload",
+                    details = response.errors?.toString(),
+                )
+        val id =
+            data["id"] as? String
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload.id",
+                )
+        val status =
+            data["status"] as? String
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload.status",
+                )
+        val parsedId =
+            runCatching { UUID.fromString(id) }.getOrElse {
+                throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload.id",
+                    details = "invalid UUID returned by assets service",
+                )
+            }
+        return ConfirmAssetUploadResult(id = parsedId, status = status)
     }
 
     /**
@@ -98,6 +142,7 @@ open class AssetsServiceClient(
     fun getAsset(
         assetId: UUID,
         downloadTtlSeconds: Int = 3600,
+        delegatedBy: String? = null,
     ): AssetResult {
         val query =
             """
@@ -109,16 +154,32 @@ open class AssetsServiceClient(
             }
             """.trimIndent()
         val variables = mapOf("id" to assetId.toString())
-        val response = executeQuery(query, variables)
+        val response = executeQuery(query, variables, delegatedBy)
         val data =
             response.data?.get("asset") as? Map<*, *>
-                ?: throw AssetsServiceException("asset not found: $assetId (${response.errors})")
-        val id = data["id"] as? String ?: throw AssetsServiceException("asset returned no id")
+                ?: throw AssetsServiceException.notFound(assetId)
+        val id =
+            data["id"] as? String
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "asset",
+                    field = "asset.id",
+                )
         val downloadUrl = data["downloadUrl"] as? String
-        return AssetResult(id = UUID.fromString(id), downloadUrl = downloadUrl)
+        val parsedId =
+            runCatching { UUID.fromString(id) }.getOrElse {
+                throw AssetsServiceException.invalidResponse(
+                    operation = "asset",
+                    field = "asset.id",
+                    details = "invalid UUID returned by assets service",
+                )
+            }
+        return AssetResult(id = parsedId, downloadUrl = downloadUrl)
     }
 
-    fun deleteAsset(assetId: UUID): Boolean {
+    fun deleteAsset(
+        assetId: UUID,
+        delegatedBy: String? = null,
+    ): Boolean {
         val mutation =
             """
             mutation DeleteAsset(${'$'}assetId: ID!) {
@@ -126,37 +187,43 @@ open class AssetsServiceClient(
             }
             """.trimIndent()
         val variables = mapOf("assetId" to assetId.toString())
-        val response = executeMutation(mutation, variables)
+        val response = executeMutation(mutation, variables, delegatedBy)
         return response.data?.get("deleteAsset") as? Boolean ?: false
     }
 
     private fun executeQuery(
         query: String,
         variables: Map<String, Any>,
-    ): io.github.salomax.neotool.common.security.service.GraphQLResponse {
+        delegatedBy: String? = null,
+    ): io.github.salomax.neotool.common.service.GraphQLResponse {
         return try {
             if (hasServiceCredentials()) {
-                runBlocking { graphQLServiceClient.query(query, variables, targetAudience) }
+                runBlocking { graphQLServiceClient.query(query, variables, targetAudience, delegatedBy) }
             } else {
                 postWithoutAuth(query, variables)
             }
+        } catch (e: DomainException) {
+            throw e
         } catch (e: Exception) {
-            throw AssetsServiceException("Assets service query failed: ${e.message}", e)
+            throw AssetsServiceException.serviceUnavailable(operation = "query", cause = e)
         }
     }
 
     private fun executeMutation(
         mutation: String,
         variables: Map<String, Any>,
-    ): io.github.salomax.neotool.common.security.service.GraphQLResponse {
+        delegatedBy: String? = null,
+    ): io.github.salomax.neotool.common.service.GraphQLResponse {
         return try {
             if (hasServiceCredentials()) {
-                runBlocking { graphQLServiceClient.mutation(mutation, variables, targetAudience) }
+                runBlocking { graphQLServiceClient.mutation(mutation, variables, targetAudience, delegatedBy) }
             } else {
                 postWithoutAuth(mutation, variables)
             }
+        } catch (e: DomainException) {
+            throw e
         } catch (e: Exception) {
-            throw AssetsServiceException("Assets service mutation failed: ${e.message}", e)
+            throw AssetsServiceException.serviceUnavailable(operation = "mutation", cause = e)
         }
     }
 
@@ -165,24 +232,26 @@ open class AssetsServiceClient(
     private fun postWithoutAuth(
         query: String,
         variables: Map<String, Any>,
-    ): io.github.salomax.neotool.common.security.service.GraphQLResponse {
+    ): io.github.salomax.neotool.common.service.GraphQLResponse {
         val requestBody = mapOf("query" to query, "variables" to variables)
         val request = HttpRequest.POST(routerGraphqlUrl, requestBody).contentType(MediaType.APPLICATION_JSON)
         val response = httpClient.toBlocking().exchange(request, Map::class.java)
         val body = response.body() as? Map<*, *> ?: emptyMap<Any, Any>()
-        val data = (body["data"] as? Map<*, *>)?.mapKeys { it.key.toString() }?.mapValues { it.value as Any }
+        val data = (body["data"] as? Map<*, *>)?.toStringKeyedMap()
         val errors = body["errors"] as? List<*>
-        return io.github.salomax.neotool.common.security.service.GraphQLResponse(
+        return io.github.salomax.neotool.common.service.GraphQLResponse(
             data = data,
             errors =
                 errors?.mapNotNull { it as? Map<*, *> }?.map {
                     it.mapKeys {
                             k ->
                         k.key.toString()
-                    }.mapValues { it.value as Any }
+                    }.mapValues { it.value }
                 },
         )
     }
+
+    private fun Map<*, *>.toStringKeyedMap(): Map<String, Any?> = entries.associate { (key, value) -> key.toString() to value }
 }
 
 data class CreateAssetUploadResult(val id: UUID, val uploadUrl: String)
@@ -191,4 +260,68 @@ data class ConfirmAssetUploadResult(val id: UUID, val status: String)
 
 data class AssetResult(val id: UUID, val downloadUrl: String?)
 
-class AssetsServiceException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
+class AssetsServiceException(
+    errorCode: io.github.salomax.neotool.common.error.ErrorCode,
+    field: String? = null,
+    parameters: Map<String, Any> = emptyMap(),
+    cause: Throwable? = null,
+) : DomainException(errorCode = errorCode, field = field, parameters = parameters, cause = cause) {
+    constructor(
+        message: String,
+        cause: Throwable? = null,
+    ) : this(
+        errorCode = BankingErrorCode.IMPORT_ASSET_SERVICE_UNAVAILABLE,
+        field = "details",
+        parameters = mapOf("details" to message),
+        cause = cause,
+    )
+
+    companion object {
+        fun serviceUnavailable(
+            operation: String,
+            cause: Throwable? = null,
+        ): AssetsServiceException =
+            AssetsServiceException(
+                errorCode = BankingErrorCode.IMPORT_ASSET_SERVICE_UNAVAILABLE,
+                field = "operation",
+                parameters = mapOf("operation" to operation),
+                cause = cause,
+            )
+
+        fun invalidResponse(
+            operation: String,
+            field: String? = null,
+            details: String? = null,
+        ): AssetsServiceException =
+            AssetsServiceException(
+                errorCode = BankingErrorCode.IMPORT_ASSET_INVALID_RESPONSE,
+                field = field,
+                parameters =
+                    buildMap {
+                        put("operation", operation)
+                        details?.let { put("details", it) }
+                    },
+            )
+
+        fun notFound(assetId: UUID): AssetsServiceException =
+            AssetsServiceException(
+                errorCode = BankingErrorCode.IMPORT_ASSET_NOT_FOUND,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
+
+        fun transferFailed(
+            operation: String,
+            statusCode: Int,
+        ): AssetsServiceException =
+            AssetsServiceException(
+                errorCode = BankingErrorCode.IMPORT_ASSET_TRANSFER_FAILED,
+                field = "statusCode",
+                parameters =
+                    mapOf(
+                        "operation" to operation,
+                        "statusCode" to statusCode,
+                    ),
+            )
+    }
+}

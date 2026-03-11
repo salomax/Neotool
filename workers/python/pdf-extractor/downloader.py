@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Optional
 
 import httpx
 
@@ -14,7 +15,7 @@ class SignedUrlExpiredError(DownloadError):
 
 
 def download_pdf(download_url: str, timeout_seconds: int, max_retries: int = 3) -> bytes:
-    last_error: Exception | None = None
+    last_error: Optional[Exception] = None
 
     with httpx.Client(timeout=timeout_seconds) as client:
         for attempt in range(max_retries):

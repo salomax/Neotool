@@ -141,4 +141,17 @@ describe.sequential('BillSummaryHeader', () => {
     // In this specific component implementation, if loading && !bill, it renders a different structure
     // We can check for the absence of specific text or presence of skeletons if we add data-testid
   });
+
+  it('does not render zero amount when bill data is missing and loading is false', () => {
+    renderWithTheme(
+      <BillSummaryHeader
+        bill={undefined}
+        loading={false}
+      />
+    );
+
+    expect(
+      screen.queryByText((_, element) => (element?.textContent ?? '').includes('0,00'))
+    ).toBeNull();
+  });
 });

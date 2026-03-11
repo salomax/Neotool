@@ -144,6 +144,7 @@
     "ASSET_INVALID_ID": "Identificador de arquivo inválido.",
     "ASSET_INPUT_REQUIRED": "Dados obrigatórios não foram informados.",
     "FIXED_INCOME_INVALID_EFFECTIVE_RATE": "Taxa efetiva anual inválida.",
+    "DUPLICATE_IMPORT": "Este arquivo já foi importado para esta conta.",
     "INVALID_INPUT": "Entrada inválida. Revise os dados e tente novamente.",
     "INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
     "default": "Ocorreu um erro"
@@ -188,5 +189,14 @@
   "evolution": "Evolução %",
   "variation": "Variação",
   "date": "Data",
-  "yearly": "Anual"
+  "yearly": "Anual",
+  "datePicker": {
+    "start": "Início",
+    "end": "Fim",
+    "placeholder": "Selecione a data",
+    "formatHint": "dd/mm/aaaa",
+    "fieldDay": "dd",
+    "fieldMonth": "mm",
+    "fieldYear": "aaaa"
+  }
 }

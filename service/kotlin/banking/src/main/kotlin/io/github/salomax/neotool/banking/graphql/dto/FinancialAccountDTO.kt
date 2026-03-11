@@ -25,6 +25,7 @@ data class CardDataDTO(
     val minimumPaymentPercentage: Double?,
     val closingDay: Int?,
     val dueDay: Int?,
+    val linkedBankAccountId: UUID?,
 )
 
 data class FinancialAccountDTO(

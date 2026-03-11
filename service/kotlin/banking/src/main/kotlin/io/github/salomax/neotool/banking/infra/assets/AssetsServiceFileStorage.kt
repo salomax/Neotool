@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.infra.assets
 
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -28,26 +30,40 @@ open class AssetsServiceFileStorage(
         val upload =
             assetsClient.createAssetUpload(
                 namespace = importNamespace,
-                ownerId = accountId.toString(),
                 mimeType = mimeType,
                 originalFilename = fileName,
                 sizeBytes = bytes.size.toLong(),
+                delegatedBy = accountId.toString(),
             )
         presignedUrlHttpClient.put(upload.uploadUrl, bytes, mimeType)
-        assetsClient.confirmAssetUpload(upload.id)
+        assetsClient.confirmAssetUpload(upload.id, delegatedBy = accountId.toString())
         return upload.id
     }
 
-    override fun read(assetId: UUID): ByteArray {
-        val asset = assetsClient.getAsset(assetId, downloadTtlSeconds = 3600)
-        val downloadUrl =
-            asset.downloadUrl
-                ?: throw IllegalStateException("Asset $assetId has no download URL (may not be READY)")
-        return presignedUrlHttpClient.get(downloadUrl)
+    override fun read(
+        accountId: UUID,
+        assetId: UUID,
+    ): ByteArray = presignedUrlHttpClient.get(resolveDownloadUrl(accountId, assetId, ttlSeconds = 3600))
+
+    override fun resolveDownloadUrl(
+        accountId: UUID,
+        assetId: UUID,
+        ttlSeconds: Int,
+    ): String {
+        val asset = assetsClient.getAsset(assetId, downloadTtlSeconds = ttlSeconds, delegatedBy = accountId.toString())
+        return asset.downloadUrl
+            ?: throw ConflictException(
+                errorCode = BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING,
+                field = "assetId",
+                parameters = mapOf("assetId" to assetId.toString()),
+            )
     }
 
-    override fun delete(assetId: UUID) {
-        runCatching { assetsClient.deleteAsset(assetId) }
+    override fun delete(
+        accountId: UUID,
+        assetId: UUID,
+    ) {
+        runCatching { assetsClient.deleteAsset(assetId, delegatedBy = accountId.toString()) }
             .onFailure { log.warn(it) { "Failed to delete import asset $assetId" } }
     }
 }

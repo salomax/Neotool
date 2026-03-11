@@ -291,6 +291,8 @@ export type CardData = {
   closingDay: Maybe<Scalars['Int']['output']>;
   creditLimit: Maybe<Scalars['Float']['output']>;
   dueDay: Maybe<Scalars['Int']['output']>;
+  /** Optional bank account that will receive the debit leg of bill-payment transfers. */
+  linkedBankAccountId: Maybe<Scalars['ID']['output']>;
   maskedNumber: Maybe<Scalars['String']['output']>;
   minimumPaymentPercentage: Maybe<Scalars['Float']['output']>;
 };
@@ -305,6 +307,8 @@ export type CardDataInput = {
   creditLimit?: InputMaybe<Scalars['Float']['input']>;
   /** Required for CREDIT_CARD. */
   dueDay?: InputMaybe<Scalars['Int']['input']>;
+  /** Optional bank account that will receive the debit leg of bill-payment transfers. */
+  linkedBankAccountId?: InputMaybe<Scalars['ID']['input']>;
   maskedNumber?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -392,6 +396,7 @@ export type ConfirmPdfTransactionInput = {
   date: Scalars['Date']['input'];
   description: Scalars['String']['input'];
   include: Scalars['Boolean']['input'];
+  isBillPayment?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export enum ConnectionStatus {
@@ -441,11 +446,6 @@ export type CreateAssetUploadInput = {
    * Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
    */
   namespace: Scalars['String']['input'];
-  /**
-   * Optional owner ID for service-to-service uploads (e.g. banking import: accountId as tenant).
-   * When provided, used as asset owner instead of the authenticated user ID.
-   */
-  ownerId?: InputMaybe<Scalars['String']['input']>;
   /** File size in bytes */
   sizeBytes: Scalars['Long']['input'];
 };
@@ -459,7 +459,7 @@ export type CreateFinancialAccountInput = {
   currencyCode?: InputMaybe<Scalars['String']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
+  /** Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
   initialBalance?: InputMaybe<Scalars['Float']['input']>;
   /** Reference date for the initial balance. Required when initialBalance is provided. */
   initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;
@@ -943,6 +943,11 @@ export type ImportTransactionsFileInput = {
   source?: InputMaybe<ImportSource>;
 };
 
+export enum ImportType {
+  BankStatement = 'BANK_STATEMENT',
+  CreditCardBill = 'CREDIT_CARD_BILL'
+}
+
 export type IndicatorRangeInput = {
   from?: InputMaybe<Scalars['Date']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -1020,6 +1025,8 @@ export type MonthSummary = {
   closingBalance: Scalars['Float']['output'];
   /** True when (year, month) equals the current calendar month. */
   isCurrentMonth: Scalars['Boolean']['output'];
+  /** True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted. */
+  isFutureMonth: Scalars['Boolean']['output'];
   month: Scalars['Int']['output'];
   /** Balance at start of month (prior month's closingBalance). */
   openingBalance: Scalars['Float']['output'];
@@ -1456,14 +1463,19 @@ export type PdfExtractedTransaction = {
   date: Maybe<Scalars['Date']['output']>;
   description: Scalars['String']['output'];
   installment: Maybe<InstallmentInfo>;
+  isBillPayment: Scalars['Boolean']['output'];
 };
 
 export type PdfImportJob = {
   __typename: 'PdfImportJob';
   createdAt: Scalars['DateTime']['output'];
+  errorCode: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use errorCode/errorParameters for i18n */
   errorMessage: Maybe<Scalars['String']['output']>;
+  errorParameters: Maybe<Scalars['JSON']['output']>;
   fileName: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  importType: ImportType;
   reviewPayload: Maybe<PdfBillExtractionResult>;
   status: PdfImportJobStatus;
 };
@@ -2038,6 +2050,7 @@ export type SubmitPdfBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  importType: ImportType;
 };
 
 export type Subscription = {

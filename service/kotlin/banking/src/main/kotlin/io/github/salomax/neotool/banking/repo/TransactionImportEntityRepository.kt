@@ -41,4 +41,17 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
         id: UUID,
         status: String,
     ): Int
+
+    @Query(
+        """
+        UPDATE banking.transaction_imports
+           SET assistant_request_published_at = NOW(), updated_at = NOW()
+         WHERE id = :id
+           AND assistant_request_published_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun markAssistantRequestPublished(
+        id: UUID,
+    ): Int
 }

@@ -22,4 +22,5 @@ data class ConfirmPdfTransactionCommand(
     val amount: BigDecimal,
     val creditDebitType: CreditDebitType,
     val include: Boolean,
+    val isBillPayment: Boolean = false,
 )

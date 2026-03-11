@@ -13,6 +13,10 @@
     "value": "Valor",
     "tags": "Tags",
     "issuer": "Instituição",
+    "financialAccount": "Conta financeira",
+    "validation": {
+      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos"
+    },
     "dateGroup": {
       "today": "Hoje, {{date}}",
       "tomorrow": "Amanhã, {{date}}"
@@ -79,6 +83,7 @@
           "accountName": "Nome da conta",
           "currency": "Moeda",
           "initialBalance": "Saldo inicial",
+          "initialBalanceDate": "Data do saldo inicial",
           "themeColor": "Cor do tema",
           "includeInNetWorth": "Incluir no patrimônio",
           "includeInDashboard": "Incluir no dashboard",
@@ -98,6 +103,8 @@
           "issuerRequired": "Instituição é obrigatória",
           "accountNameRequired": "Nome da conta é obrigatório",
           "subtypeRequired": "Tipo é obrigatório",
+          "initialBalanceDateRequired": "Data do saldo inicial é obrigatória quando o saldo inicial é informado",
+          "initialBalanceNonZero": "Saldo inicial deve ser diferente de zero",
           "closingDayRequired": "Dia de fechamento é obrigatório",
           "dueDayRequired": "Dia de vencimento é obrigatório",
           "closingDayInvalid": "Dia de fechamento inválido (1-31)",
@@ -153,12 +160,12 @@
       },
       "uploadStep": {
         "title": "Selecione o arquivo",
-        "recommendation": "Para melhor experiência, priorize arquivos OFX. Eles fornecem dados padronizados e mais ricos em comparação com CSV ou XLSX.",
+        "recommendation": "Para melhor experiência, priorize arquivos OFX. Eles fornecem dados padronizados e mais detalhados em comparação com CSV ou XLSX.",
         "fileSelected": "Arquivo selecionado:",
         "dragDrop": "Arraste o arquivo aqui ou clique para procurar",
-        "acceptedTypes": ".ofx, .csv, .xlsx",
-        "fileTooLarge": "O arquivo deve ter no máximo 3 MB",
-        "unsupportedType": "Selecione um arquivo OFX, CSV ou XLSX",
+        "acceptedTypes": ".ofx, .csv, .xlsx, .xls, .pdf",
+        "fileTooLarge": "O arquivo deve ter no máximo {{maxMb}} MB",
+        "unsupportedType": "Selecione um arquivo OFX, CSV, XLS/XLSX ou PDF",
         "selectAccount": "Selecione uma conta primeiro"
       },
       "processingStep": {
@@ -182,6 +189,71 @@
         "COMPLETED": "Concluído",
         "FAILED": "Falhou",
         "REVIEW_REQUIRED": "Revisão necessária"
+      }
+    },
+    "billImport": {
+      "uploadStep": {
+        "prompt": "Selecione o arquivo da fatura.",
+        "recommendation": "Para um melhor resultado, priorize arquivos OFX. Eles fornecem dados padronizados e mais ricos em comparação com PDF ou CSV.",
+        "dragDrop": "Arraste o arquivo ou clique para selecionar",
+        "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — até {{maxMb}} MB",
+        "submit": "Processar fatura",
+        "submitting": "Enviando..."
+      },
+      "processingStep": {
+        "title": "Processando fatura...",
+        "description": "Estamos extraindo as transações do arquivo. Isso pode levar alguns segundos.",
+        "status": "Status: {{status}}"
+      },
+      "status": {
+        "PENDING": "Pendente",
+        "EXTRACTING": "Extraindo",
+        "LLM_PROCESSING": "Analisando",
+        "EXTRACTED": "Extraído",
+        "IMPORTING": "Importando",
+        "AWAITING_REVIEW": "Aguardando revisão",
+        "DONE": "Concluído",
+        "FAILED": "Falhou"
+      },
+      "cardMatchingStep": {
+        "description": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
+        "status": {
+          "associated": "Associado",
+          "pending": "Pendente"
+        },
+        "ambiguousWarning": "Múltiplos cartões com final {{lastFourDigits}} encontrados. Selecione o correto.",
+        "cardAccountLabel": "Conta do cartão",
+        "cardAccountPlaceholder": "Selecione...",
+        "createNewCard": "Cadastrar novo cartão",
+        "txSummary": "{{count}} transação(ões) · total {{total}}",
+        "reviewTransactions": "Revisar transações"
+      },
+      "txReviewStep": {
+        "description": "Revise as transações antes de confirmar. Desmarque itens que não deseja importar.",
+        "paymentChip": "Pagamento",
+        "confirming": "Confirmando...",
+        "confirmButton": "Confirmar {{count}} transação(ões)"
+      },
+      "resultStep": {
+        "success": "Fatura importada com sucesso! {{included}} de {{total}} transações importadas."
+      },
+      "common": {
+        "back": "Voltar",
+        "close": "Fechar"
+      },
+      "steps": {
+        "uploadTitle": "Importar fatura",
+        "processingTitle": "Processando...",
+        "cardMatchingTitle": "Associar cartões",
+        "txReviewTitle": "Revisar transações",
+        "resultTitle": "Importação concluída",
+        "errorTitle": "Erro na importação"
+      },
+      "errorStep": {
+        "title": "Erro na importação",
+        "retry": "Tentar novamente",
+        "generic": "Houve um erro na importação que impossibilitou o processamento no momento. Tente novamente mais tarde.",
+        "processingUnavailable": "No momento não foi possível processar esta fatura. Tente novamente mais tarde."
       }
     },
     "duplicateReview": {
@@ -220,7 +292,10 @@
       "expenses": "Despesas",
       "balance": "Saldo",
       "total": "do total",
-      "consolidatedTooltip": "Inclui saldo de cartões como passivo."
+      "consolidatedTooltip": "Inclui saldo de cartões como passivo.",
+      "unavailableTitle": "Não foi possível carregar o resumo do mês",
+      "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
+      "retry": "Tentar novamente"
     },
     "billCarousel": {
       "title": "Fatura {{month}}",

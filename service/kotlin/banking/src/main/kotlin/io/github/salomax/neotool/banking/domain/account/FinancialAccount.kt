@@ -28,6 +28,8 @@ data class CardData(
     val minimumPaymentPercentage: BigDecimal? = null,
     val closingDay: Int? = null,
     val dueDay: Int? = null,
+    /** Optional link to a bank account used to auto-create the debit leg of a bill-payment transfer. */
+    val linkedBankAccountId: UUID? = null,
 )
 
 /**

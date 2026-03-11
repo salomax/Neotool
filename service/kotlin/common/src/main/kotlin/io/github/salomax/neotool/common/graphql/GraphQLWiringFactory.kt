@@ -3,6 +3,7 @@ package io.github.salomax.neotool.common.graphql
 import graphql.scalars.ExtendedScalars
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
+import io.github.salomax.neotool.common.graphql.scalar.NeotoolDateTimeScalar
 import jakarta.inject.Singleton
 
 /**
@@ -25,7 +26,7 @@ abstract class GraphQLWiringFactory {
                 // Always register base scalars first (foundation for all modules)
                 .scalar(ExtendedScalars.GraphQLLong)
                 .scalar(ExtendedScalars.Date)
-                .scalar(ExtendedScalars.DateTime)
+                .scalar(NeotoolDateTimeScalar.dateTime)
                 .scalar(ExtendedScalars.Json)
                 .scalar(ExtendedScalars.UUID)
 

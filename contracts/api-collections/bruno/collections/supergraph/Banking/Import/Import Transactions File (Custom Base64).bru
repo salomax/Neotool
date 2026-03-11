@@ -1,0 +1,50 @@
+meta {
+  name: Import Transactions File (Custom Base64)
+  type: graphql
+  seq: 15
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation ImportTransactionsFile($input: ImportTransactionsFileInput!) {
+    importTransactionsFile(input: $input) {
+      import {
+        id
+        status
+        source
+        totalRows
+        importedCount
+        skippedCount
+        duplicateReviewCount
+        errorCount
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "financialAccountId": "{{financial_account_id}}",
+      "fileName": "{{import_file_name}}",
+      "source": "{{import_source}}",
+      "fileBase64": "{{import_file_base64}}"
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  if (body && body.data && body.data.importTransactionsFile && body.data.importTransactionsFile.import && body.data.importTransactionsFile.import.id) {
+    bru.setEnvVar("import_job_id", body.data.importTransactionsFile.import.id, { persist: true });
+  }
+}

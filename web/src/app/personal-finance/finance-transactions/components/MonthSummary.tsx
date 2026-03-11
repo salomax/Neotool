@@ -1,8 +1,9 @@
 import React from 'react';
-import { Box, Stack, Typography, Skeleton, useTheme, alpha, Avatar, Divider } from '@mui/material';
+import { Box, Stack, Typography, Skeleton, useTheme, alpha, Avatar, Divider, Button } from '@mui/material';
 import { 
   ArrowUpward as IncomeIcon, 
   ArrowDownward as ExpenseIcon, 
+  ErrorOutline as UnavailableIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
@@ -24,12 +25,16 @@ export interface MonthSummaryData {
 interface MonthSummaryProps {
   summary: MonthSummaryData | undefined;
   loading: boolean;
+  unavailable?: boolean;
+  onRetry?: () => void;
   isConsolidated?: boolean;
 }
 
 export const MonthSummary: React.FC<MonthSummaryProps> = ({
   summary,
   loading,
+  unavailable = false,
+  onRetry,
 }) => {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -112,6 +117,45 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
   const incomePercentage = totalVolume > 0 ? calculatePercentage(absIncome, totalVolume) : 0;
   const expensesPercentage = totalVolume > 0 ? calculatePercentage(absExpenses, totalVolume) : 0;
+
+  if (unavailable && !loading && !summary) {
+    return (
+      <Box
+        sx={{
+          minHeight: 280,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+        }}
+      >
+        <Stack spacing={1.5} alignItems="center" textAlign="center" maxWidth={320}>
+          <Avatar
+            variant="rounded"
+            sx={{
+              bgcolor: alpha(theme.palette.warning.main, 0.12),
+              color: theme.palette.warning.main,
+              width: 52,
+              height: 52,
+            }}
+          >
+            <UnavailableIcon />
+          </Avatar>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t('financeTransactions.monthSummary.unavailableTitle')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {t('financeTransactions.monthSummary.unavailableDescription')}
+          </Typography>
+          {onRetry && (
+            <Button variant="outlined" size="small" onClick={onRetry}>
+              {t('financeTransactions.monthSummary.retry')}
+            </Button>
+          )}
+        </Stack>
+      </Box>
+    );
+  }
 
   return (
     <Box>

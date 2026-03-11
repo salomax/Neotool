@@ -71,4 +71,14 @@ enum class AssetErrorCode(
         defaultMessage = "Required input is missing",
         httpStatus = 400,
     ),
+    ASSET_ACCESS_DENIED(
+        code = "ASSET_ACCESS_DENIED",
+        defaultMessage = "Access denied for asset operation",
+        httpStatus = 403,
+    ),
+    ASSET_OWNER_CONTEXT_MISSING(
+        code = "ASSET_OWNER_CONTEXT_MISSING",
+        defaultMessage = "Owner context is required for asset operation",
+        httpStatus = 400,
+    ),
 }

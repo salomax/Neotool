@@ -43,6 +43,14 @@ open class DefaultImportJobRepository(
             .map(TransactionImportMapper::toDomain)
 
     @Transactional
+    override fun markAssistantRequestPublished(
+        id: UUID,
+    ): Boolean {
+        entityRepository.flush()
+        return entityRepository.markAssistantRequestPublished(id) > 0
+    }
+
+    @Transactional
     override fun save(job: ImportJob): ImportJob {
         val entity = TransactionImportMapper.toEntity(job)
         val saved = entityRepository.save(entity)

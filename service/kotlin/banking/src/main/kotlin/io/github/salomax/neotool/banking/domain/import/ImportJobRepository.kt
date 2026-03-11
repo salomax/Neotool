@@ -27,4 +27,12 @@ interface ImportJobRepository {
     ): List<ImportJob>
 
     fun findByAccount(accountId: UUID): List<ImportJob>
+
+    /**
+     * Marks assistant request as published once.
+     * Returns true when marker was set in this call, false when already marked.
+     */
+    fun markAssistantRequestPublished(
+        id: UUID,
+    ): Boolean
 }

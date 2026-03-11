@@ -38,7 +38,7 @@ class ImportProcessorTest {
     private lateinit var accountId: UUID
     private lateinit var createdByUserId: UUID
     private lateinit var job: ImportJob
-    private val today = LocalDate.of(2024, 1, 15)
+    private val today = LocalDate.now().minusDays(1)
     private val now = Instant.now()
 
     @BeforeEach
@@ -76,11 +76,12 @@ class ImportProcessorTest {
         providerId: String? = "fitid-1",
         amount: BigDecimal = BigDecimal("25.50"),
         description: String = "Coffee",
+        date: LocalDate = today,
     ) = ParsedTransaction(
         providerTransactionId = providerId,
         creditDebitType = CreditDebitType.DEBIT,
         amount = amount,
-        date = today,
+        date = date,
         description = description,
         currencyCode = "BRL",
     )
@@ -96,6 +97,22 @@ class ImportProcessorTest {
                 processor.process(jobWithoutId, listOf(parsedRow()))
             }
         }
+
+        @Test
+        fun `adds row error when date is older than 5-year moving window`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-old")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+
+            val result = processor.process(job, listOf(parsedRow(date = tooOldDate)))
+
+            assertThat(result.imported).isEmpty()
+            assertThat(result.skipped).isZero()
+            assertThat(result.errors).hasSize(1)
+            assertThat(result.errors[0].reason).contains("DATE_OUTSIDE_ALLOWED_WINDOW")
+            verify(transactionRepository, never()).save(any())
+        }
     }
 
     @Nested
@@ -104,7 +121,7 @@ class ImportProcessorTest {
         @Test
         fun `imports row when no Level 1 Level 1b or Level 2 conflict and save returns transaction`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-1")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             val savedTx =
@@ -140,7 +157,7 @@ class ImportProcessorTest {
         @Test
         fun `calls fingerprint compute with amount in cents and normalized description`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-x")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-x")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
@@ -152,6 +169,7 @@ class ImportProcessorTest {
                 date = eq(today),
                 amountCents = eq(1099L),
                 normalizedDescription = eq("  Foo  "),
+                creditDebitType = eq(CreditDebitType.DEBIT),
             )
         }
     }
@@ -172,7 +190,7 @@ class ImportProcessorTest {
 
         @Test
         fun `does not call sameSource when providerTransactionId is null`() {
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
@@ -190,7 +208,7 @@ class ImportProcessorTest {
         @Test
         fun `skips row when fingerprint duplicate`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-dup")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-dup")
             whenever(importFingerprintService.isDuplicate(eq(financialAccountId), eq("fp-dup"))).thenReturn(true)
 
             val result = processor.process(job, listOf(parsedRow()))
@@ -207,7 +225,7 @@ class ImportProcessorTest {
         @Test
         fun `adds to duplicateCandidates and does not save when cross-source candidates found`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-2")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-2")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             val existingManual =
                 Transaction(
@@ -244,7 +262,7 @@ class ImportProcessorTest {
         @Test
         fun `adds row to errors and continues when save throws`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-a", "fp-b")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-a", "fp-b")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             whenever(transactionRepository.save(any()))
@@ -265,7 +283,7 @@ class ImportProcessorTest {
         @Test
         fun `exception in one row does not abort processing of subsequent rows`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenReturn("fp-1", "fp-2", "fp-3")
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-1", "fp-2", "fp-3")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             whenever(transactionRepository.save(any()))
@@ -306,7 +324,7 @@ class ImportProcessorTest {
                 val providerId = invocation.getArgument<String>(1)
                 providerId in (0..9).map { "fitid-$it" }
             }
-            whenever(importFingerprintService.compute(any(), any(), any(), any())).thenAnswer { invocation ->
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenAnswer { invocation ->
                 "fp-${invocation.getArgument<Long>(2)}"
             }
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)

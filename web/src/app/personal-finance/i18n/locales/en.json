@@ -13,6 +13,10 @@
     "value": "Value",
     "tags": "Tags",
     "issuer": "Institution",
+    "financialAccount": "Financial Account",
+    "validation": {
+      "dateTooOld": "Date must be within the last {{years}} years"
+    },
     "dateGroup": {
       "today": "Today, {{date}}",
       "tomorrow": "Tomorrow, {{date}}"
@@ -79,6 +83,7 @@
           "accountName": "Account name",
           "currency": "Currency",
           "initialBalance": "Initial balance",
+          "initialBalanceDate": "Initial balance date",
           "themeColor": "Theme color",
           "includeInNetWorth": "Include in net worth",
           "includeInDashboard": "Include in dashboard",
@@ -97,6 +102,8 @@
         "validation": {
           "accountNameRequired": "Account name is required",
           "subtypeRequired": "Account type is required",
+          "initialBalanceDateRequired": "Initial balance date is required when initial balance is provided",
+          "initialBalanceNonZero": "Initial balance must be non-zero",
           "issuerRequired": "Issuer is required",
           "closingDayRequired": "Closing day is required",
           "dueDayRequired": "Due day is required",
@@ -153,12 +160,12 @@
       },
       "uploadStep": {
         "title": "Select file",
-        "recommendation": "For the best experience, prioritize using OFX files. They provide standardized and richer data compared to CSV or XLSX.",
+        "recommendation": "For the best experience, prioritize using OFX files. They provide standardized and more detailed data compared to CSV or XLSX.",
         "fileSelected": "File selected:",
         "dragDrop": "Drag and drop your file here or click to browse",
-        "acceptedTypes": ".ofx, .csv, .xlsx",
-        "fileTooLarge": "File must be 3 MB or smaller",
-        "unsupportedType": "Please select an OFX, CSV, or XLSX file",
+        "acceptedTypes": ".ofx, .csv, .xlsx, .xls, .pdf",
+        "fileTooLarge": "File must be {{maxMb}} MB or smaller",
+        "unsupportedType": "Please select an OFX, CSV, XLS/XLSX, or PDF file",
         "selectAccount": "Select an account first"
       },
       "processingStep": {
@@ -182,6 +189,71 @@
         "COMPLETED": "Completed",
         "FAILED": "Failed",
         "REVIEW_REQUIRED": "Review required"
+      }
+    },
+    "billImport": {
+      "uploadStep": {
+        "prompt": "Select the statement file.",
+        "recommendation": "For best results, prioritize OFX files. They provide standardized and richer data compared to PDF or CSV.",
+        "dragDrop": "Drag the file or click to select",
+        "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — up to {{maxMb}} MB",
+        "submit": "Process statement",
+        "submitting": "Uploading..."
+      },
+      "processingStep": {
+        "title": "Processing statement...",
+        "description": "We are extracting transactions from the file. This may take a few seconds.",
+        "status": "Status: {{status}}"
+      },
+      "status": {
+        "PENDING": "Pending",
+        "EXTRACTING": "Extracting",
+        "LLM_PROCESSING": "Analyzing",
+        "EXTRACTED": "Extracted",
+        "IMPORTING": "Importing",
+        "AWAITING_REVIEW": "Awaiting review",
+        "DONE": "Done",
+        "FAILED": "Failed"
+      },
+      "cardMatchingStep": {
+        "description": "Associate each card found in the statement with an existing account.",
+        "status": {
+          "associated": "Associated",
+          "pending": "Pending"
+        },
+        "ambiguousWarning": "Multiple cards ending in {{lastFourDigits}} were found. Please select the correct one.",
+        "cardAccountLabel": "Card account",
+        "cardAccountPlaceholder": "Select...",
+        "createNewCard": "Create new card",
+        "txSummary": "{{count}} transaction(s) · total {{total}}",
+        "reviewTransactions": "Review transactions"
+      },
+      "txReviewStep": {
+        "description": "Review the transactions before confirming. Uncheck items you don't want to import.",
+        "paymentChip": "Payment",
+        "confirming": "Confirming...",
+        "confirmButton": "Confirm {{count}} transaction(s)"
+      },
+      "resultStep": {
+        "success": "Statement imported successfully! {{included}} of {{total}} transactions imported."
+      },
+      "common": {
+        "back": "Back",
+        "close": "Close"
+      },
+      "steps": {
+        "uploadTitle": "Import statement",
+        "processingTitle": "Processing...",
+        "cardMatchingTitle": "Associate cards",
+        "txReviewTitle": "Review transactions",
+        "resultTitle": "Import complete",
+        "errorTitle": "Import error"
+      },
+      "errorStep": {
+        "title": "Import error",
+        "retry": "Try again",
+        "generic": "There was an import error and we could not process it right now. Please try again later.",
+        "processingUnavailable": "We could not process this statement right now. Please try again later."
       }
     },
     "duplicateReview": {
@@ -219,7 +291,10 @@
       "income": "Income",
       "expenses": "Expenses",
       "balance": "Current Balance",
-      "total": "of total"
+      "total": "of total",
+      "unavailableTitle": "Could not load this month's summary",
+      "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
+      "retry": "Try again"
     },
     "deleteConfirmation": {
       "title": "Delete transaction",

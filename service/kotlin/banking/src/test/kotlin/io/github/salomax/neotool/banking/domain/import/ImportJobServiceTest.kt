@@ -334,6 +334,44 @@ class ImportJobServiceTest {
         }
 
         @Test
+        fun `stores PDF import with application pdf mime type`() {
+            val fileBytes = "%PDF-1.7".toByteArray()
+            val fileName = "extrato.pdf"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(null)
+            val savedJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.AUTO,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.save(any())).thenReturn(savedJob)
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
+
+            val result =
+                service.initiateFileImport(
+                    financialAccountId,
+                    accountId,
+                    userId,
+                    fileBytes,
+                    fileName,
+                    null,
+                )
+
+            assertThat(result.id).isEqualTo(jobId)
+            verify(fileStorage).store(eq(accountId), eq(fileBytes), eq(fileName), eq("application/pdf"))
+            verify(importFileProducer).publish(any())
+        }
+
+        @Test
         fun `marks job FAILED when queueing fails after save`() {
             val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
             val fileName = "export.ofx"
@@ -688,6 +726,55 @@ class ImportJobServiceTest {
             assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
             assertThat(result.importedCount).isEqualTo(1)
             assertThat(result.duplicateReviewCount).isEqualTo(0)
+        }
+
+        @Test
+        fun `resolves duplicate from canonical review payload envelope`() {
+            val jobId = UUID.randomUUID()
+            val candidate =
+                ImportDuplicateCandidate(
+                    rowIndex = 0,
+                    parsed =
+                        ParsedTransaction(
+                            creditDebitType = CreditDebitType.DEBIT,
+                            amount = BigDecimal("10"),
+                            date = today,
+                            description = "A",
+                            currencyCode = "BRL",
+                        ),
+                    candidates = emptyList(),
+                )
+            val reviewPayload =
+                ImportReviewPayloadMapper.toJson(
+                    objectMapper = objectMapper,
+                    duplicateCandidates = listOf(candidate),
+                    gate = mapOf("gate_reason" to "llm_low_confidence"),
+                )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    totalRows = 1,
+                    importedCount = 0,
+                    duplicateReviewCount = 1,
+                    errorCount = 0,
+                    reviewPayload = reviewPayload,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findById(jobId, accountId)).thenReturn(job)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result = service.resolveImportDuplicate(jobId, 0, DuplicateResolution.KEEP_EXISTING, accountId)
+
+            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            assertThat(result.duplicateReviewCount).isEqualTo(0)
+            assertThat(result.reviewPayload).isNull()
         }
 
         @Test

@@ -144,6 +144,7 @@
     "ASSET_INVALID_ID": "Invalid asset identifier.",
     "ASSET_INPUT_REQUIRED": "Required input is missing.",
     "FIXED_INCOME_INVALID_EFFECTIVE_RATE": "Invalid effective annual rate.",
+    "DUPLICATE_IMPORT": "This file has already been imported for this account.",
     "INVALID_INPUT": "Invalid input. Please review the form and try again.",
     "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
     "default": "An error occurred"
@@ -188,5 +189,14 @@
   "evolution": "Evolution %",
   "variation": "Variation",
   "date": "Date",
-  "yearly": "Yearly"
+  "yearly": "Yearly",
+  "datePicker": {
+    "start": "Start",
+    "end": "End",
+    "placeholder": "Select date",
+    "formatHint": "mm/dd/yyyy",
+    "fieldDay": "dd",
+    "fieldMonth": "mm",
+    "fieldYear": "yyyy"
+  }
 }

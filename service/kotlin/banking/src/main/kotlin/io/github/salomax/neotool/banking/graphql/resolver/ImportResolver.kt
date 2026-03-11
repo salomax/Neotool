@@ -2,11 +2,10 @@ package io.github.salomax.neotool.banking.graphql.resolver
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.salomax.neotool.banking.domain.import.DuplicateResolution
-import io.github.salomax.neotool.banking.domain.import.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobService
+import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.isFileImportSource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.graphql.dto.ImportDuplicateCandidateDTO
@@ -195,15 +194,15 @@ class ImportResolver(
                 status != io.github.salomax.neotool.banking.domain.import.ImportJobStatus.REVIEW_REQUIRED -> emptyList()
                 reviewPayload.isNullOrBlank() -> emptyList()
                 else ->
-                    runCatching {
-                        mapper.readValue<List<ImportDuplicateCandidate>>(reviewPayload!!).map { c ->
+                    ImportReviewPayloadMapper
+                        .duplicateCandidates(mapper, reviewPayload)
+                        .map { c ->
                             ImportDuplicateCandidateDTO(
                                 rowIndex = c.rowIndex,
                                 parsed = c.parsed.toDTO(),
                                 candidates = c.candidates.map { it.toDTO() },
                             )
                         }
-                    }.getOrElse { emptyList() }
             }
         return TransactionImportDTO(
             id = id!!,

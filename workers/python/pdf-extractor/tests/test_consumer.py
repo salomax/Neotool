@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import time
+from typing import Optional
 from unittest.mock import patch
 
 import httpx
@@ -27,6 +28,7 @@ def _config() -> WorkerConfig:
         download_timeout_seconds=30,
         download_max_retries=3,
         max_output_chars=12000,
+        health_port=8080,
     )
 
 
@@ -120,7 +122,7 @@ def test_health_endpoint_reflects_state() -> None:
 
 
 def _get_health(client: httpx.Client, url: str) -> httpx.Response:
-    last_error: Exception | None = None
+    last_error: Optional[Exception] = None
     for _ in range(5):
         try:
             return client.get(url)

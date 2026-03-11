@@ -255,6 +255,22 @@ class JwtTokenValidator(
     }
 
     /**
+     * Extract delegated owner identifier from a service token.
+     *
+     * @param token The JWT token string
+     * @return Delegated owner identifier (e.g. accountId/userId) or null if absent
+     * @throws AuthenticationRequiredException if token validation fails
+     */
+    @Throws(AuthenticationRequiredException::class)
+    fun getDelegatedByFromServiceToken(token: String): String? {
+        val claims = validateToken(token)
+        if (claims["type"] != "service") {
+            return null
+        }
+        return claims["delegated_by"]?.toString()
+    }
+
+    /**
      * Check if a token is an access token.
      *
      * @param token The JWT token string

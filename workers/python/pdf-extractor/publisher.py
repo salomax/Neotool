@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import threading
-from typing import Any
+from typing import Any, Optional
 
 from confluent_kafka import Producer
 
@@ -21,7 +21,7 @@ class KafkaPublisher:
 
     def _publish(self, topic: str, key: str, payload: dict[str, Any]) -> None:
         delivered = threading.Event()
-        result: dict[str, Exception | None] = {"error": None}
+        result: dict[str, Optional[Exception]] = {"error": None}
 
         def callback(err, _msg) -> None:
             if err is not None:

@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.test.service.integration
 
-import io.github.salomax.neotool.common.security.service.GraphQLResponse
-import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.common.service.GraphQLResponse
+import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.github.salomax.neotool.security.service.email.CommsEmailService
 import io.micronaut.test.annotation.MockBean
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
@@ -18,7 +18,7 @@ import org.mockito.kotlin.mock
  */
 class RecordingGraphQLServiceClient(
     routerUrl: String = "",
-    serviceTokenClient: io.github.salomax.neotool.common.security.service.ServiceTokenClient = mock(),
+    serviceTokenClient: io.github.salomax.neotool.common.service.ServiceTokenClient = mock(),
     httpClient: io.micronaut.http.client.HttpClient = mock(),
 ) : GraphQLServiceClient(routerUrl, serviceTokenClient, httpClient) {
     val mutationVariables = mutableListOf<Map<String, Any>?>()
@@ -27,6 +27,7 @@ class RecordingGraphQLServiceClient(
         mutation: String,
         variables: Map<String, Any>?,
         targetAudience: String,
+        delegatedBy: String?,
     ): GraphQLResponse {
         mutationVariables.add(variables)
         return GraphQLResponse(

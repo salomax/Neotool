@@ -8,6 +8,10 @@ This section covers API contracts, GraphQL federation, and service-to-service co
 - **[graphql-standards.md](graphql-standards.md)** — GraphQL API standards and naming conventions
 - **[graphql-query-pattern.md](graphql-query-pattern.md)** — Query resolver patterns
 
+### Kafka Event Contracts
+- **[kafka/README.md](kafka/README.md)** — Versioned Kafka JSON Schemas and payload examples
+- **[kafka/banking-pdf-import/README.md](kafka/banking-pdf-import/README.md)** — Banking PDF import event contracts
+
 ### Future Documentation
 The following documents are planned and will be created:
 - **graphql-federation.md** — Federation architecture and patterns

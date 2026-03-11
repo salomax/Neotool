@@ -329,6 +329,11 @@ type CardData
   minimumPaymentPercentage: Float
   closingDay: Int
   dueDay: Int
+
+  """
+  Optional bank account that will receive the debit leg of bill-payment transfers.
+  """
+  linkedBankAccountId: ID
 }
 
 input CardDataInput
@@ -347,6 +352,11 @@ input CardDataInput
 
   """Required for CREDIT_CARD."""
   dueDay: Int
+
+  """
+  Optional bank account that will receive the debit leg of bill-payment transfers.
+  """
+  linkedBankAccountId: ID
 }
 
 """Category applicability (income, expense, transfer, or any)."""
@@ -451,6 +461,7 @@ input ConfirmPdfTransactionInput
   amount: Float!
   creditDebitType: CreditDebitType!
   include: Boolean!
+  isBillPayment: Boolean
 }
 
 enum ConnectionStatus
@@ -514,12 +525,6 @@ input CreateAssetUploadInput
   will return the existing asset instead of creating a new one.
   """
   idempotencyKey: String
-
-  """
-  Optional owner ID for service-to-service uploads (e.g. banking import: accountId as tenant).
-  When provided, used as asset owner instead of the authenticated user ID.
-  """
-  ownerId: String
 }
 
 input CreateFinancialAccountInput
@@ -552,7 +557,7 @@ input CreateFinancialAccountInput
   cardData: CardDataInput
 
   """
-  Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically.
+  Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically.
   """
   initialBalance: Float
 
@@ -1128,6 +1133,13 @@ input ImportTransactionsFileInput
   fileBase64: String!
 }
 
+enum ImportType
+  @join__type(graph: BANKING)
+{
+  CREDIT_CARD_BILL @join__enumValue(graph: BANKING)
+  BANK_STATEMENT @join__enumValue(graph: BANKING)
+}
+
 input IndicatorRangeInput
   @join__type(graph: FINANCIALDATA)
 {
@@ -1287,6 +1299,11 @@ type MonthSummary
 
   """True when (year, month) equals the current calendar month."""
   isCurrentMonth: Boolean!
+
+  """
+  True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted.
+  """
+  isFutureMonth: Boolean!
 }
 
 type Mutation
@@ -1502,6 +1519,7 @@ type PdfExtractedTransaction
   amount: Float!
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
+  isBillPayment: Boolean!
   confidence: Float!
 }
 
@@ -1509,11 +1527,14 @@ type PdfImportJob
   @join__type(graph: BANKING)
 {
   id: ID!
+  importType: ImportType!
   status: PdfImportJobStatus!
   fileName: String
   createdAt: DateTime!
   reviewPayload: PdfBillExtractionResult
-  errorMessage: String
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
 }
 
 enum PdfImportJobStatus
@@ -1965,6 +1986,7 @@ type SignUpPayload
 input SubmitPdfBillImportInput
   @join__type(graph: BANKING)
 {
+  importType: ImportType!
   financialAccountId: ID
   fileName: String!
   fileBase64: String!

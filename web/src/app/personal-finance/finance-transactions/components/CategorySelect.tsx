@@ -145,7 +145,7 @@ export function CategorySelect({
             variant="standard"
             autoFocus
           />
-        </Box>
+        </Box> 
         <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
           {filteredCategories.map((category) => (
             <ListItemButton 

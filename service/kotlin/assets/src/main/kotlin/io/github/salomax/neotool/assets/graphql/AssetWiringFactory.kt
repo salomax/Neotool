@@ -10,6 +10,7 @@ import io.github.salomax.neotool.assets.graphql.mapper.AssetGraphQLMapper
 import io.github.salomax.neotool.assets.graphql.resolver.AssetMutationResolver
 import io.github.salomax.neotool.assets.graphql.resolver.AssetQueryResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
+import io.github.salomax.neotool.common.error.AuthorizationException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
@@ -17,6 +18,7 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.getRequired
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import jakarta.inject.Singleton
 import java.time.ZoneOffset
@@ -48,11 +50,8 @@ class AssetWiringFactory(
                     env.withPermission(AssetPermissions.ASSETS_ASSET_VIEW) { principal ->
                         val id = getRequiredString(env, "id")
                         val requesterId =
-                            principal.actorId?.toString()
-                                ?: throw IllegalArgumentException("Principal has no actor ID")
-                        val bypassOwnerCheck =
-                            principal.principalType == PrincipalType.SERVICE && principal.userId == null
-                        queryResolver.asset(id, requesterId, bypassOwnerCheck)
+                            resolveOwnerId(principal)
+                        queryResolver.asset(id, requesterId, principal.principalType)
                     }
                 },
             )
@@ -70,10 +69,8 @@ class AssetWiringFactory(
                                     field = "input",
                                 )
                         val input = mapper.mapToCreateAssetUploadInput(inputMap)
-                        val userId =
-                            principal.actorId?.toString()
-                                ?: throw IllegalArgumentException("Principal has no actor ID")
-                        mutationResolver.createAssetUpload(input, userId) // userId used when input.ownerId is null
+                        val ownerId = resolveOwnerId(principal)
+                        mutationResolver.createAssetUpload(input, ownerId, principal.principalType)
                     }
                 },
             ).dataFetcher(
@@ -87,12 +84,8 @@ class AssetWiringFactory(
                                     field = "input",
                                 )
                         val input = mapper.mapToConfirmAssetUploadInput(inputMap)
-                        val userId =
-                            principal.actorId?.toString()
-                                ?: throw IllegalArgumentException("Principal has no actor ID")
-                        val bypassOwnerCheck =
-                            principal.principalType == PrincipalType.SERVICE && principal.userId == null
-                        mutationResolver.confirmAssetUpload(input, userId, bypassOwnerCheck)
+                        val ownerId = resolveOwnerId(principal)
+                        mutationResolver.confirmAssetUpload(input, ownerId, principal.principalType)
                     }
                 },
             ).dataFetcher(
@@ -100,12 +93,8 @@ class AssetWiringFactory(
                 createValidatedDataFetcher { env ->
                     env.withPermission(AssetPermissions.ASSETS_ASSET_DELETE) { principal ->
                         val assetId = getRequiredString(env, "assetId")
-                        val userId =
-                            principal.actorId?.toString()
-                                ?: throw IllegalArgumentException("Principal has no actor ID")
-                        val bypassOwnerCheck =
-                            principal.principalType == PrincipalType.SERVICE && principal.userId == null
-                        mutationResolver.deleteAsset(assetId, userId, bypassOwnerCheck)
+                        val ownerId = resolveOwnerId(principal)
+                        mutationResolver.deleteAsset(assetId, ownerId, principal.principalType)
                     }
                 },
             )
@@ -281,4 +270,20 @@ class AssetWiringFactory(
                     },
                 )
             }
+
+    private fun resolveOwnerId(principal: RequestPrincipal): String =
+        when (principal.principalType) {
+            PrincipalType.USER ->
+                principal.actorId?.toString()
+                    ?: throw ValidationException(
+                        errorCode = AssetErrorCode.ASSET_OWNER_CONTEXT_MISSING,
+                        field = "principal.actorId",
+                    )
+            PrincipalType.SERVICE -> principal.delegatedBy ?: principal.actorId?.toString()
+            ?: throw AuthorizationException(
+                errorCode = AssetErrorCode.ASSET_ACCESS_DENIED,
+                field = "principal.delegatedBy",
+                parameters = mapOf("principalType" to PrincipalType.SERVICE.name),
+            )
+        }
 }

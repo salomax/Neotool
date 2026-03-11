@@ -1,18 +1,22 @@
 package io.github.salomax.neotool.banking.graphql.dto
 
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJobStatus
+import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportType
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import java.time.Instant
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.util.UUID
 
 data class PdfImportJobDTO(
     val id: UUID,
+    val importType: PdfImportType,
     val status: PdfImportJobStatus,
     val fileName: String?,
-    val createdAt: Instant,
+    val createdAt: OffsetDateTime,
     val reviewPayload: PdfBillExtractionResultDTO?,
     val errorMessage: String?,
+    val errorCode: String?,
+    val errorParameters: Map<String, Any?>?,
 )
 
 data class PdfBillExtractionResultDTO(
@@ -55,6 +59,7 @@ data class PdfExtractedTransactionDTO(
     val amount: Double,
     val creditDebitType: CreditDebitType,
     val installment: InstallmentInfoDTO?,
+    val isBillPayment: Boolean,
     val confidence: Double,
 )
 

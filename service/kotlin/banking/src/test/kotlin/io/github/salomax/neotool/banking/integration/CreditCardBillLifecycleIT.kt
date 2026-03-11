@@ -77,7 +77,7 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
                 stmt.executeUpdate(
                     """
                     INSERT INTO banking.financial_account_card_data (
-                        account_id, masked_number, credit_limit, available_credit_limit,
+                        financial_account_id, masked_number, credit_limit, available_credit_limit,
                         min_payment_percentage, closing_day, due_day
                     )
                     VALUES (

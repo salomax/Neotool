@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.domain.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.CommonErrorCode
@@ -11,6 +12,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
 import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.Instant
@@ -181,13 +183,15 @@ open class TransactionService(
         transactionRepository.findById(id, accountId)
             ?: throw NoSuchElementException("Transaction $id not found")
 
-    fun create(
+    @Transactional
+    open fun create(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
     ): Transaction {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         validateCreateCommand(command)
+        validateDateWithinMovingWindow(command.date)
         val (belongsToUserId, belongsToName) = resolveBelongsToForCreate(command, userId)
         if (command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
@@ -259,7 +263,8 @@ open class TransactionService(
         return saved
     }
 
-    fun update(
+    @Transactional
+    open fun update(
         id: UUID,
         command: UpdateTransactionCommand,
         accountId: UUID,
@@ -316,6 +321,10 @@ open class TransactionService(
 
         require(updated.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
 
+        if (command.date != null) {
+            validateDateWithinMovingWindow(command.date)
+        }
+
         if (existing.type != TransactionType.BALANCE_ADJUSTMENT && command.date != null) {
             val initialBalanceDate = transactionRepository.findInitialBalanceDate(existing.financialAccountId)
             if (initialBalanceDate != null && command.date.isBefore(initialBalanceDate)) {
@@ -346,7 +355,8 @@ open class TransactionService(
         return saved
     }
 
-    fun delete(
+    @Transactional
+    open fun delete(
         id: UUID,
         accountId: UUID,
     ): Boolean {
@@ -374,7 +384,8 @@ open class TransactionService(
      * Creates a CREDIT TRANSFER on the card account; optionally a DEBIT TRANSFER on the source account.
      * Marks the bill as PAID when the payment amount covers the full total.
      */
-    fun payBill(
+    @Transactional
+    open fun payBill(
         billId: UUID,
         amount: BigDecimal,
         sourceAccountId: UUID?,
@@ -533,5 +544,20 @@ open class TransactionService(
             "tags cannot contain blank values"
         }
         return normalized.distinct()
+    }
+
+    private fun validateDateWithinMovingWindow(date: LocalDate) {
+        val minAllowedDate = DateWindowPolicy.minAllowedDate()
+        if (date.isBefore(minAllowedDate)) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW,
+                field = "date",
+                parameters =
+                    mapOf(
+                        "minAllowedDate" to minAllowedDate.toString(),
+                        "windowYears" to DateWindowPolicy.MAX_PAST_YEARS,
+                    ),
+            )
+        }
     }
 }

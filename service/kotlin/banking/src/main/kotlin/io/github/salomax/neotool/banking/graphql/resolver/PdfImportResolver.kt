@@ -12,6 +12,7 @@ import io.github.salomax.neotool.banking.domain.pdfimport.PdfExtractedTransactio
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJob
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJobStatus
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportService
+import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportType
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfMatchCandidate
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.graphql.dto.DateRangeDTO
@@ -27,6 +28,7 @@ import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.Base64
 import java.util.UUID
 
@@ -54,6 +56,11 @@ class PdfImportResolver(
                 field = "fileBase64",
                 parameters = mapOf("reason" to "fileBase64 is required"),
             )
+        val importType =
+            parseImportType(
+                input["importType"] as? String,
+                "importType",
+            )
         val financialAccountId = (input["financialAccountId"] as? String)?.let { UUID.fromString(it) }
         val fileBytes =
             try {
@@ -71,6 +78,7 @@ class PdfImportResolver(
             pdfImportService.submitPdfBillImport(
                 accountId = accountId,
                 userId = userId,
+                importType = importType,
                 financialAccountId = financialAccountId,
                 fileName = fileName,
                 fileBytes = fileBytes,
@@ -112,7 +120,7 @@ class PdfImportResolver(
                                 transactionsInput.mapIndexed { txIndex, txInput ->
                                     val date =
                                         parseDate(
-                                            txInput["date"] as? String,
+                                            txInput["date"],
                                             "cards[$cardIndex].transactions[$txIndex].date",
                                         )
                                     val description =
@@ -139,12 +147,14 @@ class PdfImportResolver(
                                             field = "cards[$cardIndex].transactions[$txIndex].include",
                                             parameters = mapOf("reason" to "include is required"),
                                         )
+                                    val isBillPayment = txInput["isBillPayment"] as? Boolean ?: false
                                     ConfirmPdfTransactionCommand(
                                         date = date,
                                         description = description,
                                         amount = amount,
                                         creditDebitType = creditDebitType,
                                         include = include,
+                                        isBillPayment = isBillPayment,
                                     )
                                 },
                         )
@@ -179,23 +189,76 @@ class PdfImportResolver(
     }
 
     private fun PdfImportJob.toDTO(): PdfImportJobDTO =
-        PdfImportJobDTO(
-            id = id ?: throw IllegalStateException("PdfImportJob id is required"),
-            status = status,
-            fileName = fileName,
-            createdAt = createdAt,
-            reviewPayload = parseReviewPayloadForGraphQL(this),
-            errorMessage = errorMessage,
-        )
+        resolveErrorInfo().let { errorInfo ->
+            PdfImportJobDTO(
+                id = id ?: throw IllegalStateException("PdfImportJob id is required"),
+                importType = importType,
+                status = status,
+                fileName = fileName,
+                // GraphQL DateTime scalar expects OffsetDateTime values.
+                createdAt = createdAt.atOffset(ZoneOffset.UTC),
+                reviewPayload = parseReviewPayloadForGraphQL(this),
+                errorMessage = errorMessage,
+                errorCode = errorInfo.code,
+                errorParameters = errorInfo.parameters,
+            )
+        }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun PdfImportJob.resolveErrorInfo(): JobErrorInfo {
+        val detailsMap =
+            errorDetails?.let { detailsJson ->
+                runCatching { objectMapper.readValue(detailsJson, Map::class.java) as? Map<String, Any?> }.getOrNull()
+            }
+
+        val explicitCode = detailsMap?.get("errorCode")?.toString()
+        val explicitParams = detailsMap?.get("errorParameters") as? Map<String, Any?>
+
+        if (!explicitCode.isNullOrBlank()) {
+            return JobErrorInfo(code = explicitCode, parameters = explicitParams)
+        }
+
+        val nestedError = detailsMap?.get("error") as? Map<*, *>
+        val nestedCode = nestedError?.get("code")?.toString()
+        if (!nestedCode.isNullOrBlank()) {
+            val nestedParams =
+                buildMap<String, Any?> {
+                    val metadata = detailsMap["error_metadata"]
+                    if (metadata != null) put("errorMetadata", metadata)
+                    nestedError["retryable"]?.let { put("retryable", it) }
+                }.ifEmpty { null }
+            return JobErrorInfo(code = nestedCode, parameters = nestedParams)
+        }
+
+        return if (status == PdfImportJobStatus.FAILED) {
+            JobErrorInfo(
+                code = CommonErrorCode.INTERNAL_ERROR.code,
+                parameters = errorMessage?.let { mapOf("reason" to it) },
+            )
+        } else {
+            JobErrorInfo(code = null, parameters = null)
+        }
+    }
 
     private fun parseReviewPayloadForGraphQL(job: PdfImportJob): PdfBillExtractionResultDTO? {
         if (job.status != PdfImportJobStatus.AWAITING_REVIEW) {
             return null
         }
         val payload = job.reviewPayload ?: return null
-        return runCatching {
-            objectMapper.readValue(payload, PdfBillExtractionResult::class.java).toDTO()
-        }.getOrNull()
+        val looksCanonical = payload.contains("\"schemaId\"") || payload.contains("\"schema_id\"")
+        if (looksCanonical) {
+            return pdfImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
+        }
+
+        val llmShape =
+            runCatching {
+                objectMapper.readValue(payload, PdfBillExtractionResult::class.java)
+            }.getOrNull()
+        if (llmShape != null) {
+            return llmShape.toDTO()
+        }
+
+        return pdfImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
     }
 
     private fun PdfBillExtractionResult.toDTO(): PdfBillExtractionResultDTO =
@@ -243,6 +306,7 @@ class PdfImportResolver(
             amount = amount.toDouble(),
             creditDebitType = creditDebitType,
             installment = installment?.toDTO(),
+            isBillPayment = isBillPayment,
             confidence = confidence,
         )
 
@@ -276,25 +340,47 @@ class PdfImportResolver(
     }
 
     private fun parseDate(
-        value: String?,
+        value: Any?,
         field: String,
     ): LocalDate {
-        if (value.isNullOrBlank()) {
-            throw ValidationException(
-                CommonErrorCode.INVALID_INPUT,
-                field = field,
-                parameters = mapOf("reason" to "$field is required"),
-            )
-        }
-        return try {
-            LocalDate.parse(value)
-        } catch (e: Exception) {
-            throw ValidationException(
-                CommonErrorCode.INVALID_INPUT,
-                field = field,
-                parameters = mapOf("reason" to "Invalid date format"),
-                cause = e,
-            )
+        return when (value) {
+            is LocalDate -> value
+            is String ->
+                if (value.isBlank()) {
+                    throw ValidationException(
+                        CommonErrorCode.INVALID_INPUT,
+                        field = field,
+                        parameters = mapOf("reason" to "$field is required"),
+                    )
+                } else {
+                    try {
+                        LocalDate.parse(value)
+                    } catch (e: Exception) {
+                        throw ValidationException(
+                            CommonErrorCode.INVALID_INPUT,
+                            field = field,
+                            parameters = mapOf("reason" to "Invalid date format"),
+                            cause = e,
+                        )
+                    }
+                }
+            null ->
+                throw ValidationException(
+                    CommonErrorCode.INVALID_INPUT,
+                    field = field,
+                    parameters = mapOf("reason" to "$field is required"),
+                )
+            else ->
+                try {
+                    LocalDate.parse(value.toString())
+                } catch (e: Exception) {
+                    throw ValidationException(
+                        CommonErrorCode.INVALID_INPUT,
+                        field = field,
+                        parameters = mapOf("reason" to "Invalid date format"),
+                        cause = e,
+                    )
+                }
         }
     }
 
@@ -321,6 +407,29 @@ class PdfImportResolver(
         }
     }
 
+    private fun parseImportType(
+        value: String?,
+        field: String,
+    ): PdfImportType {
+        if (value.isNullOrBlank()) {
+            throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = field,
+                parameters = mapOf("reason" to "$field is required"),
+            )
+        }
+        return try {
+            PdfImportType.valueOf(value)
+        } catch (e: IllegalArgumentException) {
+            throw ValidationException(
+                CommonErrorCode.INVALID_INPUT,
+                field = field,
+                parameters = mapOf("reason" to "Invalid importType"),
+                cause = e,
+            )
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun asMapList(
         value: Any?,
@@ -340,4 +449,9 @@ class PdfImportResolver(
             )
         }
     }
+
+    private data class JobErrorInfo(
+        val code: String?,
+        val parameters: Map<String, Any?>?,
+    )
 }

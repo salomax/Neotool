@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.import
 
+import io.github.salomax.neotool.banking.domain.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.import.dedup.SameSourceDedupService
@@ -82,6 +83,7 @@ open class ImportProcessor(
         val transactionSource = importSource.toTransactionSource()
         val importJobId = job.id
         val now = Instant.now()
+        val minAllowedDate = DateWindowPolicy.minAllowedDate()
 
         // Cache initial balance date once per job (null when allowCrossSourceDuplicates = resolveImportDuplicate path)
         val initialBalanceDate: LocalDate? =
@@ -123,6 +125,7 @@ open class ImportProcessor(
                         date = parsed.date,
                         amountCents = amountCents,
                         normalizedDescription = parsed.description,
+                        creditDebitType = parsed.creditDebitType,
                     )
                 val fingerprintDuplicate =
                     fingerprintDuplicateCache.getOrPut(fingerprint) {
@@ -141,6 +144,19 @@ open class ImportProcessor(
                             reason =
                                 "Transaction date ${parsed.date} is before the account's initial balance date " +
                                     "$initialBalanceDate (TRANSACTION_BEFORE_INITIAL_BALANCE)",
+                        ),
+                    )
+                    return@forEachIndexed
+                }
+
+                // 4. Moving date window guard (maximum 5 years in the past)
+                if (parsed.date.isBefore(minAllowedDate)) {
+                    errors.add(
+                        ImportRowError(
+                            rowIndex = index,
+                            reason =
+                                "Transaction date ${parsed.date} is outside the allowed window; " +
+                                    "minimum allowed date is $minAllowedDate (DATE_OUTSIDE_ALLOWED_WINDOW)",
                         ),
                     )
                     return@forEachIndexed

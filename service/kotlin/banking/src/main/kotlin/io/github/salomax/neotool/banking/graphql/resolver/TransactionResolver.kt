@@ -166,6 +166,7 @@ class TransactionResolver(
             transfersOut = summary.transfersOut.toDouble(),
             projectedClosingBalance = summary.projectedClosingBalance?.toDouble(),
             isCurrentMonth = summary.isCurrentMonth,
+            isFutureMonth = summary.isFutureMonth,
         )
     }
 

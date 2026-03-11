@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.assets.config
 
 import io.github.salomax.neotool.assets.domain.AssetVisibility
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.micronaut.context.annotation.Property
 import io.micronaut.core.io.ResourceLoader
 import jakarta.inject.Singleton
@@ -105,6 +106,21 @@ class AssetConfigProperties(
         val uploadTtlSeconds =
             (configMap["uploadTtlSeconds"] as? Number)?.toLong()
 
+        val allowedActors =
+            (configMap["allowedActors"] as? List<*>)
+                ?.map {
+                    try {
+                        PrincipalType.valueOf(it.toString())
+                    } catch (e: IllegalArgumentException) {
+                        throw IllegalStateException(
+                            "Invalid allowedActors value '$it' for namespace: $name. " +
+                                "Valid values: ${PrincipalType.entries.joinToString()}",
+                            e,
+                        )
+                    }
+                }?.toSet()
+                ?: setOf(PrincipalType.USER, PrincipalType.SERVICE)
+
         return NamespaceConfig(
             name = name,
             description = description,
@@ -113,6 +129,7 @@ class AssetConfigProperties(
             maxSizeBytes = maxSizeBytes,
             allowedMimeTypes = allowedMimeTypes.toSet(),
             uploadTtlSeconds = uploadTtlSeconds,
+            allowedActors = allowedActors,
         )
     }
 
@@ -172,4 +189,5 @@ data class NamespaceConfig(
     val allowedMimeTypes: Set<String>,
     // Optional override, falls back to global default
     val uploadTtlSeconds: Long? = null,
+    val allowedActors: Set<PrincipalType> = setOf(PrincipalType.USER, PrincipalType.SERVICE),
 )

@@ -122,8 +122,10 @@ banking:
     url: ${ASSETS_SERVICE_URL:}
     graphql-path: /graphql
     import-namespace: ${ASSETS_IMPORT_NAMESPACE:transaction-imports}
-    pdf-import-namespace: ${ASSETS_PDF_IMPORT_NAMESPACE:pdf-imports}
+    pdf-import-namespace: ${ASSETS_PDF_IMPORT_NAMESPACE:transaction-imports}
     pdf-download-ttl-seconds: ${ASSETS_PDF_DOWNLOAD_TTL_SECONDS:7200}
+  pdf-import:
+    deterministic-enabled: ${BANKING_PDF_IMPORT_DETERMINISTIC_ENABLED:false}
 
 # Kafka — import file requested / job completed (set KAFKA_BROKERS in deployment).
 # Use host:port format (example: localhost:9094), without http://
@@ -141,12 +143,16 @@ kafka:
       extractor-extracted: ${KAFKA_TOPIC_PDF_EXTRACTOR_EXTRACTED:pdf-extractor.extracted}
       extractor-dlq: ${KAFKA_TOPIC_PDF_EXTRACTOR_DLQ:pdf-extractor.dlq}
       banking-reader-done: ${KAFKA_TOPIC_PDF_BANKING_READER_DONE:assistant.banking-pdf-reader.done}
+      banking-reader-failed: ${KAFKA_TOPIC_PDF_BANKING_READER_FAILED:assistant.banking-pdf-reader.failed}
+      banking-reader-requested: ${KAFKA_TOPIC_PDF_BANKING_READER_REQUESTED:assistant.banking-reader.requested}
   consumers:
     import-file:
       group-id: banking-import-consumer
       max-poll-records: 1  # process one import at a time per partition
       enable-auto-commit: false
       auto-offset-reset: earliest
+    import-status:
+      group-id: ${KAFKA_IMPORT_STATUS_GROUP_ID:banking-service-import-status}
     pdf-status:
       group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-pdf-status}
   producers:

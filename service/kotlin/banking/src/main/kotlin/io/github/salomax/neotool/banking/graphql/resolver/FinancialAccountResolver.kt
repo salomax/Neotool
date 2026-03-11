@@ -90,6 +90,7 @@ class FinancialAccountResolver(
                         minimumPaymentPercentage = it.minimumPaymentPercentage?.toDouble(),
                         closingDay = it.closingDay,
                         dueDay = it.dueDay,
+                        linkedBankAccountId = it.linkedBankAccountId,
                     )
                 },
             connectionStatus = connectionStatus,
@@ -110,6 +111,18 @@ class FinancialAccountResolver(
             logoKey = logoKey,
             logoAsset = logoKey?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
+
+    private fun getDate(
+        map: Map<String, Any?>,
+        key: String,
+    ): LocalDate? {
+        val value = map[key] ?: return null
+        return when (value) {
+            is String -> LocalDate.parse(value)
+            is LocalDate -> value
+            else -> value.toString().let { raw -> runCatching { LocalDate.parse(raw) }.getOrNull() }
+        }
+    }
 
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toCommand(): CreateFinancialAccountCommand {
@@ -144,10 +157,11 @@ class FinancialAccountResolver(
                         creditLimit = (it["creditLimit"] as? Number)?.let { v -> BigDecimal(v.toString()) },
                         closingDay = it["closingDay"] as? Int,
                         dueDay = it["dueDay"] as? Int,
+                        linkedBankAccountId = (it["linkedBankAccountId"] as? String)?.let { v -> UUID.fromString(v) },
                     )
                 },
             initialBalance = (this["initialBalance"] as? Number)?.let { BigDecimal(it.toString()) },
-            initialBalanceDate = (this["initialBalanceDate"] as? String)?.let { LocalDate.parse(it) },
+            initialBalanceDate = getDate(this, "initialBalanceDate"),
         )
     }
 }

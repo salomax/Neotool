@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.banking.infrastructure.assets
 
 import io.github.salomax.neotool.banking.domain.issuer.port.AssetUploadPort
-import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.banking.infra.assets.AssetsServiceException
+import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
 import kotlinx.coroutines.runBlocking
@@ -75,21 +76,34 @@ open class AssetsServiceUploadPort(
                 )
             }
 
-        check(createResponse.errors.isNullOrEmpty()) {
-            "createAssetUpload failed for '$key': ${createResponse.errors}"
+        if (!createResponse.errors.isNullOrEmpty()) {
+            throw AssetsServiceException.invalidResponse(
+                operation = "createAssetUpload",
+                field = "createAssetUpload",
+                details = createResponse.errors.toString(),
+            )
         }
 
         val assetData =
             createResponse.data?.get("createAssetUpload") as? Map<*, *>
-                ?: throw IllegalStateException("createAssetUpload returned no data for '$key'")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload",
+                )
 
         val assetId =
             assetData["id"] as? String
-                ?: throw IllegalStateException("createAssetUpload returned no id for '$key'")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload.id",
+                )
 
         val uploadUrl =
             assetData["uploadUrl"] as? String
-                ?: throw IllegalStateException("createAssetUpload returned no uploadUrl for '$key'")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "createAssetUpload",
+                    field = "createAssetUpload.uploadUrl",
+                )
 
         // ── Step 2: PUT bytes to presigned URL ───────────────────────────────
         logger.debug { "AssetsUpload: uploading ${bytes.size} bytes to presigned URL for '$key'" }
@@ -104,8 +118,11 @@ open class AssetsServiceUploadPort(
 
         val putResponse = httpClient.send(putRequest, HttpResponse.BodyHandlers.discarding())
 
-        check(putResponse.statusCode() in 200..299) {
-            "Asset PUT failed with HTTP ${putResponse.statusCode()} for '$key'"
+        if (putResponse.statusCode() !in 200..299) {
+            throw AssetsServiceException.transferFailed(
+                operation = "PUT",
+                statusCode = putResponse.statusCode(),
+            )
         }
 
         // ── Step 3: confirmAssetUpload ───────────────────────────────────────
@@ -136,17 +153,27 @@ open class AssetsServiceUploadPort(
                 )
             }
 
-        check(confirmResponse.errors.isNullOrEmpty()) {
-            "confirmAssetUpload failed for '$key' (assetId=$assetId): ${confirmResponse.errors}"
+        if (!confirmResponse.errors.isNullOrEmpty()) {
+            throw AssetsServiceException.invalidResponse(
+                operation = "confirmAssetUpload",
+                field = "confirmAssetUpload",
+                details = confirmResponse.errors.toString(),
+            )
         }
 
         val confirmedAsset =
             confirmResponse.data?.get("confirmAssetUpload") as? Map<*, *>
-                ?: throw IllegalStateException("confirmAssetUpload returned no data for '$key'")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload",
+                )
 
         val confirmedId =
             confirmedAsset["id"] as? String
-                ?: throw IllegalStateException("confirmAssetUpload returned no id for '$key'")
+                ?: throw AssetsServiceException.invalidResponse(
+                    operation = "confirmAssetUpload",
+                    field = "confirmAssetUpload.id",
+                )
 
         logger.debug { "AssetsUpload: asset '$confirmedId' READY for '$key'" }
         return confirmedId

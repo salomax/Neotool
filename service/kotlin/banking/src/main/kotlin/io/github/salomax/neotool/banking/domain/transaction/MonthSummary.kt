@@ -27,4 +27,6 @@ data class MonthSummary(
     val projectedClosingBalance: BigDecimal?,
     /** True when (year, month) equals the current calendar month. */
     val isCurrentMonth: Boolean,
+    /** True when (year, month) is strictly after the current calendar month. No snapshot is persisted; all values are projections. */
+    val isFutureMonth: Boolean = false,
 )

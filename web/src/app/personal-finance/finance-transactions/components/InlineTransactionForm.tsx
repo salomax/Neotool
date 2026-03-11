@@ -43,6 +43,7 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 
 interface InlineTransactionFormProps {
   isOpen: boolean;
@@ -68,6 +69,7 @@ export function InlineTransactionForm({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const borderRadius = '.3rem';
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const [creditDebitType, setCreditDebitType] = useState<CreditDebitType>(initialValues?.creditDebitType || CreditDebitType.Debit);
   const [amount, setAmount] = useState<number | undefined>(initialValues?.amount ? Math.abs(initialValues.amount) : undefined);
   const [description, setDescription] = useState(initialValues?.description || '');
@@ -85,6 +87,7 @@ export function InlineTransactionForm({
   const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION);
 
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const isDateOutsideWindow = Boolean(date && date.isBefore(minAllowedDate, 'day'));
 
   useEffect(() => {
     const accounts = accountsData?.financialAccounts;
@@ -133,6 +136,7 @@ export function InlineTransactionForm({
 
   const handleSave = async () => {
     if (!amount || !description || !date || !accountId || !categoryId) return;
+    if (isDateOutsideWindow) return;
 
     const formattedAmount = Math.abs(amount);
 
@@ -455,11 +459,14 @@ export function InlineTransactionForm({
               <DatePicker
                 value={date}
                 onChange={(newValue) => setDate(newValue)}
+                minDate={minAllowedDate}
                 slotProps={{ 
                   textField: { 
                     hiddenLabel: true,
                     size: 'small', 
                     variant: 'standard',
+                    error: isDateOutsideWindow,
+                    helperText: isDateOutsideWindow ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }) : undefined,
                     InputProps: { 
                       disableUnderline: true,
                       sx: { 
@@ -526,7 +533,7 @@ export function InlineTransactionForm({
                 onClick={handleSave}
                 loading={creating || updating}
                 size="small"
-                disabled={deleting || !amount || !description || !date || !accountId || !categoryId}
+                disabled={deleting || !amount || !description || !date || !accountId || !categoryId || isDateOutsideWindow}
                 sx={{ boxShadow: theme.shadows[4] }}
               >
                 {t('actions.save')}

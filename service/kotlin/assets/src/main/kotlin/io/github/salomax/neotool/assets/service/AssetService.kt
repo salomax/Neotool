@@ -11,8 +11,12 @@ import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.common.error.AuthorizationException
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.MeterRegistry
@@ -45,10 +49,6 @@ open class AssetService(
     private val bucketResolver: BucketResolver,
     private val meterRegistry: MeterRegistry? = null,
 ) {
-    private companion object {
-        const val SERVICE_BYPASS_NAMESPACE = "transaction-imports"
-    }
-
     private val logger = KotlinLogging.logger {}
 
     private fun assetNotFound(assetId: UUID): NotFoundException =
@@ -58,10 +58,10 @@ open class AssetService(
             parameters = mapOf("assetId" to assetId.toString()),
         )
 
-    private fun isBypassDenied(
-        bypassOwnerCheck: Boolean,
+    private fun isPrincipalAllowed(
         namespace: String,
-    ): Boolean = bypassOwnerCheck && namespace != SERVICE_BYPASS_NAMESPACE
+        principalType: PrincipalType,
+    ): Boolean = assetConfig.getNamespaceConfig(namespace).allowedActors.contains(principalType)
 
     // Metrics for bucket usage tracking (optional - only if MeterRegistry is available)
     private fun recordBucketUploadMetric(
@@ -104,6 +104,7 @@ open class AssetService(
         mimeType: String,
         sizeBytes: Long,
         idempotencyKey: String? = null,
+        principalType: PrincipalType = PrincipalType.USER,
     ): Asset {
         logger.info {
             "Initiating upload: namespace=$namespace, ownerId=$ownerId, " +
@@ -112,6 +113,18 @@ open class AssetService(
 
         // Get namespace configuration
         val namespaceConfig = assetConfig.getNamespaceConfig(namespace)
+
+        if (!isPrincipalAllowed(namespace, principalType)) {
+            throw AuthorizationException(
+                errorCode = AssetErrorCode.ASSET_ACCESS_DENIED,
+                field = "namespace",
+                parameters =
+                    mapOf(
+                        "namespace" to namespace,
+                        "principalType" to principalType.name,
+                    ),
+            )
+        }
 
         // Determine bucket based on namespace visibility
         val bucket = bucketResolver.resolveBucket(namespaceConfig.visibility)
@@ -192,7 +205,11 @@ open class AssetService(
         val saved = assetRepository.save(entity)
         val assetId =
             saved.id
-                ?: throw IllegalStateException("Database did not generate UUID v7 for asset")
+                ?: throw BusinessRuleException(
+                    errorCode = CommonErrorCode.INTERNAL_ERROR,
+                    field = "id",
+                    parameters = mapOf("reason" to "database did not generate asset id"),
+                )
 
         // Generate storage key using template from namespace config with actual asset ID
         val storageKey = storageKeyFactory.buildKey(namespaceConfig, ownerId, assetId)
@@ -234,7 +251,7 @@ open class AssetService(
         assetId: UUID,
         ownerId: String,
         checksum: String? = null,
-        bypassOwnerCheck: Boolean = false,
+        principalType: PrincipalType = PrincipalType.USER,
     ): Asset {
         logger.info { "Confirming upload: assetId=$assetId, ownerId=$ownerId" }
 
@@ -243,13 +260,13 @@ open class AssetService(
                 .findById(assetId)
                 .orElseThrow { assetNotFound(assetId) }
 
-        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
-            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
+        if (!isPrincipalAllowed(entity.namespace, principalType)) {
+            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
             throw assetNotFound(assetId)
         }
 
         // Authorization check
-        if (!bypassOwnerCheck && entity.ownerId != ownerId) {
+        if (entity.ownerId != ownerId) {
             logger.warn { "Unauthorized upload confirmation attempt: assetId=$assetId, ownerId=$ownerId" }
             throw assetNotFound(assetId)
         }
@@ -351,7 +368,7 @@ open class AssetService(
     open fun getAsset(
         assetId: UUID,
         requesterId: String,
-        bypassOwnerCheck: Boolean = false,
+        principalType: PrincipalType = PrincipalType.USER,
     ): Asset? {
         val entity =
             assetRepository
@@ -363,8 +380,8 @@ open class AssetService(
             return null
         }
 
-        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
-            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
+        if (!isPrincipalAllowed(entity.namespace, principalType)) {
+            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
             return null
         }
 
@@ -377,7 +394,7 @@ open class AssetService(
 
             AssetVisibility.PRIVATE -> {
                 // PRIVATE assets: require ownership
-                if (!bypassOwnerCheck && entity.ownerId != requesterId) {
+                if (entity.ownerId != requesterId) {
                     logger.warn { "Unauthorized asset access attempt: assetId=$assetId, requesterId=$requesterId" }
                     return null // Don't reveal existence
                 }
@@ -404,13 +421,14 @@ open class AssetService(
         assetId: UUID,
         requesterId: String,
         clientTtlSeconds: Long? = null,
+        principalType: PrincipalType = PrincipalType.USER,
     ): String? {
         logger.debug {
             "Generating download URL: assetId=$assetId, requesterId=$requesterId, clientTtlSeconds=$clientTtlSeconds"
         }
 
         // Get asset (this performs authorization check)
-        val asset = getAsset(assetId, requesterId) ?: return null
+        val asset = getAsset(assetId, requesterId, principalType) ?: return null
 
         // Only generate download URLs for PRIVATE assets
         // PUBLIC assets should use publicUrl instead
@@ -443,7 +461,7 @@ open class AssetService(
     open fun deleteAsset(
         assetId: UUID,
         ownerId: String,
-        bypassOwnerCheck: Boolean = false,
+        principalType: PrincipalType = PrincipalType.USER,
     ): Boolean {
         logger.info { "Deleting asset: assetId=$assetId, ownerId=$ownerId" }
 
@@ -457,13 +475,13 @@ open class AssetService(
             return false
         }
 
-        if (isBypassDenied(bypassOwnerCheck, entity.namespace)) {
-            logger.warn { "Service bypass denied for namespace ${entity.namespace}: assetId=$assetId" }
+        if (!isPrincipalAllowed(entity.namespace, principalType)) {
+            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
             return false
         }
 
         // Authorization check
-        if (!bypassOwnerCheck && entity.ownerId != ownerId) {
+        if (entity.ownerId != ownerId) {
             logger.warn { "Unauthorized delete attempt: assetId=$assetId, ownerId=$ownerId" }
             return false
         }

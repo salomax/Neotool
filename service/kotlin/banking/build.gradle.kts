@@ -58,6 +58,9 @@ dependencies {
     // YAML parsing
     implementation("org.yaml:snakeyaml:2.2")
 
+    // Excel extraction (XLSX/XLS)
+    implementation("org.apache.poi:poi-ooxml:5.2.5")
+
     // Kafka (import file requested / job completed topics and consumer)
     implementation("io.micronaut.kafka:micronaut-kafka")
 

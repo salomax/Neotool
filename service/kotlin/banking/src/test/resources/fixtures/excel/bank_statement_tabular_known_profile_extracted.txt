@@ -1,0 +1,10 @@
+workbook_type=XLSX
+sheet_count=1
+
+## sheet[0] Extrato
+| row | c1 | c2 | c3 |
+| --- | --- | --- | --- |
+| 1 | Data | Descricao | Valor |
+| 2 | 03/02/2026 | Salario Empresa XYZ | 5600,00 |
+| 3 | 04/02/2026 | Mercado Central | -120,45 |
+| 4 | 05/02 | Transferencia recebida | 250,00 |

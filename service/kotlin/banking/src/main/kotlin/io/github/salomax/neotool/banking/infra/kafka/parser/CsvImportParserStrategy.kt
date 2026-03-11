@@ -2,6 +2,8 @@ package io.github.salomax.neotool.banking.infra.kafka.parser
 
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ImportTextDecoder
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.import.isCsvSource
 import io.github.salomax.neotool.banking.domain.import.parser.CsvBancoDoBrasilParser
@@ -56,14 +58,15 @@ class CsvImportParserStrategy(
                 context.discovery.detectedSource?.isCsvSource() == true -> context.discovery.detectedSource.name
                 else -> ImportSource.CSV_AUTO.name
             }
-        return parseCsvWithFallback(context.bytes, sourceName, context.fileName)
+        return parseCsvWithFallback(context, sourceName, context.fileName)
     }
 
     private fun parseCsvWithFallback(
-        bytes: ByteArray,
+        context: ImportParsingContext,
         sourceName: String,
         fileName: String?,
     ): ImportParseOutcome {
+        val bytes = context.bytes
         val fingerprint = CsvFingerprintBuilder.build(bytes)
         val selection = csvReaderRegistry.select(fingerprint)
         selection.selectedMatch?.let { match ->
@@ -83,6 +86,8 @@ class CsvImportParserStrategy(
             selection.selectedMatch?.reasons,
             selection.rankedMatches.take(3).map { "${it.readerId}:${"%.2f".format(it.score)}" },
         )
+        val canonicalWarnings = mutableListOf<String>()
+        val genericSupportScore = GenericCsvReader.supports(fingerprint).score
 
         data class ParseAttempt(
             val rows: List<ParsedTransaction>,
@@ -141,6 +146,7 @@ class CsvImportParserStrategy(
                             reason = "specific_then_generic",
                             selectedReaderId = selection.selectedReader?.id(),
                         )
+                        canonicalWarnings += "specific_reader_empty_result_fallback_to_generic"
                         genericAlreadyAttempted = true
                         parserUsedReaderId = GenericCsvReader.id()
                         parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
@@ -153,6 +159,7 @@ class CsvImportParserStrategy(
                         reason = "generic_only_mode",
                         selectedReaderId = selection.selectedReader?.id(),
                     )
+                    canonicalWarnings += "generic_only_mode_selected"
                     genericAlreadyAttempted = true
                     parserUsedReaderId = GenericCsvReader.id()
                     parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
@@ -168,9 +175,26 @@ class CsvImportParserStrategy(
                 primaryAttempt.rows.size,
                 selection.selectedMatch?.score,
             )
+            val effectiveReaderId = parserUsedReaderId ?: GenericCsvReader.id()
+            val effectiveConfidence =
+                if (effectiveReaderId == GenericCsvReader.id()) {
+                    genericSupportScore
+                } else {
+                    selection.selectedMatch?.score ?: 1.0
+                }
             return ImportParseOutcome(
                 rows = primaryAttempt.rows,
-                resolvedSource = readerIdToImportSource(parserUsedReaderId),
+                resolvedSource = readerIdToImportSource(effectiveReaderId),
+                canonicalOutput =
+                    buildCanonicalOutput(
+                        context = context,
+                        sourceName = sourceName,
+                        selection = selection,
+                        readerId = effectiveReaderId,
+                        rows = primaryAttempt.rows,
+                        confidence = effectiveConfidence,
+                        warnings = canonicalWarnings,
+                    ),
             )
         }
 
@@ -180,6 +204,7 @@ class CsvImportParserStrategy(
                 reason = "last_safeguard",
                 selectedReaderId = selection.selectedReader.id(),
             )
+            canonicalWarnings += "last_safeguard_fallback_to_generic"
             val genericAttempt = parseSafely(GenericCsvReader.id()) { GenericCsvReader.parse(bytes) }
             if (genericAttempt.rows.isNotEmpty()) {
                 log.info(
@@ -191,6 +216,16 @@ class CsvImportParserStrategy(
                 return ImportParseOutcome(
                     rows = genericAttempt.rows,
                     resolvedSource = null,
+                    canonicalOutput =
+                        buildCanonicalOutput(
+                            context = context,
+                            sourceName = sourceName,
+                            selection = selection,
+                            readerId = GenericCsvReader.id(),
+                            rows = genericAttempt.rows,
+                            confidence = genericSupportScore,
+                            warnings = canonicalWarnings,
+                        ),
                 )
             }
         }
@@ -220,9 +255,67 @@ class CsvImportParserStrategy(
         }
 
         val hintedSource = readerIdToImportSource(selection.selectedReader?.id())
+        canonicalWarnings += "header_only_empty_statement"
+        val hintedReaderId = selection.selectedReader?.id() ?: GenericCsvReader.id()
+        val hintedConfidence =
+            if (hintedReaderId == GenericCsvReader.id()) {
+                genericSupportScore
+            } else {
+                selection.selectedMatch?.score ?: 1.0
+            }
         return ImportParseOutcome(
             rows = emptyList(),
             resolvedSource = hintedSource,
+            canonicalOutput =
+                buildCanonicalOutput(
+                    context = context,
+                    sourceName = sourceName,
+                    selection = selection,
+                    readerId = hintedReaderId,
+                    rows = emptyList(),
+                    confidence = hintedConfidence,
+                    warnings = canonicalWarnings,
+                ),
+        )
+    }
+
+    private fun buildCanonicalOutput(
+        context: ImportParsingContext,
+        sourceName: String,
+        selection: io.github.salomax.neotool.banking.domain.import.parser.csv.CsvReaderSelectionResult,
+        readerId: String,
+        rows: List<ParsedTransaction>,
+        confidence: Double,
+        warnings: List<String>,
+    ): CanonicalReaderOutput {
+        val rankedMatches =
+            selection.rankedMatches.map { match ->
+                mapOf(
+                    "reader_id" to match.readerId,
+                    "score" to match.score,
+                    "reasons" to match.reasons,
+                )
+            }
+
+        val rawMetadata =
+            mapOf(
+                "strategy_id" to id,
+                "source_name" to sourceName,
+                "selection_mode" to selection.mode.name,
+                "selected_reader_id" to selection.selectedReader?.id(),
+                "resolved_reader_id" to readerId,
+                "detected_format" to context.discovery.format.name,
+                "detected_source" to context.discovery.detectedSource?.name,
+                "discovery_reason" to context.discovery.reason,
+                "ranked_matches" to rankedMatches,
+            )
+
+        return CanonicalReaderOutputMapper.fromCsv(
+            rows = rows,
+            readerId = readerId,
+            confidence = confidence.coerceIn(0.0, 1.0),
+            warnings = warnings.distinct(),
+            rawMetadata = rawMetadata,
         )
     }
 

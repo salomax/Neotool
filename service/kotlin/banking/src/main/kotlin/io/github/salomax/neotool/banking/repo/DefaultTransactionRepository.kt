@@ -135,6 +135,8 @@ open class DefaultTransactionRepository(
             totalExpenses = cols[3] as BigDecimal,
             totalFutureCredit = cols[4] as BigDecimal,
             totalFutureDebit = cols[5] as BigDecimal,
+            totalFutureIncome = cols[6] as BigDecimal,
+            totalFutureExpenses = cols[7] as BigDecimal,
         )
     }
 
@@ -174,7 +176,11 @@ open class DefaultTransactionRepository(
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'), 0),
-              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'), 0)
+              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'), 0),
+              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
+              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0)
             FROM banking.transactions
             WHERE financial_account_id = CAST(:financialAccountId AS uuid)
               AND EXTRACT(YEAR  FROM date) = :year

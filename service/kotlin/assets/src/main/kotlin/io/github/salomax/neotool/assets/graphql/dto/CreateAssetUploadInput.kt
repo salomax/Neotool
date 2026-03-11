@@ -23,6 +23,4 @@ data class CreateAssetUploadInput(
     @field:Positive(message = "sizeBytes must be greater than 0")
     val sizeBytes: Long,
     val idempotencyKey: String? = null,
-    /** Optional: for service-to-service uploads (e.g. banking import uses accountId as tenant). */
-    val ownerId: String? = null,
 )

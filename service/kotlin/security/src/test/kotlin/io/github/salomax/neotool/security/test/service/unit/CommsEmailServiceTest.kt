@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.security.test.service.unit
 
-import io.github.salomax.neotool.common.security.service.GraphQLResponse
-import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.common.service.GraphQLResponse
+import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.github.salomax.neotool.security.config.EmailConfig
 import io.github.salomax.neotool.security.service.email.CommsEmailService
 import kotlinx.coroutines.runBlocking
@@ -10,6 +10,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
@@ -50,7 +51,7 @@ class CommsEmailServiceTest {
                     )
 
                 whenever(
-                    graphQLServiceClient.mutation(any(), any(), any()),
+                    graphQLServiceClient.mutation(any(), any(), any(), anyOrNull()),
                 ).thenReturn(successResponse)
 
                 commsEmailService.sendPasswordResetEmail("user@example.com", "reset-token-123", "en")
@@ -61,7 +62,7 @@ class CommsEmailServiceTest {
         fun `should call requestEmailSend for pt locale`() =
             runBlocking {
                 whenever(
-                    graphQLServiceClient.mutation(any(), any(), any()),
+                    graphQLServiceClient.mutation(any(), any(), any(), anyOrNull()),
                 ).thenReturn(
                     GraphQLResponse(
                         data = mapOf("requestEmailSend" to mapOf("requestId" to "1", "status" to "QUEUED")),
@@ -77,7 +78,7 @@ class CommsEmailServiceTest {
         fun `should not throw when GraphQL returns errors`() =
             runBlocking {
                 whenever(
-                    graphQLServiceClient.mutation(any(), any(), any()),
+                    graphQLServiceClient.mutation(any(), any(), any(), anyOrNull()),
                 ).thenReturn(
                     GraphQLResponse(
                         data = null,
@@ -93,7 +94,7 @@ class CommsEmailServiceTest {
         fun `should not throw when mutation throws exception`() =
             runBlocking {
                 whenever(
-                    graphQLServiceClient.mutation(any(), any(), any()),
+                    graphQLServiceClient.mutation(any(), any(), any(), anyOrNull()),
                 ).thenThrow(IllegalStateException("Network error"))
 
                 commsEmailService.sendPasswordResetEmail("user@example.com", "token", "en")

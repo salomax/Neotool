@@ -39,10 +39,10 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
   const theme = useTheme();
   const { t, i18n } = useTranslation('personal-finance');
 
-  const totalAmount = bill?.totalAmount ?? 0;
+  const totalAmount = bill?.totalAmount;
   const creditLimit = bill?.creditLimit ?? null;
   const availableCreditLimit =
-    creditLimit != null ? Math.max(creditLimit - totalAmount, 0) : null;
+    creditLimit != null && totalAmount != null ? Math.max(creditLimit - totalAmount, 0) : null;
 
   const isPaid = bill?.status === 'PAID';
   const isOverdue = bill?.status === 'OVERDUE';
@@ -135,7 +135,7 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
         >
           {loading ? (
             <Skeleton width={180} />
-          ) : (
+          ) : totalAmount != null ? (
             new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
               .formatToParts(totalAmount)
               .map((part, index) => {
@@ -154,6 +154,8 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
                   </Box>
                 );
               })
+          ) : (
+            '-'
           )}
         </Typography>
       </Box>
@@ -167,11 +169,13 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
           <Typography variant="body1" sx={{ fontWeight: 500 }}>
             {loading ? (
               <Skeleton width={120} />
-            ) : (
+            ) : bill?.closingDate ? (
               formatDate(bill?.closingDate, { 
                 locale: i18n.language === 'pt' ? 'pt-BR' : 'en-US', 
                 dateStyle: 'short' 
               })
+            ) : (
+              '-'
             )}
           </Typography>
         </Box>
@@ -183,11 +187,13 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
           <Typography variant="body1" sx={{ fontWeight: 500 }}>
             {loading ? (
               <Skeleton width={120} />
-            ) : (
+            ) : bill?.dueDate ? (
               formatDate(bill?.dueDate, { 
                 locale: i18n.language === 'pt' ? 'pt-BR' : 'en-US', 
                 dateStyle: 'short' 
               })
+            ) : (
+              '-'
             )}
           </Typography>
         </Box>        
@@ -210,7 +216,7 @@ export const BillSummaryHeader: React.FC<BillSummaryHeaderProps> = ({
             </Typography>
           </Stack>
 
-          {!loading && availableCreditLimit != null && creditLimit != null && (
+          {!loading && availableCreditLimit != null && creditLimit != null && totalAmount != null && (
             <Box 
               sx={{ 
                 height: 6, 

@@ -11,4 +11,5 @@ data class MonthSummaryDTO(
     val transfersOut: Double,
     val projectedClosingBalance: Double?,
     val isCurrentMonth: Boolean,
+    val isFutureMonth: Boolean,
 )

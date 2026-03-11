@@ -30,9 +30,9 @@ import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import Link from '@/shared/components/ui/navigation/Link';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
-const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls'];
+const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
 const ACCEPTED_TYPES =
-  'application/x-ofx,.ofx,text/csv,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls';
+  'application/x-ofx,.ofx,text/csv,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls,application/pdf,.pdf';
 
 type Step = 'account' | 'upload' | 'processing' | 'result' | 'review' | 'error';
 
@@ -153,7 +153,7 @@ export function ImportTransactionsDrawer({
       return t('financeTransactions.import.uploadStep.unsupportedType');
     }
     if (f.size > MAX_FILE_BYTES) {
-      return t('financeTransactions.import.uploadStep.fileTooLarge');
+      return t('financeTransactions.import.uploadStep.fileTooLarge', { maxMb: MAX_FILE_BYTES / (1024 * 1024) });
     }
     return null;
   };

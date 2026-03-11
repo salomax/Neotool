@@ -2,7 +2,6 @@ package io.github.salomax.neotool.banking.domain.import
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.import.dedup.SameSourceDedupService
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceClient
@@ -226,7 +225,8 @@ open class ImportJobService(
             "Import job must be in REVIEW_REQUIRED status, got ${job.status}"
         }
         val payload = job.reviewPayload ?: throw IllegalStateException("Job has no review payload")
-        val candidates: List<ImportDuplicateCandidate> = objectMapper.readValue(payload)
+        val candidates = ImportReviewPayloadMapper.duplicateCandidates(objectMapper, payload)
+        require(candidates.isNotEmpty()) { "Job review payload has no duplicate candidates" }
         val index = candidates.indexOfFirst { it.rowIndex == incomingId }
         require(index >= 0) { "Duplicate candidate not found for rowIndex: $incomingId" }
         val candidate = candidates[index]
@@ -274,7 +274,11 @@ open class ImportJobService(
         }
 
         val remaining = candidates.filter { it.rowIndex != incomingId }
-        val newPayload = if (remaining.isEmpty()) null else objectMapper.writeValueAsString(remaining)
+        val newPayload =
+            ImportReviewPayloadMapper.toJson(
+                objectMapper = objectMapper,
+                duplicateCandidates = remaining,
+            )
         val newDuplicateReviewCount = (job.duplicateReviewCount ?: 0) - 1
         val newImportedCount =
             when (resolution) {
@@ -314,6 +318,7 @@ open class ImportJobService(
         when {
             fileName.endsWith(".ofx", ignoreCase = true) -> "application/x-ofx"
             fileName.endsWith(".csv", ignoreCase = true) -> "text/csv"
+            fileName.endsWith(".pdf", ignoreCase = true) -> "application/pdf"
             fileName.endsWith(
                 ".xlsx",
                 ignoreCase = true,
