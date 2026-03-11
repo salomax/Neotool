@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
-import { Container, Typography, Box, CircularProgress, Stack, Button, Alert, Divider, useTheme } from '@mui/material';
+import { Container, Box, CircularProgress, Stack, Button, Alert, Divider, useTheme } from '@mui/material';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';

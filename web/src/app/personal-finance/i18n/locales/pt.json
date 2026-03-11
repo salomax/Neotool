@@ -1,5 +1,60 @@
 {
   "title": "Finanças pessoais",
+  "dashboard": {
+    "controls": {
+      "customize": "Personalizar",
+      "resetLayout": "Redefinir layout",
+      "done": "Concluir"
+    },
+    "timeRange": {
+      "ariaLabel": "Intervalo de tempo",
+      "options": {
+        "90d": "Últimos 90 dias",
+        "6m": "Últimos 6 meses",
+        "ytd": "Ano até hoje",
+        "1y": "Último ano",
+        "all": "Todo o período",
+        "custom": "Personalizado"
+      }
+    },
+    "actions": {
+      "title": "Ações rápidas",
+      "financeMovements": {
+        "title": "Movimentação Financeira",
+        "description": "Controle de receitas e despesas"
+      },
+      "investmentsPortfolio": {
+        "title": "Carteira de Investimentos",
+        "description": "Gestão dos ativos"
+      }
+    }
+  },
+  "investments": {
+    "sidebar": {
+      "allBrokers": "Todas as Corretoras",
+      "consolidatedView": "VISÃO CONSOLIDADA",
+      "summaryTitle": "VISÃO CONSOLIDADA",
+      "totalLabel": "Total da Carteira",
+      "metrics": {
+        "contributions": "Aportes",
+        "returns": "Rentabilidade"
+      },
+      "allocation": "ALOCAÇÃO"
+    },
+    "emptyState": {
+      "title": "Sua carteira de investimentos está vazia",
+      "description": "Comece a organizar seus ativos para ter uma visão completa da sua rentabilidade e evolução patrimonial. Acompanhe ações, fundos, tesouro e muito mais em um só lugar.",
+      "primaryAction": "Criar conta de investimento",
+      "secondaryAction": "Registrar primeiro ativo"
+    },
+    "trackableAssets": {
+      "title": "ATIVOS QUE VOCÊ PODE ACOMPANHAR",
+      "crypto": "Cripto",
+      "reits": "FIIs",
+      "stocks": "Ações",
+      "fixedIncome": "Renda Fixa"
+    }
+  },
   "financeTransactions": {
     "title": "Movimentações Financeiras",
     "quickAdd": "Nova movimentação",
@@ -60,7 +115,7 @@
         "title": "Escolha o tipo de conta que deseja criar no Invistus para começar a monitorar seu patrimônio.",
         "bankAccount": {
           "label": "Conta Bancária",
-          "subtitle": "Conecte seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
+          "subtitle": "Gerencie seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
         },
         "card": {
           "label": "Cartão de Crédito",

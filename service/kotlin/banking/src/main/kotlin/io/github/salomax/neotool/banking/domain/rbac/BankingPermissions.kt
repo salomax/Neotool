@@ -30,4 +30,13 @@ object BankingPermissions {
 
     /** Create and manage user-defined transaction categories. */
     const val BANKING_CATEGORY_MANAGE = "banking:category:manage"
+
+    /** View investment holdings and transactions. */
+    const val BANKING_INVESTMENT_VIEW = "banking:investment:view"
+
+    /** Record a new investment transaction (manual entry or import). */
+    const val BANKING_INVESTMENT_CREATE = "banking:investment:create"
+
+    /** Soft-delete a manually-entered investment transaction. */
+    const val BANKING_INVESTMENT_DELETE = "banking:investment:delete"
 }

@@ -4,9 +4,12 @@ import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
+import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
+import io.github.salomax.neotool.banking.graphql.dto.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
@@ -26,6 +29,7 @@ class BankingWiringFactory(
     private val transactionResolver: TransactionResolver,
     private val importResolver: ImportResolver,
     private val pdfImportResolver: PdfImportResolver,
+    private val investmentResolver: InvestmentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -184,6 +188,69 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "investmentHoldings",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val financialAccountId =
+                            env.getArgument<String>("financialAccountId")
+                                ?: throw IllegalArgumentException("financialAccountId is required")
+                        investmentResolver.investmentHoldings(financialAccountId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "allInvestmentHoldings",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        investmentResolver.allInvestmentHoldings(principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "investmentHolding",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.investmentHolding(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "investmentTransactions",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val holdingId =
+                            env.getArgument<String>("holdingId")
+                                ?: throw IllegalArgumentException("holdingId is required")
+                        investmentResolver.investmentTransactions(holdingId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "investmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.investmentTransaction(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "investmentAsset",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { _ ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.investmentAsset(id)
+                    }
+                },
+            )
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
         type
@@ -312,6 +379,28 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "recordInvestmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.recordInvestmentTransaction(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "deleteInvestmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.deleteInvestmentTransaction(id, principal)
+                    }
+                },
+            )
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
@@ -330,6 +419,24 @@ class BankingWiringFactory(
                     createValidatedDataFetcher { env ->
                         val account = env.getSource<FinancialAccountDTO>()
                         account?.issuer
+                    },
+                )
+            }
+            .type("InvestmentHolding") { type ->
+                type.dataFetcher(
+                    "asset",
+                    createValidatedDataFetcher { env ->
+                        val holding = env.getSource<InvestmentHoldingDTO>()
+                        holding?.asset
+                    },
+                )
+            }
+            .type("InvestmentTransaction") { type ->
+                type.dataFetcher(
+                    "brokerNote",
+                    createValidatedDataFetcher { env ->
+                        val transaction = env.getSource<InvestmentTransactionDTO>()
+                        transaction?.brokerNote
                     },
                 )
             }

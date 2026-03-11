@@ -1,0 +1,809 @@
+package io.github.salomax.neotool.banking.domain.investment
+
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.within
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import java.math.BigDecimal
+import java.math.BigDecimal.ZERO
+import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
+
+@DisplayName("InvestmentTransactionService")
+class InvestmentTransactionServiceTest {
+
+    private lateinit var investmentTransactionRepository: InvestmentTransactionRepository
+    private lateinit var holdingRepository: HoldingRepository
+    private lateinit var assetRepository: AssetRepository
+    private lateinit var financialAccountRepository: FinancialAccountRepository
+    private lateinit var service: InvestmentTransactionService
+
+    private val accountId = UUID.randomUUID()
+    private val userId = UUID.randomUUID()
+    private val financialAccountId = UUID.randomUUID()
+    private val assetId = UUID.randomUUID()
+    private val holdingId = UUID.randomUUID()
+    private val now = Instant.now()
+    private val today = LocalDate.now()
+
+    private val custodyAccount =
+        FinancialAccount(
+            id = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            type = FinancialAccountType.INVESTMENT,
+            subtype = FinancialAccountSubtype.BROKERAGE,
+            name = "XP Investimentos",
+            currencyCode = "BRL",
+            createdAt = now,
+            updatedAt = now,
+        )
+
+    private val asset =
+        Asset(
+            id = assetId,
+            ticker = "PETR4",
+            name = "Petrobras ON",
+            assetType = AssetType.STOCK,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+    /** An empty holding (quantity = 0, no existing position) */
+    private fun emptyHolding() =
+        Holding(
+            id = holdingId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            assetId = assetId,
+            quantity = ZERO,
+            averageCost = ZERO,
+            source = InvestmentSource.MANUAL,
+            createdAt = now,
+            updatedAt = now,
+        )
+
+    /** A holding with an existing position */
+    private fun holdingWith(quantity: String, averageCost: String) =
+        emptyHolding().copy(
+            quantity = BigDecimal(quantity),
+            averageCost = BigDecimal(averageCost),
+        )
+
+    private fun savedHolding(holding: Holding) = holding.copy(id = holdingId)
+
+    private fun savedTransaction(tx: InvestmentTransaction) = tx.copy(id = UUID.randomUUID())
+
+    /** Minimal buy command */
+    private fun buyCommand(
+        quantity: String,
+        unitPrice: String,
+        grossValue: String = (BigDecimal(quantity) * BigDecimal(unitPrice)).toPlainString(),
+    ) = RecordInvestmentTransactionCommand(
+        financialAccountId = financialAccountId,
+        assetId = assetId,
+        direction = InvestmentTransactionDirection.INFLOW,
+        type = InvestmentTransactionType.PURCHASE,
+        quantity = BigDecimal(quantity),
+        unitPrice = BigDecimal(unitPrice),
+        grossValue = BigDecimal(grossValue),
+        tradeDate = today,
+    )
+
+    @BeforeEach
+    fun setUp() {
+        investmentTransactionRepository = mock()
+        holdingRepository = mock()
+        assetRepository = mock()
+        financialAccountRepository = mock()
+        service = InvestmentTransactionService(
+            investmentTransactionRepository,
+            holdingRepository,
+            assetRepository,
+            financialAccountRepository,
+        )
+
+        // Default stubs used by most tests
+        whenever(financialAccountRepository.findByAccountId(accountId))
+            .thenReturn(listOf(custodyAccount))
+        whenever(assetRepository.findById(assetId)).thenReturn(asset)
+        whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
+    }
+
+    // ── PURCHASE — custo médio ponderado ─────────────────────────────────────
+
+    @Nested
+    @DisplayName("PURCHASE — weighted average cost (custo médio ponderado)")
+    inner class PurchaseTests {
+
+        @Test
+        fun `first buy on empty holding sets averageCost equal to unit price`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            service.record(buyCommand("100", "28.50"), accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).save(captor.capture())
+
+            val saved = captor.firstValue
+            assertThat(saved.quantity).isEqualByComparingTo("100")
+            assertThat(saved.averageCost).isEqualByComparingTo("28.50")
+        }
+
+        @Test
+        fun `second buy at different price recalculates averageCost correctly`() {
+            // Existing: 100 shares at R$28.50 → cost basis R$2,850
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "28.50"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            // Buying 100 more at R$32.00 → cost basis R$3,200
+            // Expected avg = (100×28.50 + 100×32.00) / 200 = (2850+3200)/200 = 6050/200 = 30.25
+            service.record(buyCommand("100", "32.00"), accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("200")
+            assertThat(updated.averageCost).isEqualByComparingTo("30.25")
+        }
+
+        @Test
+        fun `multiple buys at different prices produce correct weighted average`() {
+            // After two buys: 100@28.50 + 100@32.00 = avg 30.25
+            val existingHolding = holdingWith("200", "30.25")
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(existingHolding)
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            // Buying 50 more at R$31.00
+            // Expected avg = (200×30.25 + 50×31.00) / 250 = (6050+1550)/250 = 7600/250 = 30.40
+            service.record(buyCommand("50", "31.00"), accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("250")
+            assertThat(updated.averageCost).isEqualByComparingTo("30.40")
+        }
+
+        @Test
+        fun `SUBSCRIPTION is treated identically to PURCHASE for average cost`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "10.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val subscriptionCommand = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.SUBSCRIPTION,
+                quantity = BigDecimal("50"),
+                unitPrice = BigDecimal("12.00"),
+                grossValue = BigDecimal("600"),
+                tradeDate = today,
+            )
+
+            service.record(subscriptionCommand, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            // (100×10 + 50×12) / 150 = (1000+600)/150 = 1600/150 ≈ 10.6667
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("150")
+            assertThat(updated.averageCost.setScale(4)).isEqualByComparingTo("10.6667")
+        }
+    }
+
+    // ── SALE ─────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("SALE")
+    inner class SaleTests {
+
+        @Test
+        fun `sale reduces quantity and leaves averageCost unchanged (RFB rule)`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("200", "30.25"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.SALE,
+                quantity = BigDecimal("80"),
+                unitPrice = BigDecimal("35.00"),
+                grossValue = BigDecimal("2800"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("120")
+            // averageCost must NOT change on sale
+            assertThat(updated.averageCost).isEqualByComparingTo("30.25")
+        }
+
+        @Test
+        fun `selling all shares zeroes the quantity`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "28.50"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.SALE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("35.00"),
+                grossValue = BigDecimal("3500"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            assertThat(captor.firstValue.quantity).isEqualByComparingTo(ZERO)
+        }
+
+        @Test
+        fun `sale with quantity exceeding holding throws IllegalArgumentException`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("50", "28.50"))
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.SALE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("35.00"),
+                grossValue = BigDecimal("3500"),
+                tradeDate = today,
+            )
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+
+            verify(investmentTransactionRepository, never()).save(any())
+        }
+    }
+
+    // ── MATURITY ─────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("MATURITY")
+    inner class MaturityTests {
+
+        @Test
+        fun `maturity with explicit quantity reduces position`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("1000", "1.05"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.MATURITY,
+                quantity = BigDecimal("1000"),
+                grossValue = BigDecimal("1100"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            assertThat(captor.firstValue.quantity).isEqualByComparingTo(ZERO)
+        }
+
+        @Test
+        fun `maturity without quantity closes the full position`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("500", "1.02"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.MATURITY,
+                quantity = null, // null = full maturity
+                grossValue = BigDecimal("600"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            assertThat(captor.firstValue.quantity).isEqualByComparingTo(ZERO)
+        }
+    }
+
+    // ── CORPORATE EVENTS ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Corporate events — quantity and cost basis adjustments")
+    inner class CorporateEventTests {
+
+        @Test
+        fun `STOCK_SPLIT increases quantity and reduces averageCost preserving total cost basis`() {
+            // 100 shares at R$20.00 → cost basis R$2,000
+            // 2-for-1 split: receive 100 additional shares
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "20.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.STOCK_SPLIT,
+                quantity = BigDecimal("100"), // additional shares received
+                grossValue = ZERO,
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("200")
+            // Total basis R$2,000 preserved → new avg = 2000/200 = 10.00
+            assertThat(updated.averageCost).isEqualByComparingTo("10.00")
+        }
+
+        @Test
+        fun `BONUS_SHARES dilutes averageCost with zero-cost inflow`() {
+            // 100 shares at R$50.00 → cost basis R$5,000
+            // 10% bonus: receive 10 bonus shares at zero cost
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "50.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.BONUS_SHARES,
+                quantity = BigDecimal("10"),
+                grossValue = ZERO,
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("110")
+            // R$5,000 / 110 ≈ 45.4545
+            assertThat(updated.averageCost.setScale(4))
+                .isEqualByComparingTo(BigDecimal("5000").divide(BigDecimal("110"), 4, java.math.RoundingMode.HALF_UP))
+        }
+
+        @Test
+        fun `REVERSE_SPLIT reduces quantity and concentrates cost basis in fewer shares`() {
+            // 100 shares at R$5.00 → cost basis R$500
+            // 1-for-2 reverse split: remove 50 shares
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "5.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.REVERSE_SPLIT,
+                quantity = BigDecimal("50"), // shares removed
+                grossValue = ZERO,
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("50")
+            // R$500 concentrated in 50 shares → avg = 500/50 = 10.00
+            assertThat(updated.averageCost).isEqualByComparingTo("10.00")
+        }
+
+        @Test
+        fun `cost basis is preserved across STOCK_SPLIT and subsequent SALE`() {
+            // Start: 100 shares @ R$20 → cost basis R$2,000
+            val holding = holdingWith("100", "20.00")
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holding)
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            // Step 1: split → 200 shares @ R$10
+            val splitCommand = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.STOCK_SPLIT,
+                quantity = BigDecimal("100"),
+                grossValue = ZERO,
+                tradeDate = today,
+            )
+
+            service.record(splitCommand, accountId, userId)
+
+            val captor1 = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor1.capture())
+            val afterSplit = captor1.firstValue
+            assertThat(afterSplit.quantity).isEqualByComparingTo("200")
+            assertThat(afterSplit.averageCost).isEqualByComparingTo("10.00")
+
+            // Verify cost basis unchanged: 200 × 10 = R$2,000
+            val basisAfterSplit = afterSplit.quantity * afterSplit.averageCost
+            assertThat(basisAfterSplit).isEqualByComparingTo("2000")
+        }
+    }
+
+    // ── INCOME EVENTS ─────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Income events — no holding mutation")
+    inner class IncomeEventTests {
+
+        @Test
+        fun `DIVIDEND does not change quantity or averageCost`() {
+            val holding = holdingWith("200", "30.25")
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holding)
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.DIVIDEND,
+                grossValue = BigDecimal("420.00"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("200")
+            assertThat(updated.averageCost).isEqualByComparingTo("30.25")
+        }
+
+        @Test
+        fun `INTEREST_ON_EQUITY (JCP) does not change quantity or averageCost`() {
+            val holding = holdingWith("500", "10.00")
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holding)
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.INTEREST_ON_EQUITY,
+                grossValue = BigDecimal("250.00"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("500")
+            assertThat(updated.averageCost).isEqualByComparingTo("10.00")
+        }
+
+        @Test
+        fun `WITHHOLDING_TAX (come-cotas) does not change quantity or averageCost`() {
+            val holding = holdingWith("1000", "1.15")
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holding)
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.WITHHOLDING_TAX,
+                grossValue = BigDecimal("50.00"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("1000")
+            assertThat(updated.averageCost).isEqualByComparingTo("1.15")
+        }
+    }
+
+    // ── CUSTODY TRANSFER ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("CUSTODY_TRANSFER")
+    inner class CustodyTransferTests {
+
+        @Test
+        fun `incoming transfer with price is treated as a purchase for average cost`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "28.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.CUSTODY_TRANSFER,
+                quantity = BigDecimal("50"),
+                unitPrice = BigDecimal("30.00"),
+                grossValue = BigDecimal("1500"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("150")
+            // (100×28 + 50×30) / 150 = (2800+1500)/150 = 4300/150 ≈ 28.6667
+            assertThat(updated.averageCost.setScale(4))
+                .isEqualByComparingTo(BigDecimal("4300").divide(BigDecimal("150"), 4, java.math.RoundingMode.HALF_UP))
+        }
+
+        @Test
+        fun `outgoing transfer reduces quantity without changing averageCost`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("200", "30.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.CUSTODY_TRANSFER,
+                quantity = BigDecimal("80"),
+                grossValue = BigDecimal("2400"),
+                tradeDate = today,
+            )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(captor.capture())
+
+            val updated = captor.firstValue
+            assertThat(updated.quantity).isEqualByComparingTo("120")
+            assertThat(updated.averageCost).isEqualByComparingTo("30.00")
+        }
+    }
+
+    // ── VALIDATION ────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Input validation")
+    inner class ValidationTests {
+
+        @Test
+        fun `fails when financialAccountId does not belong to the caller accountId`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(emptyList())
+
+            assertThrows<IllegalArgumentException> {
+                service.record(buyCommand("100", "28.50"), accountId, userId)
+            }
+
+            verify(investmentTransactionRepository, never()).save(any())
+        }
+
+        @Test
+        fun `fails when asset is not found`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(null)
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            assertThrows<NoSuchElementException> {
+                service.record(buyCommand("100", "28.50"), accountId, userId)
+            }
+        }
+
+        @Test
+        fun `fails when grossValue is negative`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+
+            val command = buyCommand("100", "28.50").copy(grossValue = BigDecimal("-1"))
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+
+        @Test
+        fun `fails when type is OTHER and typeAdditionalInfo is missing`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "28.50"))
+
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.OTHER,
+                typeAdditionalInfo = null, // required for OTHER
+                grossValue = BigDecimal("100"),
+                tradeDate = today,
+            )
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+
+        @Test
+        fun `fails when PURCHASE is missing quantity`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command = buyCommand("100", "28.50").copy(quantity = null)
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+
+        @Test
+        fun `fails when PURCHASE is missing unitPrice`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command = buyCommand("100", "28.50").copy(unitPrice = null)
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+    }
+
+    // ── DEDUP ─────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Provider deduplication")
+    inner class DedupTests {
+
+        @Test
+        fun `skips saving when providerTransactionId already exists for the account`() {
+            val existingProviderId = "ofb-tx-12345"
+            whenever(investmentTransactionRepository.existsByProviderTransactionId(
+                financialAccountId, existingProviderId))
+                .thenReturn(true)
+
+            val command = buyCommand("100", "28.50").copy(
+                providerTransactionId = existingProviderId,
+                source = InvestmentSource.OPEN_FINANCE,
+            )
+
+            assertThrows<IllegalStateException> {
+                service.record(command, accountId, userId)
+            }
+
+            verify(investmentTransactionRepository, never()).save(any())
+        }
+
+        @Test
+        fun `saves normally when providerTransactionId is not a duplicate`() {
+            whenever(investmentTransactionRepository.existsByProviderTransactionId(any(), any()))
+                .thenReturn(false)
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command = buyCommand("100", "28.50").copy(
+                providerTransactionId = "ofb-tx-new",
+                source = InvestmentSource.OPEN_FINANCE,
+            )
+
+            service.record(command, accountId, userId)
+
+            verify(investmentTransactionRepository).save(any())
+        }
+    }
+
+    // ── HOLDING UPSERT ────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Holding upsert")
+    inner class HoldingUpsertTests {
+
+        @Test
+        fun `creates a new holding when none exists for the asset`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            service.record(buyCommand("100", "28.50"), accountId, userId)
+
+            verify(holdingRepository).save(any())
+            verify(holdingRepository, never()).update(any())
+        }
+
+        @Test
+        fun `updates an existing holding when one is found`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("50", "25.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            service.record(buyCommand("50", "30.00"), accountId, userId)
+
+            verify(holdingRepository, never()).save(any())
+            verify(holdingRepository).update(any())
+        }
+
+        @Test
+        fun `uses providerInvestmentId lookup when present`() {
+            val providerId = "pluggy-inv-abc"
+            whenever(holdingRepository.findByProviderInvestmentId(financialAccountId, providerId))
+                .thenReturn(holdingWith("100", "28.50"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val command = buyCommand("50", "30.00").copy(
+                providerInvestmentId = providerId,
+                source = InvestmentSource.OPEN_FINANCE,
+            )
+
+            service.record(command, accountId, userId)
+
+            verify(holdingRepository, never()).save(any())
+            verify(holdingRepository).update(any())
+        }
+    }
+}
