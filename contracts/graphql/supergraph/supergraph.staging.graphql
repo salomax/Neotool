@@ -313,6 +313,14 @@ enum BudgetScope
   FEATURE @join__enumValue(graph: ASSISTANT)
 }
 
+"""Result of a bulk operation (e.g. bulkCategorize)."""
+type BulkOperationResult
+  @join__type(graph: BANKING)
+{
+  affectedCount: Int!
+  errors: [String!]!
+}
+
 """
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
 creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
@@ -367,6 +375,49 @@ enum CategoryApplicableTo
   EXPENSE @join__enumValue(graph: BANKING)
   TRANSFER @join__enumValue(graph: BANKING)
   ANY @join__enumValue(graph: BANKING)
+}
+
+"""
+Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned.
+"""
+type CategoryRule
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  categoryId: ID!
+  category: TransactionCategory!
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int!
+  isSystem: Boolean!
+  isImplicit: Boolean!
+  matchCount: Int!
+  createdAt: DateTime!
+}
+
+"""How the transaction's category was assigned. Null when uncategorized."""
+enum CategorySource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  RULE @join__enumValue(graph: BANKING)
+  IMPORTED @join__enumValue(graph: BANKING)
+  AI @join__enumValue(graph: BANKING)
+}
+
+"""
+Category total for a period (expense/income breakdown). Percentage of period total.
+"""
+type CategoryTotal
+  @join__type(graph: BANKING)
+{
+  category: TransactionCategory!
+  totalAmount: Float!
+  transactionCount: Int!
+
+  """Percentage of the period total (0–100)."""
+  percentage: Float!
 }
 
 input ChatInput
@@ -536,6 +587,16 @@ input CreateCategoryInput
   icon: String
   color: String
   sortOrder: Int
+}
+
+input CreateCategoryRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID!
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int
 }
 
 input CreateFinancialAccountInput
@@ -1264,6 +1325,12 @@ type MonthSummary
   True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted.
   """
   isFutureMonth: Boolean!
+
+  """Top expense categories for the month (ordered by totalAmount DESC)."""
+  expensesByCategory: [CategoryTotal!]!
+
+  """Top income categories for the month (ordered by totalAmount DESC)."""
+  incomeByCategory: [CategoryTotal!]!
 }
 
 type Mutation
@@ -1383,6 +1450,32 @@ type Mutation
   Create a new custom transaction category for the authenticated account.
   """
   createTransactionCategory(input: CreateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
+
+  """Update a custom transaction category for the authenticated account."""
+  updateTransactionCategory(id: ID!, input: UpdateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
+
+  """
+  Soft-delete a custom transaction category (and its subcategories when deleting a root).
+  """
+  deleteTransactionCategory(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error.
+  """
+  createCategoryRule(input: CreateCategoryRuleInput!): CategoryRule! @join__field(graph: BANKING)
+
+  """Update a user-owned category rule."""
+  updateCategoryRule(id: ID!, input: UpdateCategoryRuleInput!): CategoryRule! @join__field(graph: BANKING)
+
+  """
+  Soft-delete a user-owned category rule. System rules cannot be deleted.
+  """
+  deleteCategoryRule(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
+  """
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -1444,6 +1537,16 @@ type ParsedImportRow
   currencyCode: String!
   counterpartyName: String
   counterpartyDocument: String
+}
+
+"""Pattern type for category rule description matching."""
+enum PatternType
+  @join__type(graph: BANKING)
+{
+  CONTAINS @join__enumValue(graph: BANKING)
+  STARTS_WITH @join__enumValue(graph: BANKING)
+  EXACT @join__enumValue(graph: BANKING)
+  REGEX @join__enumValue(graph: BANKING)
 }
 
 type PdfBillExtractionResult
@@ -1683,6 +1786,23 @@ type Query
   transactionCategories: [TransactionCategory!]! @join__field(graph: BANKING)
 
   """
+  All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned.
+  """
+  categoryRules: [CategoryRule!]! @join__field(graph: BANKING)
+
+  """
+  Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByCategory(
+    financialAccountId: ID
+    year: Int
+    month: Int
+
+    """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]! @join__field(graph: BANKING)
+
+  """
   Distinct values used in transaction attribution ("belongs to"), across all account transactions.
   """
   transactionBelongsToOptions: [TransactionBelongsToOption!]! @join__field(graph: BANKING)
@@ -1696,7 +1816,23 @@ type Query
   When month/year are not provided (and billId is null), the current month/year are used by the backend.
   When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
   """
-  transactions(financialAccountId: ID, belongsToUserId: ID, belongsToName: String, tags: [String!], billId: ID, month: Int, year: Int, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
+  transactions(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    tags: [String!]
+    billId: ID
+
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+
+    """If true, return only transactions with no category."""
+    uncategorized: Boolean
+    month: Int
+    year: Int
+    first: Int
+    after: String
+  ): TransactionConnection! @join__field(graph: BANKING)
   transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
   pdfImportJob(jobId: ID!): PdfImportJob @join__field(graph: BANKING)
@@ -2036,6 +2172,9 @@ type Transaction
   notes: String
   tags: [String!]!
   category: TransactionCategory
+
+  """How the category was assigned. Null when uncategorized."""
+  categorySource: CategorySource
   counterpartyName: String
   counterpartyDocument: String
   counterpartyBankCode: String
@@ -2172,6 +2311,24 @@ enum TransactionType
   TAX @join__enumValue(graph: BANKING)
   OTHER_EXPENSE @join__enumValue(graph: BANKING)
   BALANCE_ADJUSTMENT @join__enumValue(graph: BANKING)
+}
+
+input UpdateCategoryInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  icon: String
+  color: String
+  sortOrder: Int
+}
+
+input UpdateCategoryRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID
+  pattern: String
+  patternType: PatternType
+  priority: Int
 }
 
 input UpdateGroupInput

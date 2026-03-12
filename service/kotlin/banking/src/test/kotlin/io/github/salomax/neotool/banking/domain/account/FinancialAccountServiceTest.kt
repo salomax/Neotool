@@ -85,7 +85,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `creates account without initial balance and does not create balance adjustment transaction`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             val result = service.create(command(), accountId, userId)
 
@@ -96,7 +98,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `creates BALANCE_ADJUSTMENT transaction when initial balance and date are provided`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
             whenever(transactionService.create(any(), eq(accountId), eq(userId))).thenReturn(transactionResult())
             val command = command(initialBalance = BigDecimal("1500.25"), initialBalanceDate = today)
 
@@ -137,7 +141,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `ignores initial balance date when initial balance is not provided`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
             val command = command(initialBalance = null, initialBalanceDate = today)
 
             val result = service.create(command, accountId, userId)

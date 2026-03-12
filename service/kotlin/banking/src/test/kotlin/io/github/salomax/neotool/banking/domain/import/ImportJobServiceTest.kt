@@ -34,6 +34,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.postgresql.util.PSQLException
+import org.postgresql.util.PSQLState
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -422,6 +424,55 @@ class ImportJobServiceTest {
             assertThat(result.id).isEqualTo(jobId)
             verify(fileStorage).store(eq(accountId), eq(fileBytes), eq(fileName), eq("application/pdf"))
             verify(importFileProducer).publish(any())
+        }
+
+        @Test
+        fun `duplicate conflict when existing job belongs to another account`() {
+            val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
+            val fileName = "export.ofx"
+            val otherFinancialAccountId = UUID.randomUUID()
+            val existingJob =
+                ImportJob(
+                    id = UUID.randomUUID(),
+                    financialAccountId = otherFinancialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.OFX,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PROCESSING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(null)
+            whenever(importJobRepository.findLatestByAccountAndFileHash(eq(accountId), any())).thenReturn(existingJob)
+            whenever(importJobRepository.save(any())).thenThrow(
+                RuntimeException(
+                    "duplicate",
+                    PSQLException(
+                        "duplicate key value violates unique constraint \"uq_transaction_imports_account_file_hash\"",
+                        PSQLState.UNIQUE_VIOLATION,
+                    ),
+                ),
+            )
+
+            val ex =
+                assertThrows<ConflictException> {
+                    service.initiateFileImport(
+                        financialAccountId,
+                        accountId,
+                        userId,
+                        fileBytes,
+                        fileName,
+                        ImportSource.OFX,
+                    )
+                }
+
+            assertThat(ex.errorCode.code).isEqualTo(BankingErrorCode.IMPORT_FILE_ALREADY_EXISTS.code)
+            assertThat(ex.parameters["existingJobId"]).isEqualTo(existingJob.id.toString())
+            assertThat(ex.parameters["existingFinancialAccountId"]).isEqualTo(otherFinancialAccountId.toString())
+            verify(fileStorage, never()).store(any(), any(), any(), any())
+            verify(importFileProducer, never()).publish(any())
         }
 
         @Test

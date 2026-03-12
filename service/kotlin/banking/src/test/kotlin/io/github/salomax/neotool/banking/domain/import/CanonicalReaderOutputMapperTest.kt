@@ -77,4 +77,3 @@ class CanonicalReaderOutputMapperTest {
         assertThat(restored).containsExactlyElementsOf(rows)
     }
 }
-

@@ -58,7 +58,7 @@ export function TransactionTable({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const loaderRef = useRef<HTMLDivElement>(null);
-  const borderRadius = '3px';
+  const borderRadius = '.3rem';
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);

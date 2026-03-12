@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.infra.kafka.parser
 
-import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.parser.OFXParser
 
 class OfxImportParserStrategy : BaseImportParserStrategy(

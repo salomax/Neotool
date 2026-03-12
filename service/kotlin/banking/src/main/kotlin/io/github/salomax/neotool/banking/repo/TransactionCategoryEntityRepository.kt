@@ -16,6 +16,16 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
      * Returns all system categories + user-defined categories for the given account.
      * Excludes soft-deleted rows.
      */
+    @Query(
+        """
+        SELECT *
+        FROM banking.transaction_categories
+        WHERE (account_id IS NULL OR account_id = :accountId)
+          AND deleted_at IS NULL
+        ORDER BY sort_order ASC, created_at ASC
+        """,
+        nativeQuery = true,
+    )
     fun findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId: UUID): List<TransactionCategoryEntity>
 
     fun findByIdAndDeletedAtIsNull(id: UUID): TransactionCategoryEntity?
@@ -27,7 +37,7 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
         WHERE name = :name
           AND account_id = :accountId
           AND (
-            (:parentId IS NULL AND parent_id IS NULL) OR parent_id = :parentId
+            (CAST(:parentId AS uuid) IS NULL AND parent_id IS NULL) OR parent_id = CAST(:parentId AS uuid)
           )
           AND deleted_at IS NULL
         """,
@@ -45,7 +55,7 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
         FROM banking.transaction_categories
         WHERE account_id = :accountId
           AND (
-            (:parentId IS NULL AND parent_id IS NULL) OR parent_id = :parentId
+            (CAST(:parentId AS uuid) IS NULL AND parent_id IS NULL) OR parent_id = CAST(:parentId AS uuid)
           )
           AND deleted_at IS NULL
         """,

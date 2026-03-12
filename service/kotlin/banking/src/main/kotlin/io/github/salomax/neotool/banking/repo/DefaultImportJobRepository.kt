@@ -29,6 +29,13 @@ open class DefaultImportJobRepository(
         entityRepository.findByFinancialAccountIdAndFileHash(financialAccountId, fileHash)
             ?.let(TransactionImportMapper::toDomain)
 
+    override fun findLatestByAccountAndFileHash(
+        accountId: UUID,
+        fileHash: String,
+    ): ImportJob? =
+        entityRepository.findLatestByAccountIdAndFileHash(accountId, fileHash)
+            ?.let(TransactionImportMapper::toDomain)
+
     override fun findByFinancialAccount(
         financialAccountId: UUID,
         accountId: UUID,
@@ -43,9 +50,7 @@ open class DefaultImportJobRepository(
             .map(TransactionImportMapper::toDomain)
 
     @Transactional
-    override fun markAssistantRequestPublished(
-        id: UUID,
-    ): Boolean {
+    override fun markAssistantRequestPublished(id: UUID): Boolean {
         entityRepository.flush()
         return entityRepository.markAssistantRequestPublished(id) > 0
     }

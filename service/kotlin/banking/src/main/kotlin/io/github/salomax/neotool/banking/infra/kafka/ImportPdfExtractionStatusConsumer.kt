@@ -142,7 +142,12 @@ class ImportPdfExtractionStatusConsumer(
             val job =
                 importJobRepository.findById(jobId, accountId)
                     ?: run {
-                        log.debug("Ignoring {} event for non-import job: jobId={}, accountId={}", topic, jobId, accountId)
+                        log.debug(
+                            "Ignoring {} event for non-import job: jobId={}, accountId={}",
+                            topic,
+                            jobId,
+                            accountId,
+                        )
                         return
                     }
             action(job, callbackContext)

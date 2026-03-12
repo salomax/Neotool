@@ -30,6 +30,7 @@ import java.util.UUID
 class TransactionServiceTest {
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
+    private lateinit var categorizationService: CategorizationService
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
@@ -59,6 +60,7 @@ class TransactionServiceTest {
     fun setUp() {
         transactionRepository = mock()
         categoryRepository = mock()
+        categorizationService = mock()
         financialAccountRepository = mock()
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
@@ -67,6 +69,7 @@ class TransactionServiceTest {
             TransactionService(
                 transactionRepository,
                 categoryRepository,
+                categorizationService,
                 financialAccountRepository,
                 accountMembershipValidationPort,
                 snapshotComputationService,
@@ -1033,10 +1036,12 @@ class TransactionServiceTest {
                 service.listTransactions(
                     accountId = accountId,
                     financialAccountId = null,
-                    billId = null,
                     belongsToUserId = null,
                     belongsToName = "Partner",
                     tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,
@@ -1086,10 +1091,12 @@ class TransactionServiceTest {
                 service.listTransactions(
                     accountId = accountId,
                     financialAccountId = null,
-                    billId = null,
                     belongsToUserId = null,
                     belongsToName = null,
                     tags = listOf("Weekend", "Transport"),
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,

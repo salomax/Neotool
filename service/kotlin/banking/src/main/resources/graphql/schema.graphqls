@@ -158,6 +158,14 @@ enum TransactionSource {
   PDF_BILL
 }
 
+"""How the transaction's category was assigned. Null when uncategorized."""
+enum CategorySource {
+  MANUAL
+  RULE
+  IMPORTED
+  AI
+}
+
 """
 Category applicability (income, expense, transfer, or any).
 """
@@ -166,6 +174,14 @@ enum CategoryApplicableTo {
   EXPENSE
   TRANSFER
   ANY
+}
+
+"""Pattern type for category rule description matching."""
+enum PatternType {
+  CONTAINS
+  STARTS_WITH
+  EXACT
+  REGEX
 }
 
 enum ImportSource {
@@ -309,6 +325,38 @@ input UpdateCategoryInput {
 }
 
 """
+Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned.
+"""
+type CategoryRule {
+  id: ID!
+  categoryId: ID!
+  category: TransactionCategory!
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int!
+  isSystem: Boolean!
+  isImplicit: Boolean!
+  matchCount: Int!
+  createdAt: DateTime!
+}
+
+input CreateCategoryRuleInput {
+  categoryId: ID!
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int
+}
+
+input UpdateCategoryRuleInput {
+  categoryId: ID
+  pattern: String
+  patternType: PatternType
+  priority: Int
+}
+
+"""
 Core ledger transaction row.
 """
 type Transaction {
@@ -341,6 +389,8 @@ type Transaction {
 
   # Category
   category: TransactionCategory
+  """How the category was assigned. Null when uncategorized."""
+  categorySource: CategorySource
 
   # Counterparty (bank account transactions / PIX / TED)
   counterpartyName: String
@@ -392,6 +442,21 @@ type MonthSummary {
   isCurrentMonth: Boolean!
   """True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted."""
   isFutureMonth: Boolean!
+  """Top expense categories for the month (ordered by totalAmount DESC)."""
+  expensesByCategory: [CategoryTotal!]!
+  """Top income categories for the month (ordered by totalAmount DESC)."""
+  incomeByCategory: [CategoryTotal!]!
+}
+
+"""
+Category total for a period (expense/income breakdown). Percentage of period total.
+"""
+type CategoryTotal {
+  category: TransactionCategory!
+  totalAmount: Float!
+  transactionCount: Int!
+  """Percentage of the period total (0–100)."""
+  percentage: Float!
 }
 
 """
@@ -751,6 +816,20 @@ extend type Query {
   """
   transactionCategories: [TransactionCategory!]!
   """
+  All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned.
+  """
+  categoryRules: [CategoryRule!]!
+  """
+  Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByCategory(
+    financialAccountId: ID
+    year: Int
+    month: Int
+    """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]!
+  """
   Distinct values used in transaction attribution ("belongs to"), across all account transactions.
   """
   transactionBelongsToOptions: [TransactionBelongsToOption!]!
@@ -770,6 +849,10 @@ extend type Query {
     belongsToName: String
     tags: [String!]
     billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only transactions with no category."""
+    uncategorized: Boolean
     month: Int
     year: Int
     first: Int
@@ -840,4 +923,26 @@ extend type Mutation {
   Soft-delete a custom transaction category (and its subcategories when deleting a root).
   """
   deleteTransactionCategory(id: ID!): Boolean!
+  """
+  Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error.
+  """
+  createCategoryRule(input: CreateCategoryRuleInput!): CategoryRule!
+  """
+  Update a user-owned category rule.
+  """
+  updateCategoryRule(id: ID!, input: UpdateCategoryRuleInput!): CategoryRule!
+  """
+  Soft-delete a user-owned category rule. System rules cannot be deleted.
+  """
+  deleteCategoryRule(id: ID!): Boolean!
+  """
+  Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
+  """
+  bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+}
+
+"""Result of a bulk operation (e.g. bulkCategorize)."""
+type BulkOperationResult {
+  affectedCount: Int!
+  errors: [String!]!
 }

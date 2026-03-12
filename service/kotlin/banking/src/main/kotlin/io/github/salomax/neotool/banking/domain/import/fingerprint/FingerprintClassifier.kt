@@ -36,7 +36,12 @@ data class FingerprintClassification(
         fun known(
             profileId: String,
             reason: String,
-        ): FingerprintClassification = FingerprintClassification(status = KNOWN_PROFILE, reason = reason, profileId = profileId)
+        ): FingerprintClassification =
+            FingerprintClassification(
+                status = KNOWN_PROFILE,
+                reason = reason,
+                profileId = profileId,
+            )
 
         fun unknown(reason: String): FingerprintClassification =
             FingerprintClassification(status = UNKNOWN_PROFILE, reason = reason, profileId = null)

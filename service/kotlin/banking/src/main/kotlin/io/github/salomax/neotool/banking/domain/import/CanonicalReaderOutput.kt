@@ -29,4 +29,3 @@ enum class CanonicalProcessorType {
     AUTO,
     LLM,
 }
-

@@ -5,10 +5,10 @@ import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportProcessor
+import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ImportValidationCounters
 import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
-import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.excel.ExcelExtractionService
 import io.github.salomax.neotool.banking.domain.import.excel.reader.ExcelDeterministicRoutingService
 import io.github.salomax.neotool.banking.domain.import.ofx.OfxDestinationCompatibilityService
@@ -434,11 +434,12 @@ class ImportFileConsumer(
         event: ImportFileRequestedEvent,
         job: ImportJob,
     ) {
-        val producer = pdfExtractorSubmittedProducer
-            ?: throw BusinessRuleException(
-                errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
-                parameters = mapOf("kafkaEnabled" to false, "pipeline" to "pdf-extractor"),
-            )
+        val producer =
+            pdfExtractorSubmittedProducer
+                ?: throw BusinessRuleException(
+                    errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
+                    parameters = mapOf("kafkaEnabled" to false, "pipeline" to "pdf-extractor"),
+                )
         val downloadUrl =
             fileStorage.resolveDownloadUrl(
                 accountId = event.accountId,

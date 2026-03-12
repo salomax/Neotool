@@ -283,7 +283,9 @@ class ImportProcessorTest {
         @Test
         fun `exception in one row does not abort processing of subsequent rows`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
-            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-1", "fp-2", "fp-3")
+            whenever(
+                importFingerprintService.compute(any(), any(), any(), any(), any()),
+            ).thenReturn("fp-1", "fp-2", "fp-3")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
             whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
             whenever(transactionRepository.save(any()))

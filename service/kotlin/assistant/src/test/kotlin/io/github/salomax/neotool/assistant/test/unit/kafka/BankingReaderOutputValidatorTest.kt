@@ -90,4 +90,71 @@ class BankingReaderOutputValidatorTest {
 
         assertThat(errors).contains("statement_period.from must be a valid date (YYYY-MM-DD or DD/MM/YYYY)")
     }
+
+    @Test
+    fun `validate accepts single digit BR date components`() {
+        val output =
+            objectMapper.readTree(
+                """
+                {
+                  "bank_name": "Inter",
+                  "statement_period": { "from": "3/1/2026", "to": "31/1/2026" },
+                  "cards": [],
+                  "extraction_confidence": 0.8,
+                  "needs_review": false,
+                  "warnings": []
+                }
+                """.trimIndent(),
+            )
+
+        val errors = validator.validate(documentType = "BANK_STATEMENT", output = output)
+
+        assertThat(errors).isEmpty()
+    }
+
+    @Test
+    fun `validate rejects installment when current is greater than total`() {
+        val output =
+            objectMapper.readTree(
+                """
+                {
+                  "bank_name": "Nubank",
+                  "statement_period": { "from": "2026-01-01", "to": "2026-01-31" },
+                  "cards": [
+                    {
+                      "last_four_digits": "1234",
+                      "closing_date": "2026-01-25",
+                      "due_date": "2026-02-05",
+                      "declared_total": 120.0,
+                      "computed_total": 120.0,
+                      "total_matches_declared": true,
+                      "confidence": 0.9,
+                      "transactions": [
+                        {
+                          "date": "2026-01-15",
+                          "description": "Compra parcelada",
+                          "amount": 120.0,
+                          "credit_debit_type": "DEBIT",
+                          "confidence": 0.9,
+                          "installment": {
+                            "current": 15,
+                            "total": 12
+                          }
+                        }
+                      ]
+                    }
+                  ],
+                  "extraction_confidence": 0.9,
+                  "needs_review": false,
+                  "warnings": []
+                }
+                """.trimIndent(),
+            )
+
+        val errors = validator.validate(documentType = "BANK_STATEMENT", output = output)
+
+        assertThat(
+            errors,
+        ).contains("cards[0].transactions[0].installment.current must be <= cards[0].transactions[0].installment.total")
+    }
 }

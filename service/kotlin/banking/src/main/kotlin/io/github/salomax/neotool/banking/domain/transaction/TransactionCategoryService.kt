@@ -73,12 +73,12 @@ open class TransactionCategoryService(
             categoryRepository.findById(id)
                 ?: throw CategoryNotFoundException(id)
 
-        if (category.accountId != accountId) {
-            throw CategoryNotFoundException(id)
-        }
-
         if (category.isSystem) {
             throw SystemCategoryNotEditableException()
+        }
+
+        if (category.accountId != accountId) {
+            throw CategoryNotFoundException(id)
         }
 
         val newName = input.name ?: category.name
@@ -115,12 +115,12 @@ open class TransactionCategoryService(
             categoryRepository.findById(id)
                 ?: throw CategoryNotFoundException(id)
 
-        if (category.accountId != accountId) {
-            throw CategoryNotFoundException(id)
-        }
-
         if (category.isSystem) {
             throw SystemCategoryNotEditableException()
+        }
+
+        if (category.accountId != accountId) {
+            throw CategoryNotFoundException(id)
         }
 
         if (category.parentId == null) {
@@ -152,4 +152,3 @@ data class UpdateCategoryInput(
     val color: String?,
     val sortOrder: Int?,
 )
-

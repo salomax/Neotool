@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.infra.kafka.parser
 
-import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 
 data class ImportParsingContext(

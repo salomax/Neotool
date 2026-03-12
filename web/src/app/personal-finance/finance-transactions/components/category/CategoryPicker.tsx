@@ -1,0 +1,614 @@
+'use client';
+
+import React, { useMemo, useState, useCallback } from 'react';
+import {
+  Alert,
+  Box,
+  TextField,
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Typography,
+  InputAdornment,
+  alpha,
+  useTheme,
+  Button,
+  IconButton,
+  Link,
+  Popover,
+  Stack,
+} from '@mui/material';
+import SearchIcon from '@mui/icons-material/Search';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import AddIcon from '@mui/icons-material/Add';
+import CloseIcon from '@mui/icons-material/Close';
+import CheckIcon from '@mui/icons-material/Check';
+import { useQuery, useMutation } from '@apollo/client/react';
+import { TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
+import {
+  CREATE_TRANSACTION_CATEGORY,
+  DELETE_TRANSACTION_CATEGORY,
+} from '@/lib/graphql/operations/banking/mutations';
+import type {
+  CreateTransactionCategoryMutation,
+  DeleteTransactionCategoryMutation,
+} from '@/lib/graphql/operations/banking/mutations.generated';
+import type { TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
+import { CategoryApplicableTo } from '@/lib/graphql/types/__generated__/graphql';
+import { CategoryIcon } from './CategoryIcon';
+import {
+  CATEGORY_ICON_NAMES,
+  CATEGORY_COLOR_PALETTE,
+} from './categoryIconMap';
+
+export type CategoryPickerView = 'browse' | 'create' | 'confirm' | 'deleteConfirm';
+
+export interface CategoryPickerProps {
+  value: string | null;
+  onChange: (categoryId: string | null) => void;
+  creditDebitType: 'CREDIT' | 'DEBIT';
+  anchorEl: HTMLElement | null;
+  onClose: () => void;
+}
+
+function buildTree(categories: TransactionCategory[]) {
+  const roots = categories
+    .filter((c) => !c.parentId)
+    .sort((a, b) => a.sortOrder - b.sortOrder);
+  const byParent = categories.reduce<Record<string, TransactionCategory[]>>(
+    (acc, c) => {
+      const key = c.parentId ?? 'root';
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(c);
+      return acc;
+    },
+    {}
+  );
+  roots.forEach((r) => {
+    const children = r.id ? byParent[r.id] : undefined;
+    if (children) children.sort((a, b) => a.sortOrder - b.sortOrder);
+  });
+  return { roots, byParent };
+}
+
+const CONFIRM_DURATION_MS = 1500;
+
+export function CategoryPicker({
+  value,
+  onChange,
+  creditDebitType,
+  anchorEl,
+  onClose,
+}: CategoryPickerProps) {
+  const theme = useTheme();
+  const [view, setView] = useState<CategoryPickerView>('browse');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [createName, setCreateName] = useState('');
+  const [createIcon, setCreateIcon] = useState<string | null>('help_outline');
+  const [createColor, setCreateColor] = useState<string | null>(
+    CATEGORY_COLOR_PALETTE[0] ?? null
+  );
+  const [confirmCreatedName, setConfirmCreatedName] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{
+    category: TransactionCategory;
+    children: TransactionCategory[];
+  } | null>(null);
+
+  const { data } = useQuery<{ transactionCategories: TransactionCategory[] }>(
+    TRANSACTION_CATEGORIES,
+    { fetchPolicy: 'cache-first' }
+  );
+  const [createCategory, { loading: createLoading, error: createError, reset: resetCreateState }] =
+    useMutation<CreateTransactionCategoryMutation>(CREATE_TRANSACTION_CATEGORY, {
+      refetchQueries: [{ query: TRANSACTION_CATEGORIES }],
+    });
+  const [deleteCategory] = useMutation<DeleteTransactionCategoryMutation>(
+    DELETE_TRANSACTION_CATEGORY,
+    { refetchQueries: [{ query: TRANSACTION_CATEGORIES }] }
+  );
+
+  const { roots, byParent } = useMemo(() => {
+    const allCategories = data?.transactionCategories ?? [];
+    return buildTree(allCategories);
+  }, [data?.transactionCategories]);
+
+  const searchLower = searchQuery.trim().toLowerCase();
+  const filteredRoots = useMemo(() => {
+    if (!searchLower) return roots;
+    return roots.filter((r) => r.name.toLowerCase().includes(searchLower));
+  }, [roots, searchLower]);
+
+  const filteredChildren = useMemo(() => {
+    if (!searchLower) return byParent;
+    const out: Record<string, TransactionCategory[]> = {};
+    roots.forEach((r) => {
+      const id = r.id;
+      if (!id) return;
+      const children = (byParent[id] ?? []).filter((c) =>
+        c.name.toLowerCase().includes(searchLower)
+      );
+      if (children.length > 0) out[id] = children;
+    });
+    return out;
+  }, [roots, byParent, searchLower]);
+
+
+  const handleSelect = useCallback(
+    (id: string | null) => {
+      onChange(id);
+      onClose();
+    },
+    [onChange, onClose]
+  );
+
+  const handleOpenCreate = useCallback(() => {
+    setCreateName('');
+    setCreateIcon('help_outline');
+    setCreateColor(CATEGORY_COLOR_PALETTE[0] ?? null);
+    resetCreateState();
+    setView('create');
+  }, [resetCreateState]);
+
+  const handleBackToBrowse = useCallback(() => {
+    setView('browse');
+    setConfirmCreatedName(null);
+    setDeleteTarget(null);
+  }, []);
+
+  const handleCreateSubmit = useCallback(async () => {
+    if (!createName.trim()) return;
+    const applicableTo =
+      creditDebitType === 'DEBIT' ? CategoryApplicableTo.Expense : CategoryApplicableTo.Income;
+    try {
+      const { data: result } = await createCategory({
+        variables: {
+          input: {
+            name: createName.trim(),
+            applicableTo,
+            parentId: null,
+            icon: createIcon ?? undefined,
+            color: createColor ?? undefined,
+          },
+        },
+      });
+      const newCategory = result?.createTransactionCategory;
+      if (newCategory) {
+        onChange(newCategory.id);
+        setConfirmCreatedName(newCategory.name);
+        setView('confirm');
+      }
+    } catch {
+      // Network or other errors: Apollo sets error state, shown in UI
+    }
+  }, [createName, createIcon, createColor, creditDebitType, createCategory, onChange]);
+
+  React.useEffect(() => {
+    if (view === 'confirm' && confirmCreatedName) {
+      const t = setTimeout(() => onClose(), CONFIRM_DURATION_MS);
+      return () => clearTimeout(t);
+    }
+  }, [view, confirmCreatedName, onClose]);
+
+  const handleDeleteClick = useCallback(
+    (category: TransactionCategory) => (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const children = byParent[category.id] ?? [];
+      setDeleteTarget({ category, children });
+      setView('deleteConfirm');
+    },
+    [byParent]
+  );
+
+  React.useEffect(() => {
+    if (anchorEl) {
+      setView('browse');
+      setDeleteTarget(null);
+      setConfirmCreatedName(null);
+    }
+  }, [anchorEl]);
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    await deleteCategory({ variables: { id: deleteTarget.category.id } });
+    setDeleteTarget(null);
+    setView('browse');
+  }, [deleteTarget, deleteCategory]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTarget(null);
+    setView('browse');
+  }, []);
+
+  if (!anchorEl) return null;
+
+  const open = Boolean(anchorEl);
+
+  const renderBrowse = () => (
+    <>
+      <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Buscar categoria..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <SearchIcon fontSize="small" color="action" />
+              </InputAdornment>
+            ),
+            disableUnderline: true,
+            sx: { '& fieldset': { border: 'none' } },
+          }}
+          variant="standard"
+          autoFocus
+        />
+      </Box>
+      <List sx={{ flex: 1, minHeight: 0, overflow: 'auto', py: 0 }}>
+        <ListItemButton
+          onClick={() => handleSelect(null)}
+          selected={value === null}
+          sx={{ borderBottom: 1, borderColor: 'divider' }}
+        >
+          <ListItemIcon sx={{ minWidth: 40 }}>
+            <CategoryIcon iconName="help_outline" color={theme.palette.text.secondary} size={22} />
+          </ListItemIcon>
+          <ListItemText primary="Sem categoria" primaryTypographyProps={{ variant: 'body2' }} />
+        </ListItemButton>
+
+        {filteredRoots.map((root) => {
+          const children = filteredChildren[root.id!] ?? [];
+          return (
+            <React.Fragment key={root.id}>
+              <Box
+                component="div"
+                sx={{
+                  display: 'flex',
+                  alignItems: 'stretch',
+                  bgcolor: alpha(theme.palette.primary.main, 0.06),
+                  '&:hover .delete-btn': { opacity: 1 },
+                }}
+              >
+                <ListItemButton
+                  onClick={() => handleSelect(root.id)}
+                  selected={value === root.id}
+                  sx={{ flex: 1, borderRadius: 0 }}
+                >
+                  <ListItemIcon sx={{ minWidth: 40 }}>
+                    <CategoryIcon
+                      iconName={root.icon}
+                      color={root.color ?? undefined}
+                      size={22}
+                    />
+                  </ListItemIcon>
+                  <ListItemText
+                    primary={root.name}
+                    primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
+                  />
+                </ListItemButton>
+                {!root.isSystem && (
+                  <IconButton
+                    className="delete-btn"
+                    size="small"
+                    onClick={handleDeleteClick(root)}
+                    sx={{ opacity: 0, mr: 0.5, alignSelf: 'center' }}
+                    aria-label="Excluir"
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
+              {children.map((child) => (
+                <Box
+                  key={child.id}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    '&:hover .delete-btn': { opacity: 1 },
+                  }}
+                >
+                  <ListItemButton
+                    onClick={() => handleSelect(child.id)}
+                    selected={value === child.id}
+                    sx={{ flex: 1, pl: 4 }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40 }}>
+                      <CategoryIcon
+                        iconName={child.icon}
+                        color={child.color ?? undefined}
+                        size={22}
+                      />
+                    </ListItemIcon>
+                    <ListItemText primary={child.name} primaryTypographyProps={{ variant: 'body2' }} />
+                  </ListItemButton>
+                  {!child.isSystem && (
+                    <IconButton
+                      className="delete-btn"
+                      size="small"
+                      onClick={handleDeleteClick(child)}
+                      sx={{ opacity: 0 }}
+                      aria-label="Excluir"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
+              ))}
+            </React.Fragment>
+          );
+        })}
+
+        {filteredRoots.length === 0 && (
+          <ListItemButton disabled>
+            <ListItemText
+              primary="Nenhuma categoria encontrada"
+              primaryTypographyProps={{
+                variant: 'body2',
+                color: 'text.secondary',
+                textAlign: 'center',
+              }}
+            />
+          </ListItemButton>
+        )}
+      </List>
+      <Box
+        component="footer"
+        sx={{
+          borderTop: 1,
+          borderColor: 'divider',
+          flexShrink: 0,
+          p: 1,
+          bgcolor: 'background.paper',
+        }}
+      >
+        <Link
+          component="button"
+          onClick={handleOpenCreate}
+          underline="none"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            cursor: 'pointer',
+          }}
+        >
+          <AddIcon fontSize="small" />
+          Nova categoria
+        </Link>
+      </Box>
+    </>
+  );
+
+  const renderCreate = () => (
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+      {/* Header */}
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{
+          px: 1.5,
+          py: 1.25,
+          borderBottom: 1,
+          borderColor: 'divider',
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+        }}
+      >
+        <IconButton
+          size="small"
+          onClick={handleBackToBrowse}
+          aria-label="Voltar"
+          sx={{ mr: 0.5 }}
+        >
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
+        <Typography variant="subtitle1" fontWeight={600}>
+          Nova categoria
+        </Typography>
+      </Stack>
+
+      {/* Form */}
+      <Stack
+        component="form"
+        onSubmit={(e: React.FormEvent) => {
+          e.preventDefault();
+          handleCreateSubmit();
+        }}
+        sx={{
+          flex: 1,
+          overflow: 'auto',
+          p: 2.5,
+          gap: 2.5,
+        }}
+      >
+        {createError && (
+          <Alert severity="error" onClose={() => resetCreateState()} sx={{ py: 0 }}>
+            {createError.message}
+          </Alert>
+        )}
+        <TextField
+          label="Nome"
+          placeholder="Ex.: Supermercado"
+          value={createName}
+          onChange={(e) => setCreateName(e.target.value)}
+          required
+          fullWidth
+          autoFocus
+          size="small"
+          variant="outlined"
+        />
+
+        <Box>
+          <Box
+            sx={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              justifyContent: 'center',
+              gap: 1,
+              maxHeight: 144,
+              overflow: 'auto',
+              p: 1.5,
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 1,
+              bgcolor: theme.palette.action.hover,
+            }}
+          >
+            {CATEGORY_ICON_NAMES.map((iconName) => (
+              <IconButton
+                key={iconName}
+                size="small"
+                onClick={() => setCreateIcon(iconName)}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  bgcolor:
+                    createIcon === iconName
+                      ? alpha(theme.palette.primary.main, 0.14)
+                      : 'transparent',
+                  border:
+                    createIcon === iconName
+                      ? `2px solid ${theme.palette.primary.main}`
+                      : '2px solid transparent',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                  },
+                }}
+                aria-label={iconName}
+              >
+                <CategoryIcon iconName={iconName} color={createColor ?? undefined} size={22} />
+              </IconButton>
+            ))}
+          </Box>
+        </Box>
+
+        <Box>
+          <Stack direction="row" flexWrap="wrap" gap={.4} useFlexGap>
+            {CATEGORY_COLOR_PALETTE.map((hex) => (
+              <IconButton
+                key={hex}
+                size="small"
+                onClick={() => setCreateColor(hex)}
+                sx={{
+                  width: 32,
+                  height: 32,
+                  flexShrink: 0,
+                  bgcolor: hex,
+                  borderRadius: 1,
+                  border: createColor === hex ? 3 : 1,
+                  borderColor: createColor === hex ? 'primary.main' : 'divider',
+                  boxSizing: 'border-box',
+                  '&:hover': {
+                    borderColor: alpha(hex, 0.8),
+                    borderWidth: 2,
+                  },
+                }}
+                aria-label={hex}
+              >
+                {createColor === hex && (
+                  <CheckIcon sx={{ color: 'white', fontSize: 18, filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.5))' }} />
+                )}
+              </IconButton>
+            ))}
+          </Stack>
+        </Box>
+      </Stack>
+
+      {/* Footer */}
+      <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={handleCreateSubmit}
+          disabled={!createName.trim() || createLoading}
+          sx={{ minHeight: 48, borderRadius: 0 }}
+        >
+          {createLoading ? 'Salvando...' : 'Salvar'}
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  const renderConfirm = () => (
+    <Box sx={{ p: 3, textAlign: 'center' }}>
+      <CheckIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
+      <Typography variant="body1">
+        &quot;{confirmCreatedName}&quot; criada
+      </Typography>
+    </Box>
+  );
+
+  const renderDeleteConfirm = () => {
+    if (!deleteTarget) return null;
+    const { category, children } = deleteTarget;
+    const hasChildren = children.length > 0;
+    return (
+      <Box sx={{ p: 2 }}>
+        <Typography variant="subtitle2" sx={{ mb: 1 }}>
+          Excluir &quot;{category.name}&quot;?
+        </Typography>
+        {hasChildren ? (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              As subcategorias a seguir também serão excluídas:
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2, mb: 1 }}>
+              {children.map((c) => (
+                <li key={c.id}>
+                  <Typography variant="body2">{c.name}</Typography>
+                </li>
+              ))}
+            </Box>
+          </>
+        ) : null}
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+          As transações que usam esta categoria manterão a atribuição no histórico. Esta ação não
+          pode ser desfeita.
+        </Typography>
+        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+          <Button onClick={handleDeleteCancel}>Cancelar</Button>
+          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
+            Confirmar
+          </Button>
+        </Box>
+      </Box>
+    );
+  };
+
+  const content =
+    view === 'browse'
+      ? renderBrowse()
+      : view === 'create'
+        ? renderCreate()
+        : view === 'confirm'
+          ? renderConfirm()
+          : renderDeleteConfirm();
+
+  const isCreateView = view === 'create';
+
+  return (
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      PaperProps={{
+        sx: {
+          width: isCreateView ? 320 : 320,
+          maxHeight: isCreateView ? 440 : 440,
+          height: isCreateView ? 440 : undefined,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: isCreateView ? 440 : 440,
+        },
+      }}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}>
+        {content}
+      </Box>
+    </Popover>
+  );
+}

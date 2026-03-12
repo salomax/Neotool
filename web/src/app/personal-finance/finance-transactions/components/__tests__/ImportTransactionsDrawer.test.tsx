@@ -30,7 +30,7 @@ class MockFileReader {
   }
 }
 
-describe('ImportTransactionsDrawer', () => {
+describe.sequential('ImportTransactionsDrawer', () => {
   const onClose = vi.fn();
 
   beforeEach(() => {
@@ -134,11 +134,11 @@ describe('ImportTransactionsDrawer', () => {
       <ImportTransactionsDrawer open onClose={onClose} selectedAccountId="acc-1" selectedAccountType={FinancialAccountType.Bank} />,
     );
 
-    const [input] = screen.getAllByTestId('import-transactions-file-input') as HTMLInputElement[];
+    const input = screen.getAllByTestId('import-transactions-file-input')[0] as HTMLInputElement;
     const file = new File(['ofx'], 'statement.ofx', { type: 'application/x-ofx' });
     await user.upload(input, file);
 
-    const submitButton = screen.getByRole('button', { name: /Importar|Import/i });
+    const submitButton = (await screen.findAllByTestId('import-transactions-submit-button'))[0]!;
     await user.click(submitButton);
 
     await waitFor(() => {

@@ -3,7 +3,6 @@ package io.github.salomax.neotool.assistant.infra.kafka
 import com.fasterxml.jackson.databind.JsonNode
 import jakarta.inject.Singleton
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 @Singleton
 class BankingReaderOutputValidator {
@@ -131,6 +130,9 @@ class BankingReaderOutputValidator {
         if (!total.isInt || total.asInt() < 1) {
             errors += "$path.total must be integer >= 1"
         }
+        if (current.isInt && total.isInt && current.asInt() > total.asInt()) {
+            errors += "$path.current must be <= $path.total"
+        }
     }
 
     private fun validateStringArray(
@@ -222,8 +224,18 @@ class BankingReaderOutputValidator {
 
     private fun parseDate(value: String): LocalDate =
         runCatching { LocalDate.parse(value) }
-            .recoverCatching { LocalDate.parse(value, BR_DATE_FORMATTER) }
+            .recoverCatching { parseFlexibleBrDate(value) }
             .getOrElse { throw IllegalArgumentException("Invalid date: $value", it) }
+
+    private fun parseFlexibleBrDate(value: String): LocalDate {
+        val match =
+            FLEXIBLE_BR_DATE_REGEX.matchEntire(value)
+                ?: throw IllegalArgumentException("Invalid BR date: $value")
+        val day = match.groupValues[1].toInt()
+        val month = match.groupValues[2].toInt()
+        val year = match.groupValues[3].toInt()
+        return LocalDate.of(year, month, day)
+    }
 
     private fun validateConfidence(
         node: JsonNode,
@@ -243,6 +255,6 @@ class BankingReaderOutputValidator {
     private companion object {
         val VALID_CREDIT_DEBIT_TYPES = setOf("DEBIT", "CREDIT")
         val FOUR_DIGITS_REGEX = Regex("^[0-9]{4}$")
-        val BR_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        val FLEXIBLE_BR_DATE_REGEX = Regex("""^(\d{1,2})/(\d{1,2})/(\d{4})$""")
     }
 }

@@ -94,12 +94,12 @@ class PdfImportResolverTest {
         assertThat(result.id).isEqualTo(jobId)
         assertThat(result.status).isEqualTo(PdfImportJobStatus.PENDING)
         verify(pdfImportService).submitPdfBillImport(
-                eq(accountId),
-                eq(userId),
-                eq(PdfImportType.CREDIT_CARD_BILL),
-                eq(financialAccountId),
-                eq("fatura.pdf"),
-                any(),
+            eq(accountId),
+            eq(userId),
+            eq(PdfImportType.CREDIT_CARD_BILL),
+            eq(financialAccountId),
+            eq("fatura.pdf"),
+            any(),
         )
     }
 
@@ -162,7 +162,10 @@ class PdfImportResolverTest {
         whenever(pdfImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
         whenever(pdfImportService.projectReviewPayload(any(), eq(accountId))).thenReturn(
             io.github.salomax.neotool.banking.domain.pdfimport.PdfBillExtractionResult(
-                cards = listOf(io.github.salomax.neotool.banking.domain.pdfimport.PdfExtractedCard(lastFourDigits = "1234")),
+                cards =
+                    listOf(
+                        io.github.salomax.neotool.banking.domain.pdfimport.PdfExtractedCard(lastFourDigits = "1234"),
+                    ),
             ),
         )
 

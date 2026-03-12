@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.domain.import.excel.reader
 
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.import.fingerprint.ExcelFingerprintClassifier
 import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassificationInput
 import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassifierRegistry
 import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintFileType
-import io.github.salomax.neotool.banking.domain.import.fingerprint.ExcelFingerprintClassifier
 import jakarta.inject.Singleton
 
 @Singleton

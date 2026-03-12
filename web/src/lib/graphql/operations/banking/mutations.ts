@@ -210,3 +210,42 @@ export const PAY_BILL = gql`
     }
   }
 `;
+
+/** Create an account-scoped transaction category. */
+export const CREATE_TRANSACTION_CATEGORY = gql`
+  mutation CreateTransactionCategory($input: CreateCategoryInput!) {
+    createTransactionCategory(input: $input) {
+      id
+      parentId
+      name
+      color
+      icon
+      isSystem
+      applicableTo
+      sortOrder
+    }
+  }
+`;
+
+/** Update an account-scoped transaction category (name, icon, color, sortOrder). */
+export const UPDATE_TRANSACTION_CATEGORY = gql`
+  mutation UpdateTransactionCategory($id: ID!, $input: UpdateCategoryInput!) {
+    updateTransactionCategory(id: $id, input: $input) {
+      id
+      parentId
+      name
+      color
+      icon
+      isSystem
+      applicableTo
+      sortOrder
+    }
+  }
+`;
+
+/** Soft-delete an account-scoped category (and subcategories if root). */
+export const DELETE_TRANSACTION_CATEGORY = gql`
+  mutation DeleteTransactionCategory($id: ID!) {
+    deleteTransactionCategory(id: $id)
+  }
+`;

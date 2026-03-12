@@ -284,7 +284,9 @@ class ImportResolverTest {
                     "fileName" to "extrato.pdf",
                     "fileBase64" to fileBase64,
                 )
-            whenever(importJobService.initiateFileImport(any(), any(), any(), any(), any(), anyOrNull())).thenReturn(pendingJob())
+            whenever(
+                importJobService.initiateFileImport(any(), any(), any(), any(), any(), anyOrNull()),
+            ).thenReturn(pendingJob())
 
             resolver.importTransactionsFile(input, principal())
 

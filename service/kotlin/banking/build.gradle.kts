@@ -167,16 +167,40 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
 }
 
 // Banking-specific Kover exclusions:
-// keep coverage gate focused on business logic, excluding transport/adapters.
+// keep coverage gate focused on business logic in domain classes.
 afterEvaluate {
     extensions.configure<kotlinx.kover.gradle.plugin.dsl.KoverProjectExtension> {
         reports {
             filters {
+                includes {
+                    classes(
+                        "io.github.salomax.neotool.banking.domain.*Service*",
+                        "io.github.salomax.neotool.banking.domain.*Processor*",
+                        "io.github.salomax.neotool.banking.domain.*Parser*",
+                        "io.github.salomax.neotool.banking.domain.*Reader*",
+                        "io.github.salomax.neotool.banking.domain.*Router*",
+                        "io.github.salomax.neotool.banking.domain.*Registry*",
+                        "io.github.salomax.neotool.banking.domain.*Gate*",
+                        "io.github.salomax.neotool.banking.domain.*Policy*",
+                        "io.github.salomax.neotool.banking.domain.*Detector*",
+                        "io.github.salomax.neotool.banking.domain.*Classifier*",
+                        "io.github.salomax.neotool.banking.domain.*Client",
+                    )
+                }
                 excludes {
                     classes(
-                        "io.github.salomax.neotool.banking.graphql.*",
-                        "io.github.salomax.neotool.banking.infra.*",
-                        "io.github.salomax.neotool.banking.infrastructure.*",
+                        "io.github.salomax.neotool.banking.domain.*Repository*",
+                        "io.github.salomax.neotool.banking.domain.*Port*",
+                        "io.github.salomax.neotool.banking.domain.*Mapper*",
+                        "io.github.salomax.neotool.banking.domain.*Exception*",
+                        "io.github.salomax.neotool.banking.domain.*Command*",
+                        "io.github.salomax.neotool.banking.domain.*Input*",
+                        "io.github.salomax.neotool.banking.domain.*Output*",
+                        "io.github.salomax.neotool.banking.domain.*Data*",
+                        "io.github.salomax.neotool.banking.domain.*Item*",
+                        "io.github.salomax.neotool.banking.domain.importevent.*",
+                        "io.github.salomax.neotool.banking.domain.rbac.*",
+                        "io.github.salomax.neotool.banking.domain.import.nfce.DefaultNfceHttpFetcher",
                     )
                 }
             }

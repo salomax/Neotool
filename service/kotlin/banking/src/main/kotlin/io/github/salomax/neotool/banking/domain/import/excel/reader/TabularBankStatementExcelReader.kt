@@ -9,9 +9,9 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.RoundingMode
+import java.text.Normalizer
 import java.time.LocalDate
 import java.time.format.DateTimeParseException
-import java.text.Normalizer
 
 @Singleton
 open class TabularBankStatementExcelReader : DeterministicExcelReader {

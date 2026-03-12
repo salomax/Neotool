@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
@@ -63,6 +64,38 @@ open class MonthSummaryQueryService(
     }
 
     /**
+     * Returns category totals for the given period (CAT-14). Percentage is computed from sum of amounts.
+     * Used by `transactionsByCategory` query and by MonthSummary category breakdown (CAT-15).
+     */
+    fun getCategoryBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryTotal> {
+        val rows =
+            transactionRepository.getCategoryBreakdown(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                year = year,
+                month = month,
+                applicableTo = applicableTo,
+            )
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                } else {
+                    0.0
+                }
+            CategoryTotal.fromRow(row, pct)
+        }
+    }
+
+    /**
      * Returns the aggregated [MonthSummary] across **all** financial accounts for [accountId].
      *
      * Each account's summary is computed independently via [getMonthSummary] and the
@@ -92,12 +125,17 @@ open class MonthSummaryQueryService(
                 projectedClosingBalance = null,
                 isCurrentMonth = year == today.year && month == today.monthValue,
                 isFutureMonth = isFuture,
+                expensesByCategory = emptyList(),
+                incomeByCategory = emptyList(),
             )
         }
 
         val summaries = financialAccountIds.map { faId -> getMonthSummary(faId, accountId, year, month) }
 
         val projectedClosingBalances = summaries.mapNotNull { it.projectedClosingBalance }
+        val expensesByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.EXPENSE)
+        val incomeByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.INCOME)
+
         return MonthSummary(
             year = year,
             month = month,
@@ -115,6 +153,8 @@ open class MonthSummaryQueryService(
                 },
             isCurrentMonth = year == today.year && month == today.monthValue,
             isFutureMonth = isFuture,
+            expensesByCategory = expensesByCategory,
+            incomeByCategory = incomeByCategory,
         )
     }
 
@@ -138,6 +178,11 @@ open class MonthSummaryQueryService(
                 null
             }
 
+        val expensesByCategory =
+            getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.EXPENSE)
+        val incomeByCategory =
+            getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.INCOME)
+
         return MonthSummary(
             year = year,
             month = month,
@@ -150,6 +195,8 @@ open class MonthSummaryQueryService(
             projectedClosingBalance = projectedClosingBalance,
             isCurrentMonth = year == today.year && month == today.monthValue,
             isFutureMonth = false,
+            expensesByCategory = expensesByCategory,
+            incomeByCategory = incomeByCategory,
         )
     }
 
@@ -173,19 +220,25 @@ open class MonthSummaryQueryService(
         currentYearMonth: YearMonth,
     ): MonthSummary {
         // Anchor: closing balance of the current (real) month
-        val currentSnapshot = resolveSnapshot(
-            financialAccountId, accountId,
-            currentYearMonth.year, currentYearMonth.monthValue,
-        )
+        val currentSnapshot =
+            resolveSnapshot(
+                financialAccountId,
+                accountId,
+                currentYearMonth.year,
+                currentYearMonth.monthValue,
+            )
 
         // Project through intermediate future months (if any)
         var openingBalance = currentSnapshot.closingBalance
         var cursor = currentYearMonth.plusMonths(1)
         val requestedYearMonth = YearMonth.of(year, month)
         while (cursor.isBefore(requestedYearMonth)) {
-            val intermediateTotals = transactionRepository.getMonthTotals(
-                financialAccountId, cursor.year, cursor.monthValue,
-            )
+            val intermediateTotals =
+                transactionRepository.getMonthTotals(
+                    financialAccountId,
+                    cursor.year,
+                    cursor.monthValue,
+                )
             openingBalance += intermediateTotals.totalFutureCredit - intermediateTotals.totalFutureDebit
             cursor = cursor.plusMonths(1)
         }
@@ -212,6 +265,8 @@ open class MonthSummaryQueryService(
             projectedClosingBalance = projectedClosingBalance,
             isCurrentMonth = false,
             isFutureMonth = true,
+            expensesByCategory = emptyList(),
+            incomeByCategory = emptyList(),
         )
     }
 

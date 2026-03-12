@@ -329,7 +329,13 @@ class AssetServiceTest {
             whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
 
             // Act & Assert
-            assertThatThrownBy { assetService.confirmUpload(assetId, "service-123", principalType = PrincipalType.SERVICE) }
+            assertThatThrownBy {
+                assetService.confirmUpload(
+                    assetId,
+                    "service-123",
+                    principalType = PrincipalType.SERVICE,
+                )
+            }
                 .isInstanceOf(NotFoundException::class.java)
                 .extracting("errorCode")
                 .isEqualTo(AssetErrorCode.ASSET_NOT_FOUND)

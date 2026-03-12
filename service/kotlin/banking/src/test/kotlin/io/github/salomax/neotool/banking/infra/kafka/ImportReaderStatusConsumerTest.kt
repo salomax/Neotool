@@ -181,6 +181,31 @@ class ImportReaderStatusConsumerTest {
         verify(jobCompletedProducer).publish(any())
     }
 
+    @Test
+    fun `done event keeps legitimate duplicate rows`() {
+        val job = processingJob()
+        val jobId = requireNotNull(job.id)
+        whenever(importJobRepository.findById(eq(jobId), eq(job.accountId))).thenReturn(job)
+        whenever(importProcessor.process(eq(job), any(), eq(false))).thenReturn(
+            ImportProcessingResult(
+                imported = emptyList(),
+                skipped = 2,
+                duplicateCandidates = emptyList(),
+                errors = emptyList(),
+            ),
+        )
+        whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+        consumer.onBankingReaderDone(doneEventWithDuplicateRows(jobId, job.accountId))
+
+        val updateCaptor = argumentCaptor<ImportJob>()
+        verify(importJobRepository).update(updateCaptor.capture())
+        val updated = updateCaptor.firstValue
+        assertThat(updated.status).isEqualTo(ImportJobStatus.COMPLETED)
+        assertThat(updated.totalRows).isEqualTo(2)
+        verify(jobCompletedProducer).publish(any())
+    }
+
     private fun processingJob(): ImportJob {
         val now = Instant.now()
         return ImportJob(
@@ -302,6 +327,40 @@ class ImportReaderStatusConsumerTest {
                                         "credit_debit_type" to "DEBIT",
                                     ),
                                 ),
+                        ),
+                    "cards" to emptyList<Map<String, Any?>>(),
+                ),
+            "callback_context" to
+                mapOf(
+                    "job_id" to jobId.toString(),
+                    "account_id" to accountId.toString(),
+                    "user_id" to UUID.randomUUID().toString(),
+                ),
+        )
+
+    private fun doneEventWithDuplicateRows(
+        jobId: UUID,
+        accountId: UUID,
+    ): Map<String, Any?> =
+        mapOf(
+            "job_id" to jobId.toString(),
+            "document_type" to "BANK_STATEMENT",
+            "llm_output" to
+                mapOf(
+                    "transactions" to
+                        listOf(
+                            mapOf(
+                                "date" to "2026-02-03",
+                                "description" to "Saque ATM",
+                                "amount" to 50.0,
+                                "credit_debit_type" to "DEBIT",
+                            ),
+                            mapOf(
+                                "date" to "2026-02-03",
+                                "description" to "Saque ATM",
+                                "amount" to 50.0,
+                                "credit_debit_type" to "DEBIT",
+                            ),
                         ),
                     "cards" to emptyList<Map<String, Any?>>(),
                 ),

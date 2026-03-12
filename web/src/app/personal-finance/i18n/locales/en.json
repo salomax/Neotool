@@ -1,5 +1,33 @@
 {
   "title": "Personal Finance",
+  "categories": {
+    "title": "Account categories",
+    "description": "Create and edit categories to classify your transactions.",
+    "newCategory": "New category",
+    "emptyState": "No categories yet. Click New category to get started.",
+    "applicableTo": {
+      "EXPENSE": "Expense",
+      "INCOME": "Income",
+      "ANY": "Any",
+      "TRANSFER": "Transfer"
+    },
+    "form": {
+      "editTitle": "Edit category",
+      "name": "Name",
+      "namePlaceholder": "e.g. Groceries",
+      "type": "Type",
+      "parent": "Parent category",
+      "parentNone": "None (root)",
+      "icon": "Icon",
+      "color": "Color"
+    },
+    "deleteConfirm": {
+      "title": "Delete category",
+      "message": "Transactions using this category will keep the assignment. The category will only stop appearing for new entries. Continue?"
+    },
+    "edit": "Edit",
+    "delete": "Delete"
+  },
   "financeTransactions": {
     "title": "Finance Transactions",
     "quickAdd": "New transaction",
@@ -292,6 +320,9 @@
       "expenses": "Expenses",
       "balance": "Current Balance",
       "total": "of total",
+      "expensesByCategory": "Top expenses",
+      "noCategorizedExpenses": "No categorized expenses this month",
+      "totalExpenses": "Total expenses",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"

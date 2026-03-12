@@ -321,6 +321,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
             )
             whenever(categoryRepository.findAll(org.mockito.kotlin.any())).thenReturn(listOf(category))
 
@@ -331,6 +333,8 @@ class TransactionResolverTest {
                     belongsToName = null,
                     tags = null,
                     billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 10,
@@ -393,6 +397,8 @@ class TransactionResolverTest {
                     belongsToName = null,
                     tags = null,
                     billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = null,
                     year = null,
                     first = null,

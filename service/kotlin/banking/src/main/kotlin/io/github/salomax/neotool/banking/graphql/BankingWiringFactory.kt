@@ -5,11 +5,11 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
-import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
@@ -58,6 +58,8 @@ class BankingWiringFactory(
                         val belongsToName = env.getArgument<String?>("belongsToName")
                         val tags = env.getArgument<List<String>?>("tags")
                         val billId = env.getArgument<String?>("billId")
+                        val categoryId = env.getArgument<String?>("categoryId")
+                        val uncategorized = env.getArgument<Boolean?>("uncategorized")
                         val month = env.getArgument<Int?>("month")
                         val year = env.getArgument<Int?>("year")
                         val first = env.getArgument<Int?>("first")
@@ -68,6 +70,8 @@ class BankingWiringFactory(
                             belongsToName = belongsToName,
                             tags = tags,
                             billId = billId,
+                            categoryId = categoryId,
+                            uncategorized = uncategorized,
                             month = month,
                             year = year,
                             first = first,
@@ -120,6 +124,32 @@ class BankingWiringFactory(
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
                         transactionResolver.transactionCategories(principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "categoryRules",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
+                        transactionCategoryResolver.categoryRules(principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "transactionsByCategory",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
+                        val year = env.getArgument<Int?>("year")
+                        val month = env.getArgument<Int?>("month")
+                        val applicableTo = env.getArgument<String?>("applicableTo")
+                        transactionResolver.transactionsByCategory(
+                            financialAccountId,
+                            year,
+                            month,
+                            applicableTo,
+                            principal,
+                        )
                     }
                 },
             )
@@ -237,6 +267,22 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "bulkCategorize",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val transactionIds =
+                            (env.getArgument<Any>("transactionIds") as? List<*>)
+                                ?.map { it.toString() }
+                                ?: throw IllegalArgumentException("transactionIds is required")
+                        val categoryId =
+                            env.getArgument<String>("categoryId")
+                                ?: throw IllegalArgumentException("categoryId is required")
+                        transactionResolver.bulkCategorize(transactionIds, categoryId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "importTransactionsFile",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
@@ -347,6 +393,42 @@ class BankingWiringFactory(
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
                         transactionCategoryResolver.deleteTransactionCategory(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createCategoryRule",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        transactionCategoryResolver.createCategoryRule(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateCategoryRule",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        transactionCategoryResolver.updateCategoryRule(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "deleteCategoryRule",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        transactionCategoryResolver.deleteCategoryRule(id, principal)
                     }
                 },
             )

@@ -114,7 +114,8 @@ open class ExtractionRoutingService(
         }
         if (!deterministicEnabled && classification.isKnownProfile()) {
             log.info(
-                "Deterministic PDF path disabled by config; routing known profile to LLM: jobId={}, accountId={}, profileId={}, reason={}",
+                "Deterministic PDF path disabled by config; routing known profile to LLM: " +
+                    "jobId={}, accountId={}, profileId={}, reason={}",
                 jobId,
                 accountId,
                 classification.profileId,
@@ -171,8 +172,8 @@ open class ExtractionRoutingService(
                         user_id = callbackUserId,
                     ),
             ),
-            )
-        }
+        )
+    }
 
     private fun normalizeDocumentType(
         documentType: String?,

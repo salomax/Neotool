@@ -255,6 +255,7 @@ class ImportResolver(
             notes = notes,
             tags = tags,
             category = null,
+            categorySource = categorySource,
             counterpartyName = counterpartyName,
             counterpartyDocument = counterpartyDocument,
             counterpartyBankCode = counterpartyBankCode,

@@ -148,4 +148,3 @@ object CanonicalReaderOutputMapper {
             else -> this.toString().toIntOrNull()
         }
 }
-

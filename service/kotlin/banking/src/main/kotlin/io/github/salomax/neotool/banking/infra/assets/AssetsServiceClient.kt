@@ -251,7 +251,8 @@ open class AssetsServiceClient(
         )
     }
 
-    private fun Map<*, *>.toStringKeyedMap(): Map<String, Any?> = entries.associate { (key, value) -> key.toString() to value }
+    private fun Map<*, *>.toStringKeyedMap(): Map<String, Any?> =
+        entries.associate { (key, value) -> key.toString() to value }
 }
 
 data class CreateAssetUploadResult(val id: UUID, val uploadUrl: String)

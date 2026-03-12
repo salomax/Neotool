@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.repo
 
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -163,6 +166,108 @@ open class DefaultTransactionRepository(
     override fun findInitialBalanceDate(financialAccountId: UUID): LocalDate? =
         entityRepository.findEarliestBalanceAdjustmentDate(financialAccountId.toString())
 
+    override fun findInDateRangeByCategoryIds(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        categoryIds: List<UUID>,
+    ): List<Transaction> =
+        withTags(
+            entityRepository
+                .findInDateRangeByCategoryIds(
+                    accountId = accountId,
+                    financialAccountId = financialAccountId,
+                    year = year,
+                    month = month,
+                    categoryIds = categoryIds,
+                )
+                .map(TransactionMapper::toDomain),
+            accountId,
+        )
+
+    @Transactional(readOnly = true)
+    override fun getCategoryBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow> {
+        val query =
+            entityManager.createNativeQuery(CATEGORY_BREAKDOWN_SQL)
+                .setParameter("accountId", accountId)
+                .setParameter("financialAccountId", financialAccountId)
+                .setParameter("year", year)
+                .setParameter("month", month)
+                .setParameter("applicableTo", applicableTo?.name)
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            CategoryBreakdownRow(
+                categoryId = row[0] as UUID,
+                categoryName = row[1] as String,
+                categoryIcon = row[2] as? String,
+                categoryColor = row[3] as? String,
+                parentId = row[4] as? UUID,
+                applicableTo = CategoryApplicableTo.valueOf(row[5] as String),
+                isSystem = (row[6] as Boolean),
+                sortOrder = (row[7] as Number).toInt(),
+                totalAmount = row[8] as BigDecimal,
+                transactionCount = (row[9] as Number).toLong(),
+            )
+        }
+    }
+
+    override fun findInDateRangeUncategorized(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<Transaction> =
+        withTags(
+            entityRepository
+                .findInDateRangeUncategorized(
+                    accountId = accountId,
+                    financialAccountId = financialAccountId,
+                    year = year,
+                    month = month,
+                )
+                .map(TransactionMapper::toDomain),
+            accountId,
+        )
+
+    @Transactional
+    override fun bulkUpdateCategory(
+        transactionIds: List<UUID>,
+        categoryId: UUID,
+        categorySource: CategorySource,
+        accountId: UUID,
+    ): Int {
+        if (transactionIds.isEmpty()) return 0
+        val placeholders = transactionIds.indices.joinToString(",") { ":id$it" }
+        val query =
+            entityManager.createNativeQuery(
+                """
+                UPDATE banking.transactions
+                   SET category_id = CAST(:categoryId AS uuid),
+                       category_source = :categorySource,
+                       updated_at = NOW()
+                 WHERE account_id = CAST(:accountId AS uuid)
+                   AND deleted_at IS NULL
+                   AND id IN ($placeholders)
+                """.trimIndent(),
+            )
+                .setParameter("categoryId", categoryId.toString())
+                .setParameter("categorySource", categorySource.name)
+                .setParameter("accountId", accountId.toString())
+        transactionIds.forEachIndexed { i, uuid ->
+            query.setParameter("id$i", uuid)
+        }
+        return query.executeUpdate()
+    }
+
     companion object {
         private val MONTH_TOTALS_SQL =
             """
@@ -198,6 +303,39 @@ open class DefaultTransactionRepository(
               AND EXTRACT(YEAR  FROM date) = :year
               AND EXTRACT(MONTH FROM date) = :month
               AND deleted_at IS NULL
+            """.trimIndent()
+
+        private val CATEGORY_BREAKDOWN_SQL =
+            """
+            SELECT
+              tc.id             AS category_id,
+              tc.name           AS category_name,
+              tc.icon           AS category_icon,
+              tc.color          AS category_color,
+              tc.parent_id      AS parent_id,
+              tc.applicable_to  AS applicable_to,
+              tc.is_system      AS is_system,
+              tc.sort_order     AS sort_order,
+              SUM(t.amount)     AS total_amount,
+              COUNT(t.id)       AS transaction_count
+            FROM banking.transactions t
+            JOIN banking.transaction_categories tc ON t.category_id = tc.id AND tc.deleted_at IS NULL
+            WHERE t.account_id = CAST(:accountId AS uuid)
+              AND (CAST(:financialAccountId AS uuid) IS NULL OR t.financial_account_id = CAST(:financialAccountId AS uuid))
+              AND EXTRACT(YEAR  FROM t.date) = :year
+              AND EXTRACT(MONTH FROM t.date) = :month
+              AND t.deleted_at IS NULL
+              AND t.status IN ('POSTED', 'PENDING')
+              AND (CAST(:applicableTo AS text) IS NULL
+                   OR tc.applicable_to = :applicableTo
+                   OR tc.applicable_to = 'ANY')
+              AND (CAST(:applicableTo AS text) IS NULL
+                   OR t.credit_debit_type = CASE :applicableTo
+                       WHEN 'INCOME' THEN 'CREDIT'
+                       WHEN 'EXPENSE' THEN 'DEBIT'
+                       ELSE t.credit_debit_type END)
+            GROUP BY tc.id, tc.name, tc.icon, tc.color, tc.parent_id, tc.applicable_to, tc.is_system, tc.sort_order
+            ORDER BY total_amount DESC
             """.trimIndent()
     }
 

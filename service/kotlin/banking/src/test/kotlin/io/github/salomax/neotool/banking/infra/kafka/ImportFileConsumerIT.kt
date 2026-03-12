@@ -10,10 +10,13 @@ import jakarta.inject.Inject
 import jakarta.inject.Singleton
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okio.Buffer
 import org.apache.kafka.clients.admin.AdminClient
 import org.apache.kafka.clients.admin.AdminClientConfig
 import org.apache.kafka.clients.admin.NewTopic
 import org.apache.kafka.common.errors.TopicExistsException
+import org.apache.poi.ss.usermodel.Workbook
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
@@ -21,9 +24,6 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.TestInstance
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
-import org.apache.poi.ss.usermodel.Workbook
-import okio.Buffer
 import java.io.ByteArrayOutputStream
 import java.sql.DriverManager
 import java.util.UUID
@@ -505,7 +505,9 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
             )
 
         importFileProducer.publish(replayEvent)
-        assertThat(awaitStatus(jobId, ImportJobStatus.PROCESSING, timeoutMs = 25_000L)).isEqualTo(ImportJobStatus.PROCESSING)
+        assertThat(
+            awaitStatus(jobId, ImportJobStatus.PROCESSING, timeoutMs = 25_000L),
+        ).isEqualTo(ImportJobStatus.PROCESSING)
         assertThat(awaitAssistantRequestedEvent(jobId, timeoutMs = 25_000L)).isNotNull
         assertThat(awaitAssistantRequestedCount(jobId, 1, timeoutMs = 5_000L)).isEqualTo(1)
         assertThat(loadAssistantRequestPublishedAt(jobId)).isNotNull

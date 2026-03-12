@@ -94,7 +94,10 @@ open class ImportValidationGate {
     fun decideFinalStatus(counters: ImportValidationCounters): ImportJobStatus =
         when {
             counters.duplicateReviewCount > 0 -> ImportJobStatus.REVIEW_REQUIRED
-            counters.importedCount == 0 && counters.skippedCount == 0 && counters.errorCount > 0 -> ImportJobStatus.FAILED
+            counters.importedCount == 0 &&
+                counters.skippedCount == 0 &&
+                counters.errorCount > 0 ->
+                ImportJobStatus.FAILED
             else -> ImportJobStatus.COMPLETED
         }
 }

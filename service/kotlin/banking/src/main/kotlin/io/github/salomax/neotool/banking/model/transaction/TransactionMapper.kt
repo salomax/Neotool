@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.model.transaction
 
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 
@@ -64,6 +65,7 @@ object TransactionMapper {
             descriptionRaw = entity.descriptionRaw,
             notes = entity.notes,
             categoryId = entity.categoryId,
+            categorySource = entity.categorySource?.let { CategorySource.valueOf(it) },
             counterpartyName = entity.counterpartyName,
             counterpartyDocument = entity.counterpartyDocument,
             counterpartyBankCode = entity.counterpartyBankCode,
@@ -106,6 +108,7 @@ object TransactionMapper {
             descriptionRaw = domain.descriptionRaw,
             notes = domain.notes,
             categoryId = domain.categoryId,
+            categorySource = domain.categorySource?.name,
             counterpartyName = domain.counterpartyName,
             counterpartyDocument = domain.counterpartyDocument,
             counterpartyBankCode = domain.counterpartyBankCode,
@@ -142,6 +145,7 @@ object TransactionMapper {
         entity.description = domain.description
         entity.notes = domain.notes
         entity.categoryId = domain.categoryId
+        entity.categorySource = domain.categorySource?.name
         entity.belongsToUserId = domain.belongsToUserId
         entity.belongsToName = domain.belongsToName
         entity.counterpartyName = domain.counterpartyName

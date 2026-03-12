@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.assistant.test.unit.kafka
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneProducer
+import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderCallbackContext
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderOutputValidator
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderProcessingException
@@ -16,6 +16,7 @@ import io.github.salomax.neotool.assistant.provider.model.ProviderTokenUsage
 import io.github.salomax.neotool.assistant.service.CompletionInput
 import io.github.salomax.neotool.assistant.service.CompletionResult
 import io.github.salomax.neotool.assistant.service.CompletionService
+import kotlinx.coroutines.runBlocking
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -29,7 +30,6 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.util.UUID
-import kotlinx.coroutines.runBlocking
 
 class LlmBankingReaderRequestedRoutingServiceTest {
     private lateinit var completionService: CompletionService

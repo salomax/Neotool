@@ -75,7 +75,7 @@ export function InlineTransactionForm({
   const [description, setDescription] = useState(initialValues?.description || '');
   const [date, setDate] = useState<dayjs.Dayjs | null>(initialValues?.date ? dayjs(initialValues.date as string) : dayjs());
   const [accountId, setAccountId] = useState<string>(initialValues?.financialAccountId || selectedAccountId || '');
-  const [categoryId, setCategoryId] = useState<string>(initialValues?.category?.id || '');
+  const [categoryId, setCategoryId] = useState<string | null>(initialValues?.category?.id ?? null);
   const [tags, setTags] = useState<string[]>(initialValues?.tags || []);
   
   const { data: accountsData } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS);
@@ -107,13 +107,13 @@ export function InlineTransactionForm({
         setDescription(initialValues.description);
         setDate(dayjs(initialValues.date as string));
         setAccountId(initialValues.financialAccountId);
-        setCategoryId(initialValues.category?.id || '');
+        setCategoryId(initialValues.category?.id ?? null);
         setTags(initialValues.tags || []);
       } else {
         if (!amount) setAmount(undefined);
         if (!description) setDescription('');
         if (!date) setDate(dayjs());
-        if (!categoryId) setCategoryId('');
+        if (!categoryId) setCategoryId(null);
         if (!tags.length) setTags([]);
         
         const accounts = accountsData?.financialAccounts;
@@ -135,7 +135,7 @@ export function InlineTransactionForm({
   }, [isOpen, onExited]);
 
   const handleSave = async () => {
-    if (!amount || !description || !date || !accountId || !categoryId) return;
+    if (!amount || !description || !date || !accountId) return;
     if (isDateOutsideWindow) return;
 
     const formattedAmount = Math.abs(amount);
@@ -355,7 +355,8 @@ export function InlineTransactionForm({
           <CategorySelect
             value={categoryId}
             onChange={setCategoryId}
-            categories={filteredCategories}
+            categories={categories}
+            creditDebitType={creditDebitType}
             placeholder={t('financeTransactions.category')}
           />
         </TableCell>
@@ -396,9 +397,10 @@ export function InlineTransactionForm({
                     <Avatar 
                       src={account.issuer?.logoAsset?.publicUrl || undefined}
                       sx={{ 
-                        width: 20, 
-                        height: 20,
+                        width: 24, 
+                        height: 24,
                         fontSize: '0.6rem',
+                        borderRadius: borderRadius,
                         bgcolor: account.issuer?.logoAsset?.publicUrl ? 'transparent' : (account.themeColor || theme.palette.grey[300]),
                       }}
                     >

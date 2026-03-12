@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.banking.domain.pdfimport
 
-import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassification
-import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassificationInput
-import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassifierRegistry
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassification
+import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassificationInput
+import io.github.salomax.neotool.banking.domain.import.fingerprint.FingerprintClassifierRegistry
 import io.github.salomax.neotool.banking.domain.pdfimport.reader.DeterministicPdfReaderRouter
 import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedProducer

@@ -113,7 +113,9 @@ class AssetMutationResolver(
         ownerId: String,
         principalType: PrincipalType,
     ): AssetDTO {
-        logger.info { "Confirming asset upload: assetId=${input.assetId}, ownerId=$ownerId, principalType=$principalType" }
+        logger.info {
+            "Confirming asset upload: assetId=${input.assetId}, ownerId=$ownerId, principalType=$principalType"
+        }
 
         val asset =
             assetService.confirmUpload(

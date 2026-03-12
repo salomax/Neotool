@@ -128,9 +128,10 @@ class AssetsServiceFileStorageTest {
             whenever(assetsClient.getAsset(eq(assetId), any(), any()))
                 .thenReturn(AssetResult(id = assetId, downloadUrl = null))
 
-            val exception = assertThrows<ConflictException> {
-                storage.resolveDownloadUrl(accountId, assetId, ttlSeconds = 1800)
-            }
+            val exception =
+                assertThrows<ConflictException> {
+                    storage.resolveDownloadUrl(accountId, assetId, ttlSeconds = 1800)
+                }
             assertThat(exception.errorCode).isEqualTo(BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING)
         }
     }

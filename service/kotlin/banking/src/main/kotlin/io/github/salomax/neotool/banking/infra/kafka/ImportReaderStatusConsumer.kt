@@ -1,18 +1,18 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportProcessor
+import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportRowError
 import io.github.salomax.neotool.banking.domain.import.ImportValidationCounters
 import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
 import io.github.salomax.neotool.banking.domain.import.ImportValidationPreDecision
 import io.github.salomax.neotool.banking.domain.import.ImportValidationQuality
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
-import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
-import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -22,6 +22,7 @@ import io.micronaut.configuration.kafka.annotation.OffsetReset
 import io.micronaut.configuration.kafka.annotation.Topic
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
+import jakarta.transaction.Transactional
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
@@ -36,7 +37,7 @@ import java.util.UUID
     groupId = "\${kafka.consumers.import-status.group-id:banking-service-import-status}",
     offsetReset = OffsetReset.EARLIEST,
 )
-class ImportReaderStatusConsumer(
+open class ImportReaderStatusConsumer(
     private val importJobRepository: ImportJobRepository,
     private val importProcessor: ImportProcessor,
     private val importEventBus: ImportEventBus,
@@ -48,7 +49,8 @@ class ImportReaderStatusConsumer(
     private val log = LoggerFactory.getLogger(javaClass)
 
     @Topic("\${kafka.topics.pdf.banking-reader-done:assistant.banking-pdf-reader.done}")
-    fun onBankingReaderDone(event: Map<String, Any?>) {
+    @Transactional
+    open fun onBankingReaderDone(event: Map<String, Any?>) {
         handleEvent("assistant.banking-pdf-reader.done", event) { job ->
             if (job.status.isTerminal()) {
                 return@handleEvent job
@@ -56,6 +58,11 @@ class ImportReaderStatusConsumer(
 
             val llmOutput = event["llm_output"] as? Map<*, *>
             if (llmOutput == null) {
+                log.warn(
+                    "assistant.banking-pdf-reader.done payload has non-object llm_output: type={}, jobId={}",
+                    event["llm_output"]?.javaClass?.name ?: "null",
+                    job.id,
+                )
                 return@handleEvent markFailed(
                     job = job,
                     errorMessage = "assistant_done_invalid_payload: missing llm_output",
@@ -68,7 +75,7 @@ class ImportReaderStatusConsumer(
                 )
             }
 
-            val rowsResult = parseRowsFromLlmOutput(llmOutput)
+            val rowsResult = parseRowsFromLlmOutput(llmOutput, job.id)
             if (rowsResult.rows.isEmpty()) {
                 return@handleEvent markFailed(
                     job = job,
@@ -169,7 +176,8 @@ class ImportReaderStatusConsumer(
     }
 
     @Topic("\${kafka.topics.pdf.banking-reader-failed:assistant.banking-pdf-reader.failed}")
-    fun onBankingReaderFailed(event: Map<String, Any?>) {
+    @Transactional
+    open fun onBankingReaderFailed(event: Map<String, Any?>) {
         handleEvent("assistant.banking-pdf-reader.failed", event) { job ->
             if (job.status.isTerminal()) {
                 return@handleEvent job
@@ -223,7 +231,12 @@ class ImportReaderStatusConsumer(
             val job =
                 importJobRepository.findById(jobId, accountId)
                     ?: run {
-                        log.debug("Ignoring {} event for non-import job: jobId={}, accountId={}", topic, jobId, accountId)
+                        log.debug(
+                            "Ignoring {} event for non-import job: jobId={}, accountId={}",
+                            topic,
+                            jobId,
+                            accountId,
+                        )
                         return
                     }
             action(job)
@@ -253,39 +266,126 @@ class ImportReaderStatusConsumer(
         return saved
     }
 
-    private fun parseRowsFromLlmOutput(llmOutput: Map<*, *>): ParsedRowsResult {
+    private fun parseRowsFromLlmOutput(
+        llmOutput: Map<*, *>,
+        jobId: UUID?,
+    ): ParsedRowsResult {
         val transactionMaps = mutableListOf<Map<*, *>>()
+        var invalidCount = 0
+
         val candidates =
             buildList {
-                add(llmOutput)
+                add(NamedObject(name = "llm_output", value = llmOutput))
                 WRAPPER_KEYS.forEach { key ->
-                    val nested = llmOutput[key] as? Map<*, *>
-                    if (nested != null) {
-                        add(nested)
+                    if (!llmOutput.containsKey(key)) {
+                        return@forEach
                     }
+                    val raw = llmOutput[key]
+                    val nested = raw as? Map<*, *>
+                    if (nested == null) {
+                        invalidCount += 1
+                        log.warn(
+                            "Ignoring llm_output.{} because value is not an object: type={}, jobId={}",
+                            key,
+                            raw?.javaClass?.name ?: "null",
+                            jobId,
+                        )
+                        return@forEach
+                    }
+                    add(NamedObject(name = "llm_output.$key", value = nested))
                 }
             }
 
-        candidates.forEach { container ->
-            TRANSACTION_LIST_KEYS.forEach { key ->
-                val list = container[key] as? List<*> ?: return@forEach
-                list.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
+        candidates.forEach { candidate ->
+            val topLevelTransactions =
+                extractFirstMapList(
+                    owner = candidate.value,
+                    keys = TRANSACTION_LIST_KEYS,
+                    context = candidate.name,
+                    jobId = jobId,
+                )
+            if (topLevelTransactions != null) {
+                transactionMaps += topLevelTransactions.values
+                invalidCount += topLevelTransactions.invalidCount
             }
 
-            CARD_LIST_KEYS.forEach { cardsKey ->
-                val cards = container[cardsKey] as? List<*> ?: return@forEach
-                cards.filterIsInstance<Map<*, *>>().forEach { card ->
-                    CARD_TRANSACTION_LIST_KEYS.forEach { transactionsKey ->
-                        val list = card[transactionsKey] as? List<*> ?: return@forEach
-                        list.filterIsInstance<Map<*, *>>().forEach { transactionMaps += it }
+            val cards =
+                extractFirstMapList(
+                    owner = candidate.value,
+                    keys = CARD_LIST_KEYS,
+                    context = candidate.name,
+                    jobId = jobId,
+                )
+            if (cards != null) {
+                invalidCount += cards.invalidCount
+                cards.values.forEachIndexed { index, card ->
+                    val cardTransactions =
+                        extractFirstMapList(
+                            owner = card,
+                            keys = CARD_TRANSACTION_LIST_KEYS,
+                            context = "${candidate.name}.${cards.key}[$index]",
+                            jobId = jobId,
+                        )
+                    if (cardTransactions != null) {
+                        transactionMaps += cardTransactions.values
+                        invalidCount += cardTransactions.invalidCount
                     }
                 }
             }
         }
 
-        val distinctTransactions = transactionMaps.distinct()
-        val rows = distinctTransactions.mapNotNull(::toParsedTransaction)
-        return ParsedRowsResult(rows = rows, invalidCount = distinctTransactions.size - rows.size)
+        val rows = transactionMaps.mapNotNull(::toParsedTransaction)
+        val parseFailures = transactionMaps.size - rows.size
+        if (parseFailures > 0) {
+            log.warn(
+                "Dropped {} transaction rows after field parsing (missing/invalid required fields): jobId={}",
+                parseFailures,
+                jobId,
+            )
+        }
+        return ParsedRowsResult(rows = rows, invalidCount = invalidCount + parseFailures)
+    }
+
+    private fun extractFirstMapList(
+        owner: Map<*, *>,
+        keys: List<String>,
+        context: String,
+        jobId: UUID?,
+    ): ExtractedMapList? {
+        keys.forEach { key ->
+            if (!owner.containsKey(key)) {
+                return@forEach
+            }
+            val raw = owner[key]
+            val list = raw as? List<*>
+            if (list == null) {
+                log.warn(
+                    "Ignoring {}.{} because value is not an array: type={}, jobId={}",
+                    context,
+                    key,
+                    raw?.javaClass?.name ?: "null",
+                    jobId,
+                )
+                return ExtractedMapList(key = key, values = emptyList(), invalidCount = 1)
+            }
+            val values = list.filterIsInstance<Map<*, *>>()
+            val invalidElements = list.size - values.size
+            if (invalidElements > 0) {
+                log.warn(
+                    "Ignoring {} non-object element(s) from {}.{} list: jobId={}",
+                    invalidElements,
+                    context,
+                    key,
+                    jobId,
+                )
+            }
+            return ExtractedMapList(
+                key = key,
+                values = values,
+                invalidCount = invalidElements,
+            )
+        }
+        return null
     }
 
     private fun extractValidationQuality(
@@ -475,12 +575,33 @@ class ImportReaderStatusConsumer(
         }
 
     private companion object {
-        val WRAPPER_KEYS = listOf("bank_statement", "statement", "account_statement", "extract", "data", "result", "output")
+        val WRAPPER_KEYS =
+            listOf("bank_statement", "statement", "account_statement", "extract", "data", "result", "output")
         val TRANSACTION_LIST_KEYS =
-            listOf("transactions", "transaction_rows", "entries", "movements", "movimentacoes", "lancamentos", "transacoes")
+            listOf(
+                "transactions",
+                "transaction_rows",
+                "entries",
+                "movements",
+                "movimentacoes",
+                "lancamentos",
+                "transacoes",
+            )
         val CARD_LIST_KEYS = listOf("cards", "card_statements", "cartoes")
-        val CARD_TRANSACTION_LIST_KEYS = listOf("transactions", "entries", "movements", "movimentacoes", "lancamentos", "transacoes")
+        val CARD_TRANSACTION_LIST_KEYS =
+            listOf("transactions", "entries", "movements", "movimentacoes", "lancamentos", "transacoes")
     }
+
+    private data class NamedObject(
+        val name: String,
+        val value: Map<*, *>,
+    )
+
+    private data class ExtractedMapList(
+        val key: String,
+        val values: List<Map<*, *>>,
+        val invalidCount: Int,
+    )
 
     private data class ParsedRowsResult(
         val rows: List<ParsedTransaction>,

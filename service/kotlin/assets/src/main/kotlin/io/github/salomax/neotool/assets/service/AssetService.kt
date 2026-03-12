@@ -12,8 +12,8 @@ import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
 import io.github.salomax.neotool.common.error.AuthorizationException
-import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.BusinessRuleException
+import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
@@ -261,13 +261,17 @@ open class AssetService(
                 .orElseThrow { assetNotFound(assetId) }
 
         if (!isPrincipalAllowed(entity.namespace, principalType)) {
-            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
+            logger.warn {
+                "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId"
+            }
             throw assetNotFound(assetId)
         }
 
         // Authorization check
         if (entity.ownerId != ownerId) {
-            logger.warn { "Unauthorized upload confirmation attempt: assetId=$assetId, ownerId=$ownerId" }
+            logger.warn {
+                "Unauthorized upload confirmation attempt: assetId=$assetId, ownerId=$ownerId"
+            }
             throw assetNotFound(assetId)
         }
 
@@ -381,7 +385,9 @@ open class AssetService(
         }
 
         if (!isPrincipalAllowed(entity.namespace, principalType)) {
-            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
+            logger.warn {
+                "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId"
+            }
             return null
         }
 
@@ -476,13 +482,17 @@ open class AssetService(
         }
 
         if (!isPrincipalAllowed(entity.namespace, principalType)) {
-            logger.warn { "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId" }
+            logger.warn {
+                "Principal type $principalType not allowed for namespace ${entity.namespace}: assetId=$assetId"
+            }
             return false
         }
 
         // Authorization check
         if (entity.ownerId != ownerId) {
-            logger.warn { "Unauthorized delete attempt: assetId=$assetId, ownerId=$ownerId" }
+            logger.warn {
+                "Unauthorized delete attempt: assetId=$assetId, ownerId=$ownerId"
+            }
             return false
         }
 

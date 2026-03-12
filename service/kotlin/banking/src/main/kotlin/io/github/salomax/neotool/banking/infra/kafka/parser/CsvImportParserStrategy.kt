@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.infra.kafka.parser
 
-import io.github.salomax.neotool.banking.domain.import.ImportSource
-import io.github.salomax.neotool.banking.domain.import.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.import.isCsvSource
 import io.github.salomax.neotool.banking.domain.import.parser.CsvBancoDoBrasilParser

@@ -1,11 +1,10 @@
 package io.github.salomax.neotool.banking.integration
 
-import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.EXPENSE
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.INCOME
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.TRANSFER
-import io.github.salomax.neotool.banking.domain.transaction.CategoryDepthExceededException
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableToMismatchException
+import io.github.salomax.neotool.banking.domain.transaction.CategoryDepthExceededException
 import io.github.salomax.neotool.banking.domain.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateCategoryNameException
 import io.github.salomax.neotool.banking.domain.transaction.SystemCategoryNotEditableException
@@ -200,4 +199,3 @@ class TransactionCategoryServiceIT : BankingPostgresIntegrationTest() {
         }
     }
 }
-

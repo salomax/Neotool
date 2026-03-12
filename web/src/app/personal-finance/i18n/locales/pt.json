@@ -1,5 +1,33 @@
 {
   "title": "Finanças pessoais",
+  "categories": {
+    "title": "Categorias da conta",
+    "description": "Crie e edite categorias para classificar suas movimentações.",
+    "newCategory": "Nova categoria",
+    "emptyState": "Nenhuma categoria criada ainda. Clique em Nova categoria para começar.",
+    "applicableTo": {
+      "EXPENSE": "Despesa",
+      "INCOME": "Receita",
+      "ANY": "Qualquer",
+      "TRANSFER": "Transferência"
+    },
+    "form": {
+      "editTitle": "Editar categoria",
+      "name": "Nome",
+      "namePlaceholder": "Ex.: Supermercado",
+      "type": "Tipo",
+      "parent": "Categoria pai",
+      "parentNone": "Nenhuma (raiz)",
+      "icon": "Ícone",
+      "color": "Cor"
+    },
+    "deleteConfirm": {
+      "title": "Excluir categoria",
+      "message": "As transações que usam esta categoria manterão a atribuição. A categoria só deixará de aparecer em novos lançamentos. Deseja continuar?"
+    },
+    "edit": "Editar",
+    "delete": "Excluir"
+  },
   "financeTransactions": {
     "title": "Movimentações Financeiras",
     "quickAdd": "Nova movimentação",
@@ -292,6 +320,9 @@
       "expenses": "Despesas",
       "balance": "Saldo",
       "total": "do total",
+      "expensesByCategory": "Maiores despesas",
+      "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
+      "totalExpenses": "Total despesas",
       "consolidatedTooltip": "Inclui saldo de cartões como passivo.",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",

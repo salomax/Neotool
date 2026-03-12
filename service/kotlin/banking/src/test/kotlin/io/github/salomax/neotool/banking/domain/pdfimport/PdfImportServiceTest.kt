@@ -444,8 +444,9 @@ class PdfImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            // no linkedBankAccountId
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
-                listOf(cardAccount(cardA, "1234")), // no linkedBankAccountId
+                listOf(cardAccount(cardA, "1234")),
             )
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-payment")
@@ -754,7 +755,13 @@ class PdfImportServiceTest {
             subtype = FinancialAccountSubtype.CREDIT_CARD,
             name = name,
             cardLastFourDigits = lastFour,
-            cardData = CardData(maskedNumber = "**** $lastFour", closingDay = 7, dueDay = 15, linkedBankAccountId = linkedBankAccountId),
+            cardData =
+                CardData(
+                    maskedNumber = "**** $lastFour",
+                    closingDay = 7,
+                    dueDay = 15,
+                    linkedBankAccountId = linkedBankAccountId,
+                ),
             createdAt = now,
             updatedAt = now,
         )

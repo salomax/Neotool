@@ -56,7 +56,13 @@ class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         // Guard: no initial balance means no snapshot pre-created for the queried month.
         assertThat(snapshotRepository.findByYearMonth(financialAccountId, today.year, today.monthValue)).isNull()
 
-        val summary = monthSummaryQueryService.getMonthSummary(financialAccountId, accountId, today.year, today.monthValue)
+        val summary =
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId,
+                accountId,
+                today.year,
+                today.monthValue,
+            )
 
         assertThat(summary.year).isEqualTo(today.year)
         assertThat(summary.month).isEqualTo(today.monthValue)

@@ -21,6 +21,11 @@ interface ImportJobRepository {
         fileHash: String,
     ): ImportJob?
 
+    fun findLatestByAccountAndFileHash(
+        accountId: UUID,
+        fileHash: String,
+    ): ImportJob?
+
     fun findByFinancialAccount(
         financialAccountId: UUID,
         accountId: UUID,
@@ -32,7 +37,5 @@ interface ImportJobRepository {
      * Marks assistant request as published once.
      * Returns true when marker was set in this call, false when already marked.
      */
-    fun markAssistantRequestPublished(
-        id: UUID,
-    ): Boolean
+    fun markAssistantRequestPublished(id: UUID): Boolean
 }

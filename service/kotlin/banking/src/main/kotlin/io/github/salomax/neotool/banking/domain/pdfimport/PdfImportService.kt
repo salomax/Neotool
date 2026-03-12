@@ -522,7 +522,12 @@ open class PdfImportService(
         errorMessage: String?,
         errorDetails: Any?,
     ): Map<String, Any?>? {
-        if (errorCode.isNullOrBlank() && errorParameters.isNullOrEmpty() && errorMessage == null && errorDetails == null) {
+        if (
+            errorCode.isNullOrBlank() &&
+            errorParameters.isNullOrEmpty() &&
+            errorMessage == null &&
+            errorDetails == null
+        ) {
             return null
         }
         return buildMap {
@@ -629,7 +634,10 @@ open class PdfImportService(
                             "match_candidates" to emptyList<Map<String, Any?>>(),
                         )
                 }
-                val projection = cache.getOrPut(normalizedLastFour) { resolveCardMatchProjection(accountId, normalizedLastFour) }
+                val projection =
+                    cache.getOrPut(
+                        normalizedLastFour,
+                    ) { resolveCardMatchProjection(accountId, normalizedLastFour) }
                 record +
                     mapOf("card_last_four_digits" to normalizedLastFour) +
                     projection.toCanonicalFields()
@@ -657,7 +665,10 @@ open class PdfImportService(
                         matchCandidates = emptyList(),
                     )
                 } else {
-                    val projection = cache.getOrPut(normalizedLastFour) { resolveCardMatchProjection(accountId, normalizedLastFour) }
+                    val projection =
+                        cache.getOrPut(
+                            normalizedLastFour,
+                        ) { resolveCardMatchProjection(accountId, normalizedLastFour) }
                     card.copy(
                         lastFourDigits = normalizedLastFour,
                         matchedFinancialAccountId = projection.matchedFinancialAccountId,
@@ -773,12 +784,24 @@ open class PdfImportService(
             )
         }
 
-        val canonical = runCatching { objectMapper.readValue(reviewPayload, CanonicalReaderOutput::class.java) }.getOrNull()
+        val canonical =
+            runCatching {
+                objectMapper.readValue(
+                    reviewPayload,
+                    CanonicalReaderOutput::class.java,
+                )
+            }.getOrNull()
         if (canonical != null) {
             return applyCardMatches(canonicalToPdfBillExtractionResult(canonical), accountId)
         }
 
-        val llmStyle = runCatching { objectMapper.readValue(reviewPayload, PdfBillExtractionResult::class.java) }.getOrNull()
+        val llmStyle =
+            runCatching {
+                objectMapper.readValue(
+                    reviewPayload,
+                    PdfBillExtractionResult::class.java,
+                )
+            }.getOrNull()
         if (llmStyle != null) {
             return applyCardMatches(llmStyle, accountId)
         }
@@ -803,7 +826,9 @@ open class PdfImportService(
                     card.lastFourDigits = lastFour
                     card.declaredTotal = record["declared_total"].toBigDecimalOrNull() ?: card.declaredTotal
                     card.computedTotal = record["computed_total"].toBigDecimalOrNull() ?: card.computedTotal
-                    card.totalMatchesDeclared = record["total_matches_declared"].toBooleanOrNull() ?: card.totalMatchesDeclared
+                    card.totalMatchesDeclared =
+                        record["total_matches_declared"].toBooleanOrNull()
+                            ?: card.totalMatchesDeclared
                     card.confidence = record["confidence"].toDoubleOrNull() ?: card.confidence
                     card.matchedFinancialAccountId =
                         record["matched_financial_account_id"].toUuidOrNull() ?: card.matchedFinancialAccountId

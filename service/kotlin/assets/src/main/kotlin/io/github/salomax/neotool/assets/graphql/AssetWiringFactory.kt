@@ -279,11 +279,12 @@ class AssetWiringFactory(
                         errorCode = AssetErrorCode.ASSET_OWNER_CONTEXT_MISSING,
                         field = "principal.actorId",
                     )
-            PrincipalType.SERVICE -> principal.delegatedBy ?: principal.actorId?.toString()
-            ?: throw AuthorizationException(
-                errorCode = AssetErrorCode.ASSET_ACCESS_DENIED,
-                field = "principal.delegatedBy",
-                parameters = mapOf("principalType" to PrincipalType.SERVICE.name),
-            )
+            PrincipalType.SERVICE ->
+                principal.delegatedBy ?: principal.actorId?.toString()
+                    ?: throw AuthorizationException(
+                        errorCode = AssetErrorCode.ASSET_ACCESS_DENIED,
+                        field = "principal.delegatedBy",
+                        parameters = mapOf("principalType" to PrincipalType.SERVICE.name),
+                    )
         }
 }

@@ -284,7 +284,12 @@ open class ExcelExtractionService(
             rawValues.removeAt(rawValues.lastIndex)
         }
 
-        if (rawValues.none { it.isNotBlank() }) return RowExtraction(emptyList(), availableColumns > maxColumnsPerRow, cellValueTruncationCount)
+        if (rawValues.none {
+                it.isNotBlank()
+            }
+        ) {
+            return RowExtraction(emptyList(), availableColumns > maxColumnsPerRow, cellValueTruncationCount)
+        }
         return RowExtraction(rawValues, availableColumns > maxColumnsPerRow, cellValueTruncationCount)
     }
 

@@ -10,7 +10,9 @@ class BankingReaderPromptResolver(
 ) {
     fun resolve(request: AssistantBankingReaderRequestedEvent): BankingReaderPromptSelection {
         val tupleKey =
-            "${request.document_type.trim().uppercase()}|${request.account_type.trim().uppercase()}|${request.file_type.trim().uppercase()}"
+            "${request.document_type.trim().uppercase()}|" +
+                "${request.account_type.trim().uppercase()}|" +
+                "${request.file_type.trim().uppercase()}"
 
         return when (tupleKey) {
             CREDIT_CARD_BILL_TUPLE ->
@@ -22,7 +24,8 @@ class BankingReaderPromptResolver(
                 )
             BANK_STATEMENT_PDF_TUPLE,
             BANK_STATEMENT_XLSX_TUPLE,
-            BANK_STATEMENT_XLS_TUPLE ->
+            BANK_STATEMENT_XLS_TUPLE,
+            ->
                 BankingReaderPromptSelection(
                     promptId = parsePromptId(config.bankStatementPromptId),
                     fallbackSystemPrompt = BANK_STATEMENT_SYSTEM_PROMPT,

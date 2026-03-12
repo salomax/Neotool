@@ -133,7 +133,8 @@ subprojects {
             reports {
                 filters {
                     excludes {
-                        classes(
+                        val classExclusions =
+                            mutableListOf(
                             "io.micronaut.core.io.service.SoftServiceLoader",
                             "io.micronaut.core.io.service.ServiceLoader",
                             "*Application",
@@ -148,11 +149,14 @@ subprojects {
                             "*Test",
                             "*DTO",
                             "*Config*",
-                            "*domain.*",
                             "*mapper.*",
                             "*Kt",
                             "io.github.salomax.neotool.comms.events.*",
                         )
+                        if (project.path != ":banking") {
+                            classExclusions += "*domain.*"
+                        }
+                        classes(*classExclusions.toTypedArray())
                     }
                 }
 

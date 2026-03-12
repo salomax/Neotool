@@ -41,8 +41,17 @@ function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.includes(',') ? result.split(',')[1]! : result;
+      const { result } = reader;
+      if (typeof result !== 'string') {
+        reject(new Error('Failed to read file content as data URL'));
+        return;
+      }
+      const commaIndex = result.indexOf(',');
+      const base64 = commaIndex >= 0 ? result.slice(commaIndex + 1) : result;
+      if (!base64) {
+        reject(new Error('Failed to extract base64 payload from file'));
+        return;
+      }
       resolve(base64);
     };
     reader.onerror = () => reject(reader.error);
@@ -396,6 +405,7 @@ export function ImportTransactionsDrawer({
             onClick={handleSubmit}
             disabled={!file || mutating}
             startIcon={mutating ? <CircularProgress size={20} color="inherit" /> : null}
+            data-testid="import-transactions-submit-button"
           >
             {mutating ? t('financeTransactions.actions.saving') : t('financeTransactions.import.button')}
           </Button>

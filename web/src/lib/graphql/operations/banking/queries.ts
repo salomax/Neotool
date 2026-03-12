@@ -109,7 +109,7 @@ export const TRANSACTIONS = gql`
   }
 `;
 
-/** All transaction categories. */
+/** All transaction categories (system + account-scoped). */
 export const TRANSACTION_CATEGORIES = gql`
   query TransactionCategories {
     transactionCategories {
@@ -120,6 +120,7 @@ export const TRANSACTION_CATEGORIES = gql`
       icon
       isSystem
       applicableTo
+      sortOrder
     }
   }
 `;
@@ -202,6 +203,7 @@ export const MONTH_SUMMARY = gql`
       transfersOut
       projectedClosingBalance
       isCurrentMonth
+      isFutureMonth
     }
   }
 `;

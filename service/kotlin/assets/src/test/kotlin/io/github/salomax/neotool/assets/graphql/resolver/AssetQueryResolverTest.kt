@@ -35,7 +35,13 @@ class AssetQueryResolverTest {
         val assetId = UUID.randomUUID()
         val requesterId = "service-banking"
         whenever(bucketResolver.getPublicBaseUrl()).thenReturn("https://cdn.test")
-        whenever(assetService.getAsset(eq(assetId), eq(requesterId), eq(PrincipalType.SERVICE))).thenReturn(testAsset(assetId))
+        whenever(
+            assetService.getAsset(
+                eq(assetId),
+                eq(requesterId),
+                eq(PrincipalType.SERVICE),
+            ),
+        ).thenReturn(testAsset(assetId))
 
         val result = resolver.asset(assetId.toString(), requesterId, principalType = PrincipalType.SERVICE)
 
@@ -48,7 +54,13 @@ class AssetQueryResolverTest {
         val assetId = UUID.randomUUID()
         val requesterId = "user-123"
         whenever(bucketResolver.getPublicBaseUrl()).thenReturn("https://cdn.test")
-        whenever(assetService.getAsset(eq(assetId), eq(requesterId), eq(PrincipalType.USER))).thenReturn(testAsset(assetId))
+        whenever(
+            assetService.getAsset(
+                eq(assetId),
+                eq(requesterId),
+                eq(PrincipalType.USER),
+            ),
+        ).thenReturn(testAsset(assetId))
 
         resolver.asset(assetId.toString(), requesterId, principalType = PrincipalType.USER)
 

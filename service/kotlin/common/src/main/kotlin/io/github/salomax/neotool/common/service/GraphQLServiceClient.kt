@@ -200,5 +200,6 @@ open class GraphQLServiceClient(
         return GraphQLResponse(data = data, errors = errors)
     }
 
-    private fun Map<*, *>.toStringKeyedMap(): Map<String, Any?> = entries.associate { (key, value) -> key.toString() to value }
+    private fun Map<*, *>.toStringKeyedMap(): Map<String, Any?> =
+        entries.associate { (key, value) -> key.toString() to value }
 }

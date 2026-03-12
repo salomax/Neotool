@@ -15,8 +15,7 @@ import java.nio.charset.Charset
 
 @DisplayName("ImportParserRouter")
 class ImportParserRouterTest {
-    private fun loadFixture(path: String): ByteArray =
-        javaClass.getResourceAsStream(path)!!.readBytes()
+    private fun loadFixture(path: String): ByteArray = javaClass.getResourceAsStream(path)!!.readBytes()
 
     private fun router(): ImportParserRouter =
         ImportParserRouter(
