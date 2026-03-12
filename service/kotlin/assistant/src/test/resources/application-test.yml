@@ -20,6 +20,12 @@ flyway:
   enabled: false
 kafka:
   enabled: false
+assistant:
+  banking-reader:
+    consumer:
+      enabled: false
+    bootstrap-consumer:
+      enabled: false
 redis:
   enabled: false
 endpoints:

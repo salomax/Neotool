@@ -22,11 +22,11 @@ import java.util.UUID
 @Table(name = "financial_account_card_data", schema = "banking")
 open class FinancialAccountCardDataEntity(
     @Id
-    @Column(name = "account_id")
-    open var accountId: UUID,
+    @Column(name = "financial_account_id")
+    open var financialAccountId: UUID,
     @OneToOne
     @MapsId
-    @JoinColumn(name = "account_id")
+    @JoinColumn(name = "financial_account_id")
     open var account: FinancialAccountEntity,
     @Column(name = "masked_number", length = 10)
     open var maskedNumber: String? = null,
@@ -48,4 +48,6 @@ open class FinancialAccountCardDataEntity(
     open var closingDay: Int? = null,
     @Column(name = "due_day")
     open var dueDay: Int? = null,
+    @Column(name = "linked_bank_account_id")
+    open var linkedBankAccountId: UUID? = null,
 )

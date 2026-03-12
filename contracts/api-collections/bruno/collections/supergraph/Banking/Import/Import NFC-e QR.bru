@@ -1,0 +1,35 @@
+meta {
+  name: Import NFC-e QR
+  type: graphql
+  seq: 14
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation ImportNfce($financialAccountId: ID!, $qrCodeUrl: String!) {
+    importNfce(financialAccountId: $financialAccountId, qrCodeUrl: $qrCodeUrl) {
+      import {
+        id
+        status
+        importedCount
+        skippedCount
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": "{{financial_account_id}}",
+    "qrCodeUrl": "https://www.sefaz.rs.gov.br/NFCE/NFCE-COM.aspx?p=43251201276565000138650010001234561234567890|2|1|1|12345678901234"
+  }
+}

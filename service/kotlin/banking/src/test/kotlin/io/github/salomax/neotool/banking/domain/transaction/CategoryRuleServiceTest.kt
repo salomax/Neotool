@@ -1,0 +1,381 @@
+package io.github.salomax.neotool.banking.domain.transaction
+
+import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.BeforeEach
+import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Nested
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
+import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+import java.time.Instant
+import java.util.UUID
+
+@DisplayName("CategoryRuleService")
+class CategoryRuleServiceTest {
+    private lateinit var ruleRepository: CategoryRuleRepository
+    private lateinit var categoryRepository: TransactionCategoryRepository
+    private lateinit var service: CategoryRuleService
+
+    private val accountId = UUID.randomUUID()
+    private val otherAccountId = UUID.randomUUID()
+    private val categoryId = UUID.randomUUID()
+
+    @BeforeEach
+    fun setUp() {
+        ruleRepository = mock()
+        categoryRepository = mock()
+        service = CategoryRuleService(ruleRepository, categoryRepository)
+    }
+
+    @Nested
+    @DisplayName("listUserRules")
+    inner class ListUserRulesTests {
+        @Test
+        fun `delegates to repository`() {
+            val rules = listOf(rule())
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(rules)
+
+            val result = service.listUserRules(accountId)
+
+            assertThat(result).isEqualTo(rules)
+            verify(ruleRepository).findUserRulesForAccount(accountId)
+        }
+    }
+
+    @Nested
+    @DisplayName("create")
+    inner class CreateTests {
+        @Test
+        fun `throws when category does not exist`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(null)
+
+            assertThrows<CategoryNotFoundException> {
+                service.create(createInput(categoryId = categoryId), accountId)
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws when category belongs to another account`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(
+                category(id = categoryId, accountId = otherAccountId),
+            )
+
+            assertThrows<CategoryNotFoundException> {
+                service.create(createInput(categoryId = categoryId), accountId)
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws for invalid regex pattern`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(
+                category(id = categoryId, accountId = null, isSystem = true),
+            )
+
+            assertThrows<InvalidRegexPatternException> {
+                service.create(
+                    createInput(
+                        categoryId = categoryId,
+                        pattern = "[invalid",
+                        patternType = PatternType.REGEX,
+                    ),
+                    accountId,
+                )
+            }
+
+            verify(ruleRepository, never()).findUserRulesForAccount(any())
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws when duplicate pattern and type already exist`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(
+                listOf(rule(pattern = "ifood", patternType = PatternType.CONTAINS)),
+            )
+
+            assertThrows<DuplicateCategoryRuleException> {
+                service.create(
+                    createInput(
+                        categoryId = categoryId,
+                        pattern = "ifood",
+                        patternType = PatternType.CONTAINS,
+                    ),
+                    accountId,
+                )
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `trims pattern and defaults priority to 100`() {
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+
+            val result =
+                service.create(
+                    createInput(
+                        categoryId = categoryId,
+                        pattern = "  supermercado  ",
+                        patternType = PatternType.CONTAINS,
+                        priority = null,
+                    ),
+                    accountId,
+                )
+
+            val ruleCaptor = argumentCaptor<CategoryRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            val saved = ruleCaptor.firstValue
+            assertThat(saved.pattern).isEqualTo("supermercado")
+            assertThat(saved.priority).isEqualTo(100)
+            assertThat(saved.isSystem).isFalse()
+            assertThat(saved.isImplicit).isFalse()
+            assertThat(saved.accountId).isEqualTo(accountId)
+
+            assertThat(result.pattern).isEqualTo("supermercado")
+            assertThat(result.priority).isEqualTo(100)
+        }
+    }
+
+    @Nested
+    @DisplayName("update")
+    inner class UpdateTests {
+        private val ruleId = UUID.randomUUID()
+
+        @Test
+        fun `throws when rule is not found`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(null)
+
+            assertThrows<CategoryRuleNotFoundException> {
+                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws when rule belongs to another account`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(rule(id = ruleId, accountId = otherAccountId))
+
+            assertThrows<CategoryRuleNotFoundException> {
+                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws when rule is system rule`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = accountId, isSystem = true),
+            )
+
+            assertThrows<SystemCategoryRuleNotEditableException> {
+                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `throws when changing pattern and type would create duplicate`() {
+            val existing =
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    pattern = "ifood",
+                    patternType = PatternType.CONTAINS,
+                )
+            val duplicate =
+                rule(
+                    id = UUID.randomUUID(),
+                    accountId = accountId,
+                    pattern = "uber",
+                    patternType = PatternType.EXACT,
+                )
+            whenever(ruleRepository.findById(ruleId)).thenReturn(existing)
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existing, duplicate))
+
+            assertThrows<DuplicateCategoryRuleException> {
+                service.update(
+                    id = ruleId,
+                    input = UpdateCategoryRuleInput(pattern = "uber", patternType = PatternType.EXACT),
+                    accountId = accountId,
+                )
+            }
+
+            verify(ruleRepository, never()).save(any())
+        }
+
+        @Test
+        fun `updates category pattern type and priority when no duplicate exists`() {
+            val existing =
+                rule(
+                    id = ruleId,
+                    accountId = accountId,
+                    categoryId = categoryId,
+                    pattern = "ifood",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    priority = 30,
+                )
+            val newCategoryId = UUID.randomUUID()
+            whenever(ruleRepository.findById(ruleId)).thenReturn(existing)
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existing))
+            whenever(categoryRepository.findById(newCategoryId)).thenReturn(category(id = newCategoryId))
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+
+            val result =
+                service.update(
+                    id = ruleId,
+                    input =
+                        UpdateCategoryRuleInput(
+                            categoryId = newCategoryId,
+                            pattern = "  uber ",
+                            patternType = PatternType.STARTS_WITH,
+                            priority = 5,
+                        ),
+                    accountId = accountId,
+                )
+
+            val ruleCaptor = argumentCaptor<CategoryRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            val saved = ruleCaptor.firstValue
+            assertThat(saved.id).isEqualTo(ruleId)
+            assertThat(saved.categoryId).isEqualTo(newCategoryId)
+            assertThat(saved.pattern).isEqualTo("uber")
+            assertThat(saved.patternType).isEqualTo(PatternType.STARTS_WITH)
+            assertThat(saved.priority).isEqualTo(5)
+            assertThat(saved.applicableTo).isEqualTo(CategoryApplicableTo.EXPENSE)
+
+            assertThat(result.categoryId).isEqualTo(newCategoryId)
+            assertThat(result.pattern).isEqualTo("uber")
+            assertThat(result.patternType).isEqualTo(PatternType.STARTS_WITH)
+            assertThat(result.priority).isEqualTo(5)
+            assertThat(result.applicableTo).isEqualTo(CategoryApplicableTo.EXPENSE)
+        }
+    }
+
+    @Nested
+    @DisplayName("delete")
+    inner class DeleteTests {
+        private val ruleId = UUID.randomUUID()
+
+        @Test
+        fun `throws when rule is not found`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(null)
+
+            assertThrows<CategoryRuleNotFoundException> {
+                service.delete(ruleId, accountId)
+            }
+
+            verify(ruleRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `throws when rule belongs to another account`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(rule(id = ruleId, accountId = otherAccountId))
+
+            assertThrows<CategoryRuleNotFoundException> {
+                service.delete(ruleId, accountId)
+            }
+
+            verify(ruleRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `throws when rule is a system rule`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = accountId, isSystem = true),
+            )
+
+            assertThrows<SystemCategoryRuleNotDeletableException> {
+                service.delete(ruleId, accountId)
+            }
+
+            verify(ruleRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `soft deletes user rule`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = accountId, isSystem = false),
+            )
+
+            val result = service.delete(ruleId, accountId)
+
+            assertThat(result).isTrue()
+            verify(ruleRepository).softDelete(eq(ruleId), eq(accountId))
+        }
+    }
+
+    private fun createInput(
+        categoryId: UUID,
+        pattern: String = "ifood",
+        patternType: PatternType = PatternType.CONTAINS,
+        priority: Int? = 10,
+    ) = CreateCategoryRuleInput(
+        categoryId = categoryId,
+        pattern = pattern,
+        patternType = patternType,
+        applicableTo = CategoryApplicableTo.EXPENSE,
+        priority = priority,
+    )
+
+    private fun category(
+        id: UUID = UUID.randomUUID(),
+        accountId: UUID? = this.accountId,
+        isSystem: Boolean = accountId == null,
+    ) = TransactionCategory(
+        id = id,
+        accountId = accountId,
+        parentId = null,
+        name = "Alimentação",
+        applicableTo = CategoryApplicableTo.EXPENSE,
+        icon = "restaurant",
+        color = "#F57C00",
+        isSystem = isSystem,
+        sortOrder = 10,
+        deletedAt = null,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
+
+    private fun rule(
+        id: UUID = UUID.randomUUID(),
+        accountId: UUID? = this.accountId,
+        categoryId: UUID = this.categoryId,
+        pattern: String = "ifood",
+        patternType: PatternType = PatternType.CONTAINS,
+        applicableTo: CategoryApplicableTo = CategoryApplicableTo.EXPENSE,
+        priority: Int = 100,
+        isSystem: Boolean = false,
+        isImplicit: Boolean = false,
+        matchCount: Int = 0,
+    ) = CategoryRule(
+        id = id,
+        accountId = accountId,
+        categoryId = categoryId,
+        pattern = pattern,
+        patternType = patternType,
+        applicableTo = applicableTo,
+        priority = priority,
+        isSystem = isSystem,
+        isImplicit = isImplicit,
+        matchCount = matchCount,
+        deletedAt = null,
+        createdAt = Instant.now(),
+        updatedAt = Instant.now(),
+    )
+}

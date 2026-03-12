@@ -26,6 +26,7 @@ data class ImportJob(
     val errorDetails: String? = null,
     /** JSON string (from JSONB). */
     val reviewPayload: String? = null,
+    val assistantRequestPublishedAt: Instant? = null,
     val dateFrom: LocalDate? = null,
     val dateTo: LocalDate? = null,
     val completedAt: Instant? = null,

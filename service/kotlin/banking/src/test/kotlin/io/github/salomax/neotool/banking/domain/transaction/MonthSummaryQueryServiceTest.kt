@@ -14,6 +14,7 @@ import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.util.UUID
 
 @DisplayName("MonthSummaryQueryService")
@@ -71,6 +72,8 @@ class MonthSummaryQueryServiceTest {
         totalExpenses: BigDecimal = BigDecimal.ZERO,
         totalFutureCredit: BigDecimal = BigDecimal.ZERO,
         totalFutureDebit: BigDecimal = BigDecimal.ZERO,
+        totalFutureIncome: BigDecimal = BigDecimal.ZERO,
+        totalFutureExpenses: BigDecimal = BigDecimal.ZERO,
     ) = MonthTransactionTotals(
         financialAccountId = financialAccountId,
         year = pastYear,
@@ -81,6 +84,8 @@ class MonthSummaryQueryServiceTest {
         totalExpenses = totalExpenses,
         totalFutureCredit = totalFutureCredit,
         totalFutureDebit = totalFutureDebit,
+        totalFutureIncome = totalFutureIncome,
+        totalFutureExpenses = totalFutureExpenses,
     )
 
     private fun transferTotals(
@@ -353,6 +358,359 @@ class MonthSummaryQueryServiceTest {
             // faId1 projected = 1000 + 200 = 1200; faId2 projected = null (no future)
             // aggregate projected = 1200 (only non-null values summed)
             assertThat(result.projectedClosingBalance).isEqualByComparingTo("1200.00")
+        }
+    }
+
+    // ── future month path ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("when requested month is in the future")
+    inner class FutureMonthTests {
+        private val today = LocalDate.now()
+        private val currentYearMonth = YearMonth.of(today.year, today.monthValue)
+
+        // The immediately next month
+        private val nextMonth = currentYearMonth.plusMonths(1)
+
+        // Two months ahead
+        private val twoMonthsAhead = currentYearMonth.plusMonths(2)
+
+        private fun currentSnapshot(closingBalance: BigDecimal) =
+            MonthlyBalanceSnapshot(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                year = currentYearMonth.year,
+                month = currentYearMonth.monthValue,
+                openingBalance = BigDecimal.ZERO,
+                closingBalance = closingBalance,
+                totalIncome = BigDecimal.ZERO,
+                totalExpenses = BigDecimal.ZERO,
+                computedAt = now,
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        private fun futureTotals(
+            futureCredit: BigDecimal = BigDecimal.ZERO,
+            futureDebit: BigDecimal = BigDecimal.ZERO,
+            futureIncome: BigDecimal = BigDecimal.ZERO,
+            futureExpenses: BigDecimal = BigDecimal.ZERO,
+        ) = MonthTransactionTotals(
+            financialAccountId = financialAccountId,
+            year = nextMonth.year,
+            month = nextMonth.monthValue,
+            totalCredit = BigDecimal.ZERO,
+            totalDebit = BigDecimal.ZERO,
+            totalIncome = BigDecimal.ZERO,
+            totalExpenses = BigDecimal.ZERO,
+            totalFutureCredit = futureCredit,
+            totalFutureDebit = futureDebit,
+            totalFutureIncome = futureIncome,
+            totalFutureExpenses = futureExpenses,
+        )
+
+        @Test
+        fun `isFutureMonth is true for next month`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals())
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            assertThat(result.isFutureMonth).isTrue()
+            assertThat(result.isCurrentMonth).isFalse()
+        }
+
+        @Test
+        fun `does not persist snapshot for future month`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals())
+
+            service.getMonthSummary(
+                financialAccountId,
+                accountId,
+                nextMonth.year,
+                nextMonth.monthValue,
+            )
+
+            verify(
+                snapshotComputationService,
+                never(),
+            ).recomputeChain(any(), any(), eq(nextMonth.year), eq(nextMonth.monthValue))
+            verify(snapshotRepository, never()).upsert(any())
+        }
+
+        @Test
+        fun `openingBalance equals current month closingBalance for immediately next month`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals())
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            assertThat(result.openingBalance).isEqualByComparingTo("10000.00")
+            assertThat(result.closingBalance).isEqualByComparingTo("10000.00")
+        }
+
+        @Test
+        fun `projectedClosingBalance = openingBalance + futureCredit - futureDebit`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals(futureCredit = BigDecimal("3000.00"), futureDebit = BigDecimal("500.00")))
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            // 10000 + 3000 - 500 = 12500
+            assertThat(result.projectedClosingBalance).isEqualByComparingTo("12500.00")
+        }
+
+        @Test
+        fun `projectedClosingBalance is null when no future transactions in month`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals())
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            assertThat(result.projectedClosingBalance).isNull()
+        }
+
+        @Test
+        fun `totalIncome and totalExpenses reflect future planned transactions`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(
+                    futureTotals(
+                        futureCredit = BigDecimal("5000.00"),
+                        futureDebit = BigDecimal("1200.00"),
+                        futureIncome = BigDecimal("5000.00"),
+                        futureExpenses = BigDecimal("1200.00"),
+                    ),
+                )
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            assertThat(result.totalIncome).isEqualByComparingTo("5000.00")
+            assertThat(result.totalExpenses).isEqualByComparingTo("1200.00")
+        }
+
+        @Test
+        fun `transfersIn and transfersOut are zero for future months`() {
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals())
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    nextMonth.year,
+                    nextMonth.monthValue,
+                )
+
+            assertThat(result.transfersIn).isEqualByComparingTo(BigDecimal.ZERO)
+            assertThat(result.transfersOut).isEqualByComparingTo(BigDecimal.ZERO)
+        }
+
+        @Test
+        fun `chains through intermediate future months when requesting month two ahead`() {
+            // Current month closing = 10000
+            // Intermediate (nextMonth) has 2000 credit, 500 debit → projected = 11500
+            // Requested (twoMonthsAhead) has 1000 credit, 200 debit → projected = 12300
+            whenever(
+                snapshotRepository.findByYearMonth(
+                    financialAccountId,
+                    currentYearMonth.year,
+                    currentYearMonth.monthValue,
+                ),
+            )
+                .thenReturn(currentSnapshot(BigDecimal("10000.00")))
+            whenever(transactionRepository.getMonthTotals(financialAccountId, nextMonth.year, nextMonth.monthValue))
+                .thenReturn(futureTotals(futureCredit = BigDecimal("2000.00"), futureDebit = BigDecimal("500.00")))
+            whenever(
+                transactionRepository.getMonthTotals(
+                    financialAccountId,
+                    twoMonthsAhead.year,
+                    twoMonthsAhead.monthValue,
+                ),
+            )
+                .thenReturn(
+                    MonthTransactionTotals(
+                        financialAccountId = financialAccountId,
+                        year = twoMonthsAhead.year, month = twoMonthsAhead.monthValue,
+                        totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
+                        totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalFutureCredit = BigDecimal("1000.00"),
+                        totalFutureDebit = BigDecimal("200.00"),
+                        totalFutureIncome = BigDecimal("1000.00"),
+                        totalFutureExpenses = BigDecimal("200.00"),
+                    ),
+                )
+
+            val result =
+                service.getMonthSummary(
+                    financialAccountId,
+                    accountId,
+                    twoMonthsAhead.year,
+                    twoMonthsAhead.monthValue,
+                )
+
+            // openingBalance = 10000 + (2000 - 500) = 11500
+            assertThat(result.openingBalance).isEqualByComparingTo("11500.00")
+            // projectedClosingBalance = 11500 + 1000 - 200 = 12300
+            assertThat(result.projectedClosingBalance).isEqualByComparingTo("12300.00")
+            assertThat(result.isFutureMonth).isTrue()
+        }
+
+        @Test
+        fun `getAggregateMonthlySummary returns isFutureMonth true for future months`() {
+            whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId)).thenReturn(emptyList())
+
+            val result = service.getAggregateMonthlySummary(accountId, nextMonth.year, nextMonth.monthValue)
+
+            assertThat(result.isFutureMonth).isTrue()
+            assertThat(result.isCurrentMonth).isFalse()
+        }
+
+        @Test
+        fun `getAggregateMonthlySummary sums projected balances across accounts for future month`() {
+            val faId1 = UUID.randomUUID()
+            val faId2 = UUID.randomUUID()
+            whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId))
+                .thenReturn(listOf(faId1, faId2))
+
+            val snap1 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId1, accountId = accountId,
+                    year = currentYearMonth.year, month = currentYearMonth.monthValue,
+                    openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("5000.00"),
+                    totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
+            val snap2 =
+                MonthlyBalanceSnapshot(
+                    financialAccountId = faId2, accountId = accountId,
+                    year = currentYearMonth.year, month = currentYearMonth.monthValue,
+                    openingBalance = BigDecimal.ZERO, closingBalance = BigDecimal("3000.00"),
+                    totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                    computedAt = now, createdAt = now, updatedAt = now,
+                )
+            whenever(
+                snapshotRepository.findByYearMonth(faId1, currentYearMonth.year, currentYearMonth.monthValue),
+            ).thenReturn(snap1)
+            whenever(
+                snapshotRepository.findByYearMonth(faId2, currentYearMonth.year, currentYearMonth.monthValue),
+            ).thenReturn(snap2)
+
+            // faId1: +1000 future credit; faId2: +500 future credit
+            whenever(transactionRepository.getMonthTotals(eq(faId1), eq(nextMonth.year), eq(nextMonth.monthValue)))
+                .thenReturn(
+                    MonthTransactionTotals(
+                        financialAccountId = faId1, year = nextMonth.year, month = nextMonth.monthValue,
+                        totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
+                        totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalFutureCredit = BigDecimal("1000.00"), totalFutureDebit = BigDecimal.ZERO,
+                        totalFutureIncome = BigDecimal("1000.00"), totalFutureExpenses = BigDecimal.ZERO,
+                    ),
+                )
+            whenever(transactionRepository.getMonthTotals(eq(faId2), eq(nextMonth.year), eq(nextMonth.monthValue)))
+                .thenReturn(
+                    MonthTransactionTotals(
+                        financialAccountId = faId2, year = nextMonth.year, month = nextMonth.monthValue,
+                        totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
+                        totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalFutureCredit = BigDecimal("500.00"), totalFutureDebit = BigDecimal.ZERO,
+                        totalFutureIncome = BigDecimal("500.00"), totalFutureExpenses = BigDecimal.ZERO,
+                    ),
+                )
+
+            val result = service.getAggregateMonthlySummary(accountId, nextMonth.year, nextMonth.monthValue)
+
+            // closingBalance = openingBalance (no real txs): 5000 + 3000 = 8000
+            assertThat(result.closingBalance).isEqualByComparingTo("8000.00")
+            // projectedClosingBalance: (5000+1000) + (3000+500) = 9500
+            assertThat(result.projectedClosingBalance).isEqualByComparingTo("9500.00")
+            assertThat(result.isFutureMonth).isTrue()
         }
     }
 }

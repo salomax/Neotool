@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.infrastructure.security
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.CommonErrorCode
-import io.github.salomax.neotool.common.security.service.GraphQLServiceClient
+import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import io.micronaut.context.annotation.Requires
 import jakarta.inject.Singleton
 import kotlinx.coroutines.runBlocking

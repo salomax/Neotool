@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 import re
 import time
+from typing import Optional
 
 import pdfplumber
 
@@ -61,7 +62,7 @@ def extract_pdf_document(pdf_bytes: bytes) -> ExtractionResult:
     return ExtractionResult(extracted_text=extracted_text, metadata=metadata)
 
 
-def _table_to_markdown(table: list[list[object | None]]) -> str:
+def _table_to_markdown(table: list[list[Optional[object]]]) -> str:
     rows: list[list[str]] = []
     for row in table:
         values = [_normalize_cell(cell) for cell in row]
@@ -86,7 +87,7 @@ def _table_to_markdown(table: list[list[object | None]]) -> str:
     return "\n".join(markdown_lines)
 
 
-def _normalize_cell(cell: object | None) -> str:
+def _normalize_cell(cell: Optional[object]) -> str:
     if cell is None:
         return ""
     text = str(cell)
@@ -97,7 +98,7 @@ def _markdown_row(values: list[str]) -> str:
     return "| " + " | ".join(values) + " |"
 
 
-def _detect_bank_hint(text: str) -> str | None:
+def _detect_bank_hint(text: str) -> Optional[str]:
     if not text:
         return None
     for pattern in BANK_HINT_PATTERNS:

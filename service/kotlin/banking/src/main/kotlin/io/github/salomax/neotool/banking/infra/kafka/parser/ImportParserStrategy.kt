@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.infra.kafka.parser
 
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 
@@ -13,6 +14,17 @@ data class ImportParsingContext(
 data class ImportParseOutcome(
     val rows: List<ParsedTransaction>,
     val resolvedSource: ImportSource?,
+    val canonicalOutput: CanonicalReaderOutput? = null,
+    val assistantRequest: ImportAssistantRequest? = null,
+)
+
+data class ImportAssistantRequest(
+    val documentType: String,
+    val fileType: String,
+    val accountType: String,
+    val sourceTopic: String,
+    val extractedText: String,
+    val extractionMetadata: Map<String, Any?>,
 )
 
 interface ImportParserStrategy {

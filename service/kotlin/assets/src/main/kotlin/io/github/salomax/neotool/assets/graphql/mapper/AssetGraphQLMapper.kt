@@ -104,7 +104,6 @@ class AssetGraphQLMapper(
             mimeType = extractField(input, "mimeType"),
             sizeBytes = extractField(input, "sizeBytes"),
             idempotencyKey = input["idempotencyKey"] as? String,
-            ownerId = input["ownerId"] as? String,
         )
     }
 

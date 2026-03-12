@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.banking.graphql.dto
 
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -18,6 +20,27 @@ data class TransactionCategoryDTO(
     val color: String?,
     val isSystem: Boolean,
     val sortOrder: Int,
+)
+
+data class CategoryRuleDTO(
+    val id: UUID,
+    val categoryId: UUID,
+    val category: TransactionCategoryDTO,
+    val pattern: String,
+    val patternType: PatternType,
+    val applicableTo: CategoryApplicableTo,
+    val priority: Int,
+    val isSystem: Boolean,
+    val isImplicit: Boolean,
+    val matchCount: Int,
+    val createdAt: Instant,
+)
+
+data class CategoryTotalDTO(
+    val category: TransactionCategoryDTO,
+    val totalAmount: Double,
+    val transactionCount: Int,
+    val percentage: Double,
 )
 
 data class TransactionDTO(
@@ -39,6 +62,8 @@ data class TransactionDTO(
     val notes: String?,
     val tags: List<String>,
     val category: TransactionCategoryDTO?,
+    /** How the category was assigned: MANUAL, RULE, IMPORTED, AI. Null when uncategorized. */
+    val categorySource: CategorySource?,
     // Counterparty
     val counterpartyName: String?,
     val counterpartyDocument: String?,

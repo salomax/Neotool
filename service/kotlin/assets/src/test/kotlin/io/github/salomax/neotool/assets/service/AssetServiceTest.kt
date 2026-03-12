@@ -11,8 +11,10 @@ import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.assets.storage.StorageClient
 import io.github.salomax.neotool.assets.storage.StorageKeyFactory
 import io.github.salomax.neotool.assets.storage.StorageProperties
+import io.github.salomax.neotool.assets.test.ValidationTestDataBuilders
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.micrometer.core.instrument.MeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -77,6 +79,10 @@ class AssetServiceTest {
                 bucketResolver,
                 meterRegistry,
             )
+        whenever(assetConfig.getNamespaceConfig(any())).thenAnswer {
+            val namespace = it.arguments[0] as String
+            ValidationTestDataBuilders.namespaceConfig(name = namespace)
+        }
     }
 
     @Nested
@@ -272,10 +278,9 @@ class AssetServiceTest {
     @DisplayName("confirmUpload()")
     inner class ConfirmUploadTests {
         @Test
-        fun `should allow service bypass when confirming asset owned by another owner`() {
+        fun `should allow service actor to confirm when delegated owner matches asset owner`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val tenantOwnerId = "account-456"
             val entity =
                 createTestEntity(
@@ -298,7 +303,7 @@ class AssetServiceTest {
             whenever(assetRepository.update(any())).thenAnswer { it.arguments[0] as AssetEntity }
 
             // Act
-            val confirmed = assetService.confirmUpload(assetId, serviceActorId, bypassOwnerCheck = true)
+            val confirmed = assetService.confirmUpload(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
 
             // Assert
             assertThat(confirmed.status).isEqualTo(AssetStatus.READY)
@@ -309,10 +314,9 @@ class AssetServiceTest {
         }
 
         @Test
-        fun `should deny service bypass when namespace is not transaction-imports`() {
+        fun `should deny service actor when delegated owner does not match`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val entity =
                 createTestEntity(
                     id = assetId,
@@ -325,7 +329,13 @@ class AssetServiceTest {
             whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
 
             // Act & Assert
-            assertThatThrownBy { assetService.confirmUpload(assetId, serviceActorId, bypassOwnerCheck = true) }
+            assertThatThrownBy {
+                assetService.confirmUpload(
+                    assetId,
+                    "service-123",
+                    principalType = PrincipalType.SERVICE,
+                )
+            }
                 .isInstanceOf(NotFoundException::class.java)
                 .extracting("errorCode")
                 .isEqualTo(AssetErrorCode.ASSET_NOT_FOUND)
@@ -430,10 +440,9 @@ class AssetServiceTest {
     @DisplayName("deleteAsset()")
     inner class DeleteAssetTests {
         @Test
-        fun `should allow service bypass when deleting asset owned by another owner`() {
+        fun `should allow service actor to delete when delegated owner matches asset owner`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val tenantOwnerId = "account-456"
             val entity =
                 createTestEntity(
@@ -447,7 +456,7 @@ class AssetServiceTest {
             whenever(storageClient.deleteObject(entity.storageBucket, entity.storageKey)).thenReturn(true)
 
             // Act
-            val result = assetService.deleteAsset(assetId, serviceActorId, bypassOwnerCheck = true)
+            val result = assetService.deleteAsset(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
 
             // Assert
             assertThat(result).isTrue()
@@ -457,10 +466,9 @@ class AssetServiceTest {
         }
 
         @Test
-        fun `should deny service bypass delete when namespace is not transaction-imports`() {
+        fun `should deny service actor delete when delegated owner does not match`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val entity =
                 createTestEntity(
                     id = assetId,
@@ -472,7 +480,7 @@ class AssetServiceTest {
             whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
 
             // Act
-            val result = assetService.deleteAsset(assetId, serviceActorId, bypassOwnerCheck = true)
+            val result = assetService.deleteAsset(assetId, "service-123", principalType = PrincipalType.SERVICE)
 
             // Assert
             assertThat(result).isFalse()
@@ -513,10 +521,9 @@ class AssetServiceTest {
     @DisplayName("getAsset()")
     inner class GetAssetTests {
         @Test
-        fun `should allow service bypass for PRIVATE asset owned by another owner`() {
+        fun `should allow service actor for PRIVATE asset when delegated owner matches`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val tenantOwnerId = "account-456"
             val entity =
                 createTestEntity(
@@ -530,7 +537,7 @@ class AssetServiceTest {
             whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
 
             // Act
-            val result = assetService.getAsset(assetId, serviceActorId, bypassOwnerCheck = true)
+            val result = assetService.getAsset(assetId, tenantOwnerId, principalType = PrincipalType.SERVICE)
 
             // Assert
             assertThat(result).isNotNull()
@@ -539,10 +546,9 @@ class AssetServiceTest {
         }
 
         @Test
-        fun `should deny service bypass get when namespace is not transaction-imports`() {
+        fun `should deny service actor get when delegated owner does not match`() {
             // Arrange
             val assetId = UUID.randomUUID()
-            val serviceActorId = "service-123"
             val entity =
                 createTestEntity(
                     id = assetId,
@@ -555,7 +561,7 @@ class AssetServiceTest {
             whenever(assetRepository.findById(assetId)).thenReturn(Optional.of(entity))
 
             // Act
-            val result = assetService.getAsset(assetId, serviceActorId, bypassOwnerCheck = true)
+            val result = assetService.getAsset(assetId, "service-123", principalType = PrincipalType.SERVICE)
 
             // Assert
             assertThat(result).isNull()

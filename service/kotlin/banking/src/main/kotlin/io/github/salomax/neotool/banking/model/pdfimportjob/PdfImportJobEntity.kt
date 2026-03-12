@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.model.pdfimportjob
 
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJobStatus
+import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportType
 import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -29,6 +30,9 @@ open class PdfImportJobEntity(
     @Column(name = "created_by_user_id", nullable = false)
     open var createdByUserId: UUID,
     @Enumerated(EnumType.STRING)
+    @Column(name = "import_type", nullable = false, length = 32)
+    open var importType: PdfImportType = PdfImportType.CREDIT_CARD_BILL,
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
     open var status: PdfImportJobStatus,
     @Column(name = "asset_id", nullable = false)
@@ -47,6 +51,9 @@ open class PdfImportJobEntity(
     open var reviewPayload: String? = null,
     @Column(name = "error_message")
     open var errorMessage: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "error_details", columnDefinition = "jsonb")
+    open var errorDetails: String? = null,
     @Column(name = "completed_at")
     open var completedAt: Instant? = null,
     @Column(name = "created_at", nullable = false)

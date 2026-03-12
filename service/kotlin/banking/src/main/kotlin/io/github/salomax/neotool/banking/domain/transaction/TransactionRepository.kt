@@ -78,6 +78,54 @@ interface TransactionRepository {
      * the initial balance date.
      */
     fun findInitialBalanceDate(financialAccountId: UUID): LocalDate?
+
+    /**
+     * Returns transactions in the given month/year for the account (optionally scoped to one financial account)
+     * whose category_id is in [categoryIds]. Used for categoryId filter on transactions query.
+     */
+    fun findInDateRangeByCategoryIds(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        categoryIds: List<UUID>,
+    ): List<Transaction>
+
+    /**
+     * Returns transactions in the given month/year for the account (optionally scoped to one financial account)
+     * with category_id IS NULL. Used for uncategorized filter on transactions query.
+     */
+    fun findInDateRangeUncategorized(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<Transaction>
+
+    /**
+     * Batch-update category_id and category_source for the given transaction IDs.
+     * Only updates rows where account_id = accountId and deleted_at IS NULL.
+     * Returns the number of rows updated.
+     */
+    fun bulkUpdateCategory(
+        transactionIds: List<UUID>,
+        categoryId: UUID,
+        categorySource: CategorySource,
+        accountId: UUID,
+    ): Int
+
+    /**
+     * Returns category totals for the given period (CAT-14). Only POSTED/PENDING transactions
+     * with a category; optional filter by financialAccountId and applicableTo (INCOME/EXPENSE).
+     * Ordered by totalAmount DESC.
+     */
+    fun getCategoryBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow>
 }
 
 /**
@@ -90,4 +138,25 @@ interface TransactionCategoryRepository {
     fun findById(id: UUID): TransactionCategory?
 
     fun save(category: TransactionCategory): TransactionCategory
+
+    fun existsByNameAndParentIdAndAccountIdAndDeletedAtIsNull(
+        name: String,
+        parentId: UUID?,
+        accountId: UUID,
+    ): Boolean
+
+    fun maxSortOrder(
+        accountId: UUID,
+        parentId: UUID?,
+    ): Int?
+
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    )
+
+    fun softDeleteChildren(
+        parentId: UUID,
+        accountId: UUID,
+    )
 }

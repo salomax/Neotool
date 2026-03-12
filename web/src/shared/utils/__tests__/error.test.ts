@@ -230,6 +230,18 @@ describe('error utilities', () => {
       };
       expect(extractErrorMessage(error)).toBe('Invalid email or password');
     });
+
+    it('should translate GraphQL error by SUBREQUEST_HTTP_ERROR code', () => {
+      const error = {
+        graphQLErrors: [
+          {
+            message: "HTTP fetch failed from 'banking': tcp connect error",
+            extensions: { code: 'SUBREQUEST_HTTP_ERROR', service: 'banking', reason: "HTTP fetch failed from 'banking': tcp connect error" },
+          },
+        ],
+      };
+      expect(extractErrorMessage(error)).toBe('The service is temporarily unavailable. Please try again in a few moments.');
+    });
   });
 
   describe('extractErrorCode', () => {

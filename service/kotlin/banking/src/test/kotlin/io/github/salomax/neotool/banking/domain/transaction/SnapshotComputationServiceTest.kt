@@ -56,6 +56,8 @@ class SnapshotComputationServiceTest {
         totalExpenses = totalExpenses,
         totalFutureCredit = BigDecimal.ZERO,
         totalFutureDebit = BigDecimal.ZERO,
+        totalFutureIncome = BigDecimal.ZERO,
+        totalFutureExpenses = BigDecimal.ZERO,
     )
 
     private fun snapshot(

@@ -23,7 +23,7 @@ data class CreateFinancialAccountCommand(
     val includeInDashboard: Boolean? = null,
     val bankData: BankData? = null,
     val cardData: CardData? = null,
-    /** Account balance on [initialBalanceDate]. Creates a BALANCE_ADJUSTMENT transaction when provided. */
+    /** Non-zero account balance on [initialBalanceDate]. Creates a BALANCE_ADJUSTMENT transaction when provided. */
     val initialBalance: BigDecimal? = null,
     /** Required when [initialBalance] is provided. */
     val initialBalanceDate: LocalDate? = null,

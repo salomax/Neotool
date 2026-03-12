@@ -1,9 +1,15 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.salomax.neotool.banking.domain.import.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobService
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.graphql.dto.ImportResultDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionImportDTO
 import io.github.salomax.neotool.common.error.ValidationException
@@ -22,7 +28,9 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.math.BigDecimal
 import java.time.Instant
+import java.time.LocalDate
 import java.util.Base64
 import java.util.UUID
 
@@ -36,6 +44,7 @@ class ImportResolverTest {
     private val financialAccountId = UUID.randomUUID()
     private val jobId = UUID.randomUUID()
     private val now = Instant.now()
+    private val objectMapper = jacksonObjectMapper().apply { registerModule(JavaTimeModule()) }
 
     private fun principal() =
         RequestPrincipal(
@@ -79,6 +88,21 @@ class ImportResolverTest {
             completedAt = now,
             createdAt = now,
             updatedAt = now,
+        )
+
+    private fun sampleDuplicateCandidate(rowIndex: Int = 0) =
+        ImportDuplicateCandidate(
+            rowIndex = rowIndex,
+            parsed =
+                ParsedTransaction(
+                    providerTransactionId = "pid-$rowIndex",
+                    creditDebitType = CreditDebitType.DEBIT,
+                    amount = BigDecimal("12.34"),
+                    date = LocalDate.of(2026, 2, 10),
+                    description = "Coffee $rowIndex",
+                    currencyCode = "BRL",
+                ),
+            candidates = emptyList(),
         )
 
     @BeforeEach
@@ -139,6 +163,50 @@ class ImportResolverTest {
             assertThat(result).isNull()
             verify(importJobService).getJob(eq(jobId), eq(accountId))
         }
+
+        @Test
+        fun `maps duplicate candidates from legacy review payload array`() {
+            val candidate = sampleDuplicateCandidate(rowIndex = 3)
+            val job =
+                pendingJob().copy(
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    duplicateReviewCount = 1,
+                    reviewPayload = objectMapper.writeValueAsString(listOf(candidate)),
+                )
+            whenever(importJobService.getJob(eq(jobId), eq(accountId))).thenReturn(job)
+
+            val result = resolver.transactionImport(jobId.toString(), principal())
+
+            assertThat(result).isNotNull
+            assertThat(result!!.duplicateCandidates).hasSize(1)
+            assertThat(result.duplicateCandidates.first().rowIndex).isEqualTo(3)
+            assertThat(result.duplicateCandidates.first().parsed.description).isEqualTo("Coffee 3")
+        }
+
+        @Test
+        fun `maps duplicate candidates from canonical review payload envelope`() {
+            val candidate = sampleDuplicateCandidate(rowIndex = 7)
+            val reviewPayload =
+                ImportReviewPayloadMapper.toJson(
+                    objectMapper = objectMapper,
+                    duplicateCandidates = listOf(candidate),
+                    gate = mapOf("gate_reason" to "llm_low_confidence"),
+                )
+            val job =
+                pendingJob().copy(
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    duplicateReviewCount = 1,
+                    reviewPayload = reviewPayload,
+                )
+            whenever(importJobService.getJob(eq(jobId), eq(accountId))).thenReturn(job)
+
+            val result = resolver.transactionImport(jobId.toString(), principal())
+
+            assertThat(result).isNotNull
+            assertThat(result!!.duplicateCandidates).hasSize(1)
+            assertThat(result.duplicateCandidates.first().rowIndex).isEqualTo(7)
+            assertThat(result.duplicateCandidates.first().parsed.description).isEqualTo("Coffee 7")
+        }
     }
 
     @Nested
@@ -189,6 +257,57 @@ class ImportResolverTest {
                 mapOf(
                     "financialAccountId" to financialAccountId.toString(),
                     "fileName" to "large.ofx",
+                    "fileBase64" to fileBase64,
+                )
+
+            assertThrows<ValidationException> {
+                resolver.importTransactionsFile(input, principal())
+            }
+
+            verify(importJobService, never()).initiateFileImport(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `accepts pdf up to 3 MB`() {
+            val twoMbPdf = ByteArray(2 * 1024 * 1024) { 1 }
+            val fileBase64 = Base64.getEncoder().encodeToString(twoMbPdf)
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "extrato.pdf",
+                    "fileBase64" to fileBase64,
+                )
+            whenever(
+                importJobService.initiateFileImport(any(), any(), any(), any(), any(), anyOrNull()),
+            ).thenReturn(pendingJob())
+
+            resolver.importTransactionsFile(input, principal())
+
+            verify(importJobService).initiateFileImport(
+                eq(financialAccountId),
+                eq(accountId),
+                eq(userId),
+                any(),
+                eq("extrato.pdf"),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `throws ValidationException when pdf exceeds 3 MB`() {
+            val threeMbPlus = ByteArray(3 * 1024 * 1024 + 1)
+            val fileBase64 = Base64.getEncoder().encodeToString(threeMbPlus)
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "fileName" to "extrato.pdf",
                     "fileBase64" to fileBase64,
                 )
 

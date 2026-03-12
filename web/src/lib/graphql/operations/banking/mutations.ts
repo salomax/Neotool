@@ -81,7 +81,7 @@ export const CREATE_TRANSACTION = gql`
   }
 `;
 
-/** Start a file-based transaction import (auto-discovery for OFX/CSV and future formats). */
+/** Start a file-based transaction import (auto-discovery for OFX/CSV/XLSX/PDF). */
 export const IMPORT_TRANSACTIONS_FILE = gql`
   mutation ImportTransactionsFile($input: ImportTransactionsFileInput!) {
     importTransactionsFile(input: $input) {
@@ -165,6 +165,35 @@ export const UPDATE_TRANSACTION = gql`
   }
 `;
 
+/** Submit a PDF or CSV file for credit card bill extraction (async). Returns a PdfImportJob in EXTRACTING status. */
+export const SUBMIT_PDF_BILL_IMPORT = gql`
+  mutation SubmitPdfBillImport($input: SubmitPdfBillImportInput!) {
+    submitPdfBillImport(input: $input) {
+      id
+      status
+      fileName
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+    }
+  }
+`;
+
+/** Confirm a reviewed PDF bill import — saves transactions and resolves card associations. */
+export const CONFIRM_PDF_BILL_IMPORT = gql`
+  mutation ConfirmPdfBillImport($input: ConfirmPdfBillImportInput!) {
+    confirmPdfBillImport(input: $input) {
+      id
+      status
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+    }
+  }
+`;
+
 /** Register a payment against a credit card bill (creates TRANSFER transactions and updates bill status). */
 export const PAY_BILL = gql`
   mutation PayBill($billId: ID!, $amount: Float!, $sourceAccountId: ID) {
@@ -179,5 +208,44 @@ export const PAY_BILL = gql`
       createdAt
       updatedAt
     }
+  }
+`;
+
+/** Create an account-scoped transaction category. */
+export const CREATE_TRANSACTION_CATEGORY = gql`
+  mutation CreateTransactionCategory($input: CreateCategoryInput!) {
+    createTransactionCategory(input: $input) {
+      id
+      parentId
+      name
+      color
+      icon
+      isSystem
+      applicableTo
+      sortOrder
+    }
+  }
+`;
+
+/** Update an account-scoped transaction category (name, icon, color, sortOrder). */
+export const UPDATE_TRANSACTION_CATEGORY = gql`
+  mutation UpdateTransactionCategory($id: ID!, $input: UpdateCategoryInput!) {
+    updateTransactionCategory(id: $id, input: $input) {
+      id
+      parentId
+      name
+      color
+      icon
+      isSystem
+      applicableTo
+      sortOrder
+    }
+  }
+`;
+
+/** Soft-delete an account-scoped category (and subcategories if root). */
+export const DELETE_TRANSACTION_CATEGORY = gql`
+  mutation DeleteTransactionCategory($id: ID!) {
+    deleteTransactionCategory(id: $id)
   }
 `;

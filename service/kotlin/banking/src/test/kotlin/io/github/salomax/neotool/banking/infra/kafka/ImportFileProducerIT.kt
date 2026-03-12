@@ -46,6 +46,8 @@ class ImportFileProducerIT : BaseIntegrationTest(), KafkaIntegrationTest {
         props["datasources.default.enabled"] = "false"
         props["flyway.enabled"] = "false"
         props["kafka.consumers.import-file.enabled"] = "false"
+        props["kafka.consumers.import-status.enabled"] = "false"
+        props["kafka.consumers.import-pdf-status.enabled"] = "false"
         props["kafka.consumers.pdf-status.enabled"] = "false"
         props["kafka.consumers.banking-import-file-producer-it.key-deserializer"] =
             StringDeserializer::class.java.name

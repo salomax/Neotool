@@ -80,7 +80,7 @@ class AssetsServiceFileStorageIT {
                 MockResponse().setResponseCode(200).setBody(content),
             )
 
-            val result = importFileStorage.read(assetId)
+            val result = importFileStorage.read(accountId, assetId)
 
             assertThat(String(result, StandardCharsets.UTF_8)).isEqualTo(content)
         }
@@ -96,7 +96,7 @@ class AssetsServiceFileStorageIT {
                 graphqlResponse("""{"data":{"deleteAsset":true}}"""),
             )
 
-            importFileStorage.delete(nonExistent)
+            importFileStorage.delete(accountId, nonExistent)
         }
     }
 }

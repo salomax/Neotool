@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.pdfimport.ConfirmPdfBillImportCommand
 import io.github.salomax.neotool.banking.domain.pdfimport.ConfirmPdfCardCommand
 import io.github.salomax.neotool.banking.domain.pdfimport.ConfirmPdfTransactionCommand
@@ -104,6 +106,39 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
     }
 
     @Test
+    fun `known deterministic profile moves directly to awaiting review with canonical payload`() {
+        val job = createPendingJob()
+        val jobId = requireNotNull(job.id)
+
+        statusConsumer.onExtractorSubmitted(submittedEvent(jobId))
+        statusConsumer.onExtractorExtracted(
+            extractedEvent(
+                jobId = jobId,
+                extractedText =
+                    """
+                    Nubank
+                    Fatura do cartao final 1234
+                    | Data | Descricao | Valor |
+                    |---|---|---|
+                    | 15/01 | MERCADO EXTRA | 45,90 |
+                    | 22/01 | ESTORNO IFOOD | -32,00 |
+                    | 24/01 | UBER TRIP 2/3 | 139,50 |
+                    Total da fatura: 153,40
+                    """.trimIndent(),
+                metadata = mapOf("statement_year" to 2026),
+                documentType = "CREDIT_CARD_BILL",
+            ),
+        )
+
+        val awaiting = currentJob(jobId)
+        assertThat(awaiting.status).isEqualTo(PdfImportJobStatus.AWAITING_REVIEW)
+        val canonical = objectMapper.readValue(awaiting.reviewPayload, CanonicalReaderOutput::class.java)
+        assertThat(canonical.processorType).isEqualTo(CanonicalProcessorType.DETERMINISTIC)
+        assertThat(canonical.readerId).isEqualTo("pdf-reader-nubank-credit-card-v1")
+        assertThat(canonical.normalizedRecords).isNotEmpty()
+    }
+
+    @Test
     fun `dlq event marks job as FAILED with error message`() {
         val job = createPendingJob()
         val jobId = requireNotNull(job.id)
@@ -119,6 +154,48 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         val failed = currentJob(jobId)
         assertThat(failed.status).isEqualTo(PdfImportJobStatus.FAILED)
         assertThat(failed.errorMessage).contains("download_failed")
+    }
+
+    @Test
+    fun `assistant failed event marks job as FAILED with structured error details`() {
+        val job = createPendingJob()
+        val jobId = requireNotNull(job.id)
+
+        statusConsumer.onExtractorSubmitted(submittedEvent(jobId))
+        statusConsumer.onExtractorExtracted(
+            extractedEvent(
+                jobId = jobId,
+                extractedText = "--- Page 1 ---",
+                metadata = mapOf("page_count" to 1),
+            ),
+        )
+
+        statusConsumer.onBankingReaderFailed(
+            mapOf(
+                "job_id" to jobId.toString(),
+                "document_type" to "CREDIT_CARD_BILL",
+                "schema_version" to "1.0",
+                "error" to
+                    mapOf(
+                        "code" to "SCHEMA_VALIDATION_FAILED",
+                        "message" to "output did not match contract",
+                        "retryable" to false,
+                    ),
+                "error_metadata" to
+                    mapOf(
+                        "processor_type" to "LLM",
+                        "stage" to "OUTPUT_VALIDATION",
+                    ),
+                "callback_context" to callbackContext(jobId),
+            ),
+        )
+
+        val failed = currentJob(jobId)
+        assertThat(failed.status).isEqualTo(PdfImportJobStatus.FAILED)
+        assertThat(failed.errorMessage).contains("assistant_pdf_reader_failed")
+        assertThat(failed.errorMessage).contains("SCHEMA_VALIDATION_FAILED")
+        assertThat(failed.errorDetails).contains("assistant.banking-pdf-reader.failed")
+        assertThat(failed.errorDetails).contains("OUTPUT_VALIDATION")
     }
 
     @Test
@@ -235,9 +312,11 @@ class PdfImportWorkflowIT : BankingPostgresIntegrationTest() {
         jobId: UUID,
         extractedText: String,
         metadata: Map<String, Any?>,
+        documentType: String? = null,
     ): Map<String, Any?> =
         mapOf(
             "job_id" to jobId.toString(),
+            "document_type" to documentType,
             "extracted_text" to extractedText,
             "extraction_metadata" to metadata,
             "callback_context" to callbackContext(jobId),

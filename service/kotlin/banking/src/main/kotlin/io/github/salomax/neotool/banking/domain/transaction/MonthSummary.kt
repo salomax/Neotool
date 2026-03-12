@@ -6,7 +6,7 @@ import java.math.BigDecimal
  * Monthly summary for the selected (year, month) and optional financial account.
  *
  * Served from [MonthlyBalanceSnapshot] (closingBalance, openingBalance, totalIncome, totalExpenses).
- * On-demand fields (transfersIn, transfersOut, projectedClosingBalance) are computed at query time.
+ * On-demand fields (transfersIn, transfersOut, projectedClosingBalance, expensesByCategory, incomeByCategory) are computed at query time.
  */
 data class MonthSummary(
     val year: Int,
@@ -27,4 +27,10 @@ data class MonthSummary(
     val projectedClosingBalance: BigDecimal?,
     /** True when (year, month) equals the current calendar month. */
     val isCurrentMonth: Boolean,
+    /** True when (year, month) is strictly after the current calendar month. No snapshot is persisted; all values are projections. */
+    val isFutureMonth: Boolean = false,
+    /** Top expense categories for the month (CAT-15). Empty for future months. */
+    val expensesByCategory: List<CategoryTotal> = emptyList(),
+    /** Top income categories for the month (CAT-15). Empty for future months. */
+    val incomeByCategory: List<CategoryTotal> = emptyList(),
 )

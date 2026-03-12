@@ -3,9 +3,10 @@ from __future__ import annotations
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import json
 import logging
+import errno
 import threading
 import time
-from typing import Any
+from typing import Any, Optional
 
 from confluent_kafka import Consumer
 
@@ -24,7 +25,7 @@ class WorkerHealthState:
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._ready = False
-        self._fatal_error: str | None = None
+        self._fatal_error: Optional[str] = None
 
     def mark_ready(self) -> None:
         with self._lock:
@@ -80,12 +81,19 @@ def _start_health_server(state: WorkerHealthState, port: int = 8080) -> Threadin
 
 def run() -> None:
     _configure_logging()
+    config = WorkerConfig.from_env()
     health_state = WorkerHealthState()
-    health_server = _start_health_server(health_state)
-    consumer: Consumer | None = None
+    try:
+        health_server = _start_health_server(health_state, port=config.health_port)
+    except OSError as exc:
+        if exc.errno == errno.EADDRINUSE:
+            raise RuntimeError(
+                f"health_port_in_use port={config.health_port}. Set HEALTH_PORT to an available port."
+            ) from exc
+        raise
+    consumer: Optional[Consumer] = None
 
     try:
-        config = WorkerConfig.from_env()
         logger.info("starting pdf-extractor worker topic_in=%s", config.kafka_topic_in)
 
         consumer = Consumer(
@@ -114,7 +122,7 @@ def run() -> None:
                 continue
 
             raw_value = msg.value() or b"{}"
-            submitted: SubmittedPayload | None = None
+            submitted: Optional[SubmittedPayload] = None
 
             try:
                 submitted = SubmittedPayload.model_validate_json(raw_value)
@@ -183,7 +191,7 @@ def _process_message(submitted: SubmittedPayload, config: WorkerConfig) -> dict[
 
 
 def _build_dlq_payload(
-    submitted: SubmittedPayload | None,
+    submitted: Optional[SubmittedPayload],
     raw_value: bytes,
     exc: Exception,
 ) -> DlqPayload:

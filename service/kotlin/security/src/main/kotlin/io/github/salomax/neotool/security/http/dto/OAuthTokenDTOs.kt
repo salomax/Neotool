@@ -15,6 +15,7 @@ data class TokenRequest(
     @field:NotBlank(message = "Client secret is required")
     val client_secret: String,
     val audience: String? = null,
+    val delegated_by: String? = null,
 )
 
 /**

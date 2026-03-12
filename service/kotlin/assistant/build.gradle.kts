@@ -41,6 +41,9 @@ dependencies {
     // HTTP Client for GraphQL
     implementation("io.micronaut:micronaut-http-client")
 
+    // Kafka (assistant worker mode for banking reader flow)
+    implementation("io.micronaut.kafka:micronaut-kafka")
+
     // JSON processing
     implementation("io.micronaut.serde:micronaut-serde-jackson")
 

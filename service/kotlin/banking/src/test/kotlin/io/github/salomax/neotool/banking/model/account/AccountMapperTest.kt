@@ -51,7 +51,7 @@ class AccountMapperTest {
             )
         val bankDataEntity =
             FinancialAccountBankDataEntity(
-                accountId = entity.id!!,
+                financialAccountId = entity.id!!,
                 account = entity,
                 branchCode = "1234",
                 number = "56789",
@@ -111,7 +111,7 @@ class AccountMapperTest {
             )
         val cardDataEntity =
             FinancialAccountCardDataEntity(
-                accountId = entity.id!!,
+                financialAccountId = entity.id!!,
                 account = entity,
                 maskedNumber = "****1234",
                 bin = "123456",
@@ -143,6 +143,39 @@ class AccountMapperTest {
     }
 
     @Test
+    fun `toDomain and toCardDataEntity preserve linkedBankAccountId`() {
+        val linkedBankId = UUID.randomUUID()
+        val entity =
+            FinancialAccountEntity(
+                id = UUID.randomUUID(),
+                accountId = accountId,
+                createdByUserId = createdByUserId,
+                type = FinancialAccountType.CREDIT,
+                subtype = FinancialAccountSubtype.CREDIT_CARD,
+                name = "Card",
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+                cardData = null,
+            )
+        val cardDataEntity =
+            FinancialAccountCardDataEntity(
+                financialAccountId = entity.id!!,
+                account = entity,
+                closingDay = 7,
+                dueDay = 15,
+                linkedBankAccountId = linkedBankId,
+            )
+        entity.cardData = cardDataEntity
+
+        val domain = FinancialAccountMapper.toDomain(entity)
+        assertThat(domain.cardData!!.linkedBankAccountId).isEqualTo(linkedBankId)
+
+        val roundTripped = FinancialAccountMapper.toCardDataEntity(domain.cardData!!, entity)
+        assertThat(roundTripped.linkedBankAccountId).isEqualTo(linkedBankId)
+    }
+
+    @Test
     fun `toBankDataEntity and toCardDataEntity map domain to entity`() {
         val accountEntity =
             FinancialAccountEntity(
@@ -158,7 +191,7 @@ class AccountMapperTest {
             )
         val bankData = BankData(branchCode = "1", number = "2", checkDigit = "3", maskedNumber = "****2")
         val bankEntity = FinancialAccountMapper.toBankDataEntity(bankData, accountEntity)
-        assertThat(bankEntity.accountId).isEqualTo(accountEntity.id)
+        assertThat(bankEntity.financialAccountId).isEqualTo(accountEntity.id)
         assertThat(bankEntity.branchCode).isEqualTo("1")
         assertThat(bankEntity.maskedNumber).isEqualTo("****2")
 

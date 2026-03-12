@@ -62,3 +62,12 @@ enum class TransactionSource {
  * Category applicability.
  */
 enum class CategoryApplicableTo { INCOME, EXPENSE, TRANSFER, ANY }
+
+/**
+ * How the transaction's category was assigned.
+ * MANUAL = user-selected; RULE = auto-categorization rule; IMPORTED = from import; AI = future.
+ */
+enum class CategorySource { MANUAL, RULE, IMPORTED, AI }
+
+/** Pattern type for category rules (description matching). */
+enum class PatternType { CONTAINS, STARTS_WITH, EXACT, REGEX }

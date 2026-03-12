@@ -186,11 +186,12 @@ class JwtTokenIssuer(
         serviceId: UUID,
         targetAudience: String,
         permissions: List<String>,
+        delegatedBy: String? = null,
     ): String {
         val now = Instant.now()
         val expiration = now.plusSeconds(jwtConfig.accessTokenExpirationSeconds)
 
-        return signBuilder(
+        val builder =
             Jwts
                 .builder()
                 .subject(serviceId.toString())
@@ -199,8 +200,13 @@ class JwtTokenIssuer(
                 .claim("permissions", permissions)
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(expiration))
-                .issuer("neotool-security-service"),
-        ).compact()
+                .issuer("neotool-security-service")
+
+        if (!delegatedBy.isNullOrBlank()) {
+            builder.claim("delegated_by", delegatedBy)
+        }
+
+        return signBuilder(builder).compact()
     }
 
     /**

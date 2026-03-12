@@ -1,12 +1,22 @@
 import React from 'react';
-import { Box, Stack, Typography, Skeleton, useTheme, alpha, Avatar, Divider } from '@mui/material';
-import { 
-  ArrowUpward as IncomeIcon, 
-  ArrowDownward as ExpenseIcon, 
+import { Box, Stack, Typography, Skeleton, useTheme, alpha, Avatar, Divider, Button, LinearProgress } from '@mui/material';
+import {
+  ArrowUpward as IncomeIcon,
+  ArrowDownward as ExpenseIcon,
+  ErrorOutline as UnavailableIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { extractErrorMessage } from '@/shared/utils/error';
+import { CategoryIcon } from './category/CategoryIcon';
+
+export interface CategoryTotalItem {
+  category: { id: string; name: string; icon: string | null; color: string | null };
+  totalAmount: number;
+  transactionCount: number;
+  percentage: number;
+}
 
 export interface MonthSummaryData {
   year: number;
@@ -19,19 +29,30 @@ export interface MonthSummaryData {
   transfersOut: number;
   projectedClosingBalance: number | null;
   isCurrentMonth: boolean;
+  isFutureMonth?: boolean;
 }
 
 interface MonthSummaryProps {
   summary: MonthSummaryData | undefined;
   loading: boolean;
+  error?: unknown;
+  onRetry?: () => void;
   isConsolidated?: boolean;
+  /** Category breakdown (CAT-24). When schema/query provides expensesByCategory, pass it here. */
+  expensesByCategory?: CategoryTotalItem[];
+  /** Called when user clicks a category row to filter transactions by category. */
+  onCategoryClick?: (categoryId: string) => void;
 }
 
 export const MonthSummary: React.FC<MonthSummaryProps> = ({
   summary,
   loading,
+  error,
+  onRetry,
+  expensesByCategory,
+  onCategoryClick,
 }) => {
-  const { t } = useTranslation(personalFinanceTranslations);
+  const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
 
   const formatCurrency = (value: number) => {
@@ -113,6 +134,49 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   const incomePercentage = totalVolume > 0 ? calculatePercentage(absIncome, totalVolume) : 0;
   const expensesPercentage = totalVolume > 0 ? calculatePercentage(absExpenses, totalVolume) : 0;
 
+  if (error && !loading && !summary) {
+    const defaultErrorMessage = tCommon('errors.default');
+    const extracted = extractErrorMessage(error, defaultErrorMessage);
+    const description = extracted === defaultErrorMessage ? t('financeTransactions.monthSummary.unavailableDescription') : extracted;
+
+    return (
+      <Box
+        sx={{
+          minHeight: 280,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          px: 2,
+        }}
+      >
+        <Stack spacing={1.5} alignItems="center" textAlign="center" maxWidth={320}>
+          <Avatar
+            variant="rounded"
+            sx={{
+              bgcolor: alpha(theme.palette.warning.main, 0.12),
+              color: theme.palette.warning.main,
+              width: 52,
+              height: 52,
+            }}
+          >
+            <UnavailableIcon />
+          </Avatar>
+          <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+            {t('financeTransactions.monthSummary.unavailableTitle')}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {description}
+          </Typography>
+          {onRetry && (
+            <Button variant="outlined" size="small" onClick={onRetry}>
+              {t('financeTransactions.monthSummary.retry')}
+            </Button>
+          )}
+        </Stack>
+      </Box>
+    );
+  }
+
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
@@ -177,37 +241,103 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
       </Stack>
 
       {(totalVolume > 0 || (loading && !summary)) && (
-        <Box 
-          sx={{ 
+        <Box
+          sx={{
             mt: 3,
-            height: 6, 
-            borderRadius: 3, 
-            display: 'flex', 
-            overflow: 'hidden', 
-            width: '100%', 
-            bgcolor: theme.palette.grey[100] 
+            height: 6,
+            borderRadius: 3,
+            display: 'flex',
+            overflow: 'hidden',
+            width: '100%',
+            bgcolor: theme.palette.grey[100],
           }}
         >
-           {loading && !summary ? (
-              <Skeleton variant="rectangular" width="100%" height="100%" />
-           ) : (
-             <>
-                <Box 
-                  sx={{ 
-                    flex: absIncome, 
-                    bgcolor: theme.palette.success.main,
-                    transition: 'flex 0.5s ease-in-out'
-                  }} 
-                />
-                <Box 
-                  sx={{ 
-                    flex: absExpenses, 
-                    bgcolor: theme.palette.error.main,
-                    transition: 'flex 0.5s ease-in-out'
-                  }} 
-                />
-             </>
-           )}
+          {loading && !summary ? (
+            <Skeleton variant="rectangular" width="100%" height="100%" />
+          ) : (
+            <>
+              <Box
+                sx={{
+                  flex: absIncome,
+                  bgcolor: theme.palette.success.main,
+                  transition: 'flex 0.5s ease-in-out',
+                }}
+              />
+              <Box
+                sx={{
+                  flex: absExpenses,
+                  bgcolor: theme.palette.error.main,
+                  transition: 'flex 0.5s ease-in-out',
+                }}
+              />
+            </>
+          )}
+        </Box>
+      )}
+
+      {/* Category breakdown (CAT-24). Renders when expensesByCategory is provided. */}
+      {summary && !loading && expensesByCategory !== undefined && (
+        <Box sx={{ mt: 3 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
+            {t('financeTransactions.monthSummary.expensesByCategory')}
+          </Typography>
+          {expensesByCategory.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              {t('financeTransactions.monthSummary.noCategorizedExpenses')}
+            </Typography>
+          ) : (
+            <Stack spacing={1}>
+              {expensesByCategory.map((item) => (
+                <Box
+                  key={item.category.id}
+                  onClick={() => onCategoryClick?.(item.category.id)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.5,
+                    cursor: onCategoryClick ? 'pointer' : 'default',
+                    '&:hover': onCategoryClick
+                      ? { bgcolor: alpha(theme.palette.primary.main, 0.06), borderRadius: 1 }
+                      : {},
+                  }}
+                >
+                  <CategoryIcon
+                    iconName={item.category.icon}
+                    color={item.category.color ?? undefined}
+                    size={20}
+                  />
+                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+                    <Typography variant="body2" noWrap>
+                      {item.category.name}
+                    </Typography>
+                    <LinearProgress
+                      variant="determinate"
+                      value={Math.min(item.percentage, 100)}
+                      sx={{
+                        mt: 0.5,
+                        height: 6,
+                        borderRadius: 1,
+                        bgcolor: alpha(theme.palette.error.main, 0.12),
+                        '& .MuiLinearProgress-bar': {
+                          bgcolor: item.category.color ?? theme.palette.error.main,
+                        },
+                      }}
+                    />
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {formatCurrency(item.totalAmount)}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {Math.round(item.percentage)}%
+                  </Typography>
+                </Box>
+              ))}
+              <Divider sx={{ my: 1 }} />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {t('financeTransactions.monthSummary.totalExpenses')}: {formatCurrency(summary.totalExpenses)}
+              </Typography>
+            </Stack>
+          )}
         </Box>
       )}
     </Box>

@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.import.dedup
 
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.repo.TransactionEntityRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -35,60 +36,67 @@ class ImportFingerprintServiceTest {
     inner class ComputeTests {
         @Test
         fun `same inputs produce same fingerprint deterministic`() {
-            val fp1 = service.compute(financialAccountId, date, amountCents, description)
-            val fp2 = service.compute(financialAccountId, date, amountCents, description)
+            val fp1 = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
+            val fp2 = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
             assertThat(fp1).isEqualTo(fp2)
         }
 
         @Test
         fun `fingerprint is exactly 64 hex characters`() {
-            val fp = service.compute(financialAccountId, date, amountCents, description)
+            val fp = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
             assertThat(fp).hasSize(64)
             assertThat(fp).matches("^[0-9a-f]{64}$")
         }
 
         @Test
         fun `different amountCents produce different fingerprints`() {
-            val fp1 = service.compute(financialAccountId, date, 1000L, description)
-            val fp2 = service.compute(financialAccountId, date, 1001L, description)
+            val fp1 = service.compute(financialAccountId, date, 1000L, description, CreditDebitType.DEBIT)
+            val fp2 = service.compute(financialAccountId, date, 1001L, description, CreditDebitType.DEBIT)
             assertThat(fp1).isNotEqualTo(fp2)
         }
 
         @Test
         fun `different date produces different fingerprint`() {
             val otherDate = LocalDate.of(2025, 3, 16)
-            val fp1 = service.compute(financialAccountId, date, amountCents, description)
-            val fp2 = service.compute(financialAccountId, otherDate, amountCents, description)
+            val fp1 = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
+            val fp2 = service.compute(financialAccountId, otherDate, amountCents, description, CreditDebitType.DEBIT)
             assertThat(fp1).isNotEqualTo(fp2)
         }
 
         @Test
         fun `different financialAccountId produces different fingerprint`() {
             val otherAccountId = UUID.fromString("aaaaaaaa-bbbb-7bbb-8bbb-cccccccccccc")
-            val fp1 = service.compute(financialAccountId, date, amountCents, description)
-            val fp2 = service.compute(otherAccountId, date, amountCents, description)
+            val fp1 = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
+            val fp2 = service.compute(otherAccountId, date, amountCents, description, CreditDebitType.DEBIT)
             assertThat(fp1).isNotEqualTo(fp2)
         }
 
         @Test
         fun `different description produces different fingerprint`() {
-            val fp1 = service.compute(financialAccountId, date, amountCents, "Coffee")
-            val fp2 = service.compute(financialAccountId, date, amountCents, "Tea")
+            val fp1 = service.compute(financialAccountId, date, amountCents, "Coffee", CreditDebitType.DEBIT)
+            val fp2 = service.compute(financialAccountId, date, amountCents, "Tea", CreditDebitType.DEBIT)
             assertThat(fp1).isNotEqualTo(fp2)
         }
 
         @Test
         fun `description is trimmed and lowercased before hashing`() {
-            val fp1 = service.compute(financialAccountId, date, amountCents, "  FOO  ")
-            val fp2 = service.compute(financialAccountId, date, amountCents, "foo")
+            val fp1 = service.compute(financialAccountId, date, amountCents, "  FOO  ", CreditDebitType.DEBIT)
+            val fp2 = service.compute(financialAccountId, date, amountCents, "foo", CreditDebitType.DEBIT)
             assertThat(fp1).isEqualTo(fp2)
         }
 
         @Test
         fun `empty description produces valid fingerprint`() {
-            val fp = service.compute(financialAccountId, date, amountCents, "")
+            val fp = service.compute(financialAccountId, date, amountCents, "", CreditDebitType.DEBIT)
             assertThat(fp).hasSize(64)
             assertThat(fp).matches("^[0-9a-f]{64}$")
+        }
+
+        @Test
+        fun `different creditDebitType produces different fingerprint`() {
+            val debit = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
+            val credit = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.CREDIT)
+            assertThat(debit).isNotEqualTo(credit)
         }
     }
 
@@ -97,7 +105,7 @@ class ImportFingerprintServiceTest {
     inner class IsDuplicateTests {
         @Test
         fun `returns true when repository returns true`() {
-            val fingerprint = service.compute(financialAccountId, date, amountCents, description)
+            val fingerprint = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
             whenever(
                 transactionEntityRepository.existsByFinancialAccountIdAndImportFingerprintAndDeletedAtIsNull(
                     financialAccountId = eq(financialAccountId),
@@ -112,7 +120,7 @@ class ImportFingerprintServiceTest {
 
         @Test
         fun `returns false when repository returns false`() {
-            val fingerprint = service.compute(financialAccountId, date, amountCents, description)
+            val fingerprint = service.compute(financialAccountId, date, amountCents, description, CreditDebitType.DEBIT)
             whenever(
                 transactionEntityRepository.existsByFinancialAccountIdAndImportFingerprintAndDeletedAtIsNull(
                     financialAccountId = any(),

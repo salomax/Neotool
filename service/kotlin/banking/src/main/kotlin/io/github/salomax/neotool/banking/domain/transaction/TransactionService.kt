@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.banking.domain.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
@@ -11,6 +12,7 @@ import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
 import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.Instant
@@ -27,6 +29,7 @@ import java.util.UUID
 open class TransactionService(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: TransactionCategoryRepository,
+    private val categorizationService: CategorizationService,
     private val financialAccountRepository: FinancialAccountRepository,
     private val accountMembershipValidationPort: AccountMembershipValidationPort,
     private val snapshotComputationService: SnapshotComputationService,
@@ -58,6 +61,8 @@ open class TransactionService(
      * - When [financialAccountId] is null, returns transactions from all financial accounts
      *   belonging to the given [accountId].
      * - When [month]/[year] are null, the current month/year (server time) are used.
+     * - When [categoryId] is set, returns only transactions in that category or its subcategories.
+     * - When [uncategorized] is true, returns only transactions with no category.
      * - Pagination uses index-based cursors encoded as base64 strings via [CursorEncoder].
      */
     fun listTransactions(
@@ -67,6 +72,8 @@ open class TransactionService(
         belongsToName: String?,
         tags: List<String>?,
         billId: UUID?,
+        categoryId: UUID?,
+        uncategorized: Boolean?,
         month: Int?,
         year: Int?,
         first: Int?,
@@ -109,17 +116,60 @@ open class TransactionService(
                 val toDate = fromDate.withDayOfMonth(fromDate.lengthOfMonth())
 
                 val allTransactions: List<Transaction> =
-                    if (financialAccountId != null) {
-                        requireAccountOwnsFinancialAccount(financialAccountId, accountId)
-                        transactionRepository.findByFinancialAccount(financialAccountId, accountId)
-                    } else {
-                        transactionRepository.findByAccount(accountId)
+                    when {
+                        uncategorized == true -> {
+                            if (financialAccountId != null) {
+                                requireAccountOwnsFinancialAccount(financialAccountId, accountId)
+                            }
+                            transactionRepository.findInDateRangeUncategorized(
+                                accountId = accountId,
+                                financialAccountId = financialAccountId,
+                                year = targetYear,
+                                month = targetMonth,
+                            )
+                        }
+                        categoryId != null -> {
+                            val category =
+                                categoryRepository.findById(categoryId)
+                                    ?: return Connection(emptyList(), PageInfo(false, false, null, null), 0L)
+                            if (category.accountId != null && category.accountId != accountId) {
+                                return Connection(emptyList(), PageInfo(false, false, null, null), 0L)
+                            }
+                            val categoryIds: List<UUID> =
+                                if (category.parentId == null) {
+                                    val allCats = categoryRepository.findAll(accountId)
+                                    listOf(categoryId) +
+                                        allCats
+                                            .filter { it.parentId == categoryId }
+                                            .mapNotNull { it.id }
+                                } else {
+                                    listOf(categoryId)
+                                }
+                            if (financialAccountId != null) {
+                                requireAccountOwnsFinancialAccount(financialAccountId, accountId)
+                            }
+                            transactionRepository.findInDateRangeByCategoryIds(
+                                accountId = accountId,
+                                financialAccountId = financialAccountId,
+                                year = targetYear,
+                                month = targetMonth,
+                                categoryIds = categoryIds,
+                            )
+                        }
+                        else -> {
+                            if (financialAccountId != null) {
+                                requireAccountOwnsFinancialAccount(financialAccountId, accountId)
+                                transactionRepository.findByFinancialAccount(financialAccountId, accountId)
+                            } else {
+                                transactionRepository.findByAccount(accountId)
+                            }.filter { tx ->
+                                !tx.date.isBefore(fromDate) && !tx.date.isAfter(toDate)
+                            }
+                        }
                     }
 
-                // Filter by month/year window (inclusive)
+                // Filter by belongsTo and tags when we used category/uncategorized path (already date-scoped)
                 allTransactions.filter { tx ->
-                    val dateMatches =
-                        !tx.date.isBefore(fromDate) && !tx.date.isAfter(toDate)
                     val belongsToUserMatches =
                         belongsToUserId == null || tx.belongsToUserId == belongsToUserId
                     val belongsToNameMatches =
@@ -128,7 +178,7 @@ open class TransactionService(
                         normalizedTagFilterSet == null ||
                             normalizedTagFilterSet.isEmpty() ||
                             tx.tags.any { normalizedTagFilterSet.contains(it) }
-                    dateMatches && belongsToUserMatches && belongsToNameMatches && tagsMatch
+                    belongsToUserMatches && belongsToNameMatches && tagsMatch
                 }
             }
 
@@ -181,13 +231,15 @@ open class TransactionService(
         transactionRepository.findById(id, accountId)
             ?: throw NoSuchElementException("Transaction $id not found")
 
-    fun create(
+    @Transactional
+    open fun create(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
     ): Transaction {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         validateCreateCommand(command)
+        validateDateWithinMovingWindow(command.date)
         val (belongsToUserId, belongsToName) = resolveBelongsToForCreate(command, userId)
         if (command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
@@ -202,6 +254,19 @@ open class TransactionService(
                 ?: cardAccount?.let {
                     creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
                 }
+
+        val (finalCategoryId, finalCategorySource) =
+            if (command.categoryId != null) {
+                command.categoryId to CategorySource.MANUAL
+            } else {
+                try {
+                    categorizationService.suggest(accountId, command.description, command.creditDebitType)
+                        ?.let { it.categoryId to CategorySource.RULE }
+                        ?: (null to null)
+                } catch (_: Exception) {
+                    null to null
+                }
+            }
 
         val now = Instant.now()
         val transaction =
@@ -221,7 +286,8 @@ open class TransactionService(
                 description = command.description,
                 notes = command.notes,
                 tags = normalizedTags,
-                categoryId = command.categoryId,
+                categoryId = finalCategoryId,
+                categorySource = finalCategorySource,
                 counterpartyName = command.counterpartyName,
                 counterpartyDocument = command.counterpartyDocument,
                 counterpartyBankCode = command.counterpartyBankCode,
@@ -259,7 +325,8 @@ open class TransactionService(
         return saved
     }
 
-    fun update(
+    @Transactional
+    open fun update(
         id: UUID,
         command: UpdateTransactionCommand,
         accountId: UUID,
@@ -289,6 +356,20 @@ open class TransactionService(
                 existing.billId
             }
 
+        val categoryChanged =
+            command.categoryId != null && command.categoryId != existing.categoryId
+        if (categoryChanged) {
+            try {
+                categorizationService.learnFromManualCategorization(
+                    accountId,
+                    existing.description,
+                    command.categoryId!!,
+                )
+            } catch (_: Exception) {
+                // Learning failure must not fail the update
+            }
+        }
+
         val updated =
             existing.copy(
                 creditDebitType = command.creditDebitType ?: existing.creditDebitType,
@@ -300,6 +381,11 @@ open class TransactionService(
                 notes = command.notes ?: existing.notes,
                 tags = updatedTags,
                 categoryId = command.categoryId ?: existing.categoryId,
+                categorySource =
+                    when {
+                        command.categoryId != null -> CategorySource.MANUAL
+                        else -> existing.categorySource
+                    },
                 belongsToUserId = updatedBelongsToUserId,
                 belongsToName = updatedBelongsToName,
                 counterpartyName = command.counterpartyName ?: existing.counterpartyName,
@@ -315,6 +401,10 @@ open class TransactionService(
             )
 
         require(updated.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
+
+        if (command.date != null) {
+            validateDateWithinMovingWindow(command.date)
+        }
 
         if (existing.type != TransactionType.BALANCE_ADJUSTMENT && command.date != null) {
             val initialBalanceDate = transactionRepository.findInitialBalanceDate(existing.financialAccountId)
@@ -346,7 +436,8 @@ open class TransactionService(
         return saved
     }
 
-    fun delete(
+    @Transactional
+    open fun delete(
         id: UUID,
         accountId: UUID,
     ): Boolean {
@@ -370,11 +461,41 @@ open class TransactionService(
     }
 
     /**
+     * Assigns the same category to multiple transactions (e.g. post-import).
+     * Only updates transactions belonging to [accountId]. Sets categorySource to MANUAL.
+     * Does not trigger implicit rule learning.
+     */
+    @Transactional
+    open fun bulkCategorize(
+        transactionIds: List<UUID>,
+        categoryId: UUID,
+        accountId: UUID,
+    ): BulkCategorizeResult {
+        val category =
+            categoryRepository.findById(categoryId)
+                ?: throw NoSuchElementException("Category $categoryId not found")
+        val accessible =
+            category.accountId == null || category.accountId == accountId
+        require(accessible) {
+            "Category is not accessible to this account"
+        }
+        val affectedCount =
+            transactionRepository.bulkUpdateCategory(
+                transactionIds = transactionIds,
+                categoryId = categoryId,
+                categorySource = CategorySource.MANUAL,
+                accountId = accountId,
+            )
+        return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
+    }
+
+    /**
      * Registers a payment against a credit card bill (BILL-02).
      * Creates a CREDIT TRANSFER on the card account; optionally a DEBIT TRANSFER on the source account.
      * Marks the bill as PAID when the payment amount covers the full total.
      */
-    fun payBill(
+    @Transactional
+    open fun payBill(
         billId: UUID,
         amount: BigDecimal,
         sourceAccountId: UUID?,
@@ -534,4 +655,25 @@ open class TransactionService(
         }
         return normalized.distinct()
     }
+
+    private fun validateDateWithinMovingWindow(date: LocalDate) {
+        val minAllowedDate = DateWindowPolicy.minAllowedDate()
+        if (date.isBefore(minAllowedDate)) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW,
+                field = "date",
+                parameters =
+                    mapOf(
+                        "minAllowedDate" to minAllowedDate.toString(),
+                        "windowYears" to DateWindowPolicy.MAX_PAST_YEARS,
+                    ),
+            )
+        }
+    }
 }
+
+/** Result of bulkCategorize mutation. */
+data class BulkCategorizeResult(
+    val affectedCount: Int,
+    val errors: List<String>,
+)

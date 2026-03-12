@@ -31,7 +31,11 @@ kafka:
       extractor-extracted: pdf-extractor.extracted
       extractor-dlq: pdf-extractor.dlq
       banking-reader-done: assistant.banking-pdf-reader.done
+      banking-reader-failed: assistant.banking-pdf-reader.failed
+      banking-reader-requested: assistant.banking-reader.requested
   consumers:
+    import-status:
+      group-id: banking-service-import-status
     pdf-status:
       group-id: banking-service-pdf-status
 redis:

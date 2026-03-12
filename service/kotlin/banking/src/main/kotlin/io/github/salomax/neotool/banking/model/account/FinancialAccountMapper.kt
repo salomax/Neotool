@@ -30,6 +30,7 @@ object FinancialAccountMapper {
                     minimumPaymentPercentage = c.minPaymentPercentage,
                     closingDay = c.closingDay,
                     dueDay = c.dueDay,
+                    linkedBankAccountId = c.linkedBankAccountId,
                 )
             }
         return FinancialAccount(
@@ -102,12 +103,12 @@ object FinancialAccountMapper {
         data: BankData,
         account: FinancialAccountEntity,
     ): FinancialAccountBankDataEntity {
-        val accountId =
+        val financialAccountId =
             account.id ?: throw IllegalStateException(
                 "Account must be persisted before attaching bank data",
             )
         return FinancialAccountBankDataEntity(
-            accountId = accountId,
+            financialAccountId = financialAccountId,
             account = account,
             branchCode = data.branchCode,
             number = data.number,
@@ -123,12 +124,12 @@ object FinancialAccountMapper {
         data: CardData,
         account: FinancialAccountEntity,
     ): FinancialAccountCardDataEntity {
-        val accountId =
+        val financialAccountId =
             account.id ?: throw IllegalStateException(
                 "Account must be persisted before attaching card data",
             )
         return FinancialAccountCardDataEntity(
-            accountId = accountId,
+            financialAccountId = financialAccountId,
             account = account,
             maskedNumber = data.maskedNumber,
             bin = data.bin,
@@ -139,6 +140,7 @@ object FinancialAccountMapper {
             minPaymentPercentage = data.minimumPaymentPercentage,
             closingDay = data.closingDay,
             dueDay = data.dueDay,
+            linkedBankAccountId = data.linkedBankAccountId,
         )
     }
 

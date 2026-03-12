@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.infra.assets
 
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.ConflictException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -44,13 +46,13 @@ class AssetsServiceFileStorageTest {
             whenever(
                 assetsClient.createAssetUpload(
                     namespace = eq(importNamespace),
-                    ownerId = eq(accountId.toString()),
                     mimeType = eq(mimeType),
                     originalFilename = eq(fileName),
                     sizeBytes = eq(bytes.size.toLong()),
+                    delegatedBy = eq(accountId.toString()),
                 ),
             ).thenReturn(CreateAssetUploadResult(id = assetId, uploadUrl = uploadUrl))
-            whenever(assetsClient.confirmAssetUpload(eq(assetId))).thenReturn(
+            whenever(assetsClient.confirmAssetUpload(eq(assetId), eq(accountId.toString()))).thenReturn(
                 ConfirmAssetUploadResult(id = assetId, status = "READY"),
             )
 
@@ -58,7 +60,7 @@ class AssetsServiceFileStorageTest {
 
             assertThat(result).isEqualTo(assetId)
             verify(presignedUrlHttpClient).put(uploadUrl, bytes, mimeType)
-            verify(assetsClient).confirmAssetUpload(assetId)
+            verify(assetsClient).confirmAssetUpload(assetId, accountId.toString())
         }
 
         @Test
@@ -89,23 +91,48 @@ class AssetsServiceFileStorageTest {
     inner class ReadTests {
         @Test
         fun `fetches asset gets downloadUrl and returns bytes from GET`() {
-            whenever(assetsClient.getAsset(eq(assetId), eq(3600)))
+            whenever(assetsClient.getAsset(eq(assetId), eq(3600), eq(accountId.toString())))
                 .thenReturn(AssetResult(id = assetId, downloadUrl = downloadUrl))
             whenever(presignedUrlHttpClient.get(eq(downloadUrl))).thenReturn(bytes)
 
-            val result = storage.read(assetId)
+            val result = storage.read(accountId, assetId)
 
             assertThat(result).isEqualTo(bytes)
         }
 
         @Test
         fun `throws when asset has no downloadUrl`() {
-            whenever(assetsClient.getAsset(eq(assetId), any()))
+            whenever(assetsClient.getAsset(eq(assetId), any(), any()))
                 .thenReturn(AssetResult(id = assetId, downloadUrl = null))
 
-            assertThat(
-                assertThrows<IllegalStateException> { storage.read(assetId) }.message,
-            ).contains("no download URL")
+            val exception = assertThrows<ConflictException> { storage.read(accountId, assetId) }
+            assertThat(exception.errorCode).isEqualTo(BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING)
+        }
+    }
+
+    @Nested
+    @DisplayName("resolveDownloadUrl")
+    inner class ResolveDownloadUrlTests {
+        @Test
+        fun `returns presigned url from assets service`() {
+            whenever(assetsClient.getAsset(eq(assetId), eq(1800), eq(accountId.toString())))
+                .thenReturn(AssetResult(id = assetId, downloadUrl = downloadUrl))
+
+            val result = storage.resolveDownloadUrl(accountId, assetId, ttlSeconds = 1800)
+
+            assertThat(result).isEqualTo(downloadUrl)
+        }
+
+        @Test
+        fun `throws when resolved asset has no downloadUrl`() {
+            whenever(assetsClient.getAsset(eq(assetId), any(), any()))
+                .thenReturn(AssetResult(id = assetId, downloadUrl = null))
+
+            val exception =
+                assertThrows<ConflictException> {
+                    storage.resolveDownloadUrl(accountId, assetId, ttlSeconds = 1800)
+                }
+            assertThat(exception.errorCode).isEqualTo(BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING)
         }
     }
 
@@ -114,18 +141,18 @@ class AssetsServiceFileStorageTest {
     inner class DeleteTests {
         @Test
         fun `calls deleteAsset and does not throw`() {
-            whenever(assetsClient.deleteAsset(eq(assetId))).thenReturn(true)
+            whenever(assetsClient.deleteAsset(eq(assetId), eq(accountId.toString()))).thenReturn(true)
 
-            storage.delete(assetId)
+            storage.delete(accountId, assetId)
 
-            verify(assetsClient).deleteAsset(assetId)
+            verify(assetsClient).deleteAsset(assetId, accountId.toString())
         }
 
         @Test
         fun `does not throw when deleteAsset fails`() {
-            whenever(assetsClient.deleteAsset(any())).thenThrow(AssetsServiceException("Not found"))
+            whenever(assetsClient.deleteAsset(any(), any())).thenThrow(AssetsServiceException("Not found"))
 
-            storage.delete(assetId)
+            storage.delete(accountId, assetId)
         }
     }
 }

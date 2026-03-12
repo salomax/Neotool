@@ -1,0 +1,52 @@
+meta {
+  name: Get Import Job
+  type: graphql
+  seq: 16
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query TransactionImport($id: ID!) {
+    transactionImport(id: $id) {
+      id
+      status
+      errorDetails
+      importedCount
+      skippedCount
+      duplicateReviewCount
+      errorCount
+      duplicateCandidates {
+        rowIndex
+        parsed {
+          creditDebitType
+          amount
+          date
+          description
+          currencyCode
+        }
+        candidates {
+          id
+          date
+          description
+          amount
+          source
+        }
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "{{import_job_id}}"
+  }
+}

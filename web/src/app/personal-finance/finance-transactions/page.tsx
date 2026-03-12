@@ -8,9 +8,17 @@ import { Container, Box, CircularProgress, Stack, Button, Alert, Divider, useThe
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
+import { QueryErrorState } from '@/shared/components/ui/feedback';
 import AddIcon from '@mui/icons-material/Add';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import CreditCardIcon from '@mui/icons-material/CreditCard';
+import Menu from '@mui/material/Menu';
+import MenuItem from '@mui/material/MenuItem';
+import ListItemIcon from '@mui/material/ListItemIcon';
 import { CreateFinancialAccountDrawer } from './components/CreateFinancialAccountDrawer';
 import { ImportTransactionsDrawer } from './components/ImportTransactionsDrawer';
+import { ImportBillDrawer } from './components/ImportBillDrawer';
 import { ScanNfceButton } from './components/ScanNfceButton';
 import { FinancialAccountSelector } from './components/FinancialAccountSelector';
 import { EmptyFinancialAccountsState } from './components/EmptyFinancialAccountsState';
@@ -30,6 +38,8 @@ export default function FinanceTransactionsPage() {
   usePageTitle(t('financeTransactions.title'));
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImportDrawerOpen, setIsImportDrawerOpen] = useState(false);
+  const [isImportBillDrawerOpen, setIsImportBillDrawerOpen] = useState(false);
+  const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
@@ -37,7 +47,7 @@ export default function FinanceTransactionsPage() {
   
   const theme = useTheme();
 
-  const { data, loading } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
+  const { data, loading, error: financialAccountsError, refetch: refetchFinancialAccounts } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
     errorPolicy: 'all',
   });
   
@@ -74,7 +84,12 @@ export default function FinanceTransactionsPage() {
     notifyOnNetworkStatusChange: true,
   });
 
-  const { data: monthSummaryData, loading: monthSummaryLoading, refetch: refetchMonthSummary } = useQuery<{ monthSummary: MonthSummaryData }>(MONTH_SUMMARY, {
+  const {
+    data: monthSummaryData,
+    loading: monthSummaryLoading,
+    error: monthSummaryError,
+    refetch: refetchMonthSummary,
+  } = useQuery<{ monthSummary: MonthSummaryData }>(MONTH_SUMMARY, {
     variables: {
       financialAccountId: selectedAccountId,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
@@ -106,6 +121,10 @@ export default function FinanceTransactionsPage() {
   const handleImportCompleted = () => {
     refetchTransactions();
     refetchImports();
+    refetchSummary();
+  };
+
+  const handleAccountCreated = () => {
     refetchSummary();
   };
 
@@ -152,6 +171,16 @@ export default function FinanceTransactionsPage() {
     );
   }
 
+  if (financialAccountsError) {
+    return (
+      <Page>
+        <Container maxWidth="md" sx={{ py: 6 }}>
+          <QueryErrorState error={financialAccountsError} onRetry={() => refetchFinancialAccounts()} />
+        </Container>
+      </Page>
+    );
+  }
+
   const hasAccounts = data?.financialAccounts && data.financialAccounts.length > 0;
 
   if (!hasAccounts) {
@@ -162,6 +191,7 @@ export default function FinanceTransactionsPage() {
           open={isDrawerOpen} 
           onClose={handleCloseDrawer}
           initialType={initialType}
+          onCreated={handleAccountCreated}
         />
       </>
     );
@@ -185,6 +215,8 @@ export default function FinanceTransactionsPage() {
               <MonthSummary 
                   summary={monthSummaryData?.monthSummary}
                   loading={monthSummaryLoading}
+                  error={monthSummaryError}
+                  onRetry={() => refetchMonthSummary()}
                   isConsolidated={!selectedAccountId}
                 />
             ) : (
@@ -253,13 +285,37 @@ export default function FinanceTransactionsPage() {
             </Box>
             <Button
               variant="outlined"
-              onClick={() => {
-                setReviewJobId(null);
-                setIsImportDrawerOpen(true);
-              }}
+              endIcon={<ArrowDropDownIcon />}
+              onClick={(e) => setImportMenuAnchor(e.currentTarget)}
             >
               {t('financeTransactions.import.button')}
             </Button>
+            <Menu
+              anchorEl={importMenuAnchor}
+              open={Boolean(importMenuAnchor)}
+              onClose={() => setImportMenuAnchor(null)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setImportMenuAnchor(null);
+                  setReviewJobId(null);
+                  setIsImportDrawerOpen(true);
+                }}
+              >
+                <ListItemIcon><AccountBalanceIcon fontSize="small" /></ListItemIcon>
+                Extrato bancário
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setImportMenuAnchor(null);
+                  setIsImportBillDrawerOpen(true);
+                }}
+              >
+                <ListItemIcon><CreditCardIcon fontSize="small" /></ListItemIcon>
+                Fatura do cartão
+              </MenuItem>
+            </Menu>
             <ScanNfceButton
               selectedAccountId={selectedAccountId}
               onImportCompleted={handleImportCompleted}
@@ -296,6 +352,7 @@ export default function FinanceTransactionsPage() {
         open={isDrawerOpen} 
         onClose={handleCloseDrawer}
         initialType={initialType}
+        onCreated={handleAccountCreated}
       />
       <ImportTransactionsDrawer
         open={isImportDrawerOpen}
@@ -304,6 +361,7 @@ export default function FinanceTransactionsPage() {
           setReviewJobId(null);
         }}
         selectedAccountId={selectedAccountId}
+        selectedAccountType={selectedAccount?.type ?? null}
         onImportCompleted={handleImportCompleted}
         onRequestCreateAccount={() => {
           setIsImportDrawerOpen(false);
@@ -311,6 +369,11 @@ export default function FinanceTransactionsPage() {
           handleOpenDrawer('BANK');
         }}
         reviewJobId={reviewJobId ?? undefined}
+      />
+      <ImportBillDrawer
+        open={isImportBillDrawerOpen}
+        onClose={() => setIsImportBillDrawerOpen(false)}
+        onImportCompleted={handleImportCompleted}
       />
     </SidebarLayout>
   );

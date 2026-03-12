@@ -9,6 +9,7 @@ object PdfImportJobMapper {
     fun toDomain(entity: PdfImportJobEntity): PdfImportJob =
         PdfImportJob(
             id = entity.id,
+            importType = entity.importType,
             financialAccountId = entity.financialAccountId,
             accountId = entity.accountId,
             createdByUserId = entity.createdByUserId,
@@ -20,6 +21,7 @@ object PdfImportJobMapper {
             extractionMetadata = deserializeJsonb(entity.extractionMetadata),
             reviewPayload = deserializeJsonb(entity.reviewPayload),
             errorMessage = entity.errorMessage,
+            errorDetails = deserializeJsonb(entity.errorDetails),
             completedAt = entity.completedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -31,6 +33,7 @@ object PdfImportJobMapper {
             financialAccountId = job.financialAccountId,
             accountId = job.accountId,
             createdByUserId = job.createdByUserId,
+            importType = job.importType,
             status = job.status,
             assetId = job.assetId,
             fileName = job.fileName,
@@ -39,6 +42,7 @@ object PdfImportJobMapper {
             extractionMetadata = job.extractionMetadata,
             reviewPayload = job.reviewPayload,
             errorMessage = job.errorMessage,
+            errorDetails = job.errorDetails,
             completedAt = job.completedAt,
             createdAt = job.createdAt,
             updatedAt = job.updatedAt,
@@ -49,6 +53,7 @@ object PdfImportJobMapper {
         job: PdfImportJob,
     ) {
         entity.financialAccountId = job.financialAccountId
+        entity.importType = job.importType
         entity.status = job.status
         entity.assetId = job.assetId
         entity.fileName = job.fileName
@@ -57,6 +62,7 @@ object PdfImportJobMapper {
         entity.extractionMetadata = job.extractionMetadata
         entity.reviewPayload = job.reviewPayload
         entity.errorMessage = job.errorMessage
+        entity.errorDetails = job.errorDetails
         entity.completedAt = job.completedAt
         entity.updatedAt = job.updatedAt
     }

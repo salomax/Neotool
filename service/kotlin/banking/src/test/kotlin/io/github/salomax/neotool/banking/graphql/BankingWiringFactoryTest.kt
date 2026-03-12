@@ -8,6 +8,7 @@ import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolv
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
@@ -29,6 +30,7 @@ class BankingWiringFactoryTest {
     private lateinit var issuerResolver: IssuerResolver
     private lateinit var financialAccountResolver: FinancialAccountResolver
     private lateinit var transactionResolver: TransactionResolver
+    private lateinit var transactionCategoryResolver: TransactionCategoryResolver
     private lateinit var importResolver: ImportResolver
     private lateinit var pdfImportResolver: PdfImportResolver
     private lateinit var authorizationChecker: AuthorizationChecker
@@ -42,6 +44,7 @@ class BankingWiringFactoryTest {
         issuerResolver = mock()
         financialAccountResolver = mock()
         transactionResolver = mock()
+        transactionCategoryResolver = mock()
         importResolver = mock()
         pdfImportResolver = mock()
         authorizationChecker = mock()
@@ -63,6 +66,7 @@ class BankingWiringFactoryTest {
                 issuerResolver,
                 financialAccountResolver,
                 transactionResolver,
+                transactionCategoryResolver,
                 importResolver,
                 pdfImportResolver,
                 requestPrincipalProvider,

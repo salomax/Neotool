@@ -1,11 +1,15 @@
 package io.github.salomax.neotool.banking.domain.account
 
+import io.github.salomax.neotool.banking.domain.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.Instant
@@ -25,7 +29,8 @@ open class FinancialAccountService(
 ) {
     fun listByAccount(accountId: UUID): List<FinancialAccount> = financialAccountRepository.findByAccountId(accountId)
 
-    fun create(
+    @Transactional
+    open fun create(
         command: CreateFinancialAccountCommand,
         accountId: UUID,
         userId: UUID,
@@ -43,6 +48,28 @@ open class FinancialAccountService(
         ) {
             requireNotNull(command.cardData?.closingDay) { "cardData.closingDay is required for ${command.subtype}" }
             requireNotNull(command.cardData?.dueDay) { "cardData.dueDay is required for ${command.subtype}" }
+        }
+        val initialBalance = command.initialBalance
+        val initialBalanceDate = command.initialBalanceDate
+        if (initialBalance != null) {
+            require(initialBalance.compareTo(BigDecimal.ZERO) != 0) {
+                "initialBalance must be non-zero when provided"
+            }
+            require(initialBalanceDate != null) {
+                "initialBalanceDate is required when initialBalance is provided"
+            }
+            val minAllowedDate = DateWindowPolicy.minAllowedDate()
+            if (initialBalanceDate.isBefore(minAllowedDate)) {
+                throw ValidationException(
+                    errorCode = BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW,
+                    field = "initialBalanceDate",
+                    parameters =
+                        mapOf(
+                            "minAllowedDate" to minAllowedDate.toString(),
+                            "windowYears" to DateWindowPolicy.MAX_PAST_YEARS,
+                        ),
+                )
+            }
         }
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
@@ -81,22 +108,19 @@ open class FinancialAccountService(
 
         val saved = financialAccountRepository.save(account)
 
-        if (command.initialBalance != null && command.initialBalance.compareTo(BigDecimal.ZERO) != 0) {
-            require(command.initialBalanceDate != null) {
-                "initialBalanceDate is required when initialBalance is provided"
-            }
+        if (initialBalance != null) {
             transactionService.create(
                 CreateTransactionCommand(
                     financialAccountId = saved.id!!,
                     creditDebitType =
-                        if (command.initialBalance > BigDecimal.ZERO) {
+                        if (initialBalance > BigDecimal.ZERO) {
                             CreditDebitType.CREDIT
                         } else {
                             CreditDebitType.DEBIT
                         },
                     type = TransactionType.BALANCE_ADJUSTMENT,
-                    amount = command.initialBalance.abs(),
-                    date = command.initialBalanceDate,
+                    amount = initialBalance.abs(),
+                    date = initialBalanceDate!!,
                     description = "Saldo inicial",
                     status = TransactionStatus.POSTED,
                     currencyCode = saved.currencyCode,

@@ -28,11 +28,12 @@ import { ImportDuplicateReview } from './ImportDuplicateReview';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import Link from '@/shared/components/ui/navigation/Link';
+import { extractErrorCode, extractErrorParameters, extractErrorMessage } from '@/shared/utils/error';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
-const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls'];
+const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
 const ACCEPTED_TYPES =
-  'application/x-ofx,.ofx,text/csv,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls';
+  'application/x-ofx,.ofx,text/csv,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls,application/pdf,.pdf';
 
 type Step = 'account' | 'upload' | 'processing' | 'result' | 'review' | 'error';
 
@@ -40,8 +41,17 @@ function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
-      const result = reader.result as string;
-      const base64 = result.includes(',') ? result.split(',')[1]! : result;
+      const { result } = reader;
+      if (typeof result !== 'string') {
+        reject(new Error('Failed to read file content as data URL'));
+        return;
+      }
+      const commaIndex = result.indexOf(',');
+      const base64 = commaIndex >= 0 ? result.slice(commaIndex + 1) : result;
+      if (!base64) {
+        reject(new Error('Failed to extract base64 payload from file'));
+        return;
+      }
       resolve(base64);
     };
     reader.onerror = () => reject(reader.error);
@@ -58,6 +68,7 @@ export interface ImportTransactionsDrawerProps {
   open: boolean;
   onClose: () => void;
   selectedAccountId: string | null;
+  selectedAccountType?: FinancialAccount['type'] | null;
   onImportCompleted?: () => void;
   onRequestCreateAccount?: () => void;
   /** When set, drawer opens directly on the duplicate review step for this job (e.g. from page load). */
@@ -68,6 +79,7 @@ export function ImportTransactionsDrawer({
   open,
   onClose,
   selectedAccountId,
+  selectedAccountType,
   onImportCompleted,
   onRequestCreateAccount,
   reviewJobId,
@@ -80,7 +92,10 @@ export function ImportTransactionsDrawer({
   const [fileError, setFileError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
   const [lastEvent, setLastEvent] = useState<ImportJobStatusPayload | null>(null);
-  const [errorDetails, setErrorDetails] = useState<unknown>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
+
+  const canUseSelectedBankAccount = !!selectedAccountId && selectedAccountType === 'BANK';
 
   React.useEffect(() => {
     if (!open) return;
@@ -89,22 +104,23 @@ export function ImportTransactionsDrawer({
       setStep('review');
       return;
     }
-    setTargetAccountId(selectedAccountId ?? null);
-    setStep(selectedAccountId ? 'upload' : 'account');
+    setTargetAccountId(canUseSelectedBankAccount ? selectedAccountId : null);
+    setStep(canUseSelectedBankAccount ? 'upload' : 'account');
     setFile(null);
     setFileError(null);
     setJobId(null);
     setLastEvent(null);
+    setErrorMessage(null);
     setErrorDetails(null);
-  }, [open, reviewJobId, selectedAccountId]);
+  }, [open, reviewJobId, selectedAccountId, canUseSelectedBankAccount]);
 
-  const [importFile, { loading: mutating, error: mutateError }] = useMutation<{
+  const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
   }>(IMPORT_TRANSACTIONS_FILE);
   const { data: accountsData, loading: accountsLoading } = useQuery<{ financialAccounts: FinancialAccount[] }>(
     FINANCIAL_ACCOUNTS,
     {
-      skip: !open || !!selectedAccountId,
+      skip: !open || canUseSelectedBankAccount,
       errorPolicy: 'all',
     },
   );
@@ -112,13 +128,14 @@ export function ImportTransactionsDrawer({
   const handleClose = useCallback(() => {
     onClose();
     setStep('account');
-    setTargetAccountId(selectedAccountId ?? null);
+    setTargetAccountId(canUseSelectedBankAccount ? selectedAccountId : null);
     setFile(null);
     setFileError(null);
     setJobId(null);
     setLastEvent(null);
+    setErrorMessage(null);
     setErrorDetails(null);
-  }, [onClose, selectedAccountId]);
+  }, [onClose, selectedAccountId, canUseSelectedBankAccount]);
 
   useImportJobStatus(jobId, {
     onEvent: setLastEvent,
@@ -130,7 +147,8 @@ export function ImportTransactionsDrawer({
       setStep('review');
     },
     onFailed: (details) => {
-      setErrorDetails(details);
+      setErrorMessage(t('financeTransactions.import.errorStep.message'));
+      setErrorDetails(typeof details === 'string' ? details : null);
       setStep('error');
     },
   });
@@ -153,7 +171,7 @@ export function ImportTransactionsDrawer({
       return t('financeTransactions.import.uploadStep.unsupportedType');
     }
     if (f.size > MAX_FILE_BYTES) {
-      return t('financeTransactions.import.uploadStep.fileTooLarge');
+      return t('financeTransactions.import.uploadStep.fileTooLarge', { maxMb: MAX_FILE_BYTES / (1024 * 1024) });
     }
     return null;
   };
@@ -194,15 +212,29 @@ export function ImportTransactionsDrawer({
         setJobId(id);
         setStep('processing');
       } else {
+        setErrorMessage(t('financeTransactions.import.errorStep.message'));
+        setErrorDetails(null);
         setStep('error');
       }
-    } catch {
+    } catch (err) {
+      const errorCode = extractErrorCode(err);
+      const parameters = extractErrorParameters(err);
+
+      if (errorCode) {
+        const translationKey = `errors.${errorCode}`;
+        const translated = t(translationKey, parameters);
+        setErrorMessage(translated !== translationKey ? translated : t('financeTransactions.import.errorStep.message'));
+      } else {
+        setErrorMessage(extractErrorMessage(err, t('financeTransactions.import.errorStep.message')));
+      }
+      setErrorDetails(null);
       setStep('error');
     }
   };
 
   const handleRetry = () => {
     setStep(targetAccountId ? 'upload' : 'account');
+    setErrorMessage(null);
     setErrorDetails(null);
     setJobId(null);
     setLastEvent(null);
@@ -215,6 +247,7 @@ export function ImportTransactionsDrawer({
 
   const renderAccountStep = () => {
     const accounts = accountsData?.financialAccounts ?? [];
+    const filteredAccounts = accounts.filter((account) => account.type === 'BANK');
     return (
       <Box sx={{ p: 1 }}>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
@@ -224,14 +257,14 @@ export function ImportTransactionsDrawer({
           <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
             <CircularProgress size={24} />
           </Box>
-        ) : accounts.length === 0 ? (
+        ) : filteredAccounts.length === 0 ? (
           <Alert severity="info" sx={{ mb: 2 }}>
             {t('financeTransactions.import.accountStep.noAccounts')}
           </Alert>
         ) : (
           <Paper variant="outlined">
             <List disablePadding>
-              {accounts.map((account) => (
+              {filteredAccounts.map((account) => (
                 <ListItemButton key={account.id} onClick={() => handleAccountSelect(account.id)}>
                   <Avatar
                     src={account.issuer?.logoAsset?.publicUrl ?? undefined}
@@ -299,6 +332,7 @@ export function ImportTransactionsDrawer({
           onChange={handleFileChange}
           style={{ display: 'none' }}
           id="import-file-input"
+          data-testid="import-transactions-file-input"
         />
         <Box
           onDrop={handleDrop}
@@ -371,6 +405,7 @@ export function ImportTransactionsDrawer({
             onClick={handleSubmit}
             disabled={!file || mutating}
             startIcon={mutating ? <CircularProgress size={20} color="inherit" /> : null}
+            data-testid="import-transactions-submit-button"
           >
             {mutating ? t('financeTransactions.actions.saving') : t('financeTransactions.import.button')}
           </Button>
@@ -424,8 +459,8 @@ export function ImportTransactionsDrawer({
     <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>{t('financeTransactions.import.errorStep.title')}</Typography>
       <Alert severity="error" sx={{ mb: 2 }}>
-        {t('financeTransactions.import.errorStep.message')}
-        {errorDetails != null && typeof errorDetails === 'string' && (
+        {errorMessage ?? t('financeTransactions.import.errorStep.message')}
+        {errorDetails && (
           <Typography variant="caption" component="div" sx={{ mt: 1 }}>{errorDetails}</Typography>
         )}
       </Alert>

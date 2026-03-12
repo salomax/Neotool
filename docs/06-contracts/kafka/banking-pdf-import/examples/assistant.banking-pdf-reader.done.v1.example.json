@@ -1,0 +1,62 @@
+{
+  "schema_version": "1.0",
+  "job_id": "a5d9a4d1-9c3d-4b22-9fd6-a6dc47f0ec95",
+  "document_type": "CREDIT_CARD_BILL",
+  "llm_output": {
+    "bank_name": "Nubank",
+    "statement_period": {
+      "from": "2026-01-08",
+      "to": "2026-02-07"
+    },
+    "cards": [
+      {
+        "last_four_digits": "1234",
+        "holder_name": "JOAO DA SILVA",
+        "closing_date": "2026-02-07",
+        "due_date": "2026-02-15",
+        "declared_total": 1523.45,
+        "computed_total": 1523.45,
+        "total_matches_declared": true,
+        "transactions": [
+          {
+            "date": "2026-01-15",
+            "description": "MERCADO EXTRA",
+            "amount": 45.9,
+            "credit_debit_type": "DEBIT",
+            "installment": {
+              "current": 1,
+              "total": 3
+            },
+            "confidence": 0.98
+          },
+          {
+            "date": "2026-01-22",
+            "description": "ESTORNO IFOOD",
+            "amount": 32.0,
+            "credit_debit_type": "CREDIT",
+            "installment": null,
+            "confidence": 0.95
+          }
+        ],
+        "confidence": 0.97
+      }
+    ],
+    "extraction_confidence": 0.96,
+    "needs_review": false,
+    "warnings": []
+  },
+  "parse_metadata": {
+    "processor_type": "LLM",
+    "reader_id": "assistant-banking-pdf-reader-v1",
+    "confidence": 0.96,
+    "model_provider": "openai",
+    "model_name": "gpt-4.1",
+    "latency_ms": 1880,
+    "warnings": []
+  },
+  "callback_context": {
+    "job_id": "a5d9a4d1-9c3d-4b22-9fd6-a6dc47f0ec95",
+    "account_id": "f3df4cca-a6c9-40a2-bdd2-8d77896ca6de",
+    "user_id": "e64d5008-d8eb-42dd-84e4-8eaec99f4dd2"
+  }
+}

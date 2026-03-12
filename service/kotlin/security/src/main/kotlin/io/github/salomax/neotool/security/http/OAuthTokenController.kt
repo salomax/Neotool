@@ -88,6 +88,7 @@ class OAuthTokenController(
                     serviceId = principalId,
                     targetAudience = audience,
                     permissions = permissions,
+                    delegatedBy = request.delegated_by,
                 )
 
             val response =

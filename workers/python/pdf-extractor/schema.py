@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 class ExtractionMetadata(BaseModel):
     page_count: int
     tables_found: int
-    bank_name_hint: str | None
+    bank_name_hint: Optional[str]
     extraction_duration_ms: int
 
 
@@ -21,15 +21,15 @@ class SubmittedPayload(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     job_id: str
-    asset_id: str | None = None
+    asset_id: Optional[str] = None
     download_url: str
     document_type: str
     callback_context: dict[str, Any] = Field(default_factory=dict)
 
 
 class DlqPayload(BaseModel):
-    job_id: str | None = None
-    asset_id: str | None = None
-    document_type: str | None = None
+    job_id: Optional[str] = None
+    asset_id: Optional[str] = None
+    document_type: Optional[str] = None
     error: str
     callback_context: dict[str, Any] = Field(default_factory=dict)

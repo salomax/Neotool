@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountReposito
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
@@ -29,6 +30,7 @@ import java.util.UUID
 class TransactionServiceTest {
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
+    private lateinit var categorizationService: CategorizationService
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
@@ -58,6 +60,7 @@ class TransactionServiceTest {
     fun setUp() {
         transactionRepository = mock()
         categoryRepository = mock()
+        categorizationService = mock()
         financialAccountRepository = mock()
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
@@ -66,6 +69,7 @@ class TransactionServiceTest {
             TransactionService(
                 transactionRepository,
                 categoryRepository,
+                categorizationService,
                 financialAccountRepository,
                 accountMembershipValidationPort,
                 snapshotComputationService,
@@ -193,6 +197,29 @@ class TransactionServiceTest {
                 )
 
             assertThrows<IllegalArgumentException> { service.create(command, accountId, userId) }
+        }
+
+        @Test
+        fun `fails when create date is older than 5-year moving window`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+            val command =
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = tooOldDate,
+                    description = "Old tx",
+                )
+
+            assertThrows<ValidationException> {
+                service.create(command, accountId, userId)
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW)
+                assertThat(ex.field).isEqualTo("date")
+            }
+            verify(transactionRepository, never()).save(any())
         }
 
         @Test
@@ -557,6 +584,35 @@ class TransactionServiceTest {
         }
 
         @Test
+        fun `fails when update date is older than 5-year moving window`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "X",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+
+            assertThrows<ValidationException> {
+                service.update(txId, UpdateTransactionCommand(date = tooOldDate), accountId)
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW)
+                assertThat(ex.field).isEqualTo("date")
+            }
+            verify(transactionRepository, never()).update(any())
+        }
+
+        @Test
         fun `updates attribution when belongsTo fields are provided`() {
             val txId = UUID.randomUUID()
             val existing =
@@ -836,6 +892,38 @@ class TransactionServiceTest {
         }
 
         @Test
+        fun `create BALANCE_ADJUSTMENT also triggers recomputeChain for the transaction month`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val txDate = LocalDate.of(2025, 1, 20)
+            val command =
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = BigDecimal("500.00"),
+                    date = txDate,
+                    description = "Saldo inicial",
+                )
+            val saved =
+                buildTransaction(
+                    date = txDate,
+                ).copy(
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                )
+            whenever(transactionRepository.save(any())).thenReturn(saved)
+
+            service.create(command, accountId, userId)
+
+            verify(snapshotComputationService).recomputeChain(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                fromYear = 2025,
+                fromMonth = 1,
+            )
+        }
+
+        @Test
         fun `update triggers recomputeChain from the earliest of old and new date`() {
             val txId = UUID.randomUUID()
             val oldDate = LocalDate.of(2024, 3, 10)
@@ -948,10 +1036,12 @@ class TransactionServiceTest {
                 service.listTransactions(
                     accountId = accountId,
                     financialAccountId = null,
-                    billId = null,
                     belongsToUserId = null,
                     belongsToName = "Partner",
                     tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,
@@ -1001,10 +1091,12 @@ class TransactionServiceTest {
                 service.listTransactions(
                     accountId = accountId,
                     financialAccountId = null,
-                    billId = null,
                     belongsToUserId = null,
                     belongsToName = null,
                     tags = listOf("Weekend", "Transport"),
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,

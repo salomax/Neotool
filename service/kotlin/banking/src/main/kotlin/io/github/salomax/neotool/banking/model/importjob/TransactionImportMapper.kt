@@ -27,6 +27,7 @@ object TransactionImportMapper {
             errorCount = entity.errorCount,
             errorDetails = deserializeJsonb(entity.errorDetails),
             reviewPayload = deserializeJsonb(entity.reviewPayload),
+            assistantRequestPublishedAt = entity.assistantRequestPublishedAt,
             dateFrom = entity.dateFrom,
             dateTo = entity.dateTo,
             completedAt = entity.completedAt,
@@ -51,6 +52,7 @@ object TransactionImportMapper {
             errorCount = job.errorCount,
             errorDetails = job.errorDetails,
             reviewPayload = job.reviewPayload,
+            assistantRequestPublishedAt = job.assistantRequestPublishedAt,
             dateFrom = job.dateFrom,
             dateTo = job.dateTo,
             completedAt = job.completedAt,
@@ -71,6 +73,7 @@ object TransactionImportMapper {
         entity.errorCount = job.errorCount
         entity.errorDetails = job.errorDetails
         entity.reviewPayload = job.reviewPayload
+        entity.assistantRequestPublishedAt = job.assistantRequestPublishedAt
         entity.dateFrom = job.dateFrom
         entity.dateTo = job.dateTo
         entity.completedAt = job.completedAt

@@ -261,4 +261,20 @@ class TransactionImportRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(found.errorDetails).contains("Parse error")
         }
     }
+
+    @Nested
+    @DisplayName("markAssistantRequestPublished")
+    inner class MarkAssistantRequestPublishedTests {
+        @Test
+        fun `marks assistant request once and returns false on second call`() {
+            val saved = importJobRepository.save(baseJob(status = ImportJobStatus.PROCESSING))
+            val jobId = requireNotNull(saved.id)
+
+            val first = importJobRepository.markAssistantRequestPublished(jobId)
+            val second = importJobRepository.markAssistantRequestPublished(jobId)
+
+            assertThat(first).isTrue()
+            assertThat(second).isFalse()
+        }
+    }
 }

@@ -34,6 +34,10 @@ class KafkaTopicInitializer(
     private val pdfExtractorDlq: String,
     @Property(name = "kafka.topics.pdf.banking-reader-done")
     private val pdfBankingReaderDone: String,
+    @Property(name = "kafka.topics.pdf.banking-reader-failed")
+    private val pdfBankingReaderFailed: String,
+    @Property(name = "kafka.topics.pdf.banking-reader-requested")
+    private val pdfBankingReaderRequested: String,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -105,6 +109,26 @@ class KafkaTopicInitializer(
                             ),
                         ),
                     NewTopic(pdfBankingReaderDone, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(),
+                                // 200 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
+                        ),
+                    NewTopic(pdfBankingReaderFailed, 6, 1)
+                        .configs(
+                            mapOf(
+                                // 30 days
+                                TopicConfig.RETENTION_MS_CONFIG to (30L * 24 * 60 * 60 * 1000).toString(),
+                                // 200 MB
+                                TopicConfig.RETENTION_BYTES_CONFIG to (200L * 1024 * 1024).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
+                        ),
+                    NewTopic(pdfBankingReaderRequested, 6, 1)
                         .configs(
                             mapOf(
                                 // 30 days

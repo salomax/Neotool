@@ -1,0 +1,35 @@
+meta {
+  name: List PDF Import Jobs
+  type: graphql
+  seq: 18
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query PdfImportJobs($financialAccountId: ID) {
+    pdfImportJobs(financialAccountId: $financialAccountId) {
+      id
+      status
+      fileName
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": "{{financial_account_id}}"
+  }
+}

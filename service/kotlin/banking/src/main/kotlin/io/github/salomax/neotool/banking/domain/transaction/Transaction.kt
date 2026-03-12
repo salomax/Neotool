@@ -47,6 +47,8 @@ data class Transaction(
     val tags: List<String> = emptyList(),
     // Category
     val categoryId: UUID? = null,
+    /** How the category was assigned: MANUAL, RULE, IMPORTED, AI. Null when uncategorized. */
+    val categorySource: CategorySource? = null,
     // Counterparty (bank account transactions / PIX / TED)
     val counterpartyName: String? = null,
     val counterpartyDocument: String? = null,

@@ -22,6 +22,22 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
         fileHash: String,
     ): TransactionImportEntity?
 
+    @Query(
+        """
+        SELECT *
+          FROM banking.transaction_imports
+         WHERE account_id = :accountId
+           AND file_hash = :fileHash
+         ORDER BY created_at DESC
+         LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findLatestByAccountIdAndFileHash(
+        accountId: UUID,
+        fileHash: String,
+    ): TransactionImportEntity?
+
     fun findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
         financialAccountId: UUID,
         accountId: UUID,
@@ -41,4 +57,15 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
         id: UUID,
         status: String,
     ): Int
+
+    @Query(
+        """
+        UPDATE banking.transaction_imports
+           SET assistant_request_published_at = NOW(), updated_at = NOW()
+         WHERE id = :id
+           AND assistant_request_published_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun markAssistantRequestPublished(id: UUID): Int
 }

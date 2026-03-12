@@ -86,7 +86,7 @@ export function SidebarRail() {
         alignItems: 'center',
         py: 2,
         gap: 1,
-        zIndex: (t) => t.zIndex.drawer + 1,
+        zIndex: (t) => t.zIndex.drawer - 1,
         borderRight: '1px solid',
         borderColor: 'divider',
       }}

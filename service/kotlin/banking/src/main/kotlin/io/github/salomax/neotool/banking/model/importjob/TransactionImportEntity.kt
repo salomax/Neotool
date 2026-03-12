@@ -60,6 +60,8 @@ open class TransactionImportEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "review_payload", columnDefinition = "jsonb")
     open var reviewPayload: String? = null,
+    @Column(name = "assistant_request_published_at")
+    open var assistantRequestPublishedAt: Instant? = null,
     @Column(name = "date_from")
     open var dateFrom: LocalDate? = null,
     @Column(name = "date_to")

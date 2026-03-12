@@ -34,6 +34,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import org.postgresql.util.PSQLException
+import org.postgresql.util.PSQLState
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -194,6 +196,7 @@ class ImportJobServiceTest {
                     status = ImportJobStatus.FAILED,
                     errorCount = 1,
                     errorDetails = """{"message":"old error"}""",
+                    assistantRequestPublishedAt = now,
                     completedAt = now,
                     createdAt = now,
                     updatedAt = now,
@@ -216,6 +219,7 @@ class ImportJobServiceTest {
             assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
             assertThat(result.errorCount).isNull()
             assertThat(result.errorDetails).isNull()
+            assertThat(result.assistantRequestPublishedAt).isNull()
             verify(importJobRepository, never()).save(any())
             verify(importFileProducer).publish(
                 eq(
@@ -223,6 +227,57 @@ class ImportJobServiceTest {
                         jobId = jobId,
                         assetId = assetId,
                         source = ImportSource.OFX,
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                    ),
+                ),
+            )
+        }
+
+        @Test
+        fun `retries existing PROCESSING job with same hash by reusing job id`() {
+            val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
+            val fileName = "export.ofx"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
+            val processingJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.AUTO,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PROCESSING,
+                    assistantRequestPublishedAt = now,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(processingJob)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
+
+            val result =
+                service.initiateFileImport(
+                    financialAccountId,
+                    accountId,
+                    userId,
+                    fileBytes,
+                    fileName,
+                    ImportSource.AUTO,
+                )
+
+            assertThat(result.id).isEqualTo(jobId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.PENDING)
+            assertThat(result.assistantRequestPublishedAt).isNull()
+            verify(importJobRepository, never()).save(any())
+            verify(importFileProducer).publish(
+                eq(
+                    ImportFileRequestedEvent(
+                        jobId = jobId,
+                        assetId = assetId,
+                        source = ImportSource.AUTO,
                         financialAccountId = financialAccountId,
                         accountId = accountId,
                     ),
@@ -331,6 +386,93 @@ class ImportJobServiceTest {
                     ),
                 ),
             )
+        }
+
+        @Test
+        fun `stores PDF import with application pdf mime type`() {
+            val fileBytes = "%PDF-1.7".toByteArray()
+            val fileName = "extrato.pdf"
+            val jobId = UUID.randomUUID()
+            val assetId = UUID.randomUUID()
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(null)
+            val savedJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.AUTO,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.save(any())).thenReturn(savedJob)
+            whenever(fileStorage.store(eq(accountId), any(), eq(fileName), any())).thenReturn(assetId)
+
+            val result =
+                service.initiateFileImport(
+                    financialAccountId,
+                    accountId,
+                    userId,
+                    fileBytes,
+                    fileName,
+                    null,
+                )
+
+            assertThat(result.id).isEqualTo(jobId)
+            verify(fileStorage).store(eq(accountId), eq(fileBytes), eq(fileName), eq("application/pdf"))
+            verify(importFileProducer).publish(any())
+        }
+
+        @Test
+        fun `duplicate conflict when existing job belongs to another account`() {
+            val fileBytes = "OFXHEADER:100\n<OFX>".toByteArray()
+            val fileName = "export.ofx"
+            val otherFinancialAccountId = UUID.randomUUID()
+            val existingJob =
+                ImportJob(
+                    id = UUID.randomUUID(),
+                    financialAccountId = otherFinancialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.OFX,
+                    fileName = fileName,
+                    fileHash = "any-hash",
+                    status = ImportJobStatus.PROCESSING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(null)
+            whenever(importJobRepository.findLatestByAccountAndFileHash(eq(accountId), any())).thenReturn(existingJob)
+            whenever(importJobRepository.save(any())).thenThrow(
+                RuntimeException(
+                    "duplicate",
+                    PSQLException(
+                        "duplicate key value violates unique constraint \"uq_transaction_imports_account_file_hash\"",
+                        PSQLState.UNIQUE_VIOLATION,
+                    ),
+                ),
+            )
+
+            val ex =
+                assertThrows<ConflictException> {
+                    service.initiateFileImport(
+                        financialAccountId,
+                        accountId,
+                        userId,
+                        fileBytes,
+                        fileName,
+                        ImportSource.OFX,
+                    )
+                }
+
+            assertThat(ex.errorCode.code).isEqualTo(BankingErrorCode.IMPORT_FILE_ALREADY_EXISTS.code)
+            assertThat(ex.parameters["existingJobId"]).isEqualTo(existingJob.id.toString())
+            assertThat(ex.parameters["existingFinancialAccountId"]).isEqualTo(otherFinancialAccountId.toString())
+            verify(fileStorage, never()).store(any(), any(), any(), any())
+            verify(importFileProducer, never()).publish(any())
         }
 
         @Test
@@ -688,6 +830,55 @@ class ImportJobServiceTest {
             assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
             assertThat(result.importedCount).isEqualTo(1)
             assertThat(result.duplicateReviewCount).isEqualTo(0)
+        }
+
+        @Test
+        fun `resolves duplicate from canonical review payload envelope`() {
+            val jobId = UUID.randomUUID()
+            val candidate =
+                ImportDuplicateCandidate(
+                    rowIndex = 0,
+                    parsed =
+                        ParsedTransaction(
+                            creditDebitType = CreditDebitType.DEBIT,
+                            amount = BigDecimal("10"),
+                            date = today,
+                            description = "A",
+                            currencyCode = "BRL",
+                        ),
+                    candidates = emptyList(),
+                )
+            val reviewPayload =
+                ImportReviewPayloadMapper.toJson(
+                    objectMapper = objectMapper,
+                    duplicateCandidates = listOf(candidate),
+                    gate = mapOf("gate_reason" to "llm_low_confidence"),
+                )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.OFX,
+                    fileHash = "h",
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    totalRows = 1,
+                    importedCount = 0,
+                    duplicateReviewCount = 1,
+                    errorCount = 0,
+                    reviewPayload = reviewPayload,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.findById(jobId, accountId)).thenReturn(job)
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result = service.resolveImportDuplicate(jobId, 0, DuplicateResolution.KEEP_EXISTING, accountId)
+
+            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            assertThat(result.duplicateReviewCount).isEqualTo(0)
+            assertThat(result.reviewPayload).isNull()
         }
 
         @Test

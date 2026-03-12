@@ -5,13 +5,26 @@ import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportProcessor
+import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ImportValidationCounters
+import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
+import io.github.salomax.neotool.banking.domain.import.excel.ExcelExtractionService
+import io.github.salomax.neotool.banking.domain.import.excel.reader.ExcelDeterministicRoutingService
+import io.github.salomax.neotool.banking.domain.import.ofx.OfxDestinationCompatibilityService
+import io.github.salomax.neotool.banking.domain.import.parser.OfxStatementIntent
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.infra.kafka.parser.CsvImportParserStrategy
+import io.github.salomax.neotool.banking.infra.kafka.parser.ExcelImportParserStrategy
+import io.github.salomax.neotool.banking.infra.kafka.parser.ImportAssistantRequest
 import io.github.salomax.neotool.banking.infra.kafka.parser.ImportParserRouter
 import io.github.salomax.neotool.banking.infra.kafka.parser.OfxImportParserStrategy
+import io.github.salomax.neotool.common.error.BusinessRuleException
+import io.github.salomax.neotool.common.error.DomainException
 import io.micronaut.configuration.kafka.annotation.KafkaKey
 import io.micronaut.configuration.kafka.annotation.KafkaListener
 import io.micronaut.configuration.kafka.annotation.KafkaPartition
@@ -26,6 +39,9 @@ import org.apache.kafka.common.TopicPartition
 import org.slf4j.LoggerFactory
 import java.time.Instant
 import java.util.UUID
+
+private const val PDF_BANK_STATEMENT_DOCUMENT_TYPE = "BANK_STATEMENT"
+private const val DEFAULT_IMPORT_DOWNLOAD_TTL_SECONDS = 3600
 
 @Singleton
 @Requires(property = "kafka.enabled", value = "true")
@@ -47,15 +63,28 @@ class ImportFileConsumer(
     private val csvImportMetrics: CsvImportMetrics,
     private val objectMapper: ObjectMapper,
     private val snapshotComputationService: SnapshotComputationService,
+    private val importValidationGate: ImportValidationGate,
+    private val ofxDestinationCompatibilityService: OfxDestinationCompatibilityService,
+    private val assistantBankingReaderRequestedProducer: AssistantBankingReaderRequestedProducer? = null,
+    private val pdfExtractorSubmittedProducer: PdfExtractorSubmittedProducer? = null,
     @Property(name = "kafka.topics.import-file-requested")
     private val topicName: String,
 ) {
+    private class RetryableAssistantPublishException(
+        message: String,
+        cause: Throwable,
+    ) : RuntimeException(message, cause)
+
     private val log = LoggerFactory.getLogger(javaClass)
     private val parserRouter =
         ImportParserRouter(
             strategies =
                 listOf(
                     OfxImportParserStrategy(),
+                    ExcelImportParserStrategy(
+                        excelExtractionService = ExcelExtractionService(),
+                        excelDeterministicRoutingService = ExcelDeterministicRoutingService(),
+                    ),
                     CsvImportParserStrategy(csvImportMetrics),
                 ),
         )
@@ -86,6 +115,11 @@ class ImportFileConsumer(
                 commitOffset(consumer, partition, offset)
                 return
             }
+            if (job.assistantRequestPublishedAt != null && job.status == ImportJobStatus.PROCESSING) {
+                log.info("Import job already dispatched to assistant (idempotent skip): jobId={}", jobId)
+                commitOffset(consumer, partition, offset)
+                return
+            }
 
             // 2. Update → PROCESSING; emit PROCESSING
             val now = Instant.now()
@@ -97,8 +131,17 @@ class ImportFileConsumer(
             importJobRepository.update(currentJob)
             emitStatus(currentJob)
 
+            if (event.source == ImportSource.AUTO && isPdfFile(currentJob.fileName)) {
+                publishPdfExtractorRequest(
+                    event = event,
+                    job = currentJob,
+                )
+                commitOffset(consumer, partition, offset)
+                return
+            }
+
             // 3. Read file bytes
-            val bytes = fileStorage.read(assetId)
+            val bytes = fileStorage.read(accountId, assetId)
 
             // 4. Discover best parser strategy and parse
             val parseOutcome =
@@ -115,6 +158,32 @@ class ImportFileConsumer(
                         updatedAt = now,
                     )
                 importJobRepository.update(currentJob)
+            }
+
+            if (parseOutcome.resolvedSource == ImportSource.OFX) {
+                val statementIntent =
+                    parseOutcome.canonicalOutput
+                        ?.rawMetadata
+                        ?.get("ofx_message_set_intent")
+                        ?.toString()
+                        ?.let(::toOfxStatementIntent)
+                        ?: OfxStatementIntent.UNKNOWN
+                ofxDestinationCompatibilityService.validateOrThrow(
+                    financialAccountId = currentJob.financialAccountId,
+                    accountId = accountId,
+                    statementIntent = statementIntent,
+                )
+            }
+
+            parseOutcome.assistantRequest?.let { assistantRequest ->
+                publishAssistantRequest(
+                    event = event,
+                    job = currentJob,
+                    assistantRequest = assistantRequest,
+                )
+                deleteAssetBestEffort(accountId, assetId)
+                commitOffset(consumer, partition, offset)
+                return
             }
 
             if (rows.isEmpty()) {
@@ -144,7 +213,7 @@ class ImportFileConsumer(
                         errorCount = 0,
                     ),
                 )
-                deleteAssetBestEffort(assetId)
+                deleteAssetBestEffort(accountId, assetId)
                 commitOffset(consumer, partition, offset)
                 return
             }
@@ -175,18 +244,20 @@ class ImportFileConsumer(
             val errorCount = result.errors.size
 
             val reviewPayloadJson: String? =
-                if (result.duplicateCandidates.isEmpty()) {
-                    null
-                } else {
-                    objectMapper.writeValueAsString(result.duplicateCandidates)
-                }
+                ImportReviewPayloadMapper.toJson(
+                    objectMapper = objectMapper,
+                    duplicateCandidates = result.duplicateCandidates,
+                )
 
             val finalStatus =
-                when {
-                    duplicateReviewCount > 0 -> ImportJobStatus.REVIEW_REQUIRED
-                    importedCount == 0 && skippedCount == 0 && errorCount > 0 -> ImportJobStatus.FAILED
-                    else -> ImportJobStatus.COMPLETED
-                }
+                importValidationGate.decideFinalStatus(
+                    ImportValidationCounters(
+                        importedCount = importedCount,
+                        skippedCount = skippedCount,
+                        duplicateReviewCount = duplicateReviewCount,
+                        errorCount = errorCount,
+                    ),
+                )
             val errorDetailsJson: String? =
                 if (errorCount > 0) {
                     objectMapper.writeValueAsString(result.errors.take(50))
@@ -226,22 +297,26 @@ class ImportFileConsumer(
             )
 
             // 9. Delete asset (best-effort)
-            deleteAssetBestEffort(assetId)
+            deleteAssetBestEffort(accountId, assetId)
 
             commitOffset(consumer, partition, offset)
         } catch (e: Exception) {
+            if (e is RetryableAssistantPublishException) {
+                log.warn(
+                    "Retryable assistant publish failure for import jobId={}, assetId={}; leaving offset uncommitted",
+                    jobId,
+                    assetId,
+                    e,
+                )
+                throw e
+            }
             log.error("Import processing failed: jobId={}, assetId={}", jobId, assetId, e)
             try {
                 val failedJob = importJobRepository.findById(jobId, accountId)
                 if (failedJob != null) {
                     val now = Instant.now()
                     val errorDetails =
-                        objectMapper.writeValueAsString(
-                            mapOf(
-                                "message" to (e.message ?: "Import processing failed"),
-                                "stackSummary" to stackSummary(e),
-                            ),
-                        )
+                        objectMapper.writeValueAsString(buildErrorDetails(e))
                     val updated =
                         failedJob.copy(
                             status = ImportJobStatus.FAILED,
@@ -274,7 +349,7 @@ class ImportFileConsumer(
                         ),
                     )
                 }
-                deleteAssetBestEffort(assetId)
+                deleteAssetBestEffort(accountId, assetId)
                 commitOffset(consumer, partition, offset)
             } catch (inner: Exception) {
                 log.error("Failed to update job to FAILED: jobId={}", jobId, inner)
@@ -301,17 +376,116 @@ class ImportFileConsumer(
         importEventBus.emit(payload)
     }
 
-    private fun deleteAssetBestEffort(assetId: UUID) {
+    private fun deleteAssetBestEffort(
+        accountId: UUID,
+        assetId: UUID,
+    ) {
         try {
-            fileStorage.delete(assetId)
+            fileStorage.delete(accountId, assetId)
         } catch (e: Exception) {
             log.warn("Best-effort delete asset failed (TTL will cleanup): assetId={}", assetId, e)
         }
     }
 
+    private fun publishAssistantRequest(
+        event: ImportFileRequestedEvent,
+        job: ImportJob,
+        assistantRequest: ImportAssistantRequest,
+    ) {
+        val producer = assistantBankingReaderRequestedProducer
+        if (producer == null) {
+            log.warn("Assistant request producer unavailable for import jobId={}; skipping publish", event.jobId)
+            return
+        }
+        val jobId = requireNotNull(job.id) { "ImportJob id is required for assistant request publish" }
+        if (job.assistantRequestPublishedAt != null) {
+            log.info("Assistant request already published for import jobId={}; skipping duplicate publish", jobId)
+            return
+        }
+        try {
+            producer.publish(
+                AssistantBankingReaderRequestedEvent(
+                    job_id = jobId,
+                    document_type = assistantRequest.documentType,
+                    file_type = assistantRequest.fileType,
+                    account_type = assistantRequest.accountType,
+                    source_topic = assistantRequest.sourceTopic,
+                    extracted_text = assistantRequest.extractedText,
+                    extraction_metadata = assistantRequest.extractionMetadata,
+                    callback_context =
+                        PdfImportCallbackContext(
+                            job_id = jobId,
+                            account_id = event.accountId,
+                            user_id = job.createdByUserId,
+                        ),
+                ),
+            )
+        } catch (e: Exception) {
+            throw RetryableAssistantPublishException("assistant_request_publish_failed", e)
+        }
+
+        val marked = importJobRepository.markAssistantRequestPublished(jobId)
+        if (!marked) {
+            log.info("Assistant request marker already set for import jobId={}", jobId)
+        }
+    }
+
+    private fun publishPdfExtractorRequest(
+        event: ImportFileRequestedEvent,
+        job: ImportJob,
+    ) {
+        val producer =
+            pdfExtractorSubmittedProducer
+                ?: throw BusinessRuleException(
+                    errorCode = BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
+                    parameters = mapOf("kafkaEnabled" to false, "pipeline" to "pdf-extractor"),
+                )
+        val downloadUrl =
+            fileStorage.resolveDownloadUrl(
+                accountId = event.accountId,
+                assetId = event.assetId,
+                ttlSeconds = DEFAULT_IMPORT_DOWNLOAD_TTL_SECONDS,
+            )
+        producer.publish(
+            PdfExtractorSubmittedEvent(
+                job_id = event.jobId,
+                asset_id = event.assetId,
+                download_url = downloadUrl,
+                document_type = PDF_BANK_STATEMENT_DOCUMENT_TYPE,
+                callback_context =
+                    PdfImportCallbackContext(
+                        job_id = event.jobId,
+                        account_id = event.accountId,
+                        user_id = job.createdByUserId,
+                    ),
+            ),
+        )
+    }
+
+    private fun isPdfFile(fileName: String?): Boolean = fileName?.lowercase()?.endsWith(".pdf") == true
+
     private fun stackSummary(e: Throwable): String {
         return e.stackTraceToString().lines().take(15).joinToString("\n")
     }
+
+    private fun buildErrorDetails(error: Exception): Map<String, Any?> {
+        val details =
+            linkedMapOf<String, Any?>(
+                "message" to (error.message ?: "Import processing failed"),
+                "stackSummary" to stackSummary(error),
+            )
+        val domain = error as? DomainException
+        if (domain != null) {
+            details["errorCode"] = domain.errorCode.code
+            details["errorField"] = domain.field
+            details["parameters"] = domain.parameters
+        }
+        return details
+    }
+
+    private fun toOfxStatementIntent(raw: String): OfxStatementIntent =
+        runCatching { OfxStatementIntent.valueOf(raw.trim().uppercase()) }
+            .getOrDefault(OfxStatementIntent.UNKNOWN)
 
     private fun commitOffset(
         consumer: Consumer<*, *>,

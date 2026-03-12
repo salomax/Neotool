@@ -7,6 +7,7 @@ import io.github.salomax.neotool.assets.graphql.dto.CreateAssetUploadInput
 import io.github.salomax.neotool.assets.service.AssetService
 import io.github.salomax.neotool.assets.storage.BucketResolver
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.common.security.principal.PrincipalType
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.util.UUID
@@ -58,13 +59,13 @@ class AssetMutationResolver(
      */
     fun createAssetUpload(
         input: CreateAssetUploadInput,
-        userId: String,
+        ownerId: String,
+        principalType: PrincipalType,
     ): AssetDTO {
         logger.info {
-            "Creating asset upload: namespace=${input.namespace}, userId=$userId"
+            "Creating asset upload: namespace=${input.namespace}, ownerId=$ownerId, principalType=$principalType"
         }
 
-        val ownerId = input.ownerId ?: userId
         val asset =
             assetService.initiateUpload(
                 namespace = input.namespace,
@@ -73,6 +74,7 @@ class AssetMutationResolver(
                 mimeType = input.mimeType,
                 sizeBytes = input.sizeBytes,
                 idempotencyKey = input.idempotencyKey,
+                principalType = principalType,
             )
 
         logger.info { "Asset upload created: assetId=${asset.id}, uploadUrl present=${asset.uploadUrl != null}" }
@@ -108,17 +110,19 @@ class AssetMutationResolver(
      */
     fun confirmAssetUpload(
         input: ConfirmAssetUploadInput,
-        userId: String,
-        bypassOwnerCheck: Boolean = false,
+        ownerId: String,
+        principalType: PrincipalType,
     ): AssetDTO {
-        logger.info { "Confirming asset upload: assetId=${input.assetId}, userId=$userId" }
+        logger.info {
+            "Confirming asset upload: assetId=${input.assetId}, ownerId=$ownerId, principalType=$principalType"
+        }
 
         val asset =
             assetService.confirmUpload(
                 assetId = input.assetId,
-                ownerId = userId,
+                ownerId = ownerId,
                 checksum = input.checksum,
-                bypassOwnerCheck = bypassOwnerCheck,
+                principalType = principalType,
             )
 
         logger.info { "Asset upload confirmed: assetId=${asset.id}, status=${asset.status}" }
@@ -141,10 +145,10 @@ class AssetMutationResolver(
      */
     fun deleteAsset(
         assetId: String,
-        userId: String,
-        bypassOwnerCheck: Boolean = false,
+        ownerId: String,
+        principalType: PrincipalType,
     ): Boolean {
-        logger.info { "Deleting asset: assetId=$assetId, userId=$userId" }
+        logger.info { "Deleting asset: assetId=$assetId, ownerId=$ownerId, principalType=$principalType" }
 
         val parsedAssetId =
             try {
@@ -158,7 +162,7 @@ class AssetMutationResolver(
                 )
             }
 
-        val deleted = assetService.deleteAsset(parsedAssetId, userId)
+        val deleted = assetService.deleteAsset(parsedAssetId, ownerId, principalType)
 
         if (deleted) {
             logger.info { "Asset deleted: assetId=$assetId" }

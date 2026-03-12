@@ -46,6 +46,8 @@ namespaces:
   transaction-imports:
     description: "Transaction import files (OFX, CSV). For service-to-service uploads, ownerId is the accountId (tenant), not userId."
     visibility: PRIVATE
+    allowedActors:
+      - SERVICE
     keyTemplate: "{namespace}/{ownerId}/{assetId}"
     maxSizeBytes: 3145728  # 3 MB
     allowedMimeTypes:
@@ -56,6 +58,7 @@ namespaces:
       - application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
       - application/vnd.ms-excel
       - application/octet-stream  # fallback for browsers that don't detect OFX MIME
+      - application/pdf
     uploadTtlSeconds: 900  # 15 min presigned PUT URL; presigned GET uses global default (1h), sufficient for consumer processing
 
   attachments:

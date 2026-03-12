@@ -9,6 +9,7 @@ import java.util.UUID
  */
 data class PdfImportJob(
     val id: UUID? = null,
+    val importType: PdfImportType = PdfImportType.CREDIT_CARD_BILL,
     val financialAccountId: UUID? = null,
     val accountId: UUID,
     val createdByUserId: UUID,
@@ -22,6 +23,8 @@ data class PdfImportJob(
     /** JSON string (from JSONB). */
     val reviewPayload: String? = null,
     val errorMessage: String? = null,
+    /** JSON string (from JSONB). */
+    val errorDetails: String? = null,
     val completedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant,

@@ -3,6 +3,9 @@
 import * as React from "react";
 import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
+import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
+import { useTranslation } from "react-i18next";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 export interface EmptyStateProps {
   title: string;
@@ -66,7 +69,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   return (
     <Box textAlign="center" p={4}>
       <Stack spacing={2} alignItems="center">
-        <Box>{illustration ?? <span style={{ fontSize: 40 }}>⚠️</span>}</Box>
+        <Box>{illustration ?? <ErrorOutlineIcon sx={{ fontSize: 44, color: "text.disabled" }} />}</Box>
         <Typography variant="h6">{title}</Typography>
         {description && (
           <Typography variant="body2" color="text.secondary" maxWidth={420}>
@@ -80,6 +83,37 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
         )}
       </Stack>
     </Box>
+  );
+};
+
+export interface QueryErrorStateProps {
+  error: unknown;
+  title?: string;
+  description?: string;
+  retryText?: string;
+  onRetry?: () => void;
+  illustration?: React.ReactNode;
+}
+
+export const QueryErrorState: React.FC<QueryErrorStateProps> = ({
+  error,
+  title,
+  description,
+  retryText,
+  onRetry,
+  illustration,
+}) => {
+  const { t } = useTranslation("common");
+  const friendlyDescription = description ?? extractErrorMessage(error, t("errors.default"));
+
+  return (
+    <ErrorState
+      title={title ?? t("cardGrid.unableToLoadResults")}
+      description={friendlyDescription}
+      retryText={retryText ?? t("cardGrid.retry")}
+      onRetry={onRetry}
+      illustration={illustration}
+    />
   );
 };
 

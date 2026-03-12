@@ -278,6 +278,13 @@ export enum BudgetScope {
   Service = 'SERVICE'
 }
 
+/** Result of a bulk operation (e.g. bulkCategorize). */
+export type BulkOperationResult = {
+  __typename: 'BulkOperationResult';
+  affectedCount: Scalars['Int']['output'];
+  errors: Array<Scalars['String']['output']>;
+};
+
 /**
  * Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
  * creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
@@ -291,6 +298,8 @@ export type CardData = {
   closingDay: Maybe<Scalars['Int']['output']>;
   creditLimit: Maybe<Scalars['Float']['output']>;
   dueDay: Maybe<Scalars['Int']['output']>;
+  /** Optional bank account that will receive the debit leg of bill-payment transfers. */
+  linkedBankAccountId: Maybe<Scalars['ID']['output']>;
   maskedNumber: Maybe<Scalars['String']['output']>;
   minimumPaymentPercentage: Maybe<Scalars['Float']['output']>;
 };
@@ -305,6 +314,8 @@ export type CardDataInput = {
   creditLimit?: InputMaybe<Scalars['Float']['input']>;
   /** Required for CREDIT_CARD. */
   dueDay?: InputMaybe<Scalars['Int']['input']>;
+  /** Optional bank account that will receive the debit leg of bill-payment transfers. */
+  linkedBankAccountId?: InputMaybe<Scalars['ID']['input']>;
   maskedNumber?: InputMaybe<Scalars['String']['input']>;
 };
 
@@ -315,6 +326,40 @@ export enum CategoryApplicableTo {
   Income = 'INCOME',
   Transfer = 'TRANSFER'
 }
+
+/** Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned. */
+export type CategoryRule = {
+  __typename: 'CategoryRule';
+  applicableTo: CategoryApplicableTo;
+  category: TransactionCategory;
+  categoryId: Scalars['ID']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  isImplicit: Scalars['Boolean']['output'];
+  isSystem: Scalars['Boolean']['output'];
+  matchCount: Scalars['Int']['output'];
+  pattern: Scalars['String']['output'];
+  patternType: PatternType;
+  priority: Scalars['Int']['output'];
+};
+
+/** How the transaction's category was assigned. Null when uncategorized. */
+export enum CategorySource {
+  Ai = 'AI',
+  Imported = 'IMPORTED',
+  Manual = 'MANUAL',
+  Rule = 'RULE'
+}
+
+/** Category total for a period (expense/income breakdown). Percentage of period total. */
+export type CategoryTotal = {
+  __typename: 'CategoryTotal';
+  category: TransactionCategory;
+  /** Percentage of the period total (0–100). */
+  percentage: Scalars['Float']['output'];
+  totalAmount: Scalars['Float']['output'];
+  transactionCount: Scalars['Int']['output'];
+};
 
 export type ChatInput = {
   message: Scalars['String']['input'];
@@ -392,6 +437,7 @@ export type ConfirmPdfTransactionInput = {
   date: Scalars['Date']['input'];
   description: Scalars['String']['input'];
   include: Scalars['Boolean']['input'];
+  isBillPayment?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
 export enum ConnectionStatus {
@@ -441,13 +487,25 @@ export type CreateAssetUploadInput = {
    * Determines validation rules (allowed MIME types, max file size), visibility, and storage key template.
    */
   namespace: Scalars['String']['input'];
-  /**
-   * Optional owner ID for service-to-service uploads (e.g. banking import: accountId as tenant).
-   * When provided, used as asset owner instead of the authenticated user ID.
-   */
-  ownerId?: InputMaybe<Scalars['String']['input']>;
   /** File size in bytes */
   sizeBytes: Scalars['Long']['input'];
+};
+
+export type CreateCategoryInput = {
+  applicableTo: CategoryApplicableTo;
+  color?: InputMaybe<Scalars['String']['input']>;
+  icon?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  parentId?: InputMaybe<Scalars['ID']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type CreateCategoryRuleInput = {
+  applicableTo: CategoryApplicableTo;
+  categoryId: Scalars['ID']['input'];
+  pattern: Scalars['String']['input'];
+  patternType: PatternType;
+  priority?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type CreateFinancialAccountInput = {
@@ -459,7 +517,7 @@ export type CreateFinancialAccountInput = {
   currencyCode?: InputMaybe<Scalars['String']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
-  /** Account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
+  /** Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
   initialBalance?: InputMaybe<Scalars['Float']['input']>;
   /** Reference date for the initial balance. Required when initialBalance is provided. */
   initialBalanceDate?: InputMaybe<Scalars['Date']['input']>;
@@ -943,6 +1001,11 @@ export type ImportTransactionsFileInput = {
   source?: InputMaybe<ImportSource>;
 };
 
+export enum ImportType {
+  BankStatement = 'BANK_STATEMENT',
+  CreditCardBill = 'CREDIT_CARD_BILL'
+}
+
 export type IndicatorRangeInput = {
   from?: InputMaybe<Scalars['Date']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -1018,8 +1081,14 @@ export type MonthSummary = {
   __typename: 'MonthSummary';
   /** Saldo total at month-end (includes all types, excludes FUTURE). */
   closingBalance: Scalars['Float']['output'];
+  /** Top expense categories for the month (ordered by totalAmount DESC). */
+  expensesByCategory: Array<CategoryTotal>;
+  /** Top income categories for the month (ordered by totalAmount DESC). */
+  incomeByCategory: Array<CategoryTotal>;
   /** True when (year, month) equals the current calendar month. */
   isCurrentMonth: Scalars['Boolean']['output'];
+  /** True when (year, month) is strictly after today's month. All values are on-demand projections; no snapshot is persisted. */
+  isFutureMonth: Scalars['Boolean']['output'];
   month: Scalars['Int']['output'];
   /** Balance at start of month (prior month's closingBalance). */
   openingBalance: Scalars['Float']['output'];
@@ -1042,6 +1111,8 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
+  /** Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL. */
+  bulkCategorize: BulkOperationResult;
   chat: ChatResponse;
   clearConversation: Scalars['Boolean']['output'];
   /**
@@ -1104,6 +1175,8 @@ export type Mutation = {
    * ```
    */
   createAssetUpload: Asset;
+  /** Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error. */
+  createCategoryRule: CategoryRule;
   /**
    * Create a new financial account or card.
    * Requires either issuerId (from the issuers list) or issuerName (custom institution).
@@ -1115,6 +1188,8 @@ export type Mutation = {
   createRole: Role;
   /** Create a new manual transaction. */
   createTransaction: Transaction;
+  /** Create a new custom transaction category for the authenticated account. */
+  createTransactionCategory: TransactionCategory;
   /**
    * Delete an asset.
    *
@@ -1125,10 +1200,14 @@ export type Mutation = {
    * Only the asset owner can delete the asset.
    */
   deleteAsset: Scalars['Boolean']['output'];
+  /** Soft-delete a user-owned category rule. System rules cannot be deleted. */
+  deleteCategoryRule: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   /** Soft-delete a manual transaction. */
   deleteTransaction: Scalars['Boolean']['output'];
+  /** Soft-delete a custom transaction category (and its subcategories when deleting a root). */
+  deleteTransactionCategory: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
   generateCompletion: CompletionResponse;
@@ -1155,10 +1234,14 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitPdfBillImport: PdfImportJob;
+  /** Update a user-owned category rule. */
+  updateCategoryRule: CategoryRule;
   updateGroup: Group;
   updateRole: Role;
   /** Update an existing manual transaction. */
   updateTransaction: Transaction;
+  /** Update a custom transaction category for the authenticated account. */
+  updateTransactionCategory: TransactionCategory;
   updateUser: User;
   verifyEmailWithToken: VerifyEmailPayload;
 };
@@ -1179,6 +1262,12 @@ export type MutationAssignPermissionToRoleArgs = {
 export type MutationAssignRoleToGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationBulkCategorizeArgs = {
+  categoryId: Scalars['ID']['input'];
+  transactionIds: Array<Scalars['ID']['input']>;
 };
 
 
@@ -1207,6 +1296,11 @@ export type MutationCreateAssetUploadArgs = {
 };
 
 
+export type MutationCreateCategoryRuleArgs = {
+  input: CreateCategoryRuleInput;
+};
+
+
 export type MutationCreateFinancialAccountArgs = {
   input: CreateFinancialAccountInput;
 };
@@ -1232,8 +1326,18 @@ export type MutationCreateTransactionArgs = {
 };
 
 
+export type MutationCreateTransactionCategoryArgs = {
+  input: CreateCategoryInput;
+};
+
+
 export type MutationDeleteAssetArgs = {
   assetId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteCategoryRuleArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -1248,6 +1352,11 @@ export type MutationDeleteRoleArgs = {
 
 
 export type MutationDeleteTransactionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteTransactionCategoryArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -1364,6 +1473,12 @@ export type MutationSubmitPdfBillImportArgs = {
 };
 
 
+export type MutationUpdateCategoryRuleArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateCategoryRuleInput;
+};
+
+
 export type MutationUpdateGroupArgs = {
   groupId: Scalars['ID']['input'];
   input: UpdateGroupInput;
@@ -1379,6 +1494,12 @@ export type MutationUpdateRoleArgs = {
 export type MutationUpdateTransactionArgs = {
   id: Scalars['ID']['input'];
   input: UpdateTransactionInput;
+};
+
+
+export type MutationUpdateTransactionCategoryArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateCategoryInput;
 };
 
 
@@ -1422,6 +1543,14 @@ export type ParsedImportRow = {
   description: Scalars['String']['output'];
 };
 
+/** Pattern type for category rule description matching. */
+export enum PatternType {
+  Contains = 'CONTAINS',
+  Exact = 'EXACT',
+  Regex = 'REGEX',
+  StartsWith = 'STARTS_WITH'
+}
+
 export type PdfBillExtractionResult = {
   __typename: 'PdfBillExtractionResult';
   bankName: Maybe<Scalars['String']['output']>;
@@ -1456,14 +1585,19 @@ export type PdfExtractedTransaction = {
   date: Maybe<Scalars['Date']['output']>;
   description: Scalars['String']['output'];
   installment: Maybe<InstallmentInfo>;
+  isBillPayment: Scalars['Boolean']['output'];
 };
 
 export type PdfImportJob = {
   __typename: 'PdfImportJob';
   createdAt: Scalars['DateTime']['output'];
+  errorCode: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use errorCode/errorParameters for i18n */
   errorMessage: Maybe<Scalars['String']['output']>;
+  errorParameters: Maybe<Scalars['JSON']['output']>;
   fileName: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  importType: ImportType;
   reviewPayload: Maybe<PdfBillExtractionResult>;
   status: PdfImportJobStatus;
 };
@@ -1603,6 +1737,8 @@ export type Query = {
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
+  /** All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned. */
+  categoryRules: Array<CategoryRule>;
   checkPermission: AuthorizationResult;
   conversation: Maybe<Conversation>;
   /**
@@ -1662,6 +1798,8 @@ export type Query = {
    * When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
    */
   transactions: TransactionConnection;
+  /** Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts. */
+  transactionsByCategory: Array<CategoryTotal>;
   user: Maybe<User>;
   users: UserConnection;
 };
@@ -1840,10 +1978,20 @@ export type QueryTransactionsArgs = {
   belongsToName?: InputMaybe<Scalars['String']['input']>;
   belongsToUserId?: InputMaybe<Scalars['ID']['input']>;
   billId?: InputMaybe<Scalars['ID']['input']>;
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
+  year?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryTransactionsByCategoryArgs = {
+  applicableTo?: InputMaybe<CategoryApplicableTo>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  month?: InputMaybe<Scalars['Int']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
 };
 
@@ -2038,6 +2186,7 @@ export type SubmitPdfBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  importType: ImportType;
 };
 
 export type Subscription = {
@@ -2106,6 +2255,8 @@ export type Transaction = {
   billPostDate: Maybe<Scalars['Date']['output']>;
   cardIdentifier: Maybe<Scalars['String']['output']>;
   category: Maybe<TransactionCategory>;
+  /** How the category was assigned. Null when uncategorized. */
+  categorySource: Maybe<CategorySource>;
   counterpartyAccountNumber: Maybe<Scalars['String']['output']>;
   counterpartyBankCode: Maybe<Scalars['String']['output']>;
   counterpartyDocument: Maybe<Scalars['String']['output']>;
@@ -2239,6 +2390,20 @@ export enum TransactionType {
   Transfer = 'TRANSFER',
   Withdrawal = 'WITHDRAWAL'
 }
+
+export type UpdateCategoryInput = {
+  color?: InputMaybe<Scalars['String']['input']>;
+  icon?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  sortOrder?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type UpdateCategoryRuleInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  pattern?: InputMaybe<Scalars['String']['input']>;
+  patternType?: InputMaybe<PatternType>;
+  priority?: InputMaybe<Scalars['Int']['input']>;
+};
 
 export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;

@@ -5,6 +5,7 @@ import { useQuery, useMutation } from '@apollo/client/react';
 import { useForm, useWatch, FormProvider, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import dayjs from 'dayjs';
 import {
   Box,
   Typography,
@@ -30,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { FinancialAccountTypeSelection } from './FinancialAccountTypeSelection';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
-import { FormTextField as TextField, SelectField, ToggleField, MoneyInput } from '@/shared/components/ui/forms/form';
+import { FormTextField as TextField, SelectField, ToggleField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
 import { ColorPicker } from '@/shared/components/ui/primitives/ColorPicker';
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
@@ -40,6 +41,7 @@ import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Issuer } from '@/lib/graphql/types/__generated__/graphql';
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 
 // --- Types & Schemas ---
 
@@ -107,6 +109,7 @@ type CreateAccountFormData = {
   name: string;
   currencyCode: string;
   initialBalance?: number;
+  initialBalanceDate?: Date | null;
   themeColor: string;
   includeInNetWorth: boolean;
   includeInDashboard: boolean;
@@ -128,14 +131,19 @@ interface CreateFinancialAccountDrawerProps {
   open: boolean;
   onClose: () => void;
   initialType?: 'BANK' | 'CARD' | null;
+  /** Pre-fills the last 4 digits field when creating a card inline from import. */
+  initialMaskedNumber?: string;
+  /** Called after successful creation with the new account's id and name. */
+  onCreated?: (account: { id: string; name: string }) => void;
 }
 
-export function CreateFinancialAccountDrawer({ open, onClose, initialType }: CreateFinancialAccountDrawerProps) {
+export function CreateFinancialAccountDrawer({ open, onClose, initialType, initialMaskedNumber, onCreated }: CreateFinancialAccountDrawerProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<'BANK' | 'CARD' | null>(null);
   const { success } = useToast();
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
 
   // Zod Schema
   const createAccountSchema = React.useMemo(() => z.object({
@@ -144,7 +152,8 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
     issuerName: z.string().optional(), // For custom
     name: z.string().min(1, t('financeTransactions.createAccount.step2.validation.accountNameRequired')),
     currencyCode: z.string().default('BRL'),
-    initialBalance: z.number().optional(), 
+    initialBalance: z.number().optional(),
+    initialBalanceDate: z.date().nullable().optional(),
     themeColor: z.string().default('#1976d2'),
     includeInNetWorth: z.boolean().default(true),
     includeInDashboard: z.boolean().default(true),
@@ -200,7 +209,30 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
           }
        }
     }
-  }), [t]);
+
+    if (data.initialBalance !== undefined) {
+      if (data.initialBalance === 0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t('financeTransactions.createAccount.step2.validation.initialBalanceNonZero'),
+          path: ['initialBalance'],
+        });
+      }
+      if (!data.initialBalanceDate) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
+          path: ['initialBalanceDate'],
+        });
+      } else if (dayjs(data.initialBalanceDate).isBefore(minAllowedDate, 'day')) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
+          path: ['initialBalanceDate'],
+        });
+      }
+    }
+  }), [t, minAllowedDate]);
 
   // Option lists with translations
   const bankSubtypes = React.useMemo(() => BankSubtypeValues.map(v => ({
@@ -228,10 +260,13 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
     skip: !open,
   });
 
-  const [createAccount, { loading: creating, error: createError }] = useMutation(CREATE_FINANCIAL_ACCOUNT, {
+  const [createAccount, { loading: creating, error: createError }] = useMutation<{
+    createFinancialAccount: { id: string; name: string };
+  }>(CREATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
-    onCompleted: () => {
+    onCompleted: (data) => {
       success(t('financeTransactions.createAccount.step2.success'));
+      onCreated?.({ id: data.createFinancialAccount.id, name: data.createFinancialAccount.name });
       handleClose();
     },
   });
@@ -243,6 +278,7 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
       issuerId: undefined,
       issuerName: '',
       currencyCode: 'BRL',
+      initialBalanceDate: null,
       themeColor: '#1976d2',
       includeInNetWorth: true,
       includeInDashboard: true,
@@ -282,6 +318,13 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
   // eslint-disable-next-line react-hooks/exhaustive-deps -- handleTypeSelect is stable, initialType triggers the call
   }, [open, reset, initialType]);
 
+  // Pre-fill maskedNumber when provided (e.g. from bill import inline card creation)
+  useEffect(() => {
+    if (open && initialMaskedNumber) {
+      setValue('maskedNumber', initialMaskedNumber);
+    }
+  }, [open, initialMaskedNumber, setValue]);
+
   // Handle Issuer Selection
   useEffect(() => {
     if (watchedIssuerId && issuersData?.issuers) {
@@ -316,9 +359,14 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
   };
 
   const handleBack = () => {
+    // When opened with a pre-selected type (e.g. inline from import), back = close drawer
+    if (initialType) {
+      handleClose();
+      return;
+    }
     setStep(1);
     setSelectedType(null);
-    reset(); // Reset form values
+    reset();
   };
 
   const onSubmit = (data: CreateAccountFormData) => {
@@ -343,6 +391,11 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
           ? { issuerName: data.issuerName } 
           : { issuerId: data.issuerId }),
     };
+
+    if (data.initialBalance !== undefined) {
+      input.initialBalance = data.initialBalance;
+      input.initialBalanceDate = data.initialBalanceDate ? dayjs(data.initialBalanceDate).format('YYYY-MM-DD') : undefined;
+    }
 
     if (data.type === 'BANK') {
       input.bankData = {
@@ -457,12 +510,17 @@ export function CreateFinancialAccountDrawer({ open, onClose, initialType }: Cre
 
             <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} required />
 
-            {/* Initial Balance - Visual only for now as it's not in mutation */}
+            {/* Initial Balance */}
             <MoneyInput
               name="initialBalance"
               label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
               currency={watchedCurrencyCode}
               locale={i18n.language}
+            />
+            <DatePickerField
+              name="initialBalanceDate"
+              label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
+              minDate={minAllowedDate.toDate()}
             />
 
             {/* Bank Specific Fields (excluding subtype) */}

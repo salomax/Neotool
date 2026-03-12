@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJob
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportJobStatus
 import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportService
+import io.github.salomax.neotool.banking.domain.pdfimport.PdfImportType
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -56,6 +57,7 @@ class PdfImportResolverTest {
         val job =
             PdfImportJob(
                 id = jobId,
+                importType = PdfImportType.CREDIT_CARD_BILL,
                 financialAccountId = financialAccountId,
                 accountId = accountId,
                 createdByUserId = userId,
@@ -70,6 +72,7 @@ class PdfImportResolverTest {
             pdfImportService.submitPdfBillImport(
                 eq(accountId),
                 eq(userId),
+                eq(PdfImportType.CREDIT_CARD_BILL),
                 eq(financialAccountId),
                 eq("fatura.pdf"),
                 any(),
@@ -81,6 +84,7 @@ class PdfImportResolverTest {
                 input =
                     mapOf(
                         "financialAccountId" to financialAccountId.toString(),
+                        "importType" to "CREDIT_CARD_BILL",
                         "fileName" to "fatura.pdf",
                         "fileBase64" to Base64.getEncoder().encodeToString(bytes),
                     ),
@@ -92,6 +96,7 @@ class PdfImportResolverTest {
         verify(pdfImportService).submitPdfBillImport(
             eq(accountId),
             eq(userId),
+            eq(PdfImportType.CREDIT_CARD_BILL),
             eq(financialAccountId),
             eq("fatura.pdf"),
             any(),
@@ -102,6 +107,7 @@ class PdfImportResolverTest {
     fun `submitPdfBillImport throws validation error for invalid base64`() {
         val input =
             mapOf(
+                "importType" to "CREDIT_CARD_BILL",
                 "fileName" to "fatura.pdf",
                 "fileBase64" to "%%%invalid%%%",
             )
@@ -116,6 +122,7 @@ class PdfImportResolverTest {
         val awaiting =
             PdfImportJob(
                 id = jobId,
+                importType = PdfImportType.CREDIT_CARD_BILL,
                 financialAccountId = financialAccountId,
                 accountId = accountId,
                 createdByUserId = userId,
@@ -136,10 +143,45 @@ class PdfImportResolverTest {
     }
 
     @Test
+    fun `pdfImportJob falls back to projected canonical payload when review payload is canonical`() {
+        val awaiting =
+            PdfImportJob(
+                id = jobId,
+                importType = PdfImportType.CREDIT_CARD_BILL,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                status = PdfImportJobStatus.AWAITING_REVIEW,
+                assetId = UUID.randomUUID(),
+                fileName = "fatura.pdf",
+                fileHash = "hash",
+                reviewPayload = """{"schemaId":"banking.reader-output.canonical","normalizedRecords":[]}""",
+                createdAt = now,
+                updatedAt = now,
+            )
+        whenever(pdfImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
+        whenever(pdfImportService.projectReviewPayload(any(), eq(accountId))).thenReturn(
+            io.github.salomax.neotool.banking.domain.pdfimport.PdfBillExtractionResult(
+                cards =
+                    listOf(
+                        io.github.salomax.neotool.banking.domain.pdfimport.PdfExtractedCard(lastFourDigits = "1234"),
+                    ),
+            ),
+        )
+
+        val result = resolver.pdfImportJob(jobId.toString(), principal())
+
+        assertThat(result).isNotNull
+        assertThat(result!!.reviewPayload).isNotNull
+        verify(pdfImportService).projectReviewPayload(awaiting.reviewPayload, accountId)
+    }
+
+    @Test
     fun `confirmPdfBillImport forwards command to service`() {
         val doneJob =
             PdfImportJob(
                 id = jobId,
+                importType = PdfImportType.CREDIT_CARD_BILL,
                 financialAccountId = financialAccountId,
                 accountId = accountId,
                 createdByUserId = userId,

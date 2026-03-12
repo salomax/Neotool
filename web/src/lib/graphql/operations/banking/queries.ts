@@ -109,7 +109,7 @@ export const TRANSACTIONS = gql`
   }
 `;
 
-/** All transaction categories. */
+/** All transaction categories (system + account-scoped). */
 export const TRANSACTION_CATEGORIES = gql`
   query TransactionCategories {
     transactionCategories {
@@ -120,6 +120,7 @@ export const TRANSACTION_CATEGORIES = gql`
       icon
       isSystem
       applicableTo
+      sortOrder
     }
   }
 `;
@@ -202,6 +203,7 @@ export const MONTH_SUMMARY = gql`
       transfersOut
       projectedClosingBalance
       isCurrentMonth
+      isFutureMonth
     }
   }
 `;
@@ -236,6 +238,55 @@ export const CREDIT_CARD_BILL = gql`
       status
       createdAt
       updatedAt
+    }
+  }
+`;
+
+/** Fetch a single PDF import job by ID — used for polling during extraction. */
+export const PDF_IMPORT_JOB = gql`
+  query PdfImportJob($jobId: ID!) {
+    pdfImportJob(jobId: $jobId) {
+      id
+      status
+      fileName
+      createdAt
+      errorMessage
+      errorCode
+      errorParameters
+      reviewPayload {
+        bankName
+        extractionConfidence
+        needsReview
+        warnings
+        cards {
+          lastFourDigits
+          holderName
+          confidence
+          computedTotal
+          declaredTotal
+          totalMatchesDeclared
+          matchedFinancialAccountId
+          matchAmbiguous
+          closingDate
+          dueDate
+          matchCandidates {
+            id
+            name
+          }
+          transactions {
+            date
+            description
+            amount
+            creditDebitType
+            isBillPayment
+            confidence
+            installment {
+              current
+              total
+            }
+          }
+        }
+      }
     }
   }
 `;

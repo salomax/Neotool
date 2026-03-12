@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import io.github.salomax.neotool.banking.domain.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
@@ -12,6 +15,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.graphql.dto.CategoryTotalDTO
 import io.github.salomax.neotool.banking.graphql.dto.CreditCardBillDTO
 import io.github.salomax.neotool.banking.graphql.dto.MonthSummaryDTO
 import io.github.salomax.neotool.banking.graphql.dto.PageInfoDTO
@@ -67,6 +71,8 @@ class TransactionResolver(
         belongsToName: String?,
         tags: List<String>?,
         billId: String?,
+        categoryId: String?,
+        uncategorized: Boolean?,
         month: Int?,
         year: Int?,
         first: Int?,
@@ -77,6 +83,7 @@ class TransactionResolver(
         val faId = financialAccountId?.let { UUID.fromString(it) }
         val belongsToUserUuid = belongsToUserId?.let { UUID.fromString(it) }
         val billUuid = billId?.let { UUID.fromString(it) }
+        val categoryUuid = categoryId?.let { UUID.fromString(it) }
 
         val categories = categoryRepository.findAll(accountId).associateBy { it.id!! }
 
@@ -88,6 +95,8 @@ class TransactionResolver(
                 belongsToName = belongsToName,
                 tags = tags,
                 billId = billUuid,
+                categoryId = categoryUuid,
+                uncategorized = uncategorized,
                 month = month,
                 year = year,
                 first = first,
@@ -166,7 +175,35 @@ class TransactionResolver(
             transfersOut = summary.transfersOut.toDouble(),
             projectedClosingBalance = summary.projectedClosingBalance?.toDouble(),
             isCurrentMonth = summary.isCurrentMonth,
+            isFutureMonth = summary.isFutureMonth,
+            expensesByCategory = summary.expensesByCategory.map { it.toCategoryTotalDTO() },
+            incomeByCategory = summary.incomeByCategory.map { it.toCategoryTotalDTO() },
         )
+    }
+
+    fun transactionsByCategory(
+        financialAccountId: String?,
+        year: Int?,
+        month: Int?,
+        applicableTo: String?,
+        principal: RequestPrincipal,
+    ): List<CategoryTotalDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val today = LocalDate.now()
+        val targetYear = year ?: today.year
+        val targetMonth = month ?: today.monthValue
+        require(targetMonth in 1..12) { "month must be between 1 and 12, got: $targetMonth" }
+        val faId = financialAccountId?.let { UUID.fromString(it) }
+        val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
+        val breakdown =
+            monthSummaryQueryService.getCategoryBreakdown(
+                accountId = accountId,
+                financialAccountId = faId,
+                year = targetYear,
+                month = targetMonth,
+                applicableTo = applicableToEnum,
+            )
+        return breakdown.map { it.toCategoryTotalDTO() }
     }
 
     fun creditCardBills(
@@ -224,6 +261,17 @@ class TransactionResolver(
         return service.delete(UUID.fromString(id), accountId)
     }
 
+    fun bulkCategorize(
+        transactionIds: List<String>,
+        categoryId: String,
+        principal: RequestPrincipal,
+    ): BulkCategorizeResult {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val ids = transactionIds.map { UUID.fromString(it) }
+        val categoryUuid = UUID.fromString(categoryId)
+        return service.bulkCategorize(ids, categoryUuid, accountId)
+    }
+
     fun payBill(
         billId: String,
         amount: Double,
@@ -265,6 +313,14 @@ class TransactionResolver(
             sortOrder = sortOrder,
         )
 
+    private fun CategoryTotal.toCategoryTotalDTO(): CategoryTotalDTO =
+        CategoryTotalDTO(
+            category = category.toDTO(),
+            totalAmount = totalAmount.toDouble(),
+            transactionCount = transactionCount,
+            percentage = percentage,
+        )
+
     private fun Transaction.toDTO(category: TransactionCategory?): TransactionDTO =
         TransactionDTO(
             id = id!!,
@@ -284,6 +340,7 @@ class TransactionResolver(
             notes = notes,
             tags = tags,
             category = category?.toDTO(),
+            categorySource = categorySource,
             counterpartyName = counterpartyName,
             counterpartyDocument = counterpartyDocument,
             counterpartyBankCode = counterpartyBankCode,

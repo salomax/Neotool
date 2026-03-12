@@ -126,4 +126,45 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         nativeQuery = true,
     )
     fun findEarliestBalanceAdjustmentDate(financialAccountId: String): LocalDate?
+
+    @Query(
+        """
+        SELECT t.* FROM banking.transactions t
+         WHERE t.account_id = :accountId
+           AND (:financialAccountId IS NULL OR t.financial_account_id = :financialAccountId)
+           AND EXTRACT(YEAR FROM t.date) = :year
+           AND EXTRACT(MONTH FROM t.date) = :month
+           AND t.category_id IN (:categoryIds)
+           AND t.deleted_at IS NULL
+         ORDER BY t.date DESC, t.created_at DESC
+        """,
+        nativeQuery = true,
+    )
+    fun findInDateRangeByCategoryIds(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        categoryIds: List<UUID>,
+    ): List<TransactionEntity>
+
+    @Query(
+        """
+        SELECT t.* FROM banking.transactions t
+         WHERE t.account_id = :accountId
+           AND (:financialAccountId IS NULL OR t.financial_account_id = :financialAccountId)
+           AND EXTRACT(YEAR FROM t.date) = :year
+           AND EXTRACT(MONTH FROM t.date) = :month
+           AND t.category_id IS NULL
+           AND t.deleted_at IS NULL
+         ORDER BY t.date DESC, t.created_at DESC
+        """,
+        nativeQuery = true,
+    )
+    fun findInDateRangeUncategorized(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<TransactionEntity>
 }
