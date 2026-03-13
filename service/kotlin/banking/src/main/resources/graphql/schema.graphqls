@@ -25,6 +25,7 @@ type Issuer {
   ispb: String
   countryCode: String!
   logoKey: String
+  category: IssuerCategory!
   logoAsset: Asset
 }
 
@@ -94,6 +95,14 @@ enum ConnectionStatus {
   ERROR
   CONSENT_EXPIRING
   CONSENT_EXPIRED
+}
+
+enum IssuerCategory {
+  BANK
+  BROKERAGE
+  CRYPTO_EXCHANGE
+  PAYMENT
+  BENEFIT
 }
 
 # ============================================================================
@@ -945,6 +954,7 @@ averageCost is maintained by the transaction engine — custo médio ponderado (
 type InvestmentHolding {
   id: ID!
   financialAccountId: ID!
+  financialAccount: FinancialAccount
   asset: InvestmentAsset!
   """Current number of units/shares/cotas held. Zero means position is closed."""
   quantity: Float!
@@ -1048,6 +1058,20 @@ input BrokerNoteInput {
 }
 
 """
+Creates a global investment asset entry.
+Assets are not tenant-scoped and can be reused across accounts.
+"""
+input CreateInvestmentAssetInput {
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  ticker: String
+  isinCode: String
+  """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
+"""
 Records a new investment transaction and updates the corresponding holding.
 The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
 RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
@@ -1087,8 +1111,11 @@ input RecordInvestmentTransactionInput {
 
 extend type Query {
   _bankingService: String
-  """All active issuers. Small list — no pagination or filter needed."""
-  issuers: [Issuer!]!
+  """
+  All active issuers.
+  When categories is omitted, returns all active issuers.
+  """
+  issuers(categories: [IssuerCategory!]): [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
   """
@@ -1217,6 +1244,8 @@ extend type Mutation {
   Records an investment transaction and updates the holding's quantity and averageCost.
   Creates the holding automatically on the first PURCHASE of an asset.
   """
+  createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
+  """Records an investment transaction and updates the holding's quantity and averageCost."""
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
   """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
   deleteInvestmentTransaction(id: ID!): Boolean!

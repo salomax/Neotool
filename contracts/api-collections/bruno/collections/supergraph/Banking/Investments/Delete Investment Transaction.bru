@@ -1,7 +1,7 @@
 meta {
-  name: Delete Transaction
+  name: Delete Investment Transaction
   type: graphql
-  seq: 11
+  seq: 4
 }
 
 post {
@@ -15,13 +15,13 @@ auth:bearer {
 }
 
 body:graphql {
-  mutation DeleteTransaction($id: ID!) {
-    deleteTransaction(id: $id)
+  mutation DeleteInvestmentTransaction($id: ID!) {
+    deleteInvestmentTransaction(id: $id)
   }
 }
 
 body:graphql:vars {
   {
-    "id": "00000000-0000-0000-0000-000000000000"
+    "id": "{{investment_transaction_id}}"
   }
 }

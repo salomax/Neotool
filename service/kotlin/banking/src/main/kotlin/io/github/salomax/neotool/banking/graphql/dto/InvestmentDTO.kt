@@ -40,6 +40,8 @@ data class InvestmentHoldingDTO(
     val assetId: UUID,
     // Populated by the resolver via a separate AssetRepository lookup
     val asset: InvestmentAssetDTO?,
+    // Populated by the resolver via a batch FinancialAccountRepository lookup
+    val financialAccount: FinancialAccountDTO?,
     val quantity: Double,
     val averageCost: Double,
     // RF-specific terms

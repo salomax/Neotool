@@ -32,8 +32,8 @@
   "investments": {
     "sidebar": {
       "allBrokers": "Todas as Corretoras",
-      "consolidatedView": "VISÃO CONSOLIDADA",
-      "summaryTitle": "VISÃO CONSOLIDADA",
+      "consolidatedView": "Visão consolidada",
+      "summaryTitle": "Visão consolidada",
       "totalLabel": "Total da Carteira",
       "metrics": {
         "contributions": "Aportes",
@@ -53,6 +53,155 @@
       "reits": "FIIs",
       "stocks": "Ações",
       "fixedIncome": "Renda Fixa"
+    },
+    "actions": {
+      "recordHolding": "Registrar ativo"
+    },
+    "createAccount": {
+      "title": "Criar conta de investimento",
+      "fields": {
+        "subtypeLabel": "Tipo de conta",
+        "issuerLabel": "Corretora / Instituição",
+        "issuerPlaceholder": "Buscar por nome...",
+        "customIssuerLabel": "Nome da instituição",
+        "accountNameLabel": "Nome da conta",
+        "accountNamePlaceholder": "Ex: Minha Carteira XP"
+      },
+      "subtypes": {
+        "BROKERAGE": "Corretora de Valores",
+        "FIXED_INCOME": "Renda Fixa",
+        "PENSION": "Previdência Privada",
+        "CRYPTO": "Criptomoedas"
+      },
+      "validation": {
+        "subtypeRequired": "Tipo de conta é obrigatório",
+        "issuerRequired": "Informe a corretora ou nome da instituição"
+      },
+      "actions": {
+        "submit": "Criar conta",
+        "submitting": "Criando...",
+        "cancel": "Cancelar"
+      },
+      "success": "Conta de investimento criada com sucesso"
+    },
+    "assetTypes": {
+      "STOCK": "Ações",
+      "STOCK_RIGHTS": "Direitos e recibos",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "FIIs",
+      "AGRIBUSINESS_FUND": "FIAGRO",
+      "ETF": "ETFs",
+      "ETF_FIXED_INCOME": "ETF de renda fixa",
+      "ETF_INTERNATIONAL": "ETF internacional",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debêntures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Tesouro Direto",
+      "MUTUAL_FUND": "Fundo de investimento",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Cripto",
+      "OPTION": "Opções",
+      "DERIVATIVES": "Derivativos",
+      "OTHER": "Outros"
+    },
+    "table": {
+      "columns": {
+        "asset": "Ativo",
+        "type": "Tipo",
+        "quantity": "Quantidade",
+        "averagePrice": "Preço médio",
+        "currentValue": "Valor atual",
+        "indexer": "Indexador",
+        "grossValue": "Valor bruto",
+        "maturityDate": "Vencimento"
+      },
+      "groupSummary_one": "{{count}} ativo · {{total}}",
+      "groupSummary_other": "{{count}} ativos · {{total}}",
+      "groups": {
+        "variableIncomeB3": "Renda Variável (B3)",
+        "bankFixedIncome": "Renda Fixa",
+        "creditFixedIncome": "Renda Fixa Crédito",
+        "treasuryDirect": "Tesouro Direto",
+        "mutualFunds": "Fundos de Investimento",
+        "pension": "Previdência Complementar",
+        "structured": "Estruturado",
+        "others": "Outros"
+      },
+      "emptyState": "Nenhum ativo registrado nesta conta",
+      "recordFirstHolding": "Registrar primeiro ativo",
+      "error": "Erro ao carregar investimentos"
+    },
+    "recordHolding": {
+      "title": "Registrar ativo de Renda Fixa",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o ativo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "assetInfo": "Sobre o ativo",
+        "applicationDetails": "Detalhes da aplicação"
+      },
+      "fields": {
+        "assetName": "Nome do ativo",
+        "assetType": "Tipo",
+        "issuerName": "Emissor",
+        "indexer": "Indexador",
+        "indexerPercentage": "% do indexador",
+        "preFixedRate": "Taxa (% a.a.)",
+        "grossValue": "Valor aplicado (R$)",
+        "tradeDate": "Data da aplicação",
+        "maturityDate": "Data de vencimento",
+        "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debêntures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Tesouro Direto"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Prefixado",
+        "OUTROS": "Outro"
+      },
+      "validation": {
+        "assetNameRequired": "Nome do ativo é obrigatório",
+        "assetTypeRequired": "Tipo de ativo é obrigatório",
+        "issuerRequired": "Emissor é obrigatório",
+        "indexerRequired": "Indexador é obrigatório",
+        "indexerPercentageRequired": "% do indexador é obrigatório",
+        "preFixedRateRequired": "Taxa é obrigatória",
+        "grossValueRequired": "Valor aplicado é obrigatório",
+        "grossValuePositive": "Valor deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória",
+        "maturityDateRequired": "Data de vencimento é obrigatória",
+        "maturityAfterTrade": "Vencimento deve ser após a data da aplicação"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Ativo registrado com sucesso"
     }
   },
   "categories": {

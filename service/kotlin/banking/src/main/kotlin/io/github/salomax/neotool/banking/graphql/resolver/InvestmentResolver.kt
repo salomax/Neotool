@@ -1,6 +1,9 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.investment.Asset
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
 import io.github.salomax.neotool.banking.domain.investment.Holding
@@ -12,14 +15,21 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.graphql.dto.BankAccountDataDTO
+import io.github.salomax.neotool.banking.graphql.dto.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.dto.BrokerNoteDTO
+import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentTransactionDTO
+import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
+import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.ZoneOffset
 import java.util.UUID
 
 /**
@@ -31,6 +41,8 @@ class InvestmentResolver(
     private val investmentTransactionService: InvestmentTransactionService,
     private val holdingRepository: HoldingRepository,
     private val assetRepository: AssetRepository,
+    private val financialAccountRepository: FinancialAccountRepository,
+    private val issuerRepository: IssuerRepository,
 ) {
     // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -40,18 +52,22 @@ class InvestmentResolver(
     ): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
         val faId = UUID.fromString(financialAccountId)
+        val accountsById = financialAccountRepository.findByAccountId(accountId).associateBy { it.id!! }
+        val issuersById = issuerRepository.findByIds(accountsById.values.mapNotNull { it.issuerId }.toSet()).associateBy { it.id!! }
         return holdingRepository
             .findByFinancialAccount(faId, accountId)
             .filter { it.quantity > BigDecimal.ZERO }
-            .map { it.toDTO() }
+            .map { it.toDTO(accountsById[it.financialAccountId], issuersById) }
     }
 
     fun allInvestmentHoldings(principal: RequestPrincipal): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
+        val accountsById = financialAccountRepository.findByAccountId(accountId).associateBy { it.id!! }
+        val issuersById = issuerRepository.findByIds(accountsById.values.mapNotNull { it.issuerId }.toSet()).associateBy { it.id!! }
         return holdingRepository
             .findByAccount(accountId)
             .filter { it.quantity > BigDecimal.ZERO }
-            .map { it.toDTO() }
+            .map { it.toDTO(accountsById[it.financialAccountId], issuersById) }
     }
 
     fun investmentHolding(
@@ -59,7 +75,10 @@ class InvestmentResolver(
         principal: RequestPrincipal,
     ): InvestmentHoldingDTO? {
         val accountId = requireAccountId(principal)
-        return holdingRepository.findById(UUID.fromString(id), accountId)?.toDTO()
+        val holding = holdingRepository.findById(UUID.fromString(id), accountId) ?: return null
+        val accountsById = financialAccountRepository.findByAccountId(accountId).associateBy { it.id!! }
+        val issuersById = issuerRepository.findByIds(accountsById.values.mapNotNull { it.issuerId }.toSet()).associateBy { it.id!! }
+        return holding.toDTO(accountsById[holding.financialAccountId], issuersById)
     }
 
     fun investmentTransactions(
@@ -85,6 +104,32 @@ class InvestmentResolver(
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
+    fun createInvestmentAsset(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): InvestmentAssetDTO {
+        // Mutation is authorized at GraphQL wiring level; assets are global (not tenant-scoped).
+        requireNotNull(principal.userId) { "No user in token" }
+
+        val name = (input["name"] as? String)?.trim().orEmpty()
+        require(name.isNotBlank()) { "name is required" }
+
+        val assetTypeRaw = (input["assetType"] as? String)?.trim().orEmpty()
+        require(assetTypeRaw.isNotBlank()) { "assetType is required" }
+
+        val asset =
+            Asset(
+                name = name,
+                assetType = AssetType.valueOf(assetTypeRaw),
+                issuerName = (input["issuerName"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                ticker = (input["ticker"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                isinCode = (input["isinCode"] as? String)?.trim()?.takeIf { it.isNotBlank() },
+                currencyCode = (input["currencyCode"] as? String)?.trim()?.takeIf { it.isNotBlank() } ?: "BRL",
+            )
+
+        return assetRepository.save(asset).toDTO()
+    }
+
     fun recordInvestmentTransaction(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
@@ -105,7 +150,10 @@ class InvestmentResolver(
 
     // ── Mapping helpers ───────────────────────────────────────────────────────
 
-    private fun Holding.toDTO(): InvestmentHoldingDTO {
+    private fun Holding.toDTO(
+        financialAccount: FinancialAccount?,
+        issuersById: Map<UUID, Issuer>,
+    ): InvestmentHoldingDTO {
         val asset = assetId.let { assetRepository.findById(it) }
         return InvestmentHoldingDTO(
             id = id!!,
@@ -113,6 +161,7 @@ class InvestmentResolver(
             accountId = accountId,
             assetId = assetId,
             asset = asset?.toDTO(),
+            financialAccount = financialAccount?.toDTO(issuersById[financialAccount.issuerId]),
             quantity = quantity.toDouble(),
             averageCost = averageCost.toDouble(),
             indexer = indexer,
@@ -132,6 +181,59 @@ class InvestmentResolver(
             updatedAt = updatedAt,
         )
     }
+
+    private fun FinancialAccount.toDTO(issuer: Issuer?) =
+        FinancialAccountDTO(
+            id = id!!,
+            type = type,
+            subtype = subtype,
+            name = name,
+            currencyCode = currencyCode,
+            includeInNetWorth = includeInNetWorth,
+            includeInDashboard = includeInDashboard,
+            themeColor = themeColor,
+            issuer = issuer?.let {
+                IssuerDTO(
+                    id = it.id!!,
+                    name = it.name,
+                    domain = it.domain,
+                    compeCode = it.compeCode,
+                    ispb = it.ispb,
+                    countryCode = it.countryCode,
+                    logoKey = it.logoKey,
+                    category = it.category,
+                    logoAsset = it.logoKey?.let { key -> mapOf("__typename" to "Asset", "id" to key) },
+                )
+            },
+            issuerName = issuerName,
+            bankData = bankData?.let {
+                BankAccountDataDTO(
+                    branchCode = it.branchCode,
+                    number = it.number,
+                    checkDigit = it.checkDigit,
+                    maskedNumber = it.maskedNumber,
+                )
+            },
+            cardData = cardData?.let {
+                CardDataDTO(
+                    maskedNumber = it.maskedNumber,
+                    bin = it.bin,
+                    cardNetwork = it.cardNetwork,
+                    cardLevel = it.cardLevel,
+                    creditLimit = it.creditLimit?.toDouble(),
+                    availableCreditLimit = it.availableCreditLimit?.toDouble(),
+                    minimumPaymentPercentage = it.minimumPaymentPercentage?.toDouble(),
+                    closingDay = it.closingDay,
+                    dueDay = it.dueDay,
+                    linkedBankAccountId = it.linkedBankAccountId,
+                )
+            },
+            connectionStatus = connectionStatus,
+            consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
+            lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
+            createdAt = createdAt.atOffset(ZoneOffset.UTC),
+            updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
+        )
 
     private fun Asset.toDTO() =
         InvestmentAssetDTO(
@@ -194,6 +296,18 @@ class InvestmentResolver(
             createdAt = createdAt,
         )
 
+    private fun getDate(
+        map: Map<String, Any?>,
+        key: String,
+    ): LocalDate? {
+        val v = map[key] ?: return null
+        return when (v) {
+            is String -> LocalDate.parse(v)
+            is LocalDate -> v
+            else -> v.toString().let { s -> runCatching { LocalDate.parse(s) }.getOrNull() }
+        }
+    }
+
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toRecordCommand(accountId: UUID): RecordInvestmentTransactionCommand {
         val brokerNoteMap = this["brokerNote"] as? Map<String, Any?>
@@ -212,15 +326,15 @@ class InvestmentResolver(
             indexerPercentage = (this["indexerPercentage"] as? Number)?.let { BigDecimal(it.toString()) },
             agreedRate = (this["agreedRate"] as? Number)?.let { BigDecimal(it.toString()) },
             priceFactor = (this["priceFactor"] as? Number)?.let { BigDecimal(it.toString()) },
-            tradeDate = LocalDate.parse(this["tradeDate"] as String),
-            settlementDate = (this["settlementDate"] as? String)?.let { LocalDate.parse(it) },
+            tradeDate = getDate(this, "tradeDate") ?: throw IllegalArgumentException("tradeDate is required"),
+            settlementDate = getDate(this, "settlementDate"),
             source = InvestmentSource.MANUAL,
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
             indexer = (this["indexer"] as? String)?.let { Indexer.valueOf(it) },
             preFixedRate = (this["preFixedRate"] as? Number)?.let { BigDecimal(it.toString()) },
-            issueDate = (this["issueDate"] as? String)?.let { LocalDate.parse(it) },
-            maturityDate = (this["maturityDate"] as? String)?.let { LocalDate.parse(it) },
-            gracePeriodDate = (this["gracePeriodDate"] as? String)?.let { LocalDate.parse(it) },
+            issueDate = getDate(this, "issueDate"),
+            maturityDate = getDate(this, "maturityDate"),
+            gracePeriodDate = getDate(this, "gracePeriodDate"),
             isTaxExempt = (this["isTaxExempt"] as? Boolean) ?: false,
             providerInvestmentId = this["providerInvestmentId"] as? String,
         )

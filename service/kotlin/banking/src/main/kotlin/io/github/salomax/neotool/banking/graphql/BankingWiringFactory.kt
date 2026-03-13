@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.graphql
 
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
+import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
@@ -41,7 +42,8 @@ class BankingWiringFactory(
                 "issuers",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_ISSUER_VIEW) { _ ->
-                        issuerResolver.listIssuers()
+                        val categories = env.getArgument<List<String>?>("categories")?.map(IssuerCategory::valueOf)
+                        issuerResolver.listIssuers(categories)
                     }
                 },
             )
@@ -424,6 +426,17 @@ class BankingWiringFactory(
                                 ?: throw IllegalArgumentException("amount is required")
                         val sourceAccountId = env.getArgument<String?>("sourceAccountId")
                         transactionResolver.payBill(billId, amount, sourceAccountId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createInvestmentAsset",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.createInvestmentAsset(input, principal)
                     }
                 },
             )

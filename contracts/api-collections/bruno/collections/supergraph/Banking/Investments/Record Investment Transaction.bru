@@ -1,0 +1,67 @@
+meta {
+  name: Record Investment Transaction
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation RecordInvestmentTransaction($input: RecordInvestmentTransactionInput!) {
+    recordInvestmentTransaction(input: $input) {
+      id
+      holdingId
+      financialAccountId
+      direction
+      type
+      typeAdditionalInfo
+      quantity
+      unitPrice
+      grossValue
+      netValue
+      incomeTax
+      iof
+      tradeDate
+      settlementDate
+      source
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "input": {
+      "financialAccountId": "{{investment_account_id}}",
+      "assetId": "{{investment_asset_id}}",
+      "direction": "INFLOW",
+      "type": "PURCHASE",
+      "quantity": 1,
+      "unitPrice": 100.0,
+      "grossValue": 100.0,
+      "netValue": 100.0,
+      "tradeDate": "2026-01-15",
+      "settlementDate": "2026-01-16"
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  const tx = body?.data?.recordInvestmentTransaction;
+  if (tx?.id) {
+    bru.setEnvVar("investment_transaction_id", tx.id, { persist: true });
+  }
+  if (tx?.holdingId) {
+    bru.setEnvVar("investment_holding_id", tx.holdingId, { persist: true });
+  }
+}

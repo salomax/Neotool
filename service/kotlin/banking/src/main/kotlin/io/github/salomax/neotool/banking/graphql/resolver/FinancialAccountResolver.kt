@@ -109,6 +109,7 @@ class FinancialAccountResolver(
             ispb = ispb,
             countryCode = countryCode,
             logoKey = logoKey,
+            category = category,
             logoAsset = logoKey?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
 

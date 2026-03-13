@@ -52,11 +52,12 @@ export const FINANCIAL_ACCOUNTS = gql`
 
 /** All active issuers. */
 export const ISSUERS = gql`
-  query Issuers {
-    issuers {
+  query Issuers($categories: [IssuerCategory!]) {
+    issuers(categories: $categories) {
       id
       name
       compeCode
+      category
       logoAsset {
         id
         publicUrl
@@ -238,6 +239,79 @@ export const CREDIT_CARD_BILL = gql`
       status
       createdAt
       updatedAt
+    }
+  }
+`;
+
+/** Holdings for one investment account. */
+export const INVESTMENT_HOLDINGS = gql`
+  query InvestmentHoldings($financialAccountId: ID!) {
+    investmentHoldings(financialAccountId: $financialAccountId) {
+      id
+      quantity
+      averageCost
+      grossValue
+      netValue
+      indexer
+      indexerPercentage
+      preFixedRate
+      issueDate
+      maturityDate
+      isTaxExempt
+      source
+      asset {
+        id
+        name
+        assetType
+        ticker
+        issuerName
+        currencyCode
+      }
+    }
+  }
+`;
+
+/** Holdings across all investment accounts (consolidated mode). */
+export const ALL_INVESTMENT_HOLDINGS = gql`
+  query AllInvestmentHoldings {
+    allInvestmentHoldings {
+      id
+      quantity
+      averageCost
+      grossValue
+      netValue
+      indexer
+      indexerPercentage
+      preFixedRate
+      issueDate
+      maturityDate
+      isTaxExempt
+      source
+      financialAccount {
+        id
+        type
+        subtype
+        name
+        currencyCode
+        themeColor
+        issuerName
+        issuer {
+          id
+          name
+          logoAsset {
+            id
+            publicUrl
+          }
+        }
+      }
+      asset {
+        id
+        name
+        assetType
+        ticker
+        issuerName
+        currencyCode
+      }
     }
   }
 `;

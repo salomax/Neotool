@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
-import { Container, Box, CircularProgress, Stack, Button, Alert, Divider, useTheme } from '@mui/material';
+import { Container, Box, CircularProgress, Stack, Button, Alert, Divider, alpha, useTheme } from '@mui/material';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
@@ -321,7 +321,12 @@ export default function FinanceTransactionsPage() {
               onImportCompleted={handleImportCompleted}
             />
             <Button
-              sx={{ boxShadow: theme.shadows[4] }}
+              sx={{
+                boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
+                '&:hover': {
+                  boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
+                },
+              }}
               variant="contained"
               startIcon={<AddIcon />}
               onClick={() => setIsCreatingTransaction(true)}

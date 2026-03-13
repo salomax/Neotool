@@ -15,13 +15,14 @@ interface FinancialAccountTypeSelectionProps {
 export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountTypeSelectionProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const optionRadius = theme.custom?.radius?.button ?? theme.shape.borderRadius;
 
   const getOptionCardSx = React.useCallback(
     (accentColor: string) => ({
       width: '100%',
       minHeight: { xs: 176, md: 196 },
       p: 3,
-      borderRadius: `${theme.custom.radius.button}px`,
+      borderRadius: optionRadius,
       border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
       bgcolor: 'background.paper',
       display: 'flex',
@@ -71,7 +72,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
       },
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: theme.custom.shadow(4, accentColor),
+        boxShadow: theme.custom?.shadow?.(4, accentColor) ?? theme.shadows[4],
         borderColor: accentColor,
         '& .option-arrow': {
           transform: 'translateX(4px)',
@@ -86,7 +87,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
         transform: 'translateY(-1px)',
       },
     }),
-    [theme]
+    [optionRadius, theme]
   );
 
   return (
@@ -103,7 +104,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
       <ButtonBase
         onClick={() => onSelect('BANK')}
         sx={{
-          borderRadius: `${theme.custom.radius.button}px`,
+          borderRadius: optionRadius,
           textAlign: 'left',
           width: '100%',
           maxWidth: { md: 360 },
@@ -148,7 +149,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
       <ButtonBase
         onClick={() => onSelect('CARD')}
         sx={{
-          borderRadius: `${theme.custom.radius.button}px`,
+          borderRadius: optionRadius,
           textAlign: 'left',
           width: '100%',
           maxWidth: { md: 360 },

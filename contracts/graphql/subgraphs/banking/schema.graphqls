@@ -40,6 +40,7 @@ type Issuer {
   ispb: String
   countryCode: String!
   logoKey: String
+  category: IssuerCategory!
   logoAsset: Asset
 }
 
@@ -109,6 +110,14 @@ enum ConnectionStatus {
   ERROR
   CONSENT_EXPIRING
   CONSENT_EXPIRED
+}
+
+enum IssuerCategory {
+  BANK
+  BROKERAGE
+  CRYPTO_EXCHANGE
+  PAYMENT
+  BENEFIT
 }
 
 # ============================================================================
@@ -807,13 +816,321 @@ type InstallmentInfo {
 }
 
 # ============================================================================
+# Investment enums
+# ============================================================================
+
+"""
+Asset class (classe de ativo). Drives pricing model and tax treatment.
+"""
+enum AssetType {
+  # Renda Variável (B3)
+  STOCK
+  STOCK_RIGHTS
+  BDR
+  REAL_ESTATE_FUND
+  AGRIBUSINESS_FUND
+  ETF
+  ETF_FIXED_INCOME
+  ETF_INTERNATIONAL
+  # Renda Fixa Bancária
+  CDB
+  RDB
+  LCI
+  LCA
+  LC
+  LF
+  LIG
+  # Renda Fixa Crédito
+  DEBENTURES
+  CRI
+  CRA
+  # Tesouro Direto
+  TREASURY
+  # Fundos
+  MUTUAL_FUND
+  # Previdência
+  PGBL
+  VGBL
+  # Estruturado
+  COE
+  # Outros
+  CRYPTO
+  OPTION
+  DERIVATIVES
+  OTHER
+}
+
+"""
+Direction of an investment event. INFLOW increases or adds; OUTFLOW decreases or withdraws.
+"""
+enum InvestmentTransactionDirection {
+  INFLOW
+  OUTFLOW
+}
+
+"""
+Nature of an investment event (OFB/Pluggy/Belvo canonical).
+"""
+enum InvestmentTransactionType {
+  PURCHASE
+  SALE
+  CANCELLATION
+  DIVIDEND
+  INTEREST_ON_EQUITY
+  INTEREST_PAYMENT
+  AMORTIZATION
+  PRIZE
+  MATURITY
+  STOCK_SPLIT
+  REVERSE_SPLIT
+  BONUS_SHARES
+  SUBSCRIPTION
+  CUSTODY_TRANSFER
+  OWNERSHIP_TRANSFER
+  QUOTA_TRANSFER
+  STOCK_LENDING
+  WITHHOLDING_TAX
+  FINE
+  LATE_PAYMENT_INTEREST
+  OTHER
+}
+
+"""
+Fixed income indexer (referenciador). Only applicable to RF holdings.
+"""
+enum Indexer {
+  CDI
+  DI
+  TR
+  IPCA
+  IGP_M
+  IGP_DI
+  INPC
+  BCP
+  TLC
+  SELIC
+  PRE_FIXADO
+  OUTROS
+}
+
+"""
+ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
+"""
+enum AnbimaCategory {
+  RENDA_FIXA
+  ACOES
+  MULTIMERCADO
+  CAMBIAL
+}
+
+"""
+How an investment record entered the system.
+"""
+enum InvestmentSource {
+  MANUAL
+  OPEN_FINANCE
+  FILE_IMPORT
+}
+
+# ============================================================================
+# Investment Types
+# ============================================================================
+
+"""
+Global investable instrument from the asset catalog.
+Equities are identified by ticker; fixed income by isinCode; funds by fundCnpj.
+Market prices are NOT stored here — fetched from financial-data at query time.
+"""
+type InvestmentAsset {
+  id: ID!
+  ticker: String
+  isinCode: String
+  name: String!
+  assetType: AssetType!
+  exchange: String
+  currencyCode: String!
+  issuerCnpj: String
+  issuerName: String
+  fundCnpj: String
+  anbimaCategory: AnbimaCategory
+  anbimaClass: String
+  anbimaSubclass: String
+  """B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001."""
+  priceFactor: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+User's current position in an asset within a custodian account.
+One holding per (financialAccountId, asset). Quantity aggregates all lots.
+averageCost is maintained by the transaction engine — custo médio ponderado (RFB method).
+"""
+type InvestmentHolding {
+  id: ID!
+  financialAccountId: ID!
+  financialAccount: FinancialAccount
+  asset: InvestmentAsset!
+  """Current number of units/shares/cotas held. Zero means position is closed."""
+  quantity: Float!
+  """Weighted average purchase price per unit (custo médio ponderado)."""
+  averageCost: Float!
+  # ── RF-specific contractual terms ──────────────────────────────────────────
+  indexer: Indexer
+  """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
+  indexerPercentage: Float
+  """Annual pre-fixed rate (e.g. 0.12 = 12% a.a.)."""
+  preFixedRate: Float
+  issueDate: Date
+  maturityDate: Date
+  """Earliest redemption date (carência)."""
+  gracePeriodDate: Date
+  """True for LCI/LCA/CRI/CRA — exempt from IR for individuals."""
+  isTaxExempt: Boolean!
+  # ── Provider-cached valuations (may be stale between syncs) ────────────────
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  lastValuedAt: DateTime
+  source: InvestmentSource!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem).
+1:1 with InvestmentTransaction. Present only for renda variável transactions.
+All fee fields are zero when not charged.
+"""
+type BrokerNote {
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float!
+  clearingSettlementFee: Float!
+  clearingRegistrationFee: Float!
+  stockExchangeAssetTradeNoticeFee: Float!
+  stockExchangeFee: Float!
+  clearingCustodyFee: Float!
+  incomeTax: Float!
+  taxes: Float!
+  netValue: Float!
+  createdAt: DateTime!
+}
+
+"""
+An event that changes (or explains) an investment holding.
+tradeDate is the legally relevant date (fato gerador for IR calculation).
+grossValue is always positive; direction is INFLOW or OUTFLOW.
+"""
+type InvestmentTransaction {
+  id: ID!
+  holdingId: ID!
+  financialAccountId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER (OFB transactionTypeAdditionalInfo)."""
+  typeAdditionalInfo: String
+  """Null for pure monetary events (DIVIDEND, INTEREST_PAYMENT, etc.)."""
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  agreedRate: Float
+  priceFactor: Float
+  """Legal event date — fato gerador for IR calculation."""
+  tradeDate: Date!
+  """Settlement date (D+2 equities, D+1 RF). Null for events with no settlement leg."""
+  settlementDate: Date
+  source: InvestmentSource!
+  brokerNote: BrokerNote
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+# ============================================================================
+# Investment Input Types
+# ============================================================================
+
+"""
+Fee breakdown from a broker note (nota de corretagem). All fields default to zero.
+"""
+input BrokerNoteInput {
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float
+  clearingSettlementFee: Float
+  clearingRegistrationFee: Float
+  stockExchangeAssetTradeNoticeFee: Float
+  stockExchangeFee: Float
+  clearingCustodyFee: Float
+  incomeTax: Float
+  taxes: Float
+  netValue: Float!
+}
+
+"""
+Creates a global investment asset entry.
+Assets are not tenant-scoped and can be reused across accounts.
+"""
+input CreateInvestmentAssetInput {
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  ticker: String
+  isinCode: String
+  """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
+"""
+Records a new investment transaction and updates the corresponding holding.
+The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
+RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
+"""
+input RecordInvestmentTransactionInput {
+  financialAccountId: ID!
+  assetId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  agreedRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  # ── New holding terms (RF only — ignored when holding already exists) ───────
+  indexer: Indexer
+  preFixedRate: Float
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  providerInvestmentId: String
+}
+
+# ============================================================================
 # Queries
 # ============================================================================
 
 extend type Query {
   _bankingService: String
-  """All active issuers. Small list — no pagination or filter needed."""
-  issuers: [Issuer!]!
+  """
+  All active issuers.
+  When categories is omitted, returns all active issuers.
+  """
+  issuers(categories: [IssuerCategory!]): [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
   """
@@ -887,6 +1204,21 @@ extend type Query {
   When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
   """
   creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill
+  """
+  All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
+  Zero-quantity (closed) positions are excluded.
+  """
+  investmentHoldings(financialAccountId: ID!): [InvestmentHolding!]!
+  """All holdings across all custodian accounts for the tenant (for net worth)."""
+  allInvestmentHoldings: [InvestmentHolding!]!
+  """Single holding by id."""
+  investmentHolding(id: ID!): InvestmentHolding
+  """Full event history for a holding, ordered by tradeDate DESC."""
+  investmentTransactions(holdingId: ID!): [InvestmentTransaction!]!
+  """Single investment transaction by id."""
+  investmentTransaction(id: ID!): InvestmentTransaction
+  """Look up an asset from the global catalog."""
+  investmentAsset(id: ID!): InvestmentAsset
 }
 
 # ============================================================================
@@ -923,6 +1255,15 @@ extend type Mutation {
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
   """
   payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill!
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  Creates the holding automatically on the first PURCHASE of an asset.
+  """
+  createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
+  """Records an investment transaction and updates the holding's quantity and averageCost."""
+  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
+  deleteInvestmentTransaction(id: ID!): Boolean!
 
   """
   Create a new custom transaction category for the authenticated account.

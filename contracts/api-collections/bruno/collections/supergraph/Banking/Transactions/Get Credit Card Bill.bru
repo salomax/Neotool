@@ -1,7 +1,7 @@
 meta {
-  name: List Credit Card Bills
+  name: Get Credit Card Bill
   type: graphql
-  seq: 14
+  seq: 6
 }
 
 post {
@@ -15,8 +15,8 @@ auth:bearer {
 }
 
 body:graphql {
-  query CreditCardBills($financialAccountId: ID!) {
-    creditCardBills(financialAccountId: $financialAccountId) {
+  query CreditCardBill($financialAccountId: ID!, $closingDate: Date) {
+    creditCardBill(financialAccountId: $financialAccountId, closingDate: $closingDate) {
       id
       financialAccountId
       closingDate
@@ -32,6 +32,7 @@ body:graphql {
 
 body:graphql:vars {
   {
-    "financialAccountId": "<card-account-id>"
+    "financialAccountId": "<card-account-id>",
+    "closingDate": null
   }
 }

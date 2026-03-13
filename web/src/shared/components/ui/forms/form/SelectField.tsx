@@ -15,6 +15,7 @@ export interface SelectFieldProps<T = string> {
   options: SelectOption<T>[];
   helperText?: React.ReactNode;
   fullWidth?: boolean;
+  'data-testid'?: string;
 }
 
 export function SelectField<T = string>({
@@ -23,6 +24,7 @@ export function SelectField<T = string>({
   options,
   helperText,
   fullWidth = true,
+  'data-testid': dataTestId,
 }: SelectFieldProps<T>) {
   const { control } = useFormContext();
   return (
@@ -38,6 +40,7 @@ export function SelectField<T = string>({
           onChange={(e) => field.onChange(e.target.value as any)}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? helperText}
+          data-testid={dataTestId}
         >
           {options.map((o) => (
             <MenuItem key={String(o.value)} value={o.value as any}>

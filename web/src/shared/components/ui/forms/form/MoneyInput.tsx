@@ -28,6 +28,7 @@ export interface MoneyInputProps {
   InputProps?: TextFieldProps["InputProps"];
   autoFocus?: boolean;
   variant?: TextFieldProps["variant"];
+  'data-testid'?: string;
 }
 
 export const MoneyInput: React.FC<MoneyInputProps> = (props) => {
@@ -77,6 +78,7 @@ export function BaseMoneyInput({
   name,
   autoFocus,
   variant,
+  'data-testid': dataTestId,
 }: BaseMoneyInputProps) {
   // Determine locale and separators
   const currentLocale = locale || i18n.language || "pt-BR";
@@ -105,6 +107,7 @@ export function BaseMoneyInput({
       size={size}
       autoFocus={autoFocus}
       label={label}
+      data-testid={dataTestId}
       name={name}
       required={required}
       error={error}

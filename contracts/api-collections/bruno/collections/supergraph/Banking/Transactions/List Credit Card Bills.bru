@@ -1,7 +1,7 @@
 meta {
-  name: Pay Credit Card Bill
+  name: List Credit Card Bills
   type: graphql
-  seq: 17
+  seq: 6
 }
 
 post {
@@ -15,16 +15,8 @@ auth:bearer {
 }
 
 body:graphql {
-  mutation PayBill(
-    $billId: ID!
-    $amount: Float!
-    $sourceAccountId: ID
-  ) {
-    payBill(
-      billId: $billId
-      amount: $amount
-      sourceAccountId: $sourceAccountId
-    ) {
+  query CreditCardBills($financialAccountId: ID!) {
+    creditCardBills(financialAccountId: $financialAccountId) {
       id
       financialAccountId
       closingDate
@@ -40,8 +32,6 @@ body:graphql {
 
 body:graphql:vars {
   {
-    "billId": "<bill-id>",
-    "amount": 100.0,
-    "sourceAccountId": "<bank-account-id>"
+    "financialAccountId": "<card-account-id>"
   }
 }

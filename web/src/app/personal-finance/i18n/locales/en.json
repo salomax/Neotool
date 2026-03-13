@@ -53,6 +53,155 @@
       "reits": "REITs",
       "stocks": "Stocks",
       "fixedIncome": "Fixed income"
+    },
+    "actions": {
+      "recordHolding": "Record holding"
+    },
+    "assetTypes": {
+      "STOCK": "Stocks",
+      "STOCK_RIGHTS": "Stock rights",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "Real estate funds (FII)",
+      "AGRIBUSINESS_FUND": "Agribusiness funds (FIAGRO)",
+      "ETF": "Equity ETFs",
+      "ETF_FIXED_INCOME": "Fixed income ETFs",
+      "ETF_INTERNATIONAL": "International ETFs",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debentures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Treasury Direct",
+      "MUTUAL_FUND": "Mutual fund",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Crypto",
+      "OPTION": "Options",
+      "DERIVATIVES": "Derivatives",
+      "OTHER": "Other"
+    },
+    "createAccount": {
+      "title": "Create investment account",
+      "fields": {
+        "subtypeLabel": "Account type",
+        "issuerLabel": "Broker / Institution",
+        "issuerPlaceholder": "Search by name...",
+        "customIssuerLabel": "Institution name",
+        "accountNameLabel": "Account name",
+        "accountNamePlaceholder": "e.g. My XP Portfolio"
+      },
+      "subtypes": {
+        "BROKERAGE": "Brokerage",
+        "FIXED_INCOME": "Fixed Income",
+        "PENSION": "Pension",
+        "CRYPTO": "Crypto"
+      },
+      "validation": {
+        "subtypeRequired": "Account type is required",
+        "issuerRequired": "Please enter a broker or institution name"
+      },
+      "actions": {
+        "submit": "Create account",
+        "submitting": "Creating...",
+        "cancel": "Cancel"
+      },
+      "success": "Investment account created successfully"
+    },
+    "table": {
+      "columns": {
+        "asset": "Asset",
+        "type": "Type",
+        "quantity": "Quantity",
+        "averagePrice": "Average price",
+        "currentValue": "Current value",
+        "indexer": "Indexer",
+        "grossValue": "Gross value",
+        "maturityDate": "Maturity"
+      },
+      "groupSummary_one": "{{count}} asset · {{total}}",
+      "groupSummary_other": "{{count}} assets · {{total}}",
+      "groups": {
+        "variableIncomeB3": "Variable income (B3)",
+        "bankFixedIncome": "Fixed income",
+        "creditFixedIncome": "Credit fixed income",
+        "treasuryDirect": "Treasury Direct",
+        "mutualFunds": "Investment funds",
+        "pension": "Private pension",
+        "structured": "Structured",
+        "others": "Others"
+      },
+      "emptyState": "No holdings recorded in this account",
+      "recordFirstHolding": "Record first holding",
+      "error": "Failed to load investments"
+    },
+    "recordHolding": {
+      "title": "Record Fixed Income Holding",
+      "selectAccount": {
+        "description": "Select an investment account to record the holding.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "assetInfo": "Asset details",
+        "applicationDetails": "Application details"
+      },
+      "fields": {
+        "assetName": "Asset name",
+        "assetType": "Type",
+        "issuerName": "Issuer",
+        "indexer": "Indexer",
+        "indexerPercentage": "Indexer %",
+        "preFixedRate": "Rate (% p.a.)",
+        "grossValue": "Invested amount (BRL)",
+        "tradeDate": "Application date",
+        "maturityDate": "Maturity date",
+        "isTaxExempt": "Tax-exempt (LCI, LCA, CRI, CRA)"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debentures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Treasury Direct"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Pre-fixed",
+        "OUTROS": "Other"
+      },
+      "validation": {
+        "assetNameRequired": "Asset name is required",
+        "assetTypeRequired": "Asset type is required",
+        "issuerRequired": "Issuer is required",
+        "indexerRequired": "Indexer is required",
+        "indexerPercentageRequired": "Indexer % is required",
+        "preFixedRateRequired": "Rate is required",
+        "grossValueRequired": "Invested amount is required",
+        "grossValuePositive": "Amount must be greater than zero",
+        "tradeDateRequired": "Application date is required",
+        "maturityDateRequired": "Maturity date is required",
+        "maturityAfterTrade": "Maturity must be after the application date"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Holding recorded successfully"
     }
   },
   "categories": {
@@ -82,7 +231,6 @@
     },
     "edit": "Edit",
     "delete": "Delete"
-  }
   },
   "financeTransactions": {
     "title": "Finance Transactions",

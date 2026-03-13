@@ -2,6 +2,14 @@ package io.github.salomax.neotool.banking.domain.issuer
 
 import java.util.UUID
 
+enum class IssuerCategory {
+    BANK,
+    BROKERAGE,
+    CRYPTO_EXCHANGE,
+    PAYMENT,
+    BENEFIT,
+}
+
 /**
  * Domain model for a financial institution (banking.issuers).
  * Used as the institution picker in account creation.
@@ -16,4 +24,5 @@ data class Issuer(
     val logoKey: String?,
     val countryCode: String = "BR",
     val isActive: Boolean = true,
+    val category: IssuerCategory = IssuerCategory.BANK,
 )

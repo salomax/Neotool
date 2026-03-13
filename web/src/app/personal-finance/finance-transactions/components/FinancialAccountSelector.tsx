@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
+import i18n from 'i18next';
 import { 
   Box, 
   Typography, 
@@ -25,6 +26,7 @@ import {
   AccountBalance as BankIcon,
   CreditCard as CardIcon,
   AccountBalanceWallet as WalletIcon,
+  TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
@@ -37,11 +39,19 @@ interface FinancialAccountSelectorProps {
   onNewAccount: () => void;
   selectedAccountId?: string | null;
   onSelectAccount: (accountId: string | null) => void;
+  accountTypes?: FinancialAccountType[];
+  allAccountsLabel?: string;
+  consolidatedViewLabel?: string;
+  newAccountLabel?: string;
+  unknownIssuerLabel?: string;
+  searchPlaceholder?: string;
+  noAccountsFoundLabel?: string;
 }
 
 // Helper to format currency (mock for now if balance missing)
 const formatCurrency = (value: number, currency = 'BRL') => {
-  return new Intl.NumberFormat('pt-BR', {
+  const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || 'pt-BR';
+  return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency: currency,
   }).format(value);
@@ -50,7 +60,14 @@ const formatCurrency = (value: number, currency = 'BRL') => {
 export function FinancialAccountSelector({ 
   onNewAccount, 
   selectedAccountId, 
-  onSelectAccount 
+  onSelectAccount,
+  accountTypes,
+  allAccountsLabel,
+  consolidatedViewLabel,
+  newAccountLabel,
+  unknownIssuerLabel,
+  searchPlaceholder,
+  noAccountsFoundLabel,
 }: FinancialAccountSelectorProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -66,31 +83,44 @@ export function FinancialAccountSelector({
     errorPolicy: 'all',
   });
 
-  const filteredAccounts = useMemo(() => {
+  const scopedAccounts = useMemo(() => {
     const accounts = data?.financialAccounts || [];
+    if (!accountTypes?.length) return accounts;
+    return accounts.filter((account) => accountTypes.includes(account.type));
+  }, [accountTypes, data?.financialAccounts]);
+
+  const allAccountsText = allAccountsLabel || t('financeTransactions.selector.allAccounts');
+  const consolidatedViewText = consolidatedViewLabel || t('financeTransactions.selector.consolidatedView');
+  const newAccountText = newAccountLabel || t('financeTransactions.actions.newAccountOrCard');
+  const unknownIssuerText = unknownIssuerLabel || t('financeTransactions.selector.unknownIssuer');
+  const searchPlaceholderText = searchPlaceholder || t('financeTransactions.selector.searchPlaceholder', 'Search accounts...');
+  const noAccountsFoundText = noAccountsFoundLabel || t('financeTransactions.selector.noAccountsFound', 'No accounts found');
+
+  const filteredAccounts = useMemo(() => {
+    const accounts = scopedAccounts;
     if (!searchQuery) return accounts;
     const query = searchQuery.toLowerCase();
     return accounts.filter(acc => 
       acc.name.toLowerCase().includes(query) || 
       (acc.issuer?.name || acc.issuerName || '').toLowerCase().includes(query)
     );
-  }, [data?.financialAccounts, searchQuery]);
+  }, [scopedAccounts, searchQuery]);
 
   // Group Accounts by Issuer
   const groupedAccounts = useMemo<Record<string, FinancialAccount[]>>(() => {
     if (filteredAccounts.length === 0) return {};
     
     return filteredAccounts.reduce<Record<string, FinancialAccount[]>>((acc, account) => {
-      const issuerName = account.issuer?.name || account.issuerName || t('financeTransactions.selector.unknownIssuer');
+      const issuerName = account.issuer?.name || account.issuerName || unknownIssuerText;
       if (!acc[issuerName]) {
         acc[issuerName] = [];
       }
       acc[issuerName].push(account);
       return acc;
     }, {});
-  }, [filteredAccounts, t]);
+  }, [filteredAccounts, unknownIssuerText]);
 
-  const allAccounts: FinancialAccount[] = data?.financialAccounts || [];
+  const allAccounts: FinancialAccount[] = scopedAccounts;
   const hasMultipleAccounts = allAccounts.length > 1;
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
   
@@ -100,6 +130,27 @@ export function FinancialAccountSelector({
     : null;
 
   // Handlers
+  const renderAccountTypeIcon = (type: FinancialAccountType, fontSize?: 'small' | 'medium' | 'large') => {
+    if (type === FinancialAccountType.Bank) return <BankIcon fontSize={fontSize} />;
+    if (type === FinancialAccountType.Credit || type === FinancialAccountType.Payment) return <CardIcon fontSize={fontSize} />;
+    if (type === FinancialAccountType.Investment) return <WalletIcon fontSize={fontSize} />;
+    return <BankIcon />;
+  };
+
+  const consolidatedViewType = useMemo<'INVESTMENT' | 'BANKING'>(() => {
+    if (accountTypes?.length) {
+      return accountTypes.every((type) => type === FinancialAccountType.Investment) ? 'INVESTMENT' : 'BANKING';
+    }
+
+    if (!allAccounts.length) return 'BANKING';
+    return allAccounts.every((account) => account.type === FinancialAccountType.Investment) ? 'INVESTMENT' : 'BANKING';
+  }, [accountTypes, allAccounts]);
+
+  const renderConsolidatedViewIcon = (fontSize?: 'small' | 'medium' | 'large') => {
+    if (consolidatedViewType === 'INVESTMENT') return <TrendingUpIcon fontSize={fontSize} />;
+    return <BankIcon fontSize={fontSize} />;
+  };
+
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     // Only open dropdown if multiple accounts
     if (hasMultipleAccounts) {
@@ -146,7 +197,7 @@ export function FinancialAccountSelector({
                 borderRadius: borderRadius
             }}
           >
-            {!singleAccount.issuer?.logoAsset?.publicUrl && (singleAccount.type === FinancialAccountType.Bank ? <BankIcon /> : <CardIcon />)}
+            {!singleAccount.issuer?.logoAsset?.publicUrl && renderAccountTypeIcon(singleAccount.type)}
           </Avatar>
           <Box>
             <Typography variant="subtitle1" fontWeight="bold">
@@ -174,7 +225,7 @@ export function FinancialAccountSelector({
           }}
         >
           <AddIcon fontSize="small" />
-          {t('financeTransactions.actions.newAccountOrCard')}
+          {newAccountText}
         </Link>
       </Box>
     );
@@ -205,7 +256,7 @@ export function FinancialAccountSelector({
       >
         <AddIcon color="primary" />
         <Typography color="primary" fontWeight="medium">
-          {t('financeTransactions.actions.newAccountOrCard')}
+          {newAccountText}
         </Typography>
       </Paper>
      );
@@ -245,20 +296,20 @@ export function FinancialAccountSelector({
           >
              {selectedAccount ? (
                 !selectedAccount.issuer?.logoAsset?.publicUrl && (
-                    selectedAccount.type === FinancialAccountType.Bank ? <BankIcon /> : <CardIcon />
+                    renderAccountTypeIcon(selectedAccount.type)
                 )
              ) : (
-                <BankIcon />
+                renderConsolidatedViewIcon()
              )}
           </Avatar>
           <Box>
             <Typography variant="subtitle1" fontWeight="bold">
-              {selectedAccount ? selectedAccount.name : t('financeTransactions.selector.allAccounts')}
+              {selectedAccount ? selectedAccount.name : allAccountsText}
             </Typography>
             <Typography variant="body2" color="text.secondary">
               {selectedAccount 
                 ? (selectedAccount.issuer?.name || selectedAccount.issuerName) 
-                : t('financeTransactions.selector.consolidatedView')}
+                : consolidatedViewText}
             </Typography>
           </Box>
         </Box>
@@ -280,9 +331,9 @@ export function FinancialAccountSelector({
             width: '100%'
         }}
       >
-        <AddIcon fontSize="small" />
-        {t('financeTransactions.actions.newAccountOrCard')}
-      </Link>
+          <AddIcon fontSize="small" />
+          {newAccountText}
+        </Link>
 
       <Popover
         open={open}
@@ -318,12 +369,12 @@ export function FinancialAccountSelector({
             >
                 <ListItemIcon>
                     <Avatar sx={{ bgcolor: 'primary.main', borderRadius: borderRadius }}>
-                        <BankIcon />
+                        {renderConsolidatedViewIcon()}
                     </Avatar>
                 </ListItemIcon>
                 <ListItemText 
-                    primary={t('financeTransactions.selector.allAccounts')}
-                    secondary={t('financeTransactions.selector.consolidatedView')}
+                    primary={allAccountsText}
+                    secondary={consolidatedViewText}
                     primaryTypographyProps={{ fontWeight: 'bold' }}
                 />
                  {/* Expand icon for "All accounts" acts as collapse? No, just selection */}
@@ -336,7 +387,7 @@ export function FinancialAccountSelector({
                 <TextField 
                     fullWidth
                     size="small"
-                    placeholder={t('financeTransactions.selector.searchPlaceholder', 'Search accounts...')}
+                    placeholder={searchPlaceholderText}
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     sx={{ 
@@ -358,7 +409,7 @@ export function FinancialAccountSelector({
             {searchQuery && filteredAccounts.length === 0 && (
                 <Box sx={{ p: 2, textAlign: 'center' }}>
                     <Typography variant="body2" color="text.secondary">
-                        {t('financeTransactions.selector.noAccountsFound', 'No accounts found')}
+                        {noAccountsFoundText}
                     </Typography>
                 </Box>
             )}
@@ -392,7 +443,7 @@ export function FinancialAccountSelector({
                                             borderRadius: borderRadius
                                         }}
                                     >
-                                        {!account.issuer?.logoAsset?.publicUrl && (account.type === FinancialAccountType.Bank ? <BankIcon fontSize="small" /> : <CardIcon fontSize="small" />)}
+                                        {!account.issuer?.logoAsset?.publicUrl && renderAccountTypeIcon(account.type, 'small')}
                                     </Avatar>
                                 </ListItemIcon>
                                 <ListItemText 
@@ -436,7 +487,7 @@ export function FinancialAccountSelector({
                 }}
              >
                 <AddIcon fontSize="small" />
-                {t('financeTransactions.actions.newAccountOrCard')}
+                {newAccountText}
              </Link>
         </Box>
       </Popover>

@@ -17,6 +17,7 @@ export interface NumberFieldProps {
   fullWidth?: boolean;
   locale?: string;
   fractionDigits?: number;
+  'data-testid'?: string;
 }
 
 export const NumberField: React.FC<NumberFieldProps> = ({
@@ -30,6 +31,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   fullWidth = true,
   locale = "en-US",
   fractionDigits,
+  'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
   const { decimal, group } = getLocaleSeparators(locale);
@@ -60,6 +62,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
                 fullWidth={fullWidth}
                 error={!!fieldState.error}
                 helperText={fieldState.error?.message ?? helperText}
+                data-testid={dataTestId}
                 InputProps={{
                   inputProps: { step: computedStep, style: { textAlign: "right" } },
                 }}

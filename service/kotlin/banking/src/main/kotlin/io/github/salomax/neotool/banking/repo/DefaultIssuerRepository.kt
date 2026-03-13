@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo
 
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.model.issuer.IssuerMapper
 import io.micronaut.transaction.annotation.Transactional
@@ -15,6 +16,13 @@ open class DefaultIssuerRepository(
     private val entityRepository: IssuerEntityRepository,
 ) : IssuerRepository {
     override fun findAllActive(): List<Issuer> = entityRepository.findByIsActiveTrue().map(IssuerMapper::toDomain)
+
+    override fun findActiveByCategories(categories: List<IssuerCategory>): List<Issuer> =
+        if (categories.isEmpty()) {
+            findAllActive()
+        } else {
+            entityRepository.findByIsActiveTrueAndCategoryIn(categories).map(IssuerMapper::toDomain)
+        }
 
     override fun findAllPendingLogoHydration(): List<Issuer> =
         entityRepository.findByLogoKeyIsNullAndDomainIsNotNull().map(IssuerMapper::toDomain)

@@ -10,6 +10,8 @@ import java.util.UUID
 interface IssuerRepository {
     fun findAllActive(): List<Issuer>
 
+    fun findActiveByCategories(categories: List<IssuerCategory>): List<Issuer>
+
     fun findAllPendingLogoHydration(): List<Issuer>
 
     fun findById(id: UUID): Issuer?
