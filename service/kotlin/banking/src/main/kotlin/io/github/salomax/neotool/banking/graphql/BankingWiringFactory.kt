@@ -31,6 +31,7 @@ class BankingWiringFactory(
     private val transactionResolver: TransactionResolver,
     private val transactionCategoryResolver: TransactionCategoryResolver,
     private val importResolver: ImportResolver,
+    private val investmentResolver: InvestmentResolver,
     private val billImportResolver: BillImportResolver,
     private val investmentResolver: InvestmentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
@@ -479,6 +480,13 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
                         transactionCategoryResolver.createTransactionCategory(input, principal)
+                "recordInvestmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.recordInvestmentTransaction(input, principal)
                     }
                 },
             )
@@ -551,6 +559,13 @@ class BankingWiringFactory(
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
                         transactionCategoryResolver.deleteCategoryRule(id, principal)
+                "deleteInvestmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.deleteInvestmentTransaction(id, principal)
                     }
                 },
             )

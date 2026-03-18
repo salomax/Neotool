@@ -285,6 +285,62 @@
     "edit": "Edit",
     "delete": "Delete"
   },
+  "dashboard": {
+    "controls": {
+      "customize": "Customize",
+      "resetLayout": "Reset layout",
+      "done": "Done"
+    },
+    "timeRange": {
+      "ariaLabel": "Time range",
+      "options": {
+        "90d": "Last 90 days",
+        "6m": "Last 6 months",
+        "ytd": "Year to date",
+        "1y": "Last year",
+        "all": "All time",
+        "custom": "Custom"
+      }
+    },
+    "actions": {
+      "title": "Quick actions",
+      "financeMovements": {
+        "title": "Finance Transactions",
+        "description": "For quick income and expense tracking."
+      },
+      "investmentsPortfolio": {
+        "title": "Investment Portfolio",
+        "description": "For consolidated asset management."
+      }
+    }
+  },
+  "investments": {
+    "sidebar": {
+      "allBrokers": "All brokers",
+      "consolidatedView": "CONSOLIDATED VIEW",
+      "summaryTitle": "CONSOLIDATED VIEW",
+      "totalLabel": "Total portfolio",
+      "metrics": {
+        "contributions": "Contributions",
+        "returns": "Returns"
+      },
+      "allocation": "ALLOCATION"
+    },
+    "emptyState": {
+      "title": "Your investment portfolio is empty",
+      "description": "Start organizing your assets to get a complete view of your returns and wealth growth. Track stocks, funds, treasury bonds and much more in one place.",
+      "primaryAction": "Create investment account",
+      "secondaryAction": "Register first asset"
+    },
+    "trackableAssets": {
+      "title": "ASSETS YOU CAN TRACK",
+      "crypto": "Crypto",
+      "reits": "REITs",
+      "stocks": "Stocks",
+      "fixedIncome": "Fixed income"
+    }
+  },
+  },
   "financeTransactions": {
     "title": "Finance Transactions",
     "quickAdd": "New transaction",

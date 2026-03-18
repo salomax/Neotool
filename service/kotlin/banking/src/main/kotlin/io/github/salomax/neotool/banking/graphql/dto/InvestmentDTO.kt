@@ -6,7 +6,6 @@ import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.ValuationSource
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -41,8 +40,6 @@ data class InvestmentHoldingDTO(
     val assetId: UUID,
     // Populated by the resolver via a separate AssetRepository lookup
     val asset: InvestmentAssetDTO?,
-    // Populated by the resolver via a batch FinancialAccountRepository lookup
-    val financialAccount: FinancialAccountDTO?,
     val quantity: Double,
     val averageCost: Double,
     // RF-specific terms
@@ -59,10 +56,6 @@ data class InvestmentHoldingDTO(
     val incomeTax: Double?,
     val iof: Double?,
     val lastValuedAt: Instant?,
-    // Origin of current values (provider or computed/estimated); single grossValue/netValue/incomeTax/iof hold either
-    val valuationSource: ValuationSource,
-    val valuationReferenceDate: LocalDate?,
-    val isExpired: Boolean,
     // Provenance
     val source: InvestmentSource,
     val createdAt: Instant,

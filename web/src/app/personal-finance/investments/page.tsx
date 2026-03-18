@@ -1,85 +1,25 @@
 "use client";
 
-import React, { useState } from "react";
-import { useQuery } from "@apollo/client/react";
-import { alpha, Box, Button, CircularProgress, Container, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
+import React from "react";
+import { alpha, Box, Button, Container, Stack, Typography, useTheme } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
-import AddIcon from "@mui/icons-material/Add";
+import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddchartIcon from "@mui/icons-material/Addchart";
-import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
-import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
+import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CurrencyBitcoinIcon from "@mui/icons-material/CurrencyBitcoin";
 import ApartmentIcon from "@mui/icons-material/Apartment";
-import SavingsIcon from "@mui/icons-material/Savings";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
-import { QueryErrorState } from "@/shared/components/ui/feedback";
-import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
-import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
-import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
-import { InvestmentTable } from "./components/InvestmentTable";
-import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
-import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
-import { FinancialAccountSelector } from "../finance-transactions/components/FinancialAccountSelector";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const [createAccountOpen, setCreateAccountOpen] = useState(false);
-  const [recordHoldingOpen, setRecordHoldingOpen] = useState(false);
-  const [recordFundOpen, setRecordFundOpen] = useState(false);
-  const [selectedInvestmentAccountId, setSelectedInvestmentAccountId] = useState<string | null>(null);
-  const [recordAnchorEl, setRecordAnchorEl] = useState<null | HTMLElement>(null);
-  const recordMenuOpen = Boolean(recordAnchorEl);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
-
-  const {
-    data,
-    loading,
-    error: financialAccountsError,
-    refetch: refetchFinancialAccounts,
-  } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS, {
-    errorPolicy: "all",
-  });
-
-  const investmentAccounts = React.useMemo(
-    () => (data?.financialAccounts || []).filter((account) => account.type === FinancialAccountType.Investment),
-    [data?.financialAccounts],
-  );
-
-  const hasInvestmentAccounts = investmentAccounts.length > 0;
-
-  React.useEffect(() => {
-    if (
-      selectedInvestmentAccountId &&
-      !investmentAccounts.some((account) => account.id === selectedInvestmentAccountId)
-    ) {
-      setSelectedInvestmentAccountId(null);
-    }
-  }, [investmentAccounts, selectedInvestmentAccountId]);
-
-  if (loading) {
-    return (
-      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100vh" }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (financialAccountsError) {
-    return (
-      <Page>
-        <Container maxWidth="md" sx={{ py: 6 }}>
-          <QueryErrorState error={financialAccountsError} onRetry={() => refetchFinancialAccounts()} />
-        </Container>
-      </Page>
-    );
-  }
 
   return (
     <SidebarLayout
@@ -89,15 +29,48 @@ export default function PersonalFinanceInvestmentsPage() {
       sidebar={
         <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
           <Box sx={{ p: 3, pb: 2 }}>
-            <FinancialAccountSelector
-              onNewAccount={() => setCreateAccountOpen(true)}
-              selectedAccountId={selectedInvestmentAccountId}
-              onSelectAccount={setSelectedInvestmentAccountId}
-              accountTypes={[FinancialAccountType.Investment]}
-              allAccountsLabel={t("investments.sidebar.allBrokers")}
-              consolidatedViewLabel={t("investments.sidebar.consolidatedView")}
-              newAccountLabel={t("investments.emptyState.primaryAction")}
-            />
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 2,
+                p: 1.5,
+                borderRadius: `${theme.custom.radius.button}px`,
+                border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+                bgcolor: "background.paper",
+                boxShadow: theme.shadows[1],
+              }}
+            >
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0 }}>
+                <Box
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    borderRadius: "50%",
+                    bgcolor: alpha(theme.palette.primary.main, 0.12),
+                    color: "primary.main",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flex: "0 0 auto",
+                  }}
+                >
+                  <AccountBalanceIcon sx={{ fontSize: 20 }} />
+                </Box>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="subtitle2" fontWeight={800} noWrap>
+                    {t("investments.sidebar.allBrokers")}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.12em" }} noWrap>
+                    {t("investments.sidebar.consolidatedView")}
+                  </Typography>
+                </Box>
+              </Box>
+              <Box sx={{ color: "text.secondary", flex: "0 0 auto" }}>
+                <ArrowDropDownIcon />
+              </Box>
+            </Box>
 
             <Box
               sx={{
@@ -184,185 +157,102 @@ export default function PersonalFinanceInvestmentsPage() {
       }
     >
       <Page>
-        {hasInvestmentAccounts ? (
-          <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Stack direction="row" spacing={2} sx={{ width: "100%", mb: 2 }} justifyContent="flex-end" flexWrap="wrap">
-              <Button
-                sx={{
-                  boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
-                  "&:hover": {
-                    boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
-                  },
-                }}
-                variant="contained"
-                startIcon={<AddIcon />}
-                endIcon={recordMenuOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-                onClick={(event) => setRecordAnchorEl(event.currentTarget)}
-                data-testid="record-holding-btn"
-              >
-                {t("investments.actions.recordHolding")}
-              </Button>
-            </Stack>
-
-            <Menu
-              anchorEl={recordAnchorEl}
-              open={recordMenuOpen}
-              onClose={() => setRecordAnchorEl(null)}
-              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-              transformOrigin={{ vertical: "top", horizontal: "right" }}
+        <Container maxWidth="xl" sx={{ py: 4, flex: 1, display: "flex" }}>
+          <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
+            <Box
+              sx={{
+                width: "100%",
+                maxWidth: 760,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                textAlign: "center",
+                py: { xs: 6, md: 8 },
+              }}
             >
-              <MenuItem
-                onClick={() => {
-                  setRecordAnchorEl(null);
-                  setRecordHoldingOpen(true);
-                }}
-              >
-                {t("investments.table.groups.bankFixedIncome")}
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setRecordAnchorEl(null);
-                  setRecordFundOpen(true);
-                }}
-              >
-                {t("investments.table.groups.mutualFunds")}
-              </MenuItem>
-            </Menu>
-
-            <InvestmentTable
-              selectedAccountId={selectedInvestmentAccountId}
-              onRecordHolding={() => setRecordHoldingOpen(true)}
-              onRecordFund={() => setRecordFundOpen(true)}
-            />
-          </Container>
-        ) : (
-          <Container maxWidth="xl" sx={{ py: 4, flex: 1, display: "flex" }}>
-            <Box sx={{ width: "100%", display: "flex", justifyContent: "center" }}>
-              <Box
-                sx={{
-                  width: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  textAlign: "center",
-                  py: { xs: 6, md: 8 },
-                }}
-              >
-                <Box sx={{ position: "relative", mb: 4 }}>
+              <Box sx={{ position: "relative", mb: 4 }}>
+                <Box
+                  sx={{
+                    width: 180,
+                    height: 180,
+                    borderRadius: "50%",
+                    bgcolor: alpha(theme.palette.primary.main, 0.07),
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
                   <Box
                     sx={{
-                      width: 180,
-                      height: 180,
+                      width: 132,
+                      height: 132,
                       borderRadius: "50%",
-                      bgcolor: alpha(theme.palette.primary.main, 0.07),
+                      bgcolor: alpha(theme.palette.primary.main, 0.10),
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
                     }}
                   >
-                    <Box
-                      sx={{
-                        width: 132,
-                        height: 132,
-                        borderRadius: "50%",
-                        bgcolor: alpha(theme.palette.primary.main, 0.10),
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <TrendingUpIcon sx={{ fontSize: 58, color: alpha(theme.palette.primary.main, 0.45) }} />
-                    </Box>
+                    <TrendingUpIcon sx={{ fontSize: 58, color: alpha(theme.palette.primary.main, 0.45) }} />
                   </Box>
                 </Box>
 
-                <Typography variant="h5" fontWeight={900} sx={{ mb: 1 }}>
-                  {t("investments.emptyState.title")}
-                </Typography>
-                <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640, lineHeight: 1.7, mb: 4 }}>
-                  {t("investments.emptyState.description")}
-                </Typography>
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%", justifyContent: "center", mb: 4 }}>
-                  <Button
-                    variant="contained"
-                    size="large"
-                    startIcon={<AddchartIcon />}
-                    onClick={() => setCreateAccountOpen(true)}
-                    data-testid="create-investment-account-btn"
-                    sx={{ height: 48, minWidth: { xs: "100%", sm: 280 }, boxShadow: theme.shadows[4] }}
-                  >
-                    {t("investments.emptyState.primaryAction")}
-                  </Button>
-                  <Button
-                    variant="outlined"
-                    size="large"
-                    onClick={() => setCreateAccountOpen(true)}
-                    sx={{ height: 48, minWidth: { xs: "100%", sm: 260 } }}
-                  >
-                    {t("investments.emptyState.secondaryAction")}
-                  </Button>
-                </Stack>
-
-                <Box sx={{ width: "100%", maxWidth: 620, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.7)}`, my: 3 }} />
-
-                <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.18em", mb: 2 }}>
-                  {t("investments.trackableAssets.title")}
-                </Typography>
-
-                <Stack
-                  direction="row"
-                  spacing={6}
-                  sx={{ justifyContent: "center", flexWrap: "wrap", rowGap: 3, color: "text.secondary" }}
-                >
-                  {[
-                    { icon: <CurrencyBitcoinIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.crypto") },
-                    { icon: <ApartmentIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.reits") },
-                    { icon: <TrendingUpIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.stocks") },
-                    { icon: <AccountBalanceIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.fixedIncome") },
-                    { icon: <SavingsIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.funds") },
-                  ].map((item) => (
-                    <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, minWidth: 96 }}>
-                      <Box sx={{ opacity: 0.7 }}>{item.icon}</Box>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>
-                        {item.label}
-                      </Typography>
-                    </Box>
-                  ))}
-                </Stack>
               </Box>
+
+              <Typography variant="h5" fontWeight={900} sx={{ mb: 1 }}>
+                {t("investments.emptyState.title")}
+              </Typography>
+              <Typography variant="body1" color="text.secondary" sx={{ maxWidth: 640, lineHeight: 1.7, mb: 4 }}>
+                {t("investments.emptyState.description")}
+              </Typography>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ width: "100%", justifyContent: "center", mb: 4 }}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<AddchartIcon />}
+                  sx={{ height: 48, minWidth: { xs: "100%", sm: 280 }, boxShadow: theme.shadows[4] }}
+                >
+                  {t("investments.emptyState.primaryAction")}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<PlaylistAddIcon />}
+                  sx={{ height: 48, minWidth: { xs: "100%", sm: 260 } }}
+                >
+                  {t("investments.emptyState.secondaryAction")}
+                </Button>
+              </Stack>
+
+              <Box sx={{ width: "100%", maxWidth: 620, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.7)}`, my: 3 }} />
+
+              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.18em", mb: 2 }}>
+                {t("investments.trackableAssets.title")}
+              </Typography>
+
+              <Stack
+                direction="row"
+                spacing={6}
+                sx={{ justifyContent: "center", flexWrap: "wrap", rowGap: 3, color: "text.secondary" }}
+              >
+                {[
+                  { icon: <CurrencyBitcoinIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.crypto") },
+                  { icon: <ApartmentIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.reits") },
+                  { icon: <TrendingUpIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.stocks") },
+                  { icon: <AccountBalanceIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.fixedIncome") },
+                ].map((item) => (
+                  <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, minWidth: 96 }}>
+                    <Box sx={{ opacity: 0.7 }}>{item.icon}</Box>
+                    <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                      {item.label}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
             </Box>
-          </Container>
-        )}
-
-        <CreateInvestmentAccountDrawer
-          open={createAccountOpen}
-          onClose={() => setCreateAccountOpen(false)}
-          onCreated={(account) => {
-            setSelectedInvestmentAccountId(account.id);
-            refetchFinancialAccounts();
-          }}
-        />
-
-        <RecordFixedIncomeDrawer
-          open={recordHoldingOpen}
-          onClose={() => setRecordHoldingOpen(false)}
-          financialAccountId={selectedInvestmentAccountId}
-          financialAccounts={investmentAccounts}
-          onRecorded={() => {
-            setRecordHoldingOpen(false);
-          }}
-        />
-
-        <RecordFundHoldingDrawer
-          open={recordFundOpen}
-          onClose={() => setRecordFundOpen(false)}
-          financialAccountId={selectedInvestmentAccountId}
-          financialAccounts={investmentAccounts}
-          onRecorded={() => {
-            setRecordFundOpen(false);
-          }}
-        />
+          </Box>
+        </Container>
       </Page>
     </SidebarLayout>
   );
