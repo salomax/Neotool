@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.assistant.test.unit.kafka
 
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneProducer
+import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderDoneEvent
+import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderDoneProducer
 import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderCallbackContext
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderOutputValidator
@@ -34,7 +35,7 @@ import java.util.UUID
 
 class LlmBankingReaderRequestedRoutingServiceTest {
     private lateinit var completionService: CompletionService
-    private lateinit var doneProducer: AssistantBankingPdfReaderDoneProducer
+    private lateinit var doneProducer: AssistantBankingReaderDoneProducer
     private lateinit var promptResolver: BankingReaderPromptResolver
     private lateinit var outputValidator: BankingReaderOutputValidator
     private lateinit var service: LlmBankingReaderRequestedRoutingService
@@ -80,7 +81,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         val completionInput = inputCaptor.firstValue
         assertThat(completionInput.outputFormat?.name).isEqualTo("JSON")
         assertThat(completionInput.requiredCapabilities).contains("JSON_MODE")
-        assertThat(completionInput.purpose).isEqualTo("banking_pdf_reader_credit_card_bill")
+        assertThat(completionInput.purpose).isEqualTo("banking_bill_reader_credit_card_bill")
         assertThat(completionInput.messages).hasSize(1)
         assertThat(completionInput.messages.first().role).isEqualTo(ProviderMessageRole.USER)
         assertThat(completionInput.messages.first().content).contains(request.extracted_text)
@@ -91,12 +92,12 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(completionInput.messages.first().content).contains("card_blocks must be []")
 
         val doneCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneEvent>()
+            argumentCaptor<AssistantBankingReaderDoneEvent>()
         verify(doneProducer).publish(doneCaptor.capture())
         val doneEvent = doneCaptor.firstValue
         assertThat(doneEvent.job_id).isEqualTo(request.job_id)
         assertThat(doneEvent.callback_context.account_id).isEqualTo(request.callback_context.account_id)
-        assertThat(doneEvent.parse_metadata.reader_id).isEqualTo("assistant-banking-pdf-reader-v2")
+        assertThat(doneEvent.parse_metadata.reader_id).isEqualTo("assistant-banking-bill-reader-v2")
         assertThat(doneEvent.parse_metadata.processor_type).isEqualTo("LLM")
         assertThat(doneEvent.parse_metadata.model_name).isEqualTo("gpt-4o-mini")
         assertThat(doneEvent.parse_metadata.latency_ms).isEqualTo(1200)
@@ -140,7 +141,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(llmPrompt).contains("03 OUT ****1769 Netflix.Com R$ 44,90")
 
         val doneCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneEvent>()
+            argumentCaptor<AssistantBankingReaderDoneEvent>()
         verify(doneProducer).publish(doneCaptor.capture())
         val output = doneCaptor.firstValue.llm_output
         assertThat(output["card_blocks"]).isInstanceOf(List::class.java)
@@ -281,9 +282,32 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(inputCaptor.firstValue.purpose).isEqualTo("banking_reader_bank_statement")
 
         val doneCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneEvent>()
+            argumentCaptor<AssistantBankingReaderDoneEvent>()
         verify(doneProducer).publish(doneCaptor.capture())
         assertThat(doneCaptor.firstValue.parse_metadata.reader_id).isEqualTo("assistant-banking-reader-v1")
+    }
+
+    @Test
+    fun `onCreditCardBill accepts XLSX tuple and publishes done`() {
+        val request = validRequest(documentType = "CREDIT_CARD_BILL", accountType = "CREDIT", fileType = "XLSX")
+        runBlocking {
+            whenever(completionService.generateCompletion(any(), any())).thenReturn(
+                completionResult(content = MINIMAL_BILL_META_JSON),
+            )
+        }
+
+        service.onCreditCardBill(request)
+
+        val inputCaptor = argumentCaptor<CompletionInput>()
+        runBlocking {
+            verify(completionService).generateCompletion(inputCaptor.capture(), eq(request.callback_context.account_id))
+        }
+        assertThat(inputCaptor.firstValue.purpose).isEqualTo("banking_bill_reader_credit_card_bill")
+
+        val doneCaptor =
+            argumentCaptor<AssistantBankingReaderDoneEvent>()
+        verify(doneProducer).publish(doneCaptor.capture())
+        assertThat(doneCaptor.firstValue.parse_metadata.reader_id).isEqualTo("assistant-banking-bill-reader-v2")
     }
 
     private fun validRequest(

@@ -85,7 +85,7 @@ class BillImportStatusConsumer(
                         "schema_version" to event["schema_version"]?.toString(),
                         "document_type" to event["document_type"]?.toString(),
                     )
-                val summary = "assistant_pdf_reader_done_invalid_payload: $reason"
+                val summary = "assistant_banking_reader_done_invalid_payload: $reason"
                 return@handleEvent billImportService.markFailed(
                     jobId = jobId,
                     accountId = accountId,
@@ -112,7 +112,7 @@ class BillImportStatusConsumer(
             val errorMessage = error?.get("message")?.toString()
             val summary =
                 buildString {
-                    append("assistant_pdf_reader_failed")
+                    append("assistant_banking_reader_failed")
                     if (!errorCode.isNullOrBlank()) {
                         append(": ")
                         append(errorCode)

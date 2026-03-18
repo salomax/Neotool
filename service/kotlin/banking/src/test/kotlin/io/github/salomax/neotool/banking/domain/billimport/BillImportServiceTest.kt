@@ -24,10 +24,12 @@ import io.github.salomax.neotool.banking.infra.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.infra.assets.BillImportAssetUploadResult
 import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedEvent
 import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedProducer
-import org.apache.poi.ss.usermodel.Workbook
-import org.apache.poi.xssf.usermodel.XSSFWorkbook
+import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedEvent
+import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedProducer
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.ValidationException
+import org.apache.poi.ss.usermodel.Workbook
+import org.apache.poi.xssf.usermodel.XSSFWorkbook
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -63,6 +65,7 @@ class BillImportServiceTest {
     private lateinit var billImportCommitPreparer: BillImportCommitPreparer
     private lateinit var billAssetStorage: BillImportAssetStorage
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
+    private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -84,6 +87,7 @@ class BillImportServiceTest {
         billImportCommitPreparer = BillImportCommitPreparer(creditCardBillService)
         billAssetStorage = mock()
         submittedProducer = mock()
+        assistantRequestProducer = mock()
         service =
             BillImportService(
                 repository = repository,
@@ -96,6 +100,7 @@ class BillImportServiceTest {
                 assistantBillReviewBuilder = AssistantBillReviewBuilder(objectMapper, AssistantBillMetaValidator(), AssistantBillTransactionExtractor()),
                 billAssetStorage = billAssetStorage,
                 submittedProducer = submittedProducer,
+                assistantRequestProducer = assistantRequestProducer,
                 objectMapper = objectMapper,
             )
     }
@@ -368,6 +373,53 @@ class BillImportServiceTest {
             assertThat(review.cards.single().reviewCardId).isEqualTo("card-1")
             assertThat(review.cards.single().transactions).hasSize(2)
             assertThat(review.reviewMode).isEqualTo(BillImportReviewMode.CARD_BUCKET_MATCHING)
+        }
+
+        @Test
+        fun `submit unsupported XLSX bill publishes assistant request and enters llm processing`() {
+            val fileBytes = buildUnsupportedWorkbookBytes()
+            val savedJobId = UUID.randomUUID()
+
+            whenever(repository.findByAccountIdAndFileHash(eq(accountId), any())).thenReturn(null)
+            whenever(repository.save(any())).thenAnswer {
+                val job = it.getArgument<BillImportJob>(0)
+                job.copy(id = savedJobId)
+            }
+
+            val result =
+                service.submitBillImport(
+                    accountId = accountId,
+                    userId = userId,
+                    importType = ImportDocumentType.CREDIT_CARD_BILL,
+                    financialAccountId = null,
+                    fileName = "fatura.xlsx",
+                    fileBytes = fileBytes,
+                )
+
+            assertThat(result.id).isEqualTo(savedJobId)
+            assertThat(result.status).isEqualTo(BillImportJobStatus.LLM_PROCESSING)
+            assertThat(result.extractedText).contains("Cartao", "Compra", "Valor")
+            verify(submittedProducer, never()).publish(any())
+            verify(billAssetStorage, never()).uploadPdf(any(), any(), any())
+
+            val savedJobCaptor = argumentCaptor<BillImportJob>()
+            verify(repository).save(savedJobCaptor.capture())
+            assertThat(savedJobCaptor.firstValue.status).isEqualTo(BillImportJobStatus.LLM_PROCESSING)
+            assertThat(savedJobCaptor.firstValue.reviewPayload).isNull()
+            assertThat(savedJobCaptor.firstValue.extractedText).contains("Loja Exemplo")
+
+            val eventCaptor = argumentCaptor<AssistantBankingReaderRequestedEvent>()
+            verify(assistantRequestProducer).publish(eventCaptor.capture())
+            val event = eventCaptor.firstValue
+            assertThat(event.job_id).isEqualTo(savedJobId)
+            assertThat(event.document_type).isEqualTo("CREDIT_CARD_BILL")
+            assertThat(event.file_type).isEqualTo("XLSX")
+            assertThat(event.account_type).isEqualTo("CREDIT")
+            assertThat(event.source_topic).isEqualTo("banking.bill-import.excel-extracted")
+            assertThat(event.extracted_text).contains("Loja Exemplo")
+            assertThat(event.callback_context.account_id).isEqualTo(accountId)
+            assertThat(event.callback_context.user_id).isEqualTo(userId)
+            assertThat(event.extraction_metadata["ingest_source"]).isEqualTo("EXCEL")
         }
 
         @Test
@@ -1313,7 +1365,7 @@ class BillImportServiceTest {
                 mapOf(
                     "schema_version" to "1.0",
                     "llm_output" to assistantMetaPayload("JOAO SILVA - 5428 XXXX XXXX 1234", "1234"),
-                    "parse_metadata" to mapOf("reader_id" to "assistant-banking-pdf-reader-v2"),
+                    "parse_metadata" to mapOf("reader_id" to "assistant-banking-bill-reader-v2"),
                 )
 
             service.markAwaitingReview(
@@ -1333,7 +1385,7 @@ class BillImportServiceTest {
             assertThat(payload.cards[0].dueDate).isEqualTo(LocalDate.of(2026, 2, 22))
             assertThat(payload.cards[0].transactions).hasSize(2)
             assertThat(payload.cards[0].transactions[0].isBillPayment).isTrue()
-            assertThat(updated.assistantResponse).contains("assistant-banking-pdf-reader-v2")
+            assertThat(updated.assistantResponse).contains("assistant-banking-bill-reader-v2")
             assertThat(updated.assistantResponse).contains("card_blocks")
         }
 
@@ -1527,7 +1579,7 @@ class BillImportServiceTest {
             service.markFailed(
                 jobId = jobId,
                 accountId = accountId,
-                errorMessage = "assistant_pdf_reader_failed: SCHEMA_VALIDATION_FAILED - output did not match contract",
+                errorMessage = "assistant_banking_reader_failed: SCHEMA_VALIDATION_FAILED - output did not match contract",
                 errorDetails = details,
             )
 
@@ -1893,6 +1945,24 @@ class BillImportServiceTest {
                 createCell(0).setCellValue("05/02/2026")
                 createCell(1).setCellValue("Farmacia Sao Joao")
                 createCell(2).setCellValue("-32,10")
+            }
+            return workbookToBytes(wb)
+        }
+    }
+
+    private fun buildUnsupportedWorkbookBytes(): ByteArray {
+        val workbook: Workbook = XSSFWorkbook()
+        workbook.use { wb ->
+            val sheet = wb.createSheet("Fatura")
+            sheet.createRow(0).apply {
+                createCell(0).setCellValue("Cartao")
+                createCell(1).setCellValue("Compra")
+                createCell(2).setCellValue("Valor")
+            }
+            sheet.createRow(1).apply {
+                createCell(0).setCellValue("1234")
+                createCell(1).setCellValue("Loja Exemplo")
+                createCell(2).setCellValue("45,90")
             }
             return workbookToBytes(wb)
         }

@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.infra.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedProducer
+import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedProducer
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
@@ -47,13 +48,14 @@ open class BillImportService(
     private val assistantBillReviewBuilder: AssistantBillReviewBuilder,
     private val billAssetStorage: BillImportAssetStorage,
     private val submittedProducer: PdfExtractorSubmittedProducer?,
+    private val assistantRequestProducer: AssistantBankingReaderRequestedProducer?,
     private val objectMapper: ObjectMapper,
 ) {
     private val billInputStrategies: List<BillInputStrategy> =
         listOf(
             DeterministicOfxBillInputStrategy(repository, objectMapper),
             CsvBillInputStrategy(repository, objectMapper),
-            ExcelBillInputStrategy(repository, objectMapper),
+            ExcelBillInputStrategy(repository, objectMapper, assistantRequestProducer = assistantRequestProducer),
             AsyncPdfBillInputStrategy(repository, billAssetStorage, submittedProducer),
         )
 

@@ -24,17 +24,17 @@ data class BankingReaderCallbackContext(
 )
 
 @Serdeable
-data class AssistantBankingPdfReaderDoneEvent(
+data class AssistantBankingReaderDoneEvent(
     val schema_version: String = "1.0",
     val job_id: UUID,
     val document_type: String,
     val llm_output: Map<String, Any?>,
-    val parse_metadata: AssistantBankingPdfReaderParseMetadata,
+    val parse_metadata: AssistantBankingReaderParseMetadata,
     val callback_context: BankingReaderCallbackContext,
 )
 
 @Serdeable
-data class AssistantBankingPdfReaderParseMetadata(
+data class AssistantBankingReaderParseMetadata(
     val processor_type: String = "LLM",
     val reader_id: String,
     val model_provider: String? = null,
@@ -44,24 +44,24 @@ data class AssistantBankingPdfReaderParseMetadata(
 )
 
 @Serdeable
-data class AssistantBankingPdfReaderFailedEvent(
+data class AssistantBankingReaderFailedEvent(
     val schema_version: String = "1.0",
     val job_id: UUID,
     val document_type: String,
-    val error: AssistantBankingPdfReaderError,
-    val error_metadata: AssistantBankingPdfReaderErrorMetadata,
+    val error: AssistantBankingReaderError,
+    val error_metadata: AssistantBankingReaderErrorMetadata,
     val callback_context: BankingReaderCallbackContext,
 )
 
 @Serdeable
-data class AssistantBankingPdfReaderError(
+data class AssistantBankingReaderError(
     val code: String,
     val message: String,
     val retryable: Boolean,
 )
 
 @Serdeable
-data class AssistantBankingPdfReaderErrorMetadata(
+data class AssistantBankingReaderErrorMetadata(
     val processor_type: String = "LLM",
     val stage: String,
 )

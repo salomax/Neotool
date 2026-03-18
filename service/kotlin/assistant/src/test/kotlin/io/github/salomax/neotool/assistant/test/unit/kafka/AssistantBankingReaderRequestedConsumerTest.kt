@@ -2,7 +2,8 @@ package io.github.salomax.neotool.assistant.test.unit.kafka
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderFailedProducer
+import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderFailedEvent
+import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderFailedProducer
 import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderRequestedConsumer
 import io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderProcessingException
@@ -21,7 +22,7 @@ import java.util.UUID
 class AssistantBankingReaderRequestedConsumerTest {
     private lateinit var objectMapper: ObjectMapper
     private lateinit var routingService: BankingReaderRequestedRoutingService
-    private lateinit var failedProducer: AssistantBankingPdfReaderFailedProducer
+    private lateinit var failedProducer: AssistantBankingReaderFailedProducer
     private lateinit var consumer: AssistantBankingReaderRequestedConsumer
 
     @BeforeEach
@@ -66,7 +67,7 @@ class AssistantBankingReaderRequestedConsumerTest {
         consumer.onRequested(UUID.randomUUID().toString(), payload)
 
         val failedCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderFailedEvent>()
+            argumentCaptor<AssistantBankingReaderFailedEvent>()
         verify(failedProducer).publish(failedCaptor.capture())
         val failedEvent = failedCaptor.firstValue
         assertThat(failedEvent.error.code).isEqualTo("INVALID_PAYLOAD")
@@ -83,7 +84,7 @@ class AssistantBankingReaderRequestedConsumerTest {
         consumer.onRequested(key.toString(), """{"schema_version":"1.0", "job_id": }""")
 
         val failedCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderFailedEvent>()
+            argumentCaptor<AssistantBankingReaderFailedEvent>()
         verify(failedProducer).publish(failedCaptor.capture())
         val failedEvent = failedCaptor.firstValue
         assertThat(failedEvent.job_id).isEqualTo(key)
@@ -99,7 +100,7 @@ class AssistantBankingReaderRequestedConsumerTest {
         consumer.onRequested(UUID.randomUUID().toString(), payload)
 
         val failedCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderFailedEvent>()
+            argumentCaptor<AssistantBankingReaderFailedEvent>()
         verify(failedProducer).publish(failedCaptor.capture())
         val failedEvent = failedCaptor.firstValue
         assertThat(failedEvent.error.code).isEqualTo("UNSUPPORTED_DOCUMENT_TYPE")
@@ -124,7 +125,7 @@ class AssistantBankingReaderRequestedConsumerTest {
         consumer.onRequested(UUID.randomUUID().toString(), payload)
 
         val failedCaptor =
-            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderFailedEvent>()
+            argumentCaptor<AssistantBankingReaderFailedEvent>()
         verify(failedProducer).publish(failedCaptor.capture())
         val failedEvent = failedCaptor.firstValue
         assertThat(failedEvent.error.code).isEqualTo("SCHEMA_VALIDATION_FAILED")
