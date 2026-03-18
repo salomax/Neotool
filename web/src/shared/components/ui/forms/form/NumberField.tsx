@@ -17,6 +17,7 @@ export interface NumberFieldProps {
   fullWidth?: boolean;
   locale?: string;
   fractionDigits?: number;
+  fixedDecimalScale?: boolean;
   'data-testid'?: string;
 }
 
@@ -31,6 +32,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   fullWidth = true,
   locale = "en-US",
   fractionDigits,
+  fixedDecimalScale,
   'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
@@ -86,7 +88,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
             decimalSeparator: decimal,
             allowNegative: allowNegative,
             decimalScale: decimalScale,
-            fixedDecimalScale: typeof decimalScale === "number",
+            fixedDecimalScale: typeof decimalScale === "number" && fixedDecimalScale !== false,
             allowLeadingZeros: true,
           } as any)}
         />

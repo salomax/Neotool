@@ -2,14 +2,16 @@
 
 import React, { useState } from "react";
 import { useQuery } from "@apollo/client/react";
-import { alpha, Box, Button, CircularProgress, Container, Stack, Typography, useTheme } from "@mui/material";
+import { alpha, Box, Button, CircularProgress, Container, Menu, MenuItem, Stack, Typography, useTheme } from "@mui/material";
 import AccountBalanceIcon from "@mui/icons-material/AccountBalance";
 import AddIcon from "@mui/icons-material/Add";
 import AddchartIcon from "@mui/icons-material/Addchart";
-import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
+import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
+import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import CurrencyBitcoinIcon from "@mui/icons-material/CurrencyBitcoin";
 import ApartmentIcon from "@mui/icons-material/Apartment";
+import SavingsIcon from "@mui/icons-material/Savings";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
@@ -21,6 +23,7 @@ import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__ge
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { InvestmentTable } from "./components/InvestmentTable";
 import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
+import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
 import { FinancialAccountSelector } from "../finance-transactions/components/FinancialAccountSelector";
 
 export default function PersonalFinanceInvestmentsPage() {
@@ -28,7 +31,10 @@ export default function PersonalFinanceInvestmentsPage() {
   const theme = useTheme();
   const [createAccountOpen, setCreateAccountOpen] = useState(false);
   const [recordHoldingOpen, setRecordHoldingOpen] = useState(false);
+  const [recordFundOpen, setRecordFundOpen] = useState(false);
   const [selectedInvestmentAccountId, setSelectedInvestmentAccountId] = useState<string | null>(null);
+  const [recordAnchorEl, setRecordAnchorEl] = useState<null | HTMLElement>(null);
+  const recordMenuOpen = Boolean(recordAnchorEl);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -189,17 +195,44 @@ export default function PersonalFinanceInvestmentsPage() {
                   },
                 }}
                 variant="contained"
-                startIcon={<PlaylistAddIcon />}
-                onClick={() => setRecordHoldingOpen(true)}
+                startIcon={<AddIcon />}
+                endIcon={recordMenuOpen ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+                onClick={(event) => setRecordAnchorEl(event.currentTarget)}
                 data-testid="record-holding-btn"
               >
                 {t("investments.actions.recordHolding")}
               </Button>
             </Stack>
 
+            <Menu
+              anchorEl={recordAnchorEl}
+              open={recordMenuOpen}
+              onClose={() => setRecordAnchorEl(null)}
+              anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+              transformOrigin={{ vertical: "top", horizontal: "right" }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setRecordAnchorEl(null);
+                  setRecordHoldingOpen(true);
+                }}
+              >
+                {t("investments.table.groups.bankFixedIncome")}
+              </MenuItem>
+              <MenuItem
+                onClick={() => {
+                  setRecordAnchorEl(null);
+                  setRecordFundOpen(true);
+                }}
+              >
+                {t("investments.table.groups.mutualFunds")}
+              </MenuItem>
+            </Menu>
+
             <InvestmentTable
               selectedAccountId={selectedInvestmentAccountId}
               onRecordHolding={() => setRecordHoldingOpen(true)}
+              onRecordFund={() => setRecordFundOpen(true)}
             />
           </Container>
         ) : (
@@ -264,7 +297,6 @@ export default function PersonalFinanceInvestmentsPage() {
                   <Button
                     variant="outlined"
                     size="large"
-                    startIcon={<PlaylistAddIcon />}
                     onClick={() => setCreateAccountOpen(true)}
                     sx={{ height: 48, minWidth: { xs: "100%", sm: 260 } }}
                   >
@@ -288,6 +320,7 @@ export default function PersonalFinanceInvestmentsPage() {
                     { icon: <ApartmentIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.reits") },
                     { icon: <TrendingUpIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.stocks") },
                     { icon: <AccountBalanceIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.fixedIncome") },
+                    { icon: <SavingsIcon sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.funds") },
                   ].map((item) => (
                     <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, minWidth: 96 }}>
                       <Box sx={{ opacity: 0.7 }}>{item.icon}</Box>
@@ -318,6 +351,16 @@ export default function PersonalFinanceInvestmentsPage() {
           financialAccounts={investmentAccounts}
           onRecorded={() => {
             setRecordHoldingOpen(false);
+          }}
+        />
+
+        <RecordFundHoldingDrawer
+          open={recordFundOpen}
+          onClose={() => setRecordFundOpen(false)}
+          financialAccountId={selectedInvestmentAccountId}
+          financialAccounts={investmentAccounts}
+          onRecorded={() => {
+            setRecordFundOpen(false);
           }}
         />
       </Page>

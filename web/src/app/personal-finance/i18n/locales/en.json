@@ -52,10 +52,12 @@
       "crypto": "Crypto",
       "reits": "REITs",
       "stocks": "Stocks",
-      "fixedIncome": "Fixed income"
+      "fixedIncome": "Fixed income",
+      "funds": "Funds"
     },
     "actions": {
-      "recordHolding": "Record holding"
+      "recordHolding": "Record holding",
+      "recordFund": "Record fund"
     },
     "assetTypes": {
       "STOCK": "Stocks",
@@ -121,6 +123,7 @@
         "averagePrice": "Average price",
         "currentValue": "Current value",
         "indexer": "Indexer",
+        "fundQuantity": "Fund units",
         "grossValue": "Gross value",
         "maturityDate": "Maturity",
         "gain": "Gain/Loss"
@@ -211,6 +214,47 @@
         "submitting": "Recording..."
       },
       "success": "Holding recorded successfully"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Fixed income",
+        "EQUITY_FUND": "Equity",
+        "MULTI_MARKET_FUND": "Multi-market",
+        "FOREX_FUND": "FX",
+        "MUTUAL_FUND": "Mixed",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Record fund",
+      "selectAccount": {
+        "description": "Select an investment account to record the fund.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "fund": "Fund",
+        "applicationDetails": "Application details"
+      },
+      "fields": {
+        "fund": "Fund",
+        "quantity": "Fund units",
+        "unitPrice": "Unit price (BRL)",
+        "tradeDate": "Application date"
+      },
+      "validation": {
+        "fundRequired": "Please select a fund",
+        "quantityRequired": "Quantity is required",
+        "quantityPositive": "Quantity must be greater than zero",
+        "unitPriceRequired": "Unit price is required",
+        "unitPricePositive": "Unit price must be greater than zero",
+        "tradeDateRequired": "Application date is required"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Fund recorded successfully"
     }
   },
   "categories": {

@@ -837,6 +837,13 @@ export type EconomicIndicatorVariationsArgs = {
   label?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type EconomicIndicatorLatestItem = {
+  __typename: 'EconomicIndicatorLatestItem';
+  indicator: Scalars['String']['output'];
+  latest: Maybe<EconomicIndicatorPoint>;
+  variation: Scalars['String']['output'];
+};
+
 export type EconomicIndicatorPoint = {
   __typename: 'EconomicIndicatorPoint';
   referenceDate: Scalars['Date']['output'];
@@ -1089,6 +1096,13 @@ export type FixedIncomeTaxMethodology = {
   bracketTable: Array<FixedIncomeTaxBracket>;
 };
 
+export type FundDailyNav = {
+  __typename: 'FundDailyNav';
+  closePrice: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  totalNetAssets: Maybe<Scalars['Float']['output']>;
+};
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -1237,6 +1251,61 @@ export type InvestmentAsset = {
   priceFactor: Scalars['Float']['output'];
   ticker: Maybe<Scalars['String']['output']>;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+export type InvestmentFund = {
+  __typename: 'InvestmentFund';
+  assetType: Scalars['String']['output'];
+  cnpj: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  latestNav: Maybe<FundDailyNav>;
+  name: Scalars['String']['output'];
+  priceHistory: Array<FundDailyNav>;
+};
+
+
+export type InvestmentFundPriceHistoryArgs = {
+  from?: InputMaybe<Scalars['Date']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  to?: InputMaybe<Scalars['Date']['input']>;
+};
+
+export enum InvestmentFundAssetType {
+  EquityFund = 'EQUITY_FUND',
+  FixedIncomeFund = 'FIXED_INCOME_FUND',
+  ForexFund = 'FOREX_FUND',
+  MultiMarketFund = 'MULTI_MARKET_FUND',
+  MutualFund = 'MUTUAL_FUND',
+  Pgbl = 'PGBL',
+  Vgbl = 'VGBL'
+}
+
+export type InvestmentFundAutocompleteConnection = {
+  __typename: 'InvestmentFundAutocompleteConnection';
+  suggestions: Array<InvestmentFundAutocompleteItem>;
+};
+
+export type InvestmentFundAutocompleteItem = {
+  __typename: 'InvestmentFundAutocompleteItem';
+  assetType: Scalars['String']['output'];
+  cnpj: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type InvestmentFundConnection = {
+  __typename: 'InvestmentFundConnection';
+  edges: Array<InvestmentFundEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type InvestmentFundEdge = {
+  __typename: 'InvestmentFundEdge';
+  cursor: Scalars['String']['output'];
+  node: InvestmentFund;
 };
 
 /**
@@ -2056,8 +2125,11 @@ export type Query = {
   fixedIncomeComparison: FixedIncomeComparisonResult;
   group: Maybe<Group>;
   groups: GroupConnection;
+  indicatorsLatest: Array<EconomicIndicatorLatestItem>;
   /** Look up an asset from the global catalog. */
   investmentAsset: Maybe<InvestmentAsset>;
+  investmentFund: Maybe<InvestmentFund>;
+  investmentFunds: InvestmentFundConnection;
   /** Single holding by id. */
   investmentHolding: Maybe<InvestmentHolding>;
   /**
@@ -2093,6 +2165,7 @@ export type Query = {
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
+  searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
   /** Single transaction by ID (scoped to the authenticated account). */
   transaction: Maybe<Transaction>;
@@ -2205,6 +2278,20 @@ export type QueryInvestmentAssetArgs = {
 };
 
 
+export type QueryInvestmentFundArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentFundsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  assetType?: InputMaybe<InvestmentFundAssetType>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryInvestmentHoldingArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2296,6 +2383,11 @@ export type QueryRolesArgs = {
 
 export type QuerySearchBacenInstitutionsAutocompleteArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+  query: Scalars['String']['input'];
+};
+
+
+export type QuerySearchInvestmentFundsAutocompleteArgs = {
   query: Scalars['String']['input'];
 };
 

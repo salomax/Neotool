@@ -52,10 +52,12 @@
       "crypto": "Cripto",
       "reits": "FIIs",
       "stocks": "Ações",
-      "fixedIncome": "Renda Fixa"
+      "fixedIncome": "Renda Fixa",
+      "funds": "Fundos"
     },
     "actions": {
-      "recordHolding": "Registrar ativo"
+      "recordHolding": "Registrar ativo",
+      "recordFund": "Registrar fundo"
     },
     "createAccount": {
       "title": "Criar conta de investimento",
@@ -121,6 +123,7 @@
         "averagePrice": "Preço médio",
         "currentValue": "Valor atual",
         "indexer": "Indexador",
+        "fundQuantity": "Qtd. Cotas",
         "grossValue": "Valor bruto",
         "maturityDate": "Vencimento",
         "gain": "Rentabilidade"
@@ -211,6 +214,47 @@
         "submitting": "Salvando..."
       },
       "success": "Ativo registrado com sucesso"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Renda Fixa",
+        "EQUITY_FUND": "Ações",
+        "MULTI_MARKET_FUND": "Multimercado",
+        "FOREX_FUND": "Cambial",
+        "MUTUAL_FUND": "Misto",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Registrar fundo",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o fundo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "fund": "Fundo",
+        "applicationDetails": "Detalhes da aplicação"
+      },
+      "fields": {
+        "fund": "Fundo",
+        "quantity": "Quantidade de cotas",
+        "unitPrice": "Preço por cota (R$)",
+        "tradeDate": "Data da aplicação"
+      },
+      "validation": {
+        "fundRequired": "Selecione um fundo",
+        "quantityRequired": "Quantidade é obrigatória",
+        "quantityPositive": "Quantidade deve ser maior que zero",
+        "unitPriceRequired": "Preço por cota é obrigatório",
+        "unitPricePositive": "Preço por cota deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Fundo registrado com sucesso"
     }
   },
   "categories": {

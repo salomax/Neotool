@@ -36,10 +36,12 @@ import {
 } from '@/lib/graphql/operations/banking/queries.generated';
 import { Indexer, ValuationSource } from '@/lib/graphql/types/__generated__/graphql';
 import { AssetGroupCard } from './AssetGroupCard';
+import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
 
 interface InvestmentTableProps {
   selectedAccountId: string | null;
   onRecordHolding?: () => void;
+  onRecordFund?: () => void;
 }
 
 type HoldingRow =
@@ -59,6 +61,7 @@ const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
 };
 
 const EMPTY_HOLDINGS: HoldingRow[] = [];
+const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 
 type AssetGroupKey =
   | 'variableIncomeB3'
@@ -95,7 +98,7 @@ const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
   bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG'],
   creditFixedIncome: ['DEBENTURES', 'CRI', 'CRA'],
   treasuryDirect: ['TREASURY'],
-  mutualFunds: ['MUTUAL_FUND'],
+  mutualFunds: ['MUTUAL_FUND', 'FIXED_INCOME_FUND', 'EQUITY_FUND', 'MULTI_MARKET_FUND', 'FOREX_FUND'],
   pension: ['PGBL', 'VGBL'],
   structured: ['COE'],
   others: ['CRYPTO', 'OPTION', 'DERIVATIVES', 'OTHER'],
@@ -155,7 +158,7 @@ function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string
   return `${label} ${(holding.indexerPercentage * 100).toFixed(0)}%`;
 }
 
-export function InvestmentTable({ selectedAccountId, onRecordHolding }: InvestmentTableProps) {
+export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFund }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const locale = getCurrentLocale();
@@ -308,7 +311,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
             const isExpanded = expandedGroup === group.key;
             const leadingIcon = group.key === 'bankFixedIncome' ? <SavingsIcon sx={{ fontSize: 18 }} /> : null;
             const divider = alpha(theme.palette.divider, 0.7);
-            const colWidth = '16.66%';
+            const isFundGroup = FUND_GROUP_KEYS.has(group.key);
+            const colWidth = isFundGroup ? '20%' : '16.66%';
 
             const summaryAdornment =
               group.hasEstimatedInGroup ? (
@@ -326,6 +330,22 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                 summary={group.summary}
                 leadingIcon={leadingIcon}
                 summaryAdornment={summaryAdornment}
+                headerAction={
+                  group.key === 'mutualFunds' && onRecordFund ? (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      startIcon={<AddIcon />}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRecordFund();
+                      }}
+                      data-testid="record-fund-group-btn"
+                    >
+                      {t('investments.actions.recordFund')}
+                    </Button>
+                  ) : null
+                }
               >
                 <Table
                   sx={{
@@ -343,18 +363,34 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                       <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.type')}</Label>
                       </TableCell>
-                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.indexer')}</Label>
-                      </TableCell>
-                      <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.grossValue')}</Label>
-                      </TableCell>
-                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.maturityDate')}</Label>
-                      </TableCell>
-                      <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.gain')}</Label>
-                      </TableCell>
+                      {isFundGroup ? (
+                        <>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.fundQuantity')}</Label>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.grossValue')}</Label>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.gain')}</Label>
+                          </TableCell>
+                        </>
+                      ) : (
+                        <>
+                          <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.indexer')}</Label>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.grossValue')}</Label>
+                          </TableCell>
+                          <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.maturityDate')}</Label>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.gain')}</Label>
+                          </TableCell>
+                        </>
+                      )}
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -420,62 +456,135 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                             })()}
                           </TableCell>
                           <TableCell sx={{ width: colWidth }}>
-                            <Typography variant="body2">
-                              {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
-                            </Typography>
-                          </TableCell>
-                          <TableCell sx={{ width: colWidth }}>
-                            <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
-                          </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                              <Typography variant="body2" component="span" fontWeight={700}>
-                                {valueContent}
+                            {isFundGroup ? (
+                              <Chip
+                                size="small"
+                                variant="outlined"
+                                label={
+                                  holding.asset
+                                    ? formatFundAssetType(holding.asset.assetType, t)
+                                    : '—'
+                                }
+                              />
+                            ) : (
+                              <Typography variant="body2">
+                                {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
                               </Typography>
-                              {valueIcon}
-                            </Box>
+                            )}
                           </TableCell>
-                          <TableCell sx={{ width: colWidth }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                              <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
-                              {isExpired && (
-                                <Chip
-                                  size="small"
-                                  label={t('investments.table.expiredBadge')}
-                                  sx={{ height: 20, fontSize: '0.7rem' }}
-                                  color="default"
-                                  variant="outlined"
-                                />
-                              )}
-                            </Box>
-                          </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth }}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
-                              {gainUnavailable ? (
-                                <Typography variant="body2">—</Typography>
-                              ) : (
-                                <>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                    <Typography
-                                      variant="body2"
-                                      fontWeight={700}
-                                      color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
-                                    >
-                                      {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
-                                    </Typography>
-                                    {gainEstimated && (
-                                      <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                        <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
-                                      </Tooltip>
-                                    )}
-                                  </Box>
-                                  {percent != null && principal > 0 && absolute != null && (
-                                    <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                          {isFundGroup ? (
+                            <>
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Typography variant="body2" fontWeight={700}>
+                                  {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
+                                </Typography>
+                              </TableCell>
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                  <Typography variant="body2" component="span" fontWeight={700}>
+                                    {valueContent}
+                                  </Typography>
+                                  {valueIcon}
+                                </Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Box
+                                  sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'flex-end',
+                                    justifyContent: 'center',
+                                    gap: 0.5,
+                                  }}
+                                >
+                                  {gainUnavailable ? (
+                                    <Typography variant="body2">—</Typography>
+                                  ) : (
+                                    <>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                        <Typography
+                                          variant="body2"
+                                          fontWeight={700}
+                                          color={
+                                            absolute != null && absolute >= 0
+                                              ? 'success.main'
+                                              : absolute != null
+                                                ? 'error.main'
+                                                : 'text.primary'
+                                          }
+                                        >
+                                          {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
+                                        </Typography>
+                                        {gainEstimated && (
+                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
+                                          </Tooltip>
+                                        )}
+                                      </Box>
+                                      {percent != null && principal > 0 && absolute != null && (
+                                        <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                      )}
+                                    </>
                                   )}
-                                </>
-                              )}
-                            </Box>
-                          </TableCell>
+                                </Box>
+                              </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              <TableCell sx={{ width: colWidth }}>
+                                <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
+                              </TableCell>
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                  <Typography variant="body2" component="span" fontWeight={700}>
+                                    {valueContent}
+                                  </Typography>
+                                  {valueIcon}
+                                </Box>
+                              </TableCell>
+                              <TableCell sx={{ width: colWidth }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                                  <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
+                                  {isExpired && (
+                                    <Chip
+                                      size="small"
+                                      label={t('investments.table.expiredBadge')}
+                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                      color="default"
+                                      variant="outlined"
+                                    />
+                                  )}
+                                </Box>
+                              </TableCell>
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
+                                  {gainUnavailable ? (
+                                    <Typography variant="body2">—</Typography>
+                                  ) : (
+                                    <>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                        <Typography
+                                          variant="body2"
+                                          fontWeight={700}
+                                          color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
+                                        >
+                                          {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
+                                        </Typography>
+                                        {gainEstimated && (
+                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
+                                          </Tooltip>
+                                        )}
+                                      </Box>
+                                      {percent != null && principal > 0 && absolute != null && (
+                                        <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                      )}
+                                    </>
+                                  )}
+                                </Box>
+                              </TableCell>
+                            </>
+                          )}
                         </TableRow>
                       );
                     })}

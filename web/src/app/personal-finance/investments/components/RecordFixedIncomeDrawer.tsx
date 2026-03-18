@@ -26,6 +26,7 @@ import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErr
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
+import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { personalFinanceTranslations } from "../../i18n";
 
@@ -87,6 +88,10 @@ export function RecordFixedIncomeDrawer({
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
+  const { decimal: localeDecimal, group: localeGroup } = React.useMemo(
+    () => getLocaleSeparators(locale),
+    [locale],
+  );
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const needsAccountSelection = !resolvedFinancialAccountId;
 
@@ -103,15 +108,60 @@ export function RecordFixedIncomeDrawer({
             required_error: t("investments.recordHolding.validation.indexerRequired"),
           }),
           indexerPercentage: z.preprocess(
-            (value) => (value === "" || value === null || value === undefined ? undefined : Number(value)),
+            (value) => {
+              if (value === "" || value === null || value === undefined) return undefined;
+              const raw = String(value);
+              let normalized: string;
+              if (localeGroup) {
+                const decimalIndex = raw.lastIndexOf(localeDecimal);
+                if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
+                  return undefined;
+                }
+                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+              } else {
+                normalized = raw.replace(localeDecimal, ".");
+              }
+              const parsed = Number(normalized);
+              return Number.isNaN(parsed) ? undefined : parsed;
+            },
             z.number().positive().optional(),
           ),
           preFixedRate: z.preprocess(
-            (value) => (value === "" || value === null || value === undefined ? undefined : Number(value)),
+            (value) => {
+              if (value === "" || value === null || value === undefined) return undefined;
+              const raw = String(value);
+              let normalized: string;
+              if (localeGroup) {
+                const decimalIndex = raw.lastIndexOf(localeDecimal);
+                if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
+                  return undefined;
+                }
+                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+              } else {
+                normalized = raw.replace(localeDecimal, ".");
+              }
+              const parsed = Number(normalized);
+              return Number.isNaN(parsed) ? undefined : parsed;
+            },
             z.number().positive().optional(),
           ),
           grossValue: z.preprocess(
-            (value) => (value === "" || value === null || value === undefined ? undefined : Number(value)),
+            (value) => {
+              if (value === "" || value === null || value === undefined) return undefined;
+              const raw = String(value);
+              let normalized: string;
+              if (localeGroup) {
+                const decimalIndex = raw.lastIndexOf(localeDecimal);
+                if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
+                  return undefined;
+                }
+                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+              } else {
+                normalized = raw.replace(localeDecimal, ".");
+              }
+              const parsed = Number(normalized);
+              return Number.isNaN(parsed) ? undefined : parsed;
+            },
             z
               .number({ required_error: t("investments.recordHolding.validation.grossValueRequired") })
               .positive(t("investments.recordHolding.validation.grossValuePositive")),

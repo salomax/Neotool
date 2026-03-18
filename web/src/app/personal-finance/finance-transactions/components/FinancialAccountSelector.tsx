@@ -55,6 +55,7 @@ const formatCurrency = (value: number, currency = 'BRL') => {
     style: 'currency',
     currency: currency,
   }).format(value);
+};
 
 const getCardLastFourDigits = (account: FinancialAccount) => {
   const raw = account.cardData?.maskedNumber || '';
