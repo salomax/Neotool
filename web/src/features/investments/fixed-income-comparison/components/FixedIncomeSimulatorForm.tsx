@@ -689,7 +689,10 @@ export function FixedIncomeSimulatorForm({
               fontWeight: 800,
               textTransform: "uppercase",
               mt: 1,
-              boxShadow: theme.shadows[4],
+              boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+              "&:hover": {
+                boxShadow: theme.custom.shadow(4, theme.palette.primary.main),
+              },
             }}
           >
             {t(`${ns}.simulate`)}
