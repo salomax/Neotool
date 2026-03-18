@@ -13,12 +13,15 @@ func ComputeHash(data []byte) string {
 }
 
 // ComputeAssetHash produces a deterministic hash of a B3 asset's mutable catalog fields.
-// Fields in alphabetical key order: assetType|especi|isinCode|name|ticker
-func ComputeAssetHash(ticker, name, assetType, especi, isinCode string) string {
-	canonical := fmt.Sprintf("%s|%s|%s|%s|%s",
+// Fields in alphabetical key order: assetType|especi|name|ticker
+//
+// ISIN is intentionally excluded: options share the underlying equity's ISIN in
+// COTAHIST, so including it would cause spurious hash mismatches when an ISIN
+// conflict forces the stored value to NULL on the first insert.
+func ComputeAssetHash(ticker, name, assetType, especi string) string {
+	canonical := fmt.Sprintf("%s|%s|%s|%s",
 		norm(assetType),
 		norm(especi),
-		norm(isinCode),
 		norm(name),
 		norm(ticker),
 	)

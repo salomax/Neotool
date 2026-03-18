@@ -27,6 +27,18 @@ var DefaultRetryPolicy = RetryPolicy{
 	Jitter:            true,
 }
 
+// B3DownloadRetryPolicy is tuned for B3's CDN (Cloudflare), which returns
+// transient 520 errors under load. Annual files are 30–150 MB, so each
+// transfer takes tens of seconds — giving the CDN more time to recover
+// between retries is more effective than rapid short-interval retries.
+var B3DownloadRetryPolicy = RetryPolicy{
+	MaxRetries:        6,
+	InitialDelay:      10 * time.Second,
+	MaxDelay:          120 * time.Second,
+	BackoffMultiplier: 2.0,
+	Jitter:            true,
+}
+
 // DBConnRetryPolicy is used when establishing the initial DB connection pool.
 var DBConnRetryPolicy = RetryPolicy{
 	MaxRetries:        5,
@@ -65,7 +77,7 @@ func Retry(
 		logger.Info("retrying after error",
 			"attempt", attempt+1,
 			"max_retries", policy.MaxRetries,
-			"delay", delay,
+			"delay_ms", delay.Milliseconds(),
 			"error", lastErr,
 		)
 

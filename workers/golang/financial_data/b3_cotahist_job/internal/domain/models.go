@@ -36,7 +36,10 @@ type PriceUpsertParam struct {
 	LowPrice    float64
 	ClosePrice  float64
 	AvgPrice    float64
-	Volume      float64
+	// Volume is the raw VOLTOT integer (implicit 2 decimal places).
+	// The actual monetary volume is Volume / 100. Division is done in SQL
+	// (cast to numeric) to avoid float64 precision loss for large values.
+	Volume      int64
 	Trades      int
 	Source      string
 	ContentHash string // SHA-256 of (ticker + date + open + high + low + close)

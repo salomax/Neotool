@@ -2,16 +2,17 @@ package io.github.salomax.neotool.banking.graphql.resolver
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetRepository
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
-import io.github.salomax.neotool.banking.domain.investment.Holding
-import io.github.salomax.neotool.banking.domain.investment.HoldingRepository
 import io.github.salomax.neotool.banking.domain.investment.Indexer
+import io.github.salomax.neotool.banking.domain.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.graphql.InvestmentQueryService
 import io.github.salomax.neotool.banking.graphql.dto.BrokerNoteDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
@@ -24,12 +25,13 @@ import java.util.UUID
 
 /**
  * GraphQL resolver for investment queries and mutations.
- * Delegates business logic to [InvestmentTransactionService] and [HoldingRepository].
+ * Holding queries delegate to [InvestmentQueryService]; mutations go through [InvestmentTransactionService].
  */
 @Singleton
 class InvestmentResolver(
     private val investmentTransactionService: InvestmentTransactionService,
-    private val holdingRepository: HoldingRepository,
+    private val investmentAssetService: InvestmentAssetService,
+    private val investmentQueryService: InvestmentQueryService,
     private val assetRepository: AssetRepository,
 ) {
     // ── Queries ───────────────────────────────────────────────────────────────
@@ -39,19 +41,12 @@ class InvestmentResolver(
         principal: RequestPrincipal,
     ): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
-        val faId = UUID.fromString(financialAccountId)
-        return holdingRepository
-            .findByFinancialAccount(faId, accountId)
-            .filter { it.quantity > BigDecimal.ZERO }
-            .map { it.toDTO() }
+        return investmentQueryService.getHoldingsByFinancialAccount(UUID.fromString(financialAccountId), accountId)
     }
 
     fun allInvestmentHoldings(principal: RequestPrincipal): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
-        return holdingRepository
-            .findByAccount(accountId)
-            .filter { it.quantity > BigDecimal.ZERO }
-            .map { it.toDTO() }
+        return investmentQueryService.getAllHoldings(accountId)
     }
 
     fun investmentHolding(
@@ -59,7 +54,7 @@ class InvestmentResolver(
         principal: RequestPrincipal,
     ): InvestmentHoldingDTO? {
         val accountId = requireAccountId(principal)
-        return holdingRepository.findById(UUID.fromString(id), accountId)?.toDTO()
+        return investmentQueryService.getHolding(UUID.fromString(id), accountId)
     }
 
     fun investmentTransactions(
@@ -85,6 +80,26 @@ class InvestmentResolver(
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
+    fun createInvestmentAsset(
+        input: Map<String, Any?>,
+        @Suppress("UNUSED_PARAMETER") principal: RequestPrincipal,
+    ): InvestmentAssetDTO {
+        val name = input["name"] as String
+        val assetType = AssetType.valueOf(input["assetType"] as String)
+        val issuerName = input["issuerName"] as? String
+        val ticker = input["ticker"] as? String
+        val isinCode = input["isinCode"] as? String
+        val currencyCode = (input["currencyCode"] as? String) ?: "BRL"
+        return investmentAssetService.create(
+            name = name,
+            assetType = assetType,
+            issuerName = issuerName,
+            ticker = ticker,
+            isinCode = isinCode,
+            currencyCode = currencyCode,
+        ).toDTO()
+    }
+
     fun recordInvestmentTransaction(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
@@ -104,34 +119,6 @@ class InvestmentResolver(
     }
 
     // ── Mapping helpers ───────────────────────────────────────────────────────
-
-    private fun Holding.toDTO(): InvestmentHoldingDTO {
-        val asset = assetId.let { assetRepository.findById(it) }
-        return InvestmentHoldingDTO(
-            id = id!!,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            assetId = assetId,
-            asset = asset?.toDTO(),
-            quantity = quantity.toDouble(),
-            averageCost = averageCost.toDouble(),
-            indexer = indexer,
-            indexerPercentage = indexerPercentage?.toDouble(),
-            preFixedRate = preFixedRate?.toDouble(),
-            issueDate = issueDate,
-            maturityDate = maturityDate,
-            gracePeriodDate = gracePeriodDate,
-            isTaxExempt = isTaxExempt,
-            grossValue = grossValue?.toDouble(),
-            netValue = netValue?.toDouble(),
-            incomeTax = incomeTax?.toDouble(),
-            iof = iof?.toDouble(),
-            lastValuedAt = lastValuedAt,
-            source = source,
-            createdAt = createdAt,
-            updatedAt = updatedAt,
-        )
-    }
 
     private fun Asset.toDTO() =
         InvestmentAssetDTO(

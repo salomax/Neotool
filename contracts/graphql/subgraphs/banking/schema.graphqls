@@ -1334,4 +1334,11 @@ extend type Mutation {
 type BulkOperationResult {
   affectedCount: Int!
   errors: [String!]!
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  Creates the holding automatically on the first PURCHASE of an asset.
+  """
+  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
+  deleteInvestmentTransaction(id: ID!): Boolean!
 }

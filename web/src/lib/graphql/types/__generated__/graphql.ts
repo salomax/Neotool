@@ -427,7 +427,26 @@ export enum BudgetScope {
 export type BulkOperationResult = {
   __typename: 'BulkOperationResult';
   affectedCount: Scalars['Int']['output'];
+  /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
+  deleteInvestmentTransaction: Scalars['Boolean']['output'];
   errors: Array<Scalars['String']['output']>;
+  /**
+   * Records an investment transaction and updates the holding's quantity and averageCost.
+   * Creates the holding automatically on the first PURCHASE of an asset.
+   */
+  recordInvestmentTransaction: InvestmentTransaction;
+};
+
+
+/** Result of a bulk operation (e.g. bulkCategorize). */
+export type BulkOperationResultDeleteInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+/** Result of a bulk operation (e.g. bulkCategorize). */
+export type BulkOperationResultRecordInvestmentTransactionArgs = {
+  input: RecordInvestmentTransactionInput;
 };
 
 /**
