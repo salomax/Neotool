@@ -60,7 +60,9 @@ type CotahistRecord struct {
 	AvgPrice  float64
 	LowPrice  float64
 	Trades    int
-	Volume    float64
+	// Volume is the raw VOLTOT integer (implicit 2 decimal places).
+	// Stored unscaled to preserve full int64 precision; divided by 100 in SQL.
+	Volume    int64
 	ClosePrice float64
 }
 
@@ -140,12 +142,14 @@ func ParseLine(line []byte) (*CotahistRecord, error) {
 	}
 	rec.Trades = int(trades)
 
-	// Financial volume (18 chars, implicit 2 decimal places)
+	// Financial volume (18 chars, implicit 2 decimal places).
+	// Stored as raw int64 — division by 100 happens in SQL to avoid float64
+	// precision loss for large values (up to 10^18 in the COTAHIST format).
 	vol, err := parseIntRaw(line[offVOLTOT : offVOLTOT+18])
 	if err != nil {
 		return nil, fmt.Errorf("VOLTOT: %w", err)
 	}
-	rec.Volume = float64(vol) / 100.0
+	rec.Volume = vol
 
 	// ISIN code — treat "000000000000" or all-space as absent
 	rawISIN := strings.TrimSpace(string(line[offCODISI : offCODISI+12]))

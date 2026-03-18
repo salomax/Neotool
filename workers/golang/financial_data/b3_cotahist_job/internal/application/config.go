@@ -55,6 +55,11 @@ type B3Config struct {
 	// TimeoutSeconds is the per-request HTTP timeout.
 	// Annual files can be 30–150 MB, so a generous timeout is needed.
 	TimeoutSeconds int `env:"B3_TIMEOUT_SECONDS" envDefault:"300"`
+
+	// DownloadIntervalSeconds is the minimum gap between consecutive download starts.
+	// B3's CDN (Cloudflare) returns 520 errors when requests arrive too close together.
+	// 10–15 s is sufficient; set to 0 to disable rate limiting.
+	DownloadIntervalSeconds int `env:"B3_DOWNLOAD_INTERVAL_SECONDS" envDefault:"10"`
 }
 
 type HealthCheckConfig struct {
@@ -94,6 +99,9 @@ func (c *Config) Validate() error {
 	}
 	if c.B3.TimeoutSeconds < 30 {
 		errs = append(errs, "B3_TIMEOUT_SECONDS must be >= 30")
+	}
+	if c.B3.DownloadIntervalSeconds < 0 || c.B3.DownloadIntervalSeconds > 300 {
+		errs = append(errs, "B3_DOWNLOAD_INTERVAL_SECONDS must be between 0 and 300")
 	}
 	if c.B3.BaseURL == "" {
 		errs = append(errs, "B3_BASE_URL must not be empty")

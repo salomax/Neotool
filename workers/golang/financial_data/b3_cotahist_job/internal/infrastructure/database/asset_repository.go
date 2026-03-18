@@ -60,7 +60,13 @@ func NewAssetRepository(pool *pgxpool.Pool, logger *slog.Logger) *AssetRepositor
 // UpsertBatch upserts a slice of asset records using pgx.Batch.
 // Records are sorted by ticker before sending to ensure a consistent
 // lock-acquisition order across concurrent workers, reducing deadlock probability.
-// On PostgreSQL deadlock (SQLSTATE 40P01) the batch is retried up to 3 times.
+//
+// Retry behaviour:
+//   - PostgreSQL deadlock (40P01): retried up to 3 times with exponential backoff.
+//   - ISIN unique constraint (23505 on uq_investment_asset_isin_code): the batch is
+//     retried once with all ISIN codes set to NULL. This is a safety net for the rare
+//     case where two non-option assets share an ISIN (e.g. a ticker change mid-year).
+//     Options never carry an ISIN — that is enforced upstream in collectAssets.
 func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.AssetRecord) error {
 	if len(records) == 0 {
 		return nil
@@ -71,25 +77,45 @@ func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.Asse
 
 	const maxRetries = 3
 	delay := 50 * time.Millisecond
+	isinStripped := false
 
 	for attempt := range maxRetries + 1 {
 		err := r.sendAssetBatch(ctx, records)
 		if err == nil {
 			return nil
 		}
-		if !isDeadlock(err) || attempt == maxRetries {
+
+		switch {
+		case isDeadlock(err) && attempt < maxRetries:
+			r.logger.Warn("asset upsert deadlock, retrying",
+				"attempt", attempt+1,
+				"delay", delay,
+			)
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(delay):
+			}
+			delay *= 2
+
+		case isISINConflict(err) && !isinStripped:
+			// Strip all ISINs from the batch and retry once. This happens when two
+			// assets in the same batch have the same ISIN (data quality issue in
+			// COTAHIST). Storing NULL is safe — tickers remain the primary key.
+			r.logger.Warn("asset upsert ISIN conflict, retrying with null ISINs",
+				"records", len(records),
+			)
+			stripped := make([]domain.AssetRecord, len(records))
+			copy(stripped, records)
+			for i := range stripped {
+				stripped[i].IsinCode = ""
+			}
+			records = stripped
+			isinStripped = true
+
+		default:
 			return err
 		}
-		r.logger.Warn("asset upsert deadlock, retrying",
-			"attempt", attempt+1,
-			"delay", delay,
-		)
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		case <-time.After(delay):
-		}
-		delay *= 2
 	}
 	return nil
 }
@@ -158,4 +184,13 @@ func (r *AssetRepository) FindTickerIDs(ctx context.Context, tickers []string) (
 func isDeadlock(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) && pgErr.Code == "40P01"
+}
+
+// isISINConflict returns true when the error is a unique-violation on the ISIN
+// constraint specifically (SQLSTATE 23505, constraint uq_investment_asset_isin_code).
+func isISINConflict(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) &&
+		pgErr.Code == "23505" &&
+		pgErr.ConstraintName == "uq_investment_asset_isin_code"
 }

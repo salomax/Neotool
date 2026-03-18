@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/time/rate"
+
 	"github.com/salomax/invistus/workers/golang/financial_data/b3-cotahist/internal/shared"
 )
 
@@ -25,19 +27,38 @@ var ErrFileNotFound = errors.New("b3: file not found (404)")
 //
 //	Annual:  COTAHIST_A{YYYY}.ZIP     e.g. COTAHIST_A2026.ZIP
 //	Daily:   COTAHIST_D{DDMMYYYY}.ZIP e.g. COTAHIST_D17032026.ZIP
+//
+// B3's CDN (Cloudflare) returns 520 errors when downloads are started too close
+// together. downloadLimiter enforces a minimum gap between consecutive HTTP
+// transfers — independently of the worker pool size — so processing (parse +
+// DB write) still runs fully in parallel, only the HTTP transfer phase is
+// rate-limited.
 type B3Client struct {
-	baseURL    string
-	httpClient *http.Client
-	retry      shared.RetryPolicy
-	logger     *slog.Logger
+	baseURL         string
+	httpClient      *http.Client
+	retry           shared.RetryPolicy
+	downloadLimiter *rate.Limiter // one token consumed per download attempt
+	logger          *slog.Logger
 }
 
-func NewB3Client(baseURL string, timeoutSec int, logger *slog.Logger) *B3Client {
+// NewB3Client creates a client with a rate-limited downloader.
+//
+// downloadIntervalSeconds is the minimum gap between consecutive download
+// starts. Use 0 to disable rate limiting (unlimited). Values of 10–15 s are
+// recommended for B3's Cloudflare-fronted CDN.
+func NewB3Client(baseURL string, timeoutSec, downloadIntervalSeconds int, logger *slog.Logger) *B3Client {
+	var limiter *rate.Limiter
+	if downloadIntervalSeconds > 0 {
+		limiter = rate.NewLimiter(rate.Every(time.Duration(downloadIntervalSeconds)*time.Second), 1)
+	} else {
+		limiter = rate.NewLimiter(rate.Inf, 1)
+	}
 	return &B3Client{
-		baseURL:    strings.TrimRight(baseURL, "/"),
-		httpClient: &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
-		retry:      shared.DefaultRetryPolicy,
-		logger:     logger,
+		baseURL:         strings.TrimRight(baseURL, "/"),
+		httpClient:      &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
+		retry:           shared.B3DownloadRetryPolicy,
+		downloadLimiter: limiter,
+		logger:          logger,
 	}
 }
 
@@ -60,6 +81,10 @@ func (c *B3Client) DownloadDailyToTempFile(ctx context.Context, date time.Time) 
 
 // downloadToTempFile downloads a file by name to a temp file and returns its path
 // plus a cleanup function. The download is retried on transient failures.
+//
+// The rate limiter token is consumed once per call (before the retry loop) so
+// that successive files are spaced out. Individual retry attempts within the
+// same call run at the retry policy's own backoff cadence.
 func (c *B3Client) downloadToTempFile(ctx context.Context, filename, pattern string) (string, func(), error) {
 	tmp, err := os.CreateTemp("", pattern)
 	if err != nil {
@@ -69,6 +94,15 @@ func (c *B3Client) downloadToTempFile(ctx context.Context, filename, pattern str
 	removeFn := func() { _ = os.Remove(tmpPath) }
 
 	url := c.baseURL + "/" + filename
+
+	// Wait for a rate-limiter token before starting the HTTP transfer.
+	// This enforces a minimum gap between consecutive downloads, preventing
+	// Cloudflare 520 errors caused by too many parallel or rapid-fire requests.
+	if err := c.downloadLimiter.Wait(ctx); err != nil {
+		_ = tmp.Close()
+		removeFn()
+		return "", func() {}, ctx.Err()
+	}
 
 	downloadErr := shared.Retry(ctx, c.retry, func(ctx context.Context) error {
 		// Truncate on each retry so we start with a clean file.

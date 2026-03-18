@@ -17,16 +17,24 @@ import (
 //
 // Backfill strategy (no last_data_date):
 //
-//	Submit one YearTask per year from (currentYear − backfillYears) through currentYear.
+//	Submit one task per year from (currentYear − backfillYears) through currentYear.
 //
 // Incremental strategy (last_data_date present):
 //
-//   - If last_data_date is in a prior year: submit YearTasks for remaining years up
+//   - If last_data_date is in a prior year: submit tasks for remaining years up
 //     to currentYear (handles resume after a multi-year backfill that was interrupted).
-//   - If last_data_date is in the current year: submit a single YearTask for the
+//   - If last_data_date is in the current year: submit a single task for the
 //     current year only. Annual files are updated by B3 after each trading session,
 //     so re-downloading them nightly is cheap (~30 MB) and content-hash guards
 //     skip all unchanged rows.
+//
+// Download pipeline:
+//
+//	A dedicated goroutine downloads files one at a time (sequential) and sends the
+//	zip path to the worker pool via a buffered channel. Workers consume process-only
+//	tasks (pass 1 catalog + pass 2 prices) in parallel, so DB writes are concurrent
+//	while downloads are never simultaneous. This eliminates the Cloudflare 520 errors
+//	caused by parallel HTTP connections to B3's CDN.
 //
 // MarkSuccess is called by main after pool.Wait() — the dispatcher stores the
 // target lastDate during Run() so main can call it only once all workers succeed.
@@ -70,8 +78,21 @@ func NewDispatcher(
 	}
 }
 
-// Run loads the job control state, builds the year list, and submits one
-// CotahistTask per year to the worker pool.
+// zipEntry carries a successfully downloaded ZIP and its cleanup function.
+type zipEntry struct {
+	year    int
+	zipPath string
+	cleanup func()
+}
+
+// Run loads the job control state, builds the year list, then drives the
+// download→process pipeline:
+//
+//  1. A background goroutine downloads annual ZIPs sequentially, sending each
+//     to zipCh once ready.
+//  2. The main goroutine receives entries from zipCh and submits process-only
+//     tasks to the worker pool (pool.Submit blocks when the queue is full,
+//     providing natural back-pressure on the downloader).
 func (d *Dispatcher) Run(ctx context.Context) error {
 	now := time.Now().UTC()
 	currentYear := now.Year()
@@ -92,21 +113,67 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		return nil
 	}
 
-	d.logger.Info("dispatcher: submitting year tasks",
+	d.logger.Info("dispatcher: starting download pipeline",
 		"run_type", runType,
 		"years", len(years),
 		"first", years[0],
 		"last", years[len(years)-1],
 	)
 
-	for _, year := range years {
-		task := NewAnnualTask(year, d.client, d.assetRepo, d.priceRepo, d.chunkSize, d.logger)
+	// Buffer 1: the downloader can fetch one file ahead of what the dispatcher
+	// has submitted to the pool, hiding download latency during task transitions.
+	zipCh := make(chan zipEntry, 1)
+	downloadErrCh := make(chan error, 1)
+
+	go func() {
+		defer close(zipCh)
+		for _, year := range years {
+			d.logger.Info("dispatcher: downloading annual file", "year", year)
+			zipPath, cleanup, dlErr := d.client.DownloadAnnualToTempFile(ctx, year)
+			if dlErr != nil {
+				select {
+				case downloadErrCh <- fmt.Errorf("dispatcher: download year %d: %w", year, dlErr):
+				default:
+				}
+				return
+			}
+			select {
+			case zipCh <- zipEntry{year: year, zipPath: zipPath, cleanup: cleanup}:
+			case <-ctx.Done():
+				cleanup()
+				return
+			}
+		}
+	}()
+
+	var submitErr error
+	for entry := range zipCh {
+		label := fmt.Sprintf("%d", entry.year)
+		task := newPreDownloadedTask(label, entry.zipPath, entry.cleanup,
+			d.assetRepo, d.priceRepo, d.chunkSize, d.logger)
 		if err := d.pool.Submit(ctx, task); err != nil {
-			return fmt.Errorf("dispatcher: submitting year %d: %w", year, err)
+			entry.cleanup()
+			submitErr = fmt.Errorf("dispatcher: submitting year %d: %w", entry.year, err)
+			break
 		}
 	}
 
-	// Store target lastDate for main to call MarkSuccess after pool.Wait().
+	// Drain the channel so the download goroutine can exit and temp files are cleaned up.
+	for entry := range zipCh {
+		entry.cleanup()
+	}
+
+	if submitErr != nil {
+		return submitErr
+	}
+
+	// Check whether the download goroutine encountered a fatal error.
+	select {
+	case dlErr := <-downloadErrCh:
+		return dlErr
+	default:
+	}
+
 	d.lastDate = &yesterday
 	return nil
 }

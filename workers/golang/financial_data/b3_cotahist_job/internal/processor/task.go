@@ -77,6 +77,30 @@ func NewDailyTask(
 	}
 }
 
+// newPreDownloadedTask creates a task that processes an already-downloaded ZIP.
+// Used by the dispatcher pipeline: the dispatcher downloads files sequentially
+// and hands the path to a process-only task, so workers never download concurrently.
+func newPreDownloadedTask(
+	label string,
+	zipPath string,
+	cleanup func(),
+	assetRepo *database.AssetRepository,
+	priceRepo *database.PriceRepository,
+	chunkSize int,
+	logger *slog.Logger,
+) *CotahistTask {
+	return &CotahistTask{
+		label: label,
+		download: func(_ context.Context) (string, func(), error) {
+			return zipPath, cleanup, nil
+		},
+		assetRepo: assetRepo,
+		priceRepo: priceRepo,
+		chunkSize: chunkSize,
+		logger:    logger,
+	}
+}
+
 // Process implements workerpool.WorkItem.
 func (t *CotahistTask) Process(ctx context.Context) error {
 	startedAt := time.Now()
@@ -172,15 +196,25 @@ func (t *CotahistTask) collectAssets(zipPath string) ([]domain.AssetRecord, erro
 			continue // deduplicate — catalog fields don't change within one file
 		}
 
+		// Options in COTAHIST reuse the underlying equity's CODISI (ISIN), which
+		// would violate uq_investment_asset_isin_code when both the option and its
+		// underlying are inserted in the same batch. Options are uniquely identified
+		// by their ticker (encoding underlying + expiry + strike), so ISIN is not
+		// needed and is always stored as NULL for option assets.
+		isin := rec.IsinCode
+		if assetType == domain.AssetTypeOptionCall || assetType == domain.AssetTypeOptionPut {
+			isin = ""
+		}
+
 		ar := domain.AssetRecord{
 			Ticker:    rec.Ticker,
 			Name:      rec.Name,
 			AssetType: assetType,
 			Especi:    rec.Especi,
-			IsinCode:  rec.IsinCode,
+			IsinCode:  isin,
 			LotSize:   domain.LotSizeFor(assetType),
 		}
-		ar.ContentHash = shared.ComputeAssetHash(ar.Ticker, ar.Name, ar.AssetType, ar.Especi, ar.IsinCode)
+		ar.ContentHash = shared.ComputeAssetHash(ar.Ticker, ar.Name, ar.AssetType, ar.Especi)
 		seen[rec.Ticker] = ar
 	}
 	if err := scanner.Err(); err != nil {
