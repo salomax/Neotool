@@ -26,7 +26,15 @@ type NAVDispatcher struct {
 	chunkSize      int
 	backfillYears  int
 	logger         *slog.Logger
+
+	// lastDay is set by Run and read by main after pool.Wait().
+	lastDay *time.Time
 }
+
+// LastDay returns the last day of the processed window, or nil if Run has not
+// been called or produced no months. Used by main to call MarkSuccess only
+// after all workers have completed.
+func (d *NAVDispatcher) LastDay() *time.Time { return d.lastDay }
 
 func NewNAVDispatcher(
 	client *cvmhttp.CVMClient,
@@ -56,7 +64,7 @@ func (d *NAVDispatcher) Run(ctx context.Context) error {
 	startedAt := time.Now()
 
 	// Load fund catalog once — shared read-only by all month tasks.
-	assetIDs, err := d.assetRepo.FindAllActiveFundIDs(ctx)
+	assetIDs, err := d.assetRepo.FindAllFundIDs(ctx)
 	if err != nil {
 		return fmt.Errorf("nav dispatcher: loading fund IDs: %w", err)
 	}
@@ -100,12 +108,9 @@ func (d *NAVDispatcher) Run(ctx context.Context) error {
 		}
 	}
 
-	// Record success up to the last month's final day.
+	// Store lastDay for main to call MarkSuccess after pool.Wait().
 	lastDay := months[len(months)-1].LastDay()
-	if err := d.jobControlRepo.MarkSuccess(ctx, domain.JobNameNAV, lastDay); err != nil {
-		d.logger.Error("nav dispatcher: failed to mark success", "error", err)
-		// Non-fatal — don't fail the whole run; next run will reprocess the last month.
-	}
+	d.lastDay = &lastDay
 
 	d.logger.Info("nav dispatcher: all months submitted",
 		"duration_ms", time.Since(startedAt).Milliseconds(),
@@ -129,12 +134,7 @@ func buildMonthList(lastDataDate *time.Time, backfillYears int) []domain.YearMon
 		startMonth = domain.NewYearMonth(lastDataDate.Year(), lastDataDate.Month())
 	}
 
-	// Pre-compute count to avoid repeated slice growth.
-	count := 0
-	for ym := startMonth; !ym.After(lastMonth); ym = ym.AddMonths(1) {
-		count++
-	}
-	months := make([]domain.YearMonth, 0, count)
+	var months []domain.YearMonth
 	for ym := startMonth; !ym.After(lastMonth); ym = ym.AddMonths(1) {
 		months = append(months, ym)
 	}

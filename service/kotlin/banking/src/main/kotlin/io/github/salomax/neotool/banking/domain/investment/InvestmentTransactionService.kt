@@ -324,7 +324,8 @@ open class InvestmentTransactionService(
             indexer = command.indexer,
             indexerPercentage = command.indexerPercentage,
             preFixedRate = command.preFixedRate,
-            issueDate = command.issueDate,
+            // Default issueDate to tradeDate so fixed-income valuation can run when user doesn't send issueDate
+            issueDate = command.issueDate ?: command.tradeDate,
             maturityDate = command.maturityDate,
             gracePeriodDate = command.gracePeriodDate,
             isTaxExempt = command.isTaxExempt,

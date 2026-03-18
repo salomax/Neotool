@@ -122,8 +122,17 @@
         "currentValue": "Current value",
         "indexer": "Indexer",
         "grossValue": "Gross value",
-        "maturityDate": "Maturity"
+        "maturityDate": "Maturity",
+        "gain": "Gain/Loss"
       },
+      "valuationTooltip": {
+        "CALCULATED": "Value calculated from indicators and fixed income rules.",
+        "ESTIMATED": "Estimated value. Reference: {{date}}.",
+        "UNAVAILABLE": "Value unavailable."
+      },
+      "expiredBadge": "Expired",
+      "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
+      "groupTotalEstimated": "Part of this total is estimated value.",
       "groupSummary_one": "{{count}} asset · {{total}}",
       "groupSummary_other": "{{count}} assets · {{total}}",
       "groups": {

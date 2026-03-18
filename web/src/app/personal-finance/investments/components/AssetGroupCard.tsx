@@ -18,11 +18,14 @@ interface AssetGroupCardProps {
   expanded: boolean;
   onToggle: (expanded: boolean) => void;
   leadingIcon?: React.ReactNode;
+  /** Rendered after the summary (e.g. warning icon when group has estimated values). */
+  summaryAdornment?: React.ReactNode;
   children: React.ReactNode;
 }
 
-export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon, children }: AssetGroupCardProps) {
+export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon, summaryAdornment, children }: AssetGroupCardProps) {
   const theme = useTheme();
+  const cardRadius = theme.custom?.radius?.button ?? theme.shape.borderRadius;
 
   return (
     <Accordion
@@ -30,17 +33,17 @@ export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon
       onChange={(_, isExpandedNext) => onToggle(isExpandedNext)}
       elevation={0}
       sx={{
-        border: '1px solid',
-        borderColor: expanded ? 'primary.main' : alpha(theme.palette.divider, 0.7),
-        borderRadius: 2,
+        mb: 2,
+        border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+        borderRadius: `${cardRadius}px`,
         overflow: 'hidden',
         bgcolor: 'background.paper',
-        boxShadow: expanded ? theme.shadows[3] : theme.shadows[1],
-        transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+        transition: 'none',
         '&:before': { display: 'none' },
-        '&:hover': {
-          borderColor: 'primary.main',
-          boxShadow: theme.shadows[3],
+        '&.Mui-expanded': {
+          margin: 0,
+          mb: 2,
+          borderRadius: `${cardRadius}px`,
         },
       }}
     >
@@ -49,14 +52,21 @@ export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon
         sx={{
           px: 2,
           py: 1.5,
-          bgcolor: expanded ? 'action.selected' : 'background.paper',
-          transition: 'background-color 0.2s ease-in-out',
+          minHeight: 56,
+          bgcolor: alpha(theme.palette.primary.main, 0.04),
+          transition: 'background-color 0.18s ease',
+          '&.Mui-expanded': {
+            minHeight: 56,
+          },
           '&:hover': {
-            bgcolor: expanded ? 'action.selected' : 'action.hover',
+            bgcolor: alpha(theme.palette.primary.main, 0.06),
           },
           '& .MuiAccordionSummary-content': {
-            my: 0,
+            margin: 0,
             alignItems: 'center',
+          },
+          '& .MuiAccordionSummary-content.Mui-expanded': {
+            margin: 0,
           },
         }}
       >
@@ -66,7 +76,7 @@ export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon
               sx={{
                 width: 36,
                 height: 36,
-                borderRadius: 2,
+                borderRadius: `${cardRadius}px`,
                 bgcolor: alpha(theme.palette.primary.main, 0.1),
                 color: 'primary.main',
                 display: 'flex',
@@ -82,9 +92,12 @@ export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon
             <Typography variant="subtitle1" fontWeight={700} noWrap>
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap>
-              {summary}
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {summary}
+              </Typography>
+              {summaryAdornment}
+            </Box>
           </Box>
         </Box>
       </AccordionSummary>
@@ -92,4 +105,3 @@ export function AssetGroupCard({ title, summary, expanded, onToggle, leadingIcon
     </Accordion>
   );
 }
-

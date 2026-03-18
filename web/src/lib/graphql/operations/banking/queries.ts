@@ -252,6 +252,11 @@ export const INVESTMENT_HOLDINGS = gql`
       averageCost
       grossValue
       netValue
+      incomeTax
+      iof
+      valuationSource
+      valuationReferenceDate
+      isExpired
       indexer
       indexerPercentage
       preFixedRate
@@ -280,6 +285,11 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
       averageCost
       grossValue
       netValue
+      incomeTax
+      iof
+      valuationSource
+      valuationReferenceDate
+      isExpired
       indexer
       indexerPercentage
       preFixedRate

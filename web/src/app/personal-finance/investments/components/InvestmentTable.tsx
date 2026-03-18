@@ -4,8 +4,10 @@ import React from 'react';
 import { useQuery } from '@apollo/client/react';
 import i18n from 'i18next';
 import {
+  alpha,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Paper,
   Table,
@@ -14,12 +16,17 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SavingsIcon from '@mui/icons-material/Savings';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { GrowthChip } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -27,7 +34,7 @@ import {
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import { Indexer } from '@/lib/graphql/types/__generated__/graphql';
+import { Indexer, ValuationSource } from '@/lib/graphql/types/__generated__/graphql';
 import { AssetGroupCard } from './AssetGroupCard';
 
 interface InvestmentTableProps {
@@ -150,6 +157,7 @@ function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string
 
 export function InvestmentTable({ selectedAccountId, onRecordHolding }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
   const locale = getCurrentLocale();
   const [expandedGroup, setExpandedGroup] = React.useState<AssetGroupKey | false>(false);
   const didInitExpansionRef = React.useRef(false);
@@ -196,12 +204,14 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
 
       let sum = 0;
       let hasValue = false;
+      let hasEstimated = false;
 
       groupHoldings.forEach((holding) => {
         if (typeof holding.grossValue === 'number') {
           sum += holding.grossValue;
           hasValue = true;
         }
+        if (holding.valuationSource === ValuationSource.Estimated) hasEstimated = true;
       });
 
       const currencyCode = currencyCodes.size === 1 ? Array.from(currencyCodes)[0] : null;
@@ -212,6 +222,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
         title: t(`investments.table.groups.${groupKey}`),
         count: groupHoldings.length,
         total,
+        hasEstimatedInGroup: hasEstimated,
         summary: t('investments.table.groupSummary', {
           count: groupHoldings.length,
           total,
@@ -296,6 +307,15 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
           {groups.map((group) => {
             const isExpanded = expandedGroup === group.key;
             const leadingIcon = group.key === 'bankFixedIncome' ? <SavingsIcon sx={{ fontSize: 18 }} /> : null;
+            const divider = alpha(theme.palette.divider, 0.7);
+            const colWidth = '16.66%';
+
+            const summaryAdornment =
+              group.hasEstimatedInGroup ? (
+                <Tooltip title={t('investments.table.groupTotalEstimated')}>
+                  <WarningAmberIcon sx={{ fontSize: 16, color: 'warning.main' }} aria-hidden />
+                </Tooltip>
+              ) : null;
 
             return (
               <AssetGroupCard
@@ -305,51 +325,160 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                 title={group.title}
                 summary={group.summary}
                 leadingIcon={leadingIcon}
+                summaryAdornment={summaryAdornment}
               >
-                <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="investments table">
+                <Table
+                  sx={{
+                    width: '100%',
+                    tableLayout: 'fixed',
+                    borderCollapse: 'collapse',
+                  }}
+                  aria-label="investments table"
+                >
                   <TableHead>
                     <TableRow>
-                      <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.asset')}</Label>
                       </TableCell>
-                      <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.type')}</Label>
                       </TableCell>
-                      <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.indexer')}</Label>
                       </TableCell>
-                      <TableCell align="right" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+                      <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.grossValue')}</Label>
                       </TableCell>
-                      <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.maturityDate')}</Label>
+                      </TableCell>
+                      <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                        <Label>{t('investments.table.columns.gain')}</Label>
                       </TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {group.holdings.map((holding) => (
-                      <TableRow key={holding.id}>
-                        <TableCell>
-                          <Typography variant="body2" fontWeight={700}>
-                            {holding.asset.name}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{formatAssetType(holding.asset.assetType, t)}</Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
-                        </TableCell>
-                        <TableCell align="right">
-                          <Typography variant="body2">
-                            {formatCurrency(holding.grossValue, holding.asset.currencyCode, locale)}
-                          </Typography>
-                        </TableCell>
-                        <TableCell>
-                          <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {group.holdings.map((holding) => {
+                      const source = holding.valuationSource;
+                      const isExpired = holding.isExpired;
+                      const refDate = typeof holding.valuationReferenceDate === 'string' ? holding.valuationReferenceDate : null;
+                      const refDateFormatted = refDate ? formatDate(refDate, locale) : '';
+                      const currencyCode = holding.asset?.currencyCode ?? 'BRL';
+
+                      const valueUnavailable =
+                        source === ValuationSource.Unavailable || (source !== ValuationSource.Provider && typeof holding.grossValue !== 'number');
+                      const valueContent = valueUnavailable ? (
+                        '—'
+                      ) : (
+                        formatCurrency(holding.grossValue, currencyCode, locale)
+                      );
+                      const valueTooltip =
+                        source === ValuationSource.Calculated
+                          ? t('investments.table.valuationTooltip.CALCULATED')
+                          : source === ValuationSource.Estimated
+                            ? t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })
+                            : source === ValuationSource.Unavailable
+                              ? t('investments.table.valuationTooltip.UNAVAILABLE')
+                              : null;
+                      const valueIcon =
+                        source === ValuationSource.Calculated ? (
+                          <Tooltip title={valueTooltip ?? ''}>
+                            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary', ml: 0.25 }} aria-hidden />
+                          </Tooltip>
+                        ) : source === ValuationSource.Estimated ? (
+                          <Tooltip title={valueTooltip ?? ''}>
+                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main', ml: 0.25 }} aria-hidden />
+                          </Tooltip>
+                        ) : null;
+
+                      const principal = holding.averageCost * holding.quantity;
+                      const grossVal = typeof holding.grossValue === 'number' ? holding.grossValue : null;
+                      const absolute = principal > 0 && grossVal != null ? grossVal - principal : null;
+                      const percent = absolute != null && principal > 0 ? (absolute / principal) * 100 : null;
+                      const gainUnavailable = grossVal == null || source === ValuationSource.Unavailable;
+                      const gainEstimated = source === ValuationSource.Estimated;
+
+                      return (
+                        <TableRow
+                          key={holding.id}
+                          sx={{
+                            '& td': { borderBottom: `1px solid ${divider}`, py: 1.5 },
+                            '&:last-of-type td': { borderBottom: 'none' },
+                          }}
+                        >
+                          <TableCell sx={{ width: colWidth }}>
+                            <Typography variant="body2" fontWeight={700}>
+                              {holding.asset?.name ?? '—'}
+                            </Typography>
+                            {isExpired && source !== 'PROVIDER' && (() => {
+                              const maturityDateStr = holding.maturityDate ? formatDate(holding.maturityDate, locale) : '';
+                              return maturityDateStr ? (
+                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
+                                  {t('investments.table.expiredNudge', { maturityDate: maturityDateStr }) as string}
+                                </Typography>
+                              ) : null;
+                            })()}
+                          </TableCell>
+                          <TableCell sx={{ width: colWidth }}>
+                            <Typography variant="body2">
+                              {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
+                            </Typography>
+                          </TableCell>
+                          <TableCell sx={{ width: colWidth }}>
+                            <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                              <Typography variant="body2" component="span" fontWeight={700}>
+                                {valueContent}
+                              </Typography>
+                              {valueIcon}
+                            </Box>
+                          </TableCell>
+                          <TableCell sx={{ width: colWidth }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
+                              <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
+                              {isExpired && (
+                                <Chip
+                                  size="small"
+                                  label={t('investments.table.expiredBadge')}
+                                  sx={{ height: 20, fontSize: '0.7rem' }}
+                                  color="default"
+                                  variant="outlined"
+                                />
+                              )}
+                            </Box>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth }}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
+                              {gainUnavailable ? (
+                                <Typography variant="body2">—</Typography>
+                              ) : (
+                                <>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                    <Typography
+                                      variant="body2"
+                                      fontWeight={700}
+                                      color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
+                                    >
+                                      {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
+                                    </Typography>
+                                    {gainEstimated && (
+                                      <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                        <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
+                                      </Tooltip>
+                                    )}
+                                  </Box>
+                                  {percent != null && principal > 0 && absolute != null && (
+                                    <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                  )}
+                                </>
+                              )}
+                            </Box>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </AssetGroupCard>

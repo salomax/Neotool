@@ -14,7 +14,38 @@ import (
 	cvmhttp "github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/infrastructure/http"
 	"github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/shared"
 	"github.com/salomax/invistus/workflow/golang/shared/workerpool"
+	"golang.org/x/text/encoding/charmap"
 )
+
+// catalogColMap maps logical field names to the actual CSV column name for a given format.
+type catalogColMap struct {
+	cnpj     string
+	name     string
+	classe   string
+	tipo     string
+	manager  string
+	situacao string
+}
+
+// Legacy format (cad_fi.csv): funds registered before RCVM 175.
+var legacyCols = catalogColMap{
+	cnpj:     "CNPJ_FUNDO",
+	name:     "DENOM_SOCIAL",
+	classe:   "CLASSE",
+	tipo:     "TP_FUNDO",
+	manager:  "GESTOR",
+	situacao: "SITUACAO",
+}
+
+// New format (registro_fundo_classe.zip): funds registered under RCVM 175 (post-2024).
+var rcvm175Cols = catalogColMap{
+	cnpj:     "CNPJ_Classe",
+	name:     "Denominacao_Social",
+	classe:   "Classificacao_Anbima",
+	tipo:     "Tipo_Classe",
+	manager:  "Controlador",
+	situacao: "Situacao",
+}
 
 // CatalogIngester streams cad_fi.csv from CVM, accumulates chunk-sized slices
 // of FundRecord, and submits CatalogChunkTask items to the worker pool.
@@ -49,40 +80,108 @@ func NewCatalogIngester(
 	}
 }
 
-// Run streams the fund catalog, submits chunks for upsert, and returns counts.
+// ingestState accumulates streaming counters and the in-progress chunk across sources.
+type ingestState struct {
+	total     int
+	submitted int
+	skipped   int
+	chunk     []domain.FundRecord
+}
+
+// Run streams both fund catalog sources, submits chunks for upsert, and returns counts.
+//
+// Sources:
+//  1. cad_fi.csv — legacy format, funds registered before RCVM 175.
+//  2. registro_fundo_classe.zip — new format (post-2024, RCVM 175), different column names.
 func (ci *CatalogIngester) Run(ctx context.Context) (total, submitted, skipped int, err error) {
 	startedAt := time.Now()
 
-	// Load existing hashes once — used to skip unchanged records.
+	// Load existing hashes once — used to skip unchanged records across both sources.
 	existingHashes, err := ci.repo.FindAllFundHashes(ctx)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("loading existing fund hashes: %w", err)
 	}
 	ci.logger.Info("catalog ingester: existing hashes loaded", "count", len(existingHashes))
 
-	// Open streaming HTTP response.
+	state := &ingestState{chunk: make([]domain.FundRecord, 0, ci.chunkSize)}
+
+	// ── Source 1: cad_fi.csv (legacy format) ────────────────────────────────
 	body, err := ci.client.StreamFundCatalog(ctx)
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("opening catalog stream: %w", err)
 	}
 	defer body.Close()
 
-	reader := csv.NewReader(body)
+	reader := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(body))
 	reader.Comma = ';'
 	reader.LazyQuotes = true
 	reader.TrimLeadingSpace = true
-	// ReuseRecord avoids a new []string allocation per row (~500k rows).
 	reader.ReuseRecord = true
 
-	// Read header row to map column positions.
 	header, err := reader.Read()
 	if err != nil {
 		return 0, 0, 0, fmt.Errorf("reading catalog header: %w", err)
 	}
-	cols := shared.ColumnIndex(header)
 
-	chunk := make([]domain.FundRecord, 0, ci.chunkSize)
+	if err = ci.streamRows(ctx, reader, shared.ColumnIndex(header), legacyCols, existingHashes, state); err != nil {
+		return state.total, state.submitted, state.skipped, err
+	}
 
+	// ── Source 2: registro_fundo_classe.zip (RCVM 175 new format) ───────────
+	zipPath, cleanup, err := ci.client.DownloadFundClasseCatalogToTempFile(ctx)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("downloading fund classe catalog: %w", err)
+	}
+	defer cleanup()
+
+	zr, csvRC, err := cvmhttp.OpenFirstCSVFromZip(zipPath)
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("opening fund classe CSV: %w", err)
+	}
+	defer zr.Close()
+	defer csvRC.Close()
+
+	reader2 := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(csvRC))
+	reader2.Comma = ';'
+	reader2.LazyQuotes = true
+	reader2.TrimLeadingSpace = true
+	reader2.ReuseRecord = true
+
+	header2, err := reader2.Read()
+	if err != nil {
+		return 0, 0, 0, fmt.Errorf("reading fund classe catalog header: %w", err)
+	}
+
+	if err = ci.streamRows(ctx, reader2, shared.ColumnIndex(header2), rcvm175Cols, existingHashes, state); err != nil {
+		return state.total, state.submitted, state.skipped, err
+	}
+
+	// Flush the final partial chunk.
+	if len(state.chunk) > 0 {
+		if submitErr := ci.submitChunk(ctx, state.chunk); submitErr != nil {
+			return state.total, state.submitted, state.skipped, submitErr
+		}
+	}
+
+	ci.logger.Info("catalog ingester: streaming complete",
+		"total_rows", state.total,
+		"submitted", state.submitted,
+		"skipped_unchanged", state.skipped,
+		"duration_ms", time.Since(startedAt).Milliseconds(),
+	)
+	return state.total, state.submitted, state.skipped, nil
+}
+
+// streamRows reads all rows from reader, parses each with the given column map, and
+// accumulates changed records into state.chunk — flushing to the pool when full.
+func (ci *CatalogIngester) streamRows(
+	ctx context.Context,
+	reader *csv.Reader,
+	cols map[string]int,
+	colMap catalogColMap,
+	existingHashes map[string]string,
+	state *ingestState,
+) error {
 	for {
 		row, readErr := reader.Read()
 		if readErr == io.EOF {
@@ -93,47 +192,31 @@ func (ci *CatalogIngester) Run(ctx context.Context) (total, submitted, skipped i
 			continue
 		}
 
-		total++
+		state.total++
 
-		rec, parseErr := parseRow(row, cols)
+		rec, parseErr := parseFundRow(row, cols, colMap)
 		if parseErr != nil {
 			ci.logger.Warn("catalog ingester: skipping unparseable row",
-				"row", total, "error", parseErr)
+				"row", state.total, "error", parseErr)
 			continue
 		}
 
-		// First-level filter: skip if hash matches the stored value.
 		if existingHash, ok := existingHashes[rec.CNPJ]; ok && existingHash == rec.ContentHash {
-			skipped++
+			state.skipped++
 			continue
 		}
 
-		submitted++
-		chunk = append(chunk, rec)
+		state.submitted++
+		state.chunk = append(state.chunk, rec)
 
-		if len(chunk) >= ci.chunkSize {
-			if submitErr := ci.submitChunk(ctx, chunk); submitErr != nil {
-				return total, submitted, skipped, submitErr
+		if len(state.chunk) >= ci.chunkSize {
+			if submitErr := ci.submitChunk(ctx, state.chunk); submitErr != nil {
+				return submitErr
 			}
-			// Transfer ownership to task; allocate a new backing array.
-			chunk = make([]domain.FundRecord, 0, ci.chunkSize)
+			state.chunk = make([]domain.FundRecord, 0, ci.chunkSize)
 		}
 	}
-
-	// Flush the final partial chunk.
-	if len(chunk) > 0 {
-		if submitErr := ci.submitChunk(ctx, chunk); submitErr != nil {
-			return total, submitted, skipped, submitErr
-		}
-	}
-
-	ci.logger.Info("catalog ingester: streaming complete",
-		"total_rows", total,
-		"submitted", submitted,
-		"skipped_unchanged", skipped,
-		"duration_ms", time.Since(startedAt).Milliseconds(),
-	)
-	return total, submitted, skipped, nil
+	return nil
 }
 
 func (ci *CatalogIngester) submitChunk(ctx context.Context, chunk []domain.FundRecord) error {
@@ -144,21 +227,21 @@ func (ci *CatalogIngester) submitChunk(ctx context.Context, chunk []domain.FundR
 	return nil
 }
 
-// parseRow converts one CSV row into a FundRecord.
-// Column names are as published by CVM in cad_fi.csv.
-func parseRow(row []string, cols map[string]int) (domain.FundRecord, error) {
-	cnpj := shared.NormalizeCNPJ(shared.GetField(row, cols, "CNPJ_FUNDO"))
+// parseFundRow converts one CSV row into a FundRecord using the provided column map.
+// colMap abstracts the column name differences between the legacy and RCVM 175 formats.
+func parseFundRow(row []string, cols map[string]int, colMap catalogColMap) (domain.FundRecord, error) {
+	cnpj := shared.NormalizeCNPJ(shared.GetField(row, cols, colMap.cnpj))
 	if cnpj == "" {
 		return domain.FundRecord{}, fmt.Errorf("empty CNPJ")
 	}
 
-	name := shared.GetField(row, cols, "DENOM_SOCIAL")
-	classe := shared.GetField(row, cols, "CLASSE")
-	tipoFundo := shared.GetField(row, cols, "TP_FUNDO")
-	manager := shared.GetField(row, cols, "GESTOR")
-	situacao := shared.GetField(row, cols, "SITUACAO")
+	name := shared.GetField(row, cols, colMap.name)
+	classe := shared.GetField(row, cols, colMap.classe)
+	tipoFundo := shared.GetField(row, cols, colMap.tipo)
+	manager := shared.GetField(row, cols, colMap.manager)
+	situacao := shared.GetField(row, cols, colMap.situacao)
 
-	isActive := strings.EqualFold(situacao, "EM FUNCIONAMENTO NORMAL")
+	isActive := strings.EqualFold(strings.TrimSpace(situacao), "em funcionamento normal")
 	assetType := resolveAssetType(tipoFundo, classe)
 	contentHash := shared.ComputeFundHash(cnpj, name, classe, tipoFundo, manager, isActive)
 

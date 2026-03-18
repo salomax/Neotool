@@ -31,10 +31,10 @@ Showing `averageCost × quantity` (cost basis) as the "current value" is mislead
 ## Design Principles
 
 - **Backend-only**: All calculation happens in the banking service resolver. Frontend consumes results without any calculation logic.
-- **Non-destructive**: Estimated values are exposed as separate fields (`estimatedGrossValue`, etc.) and never overwrite the provider-synced `grossValue`/`netValue`.
-- **Transparent to the user**: The `isEstimated` flag allows the UI to clearly distinguish estimated from synced values.
-- **Provider wins**: If `grossValue` is set (from Open Finance or file import), the provider value is used and no estimation is performed.
-- **Graceful degradation**: For indexers with no available indicator data (e.g., `OUTROS`), the estimated fields are null and `isEstimated` is false.
+- **Single source of truth per field**: Calculated values populate the same `grossValue`/`netValue` fields as provider-synced values. `valuationSource` tells the consumer where the value came from — no parallel `estimated*` fields.
+- **Transparent to the user**: The `valuationSource` enum allows the UI to clearly distinguish provider-synced, calculated, estimated, and unavailable values.
+- **Provider wins**: If `grossValue` is set (from Open Finance or file import), `valuationSource = PROVIDER` and no estimation is performed.
+- **Graceful degradation**: For indexers with no available indicator data (e.g., `OUTROS`), `grossValue` remains null and `valuationSource = UNAVAILABLE`.
 
 ---
 
@@ -43,38 +43,49 @@ Showing `averageCost × quantity` (cost basis) as the "current value" is mislead
 Add to `InvestmentHolding`:
 
 ```graphql
+"""
+Indicates the origin and reliability of the holding's current value fields.
+"""
+enum ValuationSource {
+  "Value provided by the data provider (Open Finance / file import). Authoritative."
+  PROVIDER
+
+  "Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact."
+  CALCULATED
+
+  "Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate."
+  ESTIMATED
+
+  "Value cannot be determined (unsupported indexer, missing data, or no issueDate)."
+  UNAVAILABLE
+}
+
 type InvestmentHolding {
-  # ... existing fields ...
+  # ... existing fields (grossValue, netValue, incomeTax, iof are already present) ...
 
   """
-  Estimated current gross value computed from contractual terms and latest indicators.
-  Null if grossValue is already provided by the data provider, or if the indexer
-  cannot be estimated (e.g., OUTROS, missing indicator data).
+  Indicates where grossValue/netValue came from.
+  PROVIDER: populated by Open Finance or file import.
+  CALCULATED: computed from contracted PRE_FIXADO rate (exact).
+  ESTIMATED: projected using latest CDI/IPCA/etc. indicator (approximate).
+  UNAVAILABLE: cannot be determined.
   """
-  estimatedGrossValue: Float
+  valuationSource: ValuationSource!
 
   """
-  Estimated net value after IR and IOF (estimatedGrossValue - estimatedIncomeTax - estimatedIof).
+  Date of the most recent indicator used in the calculation.
+  Null when valuationSource is PROVIDER or UNAVAILABLE.
   """
-  estimatedNetValue: Float
+  valuationReferenceDate: Date
 
   """
-  Estimated income tax (IR) on the gain. Zero for isTaxExempt holdings.
+  True when the holding has passed its maturity date (maturityDate != null && maturityDate < today).
   """
-  estimatedIncomeTax: Float
-
-  """
-  Estimated IOF on the gain. Zero after 30 calendar days from issueDate.
-  """
-  estimatedIof: Float
-
-  """
-  True when estimatedGrossValue/estimatedNetValue are populated and grossValue is null.
-  False when provider-synced values are in use or when estimation is not possible.
-  """
-  isEstimated: Boolean!
+  isExpired: Boolean!
 }
 ```
+
+> **Note**: `grossValue`, `netValue`, `incomeTax`, and `iof` already exist on `InvestmentHolding`. The resolver populates them from the provider when available, or from the calculation engine otherwise. `valuationSource` is the discriminator — no parallel `estimated*` fields are needed.
 
 ---
 
@@ -278,20 +289,33 @@ ir_amount    = taxable_gain × irRate
 ### 4. Net Value
 
 ```
-estimatedNetValue = estimatedGrossValue - estimatedIncomeTax - estimatedIof
+netValue = grossValue - incomeTax - iof
 ```
 
 ---
 
-### 5. isEstimated Flag
+### 5. ValuationSource
 
-| Condition | isEstimated |
+| Condition | valuationSource |
 |---|---|
-| `grossValue` is not null (provider-synced) | `false` |
-| `indexer` is null or `OUTROS` | `false` |
-| Required indicator data unavailable | `false` |
-| `issueDate` is null | `false` |
-| Estimation was computed successfully | `true` |
+| `grossValue` already set by provider (Open Finance / import) | `PROVIDER` |
+| `indexer = PRE_FIXADO` and estimation computed | `CALCULATED` |
+| Indicator-based estimation computed (CDI, IPCA, SELIC, etc.) | `ESTIMATED` |
+| `indexer` is `OUTROS`, `BCP`, `TLC`, or indicator unavailable | `UNAVAILABLE` |
+| `issueDate` is null | `UNAVAILABLE` |
+| `averageCost = 0` or `quantity = 0` | `UNAVAILABLE` |
+
+---
+
+## How indicators are fetched
+
+1. **Banking** (when resolving investment holdings) calls **`IndicatorRateProvider.getLatestRates()`**, implemented by **`FinancialDataIndicatorRateProvider`**.
+2. The provider calls the **Apollo Router** (supergraph) at `graphql.router.url` (e.g. `http://localhost:4000/graphql`) with the query **`IndicatorsLatest`**, which requests `indicatorsLatest { indicator, variation, latest { referenceDate, value } }`.
+3. The **router** routes that query to the **financial-data** subgraph (e.g. `http://host.docker.internal:8091/graphql` in local supergraph).
+4. The **financial-data** service executes **`indicatorsLatest`** (resolver → `IndicatorValueService.getAllLatest()`), which reads the latest value per indicator+variation from the DB and returns the flat list.
+5. The provider maps response labels (e.g. `"CDI"`, `"IPCA"`) to the banking **`Indexer`** enum and caches the result for 1 hour. If the request fails (router down, financial-data down, or query not in schema), the provider catches the exception and returns an **empty map**; valuation then returns **UNAVAILABLE** for indexers that need rates (CDI, SELIC, IPCA, etc.).
+
+**Requirement:** The supergraph must expose **`indicatorsLatest`** on the Query type so the router can route it to financial-data. The financial-data contract schema and service schema both declare this field and the type **`EconomicIndicatorLatestItem`** (indicator, variation, latest).
 
 ---
 
@@ -334,11 +358,9 @@ For inflation indices (IPCA, IGP-M, etc.), use the annual rate directly in the c
 ## Interaction with Provider Sync
 
 When Open Finance sync runs and populates `grossValue` / `netValue` / `incomeTax` / `iof` / `lastValuedAt`:
-- The provider values take precedence in all displays.
-- `isEstimated` becomes `false`.
-- The estimated fields (`estimatedGrossValue`, etc.) continue to be computed but are ignored by the UI.
-
-This means the transition from "estimated" to "synced" is seamless — no frontend logic change required.
+- The resolver detects `grossValue != null` and sets `valuationSource = PROVIDER`.
+- No calculation is performed.
+- The transition from `CALCULATED`/`ESTIMATED` → `PROVIDER` is seamless — the frontend reads the same fields, only the icon/indicator changes.
 
 ---
 

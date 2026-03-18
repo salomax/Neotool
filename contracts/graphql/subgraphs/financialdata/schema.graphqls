@@ -36,10 +36,16 @@ extend type Query {
   ratingIssuers: [RatingIssuer!]!
   # Economic indicators
   economicIndicators(label: String): [EconomicIndicator!]!
+  # Latest value per indicator+variation (used by banking for fixed-income valuation).
+  indicatorsLatest: [EconomicIndicatorLatestItem!]!
   # Fixed income comparison: 2×3 grid of equivalent rates (product group × rate model)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult!
   # Institution discovery dashboard: popular list with top metrics per institution
   popularInstitutions(anoMes: String): [PopularInstitution!]!
+  # Investment fund queries (CVM)
+  searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection!
+  investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection!
+  investmentFund(id: ID!): InvestmentFund
 }
 
 # Enums
@@ -321,6 +327,13 @@ type EconomicIndicatorPoint {
   value: Float!
 }
 
+# Flat list of latest value per indicator+variation (for banking valuation).
+type EconomicIndicatorLatestItem {
+  indicator: String!
+  variation: String!
+  latest: EconomicIndicatorPoint
+}
+
 # Fixed income comparison (simulator)
 enum FixedIncomeProduct {
   CDB
@@ -419,4 +432,54 @@ type FixedIncomeTaxBracket {
   fromCalendarDays: Int!
   toCalendarDays: Int
   rateDecimal: Float!
+}
+
+# Investment funds (CVM)
+enum InvestmentFundAssetType {
+  FIXED_INCOME_FUND
+  EQUITY_FUND
+  MULTI_MARKET_FUND
+  FOREX_FUND
+  MUTUAL_FUND
+  PGBL
+  VGBL
+}
+
+type InvestmentFund {
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+  latestNav: FundDailyNav
+  priceHistory(from: Date, to: Date, last: Int): [FundDailyNav!]!
+}
+
+type FundDailyNav {
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+}
+
+type InvestmentFundConnection {
+  edges: [InvestmentFundEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type InvestmentFundEdge {
+  node: InvestmentFund!
+  cursor: String!
+}
+
+type InvestmentFundAutocompleteConnection {
+  suggestions: [InvestmentFundAutocompleteItem!]!
+}
+
+type InvestmentFundAutocompleteItem {
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
 }

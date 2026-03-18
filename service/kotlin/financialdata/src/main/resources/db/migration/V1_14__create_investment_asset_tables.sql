@@ -1,4 +1,7 @@
 -- Investment asset catalog shared by all import jobs (B3, CVM, Tesouro, CoinGecko, Manual)
+-- Ensure pg_trgm is available (operator class used below may live in financial_data schema)
+CREATE EXTENSION IF NOT EXISTS pg_trgm SCHEMA financial_data;
+
 CREATE TABLE IF NOT EXISTS financial_data.investment_asset
 (
     id            UUID        NOT NULL DEFAULT gen_random_uuid(),
@@ -35,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_investment_asset_is_active
     ON financial_data.investment_asset (is_active);
 
 CREATE INDEX IF NOT EXISTS idx_investment_asset_name_trgm
-    ON financial_data.investment_asset USING gin (name gin_trgm_ops);
+    ON financial_data.investment_asset USING gin (name financial_data.gin_trgm_ops);
 
 -- Daily OHLCV prices — one row per (asset, date), all sources
 CREATE TABLE IF NOT EXISTS financial_data.asset_daily_price

@@ -14,6 +14,10 @@ open class DefaultAssetRepository(
     override fun findById(id: UUID): Asset? =
         entityRepository.findById(id).orElse(null)?.let(AssetMapper::toDomain)
 
+    override fun findByIds(ids: Collection<UUID>): List<Asset> =
+        if (ids.isEmpty()) emptyList()
+        else entityRepository.findByIdIn(ids).map(AssetMapper::toDomain)
+
     override fun findByTicker(ticker: String): Asset? =
         entityRepository.findByTicker(ticker)?.let(AssetMapper::toDomain)
 

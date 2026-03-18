@@ -917,6 +917,20 @@ enum InvestmentSource {
   FILE_IMPORT
 }
 
+"""
+Indicates the origin and reliability of a holding's current value.
+"""
+enum ValuationSource {
+  "Value provided by the data provider (Open Finance / file import). Authoritative."
+  PROVIDER
+  "Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact."
+  CALCULATED
+  "Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate."
+  ESTIMATED
+  "Value cannot be determined (unsupported indexer, missing data, or no issueDate)."
+  UNAVAILABLE
+}
+
 # ============================================================================
 # Investment Types
 # ============================================================================
@@ -978,6 +992,11 @@ type InvestmentHolding {
   incomeTax: Float
   iof: Float
   lastValuedAt: DateTime
+  valuationSource: ValuationSource!
+  "Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE)."
+  valuationReferenceDate: Date
+  "Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today."
+  isExpired: Boolean!
   source: InvestmentSource!
   createdAt: DateTime!
   updatedAt: DateTime!

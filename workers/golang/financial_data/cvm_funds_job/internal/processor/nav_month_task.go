@@ -15,11 +15,13 @@ import (
 	"github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/infrastructure/database"
 	cvmhttp "github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/infrastructure/http"
 	"github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/shared"
+	"golang.org/x/text/encoding/charmap"
 )
 
-// cad_fi column names used for NAV parsing.
+// inf_diario_fi column names used for NAV parsing.
+// CVM changed the format in 2024 (RCVM 175): CNPJ_FUNDO → CNPJ_FUNDO_CLASSE.
 const (
-	navColCNPJ         = "CNPJ_FUNDO"
+	navColCNPJ         = "CNPJ_FUNDO_CLASSE"
 	navColDate         = "DT_COMPTC"
 	navColNavPerQuota  = "VL_QUOTA"
 	navColNetAssets    = "VL_TOTAL"
@@ -80,7 +82,9 @@ func (t *NAVMonthTask) Process(ctx context.Context) error {
 	defer zr.Close()
 	defer csvRC.Close()
 
-	reader := csv.NewReader(csvRC)
+	// CVM publishes NAV CSVs in Latin-1 (ISO-8859-1). Decode to UTF-8 before
+	// parsing so PostgreSQL does not reject non-UTF-8 byte sequences.
+	reader := csv.NewReader(charmap.ISO8859_1.NewDecoder().Reader(csvRC))
 	reader.Comma = ';'
 	reader.LazyQuotes = true
 	reader.TrimLeadingSpace = true

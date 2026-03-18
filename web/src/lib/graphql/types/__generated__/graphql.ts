@@ -1182,6 +1182,8 @@ export type InvestmentHolding = {
   /** Fraction of indexer applied (e.g. 1.15 = 115% CDI). */
   indexerPercentage: Maybe<Scalars['Float']['output']>;
   iof: Maybe<Scalars['Float']['output']>;
+  /** Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today. */
+  isExpired: Scalars['Boolean']['output'];
   /** True for LCI/LCA/CRI/CRA — exempt from IR for individuals. */
   isTaxExempt: Scalars['Boolean']['output'];
   issueDate: Maybe<Scalars['Date']['output']>;
@@ -1194,6 +1196,9 @@ export type InvestmentHolding = {
   quantity: Scalars['Float']['output'];
   source: InvestmentSource;
   updatedAt: Scalars['DateTime']['output'];
+  /** Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE). */
+  valuationReferenceDate: Maybe<Scalars['Date']['output']>;
+  valuationSource: ValuationSource;
 };
 
 /** How an investment record entered the system. */
@@ -2867,6 +2872,18 @@ export type UserOrderByInput = {
 export enum UserOrderField {
   DisplayName = 'DISPLAY_NAME',
   Email = 'EMAIL'
+}
+
+/** Indicates the origin and reliability of a holding's current value. */
+export enum ValuationSource {
+  /** Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact. */
+  Calculated = 'CALCULATED',
+  /** Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate. */
+  Estimated = 'ESTIMATED',
+  /** Value provided by the data provider (Open Finance / file import). Authoritative. */
+  Provider = 'PROVIDER',
+  /** Value cannot be determined (unsupported indexer, missing data, or no issueDate). */
+  Unavailable = 'UNAVAILABLE'
 }
 
 export type VerificationStatus = {

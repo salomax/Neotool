@@ -122,8 +122,17 @@
         "currentValue": "Valor atual",
         "indexer": "Indexador",
         "grossValue": "Valor bruto",
-        "maturityDate": "Vencimento"
+        "maturityDate": "Vencimento",
+        "gain": "Rentabilidade"
       },
+      "valuationTooltip": {
+        "CALCULATED": "Valor calculado com base em indicadores e regras de renda fixa.",
+        "ESTIMATED": "Valor estimado. Referência: {{date}}.",
+        "UNAVAILABLE": "Valor indisponível."
+      },
+      "expiredBadge": "Expirado",
+      "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
+      "groupTotalEstimated": "Parte do total é valor estimado.",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
       "groups": {

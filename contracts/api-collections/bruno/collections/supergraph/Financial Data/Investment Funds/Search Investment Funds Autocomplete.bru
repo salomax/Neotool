@@ -1,0 +1,46 @@
+meta {
+  name: Search Investment Funds Autocomplete
+  type: graphql
+  seq: 1
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query SearchInvestmentFundsAutocomplete($query: String!) {
+    searchInvestmentFundsAutocomplete(query: $query) {
+      suggestions {
+        id
+        name
+        cnpj
+        assetType
+        isActive
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "query": "V8 SPEEDWAY LONG SHORT FIC FIF MULTIMERCADO% CDI"
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has suggestions", function() {
+    const data = res.getBody();
+    expect(data.data.searchInvestmentFundsAutocomplete.suggestions).to.be.an('array');
+  });
+}

@@ -4,9 +4,12 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"sort"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/salomax/invistus/workers/golang/financial_data/cvm-funds/internal/domain"
 )
@@ -19,7 +22,7 @@ const (
 		  AND fund_cnpj IS NOT NULL
 	`
 
-	findAllActiveFundIDsSQL = `
+	findAllFundIDsSQL = `
 		SELECT fund_cnpj, id
 		FROM financial_data.investment_asset
 		WHERE source = 'CVM'
@@ -74,10 +77,10 @@ func (r *AssetRepository) FindAllFundHashes(ctx context.Context) (map[string]str
 	return result, rows.Err()
 }
 
-// FindAllActiveFundIDs returns a map of fund_cnpj → asset UUID for all CVM funds.
+// FindAllFundIDs returns a map of fund_cnpj → asset UUID for all CVM funds.
 // Loaded once by NAVDispatcher; shared read-only across all NAVMonthTasks.
-func (r *AssetRepository) FindAllActiveFundIDs(ctx context.Context) (map[string]uuid.UUID, error) {
-	rows, err := r.pool.Query(ctx, findAllActiveFundIDsSQL)
+func (r *AssetRepository) FindAllFundIDs(ctx context.Context) (map[string]uuid.UUID, error) {
+	rows, err := r.pool.Query(ctx, findAllFundIDsSQL)
 	if err != nil {
 		return nil, err
 	}
@@ -97,11 +100,43 @@ func (r *AssetRepository) FindAllActiveFundIDs(ctx context.Context) (map[string]
 
 // UpsertFundBatch upserts a slice of fund records using pgx.Batch.
 // Only rows where content_hash differs from the stored value are written (SQL guard).
+// Records are sorted by CNPJ before sending to ensure a consistent lock-acquisition
+// order across concurrent workers, reducing (but not eliminating) deadlock probability.
+// On deadlock (SQLSTATE 40P01), the batch is retried up to 3 times with backoff.
 func (r *AssetRepository) UpsertFundBatch(ctx context.Context, records []domain.FundRecord) error {
 	if len(records) == 0 {
 		return nil
 	}
 
+	// Consistent lock order across concurrent workers reduces deadlock probability.
+	sort.Slice(records, func(i, j int) bool { return records[i].CNPJ < records[j].CNPJ })
+
+	const maxRetries = 3
+	delay := 50 * time.Millisecond
+
+	for attempt := range maxRetries + 1 {
+		err := r.sendFundBatch(ctx, records)
+		if err == nil {
+			return nil
+		}
+		if !isDeadlock(err) || attempt == maxRetries {
+			return err
+		}
+		r.logger.Warn("fund upsert deadlock, retrying",
+			"attempt", attempt+1,
+			"delay", delay,
+		)
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
+		delay *= 2
+	}
+	return nil
+}
+
+func (r *AssetRepository) sendFundBatch(ctx context.Context, records []domain.FundRecord) error {
 	batch := &pgx.Batch{}
 	for _, rec := range records {
 		batch.Queue(upsertFundSQL, rec.Name, rec.AssetType, rec.CNPJ, rec.IsActive, rec.ContentHash)
@@ -118,6 +153,12 @@ func (r *AssetRepository) UpsertFundBatch(ctx context.Context, records []domain.
 		}
 	}
 	return firstErr
+}
+
+// isDeadlock returns true for PostgreSQL deadlock errors (SQLSTATE 40P01).
+func isDeadlock(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "40P01"
 }
 
 // IsFundNotFound returns true when the error indicates a missing row.

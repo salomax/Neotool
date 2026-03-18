@@ -9,6 +9,8 @@ import java.util.UUID
 interface AssetRepository {
     fun findById(id: UUID): Asset?
 
+    fun findByIds(ids: Collection<UUID>): List<Asset>
+
     fun findByTicker(ticker: String): Asset?
 
     fun findByIsinCode(isinCode: String): Asset?
