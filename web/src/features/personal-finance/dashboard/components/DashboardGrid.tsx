@@ -1,6 +1,7 @@
 import React from 'react';
 import { Box, Typography, Button, Paper } from '@mui/material';
-import { Responsive, Layout, useContainerWidth } from 'react-grid-layout';
+import { Responsive, useContainerWidth } from 'react-grid-layout';
+import type { Layout, ResponsiveLayouts } from 'react-grid-layout';
 import { useDashboardStore } from '../store';
 import { getWidgetDefinition } from '../registry';
 import AddIcon from '@mui/icons-material/Add';
@@ -17,7 +18,6 @@ interface DashboardGridProps {
 export const DashboardGrid: React.FC<DashboardGridProps> = ({ onAddWidget }) => {
   const { widgets, layouts, isEditMode, updateLayouts } = useDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
-
   const visibleWidgets = widgets.filter((w) => w.isVisible || isEditMode);
 
   if (visibleWidgets.length === 0 && !isEditMode) {
@@ -51,7 +51,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ onAddWidget }) => 
           resizeConfig={{
             enabled: isEditMode,
           }}
-          onLayoutChange={(_layout: Layout, allLayouts: Partial<Record<string, Layout>>) => {
+          onLayoutChange={(_layout: Layout, allLayouts: ResponsiveLayouts) => {
             updateLayouts(allLayouts as { [key: string]: Layout });
           }}
           margin={[24, 24]}

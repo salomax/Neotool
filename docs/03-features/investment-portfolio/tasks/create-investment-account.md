@@ -116,39 +116,48 @@ Read these files before starting:
 | `web/src/shared/components/ui/forms/` | Shared form components: `TextField`, `SelectField`, `Autocomplete` |
 | `web/src/shared/components/ui/layout/Drawer.tsx` | Composable drawer: `Drawer.Header`, `Drawer.Body`, `Drawer.Footer` |
 
-### Key patterns to follow — from `CreateFinancialAccountDrawer` (the reference)
+### Key patterns to follow
 
-> Read `CreateFinancialAccountDrawer.tsx` in full before starting. The investment drawer must match it exactly in structure and feel.
+- **No hardcoded colors** — always `theme.palette.*` tokens (styling-pattern.md)
+- **No GraphQL fragments** — inline all fields in the mutation selection set (fragments are forbidden)
+- **Validation**: `react-hook-form` + `zod`
+- **Mutation**: `useMutation(CREATE_FINANCIAL_ACCOUNT)` with `refetchQueries: [GET_FINANCIAL_ACCOUNTS]` — include all current variables
+- **Drawer**: `<Drawer anchor="right" size="md">` with composable `Drawer.Header` / `Drawer.Body` / `Drawer.Footer`
 
-- **No hardcoded colors** — always `theme.palette.*` tokens
-- **No GraphQL fragments** — inline all fields
-- **`Drawer`** — `anchor="right" size="md"`, title in `Drawer.Header`, submit button inside `Drawer.Body` after `<Divider>` (NOT `Drawer.Footer` — the existing drawer does not use it)
-- **`FormProvider`** wraps the `<form>` for `react-hook-form` context sharing
-- **`FormErrorBanner`** at the top of the form for mutation errors
-- **`useToast()`** success notification after creation
-- **`skip: !open`** on the `ISSUERS` query — do not fetch when drawer is closed
-- **Import paths**: queries and mutations come from `@/lib/graphql/operations/banking/` (not from `features/`)
+### GraphQL (no backend or query changes needed)
 
-### GraphQL imports
-
-```typescript
-// Queries — already exist, do NOT duplicate or modify
-import { ISSUERS, FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
-// Mutation — already exists
-import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
+```graphql
+# Already exists in finance-transactions/api/queries.ts — do not duplicate
+mutation CreateFinancialAccount($input: CreateFinancialAccountInput!) {
+  createFinancialAccount(input: $input) {
+    id
+    type
+    subtype
+    name
+    currencyCode
+    includeInNetWorth
+    includeInDashboard
+    issuerName
+    issuer { id name domain logoKey logoAsset { id } }
+  }
+}
 ```
 
-The `ISSUERS` query now accepts `categories: [IssuerCategory!]` (added in Task 0). Use it to filter issuers by selected subtype:
-
+**Input for investment accounts:**
 ```typescript
-const issuerCategories = selectedSubtype === 'CRYPTO'
-  ? ['CRYPTO_EXCHANGE']
-  : ['BANK', 'BROKERAGE'];           // for BROKERAGE, FIXED_INCOME, PENSION
-
-const { data: issuersData, loading: issuersLoading } = useQuery(ISSUERS, {
-  variables: { categories: issuerCategories },
-  skip: !open,
-});
+{
+  type: "INVESTMENT",
+  subtype: "BROKERAGE" | "FIXED_INCOME" | "PENSION" | "CRYPTO",
+  name?: string,          // optional — defaults to issuer name when blank
+  issuerId?: string,      // UUID — mutually exclusive with issuerName
+  issuerName?: string,    // custom broker — mutually exclusive with issuerId
+  currencyCode: "BRL",
+  includeInNetWorth: true,
+  includeInDashboard: true,
+  // bankData: omitted
+  // cardData: omitted
+  // initialBalance: omitted — investment positions start at R$0 via transactions
+}
 ```
 
 ### Investment subtypes
@@ -168,321 +177,71 @@ const { data: issuersData, loading: issuersLoading } = useQuery(ISSUERS, {
 
 **File to create**: `web/src/app/personal-finance/investments/components/CreateInvestmentAccountDrawer.tsx`
 
-Single-step form. Always creates `type: INVESTMENT`. No type selection step.
+This is a new, dedicated component. It always creates an `INVESTMENT` account — no type selection step.
 
----
-
-#### 1a — Props
-
-```typescript
-interface CreateInvestmentAccountDrawerProps {
-  open: boolean;
-  onClose: () => void;
-  /** Called after successful creation. Matches the onCreated pattern from CreateFinancialAccountDrawer. */
-  onCreated?: (account: { id: string; name: string }) => void;
-}
+**Form layout** (single step):
+```
+┌────────────────────────────────────────────────────┐
+│  Criar conta de investimento               [×]     │  ← Drawer.Header
+├────────────────────────────────────────────────────┤
+│                                                    │
+│  Tipo de conta *                                   │
+│  [ Corretora de Valores          ▾ ]               │  ← SelectField, data-testid="investment-subtype-select"
+│                                                    │
+│  Corretora / Instituição *                         │
+│  [ Buscar por nome...            ▾ ]               │  ← existing Autocomplete (logos + search + custom)
+│                                                    │
+│  Nome da conta  (opcional)                         │
+│  [ Ex: Minha Carteira XP           ]               │  ← TextField, data-testid="investment-account-name-input"
+│                                                    │
+├────────────────────────────────────────────────────┤
+│  [Cancelar]                     [Criar conta]      │  ← Drawer.Footer
+└────────────────────────────────────────────────────┘
 ```
 
----
-
-#### 1b — Form data type & Zod schema
-
+**Zod schema:**
 ```typescript
-// Exact same pattern as CreateFinancialAccountDrawer — z.object() + superRefine for cross-field
-type CreateInvestmentAccountFormData = {
-  subtype: 'BROKERAGE' | 'FIXED_INCOME' | 'PENSION' | 'CRYPTO';
-  issuerId?: string;
-  issuerName?: string;  // used when issuerId === 'custom'
-  name: string;
-};
-
-const schema = React.useMemo(() => z.object({
+const schema = z.object({
   subtype: z.enum(['BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO'], {
     required_error: t('investments.createAccount.validation.subtypeRequired'),
   }),
   issuerId: z.string().optional(),
   issuerName: z.string().optional(),
-  name: z.string().default(''),
-}).superRefine((data, ctx) => {
-  if (!data.issuerId && !data.issuerName) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: t('investments.createAccount.validation.issuerRequired'),
-      path: ['issuerId'],
-    });
+  name: z.string().optional(),
+}).refine(
+  (data) => !!data.issuerId || (!!data.issuerName && data.issuerName.trim().length > 0),
+  {
+    message: t('investments.createAccount.validation.issuerRequired'),
+    path: ['issuerId'],
   }
-}), [t]);
-```
-
----
-
-#### 1c — Hooks setup
-
-```typescript
-const { success } = useToast();              // same as CreateFinancialAccountDrawer
-const theme = useTheme();
-const { t } = useTranslation(personalFinanceTranslations);
-
-const methods = useForm<CreateInvestmentAccountFormData>({
-  resolver: zodResolver(schema),
-  defaultValues: { subtype: 'BROKERAGE', name: '', issuerId: undefined, issuerName: '' },
-});
-const { watch, setValue, reset, control } = methods;
-
-const watchedSubtype  = watch('subtype');
-const watchedIssuerId = watch('issuerId');
-
-// Reset when drawer closes — same pattern as CreateFinancialAccountDrawer
-useEffect(() => {
-  if (!open) reset();
-}, [open, reset]);
-```
-
----
-
-#### 1d — ISSUERS query with category filter
-
-```typescript
-// Re-compute categories when subtype changes
-const issuerCategories = React.useMemo(() =>
-  watchedSubtype === 'CRYPTO' ? ['CRYPTO_EXCHANGE'] : ['BANK', 'BROKERAGE'],
-  [watchedSubtype]
 );
-
-const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
-  variables: { categories: issuerCategories },
-  skip: !open,   // ← same pattern as CreateFinancialAccountDrawer
-});
-
-// Build options including 'custom' — identical pattern to CreateFinancialAccountDrawer
-const allIssuerOptions = React.useMemo(() => {
-  const options = (issuersData?.issuers || []).map(i => ({
-    label: i.name,
-    value: i.id,
-    logo: i.logoAsset?.publicUrl,
-    compe: i.compeCode,
-  }));
-  return [
-    ...options,
-    { label: t('financeTransactions.createAccount.step2.fields.customIssuer'), value: 'custom', logo: null, compe: null },
-  ];
-}, [issuersData, t]);
 ```
 
----
-
-#### 1e — Auto-fill name when issuer selected
-
-This is the same smart behaviour from `CreateFinancialAccountDrawer`: when the user selects a known issuer, the account name is auto-filled. When "custom" is selected, name is cleared.
-
+**Component props:**
 ```typescript
-useEffect(() => {
-  if (!watchedIssuerId || !issuersData?.issuers) return;
-  if (watchedIssuerId === 'custom') {
-    setValue('name', '');
-    setValue('issuerName', '');
-  } else {
-    const issuer = issuersData.issuers.find(i => i.id === watchedIssuerId);
-    if (issuer) {
-      const subtypeLabel = t(`investments.createAccount.subtypes.${watchedSubtype}`);
-      setValue('name', `${subtypeLabel} - ${issuer.name}`);
-      // e.g. "Corretora de Valores - XP Investimentos"
-      setValue('issuerName', issuer.name);
-    }
-  }
-}, [watchedIssuerId, issuersData, watchedSubtype, setValue, t]);
+interface CreateInvestmentAccountDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  onSuccess?: () => void;
+}
 ```
 
----
-
-#### 1f — Mutation
-
+**onSubmit** builds:
 ```typescript
-// Same pattern as CreateFinancialAccountDrawer: refetchQueries + onCompleted
-const [createAccount, { loading: creating, error: createError }] = useMutation<{
-  createFinancialAccount: { id: string; name: string };
-}>(CREATE_FINANCIAL_ACCOUNT, {
-  refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
-  onCompleted: (data) => {
-    success(t('investments.createAccount.success'));
-    onCreated?.({ id: data.createFinancialAccount.id, name: data.createFinancialAccount.name });
-    onClose();
-  },
-});
-
-const onSubmit = (data: CreateInvestmentAccountFormData) => {
-  createAccount({
-    variables: {
-      input: {
-        type: 'INVESTMENT',
-        subtype: data.subtype,
-        name: data.name || undefined,
-        currencyCode: 'BRL',
-        includeInNetWorth: true,
-        includeInDashboard: true,
-        ...(data.issuerId === 'custom'
-          ? { issuerName: data.issuerName }
-          : { issuerId: data.issuerId }),
-        // No bankData, cardData, initialBalance
-      },
-    },
-  });
+const input: CreateFinancialAccountInput = {
+  type: FinancialAccountType.Investment,   // always INVESTMENT
+  subtype: data.subtype as FinancialAccountSubtype,
+  name: data.name?.trim() || undefined,
+  issuerId: data.issuerId || undefined,
+  issuerName: !data.issuerId ? data.issuerName?.trim() : undefined,
+  currencyCode: 'BRL',
+  includeInNetWorth: true,
+  includeInDashboard: true,
+  // No bankData, cardData, initialBalance
 };
 ```
 
----
-
-#### 1g — Drawer structure
-
-> This replicates the exact DOM structure of `CreateFinancialAccountDrawer` step 2. The submit button is inside `Drawer.Body` after a `<Divider>` — the existing drawer does NOT use `Drawer.Footer`.
-
-```tsx
-return (
-  <Drawer open={open} onClose={onClose} anchor="right" size="md">
-    <Drawer.Header
-      title={
-        watchedSubtype
-          ? t(`investments.createAccount.subtypes.${watchedSubtype}`)
-          : t('investments.createAccount.title')
-      }
-      // No back button — this drawer always starts at the form directly.
-      // The [×] close button is provided by Drawer.Header by default.
-    />
-    <Drawer.Body>
-      <FormProvider {...methods}>
-        <form onSubmit={methods.handleSubmit(onSubmit)}>
-          <Stack spacing={3}>
-            {createError && <FormErrorBanner message={createError.message} />}
-
-            {/* 1. Subtype — first so issuer list filters correctly */}
-            <SelectField
-              name="subtype"
-              label={t('investments.createAccount.fields.subtypeLabel')}
-              options={investmentSubtypes}   // built with useMemo from subtype enum + t()
-              data-testid="investment-subtype-select"
-            />
-
-            {/* 2. Issuer autocomplete — EXACT same implementation as CreateFinancialAccountDrawer */}
-            <Controller
-              name="issuerId"
-              control={control}
-              render={({ field: { onChange, value }, fieldState: { error } }) => (
-                <Autocomplete
-                  options={allIssuerOptions}
-                  loading={issuersLoading}
-                  value={allIssuerOptions.find(o => o.value === value) || null}
-                  onChange={(_, newValue) => onChange(newValue ? newValue.value : null)}
-                  isOptionEqualToValue={(option, value) => option.value === value.value}
-                  noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
-                  getOptionLabel={(option) => option.label || ''}
-                  renderOption={(props, option) => {
-                    const { key, ...otherProps } = props;
-                    return (
-                      <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}>
-                        {option.logo ? (
-                          <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
-                        ) : (
-                          <Avatar sx={{ width: 40, height: 40, borderRadius: 1.5, bgcolor: 'action.disabledBackground' }}>
-                            <BankIcon sx={{ fontSize: 24 }} />
-                          </Avatar>
-                        )}
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                          <Typography variant="body1" fontWeight="600">{option.label}</Typography>
-                          {option.compe && (
-                            <Typography variant="body2" color="text.secondary">({option.compe})</Typography>
-                          )}
-                        </Box>
-                      </Box>
-                    );
-                  }}
-                  renderInput={(params) => (
-                    <MuiTextField
-                      {...params}
-                      label={t('investments.createAccount.fields.issuerLabel')}
-                      error={!!error}
-                      helperText={error?.message}
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <React.Fragment>
-                            {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                            {params.InputProps.endAdornment}
-                          </React.Fragment>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              )}
-            />
-
-            {/* 3. Custom issuer name — only when 'custom' selected, same as bank/card flow */}
-            {watchedIssuerId === 'custom' && (
-              <TextField
-                name="issuerName"
-                label={t('investments.createAccount.fields.customIssuerLabel')}
-                required
-              />
-            )}
-
-            {/* 4. Account name — auto-filled, editable */}
-            <TextField
-              name="name"
-              label={t('investments.createAccount.fields.accountNameLabel')}
-              placeholder={t('investments.createAccount.fields.accountNamePlaceholder')}
-              data-testid="investment-account-name-input"
-            />
-          </Stack>
-        </form>
-      </FormProvider>
-
-      {/* Submit — inside Drawer.Body after Divider, same structure as CreateFinancialAccountDrawer */}
-      <Divider sx={{ marginY: 3 }} />
-      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <Button
-          variant="contained"
-          onClick={methods.handleSubmit(onSubmit)}
-          disabled={creating}
-          startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
-        >
-          {creating
-            ? t('investments.createAccount.actions.submitting')
-            : t('investments.createAccount.actions.submit')}
-        </Button>
-      </Box>
-    </Drawer.Body>
-  </Drawer>
-);
-```
-
----
-
-#### 1h — Form layout (visual reference)
-
-```
-┌────────────────────────────────────────────────────┐
-│  ← [back]  Corretora de Valores            [×]    │  ← Drawer.Header — title = selected subtype label
-├────────────────────────────────────────────────────┤
-│                                                    │
-│  Tipo de conta *                                   │
-│  [ Corretora de Valores               ▾ ]          │  ← SelectField (subtype)
-│                                                    │
-│  Corretora / Instituição *                         │
-│  [🏦 Buscar por nome...               ▾ ]          │  ← Autocomplete (logos + custom option)
-│                                                    │
-│  ─── (only if 'custom' selected) ───────────────── │
-│  Nome da instituição *                             │
-│  [ XP Investimentos                   ]            │
-│                                                    │
-│  Nome da conta                                     │
-│  [ Corretora de Valores - XP Invest…  ]            │  ← auto-filled, editable
-│                                                    │
-│  ────────────────────────────────────────────────  │  ← <Divider sx={{ marginY: 3 }} />
-│                                      [Criar conta] │  ← Button inside Drawer.Body (no Drawer.Footer)
-└────────────────────────────────────────────────────┘
-```
-
-> **Note**: `Drawer.Footer` is NOT used. This matches the exact rendering pattern from `CreateFinancialAccountDrawer`.
+**Reuse the issuer Autocomplete** from `CreateFinancialAccountDrawer`. If it is not extracted into a shared component yet, extract it first into `web/src/shared/components/ui/forms/IssuerAutocomplete.tsx` and use it in both places. This avoids duplication.
 
 ---
 
@@ -507,9 +266,8 @@ const [createAccountOpen, setCreateAccountOpen] = useState(false);
 <CreateInvestmentAccountDrawer
   open={createAccountOpen}
   onClose={() => setCreateAccountOpen(false)}
-  onCreated={() => {
-    // onCreated fires from inside the drawer after mutation succeeds + toast shown
-    // No need to close here — the drawer calls onClose() internally in onCompleted
+  onSuccess={() => {
+    setCreateAccountOpen(false);
     router.refresh();
   }}
 />

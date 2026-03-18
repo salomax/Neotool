@@ -15,6 +15,8 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.infra.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedEvent
 import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedProducer
+import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedEvent
+import io.github.salomax.neotool.banking.infra.kafka.AssistantBankingReaderRequestedProducer
 import io.github.salomax.neotool.banking.infra.kafka.ImportCallbackContext
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.CommonErrorCode
@@ -210,6 +212,7 @@ internal class ExcelBillInputStrategy(
     private val objectMapper: ObjectMapper,
     private val excelExtractionService: ExcelExtractionService = ExcelExtractionService(),
     private val excelDeterministicRoutingService: ExcelDeterministicRoutingService = ExcelDeterministicRoutingService(),
+    private val assistantRequestProducer: AssistantBankingReaderRequestedProducer? = null,
 ) : BillInputStrategy {
     override val priority: Int = 80
 
@@ -236,17 +239,23 @@ internal class ExcelBillInputStrategy(
                 )
             }
         val extractionMetadata = extraction.toExtractionMetadataMap()
+        val fileType = resolveExcelFileType(extractionMetadata)
         val deterministicOutput =
             excelDeterministicRoutingService.route(
-                fileType = resolveExcelFileType(extractionMetadata),
+                fileType = fileType,
                 documentType = "BANK_STATEMENT",
                 extractedText = extraction.extractedText,
                 extractionMetadata = extractionMetadata,
-            ) ?: throw ValidationException(
-                CommonErrorCode.INVALID_INPUT,
-                field = "fileName",
-                parameters = mapOf("reason" to "Excel bill import requires a supported tabular layout"),
             )
+
+        if (deterministicOutput == null) {
+            return submitAssistantFallback(
+                request = request,
+                extraction = extraction,
+                extractionMetadata = extractionMetadata,
+                fileType = fileType,
+            )
+        }
 
         val rows = CanonicalReaderOutputMapper.toParsedTransactions(deterministicOutput)
         if (rows.isEmpty()) {
@@ -283,7 +292,90 @@ internal class ExcelBillInputStrategy(
         } else {
             FingerprintFileType.XLSX
         }
+
+    private fun submitAssistantFallback(
+        request: BillImportSubmissionRequest,
+        extraction: io.github.salomax.neotool.banking.domain.import.excel.ExcelExtractionResult,
+        extractionMetadata: Map<String, Any?>,
+        fileType: FingerprintFileType,
+    ): BillImportJob {
+        val producer =
+            assistantRequestProducer ?: throw BusinessRuleException(
+                errorCode = io.github.salomax.neotool.banking.error.BankingErrorCode.IMPORT_ASYNC_PIPELINE_UNAVAILABLE,
+                parameters = mapOf("kafkaEnabled" to false, "pipeline" to "assistant-banking-reader"),
+            )
+
+        val now = Instant.now()
+        val normalizedMetadata = extractionMetadata + mapOf("ingest_source" to "EXCEL")
+        val metadataJson = objectMapper.writeValueAsString(normalizedMetadata)
+
+        val job =
+            if (request.existing != null) {
+                repository.update(
+                    request.existing.copy(
+                        importType = request.importType,
+                        financialAccountId = request.financialAccountId,
+                        status = BillImportJobStatus.LLM_PROCESSING,
+                        fileName = request.fileName,
+                        extractedText = extraction.extractedText,
+                        extractionMetadata = metadataJson,
+                        assistantResponse = null,
+                        reviewPayload = null,
+                        errorMessage = null,
+                        errorDetails = null,
+                        completedAt = null,
+                        updatedAt = now,
+                    ),
+                )
+            } else {
+                repository.save(
+                    BillImportJob(
+                        importType = request.importType,
+                        financialAccountId = request.financialAccountId,
+                        accountId = request.accountId,
+                        createdByUserId = request.userId,
+                        status = BillImportJobStatus.LLM_PROCESSING,
+                        assetId = UUID.randomUUID(),
+                        fileName = request.fileName,
+                        fileHash = request.fileHash,
+                        extractedText = extraction.extractedText,
+                        extractionMetadata = metadataJson,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
+
+        val savedJobId = requireNotNull(job.id) { "BillImportJob id is required after save" }
+        producer.publish(
+            AssistantBankingReaderRequestedEvent(
+                job_id = savedJobId,
+                document_type = request.importType.name,
+                file_type = fileType.toAssistantFileType(),
+                account_type = "CREDIT",
+                source_topic = BILL_IMPORT_EXCEL_ASSISTANT_SOURCE_TOPIC,
+                extracted_text = extraction.extractedText,
+                extraction_metadata = normalizedMetadata,
+                callback_context =
+                    ImportCallbackContext(
+                        job_id = savedJobId,
+                        account_id = request.accountId,
+                        user_id = request.userId,
+                    ),
+            ),
+        )
+        return job
+    }
+
+    private fun FingerprintFileType.toAssistantFileType(): String =
+        when (this) {
+            FingerprintFileType.XLSX -> "XLSX"
+            FingerprintFileType.XLS -> "XLS"
+            FingerprintFileType.PDF -> "PDF"
+        }
 }
+
+private const val BILL_IMPORT_EXCEL_ASSISTANT_SOURCE_TOPIC = "banking.bill-import.excel-extracted"
 
 private fun buildSingleCardBillReview(
     rows: List<ParsedTransaction>,

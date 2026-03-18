@@ -196,7 +196,7 @@ class BillImportWorkflowIT : BankingPostgresIntegrationTest() {
 
         val failed = currentJob(jobId)
         assertThat(failed.status).isEqualTo(BillImportJobStatus.FAILED)
-        assertThat(failed.errorMessage).contains("assistant_pdf_reader_failed")
+        assertThat(failed.errorMessage).contains("assistant_banking_reader_failed")
         assertThat(failed.errorMessage).contains("SCHEMA_VALIDATION_FAILED")
         assertThat(failed.errorDetails).contains("assistant.banking-pdf-reader.failed")
         assertThat(failed.errorDetails).contains("OUTPUT_VALIDATION")

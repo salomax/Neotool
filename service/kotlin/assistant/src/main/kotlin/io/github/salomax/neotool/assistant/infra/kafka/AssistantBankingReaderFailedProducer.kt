@@ -8,20 +8,20 @@ import jakarta.inject.Singleton
 
 @KafkaClient
 @Requires(property = "kafka.enabled", value = "true")
-interface AssistantBankingPdfReaderFailedProducerKafkaClient {
+interface AssistantBankingReaderFailedProducerKafkaClient {
     @Topic("\${kafka.topics.pdf.banking-reader-failed:assistant.banking-pdf-reader.failed}")
     fun send(
         @KafkaKey jobId: String,
-        event: AssistantBankingPdfReaderFailedEvent,
+        event: AssistantBankingReaderFailedEvent,
     )
 }
 
 @Singleton
 @Requires(property = "kafka.enabled", value = "true")
-class AssistantBankingPdfReaderFailedProducer(
-    private val client: AssistantBankingPdfReaderFailedProducerKafkaClient,
+class AssistantBankingReaderFailedProducer(
+    private val client: AssistantBankingReaderFailedProducerKafkaClient,
 ) {
-    fun publish(event: AssistantBankingPdfReaderFailedEvent) {
+    fun publish(event: AssistantBankingReaderFailedEvent) {
         client.send(event.job_id.toString(), event)
     }
 }

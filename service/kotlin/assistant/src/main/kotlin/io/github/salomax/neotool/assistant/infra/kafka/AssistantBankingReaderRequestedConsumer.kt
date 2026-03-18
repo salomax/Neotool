@@ -21,7 +21,7 @@ import java.util.UUID
 class AssistantBankingReaderRequestedConsumer(
     private val objectMapper: ObjectMapper,
     private val routingService: BankingReaderRequestedRoutingService,
-    private val failedProducer: AssistantBankingPdfReaderFailedProducer,
+    private val failedProducer: AssistantBankingReaderFailedProducer,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -135,18 +135,18 @@ class AssistantBankingReaderRequestedConsumer(
         stage: String,
     ) {
         val event =
-            AssistantBankingPdfReaderFailedEvent(
+            AssistantBankingReaderFailedEvent(
                 schema_version = SCHEMA_VERSION,
                 job_id = context.jobId,
                 document_type = context.documentType,
                 error =
-                    AssistantBankingPdfReaderError(
+                    AssistantBankingReaderError(
                         code = code,
                         message = message,
                         retryable = retryable,
                     ),
                 error_metadata =
-                    AssistantBankingPdfReaderErrorMetadata(
+                    AssistantBankingReaderErrorMetadata(
                         processor_type = "LLM",
                         stage = stage,
                     ),

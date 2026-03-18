@@ -15,12 +15,15 @@ class BankingReaderPromptResolver(
                 "${request.file_type.trim().uppercase()}"
 
         return when (tupleKey) {
-            CREDIT_CARD_BILL_TUPLE ->
+            CREDIT_CARD_BILL_PDF_TUPLE,
+            CREDIT_CARD_BILL_XLSX_TUPLE,
+            CREDIT_CARD_BILL_XLS_TUPLE,
+            ->
                 BankingReaderPromptSelection(
                     promptId = parsePromptId(config.creditCardBillPromptId),
                     fallbackSystemPrompt = CREDIT_CARD_BILL_META_SYSTEM_PROMPT,
-                    purpose = "banking_pdf_reader_credit_card_bill",
-                    readerId = "assistant-banking-pdf-reader-v2",
+                    purpose = "banking_bill_reader_credit_card_bill",
+                    readerId = "assistant-banking-bill-reader-v2",
                 )
             BANK_STATEMENT_PDF_TUPLE,
             BANK_STATEMENT_XLSX_TUPLE,
@@ -58,7 +61,9 @@ class BankingReaderPromptResolver(
     }
 
     companion object {
-        private const val CREDIT_CARD_BILL_TUPLE = "CREDIT_CARD_BILL|CREDIT|PDF"
+        private const val CREDIT_CARD_BILL_PDF_TUPLE = "CREDIT_CARD_BILL|CREDIT|PDF"
+        private const val CREDIT_CARD_BILL_XLSX_TUPLE = "CREDIT_CARD_BILL|CREDIT|XLSX"
+        private const val CREDIT_CARD_BILL_XLS_TUPLE = "CREDIT_CARD_BILL|CREDIT|XLS"
         private const val BANK_STATEMENT_PDF_TUPLE = "BANK_STATEMENT|BANK|PDF"
         private const val BANK_STATEMENT_XLSX_TUPLE = "BANK_STATEMENT|BANK|XLSX"
         private const val BANK_STATEMENT_XLS_TUPLE = "BANK_STATEMENT|BANK|XLS"

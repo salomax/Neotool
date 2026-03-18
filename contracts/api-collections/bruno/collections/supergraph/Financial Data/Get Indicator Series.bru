@@ -1,0 +1,53 @@
+meta {
+  name: Get Indicator Series
+  type: graphql
+  seq: 8
+}
+
+post {
+  url: http://{{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query IndicatorSeries($indicator: String!, $variation: String!, $range: IndicatorRangeInput, $limit: Int) {
+    indicatorSeries(indicator: $indicator, variation: $variation, range: $range, limit: $limit) {
+      indicator
+      variation
+      unit
+      values {
+        referenceDate
+        value
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "indicator": "IPCA",
+    "variation": "YTD",
+    "range": {
+      "from": "2023-01-01",
+      "to": "2025-12-01",
+      "last": null
+    },
+    "limit": 24
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+  
+  test("Has indicatorSeries", function() {
+    const data = res.getBody();
+    expect(data.data.indicatorSeries).to.be.an('object');
+  });
+}

@@ -41,7 +41,7 @@ class BillImportStatusConsumerTest {
         verify(billImportService).markFailed(
             jobId = eq(jobId),
             accountId = eq(accountId),
-            errorMessage = eq("assistant_pdf_reader_done_invalid_payload: missing_llm_output"),
+            errorMessage = eq("assistant_banking_reader_done_invalid_payload: missing_llm_output"),
             errorCode = eq(CommonErrorCode.INTERNAL_ERROR.code),
             errorParameters = anyOrNull(),
             errorDetails = detailsCaptor.capture(),

@@ -20,7 +20,7 @@ class LlmBankingReaderRequestedRoutingService(
     private val promptResolver: BankingReaderPromptResolver,
     private val outputValidator: BankingReaderOutputValidator,
     private val metaValidator: BillExtractionMetaValidator,
-    private val doneProducer: AssistantBankingPdfReaderDoneProducer,
+    private val doneProducer: AssistantBankingReaderDoneProducer,
     private val objectMapper: ObjectMapper,
 ) : BankingReaderRequestedRoutingService {
     override fun onCreditCardBill(request: AssistantBankingReaderRequestedEvent) {
@@ -169,13 +169,13 @@ class LlmBankingReaderRequestedRoutingService(
         warnings: List<String>,
     ) {
         doneProducer.publish(
-            AssistantBankingPdfReaderDoneEvent(
+            AssistantBankingReaderDoneEvent(
                 schema_version = "1.0",
                 job_id = request.job_id,
                 document_type = request.document_type,
                 llm_output = llmOutput,
                 parse_metadata =
-                    AssistantBankingPdfReaderParseMetadata(
+                    AssistantBankingReaderParseMetadata(
                         processor_type = "LLM",
                         reader_id = promptSelection.readerId,
                         model_provider = inferProviderName(completionResult.model),
