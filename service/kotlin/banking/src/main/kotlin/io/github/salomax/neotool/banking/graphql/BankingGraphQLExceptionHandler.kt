@@ -6,7 +6,12 @@ import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.DataFetcherExceptionHandlerResult
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.DomainException
-import io.github.salomax.neotool.common.exception.GraphQLOptimisticLockExceptionHandler
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
+import io.github.salomax.neotool.common.security.exception.AuthorizationDeniedException
+import jakarta.validation.ConstraintViolationException
+import org.hibernate.StaleObjectStateException
+import org.hibernate.StaleStateException
+import org.hibernate.dialect.lock.OptimisticEntityLockException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 
@@ -19,7 +24,6 @@ import java.util.concurrent.CompletableFuture
  */
 class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
     private val logger = LoggerFactory.getLogger(BankingGraphQLExceptionHandler::class.java)
-    private val nextHandler = GraphQLOptimisticLockExceptionHandler()
 
     override fun handleException(
         handlerParameters: DataFetcherExceptionHandlerParameters,
@@ -27,6 +31,22 @@ class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
         val exception = handlerParameters.exception
 
         return when (exception) {
+            is AuthenticationRequiredException -> {
+                logger.debug("GraphQL authentication required")
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = "Authentication required",
+                    code = "AUTH_AUTHENTICATION_REQUIRED",
+                )
+            }
+            is AuthorizationDeniedException -> {
+                logger.debug("GraphQL authorization denied")
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = "Access denied",
+                    code = "AUTH_AUTHORIZATION_DENIED",
+                )
+            }
             is DomainException -> {
                 logger.debug(
                     "GraphQL domain exception: code={}, message={}",
@@ -41,15 +61,49 @@ class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
                     field = exception.field?.split(".")?.toList(),
                 )
             }
+            is ConstraintViolationException -> {
+                logger.debug("GraphQL validation error")
+                val firstField =
+                    exception.constraintViolations
+                        .firstOrNull()
+                        ?.propertyPath
+                        ?.toString()
+                        ?.split(".")
+                        ?.filter { it.isNotBlank() }
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.INVALID_INPUT.defaultMessage,
+                    code = CommonErrorCode.INVALID_INPUT.code,
+                    field = firstField?.takeIf { it.isNotEmpty() } ?: listOf("input"),
+                )
+            }
+            is StaleObjectStateException,
+            is StaleStateException,
+            is OptimisticEntityLockException,
+            -> {
+                logger.warn("GraphQL optimistic lock conflict in banking resolver", exception)
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.OPTIMISTIC_LOCK_ERROR.defaultMessage,
+                    code = CommonErrorCode.OPTIMISTIC_LOCK_ERROR.code,
+                )
+            }
             is IllegalArgumentException -> {
                 logger.debug("GraphQL input error: {}", exception.message)
                 buildErrorResponse(
                     handlerParameters = handlerParameters,
-                    message = exception.message ?: CommonErrorCode.INVALID_INPUT.defaultMessage,
+                    message = CommonErrorCode.INVALID_INPUT.defaultMessage,
                     code = CommonErrorCode.INVALID_INPUT.code,
                 )
             }
-            else -> nextHandler.handleException(handlerParameters)
+            else -> {
+                logger.error("Unhandled GraphQL exception in banking resolver", exception)
+                buildErrorResponse(
+                    handlerParameters = handlerParameters,
+                    message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+                    code = CommonErrorCode.INTERNAL_ERROR.code,
+                )
+            }
         }
     }
 

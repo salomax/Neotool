@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.repo
 
+import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.model.importjob.TransactionImportEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
@@ -44,6 +45,17 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
     ): List<TransactionImportEntity>
 
     fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<TransactionImportEntity>
+
+    fun findByFinancialAccountIdAndAccountIdAndStatusOrderByCreatedAtDesc(
+        financialAccountId: UUID,
+        accountId: UUID,
+        status: ImportJobStatus,
+    ): List<TransactionImportEntity>
+
+    fun findByAccountIdAndStatusOrderByCreatedAtDesc(
+        accountId: UUID,
+        status: ImportJobStatus,
+    ): List<TransactionImportEntity>
 
     @Query(
         """

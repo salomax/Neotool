@@ -139,6 +139,10 @@
           "dueDayInvalid": "Invalid due day (1-31)",
           "invalidCurrencyFormat": "Invalid currency format (max 2 decimals)"
         },
+        "defaults": {
+          "creditCardType": "Credit",
+          "noLastFour": "no last 4"
+        },
         "enums": {
           "bankSubtype": {
             "CONTA_CORRENTE": "Checking",
@@ -176,6 +180,10 @@
     "import": {
       "title": "Import Transactions",
       "button": "Import",
+      "menu": {
+        "file": "Bank statement",
+        "cardBill": "Card bill"
+      },
       "accountStep": {
         "title": "Select account to import into",
         "noAccounts": "No accounts found. Create an account to continue.",
@@ -225,6 +233,10 @@
         "recommendation": "For best results, prioritize OFX files. They provide standardized and richer data compared to PDF or CSV.",
         "dragDrop": "Drag the file or click to select",
         "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — up to {{maxMb}} MB",
+        "encryptedDetected": "This PDF is encrypted. Enter the statement password to continue.",
+        "passwordLabel": "PDF password",
+        "passwordRequired": "This PDF requires a password.",
+        "passwordInvalid": "The password is invalid. Please try again.",
         "submit": "Process statement",
         "submitting": "Uploading..."
       },
@@ -245,19 +257,62 @@
       },
       "cardMatchingStep": {
         "description": "Associate each card found in the statement with an existing account.",
+        "flatAssignmentBanner": "We imported the bill transactions, but the file did not include the card reference. Define the cards in this bill and assign the transactions before continuing.",
+        "flatSteps": {
+          "issuerTitle": "Define card issuer",
+          "issuerLabel": "Issuer name (bank)",
+          "issuerSelectedTitle": "{{issuer}} selected",
+          "loadingCards": "Loading cards...",
+          "issuerHasCardsMessage": "We found {{count}} registered card(s) for this issuer. You can use them in the step below.",
+          "issuerNoCardsMessage": "We did not find registered cards for this issuer. Create a new one in the step below.",
+          "selectIssuerFirst": "Select the issuer to continue.",
+          "newCardDetailsTitle": "New card details",
+          "cardAssignmentTitle": "Associate cards",
+          "cardAssignmentMessage": "Select an existing card to use while assigning transactions.",
+          "assignTransactionsTitle": "Assign transactions"
+        },
+        "cardDataSectionTitle": "Card details",
+        "availableTransactionsSectionTitle": "Available transactions",
+        "assignmentProgressShort": "{{assigned}} of {{total}} assigned",
+        "lastFourChip": "Last 4 {{lastFour}}",
+        "selectedCount": "{{count}} selected",
+        "floatingLastFourLabel": "Last 4 digits",
+        "floatingApply": "Apply",
+        "customIssuer": "Other issuer",
+        "customIssuerName": "Issuer name",
+        "templateIssuerHint": "Select the issuer shared by this bill.",
+        "optionalField": "Optional",
+        "descriptionBase": "Base description",
+        "descriptionBaseHint": "If you provide a description, it will be used as the base name when creating cards.",
+        "previewLabel": "Name preview: {{name}}",
+        "unassignedLastFour": "No last 4",
+        "noLastFourPlaceholder": "No last 4",
+        "ambiguousExistingCard": "There is more than one registered card ending in {{lastFourDigits}}. Adjust the issuer or use the full form.",
+        "templateInvalid": "Fill in the shared card details before creating accounts.",
+        "templateLastFourRequired": "Enter the card's last four digits or use the option to create it without them.",
+        "templateCreateFailed": "We could not create the cards with the provided details.",
         "status": {
           "associated": "Associated",
           "pending": "Pending"
         },
         "ambiguousWarning": "Multiple cards ending in {{lastFourDigits}} were found. Please select the correct one.",
+        "unnamedCard": "Card {{index}}",
+        "duplicateLastFour": "These last four digits are already being used by another card in this bill.",
         "cardAccountLabel": "Card account",
         "cardAccountPlaceholder": "Select...",
         "createNewCard": "Create new card",
         "txSummary": "{{count}} transaction(s) · total {{total}}",
+        "selectAll": "Select all",
         "reviewTransactions": "Review transactions"
       },
       "txReviewStep": {
         "description": "Review the transactions before confirming. Uncheck items you don't want to import.",
+        "billDatesTitle": "Bill dates",
+        "billDatesDescription": "Check the closing date and enter the due date when the file does not provide it.",
+        "closingDateLabel": "Closing date",
+        "closingDateHint": "We use this date to resolve the correct bill cycle.",
+        "dueDateLabel": "Due date",
+        "dueDateHint": "Due date must be on or after the closing date.",
         "paymentChip": "Payment",
         "confirming": "Confirming...",
         "confirmButton": "Confirm {{count}} transaction(s)"
@@ -273,6 +328,7 @@
         "uploadTitle": "Import statement",
         "processingTitle": "Processing...",
         "cardMatchingTitle": "Associate cards",
+        "assignmentTitle": "Assign transactions",
         "txReviewTitle": "Review transactions",
         "resultTitle": "Import complete",
         "errorTitle": "Import error"
@@ -280,6 +336,7 @@
       "errorStep": {
         "title": "Import error",
         "retry": "Try again",
+        "passwordInvalid": "The PDF password is incorrect. Check it and try again.",
         "generic": "There was an import error and we could not process it right now. Please try again later.",
         "processingUnavailable": "We could not process this statement right now. Please try again later."
       }
@@ -313,15 +370,23 @@
         "amount": "Amount",
         "currency": "Currency"
       },
-      "emptyState": "No transactions found"
+      "emptyState": "No transactions found",
+      "rowActions": {
+        "ariaLabel": "Transaction actions",
+        "edit": "Edit",
+        "remove": "Remove"
+      }
     },
     "monthSummary": {
       "income": "Income",
       "expenses": "Expenses",
       "balance": "Current Balance",
       "total": "of total",
-      "expensesByCategory": "Top expenses",
+      "expensesByCategory": "Expenses by Category",
+      "incomeByCategory": "Income by Category",
+      "seeAll": "See all",
       "noCategorizedExpenses": "No categorized expenses this month",
+      "noCategorizedIncome": "No categorized income this month",
       "totalExpenses": "Total expenses",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",

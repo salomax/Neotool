@@ -11,6 +11,7 @@ import {
   TableRow,
   TableCell,
   Select,
+  Collapse,
 } from '@mui/material';
 import { Button } from '@/shared/components/ui/primitives/Button';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
@@ -19,7 +20,7 @@ import { personalFinanceTranslations } from '../../i18n';
 import dayjs from 'dayjs';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { FINANCIAL_ACCOUNTS, TRANSACTION_CATEGORIES, TRANSACTION_TAGS } from '@/lib/graphql/operations/banking/queries';
-import { CREATE_TRANSACTION, UPDATE_TRANSACTION, DELETE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { CREATE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 import { 
   FinancialAccount, 
   TransactionCategory, 
@@ -31,14 +32,6 @@ import {
 import { BaseMoneyInput } from '@/shared/components/ui/forms/form/MoneyInput';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
 import { CategorySelect } from './CategorySelect';
-import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogContentText,
-  DialogActions
-} from '@mui/material';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -52,8 +45,6 @@ interface InlineTransactionFormProps {
   selectedAccountId: string | null;
   initialValues?: Transaction;
   onExited?: () => void;
-  isDeleting?: boolean;
-  onDeleteSuccess?: () => void;
 }
 
 export function InlineTransactionForm({ 
@@ -62,9 +53,7 @@ export function InlineTransactionForm({
   onSuccess, 
   selectedAccountId, 
   initialValues, 
-  onExited,
-  isDeleting = false,
-  onDeleteSuccess
+  onExited
 }: InlineTransactionFormProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -84,9 +73,7 @@ export function InlineTransactionForm({
   
   const [createTransaction, { loading: creating }] = useMutation(CREATE_TRANSACTION);
   const [updateTransaction, { loading: updating }] = useMutation(UPDATE_TRANSACTION);
-  const [deleteTransaction, { loading: deleting }] = useMutation(DELETE_TRANSACTION);
 
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const isDateOutsideWindow = Boolean(date && date.isBefore(minAllowedDate, 'day'));
 
   useEffect(() => {
@@ -188,25 +175,6 @@ export function InlineTransactionForm({
     }
   };
 
-  const handleDelete = async () => {
-    if (!initialValues) return;
-    try {
-      await deleteTransaction({
-        variables: { id: initialValues.id }
-      });
-      if (onDeleteSuccess) {
-        onDeleteSuccess();
-      } else {
-        onSuccess();
-        onClose();
-      }
-    } catch (error) {
-      console.error('Failed to delete transaction:', error);
-    } finally {
-      setIsDeleteDialogOpen(false);
-    }
-  };
-
   const categories = categoriesData?.transactionCategories || [];
   const accounts = accountsData?.financialAccounts || [];
   const filteredCategories = categories.filter(category => {
@@ -227,236 +195,291 @@ export function InlineTransactionForm({
     }
   };
 
+  const inputBottomBorderSx = {
+    borderBottom: `1px solid ${theme.palette.divider}`,
+    transition: 'border-color 0.2s, border-bottom-width 0.2s',
+    '&.Mui-focused': {
+      borderBottom: `2px solid ${theme.palette.primary.main}`,
+    },
+  };
+
+  const [shouldRender, setShouldRender] = useState(isOpen);
+
+  useEffect(() => {
+    if (isOpen) setShouldRender(true);
+  }, [isOpen]);
+
   // Render nothing if not open (though parent usually handles this)
-  if (!isOpen) return null;
+  if (!shouldRender) return null;
+
+  const gridTemplateColumns = selectedAccountId
+    ? '68px minmax(180px, 2fr) minmax(0, 1fr) minmax(auto, 1fr) minmax(auto, 0.8fr) 52px'
+    : '68px minmax(180px, 2fr) minmax(0, 1fr) minmax(auto, 1fr) minmax(auto, 1fr) minmax(140px, 0.8fr) 52px';
+
+  const amountGridColumn = selectedAccountId ? '5 / -1' : '6 / -1';
 
   return (
     <>
-      <TableRow
-        sx={{
-          bgcolor: alpha(theme.palette.primary.main, 0.02),
-          '& td': { 
-            borderBottom: 'none',
-            pt: 2,
-            pb: 1,
-            px: 1
-          }
-        }}
-      >
-        {/* 1. Type */}
-        <TableCell padding="checkbox" sx={{ verticalAlign: 'top' }}>
-          <Select
-            value={creditDebitType}
-            onChange={(e) => {
-              setCreditDebitType(e.target.value as CreditDebitType);
-              setCategoryId('');
-            }}
-            variant="standard"
-            disableUnderline
-            displayEmpty
-            IconComponent={() => null}
-            renderValue={(value) => {
-              let icon = null;
-              let color = theme.palette.info.main;
-              
-              if (value === CreditDebitType.Debit) {
-                icon = <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />;
-                color = theme.palette.error.main;
-              } else if (value === CreditDebitType.Credit) {
-                icon = <ArrowUpwardIcon fontSize="small" sx={{ color: 'success.main' }} />;
-                color = theme.palette.success.main;
-              } else {
-                icon = <SwapHorizIcon fontSize="small" sx={{ color: 'info.main' }} />;
-              }
-
-              return (
-                <Stack direction="row" sx={{ borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider' }}>
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      width: 32,
-                      height: 32,
-                      bgcolor: alpha(color, 0.1),
-                    }}
-                  >
-                    {icon}
-                  </Box>
-                  <Box 
-                    sx={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'center',
-                      width: 24,
-                      bgcolor: 'background.paper',
-                      borderLeft: 1,
-                      borderColor: 'divider'
-                    }}
-                  >
-                    <ExpandMoreIcon fontSize="small" color="action" />
-                  </Box>
-                </Stack>
-              );
-            }}
-            sx={{ 
-              minWidth: 'auto',
-              '& .MuiSelect-select': { 
-                p: 0,
-                display: 'flex',
-                bgcolor: 'transparent'
-              } 
-            }}
-            MenuProps={{
-              PaperProps: { sx: { width: 150 } }
+      <TableRow sx={{ position: 'relative', zIndex: 3, }}>
+        <TableCell colSpan={colSpan} sx={{ p: 0, borderBottom: 'none', bgcolor: 'transparent' }}>
+          <Collapse
+            in={isOpen}
+            timeout={250}
+            appear
+            onExited={() => {
+              setShouldRender(false);
+              onExited?.();
             }}
           >
-            <MenuItem value={CreditDebitType.Debit}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <ArrowDownwardIcon fontSize="small" color="error" />
-                <Typography variant="body2">{t('financeTransactions.debit')}</Typography>
-              </Stack>
-            </MenuItem>
-            <MenuItem value={CreditDebitType.Credit}>
-              <Stack direction="row" spacing={1} alignItems="center">
-                <ArrowUpwardIcon fontSize="small" color="success" />
-                <Typography variant="body2">{t('financeTransactions.credit')}</Typography>
-              </Stack>
-            </MenuItem>
-            <MenuItem value="TRANSFER">
-              <Stack direction="row" spacing={1} alignItems="center">
-                <SwapHorizIcon fontSize="small" color="info" />
-                <Typography variant="body2">Transfer</Typography>
-              </Stack>
-            </MenuItem>
-          </Select>
-        </TableCell>
-
-        {/* 2. Description */}
-        <TableCell sx={{ verticalAlign: 'top' }}>
-          <TextField
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder={t('financeTransactions.description')}
-            variant="standard"
-            fullWidth
-            required
-            autoFocus
-            InputProps={{ 
-              disableUnderline: true,
-              sx: focusBorderSx
-            }}
-            sx={{ '& .MuiInputBase-input': { fontSize: '0.875rem' } }}
-          />
-        </TableCell>
-
-        {/* 3. Category */}
-        <TableCell sx={{ verticalAlign: 'top' }}>
-          <CategorySelect
-            value={categoryId}
-            onChange={setCategoryId}
-            categories={categories}
-            creditDebitType={creditDebitType}
-            placeholder={t('financeTransactions.category')}
-          />
-        </TableCell>
-
-        {/* 4. Tags */}
-        <TableCell sx={{ verticalAlign: 'top', minWidth: 150 }}>
-          <TagsInput
-            value={tags}
-            onChange={setTags}
-            options={tagsData?.transactionTags?.map(t => t.tag) || []}
-            placeholder={t('financeTransactions.tags')}
-            variant="standard"
-            InputProps={{ 
-              disableUnderline: true,
-              sx: focusBorderSx
-            }}
-          />
-        </TableCell>
-
-        {/* 5. Issuer (Conditional) */}
-        {!selectedAccountId && (
-          <TableCell sx={{ verticalAlign: 'top' }}>
-            <TextField
-              select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              variant="standard"
-              fullWidth
-              InputProps={{ 
-                disableUnderline: true,
-                sx: focusBorderSx
+            <Box
+              sx={{
+                borderRadius: 1,
+                border: 1,
+                borderColor: 'divider',
+                boxShadow: `0 10px 26px ${alpha(theme.palette.primary.main, 0.2)}`,
+                overflow: 'hidden',
+                bgcolor: 'background.paper',
               }}
-              sx={{ minWidth: 120 }}
             >
-              {accounts.map((account) => (
-                <MenuItem key={account.id} value={account.id}>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Avatar 
-                      src={account.issuer?.logoAsset?.publicUrl || undefined}
-                      sx={{ 
-                        width: 24, 
-                        height: 24,
-                        fontSize: '0.6rem',
-                        borderRadius: borderRadius,
-                        bgcolor: account.issuer?.logoAsset?.publicUrl ? 'transparent' : (account.themeColor || theme.palette.grey[300]),
-                      }}
-                    >
-                      {!account.issuer?.logoAsset?.publicUrl && account.name.charAt(0)}
-                    </Avatar>
-                    <Typography variant="body2" noWrap>{account.name}</Typography>
-                  </Stack>
-                </MenuItem>
-              ))}
-            </TextField>
-          </TableCell>
-        )}
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns,
+                  columnGap: 1,
+                  alignItems: 'end',
+                  px: 1,
+                  pt: 2,
+                  pb: 1,
+                  '& > *': { minWidth: 0 },
+                }}
+              >
+              {/* 1. Type */}
+              <Box sx={{ maxWidth: 'fit-content' }}>
+                <Select
+                  value={creditDebitType}
+                  onChange={(e) => {
+                    setCreditDebitType(e.target.value as CreditDebitType);
+                    setCategoryId('');
+                  }}
+                  variant="standard"
+                  disableUnderline
+                  displayEmpty
+                  IconComponent={() => null}
+                  renderValue={(value) => {
+                    let icon = null;
+                    let color = theme.palette.info.main;
+                    
+                    if (value === CreditDebitType.Debit) {
+                      icon = <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />;
+                      color = theme.palette.error.main;
+                    } else if (value === CreditDebitType.Credit) {
+                      icon = <ArrowUpwardIcon fontSize="small" sx={{ color: 'success.main' }} />;
+                      color = theme.palette.success.main;
+                    } else {
+                      icon = <SwapHorizIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                    }
 
-        {/* 6. Amount */}
-        <TableCell colSpan={2} sx={{ verticalAlign: 'top', minWidth: 100, textAlign: 'right' }}>
-          <BaseMoneyInput
-            value={amount}
-            onChange={(val) => setAmount(val as number | undefined)}
-            variant="standard"
-            required
-            InputProps={{ 
-              disableUnderline: true,
-              sx: { 
-                fontSize: '0.875rem', 
-                fontWeight: 'medium',
-                maxWidth: 180,
-                ml: 'auto',
-                ...focusBorderSx,
-                '& input': {
-                  textAlign: 'right'
-                }
-              },
-              onKeyDown: (e: any) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  if (!deleting && amount && description && date && accountId && categoryId) {
-                    handleSave();
-                  }
-                }
-              }
-            }}
-          />
-        </TableCell>
-      </TableRow>
+                    return (
+                      <Stack direction="row" sx={{ borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider' }}>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            width: 32,
+                            height: 32,
+                            bgcolor: alpha(color, 0.1),
+                          }}
+                        >
+                          {icon}
+                        </Box>
+                        <Box 
+                          sx={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            width: 24,
+                            bgcolor: 'background.paper',
+                            borderLeft: 1,
+                            borderColor: 'divider'
+                          }}
+                        >
+                          <ExpandMoreIcon fontSize="small" color="action" />
+                        </Box>
+                      </Stack>
+                    );
+                  }}
+                  sx={{ 
+                    minWidth: 'auto',
+                    '& .MuiSelect-select': { 
+                      p: 0,
+                      display: 'flex',
+                      bgcolor: 'transparent'
+                    } 
+                  }}
+                  MenuProps={{
+                    PaperProps: { sx: { width: 150 } }
+                  }}
+                >
+                  <MenuItem value={CreditDebitType.Debit}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ArrowDownwardIcon fontSize="small" color="error" />
+                      <Typography variant="body2">{t('financeTransactions.debit')}</Typography>
+                    </Stack>
+                  </MenuItem>
+                  <MenuItem value={CreditDebitType.Credit}>
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <ArrowUpwardIcon fontSize="small" color="success" />
+                      <Typography variant="body2">{t('financeTransactions.credit')}</Typography>
+                    </Stack>
+                  </MenuItem>
+                  <MenuItem value="TRANSFER">
+                    <Stack direction="row" spacing={1} alignItems="center">
+                      <SwapHorizIcon fontSize="small" color="info" />
+                      <Typography variant="body2">Transfer</Typography>
+                    </Stack>
+                  </MenuItem>
+                </Select>
+              </Box>
 
-      {/* Floating Action Bar Row */}
-      <TableRow>
-        <TableCell 
-          colSpan={colSpan} 
-          sx={{ 
-            p: 0, 
-            borderBottom: '1px solid rgba(224, 224, 224, 1)',
-            bgcolor: alpha(theme.palette.primary.main, 0.02)
-          }}
-        >
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1, px: 2, alignItems: 'center' }}>
+              {/* 2. Description */}
+              <Box sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                <TextField
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder={t('financeTransactions.description')}
+                  variant="standard"
+                  fullWidth
+                  required
+                  autoFocus
+                  multiline
+                  minRows={1}
+                  maxRows={4}
+                  InputProps={{ 
+                    disableUnderline: true,
+                    sx: inputBottomBorderSx
+                  }}
+                  sx={{
+                    '& .MuiInputBase-input': { fontSize: '0.875rem' },
+                    '& .MuiInputBase-inputMultiline': { padding: 0 },
+                  }}
+                />
+              </Box>
+
+              {/* 3. Category */}
+              <Box
+                sx={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'flex-end',
+                  width: '100%',
+                  minWidth: 0,
+                  '& .MuiChip-root': {
+                    maxWidth: '100%',
+                  },
+                }}
+              >
+                <CategorySelect
+                  value={categoryId}
+                  onChange={setCategoryId}
+                  categories={categories}
+                  creditDebitType={creditDebitType}
+                  placeholder={t('financeTransactions.category')}
+                />
+              </Box>
+
+              {/* 4. Tags */}
+              <Box sx={{ minWidth: 150, display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                <TagsInput
+                  value={tags}
+                  onChange={setTags}
+                  options={tagsData?.transactionTags?.map(t => t.tag) || []}
+                  placeholder={t('financeTransactions.tags')}
+                  variant="standard"
+                  InputProps={{ 
+                    disableUnderline: true,
+                    sx: inputBottomBorderSx
+                  }}
+                />
+              </Box>
+
+              {/* 5. Issuer (Conditional) */}
+              {!selectedAccountId && (
+                <Box sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                  <TextField
+                    select
+                    value={accountId}
+                    onChange={(e) => setAccountId(e.target.value)}
+                    variant="standard"
+                    fullWidth
+                    InputProps={{ 
+                      disableUnderline: true,
+                      sx: {
+                        borderBottom: `1px ${accountId ? 'solid' : 'dashed'} ${theme.palette.divider}`,
+                        transition: 'border-color 0.2s, border-bottom-width 0.2s',
+                        '&.Mui-focused': {
+                          borderBottom: `2px solid ${theme.palette.primary.main}`,
+                        },
+                      }
+                    }}
+                    sx={{ minWidth: 120 }}
+                  >
+                    {accounts.map((account) => (
+                      <MenuItem key={account.id} value={account.id}>
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Avatar 
+                            src={account.issuer?.logoAsset?.publicUrl || undefined}
+                            sx={{ 
+                              width: 24, 
+                              height: 24,
+                              fontSize: '0.6rem',
+                              borderRadius: borderRadius,
+                              bgcolor: account.issuer?.logoAsset?.publicUrl ? 'transparent' : (account.themeColor || theme.palette.grey[300]),
+                            }}
+                          >
+                            {!account.issuer?.logoAsset?.publicUrl && account.name.charAt(0)}
+                          </Avatar>
+                          <Typography variant="body2" noWrap>{account.name}</Typography>
+                        </Stack>
+                      </MenuItem>
+                    ))}
+                  </TextField>
+                </Box>
+              )}
+
+              {/* 6. Amount */}
+              <Box sx={{ gridColumn: amountGridColumn, minWidth: 100, textAlign: 'right', display: 'flex', alignItems: 'flex-end', justifyContent: 'flex-end', width: '100%' }}>
+                <BaseMoneyInput
+                  value={amount}
+                  onChange={(val) => setAmount(val as number | undefined)}
+                  variant="standard"
+                  required
+                  InputProps={{ 
+                    disableUnderline: true,
+                    sx: { 
+                      fontSize: '0.875rem', 
+                      fontWeight: 'medium',
+                      maxWidth: 180,
+                      ml: 'auto',
+                      ...inputBottomBorderSx,
+                      '& input': {
+                        textAlign: 'right'
+                      }
+                    },
+                    onKeyDown: (e: any) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (!(creating || updating) && amount && description && date && accountId) {
+                          handleSave();
+                        }
+                      }
+                    }
+                  }}
+                />
+              </Box>
+            </Box>
+
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1, px: 2, alignItems: 'center', bgcolor: theme.custom.palette.infoLightBg, borderTop: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <DatePicker
                 value={date}
@@ -493,25 +516,6 @@ export function InlineTransactionForm({
                   } 
                 }}
               />
-              
-              {initialValues && (
-                <Button 
-                  onClick={() => setIsDeleteDialogOpen(true)}
-                  color="error"
-                  size="small"
-                  startIcon={<DeleteOutlineIcon fontSize="small" />}
-                  sx={{ 
-                    minWidth: 'auto',
-                    color: theme.palette.error.main,
-                    bgcolor: alpha(theme.palette.text.primary, 0.0),
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.error.main, 0.1),
-                    }
-                  }}
-                >
-                  {t('actions.delete')}
-                </Button>
-              )}
             </Box>
 
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -535,35 +539,17 @@ export function InlineTransactionForm({
                 onClick={handleSave}
                 loading={creating || updating}
                 size="small"
-                disabled={deleting || !amount || !description || !date || !accountId || !categoryId || isDateOutsideWindow}
-                sx={{ boxShadow: theme.shadows[4] }}
+                disabled={creating || updating || !amount || !description || !date || !accountId || isDateOutsideWindow}
+                sx={{ boxShadow: theme.shadows[4], borderRadius: 1 }}
               >
                 {t('actions.save')}
               </Button>
             </Box>
           </Box>
+          </Box>
+          </Collapse>
         </TableCell>
       </TableRow>
-
-      <Dialog
-        open={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-      >
-        <DialogTitle>{t('financeTransactions.deleteConfirmation.title')}</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            {t('financeTransactions.deleteConfirmation.message')}
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsDeleteDialogOpen(false)} color="inherit">
-            {t('actions.cancel')}
-          </Button>
-          <Button onClick={handleDelete} color="error" autoFocus disabled={deleting}>
-            {t('actions.delete')}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 }

@@ -10,7 +10,9 @@ import io.micronaut.context.annotation.Requires
 import io.micronaut.http.HttpHeaders
 import io.micronaut.http.HttpRequest
 import io.micronaut.http.MediaType
+import io.micronaut.http.client.DefaultHttpClientConfiguration
 import io.micronaut.http.client.HttpClient
+import io.micronaut.http.client.exceptions.ReadTimeoutException
 import io.micronaut.http.client.exceptions.HttpClientResponseException
 import jakarta.annotation.PreDestroy
 import jakarta.inject.Singleton
@@ -29,6 +31,8 @@ import java.net.HttpURLConnection
 import java.net.SocketTimeoutException
 import java.net.URL
 import java.nio.charset.StandardCharsets
+import java.time.Duration
+import java.util.concurrent.TimeoutException
 
 @Singleton
 @Requires(property = "llm.provider", value = "openai")
@@ -43,8 +47,16 @@ class OpenAIProviderClient(
 
     private val httpClient: HttpClient by lazy {
         try {
+            val requestTimeout = Duration.ofMillis(config.requestTimeoutMs.coerceAtLeast(1))
+            val connectTimeoutMs = config.requestTimeoutMs.coerceAtMost(DEFAULT_CONNECT_TIMEOUT_MS).coerceAtLeast(1)
+            val clientConfig =
+                DefaultHttpClientConfiguration().apply {
+                    setReadTimeout(requestTimeout)
+                    setRequestTimeout(requestTimeout)
+                    setConnectTimeout(Duration.ofMillis(connectTimeoutMs))
+                }
             @Suppress("DEPRECATION")
-            HttpClient.create(URL(baseUrl))
+            HttpClient.create(URL(baseUrl), clientConfig)
         } catch (exception: Exception) {
             throw IllegalStateException("Invalid OpenAI base URL: $baseUrl", exception)
         }
@@ -93,6 +105,12 @@ class OpenAIProviderClient(
                     message = "OpenAI request timed out after ${config.requestTimeoutMs}ms",
                     cause = exception,
                 )
+            } catch (exception: ReadTimeoutException) {
+                throw ProviderClientException(
+                    errorType = ErrorType.TIMEOUT,
+                    message = "OpenAI read timeout after ${config.requestTimeoutMs}ms",
+                    cause = exception,
+                )
             } catch (exception: SocketTimeoutException) {
                 throw ProviderClientException(
                     errorType = ErrorType.TIMEOUT,
@@ -106,6 +124,13 @@ class OpenAIProviderClient(
                     cause = exception,
                 )
             } catch (exception: Exception) {
+                if (isTimeoutLike(exception)) {
+                    throw ProviderClientException(
+                        errorType = ErrorType.TIMEOUT,
+                        message = "OpenAI request timed out: ${exception.message ?: "timeout"}",
+                        cause = exception,
+                    )
+                }
                 throw ProviderClientException(
                     errorType = ErrorType.UNKNOWN,
                     message = "Unexpected OpenAI provider error: ${exception.message}",
@@ -325,10 +350,31 @@ class OpenAIProviderClient(
         return if (normalized.startsWith('/')) normalized else "/$normalized"
     }
 
+    private fun isTimeoutLike(exception: Throwable): Boolean {
+        var current: Throwable? = exception
+        while (current != null) {
+            if (
+                current is TimeoutCancellationException ||
+                current is ReadTimeoutException ||
+                current is SocketTimeoutException ||
+                current is TimeoutException
+            ) {
+                return true
+            }
+            val message = current.message?.lowercase()
+            if (message?.contains("read timeout") == true || message?.contains("timed out") == true) {
+                return true
+            }
+            current = current.cause
+        }
+        return false
+    }
+
     companion object {
         private const val ENV_PREFIX = "env:"
         private const val OPENAI_CONTEXT_LENGTH_CODE = "context_length_exceeded"
         private const val HEADER_REQUEST_TIMEOUT_MS = "X-Request-Timeout-Ms"
+        private const val DEFAULT_CONNECT_TIMEOUT_MS = 10_000L
         private const val DEFAULT_CHAT_COMPLETIONS_PATH = "/v1/chat/completions"
         private const val SSE_DATA_PREFIX = "data:"
         private const val SSE_DONE_MARKER = "[DONE]"

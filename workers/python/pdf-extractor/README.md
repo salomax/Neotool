@@ -11,7 +11,7 @@ Kafka worker for PDF extraction in the async import pipeline.
 - Publishes failures to `pdf-extractor.dlq`
 
 ## Environment Variables
-- `KAFKA_BROKER` (default: `localhost:9094`)
+- `KAFKA_BROKER` (default: `127.0.0.1:9094`)
 - `KAFKA_GROUP_ID` (default: `pdf-extractor`)
 - `KAFKA_TOPIC_IN` (default: `pdf-extractor.submitted`)
 - `KAFKA_TOPIC_OUT` (default: `pdf-extractor.extracted`)
@@ -48,6 +48,7 @@ python consumer.py
 `%3|...|FAIL|... localhost:9094 ... Connection refused`
 - Kafka is not reachable on `KAFKA_BROKER`.
 - Ensure broker is up and exposed on that port.
+- On macOS, `localhost` may resolve to IPv6 (`::1`) first. Prefer `KAFKA_BROKER=127.0.0.1:9094`.
 
 `HTTP/1.1 403 Forbidden` when downloading from signed URL
 - Usually means expired presigned URL (common when replaying old Kafka messages).

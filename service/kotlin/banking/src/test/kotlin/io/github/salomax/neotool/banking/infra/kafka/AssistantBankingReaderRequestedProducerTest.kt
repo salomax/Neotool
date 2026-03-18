@@ -21,7 +21,7 @@ class AssistantBankingReaderRequestedProducerTest {
     fun `publish sends jobId as key and full event payload`() {
         val jobId = UUID.randomUUID()
         val callback =
-            PdfImportCallbackContext(
+            ImportCallbackContext(
                 job_id = jobId,
                 account_id = UUID.randomUUID(),
                 user_id = UUID.randomUUID(),

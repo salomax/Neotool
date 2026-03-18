@@ -6,7 +6,7 @@ SET search_path TO banking, public;
 
 UPDATE transaction_categories SET icon = 'payments'     WHERE name = 'Salário'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'work'         WHERE name = 'Renda Extra'            AND is_system = true;
-UPDATE transaction_categories SET icon = 'elderly'      WHERE name = 'Aposentadoria'          AND is_system = true;
+UPDATE transaction_categories SET icon = 'elderly'      WHERE name = 'Aposentadoria / Pensão'          AND is_system = true;
 UPDATE transaction_categories SET icon = 'trending_up'  WHERE name = 'Investimentos'          AND is_system = true;
 UPDATE transaction_categories SET icon = 'call_received' WHERE name = 'Transferência recebida' AND is_system = true;
 UPDATE transaction_categories SET icon = 'restaurant'   WHERE name = 'Alimentação'            AND is_system = true;
@@ -32,9 +32,11 @@ UPDATE transaction_categories SET icon = 'school'       WHERE name = 'Educação
 UPDATE transaction_categories SET icon = 'account_balance' WHERE name = 'Mensalidade'         AND is_system = true;
 UPDATE transaction_categories SET icon = 'menu_book'    WHERE name = 'Cursos'                 AND is_system = true;
 UPDATE transaction_categories SET icon = 'edit'         WHERE name = 'Material escolar'       AND is_system = true;
-UPDATE transaction_categories SET icon = 'celebration'  WHERE name = 'Lazer'                  AND is_system = true;
-UPDATE transaction_categories SET icon = 'movie'        WHERE name = 'Cinema / Shows'         AND is_system = true;
+UPDATE transaction_categories SET icon = 'celebration'  WHERE name = 'Lazer e Entretenimento'                  AND is_system = true;
+UPDATE transaction_categories SET icon = 'movie'        WHERE name = 'Cinema / Teatro'         AND is_system = true;
+UPDATE transaction_categories SET icon = 'sports_esports' WHERE name = 'Games'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'fitness_center' WHERE name = 'Academia'             AND is_system = true;
+UPDATE transaction_categories SET icon = 'flight'       WHERE name = 'Viagem'                 AND is_system = true;
 UPDATE transaction_categories SET icon = 'flight'       WHERE name = 'Viagens'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'shopping_bag' WHERE name = 'Compras'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'checkroom'    WHERE name = 'Roupas'                 AND is_system = true;
@@ -57,3 +59,21 @@ UPDATE transaction_categories SET icon = 'call_made'    WHERE name = 'Transferê
 UPDATE transaction_categories SET icon = 'savings'      WHERE name = 'Investimento aplicado'  AND is_system = true;
 UPDATE transaction_categories SET icon = 'help_outline' WHERE name = 'Outros'                 AND is_system = true;
 
+-- System child categories without icon inherit the icon from their parent.
+UPDATE transaction_categories child
+SET icon = parent.icon, color = parent.color
+FROM transaction_categories parent
+WHERE child.parent_id = parent.id
+  AND child.is_system = true
+  AND parent.is_system = true
+  AND child.icon IS NULL
+  AND parent.icon IS NOT NULL;
+
+UPDATE transaction_categories child
+SET color = parent.color
+FROM transaction_categories parent
+WHERE child.parent_id = parent.id
+  AND child.is_system = true
+  AND parent.is_system = true
+  AND child.color IS NULL
+  AND parent.color IS NOT NULL;

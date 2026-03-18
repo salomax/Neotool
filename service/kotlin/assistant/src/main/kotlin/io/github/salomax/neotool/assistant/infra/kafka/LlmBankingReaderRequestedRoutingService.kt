@@ -8,45 +8,117 @@ import io.github.salomax.neotool.assistant.provider.error.ProviderClientExceptio
 import io.github.salomax.neotool.assistant.provider.model.ProviderMessageRole
 import io.github.salomax.neotool.assistant.service.CompletionInput
 import io.github.salomax.neotool.assistant.service.CompletionMessageInput
+import io.github.salomax.neotool.assistant.service.CompletionResult
 import io.github.salomax.neotool.assistant.service.CompletionService
 import jakarta.inject.Singleton
 import kotlinx.coroutines.runBlocking
+import org.slf4j.LoggerFactory
 
 @Singleton
 class LlmBankingReaderRequestedRoutingService(
     private val completionService: CompletionService,
     private val promptResolver: BankingReaderPromptResolver,
     private val outputValidator: BankingReaderOutputValidator,
+    private val metaValidator: BillExtractionMetaValidator,
     private val doneProducer: AssistantBankingPdfReaderDoneProducer,
     private val objectMapper: ObjectMapper,
 ) : BankingReaderRequestedRoutingService {
     override fun onCreditCardBill(request: AssistantBankingReaderRequestedEvent) {
-        process(request)
+        val promptSelection = promptResolver.resolve(request)
+        val llmInputText = prepareTextForLlm(request.extracted_text)
+        val completionResult = callLlm(request, promptSelection, llmInputText)
+
+        // Stage 1: parse BillExtractionMeta from LLM response
+        val meta =
+            try {
+                objectMapper.readValue(stripMarkdown(completionResult.content), BillExtractionMeta::class.java)
+            } catch (ex: Exception) {
+                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                throw BankingReaderProcessingException(
+                    code = "LLM_NON_JSON",
+                    message = "Model returned non-JSON output",
+                    retryable = false,
+                    stage = "OUTPUT_VALIDATION",
+                    cause = ex,
+                )
+            }
+
+        val metaErrors = metaValidator.validate(meta)
+        if (metaErrors.isNotEmpty()) {
+            throw BankingReaderProcessingException(
+                code = "SCHEMA_VALIDATION_FAILED",
+                message = "Output did not match contract: ${metaErrors.take(10).joinToString("; ")}",
+                retryable = false,
+                stage = "OUTPUT_VALIDATION",
+            )
+        }
+
+        val llmOutput =
+            objectMapper.convertValue(meta, object : TypeReference<Map<String, Any?>>() {})
+
+        publishDone(request, promptSelection, completionResult, llmOutput, emptyList())
     }
 
     override fun onBankStatement(request: AssistantBankingReaderRequestedEvent) {
-        process(request)
+        processLegacy(request)
     }
 
     override fun onInvestmentIrReport(request: AssistantBankingReaderRequestedEvent) {
-        process(request)
+        processLegacy(request)
     }
 
-    private fun process(request: AssistantBankingReaderRequestedEvent) {
+    private fun processLegacy(request: AssistantBankingReaderRequestedEvent) {
         val promptSelection = promptResolver.resolve(request)
+        val completionResult = callLlm(request, promptSelection)
 
+        val llmOutputNode =
+            try {
+                objectMapper.readTree(stripMarkdown(completionResult.content))
+            } catch (ex: Exception) {
+                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                throw BankingReaderProcessingException(
+                    code = "LLM_NON_JSON",
+                    message = "Model returned non-JSON output",
+                    retryable = false,
+                    stage = "OUTPUT_VALIDATION",
+                    cause = ex,
+                )
+            }
+
+        val validationErrors = outputValidator.validate(documentType = request.document_type, output = llmOutputNode)
+        if (validationErrors.isNotEmpty()) {
+            throw BankingReaderProcessingException(
+                code = "SCHEMA_VALIDATION_FAILED",
+                message = "Output did not match contract: ${validationErrors.take(10).joinToString("; ")}",
+                retryable = false,
+                stage = "OUTPUT_VALIDATION",
+            )
+        }
+
+        val llmOutput =
+            objectMapper.convertValue(llmOutputNode, object : TypeReference<Map<String, Any?>>() {})
+        val warnings = extractWarnings(llmOutput)
+
+        publishDone(request, promptSelection, completionResult, llmOutput, warnings)
+    }
+
+    private fun callLlm(
+        request: AssistantBankingReaderRequestedEvent,
+        promptSelection: BankingReaderPromptSelection,
+        extractedText: String = request.extracted_text,
+    ): CompletionResult {
         val completionInput =
             CompletionInput(
                 promptId = promptSelection.promptId,
                 promptVariables =
                     mapOf(
-                        "documentText" to request.extracted_text,
+                        "documentText" to extractedText,
                         "documentType" to request.document_type,
                         "accountType" to request.account_type,
                         "fileType" to request.file_type,
                         "extractionMetadata" to request.extraction_metadata,
                     ),
-                messages = buildInputMessages(request, promptSelection),
+                messages = buildInputMessages(request, promptSelection, extractedText),
                 requiredCapabilities = listOf("JSON_MODE"),
                 outputFormat = OutputFormat.JSON,
                 purpose = promptSelection.purpose,
@@ -62,61 +134,41 @@ class LlmBankingReaderRequestedRoutingService(
                     ),
             )
 
-        val completionResult =
-            try {
-                runBlocking {
-                    completionService.generateCompletion(
-                        input = completionInput,
-                        accountId = request.callback_context.account_id,
-                    )
-                }
-            } catch (ex: ProviderClientException) {
-                throw mapProviderException(ex)
-            } catch (ex: IllegalArgumentException) {
-                throw BankingReaderProcessingException(
-                    code = "PROMPT_RESOLUTION_ERROR",
-                    message = ex.message ?: "Prompt resolution failed",
-                    retryable = false,
-                    stage = "PROMPT_SELECTION",
-                    cause = ex,
+        return try {
+            runBlocking {
+                completionService.generateCompletion(
+                    input = completionInput,
+                    accountId = request.callback_context.account_id,
                 )
             }
-
-        val llmOutputNode =
-            try {
-                objectMapper.readTree(completionResult.content)
-            } catch (ex: Exception) {
-                throw BankingReaderProcessingException(
-                    code = "LLM_NON_JSON",
-                    message = "Model returned non-JSON output",
-                    retryable = false,
-                    stage = "OUTPUT_VALIDATION",
-                    cause = ex,
-                )
-            }
-
-        val validationErrors =
-            outputValidator.validate(
-                documentType = request.document_type,
-                output = llmOutputNode,
-            )
-        if (validationErrors.isNotEmpty()) {
+        } catch (ex: ProviderClientException) {
+            throw mapProviderException(ex)
+        } catch (ex: IllegalArgumentException) {
             throw BankingReaderProcessingException(
-                code = "SCHEMA_VALIDATION_FAILED",
-                message = "Output did not match contract: ${validationErrors.take(10).joinToString("; ")}",
+                code = "PROMPT_RESOLUTION_ERROR",
+                message = ex.message ?: "Prompt resolution failed",
                 retryable = false,
-                stage = "OUTPUT_VALIDATION",
+                stage = "PROMPT_SELECTION",
+                cause = ex,
+            )
+        }.also { result ->
+            log.info(
+                "[banking-reader] job={} model={} llm_response={}",
+                request.job_id,
+                result.model,
+                result.content,
             )
         }
+    }
 
-        val llmOutput =
-            objectMapper.convertValue(
-                llmOutputNode,
-                object : TypeReference<Map<String, Any?>>() {},
-            )
-        val warnings = extractWarnings(llmOutput)
-        val confidence = extractConfidence(llmOutput)
-        val doneEvent =
+    private fun publishDone(
+        request: AssistantBankingReaderRequestedEvent,
+        promptSelection: BankingReaderPromptSelection,
+        completionResult: CompletionResult,
+        llmOutput: Map<String, Any?>,
+        warnings: List<String>,
+    ) {
+        doneProducer.publish(
             AssistantBankingPdfReaderDoneEvent(
                 schema_version = "1.0",
                 job_id = request.job_id,
@@ -126,28 +178,28 @@ class LlmBankingReaderRequestedRoutingService(
                     AssistantBankingPdfReaderParseMetadata(
                         processor_type = "LLM",
                         reader_id = promptSelection.readerId,
-                        confidence = confidence,
                         model_provider = inferProviderName(completionResult.model),
                         model_name = completionResult.model,
                         latency_ms = completionResult.latencyMs,
                         warnings = warnings,
                     ),
                 callback_context = request.callback_context,
-            )
-        doneProducer.publish(doneEvent)
+            ),
+        )
     }
 
     private fun buildInputMessages(
         request: AssistantBankingReaderRequestedEvent,
         promptSelection: BankingReaderPromptSelection,
+        extractedText: String = request.extracted_text,
     ): List<CompletionMessageInput> {
         val userContent =
             if (promptSelection.promptId == null) {
                 // CompletionService blocks SYSTEM role in client input messages.
                 // When no prompt version is configured, inject fallback instructions into USER content.
-                "${promptSelection.fallbackSystemPrompt.trim()}\n\n${request.extracted_text}"
+                "${promptSelection.fallbackSystemPrompt.trim()}\n\n$extractedText"
             } else {
-                request.extracted_text
+                extractedText
             }
 
         return listOf(
@@ -190,11 +242,6 @@ class LlmBankingReaderRequestedRoutingService(
         }
     }
 
-    private fun extractConfidence(llmOutput: Map<String, Any?>): Double {
-        val raw = llmOutput["extraction_confidence"] as? Number ?: return 0.0
-        return raw.toDouble().coerceIn(0.0, 1.0)
-    }
-
     private fun inferProviderName(modelName: String?): String? {
         if (modelName.isNullOrBlank()) return null
         val normalized = modelName.lowercase()
@@ -205,7 +252,57 @@ class LlmBankingReaderRequestedRoutingService(
         }
     }
 
+    private fun prepareTextForLlm(text: String): String {
+        val seen = mutableSetOf<String>()
+        return text.lines()
+            .mapNotNull { line ->
+                val trimmed = line.trim()
+                if (trimmed.isBlank()) return@mapNotNull null
+                val normalized =
+                    when {
+                        isMarkdownTableSeparator(trimmed) -> null
+                        trimmed.startsWith("|") -> convertMarkdownTableRowToPlainText(trimmed)
+                        else -> trimmed
+                    } ?: return@mapNotNull null
+                normalized.takeIf { seen.add(it) }
+            }
+            .joinToString("\n")
+    }
+
+    private fun isMarkdownTableSeparator(line: String): Boolean {
+        if (!line.startsWith("|")) return false
+        val cells =
+            line
+                .trim('|')
+                .split('|')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+        return cells.isNotEmpty() && cells.all { cell -> cell.matches(Regex(":?-{3,}:?")) }
+    }
+
+    private fun convertMarkdownTableRowToPlainText(line: String): String? {
+        val cells =
+            line
+                .trim('|')
+                .split('|')
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .filterNot { cell -> cell == "---" || cell.matches(Regex(":?-{3,}:?")) }
+
+        if (cells.isEmpty()) return null
+        if (cells.all { cell -> cell.matches(Regex(":?-{3,}:?")) }) return null
+        return cells.joinToString(" ")
+    }
+
+    private fun stripMarkdown(content: String): String {
+        val trimmed = content.trim()
+        val match = MARKDOWN_JSON_BLOCK.find(trimmed) ?: return trimmed
+        return match.groupValues[1].trim()
+    }
+
     private companion object {
         private const val REQUESTED_BY_SERVICE = "assistant-banking-reader"
+        private val log = LoggerFactory.getLogger(LlmBankingReaderRequestedRoutingService::class.java)
+        private val MARKDOWN_JSON_BLOCK = Regex("^```(?:json)?\\s*([\\s\\S]*?)```\\s*$", RegexOption.MULTILINE)
     }
 }

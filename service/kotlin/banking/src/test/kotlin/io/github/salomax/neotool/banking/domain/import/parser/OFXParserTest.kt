@@ -47,6 +47,7 @@ class OFXParserTest {
 
             assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.CREDIT_CARD_STATEMENT)
             assertThat(result.format).isEqualTo(OfxDocumentFormat.SGML)
+            assertThat(result.accountIdentifier).isEqualTo("****9988")
             assertThat(result.rows).hasSize(1)
             assertThat(result.rows[0].providerTransactionId).isEqualTo("cc-sgml-fitid-001")
         }
@@ -59,6 +60,7 @@ class OFXParserTest {
 
             assertThat(result.statementIntent).isEqualTo(OfxStatementIntent.CREDIT_CARD_STATEMENT)
             assertThat(result.format).isEqualTo(OfxDocumentFormat.XML)
+            assertThat(result.accountIdentifier).isEqualTo("****1122")
             assertThat(result.rows).hasSize(1)
             assertThat(result.rows[0].providerTransactionId).isEqualTo("cc-xml-fitid-001")
         }

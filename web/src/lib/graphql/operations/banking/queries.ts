@@ -69,6 +69,7 @@ export const ISSUERS = gql`
 export const TRANSACTIONS = gql`
   query Transactions(
     $financialAccountId: ID
+    $billId: ID
     $month: Int
     $year: Int
     $first: Int
@@ -76,6 +77,7 @@ export const TRANSACTIONS = gql`
   ) {
     transactions(
       financialAccountId: $financialAccountId
+      billId: $billId
       month: $month
       year: $year
       first: $first
@@ -99,6 +101,9 @@ export const TRANSACTIONS = gql`
           date
           status
           financialAccountId
+          billId
+          installmentNumber
+          totalInstallments
         }
       }
       pageInfo {
@@ -204,6 +209,28 @@ export const MONTH_SUMMARY = gql`
       projectedClosingBalance
       isCurrentMonth
       isFutureMonth
+      expensesByCategory {
+        category {
+          id
+          name
+          icon
+          color
+        }
+        totalAmount
+        transactionCount
+        percentage
+      }
+      incomeByCategory {
+        category {
+          id
+          name
+          icon
+          color
+        }
+        totalAmount
+        transactionCount
+        percentage
+      }
     }
   }
 `;
@@ -243,9 +270,9 @@ export const CREDIT_CARD_BILL = gql`
 `;
 
 /** Fetch a single PDF import job by ID — used for polling during extraction. */
-export const PDF_IMPORT_JOB = gql`
-  query PdfImportJob($jobId: ID!) {
-    pdfImportJob(jobId: $jobId) {
+export const BILL_IMPORT_JOB = gql`
+  query BillImportJob($jobId: ID!) {
+    billImportJob(jobId: $jobId) {
       id
       status
       fileName
@@ -255,13 +282,11 @@ export const PDF_IMPORT_JOB = gql`
       errorParameters
       reviewPayload {
         bankName
-        extractionConfidence
-        needsReview
-        warnings
+        reviewMode
         cards {
+          reviewCardId
           lastFourDigits
           holderName
-          confidence
           computedTotal
           declaredTotal
           totalMatchesDeclared
@@ -279,7 +304,6 @@ export const PDF_IMPORT_JOB = gql`
             amount
             creditDebitType
             isBillPayment
-            confidence
             installment {
               current
               total
@@ -313,6 +337,9 @@ export const TRANSACTIONS_BY_BILL = gql`
           date
           status
           financialAccountId
+          billId
+          installmentNumber
+          totalInstallments
         }
       }
       pageInfo {

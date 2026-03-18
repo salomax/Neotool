@@ -37,7 +37,6 @@ data class AssistantBankingPdfReaderDoneEvent(
 data class AssistantBankingPdfReaderParseMetadata(
     val processor_type: String = "LLM",
     val reader_id: String,
-    val confidence: Double,
     val model_provider: String? = null,
     val model_name: String? = null,
     val latency_ms: Int? = null,

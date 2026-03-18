@@ -89,6 +89,9 @@ import SelfImprovementIcon from '@mui/icons-material/SelfImprovement';
 import VolunteerActivismIcon from '@mui/icons-material/VolunteerActivism';
 import ForestIcon from '@mui/icons-material/Forest';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
+import HotelIcon from '@mui/icons-material/Hotel';
+import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
+import GavelIcon from '@mui/icons-material/Gavel';
 
 export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> = {
   payments: PaymentsIcon,
@@ -110,6 +113,7 @@ export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> 
   directions_car: DirectionsCarIcon,
   local_gas_station: LocalGasStationIcon,
   directions_bus: DirectionsBusIcon,
+  local_taxi: LocalTaxiIcon,
   smartphone: SmartphoneIcon,
   local_hospital: LocalHospitalIcon,
   medication: MedicationIcon,
@@ -117,12 +121,14 @@ export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> 
   health_and_safety: HealthAndSafetyIcon,
   school: SchoolIcon,
   account_balance: AccountBalanceIcon,
+  gavel: GavelIcon,
   menu_book: MenuBookIcon,
   edit: EditIcon,
   celebration: CelebrationIcon,
   movie: MovieIcon,
   fitness_center: FitnessCenterIcon,
   flight: FlightIcon,
+  hotel: HotelIcon,
   shopping_bag: ShoppingBagIcon,
   checkroom: CheckroomIcon,
   devices: DevicesIcon,
@@ -180,7 +186,109 @@ export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> 
   help_outline: HelpOutlineIcon,
 };
 
-export const CATEGORY_ICON_NAMES = Object.keys(categoryIconMap) as string[];
+export const CATEGORY_ICON_NAMES: string[] = [
+  'help_outline',
+
+  'payments',
+  'account_balance_wallet',
+  'account_balance',
+  'credit_card',
+  'savings',
+  'attach_money',
+  'currency_exchange',
+  'local_atm',
+  'receipt_long',
+  'bar_chart',
+  'pie_chart',
+  'trending_up',
+  'call_received',
+  'call_made',
+
+  'work',
+  'business_center',
+  'gavel',
+  'edit',
+
+  'home',
+  'apartment',
+  'key',
+  'chair',
+  'build',
+  'handyman',
+  'cleaning_services',
+  'shield',
+  'bolt',
+  'electric_bolt',
+  'water_drop',
+  'local_fire_department',
+
+  'restaurant',
+  'restaurant_menu',
+  'lunch_dining',
+  'ramen_dining',
+  'delivery_dining',
+  'local_cafe',
+  'local_bar',
+  'cake',
+
+  'shopping_cart',
+  'shopping_bag',
+  'store',
+  'checkroom',
+  'local_offer',
+  'redeem',
+
+  'directions_car',
+  'local_gas_station',
+  'directions_bus',
+  'local_taxi',
+  'train',
+  'directions_subway',
+  'two_wheeler',
+  'directions_boat',
+
+  'flight',
+  'hotel',
+  'luggage',
+  'beach_access',
+
+  'local_hospital',
+  'medication',
+  'medical_services',
+  'health_and_safety',
+  'favorite',
+  'spa',
+  'self_improvement',
+
+  'child_care',
+  'child_friendly',
+  'elderly',
+  'pets',
+  'volunteer_activism',
+
+  'celebration',
+  'movie',
+  'fitness_center',
+  'sports_esports',
+  'music_note',
+  'nightlife',
+
+  'smartphone',
+  'phone_iphone',
+  'wifi',
+  'cell_tower',
+  'devices',
+  'live_tv',
+  'headphones',
+  'autorenew',
+
+  'school',
+  'menu_book',
+  'book',
+  'science',
+  'agriculture',
+  'forest',
+];
 
 /** Color groups: each group has light + dark for clear contrast. Max 14 swatches. */
 export const CATEGORY_COLOR_GROUPS: ReadonlyArray<{ colors: string[] }> = [

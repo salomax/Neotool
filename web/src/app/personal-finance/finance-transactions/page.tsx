@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
@@ -18,11 +18,11 @@ import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { CreateFinancialAccountDrawer } from './components/CreateFinancialAccountDrawer';
 import { ImportTransactionsDrawer } from './components/ImportTransactionsDrawer';
-import { ImportBillDrawer } from './components/ImportBillDrawer';
+import { BillImportDrawer } from './components/BillImportDrawer';
 import { ScanNfceButton } from './components/ScanNfceButton';
 import { FinancialAccountSelector } from './components/FinancialAccountSelector';
 import { EmptyFinancialAccountsState } from './components/EmptyFinancialAccountsState';
-import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY, TRANSACTIONS_BY_BILL } from '@/lib/graphql/operations/banking/queries';
+import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
 import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { MonthYearCarousel } from './components/MonthYearCarousel';
@@ -31,7 +31,6 @@ import { MonthSummary, MonthSummaryData } from './components/MonthSummary';
 import { useAccountDisplayMode } from './hooks/useAccountDisplayMode';
 import { BillCarousel } from './components/BillCarousel';
 import { BillSummaryHeader } from './components/BillSummaryHeader';
-import dayjs from 'dayjs';
 
 export default function FinanceTransactionsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -55,32 +54,19 @@ export default function FinanceTransactionsPage() {
   const displayMode = useAccountDisplayMode(selectedAccount);
 
   const { 
-    data: calendarTransactionsData, 
-    loading: calendarTransactionsLoading, 
-    fetchMore: fetchMoreCalendar, 
-    refetch: refetchCalendarTransactions 
+    data: transactionsData, 
+    loading: transactionsLoading, 
+    fetchMore, 
+    refetch: refetchTransactions 
   } = useQuery<TransactionsQuery>(TRANSACTIONS, {
     variables: {
-      financialAccountId: selectedAccountId,
+      financialAccountId: displayMode.kind === 'calendar' ? selectedAccountId : undefined,
+      billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
       first: 20,
     },
-    skip: displayMode.kind !== 'calendar',
-    notifyOnNetworkStatusChange: true,
-  });
-
-  const { 
-    data: billTransactionsData, 
-    loading: billTransactionsLoading, 
-    fetchMore: fetchMoreBill, 
-    refetch: refetchBillTransactions 
-  } = useQuery<TransactionsQuery>(TRANSACTIONS_BY_BILL, {
-    variables: {
-      billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
-      first: 20,
-    },
-    skip: displayMode.kind !== 'bill' || !displayMode.selectedBill?.id,
+    skip: displayMode.kind === 'bill' && !displayMode.selectedBill?.id,
     notifyOnNetworkStatusChange: true,
   });
 
@@ -98,11 +84,6 @@ export default function FinanceTransactionsPage() {
     fetchPolicy: 'cache-and-network',
     skip: displayMode.kind !== 'calendar',
   });
-
-  const transactionsData = displayMode.kind === 'calendar' ? calendarTransactionsData : billTransactionsData;
-  const transactionsLoading = displayMode.kind === 'calendar' ? calendarTransactionsLoading : billTransactionsLoading;
-  const fetchMore = displayMode.kind === 'calendar' ? fetchMoreCalendar : fetchMoreBill;
-  const refetchTransactions = displayMode.kind === 'calendar' ? refetchCalendarTransactions : refetchBillTransactions;
 
   const { data: importsData, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
     variables: { financialAccountId: selectedAccountId },
@@ -130,16 +111,48 @@ export default function FinanceTransactionsPage() {
 
   const transactions = (transactionsData?.transactions?.edges?.map(edge => edge.node) || []) as Transaction[];
   const hasMore = transactionsData?.transactions?.pageInfo?.hasNextPage || false;
+  const endCursor = transactionsData?.transactions?.pageInfo?.endCursor ?? null;
+  const [isFetchingMore, setIsFetchingMore] = useState(false);
+  const isFetchingMoreRef = useRef(false);
 
-  const handleLoadMore = () => {
-    if (hasMore && !transactionsLoading) {
-      fetchMore({
-        variables: {
-          after: transactionsData?.transactions.pageInfo.endCursor,
-        },
-      });
-    }
-  };
+  const handleLoadMore = useCallback(() => {
+    if (!hasMore || !endCursor) return;
+    if (transactionsLoading || isFetchingMoreRef.current) return;
+
+    isFetchingMoreRef.current = true;
+    setIsFetchingMore(true);
+
+    fetchMore({
+      variables: {
+        after: endCursor,
+      },
+      updateQuery: (previousQueryResult, { fetchMoreResult }) => {
+        if (!fetchMoreResult?.transactions) return previousQueryResult;
+
+        const previousEdges = previousQueryResult.transactions?.edges ?? [];
+        const incomingEdges = fetchMoreResult.transactions.edges ?? [];
+
+        const mergedEdges = [...previousEdges, ...incomingEdges].filter((edge, index, allEdges) => {
+          const id = edge?.node?.id;
+          if (!id) return false;
+          return allEdges.findIndex((e) => e?.node?.id === id) === index;
+        });
+
+        return {
+          ...previousQueryResult,
+          transactions: {
+            ...previousQueryResult.transactions,
+            ...fetchMoreResult.transactions,
+            edges: mergedEdges,
+            pageInfo: fetchMoreResult.transactions.pageInfo,
+          },
+        };
+      },
+    }).finally(() => {
+      isFetchingMoreRef.current = false;
+      setIsFetchingMore(false);
+    });
+  }, [endCursor, fetchMore, hasMore, transactionsLoading]);
 
   const handleDateChange = (month: number, year: number) => {
     if (displayMode.kind === 'calendar') {
@@ -218,6 +231,8 @@ export default function FinanceTransactionsPage() {
                   error={monthSummaryError}
                   onRetry={() => refetchMonthSummary()}
                   isConsolidated={!selectedAccountId}
+                  expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
+                  incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
                 />
             ) : (
               <BillSummaryHeader 
@@ -304,7 +319,7 @@ export default function FinanceTransactionsPage() {
                 }}
               >
                 <ListItemIcon><AccountBalanceIcon fontSize="small" /></ListItemIcon>
-                Extrato bancário
+                {t('financeTransactions.import.menu.file')}
               </MenuItem>
               <MenuItem
                 onClick={() => {
@@ -313,13 +328,13 @@ export default function FinanceTransactionsPage() {
                 }}
               >
                 <ListItemIcon><CreditCardIcon fontSize="small" /></ListItemIcon>
-                Fatura do cartão
+                {t('financeTransactions.import.menu.cardBill')}
               </MenuItem>
             </Menu>
-            <ScanNfceButton
+            {/* <ScanNfceButton
               selectedAccountId={selectedAccountId}
               onImportCompleted={handleImportCompleted}
-            />
+            /> */}
             <Button
               sx={{ boxShadow: theme.shadows[4] }}
               variant="contained"
@@ -334,7 +349,7 @@ export default function FinanceTransactionsPage() {
           <TransactionTable 
             transactions={transactions} 
             financialAccounts={data?.financialAccounts}
-            loading={transactionsLoading} 
+            loading={transactionsLoading || isFetchingMore} 
             hasMore={hasMore} 
             onLoadMore={handleLoadMore} 
             isCreating={isCreatingTransaction}
@@ -366,11 +381,11 @@ export default function FinanceTransactionsPage() {
         onRequestCreateAccount={() => {
           setIsImportDrawerOpen(false);
           setReviewJobId(null);
-          handleOpenDrawer('BANK');
+          handleOpenDrawer();
         }}
         reviewJobId={reviewJobId ?? undefined}
       />
-      <ImportBillDrawer
+      <BillImportDrawer
         open={isImportBillDrawerOpen}
         onClose={() => setIsImportBillDrawerOpen(false)}
         onImportCompleted={handleImportCompleted}

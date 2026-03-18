@@ -6,11 +6,11 @@ import {
   Paper, 
   Link, 
   Avatar, 
+  Stack,
   List, 
   ListItemButton, 
   ListItemText, 
   ListItemIcon, 
-  Collapse, 
   Popover,
   Divider,
   useTheme,
@@ -24,7 +24,6 @@ import {
   Add as AddIcon,
   AccountBalance as BankIcon,
   CreditCard as CardIcon,
-  AccountBalanceWallet as WalletIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
@@ -39,12 +38,16 @@ interface FinancialAccountSelectorProps {
   onSelectAccount: (accountId: string | null) => void;
 }
 
-// Helper to format currency (mock for now if balance missing)
-const formatCurrency = (value: number, currency = 'BRL') => {
-  return new Intl.NumberFormat('pt-BR', {
-    style: 'currency',
-    currency: currency,
-  }).format(value);
+const getCardLastFourDigits = (account: FinancialAccount) => {
+  const raw = account.cardData?.maskedNumber || '';
+  const digits = raw.replace(/\D/g, '');
+  const last4 = digits.slice(-4);
+  return last4.length === 4 ? last4 : null;
+};
+
+const isCardAccount = (account: FinancialAccount) => {
+  if (account.cardData) return true;
+  return account.type === FinancialAccountType.Credit;
 };
 
 export function FinancialAccountSelector({ 
@@ -124,6 +127,9 @@ export function FinancialAccountSelector({
 
   // Render Single Account View (No Dropdown)
   if (!hasMultipleAccounts && singleAccount) {
+    const last4 = getCardLastFourDigits(singleAccount);
+    const showCardDetails = isCardAccount(singleAccount);
+
     return (
       <Box>
         <Paper
@@ -155,6 +161,16 @@ export function FinancialAccountSelector({
             <Typography variant="body2" color="text.secondary">
               {singleAccount.issuer?.name || singleAccount.issuerName}
             </Typography>
+            {showCardDetails && (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                {last4 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                    •••• {last4}
+                  </Typography>
+                )}
+              </Stack>
+            )}
           </Box>
         </Paper>
         
@@ -212,6 +228,9 @@ export function FinancialAccountSelector({
   }
 
   // Render Dropdown Trigger (Multiple Accounts)
+  const selectedLast4 = selectedAccount ? getCardLastFourDigits(selectedAccount) : null;
+  const showSelectedCardDetails = selectedAccount ? isCardAccount(selectedAccount) : false;
+
   return (
     <Box>
       <Paper
@@ -260,6 +279,16 @@ export function FinancialAccountSelector({
                 ? (selectedAccount.issuer?.name || selectedAccount.issuerName) 
                 : t('financeTransactions.selector.consolidatedView')}
             </Typography>
+            {showSelectedCardDetails && (
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                {selectedLast4 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                    •••• {selectedLast4}
+                  </Typography>
+                )}
+              </Stack>
+            )}
           </Box>
         </Box>
         {open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />}
@@ -395,20 +424,29 @@ export function FinancialAccountSelector({
                                         {!account.issuer?.logoAsset?.publicUrl && (account.type === FinancialAccountType.Bank ? <BankIcon fontSize="small" /> : <CardIcon fontSize="small" />)}
                                     </Avatar>
                                 </ListItemIcon>
+                                {(() => {
+                                  const last4 = getCardLastFourDigits(account);
+                                  const showCardDetails = isCardAccount(account);
+
+                                  return (
                                 <ListItemText 
-                                    primary={account.name}
-                                    secondary={
-                                        // Mock balance display
-                                        account.cardData?.availableCreditLimit 
-                                            ? formatCurrency(account.cardData.availableCreditLimit, account.currencyCode)
-                                            : formatCurrency(0, account.currencyCode)
-                                    }
-                                    primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
-                                    secondaryTypographyProps={{ 
-                                        variant: 'body2', 
-                                        color: account.cardData?.availableCreditLimit ? 'success.main' : 'text.secondary' 
-                                    }}
-                                />
+                                      primary={account.name}
+                                      secondary={
+                                        showCardDetails ? (
+                                            <Stack direction="row" spacing={0.5} alignItems="center">
+                                              <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                                              {last4 && (
+                                                <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                                  •••• {last4}
+                                                </Typography>
+                                              )}
+                                            </Stack>
+                                        ) : undefined
+                                      }
+                                      primaryTypographyProps={{ variant: 'body2', fontWeight: 'medium' }}
+                                    />
+                                  );
+                                })()}
                             </ListItemButton>
                         ))}
                     </List>

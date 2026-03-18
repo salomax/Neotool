@@ -14,6 +14,7 @@ from consumer import (
     _start_health_server,
 )
 from config import WorkerConfig
+from extractor import PdfPasswordRequiredError
 from schema import ExtractionMetadata, ExtractionResult, SubmittedPayload
 
 
@@ -154,3 +155,51 @@ def test_mark_ready_if_connected_requires_metadata_success() -> None:
     connected_state = WorkerHealthState()
     _mark_ready_if_connected(_ConnectedConsumer(), connected_state, last_check=0.0, check_interval_seconds=0.0)
     assert connected_state.snapshot() == (200, "ok")
+
+
+@patch("consumer.clean_extracted_text")
+@patch("consumer.extract_pdf_document")
+@patch("consumer.download_pdf")
+def test_process_message_forwards_password_to_extractor(
+    mock_download,
+    mock_extract,
+    mock_clean,
+):
+    submitted = SubmittedPayload(
+        job_id="job-3",
+        asset_id="asset-3",
+        download_url="https://signed-url",
+        password="super-secret",
+        document_type="CREDIT_CARD_BILL",
+        callback_context={"job_id": "job-3"},
+    )
+    mock_download.return_value = b"%PDF-1.7 fake"
+    mock_extract.return_value = ExtractionResult(
+        extracted_text="raw text",
+        metadata=ExtractionMetadata(
+            page_count=1,
+            tables_found=0,
+            bank_name_hint=None,
+            extraction_duration_ms=5,
+        ),
+    )
+    mock_clean.return_value = "clean text"
+
+    _process_message(submitted, _config())
+
+    mock_extract.assert_called_once_with(b"%PDF-1.7 fake", password="super-secret")
+
+
+def test_build_dlq_payload_sets_password_required_error_code() -> None:
+    submitted = SubmittedPayload(
+        job_id="job-4",
+        asset_id="asset-4",
+        download_url="https://signed-url",
+        document_type="CREDIT_CARD_BILL",
+        callback_context={"job_id": "job-4"},
+    )
+
+    dlq = _build_dlq_payload(submitted, b"{}", PdfPasswordRequiredError("password_required_or_invalid"))
+
+    assert dlq.error_code == "PDF_PASSWORD_REQUIRED"
+    assert "pdf_password_required" in dlq.error

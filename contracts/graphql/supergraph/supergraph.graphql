@@ -280,6 +280,84 @@ input BankAccountDataInput
   maskedNumber: String
 }
 
+type BillImportJob
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  importType: ImportType!
+  status: BillImportJobStatus!
+  fileName: String
+  createdAt: DateTime!
+  reviewPayload: BillImportReview
+  errorCode: String
+  errorParameters: JSON
+  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
+}
+
+enum BillImportJobStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  EXTRACTING @join__enumValue(graph: BANKING)
+  EXTRACTED @join__enumValue(graph: BANKING)
+  LLM_PROCESSING @join__enumValue(graph: BANKING)
+  AWAITING_REVIEW @join__enumValue(graph: BANKING)
+  IMPORTING @join__enumValue(graph: BANKING)
+  DONE @join__enumValue(graph: BANKING)
+  FAILED @join__enumValue(graph: BANKING)
+}
+
+type BillImportMatchCandidate
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+}
+
+type BillImportReview
+  @join__type(graph: BANKING)
+{
+  bankName: String
+  reviewMode: BillImportReviewMode!
+  statementPeriod: DateRange
+  cards: [BillImportReviewCard!]!
+}
+
+type BillImportReviewCard
+  @join__type(graph: BANKING)
+{
+  reviewCardId: ID!
+  lastFourDigits: String
+  holderName: String
+  closingDate: Date
+  dueDate: Date
+  declaredTotal: Float!
+  computedTotal: Float!
+  totalMatchesDeclared: Boolean!
+  transactions: [BillImportReviewTransaction!]!
+  matchedFinancialAccountId: ID
+  matchAmbiguous: Boolean!
+  matchCandidates: [BillImportMatchCandidate!]!
+}
+
+enum BillImportReviewMode
+  @join__type(graph: BANKING)
+{
+  CARD_BUCKET_MATCHING @join__enumValue(graph: BANKING)
+  TX_CARD_ASSIGNMENT @join__enumValue(graph: BANKING)
+}
+
+type BillImportReviewTransaction
+  @join__type(graph: BANKING)
+{
+  date: Date
+  description: String!
+  amount: Float!
+  creditDebitType: CreditDebitType!
+  installment: InstallmentInfo
+  isBillPayment: Boolean!
+}
+
 """
 Lifecycle status of a credit card bill (fatura).
 OPEN    → closingDate >= today (bill still accepting charges).
@@ -489,22 +567,24 @@ input ConfirmAssetUploadInput
   checksum: String
 }
 
-input ConfirmPdfBillImportInput
+input ConfirmBillImportInput
   @join__type(graph: BANKING)
 {
   jobId: ID!
-  cards: [ConfirmPdfCardInput!]!
+  closingDate: Date
+  dueDate: Date
+  cards: [ConfirmBillReviewCardInput!]!
 }
 
-input ConfirmPdfCardInput
+input ConfirmBillReviewCardInput
   @join__type(graph: BANKING)
 {
-  lastFourDigits: String!
+  reviewCardId: ID!
   financialAccountId: ID!
-  transactions: [ConfirmPdfTransactionInput!]!
+  transactions: [ConfirmBillReviewTransactionInput!]!
 }
 
-input ConfirmPdfTransactionInput
+input ConfirmBillReviewTransactionInput
   @join__type(graph: BANKING)
 {
   date: Date!
@@ -513,6 +593,7 @@ input ConfirmPdfTransactionInput
   creditDebitType: CreditDebitType!
   include: Boolean!
   isBillPayment: Boolean
+  installment: InstallmentInfoInput
 }
 
 enum ConnectionStatus
@@ -1194,6 +1275,7 @@ enum ImportStatus
   COMPLETED @join__enumValue(graph: BANKING)
   FAILED @join__enumValue(graph: BANKING)
   REVIEW_REQUIRED @join__enumValue(graph: BANKING)
+  REVIEW_CANCELLED @join__enumValue(graph: BANKING)
 }
 
 input ImportTransactionsFileInput
@@ -1221,6 +1303,13 @@ input IndicatorRangeInput
 }
 
 type InstallmentInfo
+  @join__type(graph: BANKING)
+{
+  current: Int!
+  total: Int!
+}
+
+input InstallmentInfoInput
   @join__type(graph: BANKING)
 {
   current: Int!
@@ -1489,8 +1578,9 @@ type Mutation
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
-  submitPdfBillImport(input: SubmitPdfBillImportInput!): PdfImportJob! @join__field(graph: BANKING)
-  confirmPdfBillImport(input: ConfirmPdfBillImportInput!): PdfImportJob! @join__field(graph: BANKING)
+  cancelImportReview(jobId: ID!): Boolean! @join__field(graph: BANKING)
+  submitBillImport(input: SubmitBillImportInput!): BillImportJob! @join__field(graph: BANKING)
+  confirmBillImport(input: ConfirmBillImportInput!): BillImportJob! @join__field(graph: BANKING)
 
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
@@ -1600,80 +1690,6 @@ enum PatternType
   STARTS_WITH @join__enumValue(graph: BANKING)
   EXACT @join__enumValue(graph: BANKING)
   REGEX @join__enumValue(graph: BANKING)
-}
-
-type PdfBillExtractionResult
-  @join__type(graph: BANKING)
-{
-  bankName: String
-  statementPeriod: DateRange
-  cards: [PdfExtractedCard!]!
-  extractionConfidence: Float!
-  needsReview: Boolean!
-  warnings: [String!]!
-}
-
-type PdfExtractedCard
-  @join__type(graph: BANKING)
-{
-  lastFourDigits: String!
-  holderName: String
-  closingDate: Date
-  dueDate: Date
-  declaredTotal: Float!
-  computedTotal: Float!
-  totalMatchesDeclared: Boolean!
-  transactions: [PdfExtractedTransaction!]!
-  matchedFinancialAccountId: ID
-  matchAmbiguous: Boolean!
-  matchCandidates: [PdfMatchCandidate!]!
-  confidence: Float!
-}
-
-type PdfExtractedTransaction
-  @join__type(graph: BANKING)
-{
-  date: Date
-  description: String!
-  amount: Float!
-  creditDebitType: CreditDebitType!
-  installment: InstallmentInfo
-  isBillPayment: Boolean!
-  confidence: Float!
-}
-
-type PdfImportJob
-  @join__type(graph: BANKING)
-{
-  id: ID!
-  importType: ImportType!
-  status: PdfImportJobStatus!
-  fileName: String
-  createdAt: DateTime!
-  reviewPayload: PdfBillExtractionResult
-  errorCode: String
-  errorParameters: JSON
-  errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
-}
-
-enum PdfImportJobStatus
-  @join__type(graph: BANKING)
-{
-  PENDING @join__enumValue(graph: BANKING)
-  EXTRACTING @join__enumValue(graph: BANKING)
-  EXTRACTED @join__enumValue(graph: BANKING)
-  LLM_PROCESSING @join__enumValue(graph: BANKING)
-  AWAITING_REVIEW @join__enumValue(graph: BANKING)
-  IMPORTING @join__enumValue(graph: BANKING)
-  DONE @join__enumValue(graph: BANKING)
-  FAILED @join__enumValue(graph: BANKING)
-}
-
-type PdfMatchCandidate
-  @join__type(graph: BANKING)
-{
-  id: ID!
-  name: String!
 }
 
 type Permission
@@ -1889,8 +1905,9 @@ type Query
   ): TransactionConnection! @join__field(graph: BANKING)
   transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
-  pdfImportJob(jobId: ID!): PdfImportJob @join__field(graph: BANKING)
-  pdfImportJobs(financialAccountId: ID): [PdfImportJob!]! @join__field(graph: BANKING)
+  pendingReviewImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
+  billImportJob(jobId: ID!): BillImportJob @join__field(graph: BANKING)
+  billImportJobs(financialAccountId: ID): [BillImportJob!]! @join__field(graph: BANKING)
 
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
@@ -2135,13 +2152,14 @@ type SignUpPayload
   requiresVerification: Boolean!
 }
 
-input SubmitPdfBillImportInput
+input SubmitBillImportInput
   @join__type(graph: BANKING)
 {
   importType: ImportType!
   financialAccountId: ID
   fileName: String!
   fileBase64: String!
+  password: String
 }
 
 type Subscription

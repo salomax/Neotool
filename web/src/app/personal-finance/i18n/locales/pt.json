@@ -139,6 +139,10 @@
           "dueDayInvalid": "Dia de vencimento inválido (1-31)",
           "invalidCurrencyFormat": "Formato de moeda inválido (máx 2 decimais)"
         },
+        "defaults": {
+          "creditCardType": "Crédito",
+          "noLastFour": "sem final"
+        },
         "enums": {
           "bankSubtype": {
             "CONTA_CORRENTE": "Conta Corrente",
@@ -176,6 +180,10 @@
     "import": {
       "title": "Importar Movimentações",
       "button": "Importar",
+      "menu": {
+        "file": "Extrato bancário",
+        "cardBill": "Fatura do cartão"
+      },
       "accountStep": {
         "title": "Selecione a conta para importar",
         "noAccounts": "Nenhuma conta encontrada. Crie uma conta para continuar a importação.",
@@ -225,6 +233,10 @@
         "recommendation": "Para um melhor resultado, priorize arquivos OFX. Eles fornecem dados padronizados e mais ricos em comparação com PDF ou CSV.",
         "dragDrop": "Arraste o arquivo ou clique para selecionar",
         "acceptedHint": "OFX · PDF · XLS/XLSX · CSV — até {{maxMb}} MB",
+        "encryptedDetected": "Este PDF está criptografado. Informe a senha da fatura para continuar.",
+        "passwordLabel": "Senha do PDF",
+        "passwordRequired": "Este PDF exige senha.",
+        "passwordInvalid": "Senha inválida. Tente novamente.",
         "submit": "Processar fatura",
         "submitting": "Enviando..."
       },
@@ -245,19 +257,62 @@
       },
       "cardMatchingStep": {
         "description": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
+        "flatAssignmentBanner": "Importamos as transações da fatura, mas o arquivo não trouxe a referência do cartão. Defina os cartões desta fatura e associe as transações antes de continuar.",
+        "flatSteps": {
+          "issuerTitle": "Definir emissor do cartão",
+          "issuerLabel": "Nome do emissor (banco)",
+          "issuerSelectedTitle": "{{issuer}} selecionado",
+          "loadingCards": "Carregando cartões...",
+          "issuerHasCardsMessage": "Encontramos {{count}} cartão(ões) registrados para este emissor. Você pode usá-los nos lançamentos no passo abaixo ou inserir novos finais.",
+          "issuerNoCardsMessage": "Não encontramos cartões registrados para este emissor. Crie um novo no passo abaixo.",
+          "selectIssuerFirst": "Selecione o emissor para continuar.",
+          "newCardDetailsTitle": "Detalhes do novo cartão",
+          "cardAssignmentTitle": "Associar cartões",
+          "cardAssignmentMessage": "Selecione um cartão existente para usar na atribuição dos lançamentos.",
+          "assignTransactionsTitle": "Atribuir lançamentos"
+        },
+        "cardDataSectionTitle": "Dados do cartão",
+        "availableTransactionsSectionTitle": "Transações disponíveis",
+        "assignmentProgressShort": "{{assigned}} de {{total}} atribuídas",
+        "lastFourChip": "Final {{lastFour}}",
+        "selectedCount": "{{count}} selecionados",
+        "floatingLastFourLabel": "Final (4 dígitos)",
+        "floatingApply": "Aplicar",
+        "customIssuer": "Outro emissor",
+        "customIssuerName": "Nome do emissor",
+        "templateIssuerHint": "Selecione o emissor comum desta fatura.",
+        "optionalField": "Opcional",
+        "descriptionBase": "Descrição base",
+        "descriptionBaseHint": "Se informar uma descrição, ela será usada como nome base ao criar os cartões.",
+        "previewLabel": "Prévia do nome: {{name}}",
+        "unassignedLastFour": "Sem final",
+        "noLastFourPlaceholder": "Sem final",
+        "ambiguousExistingCard": "Há mais de um cartão cadastrado com final {{lastFourDigits}}. Ajuste o emissor ou use o formulário completo.",
+        "templateInvalid": "Preencha os dados comuns do cartão antes de criar as contas.",
+        "templateLastFourRequired": "Informe o final do cartão ou use a opção de criar sem os 4 últimos dígitos.",
+        "templateCreateFailed": "Não foi possível criar os cartões com os dados informados.",
         "status": {
           "associated": "Associado",
           "pending": "Pendente"
         },
         "ambiguousWarning": "Múltiplos cartões com final {{lastFourDigits}} encontrados. Selecione o correto.",
+        "unnamedCard": "Cartão {{index}}",
+        "duplicateLastFour": "Este final já está sendo usado por outro cartão desta fatura.",
         "cardAccountLabel": "Conta do cartão",
         "cardAccountPlaceholder": "Selecione...",
         "createNewCard": "Cadastrar novo cartão",
         "txSummary": "{{count}} transação(ões) · total {{total}}",
+        "selectAll": "Selecionar todas",
         "reviewTransactions": "Revisar transações"
       },
       "txReviewStep": {
         "description": "Revise as transações antes de confirmar. Desmarque itens que não deseja importar.",
+        "billDatesTitle": "Datas da fatura",
+        "billDatesDescription": "Confira o fechamento e informe o vencimento quando o arquivo não trouxer essa data.",
+        "closingDateLabel": "Data de fechamento",
+        "closingDateHint": "Usamos essa data para identificar a fatura correta.",
+        "dueDateLabel": "Data de vencimento",
+        "dueDateHint": "A data de vencimento deve ser igual ou posterior à data de fechamento.",
         "paymentChip": "Pagamento",
         "confirming": "Confirmando...",
         "confirmButton": "Confirmar {{count}} transação(ões)"
@@ -273,6 +328,7 @@
         "uploadTitle": "Importar fatura",
         "processingTitle": "Processando...",
         "cardMatchingTitle": "Associar cartões",
+        "assignmentTitle": "Associar cartões aos lançamentos",
         "txReviewTitle": "Revisar transações",
         "resultTitle": "Importação concluída",
         "errorTitle": "Erro na importação"
@@ -280,6 +336,7 @@
       "errorStep": {
         "title": "Erro na importação",
         "retry": "Tentar novamente",
+        "passwordInvalid": "A senha do PDF está incorreta. Verifique e tente novamente.",
         "generic": "Houve um erro na importação que impossibilitou o processamento no momento. Tente novamente mais tarde.",
         "processingUnavailable": "No momento não foi possível processar esta fatura. Tente novamente mais tarde."
       }
@@ -313,15 +370,23 @@
         "amount": "Valor",
         "currency": "Moeda"
       },
-      "emptyState": "Nenhuma transação encontrada"
+      "emptyState": "Nenhuma transação encontrada",
+      "rowActions": {
+        "ariaLabel": "Ações da transação",
+        "edit": "Editar",
+        "remove": "Remover"
+      }
     },
     "monthSummary": {
       "income": "Receitas",
       "expenses": "Despesas",
       "balance": "Saldo",
       "total": "do total",
-      "expensesByCategory": "Maiores despesas",
+      "expensesByCategory": "Despesas por Categoria",
+      "incomeByCategory": "Receitas por Categoria",
+      "seeAll": "Ver todos",
       "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
+      "noCategorizedIncome": "Nenhuma receita categorizada neste mês",
       "totalExpenses": "Total despesas",
       "consolidatedTooltip": "Inclui saldo de cartões como passivo.",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",

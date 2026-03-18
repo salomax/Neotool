@@ -125,6 +125,7 @@ export const REFRESH_ACCESS_TOKEN = gql`
   mutation RefreshAccessToken($input: RefreshAccessTokenInput!) {
     refreshAccessToken(input: $input) {
       token
+      refreshToken
       user {
         id
         email

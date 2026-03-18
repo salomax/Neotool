@@ -6,10 +6,15 @@ import time
 from typing import Optional
 
 import pdfplumber
+from pdfminer.pdfdocument import PDFPasswordIncorrect
 
 from schema import ExtractionMetadata, ExtractionResult
 
 class ExtractionError(RuntimeError):
+    pass
+
+
+class PdfPasswordRequiredError(ExtractionError):
     pass
 
 BANK_HINT_PATTERNS = [
@@ -22,32 +27,40 @@ BANK_HINT_PATTERNS = [
 ]
 
 
-def extract_pdf_document(pdf_bytes: bytes) -> ExtractionResult:
+def extract_pdf_document(pdf_bytes: bytes, password: Optional[str] = None) -> ExtractionResult:
     started = time.perf_counter()
     sections: list[str] = []
     tables_found = 0
     first_page_text = ""
 
-    with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
-        page_count = len(pdf.pages)
-        for page_number, page in enumerate(pdf.pages, start=1):
-            page_blocks: list[str] = []
+    try:
+        with pdfplumber.open(io.BytesIO(pdf_bytes), password=password) as pdf:
+            page_count = len(pdf.pages)
+            for page_number, page in enumerate(pdf.pages, start=1):
+                page_blocks: list[str] = []
 
-            tables = page.extract_tables() or []
-            for table in tables:
-                markdown = _table_to_markdown(table)
-                if markdown:
-                    page_blocks.append(markdown)
-                    tables_found += 1
+                tables = page.extract_tables() or []
+                for table in tables:
+                    markdown = _table_to_markdown(table)
+                    if markdown:
+                        page_blocks.append(markdown)
+                        tables_found += 1
 
-            plain_text = (page.extract_text() or "").strip()
-            if page_number == 1:
-                first_page_text = plain_text
-            if plain_text:
-                page_blocks.append(plain_text)
+                plain_text = (page.extract_text() or "").strip()
+                if page_number == 1:
+                    first_page_text = plain_text
+                if plain_text:
+                    page_blocks.append(plain_text)
 
-            if page_blocks:
-                sections.append(f"--- Page {page_number} ---\n" + "\n\n".join(page_blocks))
+                if page_blocks:
+                    sections.append(f"--- Page {page_number} ---\n" + "\n\n".join(page_blocks))
+    except PDFPasswordIncorrect as exc:
+        raise PdfPasswordRequiredError("password_required_or_invalid") from exc
+    except Exception as exc:
+        message = str(exc).lower()
+        if "password" in message or "encrypted" in message:
+            raise PdfPasswordRequiredError("password_required_or_invalid") from exc
+        raise
 
     extracted_text = "\n\n".join(sections).strip()
     if not extracted_text:

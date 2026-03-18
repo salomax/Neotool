@@ -81,7 +81,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
     expect(screen.getByText('Conta XP')).toBeInTheDocument();
   });
 
-  it('givenConsolidatedView_whenRendered_thenFiltersOutCards', () => {
+  it('givenConsolidatedView_whenRendered_thenShowsCards', () => {
     mockUseQuery.mockReturnValue({
       data: {
         financialAccounts: [
@@ -109,7 +109,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
     );
 
     expect(screen.queryAllByText('Conta XP').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('Cartao Gold').length).toBe(0);
+    expect(screen.queryAllByText('Cartao Gold').length).toBeGreaterThan(0);
   });
 
   it('givenDuplicateImportError_whenSubmit_thenShowsFriendlyTranslatedError', async () => {

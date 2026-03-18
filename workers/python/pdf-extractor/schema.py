@@ -23,6 +23,7 @@ class SubmittedPayload(BaseModel):
     job_id: str
     asset_id: Optional[str] = None
     download_url: str
+    password: Optional[str] = None
     document_type: str
     callback_context: dict[str, Any] = Field(default_factory=dict)
 
@@ -32,4 +33,5 @@ class DlqPayload(BaseModel):
     asset_id: Optional[str] = None
     document_type: Optional[str] = None
     error: str
+    error_code: Optional[str] = None
     callback_context: dict[str, Any] = Field(default_factory=dict)

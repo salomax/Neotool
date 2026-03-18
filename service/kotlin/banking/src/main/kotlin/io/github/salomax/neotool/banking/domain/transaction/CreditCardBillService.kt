@@ -120,6 +120,28 @@ open class CreditCardBillService(
         ).id!!
     }
 
+    /**
+     * Returns the bill UUID for an explicitly reviewed import cycle.
+     *
+     * Unlike [resolveBillForTransaction], this does not derive the cycle from account card settings.
+     * It trusts the already-reviewed [closingDate]/[dueDate] pair and uses them directly.
+     */
+    fun resolveBillForReviewedCycle(
+        account: FinancialAccount,
+        closingDate: LocalDate,
+        dueDate: LocalDate,
+        type: TransactionType,
+    ): UUID? {
+        if (account.subtype !in CARD_SUBTYPES) return null
+        if (type == TransactionType.BALANCE_ADJUSTMENT) return null
+        return billRepository.findOrCreate(
+            financialAccountId = account.id!!,
+            accountId = account.accountId,
+            closingDate = closingDate,
+            dueDate = dueDate,
+        ).id!!
+    }
+
     // ── Recompute ─────────────────────────────────────────────────────────────
 
     /**

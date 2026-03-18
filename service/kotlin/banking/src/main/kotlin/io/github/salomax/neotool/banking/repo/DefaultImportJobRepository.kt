@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.repo
 
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
+import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.model.importjob.TransactionImportMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -48,6 +49,22 @@ open class DefaultImportJobRepository(
     override fun findByAccount(accountId: UUID): List<ImportJob> =
         entityRepository.findByAccountIdOrderByCreatedAtDesc(accountId)
             .map(TransactionImportMapper::toDomain)
+
+    override fun findPendingReviews(
+        accountId: UUID,
+        financialAccountId: UUID?,
+    ): List<ImportJob> {
+        val status = ImportJobStatus.REVIEW_REQUIRED
+        return if (financialAccountId != null) {
+            entityRepository.findByFinancialAccountIdAndAccountIdAndStatusOrderByCreatedAtDesc(
+                financialAccountId,
+                accountId,
+                status,
+            )
+        } else {
+            entityRepository.findByAccountIdAndStatusOrderByCreatedAtDesc(accountId, status)
+        }.map(TransactionImportMapper::toDomain)
+    }
 
     @Transactional
     override fun markAssistantRequestPublished(id: UUID): Boolean {

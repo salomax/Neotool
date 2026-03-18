@@ -9,7 +9,12 @@ from confluent_kafka import Producer
 
 class KafkaPublisher:
     def __init__(self, broker: str, topic_out: str, topic_dlq: str) -> None:
-        self._producer = Producer({"bootstrap.servers": broker})
+        self._producer = Producer(
+            {
+                "bootstrap.servers": broker,
+                "broker.address.family": "v4",
+            }
+        )
         self._topic_out = topic_out
         self._topic_dlq = topic_dlq
 

@@ -1,4 +1,7 @@
 ALTER TABLE banking.pdf_import_jobs
+    ADD COLUMN IF NOT EXISTS assistant_response JSONB;
+
+ALTER TABLE banking.pdf_import_jobs
     ADD COLUMN import_type TEXT NOT NULL DEFAULT 'CREDIT_CARD_BILL';
 
 ALTER TABLE banking.pdf_import_jobs

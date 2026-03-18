@@ -18,6 +18,7 @@ import {
   alpha,
 } from '@mui/material';
 import { CloudUpload as UploadIcon, Add as AddIcon, AccountBalance as BankIcon, InsertDriveFile as FileIcon, TipsAndUpdates as TipsAndUpdatesIcon } from '@mui/icons-material';
+import { CreditCard as CreditCardIcon } from '@mui/icons-material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
@@ -95,7 +96,8 @@ export function ImportTransactionsDrawer({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
-  const canUseSelectedBankAccount = !!selectedAccountId && selectedAccountType === 'BANK';
+  const isImportableAccountType = (type: FinancialAccount['type'] | null | undefined) => type === 'BANK' || type === 'CREDIT';
+  const canUseSelectedImportableAccount = !!selectedAccountId && isImportableAccountType(selectedAccountType);
 
   React.useEffect(() => {
     if (!open) return;
@@ -104,15 +106,15 @@ export function ImportTransactionsDrawer({
       setStep('review');
       return;
     }
-    setTargetAccountId(canUseSelectedBankAccount ? selectedAccountId : null);
-    setStep(canUseSelectedBankAccount ? 'upload' : 'account');
+    setTargetAccountId(canUseSelectedImportableAccount ? selectedAccountId : null);
+    setStep(canUseSelectedImportableAccount ? 'upload' : 'account');
     setFile(null);
     setFileError(null);
     setJobId(null);
     setLastEvent(null);
     setErrorMessage(null);
     setErrorDetails(null);
-  }, [open, reviewJobId, selectedAccountId, canUseSelectedBankAccount]);
+  }, [open, reviewJobId, selectedAccountId, canUseSelectedImportableAccount]);
 
   const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
@@ -120,7 +122,7 @@ export function ImportTransactionsDrawer({
   const { data: accountsData, loading: accountsLoading } = useQuery<{ financialAccounts: FinancialAccount[] }>(
     FINANCIAL_ACCOUNTS,
     {
-      skip: !open || canUseSelectedBankAccount,
+      skip: !open || canUseSelectedImportableAccount,
       errorPolicy: 'all',
     },
   );
@@ -128,14 +130,14 @@ export function ImportTransactionsDrawer({
   const handleClose = useCallback(() => {
     onClose();
     setStep('account');
-    setTargetAccountId(canUseSelectedBankAccount ? selectedAccountId : null);
+    setTargetAccountId(canUseSelectedImportableAccount ? selectedAccountId : null);
     setFile(null);
     setFileError(null);
     setJobId(null);
     setLastEvent(null);
     setErrorMessage(null);
     setErrorDetails(null);
-  }, [onClose, selectedAccountId, canUseSelectedBankAccount]);
+  }, [onClose, selectedAccountId, canUseSelectedImportableAccount]);
 
   useImportJobStatus(jobId, {
     onEvent: setLastEvent,
@@ -247,7 +249,7 @@ export function ImportTransactionsDrawer({
 
   const renderAccountStep = () => {
     const accounts = accountsData?.financialAccounts ?? [];
-    const filteredAccounts = accounts.filter((account) => account.type === 'BANK');
+    const filteredAccounts = accounts.filter((account) => isImportableAccountType(account.type));
     return (
       <Box sx={{ p: 1 }}>
         <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
@@ -270,7 +272,7 @@ export function ImportTransactionsDrawer({
                     src={account.issuer?.logoAsset?.publicUrl ?? undefined}
                     sx={{ mr: 2, borderRadius: 1.25, bgcolor: account.themeColor || 'primary.main' }}
                   >
-                    <BankIcon />
+                    {account.type === 'CREDIT' ? <CreditCardIcon /> : <BankIcon />}
                   </Avatar>
                   <ListItemText
                     primary={account.name}

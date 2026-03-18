@@ -33,6 +33,11 @@ interface ImportJobRepository {
 
     fun findByAccount(accountId: UUID): List<ImportJob>
 
+    fun findPendingReviews(
+        accountId: UUID,
+        financialAccountId: UUID?,
+    ): List<ImportJob>
+
     /**
      * Marks assistant request as published once.
      * Returns true when marker was set in this call, false when already marked.

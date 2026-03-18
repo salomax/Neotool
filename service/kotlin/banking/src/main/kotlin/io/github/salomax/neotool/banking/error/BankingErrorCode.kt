@@ -11,6 +11,58 @@ enum class BankingErrorCode(
     override val defaultMessage: String,
     override val httpStatus: Int = 400,
 ) : ErrorCode {
+    // Category errors
+    CATEGORY_NOT_FOUND(
+        "CATEGORY_NOT_FOUND",
+        "Category not found",
+        404,
+    ),
+    CATEGORY_DEPTH_EXCEEDED(
+        "CATEGORY_DEPTH_EXCEEDED",
+        "Category hierarchy depth exceeded",
+        422,
+    ),
+    CATEGORY_SYSTEM_NOT_EDITABLE(
+        "CATEGORY_SYSTEM_NOT_EDITABLE",
+        "System categories cannot be modified",
+        409,
+    ),
+    CATEGORY_APPLICABLE_TO_MISMATCH(
+        "CATEGORY_APPLICABLE_TO_MISMATCH",
+        "Category applicable type is not compatible with parent category",
+        422,
+    ),
+    CATEGORY_NAME_ALREADY_EXISTS(
+        "CATEGORY_NAME_ALREADY_EXISTS",
+        "Category name already exists",
+        409,
+    ),
+    CATEGORY_RULE_NOT_FOUND(
+        "CATEGORY_RULE_NOT_FOUND",
+        "Category rule not found",
+        404,
+    ),
+    CATEGORY_RULE_SYSTEM_NOT_DELETABLE(
+        "CATEGORY_RULE_SYSTEM_NOT_DELETABLE",
+        "System category rules cannot be deleted",
+        409,
+    ),
+    CATEGORY_RULE_SYSTEM_NOT_EDITABLE(
+        "CATEGORY_RULE_SYSTEM_NOT_EDITABLE",
+        "System category rules cannot be modified",
+        409,
+    ),
+    CATEGORY_RULE_DUPLICATE(
+        "CATEGORY_RULE_DUPLICATE",
+        "A category rule with the same pattern and type already exists",
+        409,
+    ),
+    CATEGORY_RULE_INVALID_REGEX(
+        "CATEGORY_RULE_INVALID_REGEX",
+        "Invalid REGEX pattern",
+        422,
+    ),
+
     // Import lifecycle errors
     IMPORT_FILE_ALREADY_EXISTS(
         "IMPORT_FILE_ALREADY_EXISTS",
@@ -60,6 +112,11 @@ enum class BankingErrorCode(
     IMPORT_FILE_FORMAT_NOT_SUPPORTED(
         "IMPORT_FILE_FORMAT_NOT_SUPPORTED",
         "Import file format is not supported",
+        422,
+    ),
+    PDF_PASSWORD_REQUIRED(
+        "PDF_PASSWORD_REQUIRED",
+        "The PDF is password-protected and requires a valid password",
         422,
     ),
     IMPORT_OFX_DESTINATION_MISMATCH(

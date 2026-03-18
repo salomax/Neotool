@@ -370,4 +370,160 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(loaded!!.tags).containsExactlyInAnyOrder("A", "B")
         }
     }
+
+    @Nested
+    @DisplayName("findInDateRange")
+    inner class FindInDateRangeTests {
+        @Test
+        fun `when financialAccountId is null CARD installment uses bill due month and BANK keeps transaction date`() {
+            val cardFinancialAccountId = UUID.randomUUID()
+            val billId = UUID.randomUUID()
+            val januaryDate = LocalDate.of(2026, 1, 15)
+            val februaryDate = LocalDate.of(2026, 2, 15)
+
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.financial_accounts (id, account_id, created_by_user_id, type, subtype, name, currency_code, created_at, updated_at)
+                    VALUES ('$cardFinancialAccountId', '$accountId', '$userId', 'CREDIT', 'CREDIT_CARD', 'IT Card', 'BRL', NOW(), NOW())
+                    """.trimIndent(),
+                )
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.credit_card_bills (id, financial_account_id, account_id, closing_date, due_date, status, created_at, updated_at)
+                    VALUES ('$billId', '$cardFinancialAccountId', '$accountId', '2026-01-31', '2026-02-10', 'OPEN', NOW(), NOW())
+                    """.trimIndent(),
+                )
+            }
+
+            val installmentTwo =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = cardFinancialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.CARD,
+                        amount = BigDecimal("150.00"),
+                        date = januaryDate,
+                        description = "Card installment 2",
+                        billId = billId,
+                        installmentNumber = 2,
+                        totalInstallments = 3,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            val installmentOne =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = cardFinancialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.CARD,
+                        amount = BigDecimal("150.00"),
+                        date = januaryDate.minusDays(1),
+                        description = "Card installment 1",
+                        billId = billId,
+                        installmentNumber = 1,
+                        totalInstallments = 3,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            val bankFebruaryTx =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.OTHER_EXPENSE,
+                        amount = BigDecimal("70.00"),
+                        date = februaryDate,
+                        description = "Bank February",
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            val februaryRows =
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = 2026,
+                    month = 2,
+                )
+            val januaryRows =
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = 2026,
+                    month = 1,
+                )
+
+            assertThat(februaryRows.mapNotNull { it.id }).contains(installmentTwo.id, bankFebruaryTx.id)
+            assertThat(februaryRows.mapNotNull { it.id }).doesNotContain(installmentOne.id)
+            assertThat(januaryRows.mapNotNull { it.id }).contains(installmentOne.id)
+            assertThat(januaryRows.mapNotNull { it.id }).doesNotContain(installmentTwo.id, bankFebruaryTx.id)
+        }
+
+        @Test
+        fun `when bill is missing CARD installment falls back to transaction date`() {
+            val cardFinancialAccountId = UUID.randomUUID()
+            val marchDate = LocalDate.of(2026, 3, 5)
+
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.financial_accounts (id, account_id, created_by_user_id, type, subtype, name, currency_code, created_at, updated_at)
+                    VALUES ('$cardFinancialAccountId', '$accountId', '$userId', 'CREDIT', 'CREDIT_CARD', 'IT Card (No Bill)', 'BRL', NOW(), NOW())
+                    """.trimIndent(),
+                )
+            }
+
+            val installmentWithoutBill =
+                transactionRepository.save(
+                    Transaction(
+                        financialAccountId = cardFinancialAccountId,
+                        accountId = accountId,
+                        createdByUserId = userId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.CARD,
+                        amount = BigDecimal("99.00"),
+                        date = marchDate,
+                        description = "Card installment without bill",
+                        installmentNumber = 2,
+                        totalInstallments = 3,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+
+            val marchRows =
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = 2026,
+                    month = 3,
+                )
+            val aprilRows =
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = 2026,
+                    month = 4,
+                )
+
+            assertThat(marchRows.mapNotNull { it.id }).contains(installmentWithoutBill.id)
+            assertThat(aprilRows.mapNotNull { it.id }).doesNotContain(installmentWithoutBill.id)
+        }
+    }
 }

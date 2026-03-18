@@ -18,7 +18,7 @@ data class AssistantBankingReaderRequestedEvent(
     val source_topic: String? = null,
     val extracted_text: String,
     val extraction_metadata: Map<String, Any?>,
-    val callback_context: PdfImportCallbackContext,
+    val callback_context: ImportCallbackContext,
 )
 
 @KafkaClient

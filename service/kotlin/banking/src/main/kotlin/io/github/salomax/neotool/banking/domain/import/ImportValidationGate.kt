@@ -4,7 +4,6 @@ import jakarta.inject.Singleton
 
 data class ImportValidationQuality(
     val processorType: CanonicalProcessorType?,
-    val confidence: Double?,
     val warnings: List<String> = emptyList(),
 )
 
@@ -23,10 +22,6 @@ data class ImportValidationCounters(
 
 @Singleton
 open class ImportValidationGate {
-    companion object {
-        private const val MIN_LLM_CONFIDENCE = 0.85
-    }
-
     fun evaluateBeforeCommit(
         quality: ImportValidationQuality,
         totalRows: Int,
@@ -56,21 +51,6 @@ open class ImportValidationGate {
                         "gate_reason" to "llm_invalid_rows",
                         "processor_type" to processorType.name,
                         "invalid_row_count" to invalidRowCount,
-                    ),
-            )
-        }
-
-        val confidence = (quality.confidence ?: 1.0).coerceIn(0.0, 1.0)
-        if (confidence < MIN_LLM_CONFIDENCE) {
-            return ImportValidationPreDecision(
-                status = ImportJobStatus.REVIEW_REQUIRED,
-                reason = "llm_low_confidence",
-                details =
-                    mapOf(
-                        "gate_reason" to "llm_low_confidence",
-                        "processor_type" to processorType.name,
-                        "confidence" to confidence,
-                        "threshold" to MIN_LLM_CONFIDENCE,
                     ),
             )
         }
