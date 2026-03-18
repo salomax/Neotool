@@ -30,10 +30,10 @@ class BankingWiringFactory(
     private val financialAccountResolver: FinancialAccountResolver,
     private val transactionResolver: TransactionResolver,
     private val transactionCategoryResolver: TransactionCategoryResolver,
+    private val investmentResolver: InvestmentResolver,
+
     private val importResolver: ImportResolver,
-    private val investmentResolver: InvestmentResolver,
     private val billImportResolver: BillImportResolver,
-    private val investmentResolver: InvestmentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
