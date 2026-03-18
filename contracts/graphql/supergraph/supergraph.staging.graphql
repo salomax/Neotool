@@ -21,6 +21,18 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+"""
+ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
+"""
+enum AnbimaCategory
+  @join__type(graph: BANKING)
+{
+  RENDA_FIXA @join__enumValue(graph: BANKING)
+  ACOES @join__enumValue(graph: BANKING)
+  MULTIMERCADO @join__enumValue(graph: BANKING)
+  CAMBIAL @join__enumValue(graph: BANKING)
+}
+
 """Asset metadata and access information."""
 type Asset
   @join__type(graph: ASSETS, key: "id")
@@ -113,6 +125,39 @@ enum AssetStatus
 
   """Asset deleted"""
   DELETED @join__enumValue(graph: ASSETS)
+}
+
+"""Asset class (classe de ativo). Drives pricing model and tax treatment."""
+enum AssetType
+  @join__type(graph: BANKING)
+{
+  STOCK @join__enumValue(graph: BANKING)
+  STOCK_RIGHTS @join__enumValue(graph: BANKING)
+  BDR @join__enumValue(graph: BANKING)
+  REAL_ESTATE_FUND @join__enumValue(graph: BANKING)
+  AGRIBUSINESS_FUND @join__enumValue(graph: BANKING)
+  ETF @join__enumValue(graph: BANKING)
+  ETF_FIXED_INCOME @join__enumValue(graph: BANKING)
+  ETF_INTERNATIONAL @join__enumValue(graph: BANKING)
+  CDB @join__enumValue(graph: BANKING)
+  RDB @join__enumValue(graph: BANKING)
+  LCI @join__enumValue(graph: BANKING)
+  LCA @join__enumValue(graph: BANKING)
+  LC @join__enumValue(graph: BANKING)
+  LF @join__enumValue(graph: BANKING)
+  LIG @join__enumValue(graph: BANKING)
+  DEBENTURES @join__enumValue(graph: BANKING)
+  CRI @join__enumValue(graph: BANKING)
+  CRA @join__enumValue(graph: BANKING)
+  TREASURY @join__enumValue(graph: BANKING)
+  MUTUAL_FUND @join__enumValue(graph: BANKING)
+  PGBL @join__enumValue(graph: BANKING)
+  VGBL @join__enumValue(graph: BANKING)
+  COE @join__enumValue(graph: BANKING)
+  CRYPTO @join__enumValue(graph: BANKING)
+  OPTION @join__enumValue(graph: BANKING)
+  DERIVATIVES @join__enumValue(graph: BANKING)
+  OTHER @join__enumValue(graph: BANKING)
 }
 
 """Asset visibility level - determines access control and URL generation."""
@@ -372,6 +417,47 @@ enum BillStatus
   CLOSED @join__enumValue(graph: BANKING)
   PAID @join__enumValue(graph: BANKING)
   OVERDUE @join__enumValue(graph: BANKING)
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem).
+1:1 with InvestmentTransaction. Present only for renda variável transactions.
+All fee fields are zero when not charged.
+"""
+type BrokerNote
+  @join__type(graph: BANKING)
+{
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float!
+  clearingSettlementFee: Float!
+  clearingRegistrationFee: Float!
+  stockExchangeAssetTradeNoticeFee: Float!
+  stockExchangeFee: Float!
+  clearingCustodyFee: Float!
+  incomeTax: Float!
+  taxes: Float!
+  netValue: Float!
+  createdAt: DateTime!
+}
+
+"""
+Fee breakdown from a broker note (nota de corretagem). All fields default to zero.
+"""
+input BrokerNoteInput
+  @join__type(graph: BANKING)
+{
+  brokerNoteNumber: String
+  grossValue: Float!
+  brokerageFee: Float
+  clearingSettlementFee: Float
+  clearingRegistrationFee: Float
+  stockExchangeAssetTradeNoticeFee: Float
+  stockExchangeFee: Float
+  clearingCustodyFee: Float
+  incomeTax: Float
+  taxes: Float
+  netValue: Float!
 }
 
 enum BudgetPeriod
@@ -728,6 +814,23 @@ input CreateGroupInput
   userIds: [ID!]
 }
 
+"""
+Creates a global investment asset entry.
+Assets are not tenant-scoped and can be reused across accounts.
+"""
+input CreateInvestmentAssetInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  ticker: String
+  isinCode: String
+
+  """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
 input CreatePromptInput
   @join__type(graph: ASSISTANT)
 {
@@ -902,6 +1005,14 @@ type EconomicIndicator
   createdAt: DateTime!
   updatedAt: DateTime!
   variations(label: String): [EconomicIndicatorVariation!]!
+}
+
+type EconomicIndicatorLatestItem
+  @join__type(graph: FINANCIALDATA)
+{
+  indicator: String!
+  variation: String!
+  latest: EconomicIndicatorPoint
 }
 
 type EconomicIndicatorPoint
@@ -1149,6 +1260,14 @@ type FixedIncomeTaxMethodology
   bracketTable: [FixedIncomeTaxBracket!]!
 }
 
+type FundDailyNav
+  @join__type(graph: FINANCIALDATA)
+{
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+}
+
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -1246,6 +1365,24 @@ enum ImportType
   BANK_STATEMENT @join__enumValue(graph: BANKING)
 }
 
+"""Fixed income indexer (referenciador). Only applicable to RF holdings."""
+enum Indexer
+  @join__type(graph: BANKING)
+{
+  CDI @join__enumValue(graph: BANKING)
+  DI @join__enumValue(graph: BANKING)
+  TR @join__enumValue(graph: BANKING)
+  IPCA @join__enumValue(graph: BANKING)
+  IGP_M @join__enumValue(graph: BANKING)
+  IGP_DI @join__enumValue(graph: BANKING)
+  INPC @join__enumValue(graph: BANKING)
+  BCP @join__enumValue(graph: BANKING)
+  TLC @join__enumValue(graph: BANKING)
+  SELIC @join__enumValue(graph: BANKING)
+  PRE_FIXADO @join__enumValue(graph: BANKING)
+  OUTROS @join__enumValue(graph: BANKING)
+}
+
 input IndicatorRangeInput
   @join__type(graph: FINANCIALDATA)
 {
@@ -1280,6 +1417,234 @@ type InstitutionRating
   updatedAt: DateTime!
 }
 
+"""
+Global investable instrument from the asset catalog.
+Equities are identified by ticker; fixed income by isinCode; funds by fundCnpj.
+Market prices are NOT stored here — fetched from financial-data at query time.
+"""
+type InvestmentAsset
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  ticker: String
+  isinCode: String
+  name: String!
+  assetType: AssetType!
+  exchange: String
+  currencyCode: String!
+  issuerCnpj: String
+  issuerName: String
+  fundCnpj: String
+  anbimaCategory: AnbimaCategory
+  anbimaClass: String
+  anbimaSubclass: String
+
+  """
+  B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001.
+  """
+  priceFactor: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type InvestmentFund
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+  latestNav: FundDailyNav
+  priceHistory(from: Date, to: Date, last: Int): [FundDailyNav!]!
+}
+
+enum InvestmentFundAssetType
+  @join__type(graph: FINANCIALDATA)
+{
+  FIXED_INCOME_FUND @join__enumValue(graph: FINANCIALDATA)
+  EQUITY_FUND @join__enumValue(graph: FINANCIALDATA)
+  MULTI_MARKET_FUND @join__enumValue(graph: FINANCIALDATA)
+  FOREX_FUND @join__enumValue(graph: FINANCIALDATA)
+  MUTUAL_FUND @join__enumValue(graph: FINANCIALDATA)
+  PGBL @join__enumValue(graph: FINANCIALDATA)
+  VGBL @join__enumValue(graph: FINANCIALDATA)
+}
+
+type InvestmentFundAutocompleteConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  suggestions: [InvestmentFundAutocompleteItem!]!
+}
+
+type InvestmentFundAutocompleteItem
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  name: String!
+  cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+}
+
+type InvestmentFundConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [InvestmentFundEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type InvestmentFundEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: InvestmentFund!
+  cursor: String!
+}
+
+"""
+User's current position in an asset within a custodian account.
+One holding per (financialAccountId, asset). Quantity aggregates all lots.
+averageCost is maintained by the transaction engine — custo médio ponderado (RFB method).
+"""
+type InvestmentHolding
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID!
+  financialAccount: FinancialAccount
+  asset: InvestmentAsset!
+
+  """
+  Current number of units/shares/cotas held. Zero means position is closed.
+  """
+  quantity: Float!
+
+  """Weighted average purchase price per unit (custo médio ponderado)."""
+  averageCost: Float!
+  indexer: Indexer
+
+  """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
+  indexerPercentage: Float
+
+  """Annual pre-fixed rate (e.g. 0.12 = 12% a.a.)."""
+  preFixedRate: Float
+  issueDate: Date
+  maturityDate: Date
+
+  """Earliest redemption date (carência)."""
+  gracePeriodDate: Date
+
+  """True for LCI/LCA/CRI/CRA — exempt from IR for individuals."""
+  isTaxExempt: Boolean!
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  lastValuedAt: DateTime
+  valuationSource: ValuationSource!
+
+  """
+  Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE).
+  """
+  valuationReferenceDate: Date
+
+  """
+  Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today.
+  """
+  isExpired: Boolean!
+  source: InvestmentSource!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""How an investment record entered the system."""
+enum InvestmentSource
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  OPEN_FINANCE @join__enumValue(graph: BANKING)
+  FILE_IMPORT @join__enumValue(graph: BANKING)
+}
+
+"""
+An event that changes (or explains) an investment holding.
+tradeDate is the legally relevant date (fato gerador for IR calculation).
+grossValue is always positive; direction is INFLOW or OUTFLOW.
+"""
+type InvestmentTransaction
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  holdingId: ID!
+  financialAccountId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER (OFB transactionTypeAdditionalInfo)."""
+  typeAdditionalInfo: String
+
+  """Null for pure monetary events (DIVIDEND, INTEREST_PAYMENT, etc.)."""
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  agreedRate: Float
+  priceFactor: Float
+
+  """Legal event date — fato gerador for IR calculation."""
+  tradeDate: Date!
+
+  """
+  Settlement date (D+2 equities, D+1 RF). Null for events with no settlement leg.
+  """
+  settlementDate: Date
+  source: InvestmentSource!
+  brokerNote: BrokerNote
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""
+Direction of an investment event. INFLOW increases or adds; OUTFLOW decreases or withdraws.
+"""
+enum InvestmentTransactionDirection
+  @join__type(graph: BANKING)
+{
+  INFLOW @join__enumValue(graph: BANKING)
+  OUTFLOW @join__enumValue(graph: BANKING)
+}
+
+"""Nature of an investment event (OFB/Pluggy/Belvo canonical)."""
+enum InvestmentTransactionType
+  @join__type(graph: BANKING)
+{
+  PURCHASE @join__enumValue(graph: BANKING)
+  SALE @join__enumValue(graph: BANKING)
+  CANCELLATION @join__enumValue(graph: BANKING)
+  DIVIDEND @join__enumValue(graph: BANKING)
+  INTEREST_ON_EQUITY @join__enumValue(graph: BANKING)
+  INTEREST_PAYMENT @join__enumValue(graph: BANKING)
+  AMORTIZATION @join__enumValue(graph: BANKING)
+  PRIZE @join__enumValue(graph: BANKING)
+  MATURITY @join__enumValue(graph: BANKING)
+  STOCK_SPLIT @join__enumValue(graph: BANKING)
+  REVERSE_SPLIT @join__enumValue(graph: BANKING)
+  BONUS_SHARES @join__enumValue(graph: BANKING)
+  SUBSCRIPTION @join__enumValue(graph: BANKING)
+  CUSTODY_TRANSFER @join__enumValue(graph: BANKING)
+  OWNERSHIP_TRANSFER @join__enumValue(graph: BANKING)
+  QUOTA_TRANSFER @join__enumValue(graph: BANKING)
+  STOCK_LENDING @join__enumValue(graph: BANKING)
+  WITHHOLDING_TAX @join__enumValue(graph: BANKING)
+  FINE @join__enumValue(graph: BANKING)
+  LATE_PAYMENT_INTEREST @join__enumValue(graph: BANKING)
+  OTHER @join__enumValue(graph: BANKING)
+}
+
 """Financial institution associated with an account."""
 type Issuer
   @join__type(graph: BANKING)
@@ -1291,7 +1656,18 @@ type Issuer
   ispb: String
   countryCode: String!
   logoKey: String
+  category: IssuerCategory!
   logoAsset: Asset
+}
+
+enum IssuerCategory
+  @join__type(graph: BANKING)
+{
+  BANK @join__enumValue(graph: BANKING)
+  BROKERAGE @join__enumValue(graph: BANKING)
+  CRYPTO_EXCHANGE @join__enumValue(graph: BANKING)
+  PAYMENT @join__enumValue(graph: BANKING)
+  BENEFIT @join__enumValue(graph: BANKING)
 }
 
 scalar join__FieldSet
@@ -1537,6 +1913,22 @@ type Mutation
   payBill(billId: ID!, amount: Float!, sourceAccountId: ID): CreditCardBill! @join__field(graph: BANKING)
 
   """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  Creates the holding automatically on the first PURCHASE of an asset.
+  """
+  createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset! @join__field(graph: BANKING)
+
+  """
+  Records an investment transaction and updates the holding's quantity and averageCost.
+  """
+  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
+  """
+  deleteInvestmentTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
   Create a new custom transaction category for the authenticated account.
   """
   createTransactionCategory(input: CreateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
@@ -1780,8 +2172,11 @@ type Query
   serviceUsage(serviceId: String!, period: UsagePeriod!): UsageStats! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
 
-  """All active issuers. Small list — no pagination or filter needed."""
-  issuers: [Issuer!]! @join__field(graph: BANKING)
+  """
+  All active issuers.
+  When categories is omitted, returns all active issuers.
+  """
+  issuers(categories: [IssuerCategory!]): [Issuer!]! @join__field(graph: BANKING)
 
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
@@ -1866,14 +2261,41 @@ type Query
   When closingDate is omitted, returns the current open bill (or most recent if no open bill exists).
   """
   creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill @join__field(graph: BANKING)
+
+  """
+  All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
+  Zero-quantity (closed) positions are excluded.
+  """
+  investmentHoldings(financialAccountId: ID!): [InvestmentHolding!]! @join__field(graph: BANKING)
+
+  """
+  All holdings across all custodian accounts for the tenant (for net worth).
+  """
+  allInvestmentHoldings: [InvestmentHolding!]! @join__field(graph: BANKING)
+
+  """Single holding by id."""
+  investmentHolding(id: ID!): InvestmentHolding @join__field(graph: BANKING)
+
+  """Full event history for a holding, ordered by tradeDate DESC."""
+  investmentTransactions(holdingId: ID!): [InvestmentTransaction!]! @join__field(graph: BANKING)
+
+  """Single investment transaction by id."""
+  investmentTransaction(id: ID!): InvestmentTransaction @join__field(graph: BANKING)
+
+  """Look up an asset from the global catalog."""
+  investmentAsset(id: ID!): InvestmentAsset @join__field(graph: BANKING)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutionSlugs(anoMes: String, first: Int, after: String): BacenInstitutionSlugConnection! @join__field(graph: FINANCIALDATA)
   bacenFinanceInstitution(id: ID!, anoMes: String): BacenFinanceInstitution @join__field(graph: FINANCIALDATA)
   ratingIssuers: [RatingIssuer!]! @join__field(graph: FINANCIALDATA)
   economicIndicators(label: String): [EconomicIndicator!]! @join__field(graph: FINANCIALDATA)
+  indicatorsLatest: [EconomicIndicatorLatestItem!]! @join__field(graph: FINANCIALDATA)
   fixedIncomeComparison(input: FixedIncomeComparisonInput!): FixedIncomeComparisonResult! @join__field(graph: FINANCIALDATA)
   popularInstitutions(anoMes: String): [PopularInstitution!]! @join__field(graph: FINANCIALDATA)
+  searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
+  investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -1907,6 +2329,42 @@ type RatingIssuer
   name: String!
   website: String
   logoAssetId: String
+}
+
+"""
+Records a new investment transaction and updates the corresponding holding.
+The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
+RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
+"""
+input RecordInvestmentTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  assetId: ID!
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  agreedRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  preFixedRate: Float
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  providerInvestmentId: String
 }
 
 input RefreshAccessTokenInput
@@ -2485,6 +2943,31 @@ scalar UUID
   @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+"""Indicates the origin and reliability of a holding's current value."""
+enum ValuationSource
+  @join__type(graph: BANKING)
+{
+  """
+  Value provided by the data provider (Open Finance / file import). Authoritative.
+  """
+  PROVIDER @join__enumValue(graph: BANKING)
+
+  """
+  Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact.
+  """
+  CALCULATED @join__enumValue(graph: BANKING)
+
+  """
+  Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate.
+  """
+  ESTIMATED @join__enumValue(graph: BANKING)
+
+  """
+  Value cannot be determined (unsupported indexer, missing data, or no issueDate).
+  """
+  UNAVAILABLE @join__enumValue(graph: BANKING)
+}
 
 type VerificationStatus
   @join__type(graph: SECURITY)

@@ -3,9 +3,11 @@ package io.github.salomax.neotool.banking.graphql
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
+import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.resolver.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
@@ -20,9 +22,11 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 import java.util.UUID
 
 @DisplayName("BankingWiringFactory permissions")
@@ -33,6 +37,7 @@ class BankingWiringFactoryTest {
     private lateinit var transactionCategoryResolver: TransactionCategoryResolver
     private lateinit var importResolver: ImportResolver
     private lateinit var pdfImportResolver: BillImportResolver
+    private lateinit var investmentResolver: InvestmentResolver
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
     private lateinit var wiringFactory: BankingWiringFactory
@@ -47,7 +52,9 @@ class BankingWiringFactoryTest {
         transactionCategoryResolver = mock()
         importResolver = mock()
         pdfImportResolver = mock()
+        investmentResolver = mock()
         authorizationChecker = mock()
+        whenever(issuerResolver.listIssuers(anyOrNull())).thenReturn(emptyList())
 
         val decoder =
             TokenPrincipalDecoder { token ->
@@ -69,6 +76,7 @@ class BankingWiringFactoryTest {
                 transactionCategoryResolver,
                 importResolver,
                 pdfImportResolver,
+                investmentResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )
@@ -98,6 +106,26 @@ class BankingWiringFactoryTest {
 
             dataFetcher.get(env)
 
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ISSUER_VIEW))
+            verify(issuerResolver).listIssuers(eq(null))
+        }
+
+        @Test
+        fun `issuers forwards categories argument to resolver`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["issuers"]!!
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "categories" to listOf("BANK", "BROKERAGE"),
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(issuerResolver).listIssuers(eq(listOf(IssuerCategory.BANK, IssuerCategory.BROKERAGE)))
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ISSUER_VIEW))
         }
 
@@ -163,6 +191,28 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_CREATE))
+        }
+
+        @Test
+        fun `createInvestmentAsset requires banking_investment_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["createInvestmentAsset"]!!
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "name" to "CDB Banco X 120 CDI",
+                                    "assetType" to "CDB",
+                                ),
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_CREATE))
         }
     }
 }

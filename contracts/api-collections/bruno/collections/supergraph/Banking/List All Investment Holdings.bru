@@ -1,0 +1,49 @@
+meta {
+  name: List All Investment Holdings
+  type: graphql
+  seq: 23
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query AllInvestmentHoldings {
+    allInvestmentHoldings {
+      id
+      financialAccountId
+      quantity
+      averageCost
+      source
+      asset {
+        id
+        ticker
+        isinCode
+        name
+        assetType
+        currencyCode
+        priceFactor
+      }
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+script:post-response {
+  const body = res.getBody();
+  const firstHolding = body?.data?.allInvestmentHoldings?.[0];
+  if (firstHolding?.id) {
+    bru.setEnvVar("investment_holding_id", firstHolding.id, { persist: true });
+  }
+  if (firstHolding?.asset?.id) {
+    bru.setEnvVar("investment_asset_id", firstHolding.asset.id, { persist: true });
+  }
+}

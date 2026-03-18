@@ -28,12 +28,19 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FixedIncomeComparisonResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.IndicatorResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionDiscoveryResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.InvestmentFundResolver
 import jakarta.inject.Singleton
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -49,6 +56,7 @@ class FinancialDataWiringFactory(
     private val ratingResolver: FinancialInstitutionRatingResolver,
     private val indicatorResolver: IndicatorResolver,
     private val fixedIncomeComparisonResolver: FixedIncomeComparisonResolver,
+    private val investmentFundResolver: InvestmentFundResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -145,6 +153,33 @@ class FinancialDataWiringFactory(
                     fixedIncomeComparisonResolver.fixedIncomeComparison(env)
                 },
             )
+            .dataFetcher(
+                "searchInvestmentFundsAutocomplete",
+                createValidatedDataFetcher { env ->
+                    val query: String = env.getArgument<String?>("query")
+                        ?: throw IllegalArgumentException("query is required")
+                    investmentFundResolver.searchInvestmentFundsAutocomplete(query)
+                },
+            )
+            .dataFetcher(
+                "investmentFunds",
+                createValidatedDataFetcher { env ->
+                    val query = env.getArgument<String?>("query")
+                    val assetType = env.getArgument<String?>("assetType")
+                    val isActive = env.getArgument<Boolean?>("isActive")
+                    val first = env.getArgument<Int?>("first")
+                    val after = env.getArgument<String?>("after")
+                    investmentFundResolver.investmentFunds(query, assetType, isActive, first, after)
+                },
+            )
+            .dataFetcher(
+                "investmentFund",
+                createValidatedDataFetcher { env ->
+                    val id: String = env.getArgument<String?>("id")
+                        ?: throw IllegalArgumentException("id is required")
+                    investmentFundResolver.investmentFund(id)
+                },
+            )
     }
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -158,7 +193,7 @@ class FinancialDataWiringFactory(
     }
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
-        return builder
+        val withBaseTypes = builder
             // EconomicIndicator type resolvers
             .type("EconomicIndicator") { type ->
                 type.dataFetcher(
@@ -957,6 +992,69 @@ class FinancialDataWiringFactory(
                         history?.changedAt?.atOffset(ZoneOffset.UTC)
                     },
                 )
+            }
+        return registerInvestmentFundTypeResolvers(withBaseTypes)
+    }
+
+    private fun registerInvestmentFundTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
+        return builder
+            .type("InvestmentFundAutocompleteConnection") { type ->
+                type.dataFetcher(
+                    "suggestions",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        env.getSource<InvestmentFundAutocompleteConnectionDTO>()?.suggestions ?: emptyList()
+                    },
+                )
+            }
+            .type("InvestmentFundAutocompleteItem") { type ->
+                type
+                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.id })
+                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.name })
+                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.cnpj })
+                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.assetType })
+                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.isActive })
+            }
+            .type("InvestmentFundConnection") { type ->
+                type
+                    .dataFetcher("edges", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.edges ?: emptyList() })
+                    .dataFetcher("pageInfo", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.pageInfo })
+                    .dataFetcher("totalCount", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.totalCount })
+            }
+            .type("InvestmentFundEdge") { type ->
+                type
+                    .dataFetcher("node", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundEdgeDTO>()?.node })
+                    .dataFetcher("cursor", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundEdgeDTO>()?.cursor })
+            }
+            .type("InvestmentFund") { type ->
+                type
+                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.id })
+                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.name })
+                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.cnpj })
+                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.assetType })
+                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.isActive })
+                    .dataFetcher("latestNav", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.latestNav })
+                    .dataFetcher(
+                        "priceHistory",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val fund = env.getSource<InvestmentFundDTO>()
+                            if (fund == null) {
+                                emptyList<FundDailyNavDTO>()
+                            } else {
+                                val fromStr = env.getArgument<String?>("from")
+                                val toStr = env.getArgument<String?>("to")
+                                val last = env.getArgument<Int?>("last")
+                                val from = fromStr?.let { s -> LocalDate.parse(s) }
+                                val to = toStr?.let { s -> LocalDate.parse(s) }
+                                investmentFundResolver.priceHistory(fund.id, from, to, last)
+                            }
+                        },
+                    )
+            }
+            .type("FundDailyNav") { type ->
+                type
+                    .dataFetcher("date", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.date })
+                    .dataFetcher("closePrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.closePrice })
+                    .dataFetcher("totalNetAssets", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.totalNetAssets })
             }
     }
 }

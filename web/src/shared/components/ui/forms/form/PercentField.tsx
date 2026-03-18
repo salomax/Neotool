@@ -19,6 +19,7 @@ export interface PercentFieldProps {
   /** Fixed number of fraction digits for display & rounding (e.g., 0, 1, 2). */
   fractionDigits?: number;
   locale?: string;
+  'data-testid'?: string;
 }
 
 export const PercentField: React.FC<PercentFieldProps> = ({
@@ -32,6 +33,7 @@ export const PercentField: React.FC<PercentFieldProps> = ({
   ratio = false,
   fractionDigits,
   locale = "en-US",
+  'data-testid': dataTestId,
 }) => {
   const { control } = useFormContext();
   const { decimal, group } = getLocaleSeparators(locale);
@@ -53,27 +55,12 @@ export const PercentField: React.FC<PercentFieldProps> = ({
         })();
         return (
           <NumericFormat
-            customInput={(props) => {
-              const { 
-                name, min, max, step, disabled, color, width, height, 
-                size, style, className, id, tabIndex, autoFocus, 
-                autoComplete, autoCorrect, autoCapitalize, spellCheck,
-                placeholder, required, readOnly, form,
-                ...restProps 
-              } = props;
-              return (
-                <TextField
-                  {...restProps}
-                  {...(label && { label })}
-                  fullWidth={fullWidth}
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message ?? helperText}
-                  InputProps={{
-                    inputProps: { step: computedStep, style: { textAlign: "right" } },
-                  }}
-                />
-              );
-            }}
+            customInput={TextField}
+            {...(label && { label })}
+            fullWidth={fullWidth}
+            error={!!fieldState.error}
+            helperText={fieldState.error?.message ?? helperText}
+            data-testid={dataTestId}
             value={display}
             onValueChange={(values) => {
               let v = values.floatValue;
@@ -91,8 +78,12 @@ export const PercentField: React.FC<PercentFieldProps> = ({
               decimalScale: decimalScale,
               fixedDecimalScale: typeof decimalScale === "number",
               allowNegative: min < 0,
-              suffix: "%",
+              suffix: " %",
             } as any)}
+            inputProps={{
+              step: computedStep,
+              style: { textAlign: "right" as const },
+            }}
           />
         );
       }}

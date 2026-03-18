@@ -1,0 +1,74 @@
+meta {
+  name: Investment Funds (Filtered)
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query InvestmentFundsFiltered($query: String, $assetType: InvestmentFundAssetType, $isActive: Boolean, $first: Int, $after: String) {
+    investmentFunds(query: $query, assetType: $assetType, isActive: $isActive, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          cnpj
+          assetType
+          isActive
+          latestNav {
+            date
+            closePrice
+            totalNetAssets
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "query": "Brasil",
+    "assetType": "EQUITY_FUND",
+    "isActive": true,
+    "first": 10,
+    "after": null
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has edges", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFunds.edges).to.be.an('array');
+  });
+
+  test("All results are active equity funds", function() {
+    const data = res.getBody();
+    const edges = data.data.investmentFunds.edges;
+    edges.forEach(edge => {
+      expect(edge.node.isActive).to.equal(true);
+      expect(edge.node.assetType).to.equal('EQUITY_FUND');
+    });
+  });
+}

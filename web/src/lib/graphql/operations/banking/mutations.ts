@@ -49,6 +49,35 @@ export const CREATE_FINANCIAL_ACCOUNT = gql`
   }
 `;
 
+/** Create an investment asset in the global catalog. */
+export const CREATE_INVESTMENT_ASSET = gql`
+  mutation CreateInvestmentAsset($input: CreateInvestmentAssetInput!) {
+    createInvestmentAsset(input: $input) {
+      id
+      name
+      assetType
+      issuerName
+      currencyCode
+    }
+  }
+`;
+
+/** Record an investment transaction (creates/updates holding). */
+export const RECORD_INVESTMENT_TRANSACTION = gql`
+  mutation RecordInvestmentTransaction($input: RecordInvestmentTransactionInput!) {
+    recordInvestmentTransaction(input: $input) {
+      id
+      type
+      direction
+      quantity
+      unitPrice
+      grossValue
+      tradeDate
+      source
+    }
+  }
+`;
+
 /** Delete a transaction. */
 export const DELETE_TRANSACTION = gql`
   mutation DeleteTransaction($id: ID!) {

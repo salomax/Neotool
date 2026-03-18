@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.graphql.dto
 
+import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import java.util.UUID
 
 /**
@@ -17,6 +18,7 @@ data class IssuerDTO(
     val ispb: String?,
     val countryCode: String,
     val logoKey: String?,
+    val category: IssuerCategory,
     /** Federation reference resolved by [BankingWiringFactory.registerCustomTypeResolvers]. */
     val logoAsset: Map<String, String>?,
 )

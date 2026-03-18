@@ -13,6 +13,7 @@ import io.micronaut.scheduling.TaskExecutors
 import io.micronaut.scheduling.annotation.ExecuteOn
 import jakarta.inject.Inject
 import org.dataloader.DataLoaderRegistry
+import org.slf4j.LoggerFactory
 
 /**
  * Base GraphQL HTTP endpoint, designed to be reusable across apps.
@@ -29,6 +30,7 @@ open class GraphQLControllerBase(
     private val graphQL: GraphQL,
     @Inject private val dataLoaderRegistryFactories: List<DataLoaderRegistryFactory> = emptyList(),
 ) {
+    private val log = LoggerFactory.getLogger(GraphQLControllerBase::class.java)
     /**
      * Accepts a standard GraphQL request payload.
      *
@@ -47,6 +49,7 @@ open class GraphQLControllerBase(
         @Body request: GraphQLRequest,
         @Header("Authorization") authorization: String?,
     ): Map<String, Any?> {
+        log.debug("GraphQL execution thread: virtual={}", Thread.currentThread().isVirtual)
         // Guard: empty/blank queries are invalid per GraphQL usage.
         // We normalize this into a GraphQL error response (200 + errors) instead of HTTP 400,
         // so clients can always parse "data"/"errors" consistently.
@@ -110,8 +113,7 @@ open class GraphQLControllerBase(
             errorSpec("The type is not defined: ${e.message ?: "Unknown error"}")
         } catch (e: Exception) {
             // Log unexpected exceptions (should be rare since GraphQL.execute() typically returns errors in result)
-            val logger = org.slf4j.LoggerFactory.getLogger(GraphQLControllerBase::class.java)
-            logger.error("GraphQL execution threw exception (unexpected): ${e.javaClass.simpleName} - ${e.message}", e)
+            log.error("GraphQL execution threw exception (unexpected): ${e.javaClass.simpleName} - ${e.message}", e)
             // Catch any other unexpected exceptions and convert to GraphQL error format
             errorSpec("GraphQL execution failed: ${e.message ?: "Unknown error"}", code = "INTERNAL_ERROR")
         }

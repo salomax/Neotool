@@ -31,6 +31,7 @@ export interface DatePickerFieldProps {
   fullWidth?: boolean;
   minDate?: Date;
   maxDate?: Date;
+  'data-testid'?: string;
 }
 
 export const DatePickerField: React.FC<DatePickerFieldProps> = ({
@@ -40,10 +41,12 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   fullWidth = true,
   minDate,
   maxDate,
+  'data-testid': dataTestId,
 }) => {
   const { t } = useTranslation(COMMON_NS);
   const { control } = useFormContext();
   const { adapterLocale, dateFormat } = useDatePickerI18nConfig();
+  const [pickerError, setPickerError] = React.useState<string | null>(null);
   const effectiveLabel = label ?? t("datePicker.placeholder");
   const localeText = React.useMemo(
     () => ({
@@ -53,6 +56,31 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
     }),
     [t]
   );
+  const pickerErrorText = React.useMemo(() => {
+    if (!pickerError) return undefined;
+
+    if (pickerError === "invalidDate") {
+      return t("datePicker.errors.invalidDate");
+    }
+
+    if (pickerError === "minDate" && minDate) {
+      return t("datePicker.errors.minDate", { date: dayjs(minDate).format(dateFormat) });
+    }
+
+    if (pickerError === "maxDate" && maxDate) {
+      return t("datePicker.errors.maxDate", { date: dayjs(maxDate).format(dateFormat) });
+    }
+
+    if (pickerError === "disablePast") {
+      return t("datePicker.errors.disablePast");
+    }
+
+    if (pickerError === "disableFuture") {
+      return t("datePicker.errors.disableFuture");
+    }
+
+    return t("datePicker.errors.invalidDate");
+  }, [dateFormat, maxDate, minDate, pickerError, t]);
   return (
     <LocalizationProvider
       dateAdapter={AdapterDayjs}
@@ -67,6 +95,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             format={dateFormat}
             value={field.value ? dayjs(field.value) : null}
             onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
+            onError={(reason) => setPickerError(reason as any)}
             minDate={minDate ? dayjs(minDate) : undefined}
             maxDate={maxDate ? dayjs(maxDate) : undefined}
             slotProps={{
@@ -74,8 +103,12 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
                 label: effectiveLabel,
                 placeholder: t("datePicker.formatHint"),
                 fullWidth,
-                error: !!fieldState.error,
-                helperText: fieldState.error?.message ?? helperText,
+                error: !!fieldState.error || !!pickerError,
+                helperText: fieldState.error?.message ?? pickerErrorText ?? helperText,
+                'data-testid': dataTestId,
+                inputProps: {
+                  'data-testid': dataTestId,
+                },
               } as any,
             }}
           />

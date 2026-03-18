@@ -209,6 +209,13 @@
     "formatHint": "dd/mm/aaaa",
     "fieldDay": "dd",
     "fieldMonth": "mm",
-    "fieldYear": "aaaa"
+    "fieldYear": "aaaa",
+    "errors": {
+      "invalidDate": "Data inválida",
+      "minDate": "A data deve ser igual ou posterior a {{date}}",
+      "maxDate": "A data deve ser igual ou anterior a {{date}}",
+      "disablePast": "Datas passadas não são permitidas",
+      "disableFuture": "Datas futuras não são permitidas"
+    }
   }
 }

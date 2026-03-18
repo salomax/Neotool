@@ -29,6 +29,16 @@ out/
 *.hprof
 mobile/*.zip
 
+# Certificates
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+*.p8
+
 # Kotlin compiler session files
 .kotlin/
 *.salive

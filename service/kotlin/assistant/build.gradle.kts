@@ -64,6 +64,14 @@ tasks.test {
     environment("TESTCONTAINERS_RYUK_DISABLED", "true")
 }
 
+// Workaround for KSP configuration cache issue
+// KSP tasks are not fully compatible with Gradle configuration cache
+tasks.all {
+    if (name.startsWith("ksp") || name.contains("Ksp")) {
+        notCompatibleWithConfigurationCache("KSP tasks are not compatible with configuration cache")
+    }
+}
+
 // Enable ZIP64 support for all JAR tasks to handle more than 65535 entries
 tasks.withType<Jar> {
     isZip64 = true

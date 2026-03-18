@@ -4,13 +4,16 @@ import { useTheme } from "@mui/material/styles";
 import ArrowDropUpIcon from "@mui/icons-material/ArrowDropUp";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import { formatPercentageWithSign } from "@/shared/utils/percentage";
+import type { SxProps, Theme } from "@mui/material/styles";
 
 export interface GrowthChipProps {
   growthPercentage?: number | null;
   locale?: string;
+  size?: "small" | "medium";
+  sx?: SxProps<Theme>;
 }
 
-export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage, locale }) => {
+export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage, locale, size = "medium", sx }) => {
   const theme = useTheme();
   const hasGrowth = growthPercentage != null;
 
@@ -67,12 +70,15 @@ export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage, locale
 
   if (!hasGrowth || !GrowthIcon) return null;
 
+  const isSmall = size === "small";
+
   return (
     <Chip
+      size={size}
       icon={
         <GrowthIcon
           sx={{
-            fontSize: 18,
+            fontSize: isSmall ? 16 : 18,
           }}
         />
       }
@@ -81,18 +87,19 @@ export const GrowthChip: React.FC<GrowthChipProps> = ({ growthPercentage, locale
         bgcolor: growthBgColor,
         color: growthColor,
         fontWeight: 700,
-        fontSize: 13,
+        fontSize: isSmall ? 12 : 13,
         height: "auto",
         "& .MuiChip-label": {
-          px: 0.5,
-          py: 0.25,
-          fontSize: 13,
+          px: isSmall ? 0.375 : 0.5,
+          py: isSmall ? 0.125 : 0.25,
+          fontSize: isSmall ? 12 : 13,
           fontWeight: 700,
         },
         "& .MuiChip-icon": {
           color: growthColor,
-          fontSize: 18,
+          fontSize: isSmall ? 16 : 18,
         },
+        ...(sx as any),
       }}
     />
   );

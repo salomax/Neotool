@@ -1,5 +1,262 @@
 {
   "title": "Finanças pessoais",
+  "dashboard": {
+    "controls": {
+      "customize": "Personalizar",
+      "resetLayout": "Redefinir layout",
+      "done": "Concluir"
+    },
+    "timeRange": {
+      "ariaLabel": "Intervalo de tempo",
+      "options": {
+        "90d": "Últimos 90 dias",
+        "6m": "Últimos 6 meses",
+        "ytd": "Ano até hoje",
+        "1y": "Último ano",
+        "all": "Todo o período",
+        "custom": "Personalizado"
+      }
+    },
+    "actions": {
+      "title": "Ações rápidas",
+      "financeMovements": {
+        "title": "Movimentação Financeira",
+        "description": "Controle de receitas e despesas"
+      },
+      "investmentsPortfolio": {
+        "title": "Carteira de Investimentos",
+        "description": "Gestão dos ativos"
+      }
+    }
+  },
+  "investments": {
+    "sidebar": {
+      "allBrokers": "Todas as Corretoras",
+      "consolidatedView": "Visão consolidada",
+      "summaryTitle": "Visão consolidada",
+      "totalLabel": "Total da Carteira",
+      "metrics": {
+        "contributions": "Aportes",
+        "returns": "Rentabilidade"
+      },
+      "allocation": "ALOCAÇÃO"
+    },
+    "emptyState": {
+      "title": "Sua carteira de investimentos está vazia",
+      "description": "Comece a organizar seus ativos para ter uma visão completa da sua rentabilidade e evolução patrimonial. Acompanhe ações, fundos, tesouro e muito mais em um só lugar.",
+      "primaryAction": "Criar conta de investimento",
+      "secondaryAction": "Registrar primeiro ativo"
+    },
+    "trackableAssets": {
+      "title": "ATIVOS QUE VOCÊ PODE ACOMPANHAR",
+      "crypto": "Cripto",
+      "reits": "FIIs",
+      "stocks": "Ações",
+      "fixedIncome": "Renda Fixa",
+      "funds": "Fundos"
+    },
+    "actions": {
+      "recordHolding": "Registrar ativo",
+      "recordFund": "Registrar fundo"
+    },
+    "createAccount": {
+      "title": "Criar conta de investimento",
+      "fields": {
+        "subtypeLabel": "Tipo de conta",
+        "issuerLabel": "Corretora / Instituição",
+        "issuerPlaceholder": "Buscar por nome...",
+        "customIssuerLabel": "Nome da instituição",
+        "accountNameLabel": "Nome da conta",
+        "accountNamePlaceholder": "Ex: Minha Carteira XP"
+      },
+      "subtypes": {
+        "BROKERAGE": "Corretora de Valores",
+        "FIXED_INCOME": "Renda Fixa",
+        "PENSION": "Previdência Privada",
+        "CRYPTO": "Criptomoedas"
+      },
+      "validation": {
+        "subtypeRequired": "Tipo de conta é obrigatório",
+        "issuerRequired": "Informe a corretora ou nome da instituição"
+      },
+      "actions": {
+        "submit": "Criar conta",
+        "submitting": "Criando...",
+        "cancel": "Cancelar"
+      },
+      "success": "Conta de investimento criada com sucesso"
+    },
+    "assetTypes": {
+      "STOCK": "Ações",
+      "STOCK_RIGHTS": "Direitos e recibos",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "FIIs",
+      "AGRIBUSINESS_FUND": "FIAGRO",
+      "ETF": "ETFs",
+      "ETF_FIXED_INCOME": "ETF de renda fixa",
+      "ETF_INTERNATIONAL": "ETF internacional",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debêntures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Tesouro Direto",
+      "MUTUAL_FUND": "Fundo de investimento",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Cripto",
+      "OPTION": "Opções",
+      "DERIVATIVES": "Derivativos",
+      "OTHER": "Outros"
+    },
+    "table": {
+      "columns": {
+        "asset": "Ativo",
+        "type": "Tipo",
+        "quantity": "Quantidade",
+        "averagePrice": "Preço médio",
+        "currentValue": "Valor atual",
+        "indexer": "Indexador",
+        "fundQuantity": "Qtd. Cotas",
+        "grossValue": "Valor bruto",
+        "maturityDate": "Vencimento",
+        "gain": "Rentabilidade"
+      },
+      "valuationTooltip": {
+        "CALCULATED": "Valor calculado com base em indicadores e regras de renda fixa.",
+        "ESTIMATED": "Valor estimado. Referência: {{date}}.",
+        "UNAVAILABLE": "Valor indisponível."
+      },
+      "expiredBadge": "Expirado",
+      "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
+      "groupTotalEstimated": "Parte do total é valor estimado.",
+      "groupSummary_one": "{{count}} ativo · {{total}}",
+      "groupSummary_other": "{{count}} ativos · {{total}}",
+      "groups": {
+        "variableIncomeB3": "Renda Variável (B3)",
+        "bankFixedIncome": "Renda Fixa",
+        "creditFixedIncome": "Renda Fixa Crédito",
+        "treasuryDirect": "Tesouro Direto",
+        "mutualFunds": "Fundos de Investimento",
+        "pension": "Previdência Complementar",
+        "structured": "Estruturado",
+        "others": "Outros"
+      },
+      "emptyState": "Nenhum ativo registrado nesta conta",
+      "recordFirstHolding": "Registrar primeiro ativo",
+      "error": "Erro ao carregar investimentos"
+    },
+    "recordHolding": {
+      "title": "Registrar ativo de Renda Fixa",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o ativo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "assetInfo": "Sobre o ativo",
+        "applicationDetails": "Detalhes da aplicação"
+      },
+      "fields": {
+        "assetName": "Nome do ativo",
+        "assetType": "Tipo",
+        "issuerName": "Emissor",
+        "indexer": "Indexador",
+        "indexerPercentage": "% do indexador",
+        "preFixedRate": "Taxa (% a.a.)",
+        "grossValue": "Valor aplicado (R$)",
+        "tradeDate": "Data da aplicação",
+        "maturityDate": "Data de vencimento",
+        "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debêntures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Tesouro Direto"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Prefixado",
+        "OUTROS": "Outro"
+      },
+      "validation": {
+        "assetNameRequired": "Nome do ativo é obrigatório",
+        "assetTypeRequired": "Tipo de ativo é obrigatório",
+        "issuerRequired": "Emissor é obrigatório",
+        "indexerRequired": "Indexador é obrigatório",
+        "indexerPercentageRequired": "% do indexador é obrigatório",
+        "preFixedRateRequired": "Taxa é obrigatória",
+        "grossValueRequired": "Valor aplicado é obrigatório",
+        "grossValuePositive": "Valor deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória",
+        "maturityDateRequired": "Data de vencimento é obrigatória",
+        "maturityAfterTrade": "Vencimento deve ser após a data da aplicação"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Ativo registrado com sucesso"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Renda Fixa",
+        "EQUITY_FUND": "Ações",
+        "MULTI_MARKET_FUND": "Multimercado",
+        "FOREX_FUND": "Cambial",
+        "MUTUAL_FUND": "Misto",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Registrar fundo",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o fundo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "fund": "Fundo",
+        "applicationDetails": "Detalhes da aplicação"
+      },
+      "fields": {
+        "fund": "Fundo",
+        "quantity": "Quantidade de cotas",
+        "unitPrice": "Preço por cota (R$)",
+        "tradeDate": "Data da aplicação"
+      },
+      "validation": {
+        "fundRequired": "Selecione um fundo",
+        "quantityRequired": "Quantidade é obrigatória",
+        "quantityPositive": "Quantidade deve ser maior que zero",
+        "unitPriceRequired": "Preço por cota é obrigatório",
+        "unitPricePositive": "Preço por cota deve ser maior que zero",
+        "tradeDateRequired": "Data da aplicação é obrigatória"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Fundo registrado com sucesso"
+    }
+  },
   "categories": {
     "title": "Categorias da conta",
     "description": "Crie e edite categorias para classificar suas movimentações.",
@@ -92,7 +349,7 @@
         "title": "Escolha o tipo de conta que deseja criar no Invistus para começar a monitorar seu patrimônio.",
         "bankAccount": {
           "label": "Conta Bancária",
-          "subtitle": "Conecte seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
+          "subtitle": "Gerencie seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
         },
         "card": {
           "label": "Cartão de Crédito",

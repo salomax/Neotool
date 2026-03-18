@@ -1,0 +1,75 @@
+meta {
+  name: Investment Funds
+  type: graphql
+  seq: 2
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query InvestmentFunds($query: String, $assetType: InvestmentFundAssetType, $isActive: Boolean, $first: Int, $after: String) {
+    investmentFunds(query: $query, assetType: $assetType, isActive: $isActive, first: $first, after: $after) {
+      edges {
+        node {
+          id
+          name
+          cnpj
+          assetType
+          isActive
+          latestNav {
+            date
+            closePrice
+            totalNetAssets
+          }
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "query": null,
+    "assetType": null,
+    "isActive": true,
+    "first": 10,
+    "after": null
+  }
+}
+
+tests {
+  test("status 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Has edges", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFunds.edges).to.be.an('array');
+  });
+
+  test("Has pageInfo", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFunds.pageInfo).to.be.an('object');
+  });
+
+  test("Has totalCount", function() {
+    const data = res.getBody();
+    expect(data.data.investmentFunds.totalCount).to.be.a('number');
+  });
+}

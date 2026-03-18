@@ -1,5 +1,262 @@
 {
   "title": "Personal Finance",
+  "dashboard": {
+    "controls": {
+      "customize": "Customize",
+      "resetLayout": "Reset layout",
+      "done": "Done"
+    },
+    "timeRange": {
+      "ariaLabel": "Time range",
+      "options": {
+        "90d": "Last 90 days",
+        "6m": "Last 6 months",
+        "ytd": "Year to date",
+        "1y": "Last year",
+        "all": "All time",
+        "custom": "Custom"
+      }
+    },
+    "actions": {
+      "title": "Quick actions",
+      "financeMovements": {
+        "title": "Finance Transactions",
+        "description": "For quick income and expense tracking."
+      },
+      "investmentsPortfolio": {
+        "title": "Investment Portfolio",
+        "description": "For consolidated asset management."
+      }
+    }
+  },
+  "investments": {
+    "sidebar": {
+      "allBrokers": "All brokers",
+      "consolidatedView": "CONSOLIDATED VIEW",
+      "summaryTitle": "CONSOLIDATED VIEW",
+      "totalLabel": "Total portfolio",
+      "metrics": {
+        "contributions": "Contributions",
+        "returns": "Returns"
+      },
+      "allocation": "ALLOCATION"
+    },
+    "emptyState": {
+      "title": "Your investment portfolio is empty",
+      "description": "Start organizing your assets to get a complete view of your returns and wealth growth. Track stocks, funds, treasury bonds and much more in one place.",
+      "primaryAction": "Create investment account",
+      "secondaryAction": "Register first asset"
+    },
+    "trackableAssets": {
+      "title": "ASSETS YOU CAN TRACK",
+      "crypto": "Crypto",
+      "reits": "REITs",
+      "stocks": "Stocks",
+      "fixedIncome": "Fixed income",
+      "funds": "Funds"
+    },
+    "actions": {
+      "recordHolding": "Record holding",
+      "recordFund": "Record fund"
+    },
+    "assetTypes": {
+      "STOCK": "Stocks",
+      "STOCK_RIGHTS": "Stock rights",
+      "BDR": "BDRs",
+      "REAL_ESTATE_FUND": "Real estate funds (FII)",
+      "AGRIBUSINESS_FUND": "Agribusiness funds (FIAGRO)",
+      "ETF": "Equity ETFs",
+      "ETF_FIXED_INCOME": "Fixed income ETFs",
+      "ETF_INTERNATIONAL": "International ETFs",
+      "CDB": "CDB",
+      "RDB": "RDB",
+      "LCI": "LCI",
+      "LCA": "LCA",
+      "LC": "LC",
+      "LF": "LF",
+      "LIG": "LIG",
+      "DEBENTURES": "Debentures",
+      "CRI": "CRI",
+      "CRA": "CRA",
+      "TREASURY": "Treasury Direct",
+      "MUTUAL_FUND": "Mutual fund",
+      "PGBL": "PGBL",
+      "VGBL": "VGBL",
+      "COE": "COE",
+      "CRYPTO": "Crypto",
+      "OPTION": "Options",
+      "DERIVATIVES": "Derivatives",
+      "OTHER": "Other"
+    },
+    "createAccount": {
+      "title": "Create investment account",
+      "fields": {
+        "subtypeLabel": "Account type",
+        "issuerLabel": "Broker / Institution",
+        "issuerPlaceholder": "Search by name...",
+        "customIssuerLabel": "Institution name",
+        "accountNameLabel": "Account name",
+        "accountNamePlaceholder": "e.g. My XP Portfolio"
+      },
+      "subtypes": {
+        "BROKERAGE": "Brokerage",
+        "FIXED_INCOME": "Fixed Income",
+        "PENSION": "Pension",
+        "CRYPTO": "Crypto"
+      },
+      "validation": {
+        "subtypeRequired": "Account type is required",
+        "issuerRequired": "Please enter a broker or institution name"
+      },
+      "actions": {
+        "submit": "Create account",
+        "submitting": "Creating...",
+        "cancel": "Cancel"
+      },
+      "success": "Investment account created successfully"
+    },
+    "table": {
+      "columns": {
+        "asset": "Asset",
+        "type": "Type",
+        "quantity": "Quantity",
+        "averagePrice": "Average price",
+        "currentValue": "Current value",
+        "indexer": "Indexer",
+        "fundQuantity": "Fund units",
+        "grossValue": "Gross value",
+        "maturityDate": "Maturity",
+        "gain": "Gain/Loss"
+      },
+      "valuationTooltip": {
+        "CALCULATED": "Value calculated from indicators and fixed income rules.",
+        "ESTIMATED": "Estimated value. Reference: {{date}}.",
+        "UNAVAILABLE": "Value unavailable."
+      },
+      "expiredBadge": "Expired",
+      "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
+      "groupTotalEstimated": "Part of this total is estimated value.",
+      "groupSummary_one": "{{count}} asset · {{total}}",
+      "groupSummary_other": "{{count}} assets · {{total}}",
+      "groups": {
+        "variableIncomeB3": "Variable income (B3)",
+        "bankFixedIncome": "Fixed income",
+        "creditFixedIncome": "Credit fixed income",
+        "treasuryDirect": "Treasury Direct",
+        "mutualFunds": "Investment funds",
+        "pension": "Private pension",
+        "structured": "Structured",
+        "others": "Others"
+      },
+      "emptyState": "No holdings recorded in this account",
+      "recordFirstHolding": "Record first holding",
+      "error": "Failed to load investments"
+    },
+    "recordHolding": {
+      "title": "Record Fixed Income Holding",
+      "selectAccount": {
+        "description": "Select an investment account to record the holding.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "assetInfo": "Asset details",
+        "applicationDetails": "Application details"
+      },
+      "fields": {
+        "assetName": "Asset name",
+        "assetType": "Type",
+        "issuerName": "Issuer",
+        "indexer": "Indexer",
+        "indexerPercentage": "Indexer %",
+        "preFixedRate": "Rate (% p.a.)",
+        "grossValue": "Invested amount (BRL)",
+        "tradeDate": "Application date",
+        "maturityDate": "Maturity date",
+        "isTaxExempt": "Tax-exempt (LCI, LCA, CRI, CRA)"
+      },
+      "assetTypes": {
+        "CDB": "CDB",
+        "RDB": "RDB",
+        "LCI": "LCI",
+        "LCA": "LCA",
+        "LC": "LC",
+        "LF": "LF",
+        "LIG": "LIG",
+        "DEBENTURES": "Debentures",
+        "CRI": "CRI",
+        "CRA": "CRA",
+        "TREASURY": "Treasury Direct"
+      },
+      "indexers": {
+        "CDI": "CDI",
+        "DI": "DI",
+        "IPCA": "IPCA+",
+        "IGP_M": "IGP-M+",
+        "SELIC": "SELIC",
+        "PRE_FIXADO": "Pre-fixed",
+        "OUTROS": "Other"
+      },
+      "validation": {
+        "assetNameRequired": "Asset name is required",
+        "assetTypeRequired": "Asset type is required",
+        "issuerRequired": "Issuer is required",
+        "indexerRequired": "Indexer is required",
+        "indexerPercentageRequired": "Indexer % is required",
+        "preFixedRateRequired": "Rate is required",
+        "grossValueRequired": "Invested amount is required",
+        "grossValuePositive": "Amount must be greater than zero",
+        "tradeDateRequired": "Application date is required",
+        "maturityDateRequired": "Maturity date is required",
+        "maturityAfterTrade": "Maturity must be after the application date"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Holding recorded successfully"
+    },
+    "funds": {
+      "assetTypes": {
+        "FIXED_INCOME_FUND": "Fixed income",
+        "EQUITY_FUND": "Equity",
+        "MULTI_MARKET_FUND": "Multi-market",
+        "FOREX_FUND": "FX",
+        "MUTUAL_FUND": "Mixed",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
+      }
+    },
+    "recordFund": {
+      "title": "Record fund",
+      "selectAccount": {
+        "description": "Select an investment account to record the fund.",
+        "emptyState": "No investment accounts available."
+      },
+      "sections": {
+        "fund": "Fund",
+        "applicationDetails": "Application details"
+      },
+      "fields": {
+        "fund": "Fund",
+        "quantity": "Fund units",
+        "unitPrice": "Unit price (BRL)",
+        "tradeDate": "Application date"
+      },
+      "validation": {
+        "fundRequired": "Please select a fund",
+        "quantityRequired": "Quantity is required",
+        "quantityPositive": "Quantity must be greater than zero",
+        "unitPriceRequired": "Unit price is required",
+        "unitPricePositive": "Unit price must be greater than zero",
+        "tradeDateRequired": "Application date is required"
+      },
+      "actions": {
+        "submit": "Record",
+        "submitting": "Recording..."
+      },
+      "success": "Fund recorded successfully"
+    }
+  },
   "categories": {
     "title": "Account categories",
     "description": "Create and edit categories to classify your transactions.",
@@ -92,7 +349,7 @@
         "title": "Choose the type of account you want to create in Invistus to start monitoring your wealth.",
         "bankAccount": {
           "label": "Bank Account",
-          "subtitle": "Connect your balances, automatic statements and track cash flow in real-time."
+          "subtitle": "Manage your balances, automatic statements and track cash flow in real-time."
         },
         "card": {
           "label": "Credit Card",

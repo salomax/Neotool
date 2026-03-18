@@ -8,6 +8,7 @@ declare module "@mui/material/styles" {
       radius: DesignTokens["radius"];
       border: DesignTokens["border"];
       palette: DesignTokens["palette"];
+      shadow: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
   interface ThemeOptions {
@@ -16,6 +17,7 @@ declare module "@mui/material/styles" {
       radius?: DesignTokens["radius"];
       border?: DesignTokens["border"];
       palette?: DesignTokens["palette"];
+      shadow?: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
   interface ZIndex {
@@ -30,9 +32,32 @@ export const createAppTheme = (mode: Mode) => {
   const t = tokens[mode];
   const defaultShadows = createTheme().shadows;
   const shadows = [...defaultShadows] as Shadows;
-  
-  // Custom shadow for elevation 4 using primary color
-  shadows[4] = `0px 2px 4px -1px ${alpha(t.palette.primary, 0.2)}, 0px 4px 5px 0px ${alpha(t.palette.primary, 0.14)}, 0px 1px 10px 0px ${alpha(t.palette.primary, 0.12)}`;
+  const buttonRadiusPx = `${t.radius.button}px`;
+
+  const buildShadow = (level: 0 | 1 | 2 | 3 | 4, color?: string) => {
+    if (level === 0) return "none";
+
+    const c = color ?? "#000";
+
+    if (level === 1) {
+      return `0px 1px 2px 0px ${alpha(c, 0.12)}, 0px 1px 3px 0px ${alpha(c, 0.06)}`;
+    }
+
+    if (level === 2) {
+      return `0px 2px 4px -1px ${alpha(c, 0.14)}, 0px 4px 6px -1px ${alpha(c, 0.08)}, 0px 1px 10px 0px ${alpha(c, 0.06)}`;
+    }
+
+    if (level === 3) {
+      return `0px 3px 6px -2px ${alpha(c, 0.16)}, 0px 6px 10px -2px ${alpha(c, 0.10)}, 0px 2px 18px 0px ${alpha(c, 0.08)}`;
+    }
+
+    return `0px 2px 4px -1px ${alpha(c, 0.20)}, 0px 4px 5px 0px ${alpha(c, 0.14)}, 0px 1px 10px 0px ${alpha(c, 0.12)}`;
+  };
+
+  shadows[1] = buildShadow(1);
+  shadows[2] = buildShadow(2);
+  shadows[3] = buildShadow(3);
+  shadows[4] = buildShadow(4);
 
   const options: ThemeOptions = {
     shadows,
@@ -95,7 +120,7 @@ export const createAppTheme = (mode: Mode) => {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {
           root: { 
-            borderRadius: t.radius.lg,
+            borderRadius: buttonRadiusPx,
             minWidth: '90px',
           },
           sizeMedium: {
@@ -121,6 +146,7 @@ export const createAppTheme = (mode: Mode) => {
       layout: t.layout,
       radius: t.radius,
       border: t.border,
+      shadow: buildShadow,
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,

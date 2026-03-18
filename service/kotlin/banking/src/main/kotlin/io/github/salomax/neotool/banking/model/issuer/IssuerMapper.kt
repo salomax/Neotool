@@ -16,5 +16,6 @@ object IssuerMapper {
             logoKey = entity.logoKey,
             countryCode = entity.countryCode,
             isActive = entity.isActive,
+            category = entity.category,
         )
 }

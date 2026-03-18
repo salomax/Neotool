@@ -1,0 +1,27 @@
+meta {
+  name: Delete Investment Transaction
+  type: graphql
+  seq: 4
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation DeleteInvestmentTransaction($id: ID!) {
+    deleteInvestmentTransaction(id: $id)
+  }
+}
+
+body:graphql:vars {
+  {
+    "id": "{{investment_transaction_id}}"
+  }
+}

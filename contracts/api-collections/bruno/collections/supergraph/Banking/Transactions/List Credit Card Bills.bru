@@ -1,0 +1,37 @@
+meta {
+  name: List Credit Card Bills
+  type: graphql
+  seq: 6
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query CreditCardBills($financialAccountId: ID!) {
+    creditCardBills(financialAccountId: $financialAccountId) {
+      id
+      financialAccountId
+      closingDate
+      dueDate
+      totalAmount
+      minimumPayment
+      status
+      createdAt
+      updatedAt
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": "<card-account-id>"
+  }
+}

@@ -4,7 +4,8 @@ SET search_path TO security, public;
 -- 1. Add missing banking permissions
 INSERT INTO security.permissions (name) VALUES
     ('banking:account:view'),
-    ('banking:account:create')
+    ('banking:account:create'),
+    ('banking:issuer:view')
 ON CONFLICT (name) DO NOTHING;
 
 -- 2. Create Banking User role (standard role for all app users)

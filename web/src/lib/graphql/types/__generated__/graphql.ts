@@ -21,6 +21,14 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+/** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
+export enum AnbimaCategory {
+  Acoes = 'ACOES',
+  Cambial = 'CAMBIAL',
+  Multimercado = 'MULTIMERCADO',
+  RendaFixa = 'RENDA_FIXA'
+}
+
 /** Asset metadata and access information. */
 export type Asset = {
   __typename: 'Asset';
@@ -92,6 +100,37 @@ export enum AssetStatus {
   Pending = 'PENDING',
   /** File uploaded and confirmed, ready for use */
   Ready = 'READY'
+}
+
+/** Asset class (classe de ativo). Drives pricing model and tax treatment. */
+export enum AssetType {
+  AgribusinessFund = 'AGRIBUSINESS_FUND',
+  Bdr = 'BDR',
+  Cdb = 'CDB',
+  Coe = 'COE',
+  Cra = 'CRA',
+  Cri = 'CRI',
+  Crypto = 'CRYPTO',
+  Debentures = 'DEBENTURES',
+  Derivatives = 'DERIVATIVES',
+  Etf = 'ETF',
+  EtfFixedIncome = 'ETF_FIXED_INCOME',
+  EtfInternational = 'ETF_INTERNATIONAL',
+  Lc = 'LC',
+  Lca = 'LCA',
+  Lci = 'LCI',
+  Lf = 'LF',
+  Lig = 'LIG',
+  MutualFund = 'MUTUAL_FUND',
+  Option = 'OPTION',
+  Other = 'OTHER',
+  Pgbl = 'PGBL',
+  Rdb = 'RDB',
+  RealEstateFund = 'REAL_ESTATE_FUND',
+  Stock = 'STOCK',
+  StockRights = 'STOCK_RIGHTS',
+  Treasury = 'TREASURY',
+  Vgbl = 'VGBL'
 }
 
 /** Asset visibility level - determines access control and URL generation. */
@@ -334,6 +373,42 @@ export enum BillStatus {
   Overdue = 'OVERDUE',
   Paid = 'PAID'
 }
+
+/**
+ * Fee breakdown from a broker note (nota de corretagem).
+ * 1:1 with InvestmentTransaction. Present only for renda variável transactions.
+ * All fee fields are zero when not charged.
+ */
+export type BrokerNote = {
+  __typename: 'BrokerNote';
+  brokerNoteNumber: Maybe<Scalars['String']['output']>;
+  brokerageFee: Scalars['Float']['output'];
+  clearingCustodyFee: Scalars['Float']['output'];
+  clearingRegistrationFee: Scalars['Float']['output'];
+  clearingSettlementFee: Scalars['Float']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  grossValue: Scalars['Float']['output'];
+  incomeTax: Scalars['Float']['output'];
+  netValue: Scalars['Float']['output'];
+  stockExchangeAssetTradeNoticeFee: Scalars['Float']['output'];
+  stockExchangeFee: Scalars['Float']['output'];
+  taxes: Scalars['Float']['output'];
+};
+
+/** Fee breakdown from a broker note (nota de corretagem). All fields default to zero. */
+export type BrokerNoteInput = {
+  brokerNoteNumber?: InputMaybe<Scalars['String']['input']>;
+  brokerageFee?: InputMaybe<Scalars['Float']['input']>;
+  clearingCustodyFee?: InputMaybe<Scalars['Float']['input']>;
+  clearingRegistrationFee?: InputMaybe<Scalars['Float']['input']>;
+  clearingSettlementFee?: InputMaybe<Scalars['Float']['input']>;
+  grossValue: Scalars['Float']['input'];
+  incomeTax?: InputMaybe<Scalars['Float']['input']>;
+  netValue: Scalars['Float']['input'];
+  stockExchangeAssetTradeNoticeFee?: InputMaybe<Scalars['Float']['input']>;
+  stockExchangeFee?: InputMaybe<Scalars['Float']['input']>;
+  taxes?: InputMaybe<Scalars['Float']['input']>;
+};
 
 export enum BudgetPeriod {
   Daily = 'DAILY',
@@ -611,6 +686,20 @@ export type CreateGroupInput = {
   userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
+/**
+ * Creates a global investment asset entry.
+ * Assets are not tenant-scoped and can be reused across accounts.
+ */
+export type CreateInvestmentAssetInput = {
+  assetType: AssetType;
+  /** Defaults to BRL when omitted. */
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  isinCode?: InputMaybe<Scalars['String']['input']>;
+  issuerName?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  ticker?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreatePromptInput = {
   category: Scalars['String']['input'];
   createdBy: Scalars['ID']['input'];
@@ -746,6 +835,13 @@ export type EconomicIndicator = {
 
 export type EconomicIndicatorVariationsArgs = {
   label?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type EconomicIndicatorLatestItem = {
+  __typename: 'EconomicIndicatorLatestItem';
+  indicator: Scalars['String']['output'];
+  latest: Maybe<EconomicIndicatorPoint>;
+  variation: Scalars['String']['output'];
 };
 
 export type EconomicIndicatorPoint = {
@@ -1000,6 +1096,13 @@ export type FixedIncomeTaxMethodology = {
   bracketTable: Array<FixedIncomeTaxBracket>;
 };
 
+export type FundDailyNav = {
+  __typename: 'FundDailyNav';
+  closePrice: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  totalNetAssets: Maybe<Scalars['Float']['output']>;
+};
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -1080,6 +1183,22 @@ export enum ImportType {
   CreditCardBill = 'CREDIT_CARD_BILL'
 }
 
+/** Fixed income indexer (referenciador). Only applicable to RF holdings. */
+export enum Indexer {
+  Bcp = 'BCP',
+  Cdi = 'CDI',
+  Di = 'DI',
+  IgpDi = 'IGP_DI',
+  IgpM = 'IGP_M',
+  Inpc = 'INPC',
+  Ipca = 'IPCA',
+  Outros = 'OUTROS',
+  PreFixado = 'PRE_FIXADO',
+  Selic = 'SELIC',
+  Tlc = 'TLC',
+  Tr = 'TR'
+}
+
 export type IndicatorRangeInput = {
   from?: InputMaybe<Scalars['Date']['input']>;
   last?: InputMaybe<Scalars['Int']['input']>;
@@ -1108,9 +1227,204 @@ export type InstitutionRating = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+/**
+ * Global investable instrument from the asset catalog.
+ * Equities are identified by ticker; fixed income by isinCode; funds by fundCnpj.
+ * Market prices are NOT stored here — fetched from financial-data at query time.
+ */
+export type InvestmentAsset = {
+  __typename: 'InvestmentAsset';
+  anbimaCategory: Maybe<AnbimaCategory>;
+  anbimaClass: Maybe<Scalars['String']['output']>;
+  anbimaSubclass: Maybe<Scalars['String']['output']>;
+  assetType: AssetType;
+  createdAt: Scalars['DateTime']['output'];
+  currencyCode: Scalars['String']['output'];
+  exchange: Maybe<Scalars['String']['output']>;
+  fundCnpj: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isinCode: Maybe<Scalars['String']['output']>;
+  issuerCnpj: Maybe<Scalars['String']['output']>;
+  issuerName: Maybe<Scalars['String']['output']>;
+  name: Scalars['String']['output'];
+  /** B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001. */
+  priceFactor: Scalars['Float']['output'];
+  ticker: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type InvestmentFund = {
+  __typename: 'InvestmentFund';
+  assetType: Scalars['String']['output'];
+  cnpj: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  latestNav: Maybe<FundDailyNav>;
+  name: Scalars['String']['output'];
+  priceHistory: Array<FundDailyNav>;
+};
+
+
+export type InvestmentFundPriceHistoryArgs = {
+  from?: InputMaybe<Scalars['Date']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  to?: InputMaybe<Scalars['Date']['input']>;
+};
+
+export enum InvestmentFundAssetType {
+  EquityFund = 'EQUITY_FUND',
+  FixedIncomeFund = 'FIXED_INCOME_FUND',
+  ForexFund = 'FOREX_FUND',
+  MultiMarketFund = 'MULTI_MARKET_FUND',
+  MutualFund = 'MUTUAL_FUND',
+  Pgbl = 'PGBL',
+  Vgbl = 'VGBL'
+}
+
+export type InvestmentFundAutocompleteConnection = {
+  __typename: 'InvestmentFundAutocompleteConnection';
+  suggestions: Array<InvestmentFundAutocompleteItem>;
+};
+
+export type InvestmentFundAutocompleteItem = {
+  __typename: 'InvestmentFundAutocompleteItem';
+  assetType: Scalars['String']['output'];
+  cnpj: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type InvestmentFundConnection = {
+  __typename: 'InvestmentFundConnection';
+  edges: Array<InvestmentFundEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type InvestmentFundEdge = {
+  __typename: 'InvestmentFundEdge';
+  cursor: Scalars['String']['output'];
+  node: InvestmentFund;
+};
+
+/**
+ * User's current position in an asset within a custodian account.
+ * One holding per (financialAccountId, asset). Quantity aggregates all lots.
+ * averageCost is maintained by the transaction engine — custo médio ponderado (RFB method).
+ */
+export type InvestmentHolding = {
+  __typename: 'InvestmentHolding';
+  asset: InvestmentAsset;
+  /** Weighted average purchase price per unit (custo médio ponderado). */
+  averageCost: Scalars['Float']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  financialAccount: Maybe<FinancialAccount>;
+  financialAccountId: Scalars['ID']['output'];
+  /** Earliest redemption date (carência). */
+  gracePeriodDate: Maybe<Scalars['Date']['output']>;
+  grossValue: Maybe<Scalars['Float']['output']>;
+  id: Scalars['ID']['output'];
+  incomeTax: Maybe<Scalars['Float']['output']>;
+  indexer: Maybe<Indexer>;
+  /** Fraction of indexer applied (e.g. 1.15 = 115% CDI). */
+  indexerPercentage: Maybe<Scalars['Float']['output']>;
+  iof: Maybe<Scalars['Float']['output']>;
+  /** Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today. */
+  isExpired: Scalars['Boolean']['output'];
+  /** True for LCI/LCA/CRI/CRA — exempt from IR for individuals. */
+  isTaxExempt: Scalars['Boolean']['output'];
+  issueDate: Maybe<Scalars['Date']['output']>;
+  lastValuedAt: Maybe<Scalars['DateTime']['output']>;
+  maturityDate: Maybe<Scalars['Date']['output']>;
+  netValue: Maybe<Scalars['Float']['output']>;
+  /** Annual pre-fixed rate (e.g. 0.12 = 12% a.a.). */
+  preFixedRate: Maybe<Scalars['Float']['output']>;
+  /** Current number of units/shares/cotas held. Zero means position is closed. */
+  quantity: Scalars['Float']['output'];
+  source: InvestmentSource;
+  updatedAt: Scalars['DateTime']['output'];
+  /** Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE). */
+  valuationReferenceDate: Maybe<Scalars['Date']['output']>;
+  valuationSource: ValuationSource;
+};
+
+/** How an investment record entered the system. */
+export enum InvestmentSource {
+  FileImport = 'FILE_IMPORT',
+  Manual = 'MANUAL',
+  OpenFinance = 'OPEN_FINANCE'
+}
+
+/**
+ * An event that changes (or explains) an investment holding.
+ * tradeDate is the legally relevant date (fato gerador for IR calculation).
+ * grossValue is always positive; direction is INFLOW or OUTFLOW.
+ */
+export type InvestmentTransaction = {
+  __typename: 'InvestmentTransaction';
+  agreedRate: Maybe<Scalars['Float']['output']>;
+  brokerNote: Maybe<BrokerNote>;
+  createdAt: Scalars['DateTime']['output'];
+  direction: InvestmentTransactionDirection;
+  financialAccountId: Scalars['ID']['output'];
+  grossValue: Scalars['Float']['output'];
+  holdingId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
+  incomeTax: Maybe<Scalars['Float']['output']>;
+  indexerPercentage: Maybe<Scalars['Float']['output']>;
+  iof: Maybe<Scalars['Float']['output']>;
+  netValue: Maybe<Scalars['Float']['output']>;
+  priceFactor: Maybe<Scalars['Float']['output']>;
+  /** Null for pure monetary events (DIVIDEND, INTEREST_PAYMENT, etc.). */
+  quantity: Maybe<Scalars['Float']['output']>;
+  /** Settlement date (D+2 equities, D+1 RF). Null for events with no settlement leg. */
+  settlementDate: Maybe<Scalars['Date']['output']>;
+  source: InvestmentSource;
+  /** Legal event date — fato gerador for IR calculation. */
+  tradeDate: Scalars['Date']['output'];
+  type: InvestmentTransactionType;
+  /** Required when type = OTHER (OFB transactionTypeAdditionalInfo). */
+  typeAdditionalInfo: Maybe<Scalars['String']['output']>;
+  unitPrice: Maybe<Scalars['Float']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+/** Direction of an investment event. INFLOW increases or adds; OUTFLOW decreases or withdraws. */
+export enum InvestmentTransactionDirection {
+  Inflow = 'INFLOW',
+  Outflow = 'OUTFLOW'
+}
+
+/** Nature of an investment event (OFB/Pluggy/Belvo canonical). */
+export enum InvestmentTransactionType {
+  Amortization = 'AMORTIZATION',
+  BonusShares = 'BONUS_SHARES',
+  Cancellation = 'CANCELLATION',
+  CustodyTransfer = 'CUSTODY_TRANSFER',
+  Dividend = 'DIVIDEND',
+  Fine = 'FINE',
+  InterestOnEquity = 'INTEREST_ON_EQUITY',
+  InterestPayment = 'INTEREST_PAYMENT',
+  LatePaymentInterest = 'LATE_PAYMENT_INTEREST',
+  Maturity = 'MATURITY',
+  Other = 'OTHER',
+  OwnershipTransfer = 'OWNERSHIP_TRANSFER',
+  Prize = 'PRIZE',
+  Purchase = 'PURCHASE',
+  QuotaTransfer = 'QUOTA_TRANSFER',
+  ReverseSplit = 'REVERSE_SPLIT',
+  Sale = 'SALE',
+  StockLending = 'STOCK_LENDING',
+  StockSplit = 'STOCK_SPLIT',
+  Subscription = 'SUBSCRIPTION',
+  WithholdingTax = 'WITHHOLDING_TAX'
+}
+
 /** Financial institution associated with an account. */
 export type Issuer = {
   __typename: 'Issuer';
+  category: IssuerCategory;
   compeCode: Maybe<Scalars['String']['output']>;
   countryCode: Scalars['String']['output'];
   domain: Maybe<Scalars['String']['output']>;
@@ -1120,6 +1434,14 @@ export type Issuer = {
   logoKey: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
 };
+
+export enum IssuerCategory {
+  Bank = 'BANK',
+  Benefit = 'BENEFIT',
+  Brokerage = 'BROKERAGE',
+  CryptoExchange = 'CRYPTO_EXCHANGE',
+  Payment = 'PAYMENT'
+}
 
 export type MessageInput = {
   content?: InputMaybe<Scalars['String']['input']>;
@@ -1264,6 +1586,11 @@ export type Mutation = {
    */
   createFinancialAccount: FinancialAccount;
   createGroup: Group;
+  /**
+   * Records an investment transaction and updates the holding's quantity and averageCost.
+   * Creates the holding automatically on the first PURCHASE of an asset.
+   */
+  createInvestmentAsset: InvestmentAsset;
   createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
@@ -1283,6 +1610,8 @@ export type Mutation = {
   /** Soft-delete a user-owned category rule. System rules cannot be deleted. */
   deleteCategoryRule: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
+  /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
+  deleteInvestmentTransaction: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   /** Soft-delete a manual transaction. */
   deleteTransaction: Scalars['Boolean']['output'];
@@ -1299,6 +1628,8 @@ export type Mutation = {
    */
   payBill: CreditCardBill;
   publishPromptVersion: PromptVersion;
+  /** Records an investment transaction and updates the holding's quantity and averageCost. */
+  recordInvestmentTransaction: InvestmentTransaction;
   refreshAccessToken: SignInPayload;
   registerTool: Tool;
   removeGroupFromUser: User;
@@ -1396,6 +1727,11 @@ export type MutationCreateGroupArgs = {
 };
 
 
+export type MutationCreateInvestmentAssetArgs = {
+  input: CreateInvestmentAssetInput;
+};
+
+
 export type MutationCreatePromptArgs = {
   input: CreatePromptInput;
 };
@@ -1428,6 +1764,11 @@ export type MutationDeleteCategoryRuleArgs = {
 
 export type MutationDeleteGroupArgs = {
   groupId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -1482,6 +1823,11 @@ export type MutationPayBillArgs = {
 export type MutationPublishPromptVersionArgs = {
   promptId: Scalars['ID']['input'];
   versionId: Scalars['ID']['input'];
+};
+
+
+export type MutationRecordInvestmentTransactionArgs = {
+  input: RecordInvestmentTransactionInput;
 };
 
 
@@ -1745,6 +2091,8 @@ export type Query = {
   __typename: 'Query';
   _bankingService: Maybe<Scalars['String']['output']>;
   _empty: Maybe<Scalars['String']['output']>;
+  /** All holdings across all custodian accounts for the tenant (for net worth). */
+  allInvestmentHoldings: Array<InvestmentHolding>;
   /**
    * Get asset by ID.
    * Returns null if asset not found or user doesn't have access.
@@ -1777,8 +2125,27 @@ export type Query = {
   fixedIncomeComparison: FixedIncomeComparisonResult;
   group: Maybe<Group>;
   groups: GroupConnection;
+  indicatorsLatest: Array<EconomicIndicatorLatestItem>;
+  /** Look up an asset from the global catalog. */
+  investmentAsset: Maybe<InvestmentAsset>;
+  investmentFund: Maybe<InvestmentFund>;
+  investmentFunds: InvestmentFundConnection;
+  /** Single holding by id. */
+  investmentHolding: Maybe<InvestmentHolding>;
+  /**
+   * All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
+   * Zero-quantity (closed) positions are excluded.
+   */
+  investmentHoldings: Array<InvestmentHolding>;
+  /** Single investment transaction by id. */
+  investmentTransaction: Maybe<InvestmentTransaction>;
+  /** Full event history for a holding, ordered by tradeDate DESC. */
+  investmentTransactions: Array<InvestmentTransaction>;
   isUserActiveMemberOfAccount: Scalars['Boolean']['output'];
-  /** All active issuers. Small list — no pagination or filter needed. */
+  /**
+   * All active issuers.
+   * When categories is omitted, returns all active issuers.
+   */
   issuers: Array<Issuer>;
   /**
    * Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
@@ -1798,6 +2165,7 @@ export type Query = {
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
+  searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
   /** Single transaction by ID (scoped to the authenticated account). */
   transaction: Maybe<Transaction>;
@@ -1905,9 +2273,53 @@ export type QueryGroupsArgs = {
 };
 
 
+export type QueryInvestmentAssetArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentFundArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentFundsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  assetType?: InputMaybe<InvestmentFundAssetType>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryInvestmentHoldingArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentHoldingsArgs = {
+  financialAccountId: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentTransactionsArgs = {
+  holdingId: Scalars['ID']['input'];
+};
+
+
 export type QueryIsUserActiveMemberOfAccountArgs = {
   accountId: Scalars['ID']['input'];
   userId: Scalars['ID']['input'];
+};
+
+
+export type QueryIssuersArgs = {
+  categories?: InputMaybe<Array<IssuerCategory>>;
 };
 
 
@@ -1971,6 +2383,11 @@ export type QueryRolesArgs = {
 
 export type QuerySearchBacenInstitutionsAutocompleteArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+  query: Scalars['String']['input'];
+};
+
+
+export type QuerySearchInvestmentFundsAutocompleteArgs = {
   query: Scalars['String']['input'];
 };
 
@@ -2049,6 +2466,39 @@ export type RatingIssuer = {
   logoAssetId: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   website: Maybe<Scalars['String']['output']>;
+};
+
+/**
+ * Records a new investment transaction and updates the corresponding holding.
+ * The holding is resolved from (financialAccountId, assetId) — created if this is the first transaction.
+ * RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
+ */
+export type RecordInvestmentTransactionInput = {
+  agreedRate?: InputMaybe<Scalars['Float']['input']>;
+  assetId: Scalars['ID']['input'];
+  brokerNote?: InputMaybe<BrokerNoteInput>;
+  direction: InvestmentTransactionDirection;
+  financialAccountId: Scalars['ID']['input'];
+  gracePeriodDate?: InputMaybe<Scalars['Date']['input']>;
+  grossValue: Scalars['Float']['input'];
+  incomeTax?: InputMaybe<Scalars['Float']['input']>;
+  indexer?: InputMaybe<Indexer>;
+  indexerPercentage?: InputMaybe<Scalars['Float']['input']>;
+  iof?: InputMaybe<Scalars['Float']['input']>;
+  isTaxExempt?: InputMaybe<Scalars['Boolean']['input']>;
+  issueDate?: InputMaybe<Scalars['Date']['input']>;
+  maturityDate?: InputMaybe<Scalars['Date']['input']>;
+  netValue?: InputMaybe<Scalars['Float']['input']>;
+  preFixedRate?: InputMaybe<Scalars['Float']['input']>;
+  priceFactor?: InputMaybe<Scalars['Float']['input']>;
+  providerInvestmentId?: InputMaybe<Scalars['String']['input']>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  settlementDate?: InputMaybe<Scalars['Date']['input']>;
+  tradeDate: Scalars['Date']['input'];
+  type: InvestmentTransactionType;
+  /** Required when type = OTHER. */
+  typeAdditionalInfo?: InputMaybe<Scalars['String']['input']>;
+  unitPrice?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type RefreshAccessTokenInput = {
@@ -2538,6 +2988,18 @@ export type UserOrderByInput = {
 export enum UserOrderField {
   DisplayName = 'DISPLAY_NAME',
   Email = 'EMAIL'
+}
+
+/** Indicates the origin and reliability of a holding's current value. */
+export enum ValuationSource {
+  /** Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact. */
+  Calculated = 'CALCULATED',
+  /** Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate. */
+  Estimated = 'ESTIMATED',
+  /** Value provided by the data provider (Open Finance / file import). Authoritative. */
+  Provider = 'PROVIDER',
+  /** Value cannot be determined (unsupported indexer, missing data, or no issueDate). */
+  Unavailable = 'UNAVAILABLE'
 }
 
 export type VerificationStatus = {
