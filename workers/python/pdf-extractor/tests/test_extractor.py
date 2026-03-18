@@ -3,8 +3,9 @@ from __future__ import annotations
 from unittest.mock import patch
 
 import pytest
+from pdfminer.pdfdocument import PDFPasswordIncorrect
 
-from extractor import ExtractionError, extract_pdf_document
+from extractor import ExtractionError, PdfPasswordRequiredError, extract_pdf_document
 
 
 class _FakePage:
@@ -93,3 +94,21 @@ def test_empty_pdf_raises_extraction_error(mock_open):
 
     with pytest.raises(ExtractionError):
         extract_pdf_document(b"%PDF-1.7 empty")
+
+
+@patch("extractor.pdfplumber.open")
+def test_extract_pdf_document_forwards_password(mock_open):
+    mock_open.return_value = _FakePdf([_FakePage(tables=[], text="Nubank bill page")])
+
+    extract_pdf_document(b"%PDF-1.7 fake", password="secret")
+
+    _, kwargs = mock_open.call_args
+    assert kwargs["password"] == "secret"
+
+
+@patch("extractor.pdfplumber.open")
+def test_extract_pdf_document_encrypted_without_password_raises_password_required(mock_open):
+    mock_open.side_effect = PDFPasswordIncorrect("incorrect password")
+
+    with pytest.raises(PdfPasswordRequiredError):
+        extract_pdf_document(b"%PDF-1.7 fake")

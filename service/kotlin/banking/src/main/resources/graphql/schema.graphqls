@@ -213,9 +213,10 @@ enum ImportStatus {
   COMPLETED
   FAILED
   REVIEW_REQUIRED
+  REVIEW_CANCELLED
 }
 
-enum PdfImportJobStatus {
+enum BillImportJobStatus {
   PENDING
   EXTRACTING
   EXTRACTED
@@ -668,31 +669,40 @@ input ImportTransactionsFileInput {
   fileBase64: String!
 }
 
-input SubmitPdfBillImportInput {
+input SubmitBillImportInput {
   importType: ImportType!
   financialAccountId: ID
   fileName: String!
   fileBase64: String!
+  password: String
 }
 
-input ConfirmPdfBillImportInput {
+input ConfirmBillImportInput {
   jobId: ID!
-  cards: [ConfirmPdfCardInput!]!
+  closingDate: Date
+  dueDate: Date
+  cards: [ConfirmBillReviewCardInput!]!
 }
 
-input ConfirmPdfCardInput {
-  lastFourDigits: String!
+input ConfirmBillReviewCardInput {
+  reviewCardId: ID!
   financialAccountId: ID!
-  transactions: [ConfirmPdfTransactionInput!]!
+  transactions: [ConfirmBillReviewTransactionInput!]!
 }
 
-input ConfirmPdfTransactionInput {
+input ConfirmBillReviewTransactionInput {
   date: Date!
   description: String!
   amount: Float!
   creditDebitType: CreditDebitType!
   include: Boolean!
   isBillPayment: Boolean
+  installment: InstallmentInfoInput
+}
+
+input InstallmentInfoInput {
+  current: Int!
+  total: Int!
 }
 
 # ============================================================================
@@ -739,25 +749,28 @@ type ImportResult {
   import: TransactionImport!
 }
 
-type PdfImportJob {
+type BillImportJob {
   id: ID!
   importType: ImportType!
-  status: PdfImportJobStatus!
+  status: BillImportJobStatus!
   fileName: String
   createdAt: DateTime!
-  reviewPayload: PdfBillExtractionResult
+  reviewPayload: BillImportReview
   errorCode: String
   errorParameters: JSON
   errorMessage: String @deprecated(reason: "Use errorCode/errorParameters for i18n")
 }
 
-type PdfBillExtractionResult {
+type BillImportReview {
   bankName: String
+  reviewMode: BillImportReviewMode!
   statementPeriod: DateRange
-  cards: [PdfExtractedCard!]!
-  extractionConfidence: Float!
-  needsReview: Boolean!
-  warnings: [String!]!
+  cards: [BillImportReviewCard!]!
+}
+
+enum BillImportReviewMode {
+  CARD_BUCKET_MATCHING
+  TX_CARD_ASSIGNMENT
 }
 
 type DateRange {
@@ -765,34 +778,33 @@ type DateRange {
   to: Date
 }
 
-type PdfExtractedCard {
-  lastFourDigits: String!
+type BillImportReviewCard {
+  reviewCardId: ID!
+  lastFourDigits: String
   holderName: String
   closingDate: Date
   dueDate: Date
   declaredTotal: Float!
   computedTotal: Float!
   totalMatchesDeclared: Boolean!
-  transactions: [PdfExtractedTransaction!]!
+  transactions: [BillImportReviewTransaction!]!
   matchedFinancialAccountId: ID
   matchAmbiguous: Boolean!
-  matchCandidates: [PdfMatchCandidate!]!
-  confidence: Float!
+  matchCandidates: [BillImportMatchCandidate!]!
 }
 
-type PdfMatchCandidate {
+type BillImportMatchCandidate {
   id: ID!
   name: String!
 }
 
-type PdfExtractedTransaction {
+type BillImportReviewTransaction {
   date: Date
   description: String!
   amount: Float!
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
   isBillPayment: Boolean!
-  confidence: Float!
 }
 
 type InstallmentInfo {
@@ -1196,8 +1208,9 @@ extend type Query {
   ): TransactionConnection!
   transactionImports(financialAccountId: ID): [TransactionImport!]!
   transactionImport(id: ID!): TransactionImport
-  pdfImportJob(jobId: ID!): PdfImportJob
-  pdfImportJobs(financialAccountId: ID): [PdfImportJob!]!
+  pendingReviewImports(financialAccountId: ID): [TransactionImport!]!
+  billImportJob(jobId: ID!): BillImportJob
+  billImportJobs(financialAccountId: ID): [BillImportJob!]!
   """
   All non-deleted credit card bills for a CREDIT_CARD or CHARGE_CARD account,
   ordered by closing date descending.
@@ -1252,8 +1265,9 @@ extend type Mutation {
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!
-  submitPdfBillImport(input: SubmitPdfBillImportInput!): PdfImportJob!
-  confirmPdfBillImport(input: ConfirmPdfBillImportInput!): PdfImportJob!
+  cancelImportReview(jobId: ID!): Boolean!
+  submitBillImport(input: SubmitBillImportInput!): BillImportJob!
+  confirmBillImport(input: ConfirmBillImportInput!): BillImportJob!
   """
   Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
   Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.

@@ -13,7 +13,7 @@ from confluent_kafka import Consumer
 from cleaner import clean_extracted_text
 from config import WorkerConfig
 from downloader import DownloadError, SignedUrlExpiredError, download_pdf
-from extractor import extract_pdf_document
+from extractor import PdfPasswordRequiredError, extract_pdf_document
 from publisher import KafkaPublisher
 from schema import DlqPayload, SubmittedPayload
 
@@ -99,6 +99,7 @@ def run() -> None:
         consumer = Consumer(
             {
                 "bootstrap.servers": config.kafka_broker,
+                "broker.address.family": "v4",
                 "group.id": config.kafka_group_id,
                 "auto.offset.reset": config.auto_offset_reset,
                 "enable.auto.commit": False,
@@ -177,7 +178,7 @@ def _process_message(submitted: SubmittedPayload, config: WorkerConfig) -> dict[
         timeout_seconds=config.download_timeout_seconds,
         max_retries=config.download_max_retries,
     )
-    result = extract_pdf_document(pdf_bytes)
+    result = extract_pdf_document(pdf_bytes, password=submitted.password)
     cleaned_text = clean_extracted_text(result.extracted_text, max_chars=config.max_output_chars)
 
     return {
@@ -216,10 +217,16 @@ def _build_dlq_payload(
 
     if isinstance(exc, SignedUrlExpiredError):
         error_message = f"signed_url_expired: {exc}"
+        error_code = None
     elif isinstance(exc, DownloadError):
         error_message = f"download_failed: {exc}"
+        error_code = None
+    elif isinstance(exc, PdfPasswordRequiredError):
+        error_message = f"pdf_password_required: {exc}"
+        error_code = "PDF_PASSWORD_REQUIRED"
     else:
         error_message = f"processing_failed: {exc}"
+        error_code = None
 
     logger.error(
         "message_processing_failed job_id=%s document_type=%s err=%s",
@@ -234,6 +241,7 @@ def _build_dlq_payload(
         asset_id=str(asset_id) if asset_id is not None else None,
         document_type=document_type,
         error=error_message,
+        error_code=error_code,
         callback_context=callback_context,
     )
 

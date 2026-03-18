@@ -17,9 +17,15 @@ import {
   Stack,
   alpha,
   Avatar,
-  Tooltip
+  Tooltip,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -29,8 +35,12 @@ import { useTranslation, i18n } from '@/shared/i18n';
 import { useEffect, useRef, useMemo, useState, Fragment } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
+import { CategoryIcon } from './category/CategoryIcon';
+import { useMutation } from '@apollo/client/react';
+import { DELETE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -44,6 +54,25 @@ interface TransactionTableProps {
   selectedAccountId?: string | null;
 }
 
+type DateParts = {
+  year: number;
+  month: number;
+  day: number;
+  dateKey: string;
+  sortKey: number;
+};
+
+function parseDateParts(value: string): DateParts | null {
+  const dateKey = (value ?? '').split('T')[0] ?? '';
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  if (!year || !month || !day) return null;
+  return { year, month, day, dateKey, sortKey: year * 10000 + month * 100 + day };
+}
+
 export function TransactionTable({ 
   transactions,
   financialAccounts,
@@ -53,7 +82,7 @@ export function TransactionTable({
   isCreating = false,
   onCancelCreate,
   onSuccessCreate,
-  selectedAccountId = null
+  selectedAccountId = null,
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -62,6 +91,39 @@ export function TransactionTable({
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
+  const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
+  const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
+
+  const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
+
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuTransaction(null);
+  };
+
+  const handleConfirmRemove = async () => {
+    const tx = transactionToRemove;
+    if (!tx) return;
+
+    try {
+      await deleteTransaction({ variables: { id: tx.id } });
+
+      setTransactionToRemove(null);
+      setDeletedTransactionId(tx.id);
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setDeletedTransactionId(null);
+
+      if (editedTransaction?.id === tx.id) {
+        setIsEditFormOpen(false);
+        setEditedTransaction(null);
+      }
+
+      onSuccessCreate?.();
+    } catch (error) {
+      setTransactionToRemove(null);
+    }
+  };
 
   const stringToColor = (string: string) => {
     let hash = 0;
@@ -79,28 +141,23 @@ export function TransactionTable({
   };
 
   const groupedTransactions = useMemo(() => {
-    // Sort transactions by date descending
-    const sorted = [...transactions].sort((a, b) => {
-      const dateA = a.date as string;
-      const dateB = b.date as string;
-      return new Date(dateB).getTime() - new Date(dateA).getTime();
-    });
-
     const groups: { date: string; transactions: Transaction[] }[] = [];
-    
-    sorted.forEach(transaction => {
-      // Assuming transaction.date is YYYY-MM-DD or ISO string
-      const dateStr = transaction.date as string;
-      const dateKey = dateStr.split('T')[0] ?? '';
-      
-      const lastGroup = groups[groups.length - 1];
-      if (lastGroup && lastGroup.date === dateKey) {
-        lastGroup.transactions.push(transaction);
-      } else {
-        groups.push({ date: dateKey, transactions: [transaction] });
-      }
-    });
-    
+    [...transactions]
+      .sort((a, b) => {
+        const sortA = parseDateParts(a.date as string)?.sortKey ?? 0;
+        const sortB = parseDateParts(b.date as string)?.sortKey ?? 0;
+        return sortB - sortA;
+      })
+      .forEach((transaction) => {
+        const dateKey = parseDateParts(transaction.date as string)?.dateKey ?? (transaction.date as string);
+        const lastGroup = groups[groups.length - 1];
+        if (lastGroup && lastGroup.date === dateKey) {
+          lastGroup.transactions.push(transaction);
+        } else {
+          groups.push({ date: dateKey, transactions: [transaction] });
+        }
+      });
+
     return groups;
   }, [transactions]);
 
@@ -144,25 +201,23 @@ export function TransactionTable({
   };
 
   useEffect(() => {
+    const currentLoader = loaderRef.current;
+    if (!currentLoader) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         const entry = entries[0];
-        if (entry && entry.isIntersecting && hasMore && !loading) {
+        if (entry?.isIntersecting && hasMore && !loading) {
           onLoadMore();
         }
       },
-      { threshold: 0.1 }
+      { threshold: 0, rootMargin: '200px 0px' }
     );
 
-    const currentLoader = loaderRef.current;
-    if (currentLoader) {
-      observer.observe(currentLoader);
-    }
+    observer.observe(currentLoader);
 
     return () => {
-      if (currentLoader) {
-        observer.unobserve(currentLoader);
-      }
+      observer.disconnect();
     };
   }, [hasMore, loading, onLoadMore]);
 
@@ -232,29 +287,29 @@ export function TransactionTable({
   const colSpan = selectedAccountId ? 6 : 7;
 
   return (
-    <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none' }}>
+    <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none', overflow: 'visible' }}>
       <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="transactions table">
         <TableHead>
           <TableRow>
-            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: 'none', bgcolor: 'transparent' }}></TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
+            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.tags')}</Label>
             </TableCell>
             {!selectedAccountId && (
-              <TableCell sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+              <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
                 <Label>{t('financeTransactions.financialAccount')}</Label>
               </TableCell>
             )}
-            <TableCell align="right" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}>
+            <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
-            <TableCell align="center" sx={{ borderBottom: 'none', bgcolor: 'transparent' }}></TableCell>
+            <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
@@ -267,7 +322,7 @@ export function TransactionTable({
             />
           )}
           {groupedTransactions.map((group) => (
-            <>
+            <Fragment key={`day-group-${group.date}`}>
               <TableRow key={`header-${group.date}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
                 <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
                   <Label>
@@ -280,6 +335,14 @@ export function TransactionTable({
                 const isDeleting = deletedTransactionId === transaction.id;
                 const isFirst = index === 0;
                 const isLast = index === group.transactions.length - 1;
+                const installmentNumber = transaction.installmentNumber ?? null;
+                const totalInstallments = transaction.totalInstallments ?? null;
+                const showInstallments =
+                  transaction.creditDebitType === CreditDebitType.Debit &&
+                  typeof installmentNumber === 'number' &&
+                  typeof totalInstallments === 'number' &&
+                  totalInstallments > 1 &&
+                  installmentNumber >= 1;
                 
                 return (
                   <Fragment key={transaction.id}>
@@ -308,30 +371,116 @@ export function TransactionTable({
                         {getTransactionTypeIcon(transaction.creditDebitType, transaction.type)}
                       </TableCell>
                       <TableCell component="th" scope="row">
-                        <Typography variant="body2">{transaction.description}</Typography>
+                        <Stack spacing={0.5}>
+                          <Typography
+                            variant="body2"
+                            title={transaction.description}
+                            sx={{
+                              display: '-webkit-box',
+                              WebkitBoxOrient: 'vertical',
+                              WebkitLineClamp: 2,
+                              maxWidth: 320,
+                              overflow: 'hidden',
+                            }}
+                          >
+                            {transaction.description}
+                          </Typography>
+                          {showInstallments && (
+                            <Stack spacing={0.5} sx={{ maxWidth: 200 }}>
+                              <Typography variant="caption" color="text.secondary">
+                                {installmentNumber} of {totalInstallments}
+                              </Typography>
+                              <Box
+                                role="progressbar"
+                                aria-valuemin={1}
+                                aria-valuemax={totalInstallments}
+                                aria-valuenow={Math.min(Math.max(installmentNumber, 1), totalInstallments)}
+                                sx={{
+                                  display: 'flex',
+                                  gap: '2px',
+                                  height: 6,
+                                }}
+                              >
+                                {Array.from({ length: totalInstallments }, (_, i) => {
+                                  const idx = i + 1;
+                                  const isCompleted = idx < installmentNumber;
+                                  const isCurrent = idx === installmentNumber;
+
+                                  const filledColor = theme.palette.primary.main;
+                                  const bgColor = isCompleted
+                                    ? alpha(filledColor, 0.55)
+                                    : isCurrent
+                                      ? filledColor
+                                      : alpha(theme.palette.text.primary, 0.08);
+
+                                  return (
+                                    <Box
+                                      key={idx}
+                                      sx={{
+                                        flex: 1,
+                                        minWidth: 4,
+                                        bgcolor: bgColor,
+                                        borderRadius:
+                                          idx === 1
+                                            ? '6px 0 0 6px'
+                                            : idx === totalInstallments
+                                              ? '0 6px 6px 0'
+                                              : 2,
+                                      }}
+                                    />
+                                  );
+                                })}
+                              </Box>
+                            </Stack>
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell>
                         {transaction.category && (
                           <Chip 
                             label={
-                              <Stack direction="row" spacing={0.5} alignItems="center">
-                                {transaction.category.icon && <Typography sx={{ fontSize: '1.1em' }}>{transaction.category.icon}</Typography>}
-                                <Typography variant="body2">{transaction.category.name}</Typography>
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                                <CategoryIcon
+                                  iconName={transaction.category.icon}
+                                  color={transaction.category.color ?? undefined}
+                                  size={20}
+                                  sx={{ flexShrink: 0 }}
+                                />
+                                <Typography
+                                  variant="body2"
+                                  title={transaction.category.name}
+                                  sx={{
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    minWidth: 0,
+                                    maxWidth: '22ch',
+                                  }}
+                                >
+                                  {transaction.category.name}
+                                </Typography>
                               </Stack>
                             }
-                            size="small" 
                             variant="filled"
                             sx={{ 
                               color: transaction.category.color || 'text.primary',
-                              bgcolor: transaction.category.color ? alpha(transaction.category.color, 0.05) : undefined,
-                              borderRadius: borderRadius,
+                              bgcolor: transaction.category.color
+                                ? alpha(transaction.category.color, 0.1)
+                                : 'action.selected',
+                              borderColor: transaction.category.color
+                                ? alpha(transaction.category.color, 0.3)
+                                : 'divider',
+                              borderWidth: 1,
+                              borderStyle: 'solid',
+                              maxWidth: '100%',
+                              '& .MuiChip-label': { minWidth: 0, maxWidth: '100%' },
                             }}
                           />
                         )}
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.5} alignItems="center">
-                          {(transaction as any).tags?.slice(0, 2).map((tag: string) => {
+                          {transaction.tags?.slice(0, 2).map((tag: string) => {
                             if (!tag) return null;
                             const color = stringToColor(tag || '');
                             return (
@@ -348,11 +497,11 @@ export function TransactionTable({
                               />
                             );
                           })}
-                          {(transaction as any).tags?.length > 2 && (
+                          {transaction.tags?.length > 2 && (
                             <Tooltip 
                               title={
                                 <Stack spacing={0.5} sx={{ p: 0.5 }}>
-                                  {(transaction as any).tags.map((tag: string) => (
+                                  {transaction.tags.map((tag: string) => (
                                     <Typography key={tag} variant="caption" sx={{ color: 'inherit' }}>
                                       • {tag}
                                     </Typography>
@@ -371,7 +520,7 @@ export function TransactionTable({
                                   '&:hover': { textDecoration: 'underline' }
                                 }}
                               >
-                                +{(transaction as any).tags.length - 2}
+                                +{transaction.tags.length - 2}
                               </Typography>
                             </Tooltip>
                           )}
@@ -431,6 +580,8 @@ export function TransactionTable({
                                 : 'success.main'
                           }
                           fontWeight="medium"
+                          noWrap
+                          sx={{ fontVariantNumeric: 'tabular-nums' }}
                         >
                           {formatCurrency(
                             transaction.creditDebitType === CreditDebitType.Debit 
@@ -441,14 +592,15 @@ export function TransactionTable({
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
-                        <IconButton 
-                          size="small" 
-                          onClick={() => {
-                            setEditedTransaction(transaction);
-                            setIsEditFormOpen(true);
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            setActionMenuAnchorEl(e.currentTarget);
+                            setActionMenuTransaction(transaction);
                           }}
+                          aria-label={t('financeTransactions.transactionTable.rowActions.ariaLabel')}
                         >
-                          <EditIcon fontSize="small" />
+                          <MoreVertIcon fontSize="small" />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -463,25 +615,64 @@ export function TransactionTable({
                           selectedAccountId={selectedAccountId}
                           initialValues={transaction}
                           onExited={() => setEditedTransaction(null)}
-                          isDeleting={isDeleting}
-                          onDeleteSuccess={async () => {
-                            setDeletedTransactionId(transaction.id);
-                            // Wait for animation
-                            await new Promise(resolve => setTimeout(resolve, 300));
-                            setDeletedTransactionId(null);
-                            setEditedTransaction(null);
-                            setIsEditFormOpen(false);
-                            if (onSuccessCreate) onSuccessCreate();
-                          }}
                         />
                       )}
                   </Fragment>
                 );
               })}
-            </>
+            </Fragment>
           ))}
         </TableBody>
       </Table>
+
+      <Menu
+        open={Boolean(actionMenuAnchorEl)}
+        anchorEl={actionMenuAnchorEl}
+        onClose={closeActionMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem
+          onClick={() => {
+            const tx = actionMenuTransaction;
+            closeActionMenu();
+            if (!tx) return;
+            setEditedTransaction(tx);
+            setIsEditFormOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('financeTransactions.transactionTable.rowActions.edit')}</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const tx = actionMenuTransaction;
+            closeActionMenu();
+            if (!tx) return;
+            setTransactionToRemove(tx);
+          }}
+          sx={{ color: 'error.main' }}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <DeleteOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('financeTransactions.transactionTable.rowActions.remove')}</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <ConfirmationDialog
+        open={Boolean(transactionToRemove)}
+        onClose={() => setTransactionToRemove(null)}
+        onConfirm={handleConfirmRemove}
+        title={t('financeTransactions.deleteConfirmation.title')}
+        message={t('financeTransactions.deleteConfirmation.message')}
+        cancelText={t('actions.cancel')}
+        confirmText={t('actions.delete')}
+        confirmColor="error"
+        loading={removing}
+      />
       
       {/* Loading indicator / Sentinel for infinite scroll */}
       {(hasMore || loading) && (

@@ -51,6 +51,15 @@ class ImportResolver(
         return job.toDTO(objectMapper)
     }
 
+    fun pendingReviewImports(
+        financialAccountId: String?,
+        principal: RequestPrincipal,
+    ): List<TransactionImportDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val faId = financialAccountId?.let { UUID.fromString(it) }
+        return importJobService.listPendingReviews(accountId, faId).map { it.toDTO(objectMapper) }
+    }
+
     // ── Mutations ────────────────────────────────────────────────────────────
 
     fun importTransactionsFile(
@@ -149,6 +158,15 @@ class ImportResolver(
                 qrCodeUrl = qrCodeUrl,
             )
         return ImportResultDTO(import = job.toDTO(objectMapper))
+    }
+
+    fun cancelImportReview(
+        jobId: String,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        importJobService.cancelImportReview(UUID.fromString(jobId), accountId)
+        return true
     }
 
     fun resolveImportDuplicate(

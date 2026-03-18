@@ -45,4 +45,31 @@ open class ImportFingerprintService(
             financialAccountId = financialAccountId,
             importFingerprint = fingerprint,
         )
+
+    /**
+     * Bill-scoped dedup for credit card bill imports.
+     * Fingerprint = SHA-256(account|bill|amountCents|normalizedDescription).
+     */
+    fun computeForBill(
+        financialAccountId: UUID,
+        billId: UUID,
+        amountCents: Long,
+        normalizedDescription: String,
+    ): String {
+        val normalized = normalizedDescription.trim().lowercase()
+        val payload = "$financialAccountId|$billId|$amountCents|$normalized"
+        val digest = MessageDigest.getInstance("SHA-256").digest(payload.toByteArray(Charsets.UTF_8))
+        return digest.joinToString("") { "%02x".format(it) }
+    }
+
+    fun isDuplicateForBill(
+        financialAccountId: UUID,
+        billId: UUID,
+        fingerprint: String,
+    ): Boolean =
+        transactionEntityRepository.existsByFinancialAccountIdAndBillIdAndImportFingerprintAndDeletedAtIsNull(
+            financialAccountId = financialAccountId,
+            billId = billId,
+            importFingerprint = fingerprint,
+        )
 }

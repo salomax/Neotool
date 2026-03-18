@@ -8,6 +8,7 @@ import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderOutputValida
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderProcessingException
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderPromptResolver
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderPromptResolverConfig
+import io.github.salomax.neotool.assistant.infra.kafka.BillExtractionMetaValidator
 import io.github.salomax.neotool.assistant.infra.kafka.LlmBankingReaderRequestedRoutingService
 import io.github.salomax.neotool.assistant.provider.error.ErrorType
 import io.github.salomax.neotool.assistant.provider.error.ProviderClientException
@@ -55,29 +56,18 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                 completionService = completionService,
                 promptResolver = promptResolver,
                 outputValidator = outputValidator,
+                metaValidator = BillExtractionMetaValidator(),
                 doneProducer = doneProducer,
                 objectMapper = jacksonObjectMapper(),
             )
     }
 
     @Test
-    fun `onCreditCardBill calls completion service in JSON mode and validates output`() {
+    fun `onCreditCardBill calls completion service in JSON mode with meta prompt and publishes done`() {
         val request = validRequest(documentType = "CREDIT_CARD_BILL", accountType = "CREDIT")
         runBlocking {
             whenever(completionService.generateCompletion(any(), any())).thenReturn(
-                completionResult(
-                    content =
-                        """
-                        {
-                          "bank_name":"Nubank",
-                          "statement_period":{"from":"2026-01-01","to":"2026-01-31"},
-                          "cards":[],
-                          "extraction_confidence":0.94,
-                          "needs_review":false,
-                          "warnings":["low quality logo text"]
-                        }
-                        """.trimIndent(),
-                ),
+                completionResult(content = MINIMAL_BILL_META_JSON),
             )
         }
 
@@ -94,6 +84,11 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(completionInput.messages).hasSize(1)
         assertThat(completionInput.messages.first().role).isEqualTo(ProviderMessageRole.USER)
         assertThat(completionInput.messages.first().content).contains(request.extracted_text)
+        // v2 prompt instructs LLM to return structure only, not transactions
+        assertThat(completionInput.messages.first().content).contains("Do NOT extract individual transactions")
+        assertThat(completionInput.messages.first().content).contains("anchor_start")
+        assertThat(completionInput.messages.first().content).contains("transaction_pattern")
+        assertThat(completionInput.messages.first().content).contains("card_blocks must be []")
 
         val doneCaptor =
             argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneEvent>()
@@ -101,12 +96,88 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         val doneEvent = doneCaptor.firstValue
         assertThat(doneEvent.job_id).isEqualTo(request.job_id)
         assertThat(doneEvent.callback_context.account_id).isEqualTo(request.callback_context.account_id)
-        assertThat(doneEvent.parse_metadata.reader_id).isEqualTo("assistant-banking-pdf-reader-v1")
+        assertThat(doneEvent.parse_metadata.reader_id).isEqualTo("assistant-banking-pdf-reader-v2")
         assertThat(doneEvent.parse_metadata.processor_type).isEqualTo("LLM")
-        assertThat(doneEvent.parse_metadata.confidence).isEqualTo(0.94)
         assertThat(doneEvent.parse_metadata.model_name).isEqualTo("gpt-4o-mini")
         assertThat(doneEvent.parse_metadata.latency_ms).isEqualTo(1200)
-        assertThat(doneEvent.parse_metadata.warnings).containsExactly("low quality logo text")
+        // llm_output is metadata-only for bill parsing; banking owns deterministic transaction extraction.
+        val llmOutput = doneEvent.llm_output
+        assertThat(llmOutput["bank_name"]).isEqualTo("Nubank")
+        assertThat(llmOutput["closing_date"]).isEqualTo("2026-01-31")
+        assertThat(llmOutput["due_date"]).isEqualTo("2026-02-10")
+        assertThat(llmOutput["card_blocks"]).isInstanceOf(List::class.java)
+        assertThat(llmOutput["transaction_pattern"]).isInstanceOf(Map::class.java)
+    }
+
+    @Test
+    fun `onCreditCardBill converts markdown table rows for LLM input and publishes metadata only`() {
+        val request =
+            validRequest(
+                documentType = "CREDIT_CARD_BILL",
+                accountType = "CREDIT",
+                extractedText =
+                    """
+                    | Data | Descricao | Valor |
+                    | --- | --- | --- |
+                    | 03 OUT | ****1769 Netflix.Com | R$ 44,90 |
+                    03 OUT ****1769 Netflix.Com R$ 44,90
+                    """.trimIndent(),
+            )
+        runBlocking {
+            whenever(completionService.generateCompletion(any(), any())).thenReturn(
+                completionResult(content = MINIMAL_BILL_META_JSON),
+            )
+        }
+
+        service.onCreditCardBill(request)
+
+        val inputCaptor = argumentCaptor<CompletionInput>()
+        runBlocking {
+            verify(completionService).generateCompletion(inputCaptor.capture(), eq(request.callback_context.account_id))
+        }
+        val llmPrompt = inputCaptor.firstValue.messages.first().content
+        assertThat(llmPrompt).doesNotContain("| 03 OUT | ****1769 Netflix.Com | R$ 44,90 |")
+        assertThat(llmPrompt).contains("03 OUT ****1769 Netflix.Com R$ 44,90")
+
+        val doneCaptor =
+            argumentCaptor<io.github.salomax.neotool.assistant.infra.kafka.AssistantBankingPdfReaderDoneEvent>()
+        verify(doneProducer).publish(doneCaptor.capture())
+        val output = doneCaptor.firstValue.llm_output
+        assertThat(output["card_blocks"]).isInstanceOf(List::class.java)
+        assertThat(output["transaction_pattern"]).isInstanceOf(Map::class.java)
+        assertThat(output).doesNotContainKey("cards")
+    }
+
+    @Test
+    fun `onCreditCardBill keeps converted table card block headers in LLM input`() {
+        val request =
+            validRequest(
+                documentType = "CREDIT_CARD_BILL",
+                accountType = "CREDIT",
+                extractedText =
+                    """
+                    | --- | Orival Onishi (Cartão 1295) | --- | --- | --- | --- |
+                    | --- | --- | --- | --- | --- | --- |
+                    | --- | Data | Descrição | País | Valor | --- |
+                    | 03/02 | KamilaRufinoDos SAO PAULO | BR | R$ 26,00 |
+                    """.trimIndent(),
+            )
+        runBlocking {
+            whenever(completionService.generateCompletion(any(), any())).thenReturn(
+                completionResult(content = MINIMAL_BILL_META_JSON),
+            )
+        }
+
+        service.onCreditCardBill(request)
+
+        val inputCaptor = argumentCaptor<CompletionInput>()
+        runBlocking {
+            verify(completionService).generateCompletion(inputCaptor.capture(), eq(request.callback_context.account_id))
+        }
+        val llmPrompt = inputCaptor.firstValue.messages.first().content
+        assertThat(llmPrompt).contains("Orival Onishi (Cartão 1295)")
+        assertThat(llmPrompt).doesNotContain("| --- | Orival Onishi (Cartão 1295) | --- | --- | --- | --- |")
+        assertThat(llmPrompt).doesNotContain("--- Orival Onishi (Cartão 1295) ---")
     }
 
     @Test
@@ -131,11 +202,30 @@ class LlmBankingReaderRequestedRoutingServiceTest {
     }
 
     @Test
-    fun `onCreditCardBill maps schema-invalid output to SCHEMA_VALIDATION_FAILED`() {
+    fun `onCreditCardBill maps schema-invalid meta output to SCHEMA_VALIDATION_FAILED`() {
         val request = validRequest(documentType = "CREDIT_CARD_BILL", accountType = "CREDIT")
         runBlocking {
+            // Deserializes successfully but fails validator: card_blocks empty without last_four_pattern, empty currency_symbols, bad decimal_separator
             whenever(completionService.generateCompletion(any(), any())).thenReturn(
-                completionResult(content = """{"bank_name":"Nubank"}"""),
+                completionResult(
+                    content =
+                        """
+                        {
+                          "bank_name": "Nubank",
+                          "closing_date": "2026-01-31",
+                          "due_date": "2026-02-10",
+                          "declared_total": null,
+                          "card_blocks": [],
+                          "transaction_pattern": {
+                            "date_format": "DD_MM",
+                            "last_four_pattern": null,
+                            "currency_symbols": [],
+                            "decimal_separator": "invalid",
+                            "installment_pattern": null
+                          }
+                        }
+                        """.trimIndent(),
+                ),
             )
         }
 
@@ -144,7 +234,6 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                 assertThat(ex.code).isEqualTo("SCHEMA_VALIDATION_FAILED")
                 assertThat(ex.stage).isEqualTo("OUTPUT_VALIDATION")
                 assertThat(ex.retryable).isFalse()
-                assertThat(ex.message).contains("statement_period")
             }
         verify(doneProducer, never()).publish(any())
     }
@@ -172,10 +261,10 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                         """
                         {
                           "bank_name":"Itau",
+                          "closing_date":"2026-02-28",
+                          "due_date":"2026-03-10",
                           "statement_period":{"from":"2026-02-01","to":"2026-02-28"},
                           "cards":[{"last_four_digits":"0000","closing_date":"2026-02-28","due_date":"2026-03-10","declared_total":0.0,"computed_total":0.0,"total_matches_declared":true,"transactions":[],"confidence":0.91}],
-                          "extraction_confidence":0.91,
-                          "needs_review":false,
                           "warnings":[]
                         }
                         """.trimIndent(),
@@ -201,6 +290,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         documentType: String,
         accountType: String,
         fileType: String = "PDF",
+        extractedText: String = "sample extracted text",
     ): AssistantBankingReaderRequestedEvent {
         val jobId = UUID.randomUUID()
         return AssistantBankingReaderRequestedEvent(
@@ -210,7 +300,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
             file_type = fileType,
             account_type = accountType,
             source_topic = "pdf-extractor.extracted",
-            extracted_text = "sample extracted text",
+            extracted_text = extractedText,
             extraction_metadata = mapOf("page_count" to 1),
             callback_context =
                 BankingReaderCallbackContext(
@@ -236,4 +326,26 @@ class LlmBankingReaderRequestedRoutingServiceTest {
             cost = BigDecimal("0.001"),
             escalate = false,
         )
+
+    companion object {
+        // Minimal valid BillExtractionMeta JSON for full-document inline-card parsing.
+        // "sample extracted text" contains no matching rows, so the extractor returns empty cards (acceptable for this test).
+        private val MINIMAL_BILL_META_JSON =
+            """
+            {
+              "bank_name": "Nubank",
+              "closing_date": "2026-01-31",
+              "due_date": "2026-02-10",
+              "declared_total": null,
+              "card_blocks": [],
+              "transaction_pattern": {
+                "date_format": "DD_MMM",
+                "last_four_pattern": "[^\\\\w\\\\s]+\\\\s*(\\\\d{4})",
+                "currency_symbols": ["R${'$'}"],
+                "decimal_separator": "comma",
+                "installment_pattern": null
+              }
+            }
+            """.trimIndent()
+    }
 }

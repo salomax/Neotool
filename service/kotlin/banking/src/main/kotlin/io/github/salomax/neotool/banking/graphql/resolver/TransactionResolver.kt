@@ -10,7 +10,6 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -38,7 +37,6 @@ import java.util.UUID
 @Singleton
 class TransactionResolver(
     private val service: TransactionService,
-    private val categoryRepository: TransactionCategoryRepository,
     private val monthSummaryQueryService: MonthSummaryQueryService,
     private val creditCardBillService: CreditCardBillService,
 ) {
@@ -80,17 +78,15 @@ class TransactionResolver(
         principal: RequestPrincipal,
     ): TransactionConnectionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val faId = financialAccountId?.let { UUID.fromString(it) }
+        val financialAccountId = financialAccountId?.let { UUID.fromString(it) }
         val belongsToUserUuid = belongsToUserId?.let { UUID.fromString(it) }
         val billUuid = billId?.let { UUID.fromString(it) }
         val categoryUuid = categoryId?.let { UUID.fromString(it) }
 
-        val categories = categoryRepository.findAll(accountId).associateBy { it.id!! }
-
         val connection =
             service.listTransactions(
                 accountId = accountId,
-                financialAccountId = faId,
+                financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserUuid,
                 belongsToName = belongsToName,
                 tags = tags,
@@ -102,6 +98,9 @@ class TransactionResolver(
                 first = first,
                 after = after,
             )
+
+        val categoryIds = connection.edges.mapNotNull { it.node.categoryId }.toSet()
+        val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
 
         val edges =
             connection.edges.map { edge ->
@@ -137,7 +136,7 @@ class TransactionResolver(
         val txId = UUID.fromString(id)
 
         val tx = service.findById(txId, accountId)
-        val category = tx.categoryId?.let { categoryRepository.findById(it) }
+        val category = service.findAccessibleCategory(tx.categoryId, accountId)
         return tx.toDTO(category)
     }
 
@@ -235,7 +234,7 @@ class TransactionResolver(
 
         val command = input.toCreateCommand()
         val saved = service.create(command, accountId, userId)
-        val category = saved.categoryId?.let { categoryRepository.findById(it) }
+        val category = service.findAccessibleCategory(saved.categoryId, accountId)
         return saved.toDTO(category)
     }
 
@@ -249,7 +248,7 @@ class TransactionResolver(
 
         val command = input.toUpdateCommand()
         val updated = service.update(txId, command, accountId)
-        val category = updated.categoryId?.let { categoryRepository.findById(it) }
+        val category = service.findAccessibleCategory(updated.categoryId, accountId)
         return updated.toDTO(category)
     }
 

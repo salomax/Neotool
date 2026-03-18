@@ -69,6 +69,12 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         importFingerprint: String,
     ): Boolean
 
+    fun existsByFinancialAccountIdAndBillIdAndImportFingerprintAndDeletedAtIsNull(
+        financialAccountId: UUID,
+        billId: UUID,
+        importFingerprint: String,
+    ): Boolean
+
     @Query(
         """
         SELECT * FROM banking.transactions
@@ -131,9 +137,12 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         """
         SELECT t.* FROM banking.transactions t
          WHERE t.account_id = :accountId
-           AND (:financialAccountId IS NULL OR t.financial_account_id = :financialAccountId)
-           AND EXTRACT(YEAR FROM t.date) = :year
-           AND EXTRACT(MONTH FROM t.date) = :month
+           AND (
+               CAST(:financialAccountId AS uuid) IS NULL
+               OR t.financial_account_id = CAST(:financialAccountId AS uuid)
+           )
+           AND t.date >= make_date(:year, :month, 1)
+           AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
            AND t.category_id IN (:categoryIds)
            AND t.deleted_at IS NULL
          ORDER BY t.date DESC, t.created_at DESC
@@ -151,10 +160,48 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
     @Query(
         """
         SELECT t.* FROM banking.transactions t
+        LEFT JOIN banking.credit_card_bills b
+               ON b.id = t.bill_id
+              AND b.deleted_at IS NULL
          WHERE t.account_id = :accountId
-           AND (:financialAccountId IS NULL OR t.financial_account_id = :financialAccountId)
-           AND EXTRACT(YEAR FROM t.date) = :year
-           AND EXTRACT(MONTH FROM t.date) = :month
+           AND (
+               CAST(:financialAccountId AS uuid) IS NULL
+               OR t.financial_account_id = CAST(:financialAccountId AS uuid)
+           )
+           AND (
+               (
+                   t.installment_number > 1
+                   AND DATE_TRUNC('month', COALESCE(b.due_date, t.date)) = DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
+               )
+               OR
+               (
+                   (t.installment_number IS NULL OR t.installment_number <= 1)
+                   AND t.date >= MAKE_DATE(:year, :month, 1)
+                   AND t.date < (MAKE_DATE(:year, :month, 1) + INTERVAL '1 month')
+               )
+           )
+           AND t.deleted_at IS NULL
+         ORDER BY t.date DESC, t.created_at DESC
+        """,
+        nativeQuery = true,
+    )
+    fun findInDateRange(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<TransactionEntity>
+
+    @Query(
+        """
+        SELECT t.* FROM banking.transactions t
+         WHERE t.account_id = :accountId
+           AND (
+               CAST(:financialAccountId AS uuid) IS NULL
+               OR t.financial_account_id = CAST(:financialAccountId AS uuid)
+           )
+           AND t.date >= make_date(:year, :month, 1)
+           AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
            AND t.category_id IS NULL
            AND t.deleted_at IS NULL
          ORDER BY t.date DESC, t.created_at DESC

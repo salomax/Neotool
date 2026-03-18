@@ -20,7 +20,7 @@ class WorkerConfig:
     @staticmethod
     def from_env() -> "WorkerConfig":
         return WorkerConfig(
-            kafka_broker=os.getenv("KAFKA_BROKER", "localhost:9094"),
+            kafka_broker=os.getenv("KAFKA_BROKER", "127.0.0.1:9094"),
             kafka_group_id=os.getenv("KAFKA_GROUP_ID", "pdf-extractor"),
             kafka_topic_in=os.getenv("KAFKA_TOPIC_IN", "pdf-extractor.submitted"),
             kafka_topic_out=os.getenv("KAFKA_TOPIC_OUT", "pdf-extractor.extracted"),

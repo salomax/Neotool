@@ -194,10 +194,10 @@ export const UPDATE_TRANSACTION = gql`
   }
 `;
 
-/** Submit a PDF or CSV file for credit card bill extraction (async). Returns a PdfImportJob in EXTRACTING status. */
-export const SUBMIT_PDF_BILL_IMPORT = gql`
-  mutation SubmitPdfBillImport($input: SubmitPdfBillImportInput!) {
-    submitPdfBillImport(input: $input) {
+/** Submit a PDF or CSV file for credit card bill extraction (async). Returns a BillImportJob in EXTRACTING status. */
+export const SUBMIT_BILL_IMPORT = gql`
+  mutation SubmitBillImport($input: SubmitBillImportInput!) {
+    submitBillImport(input: $input) {
       id
       status
       fileName
@@ -210,9 +210,9 @@ export const SUBMIT_PDF_BILL_IMPORT = gql`
 `;
 
 /** Confirm a reviewed PDF bill import — saves transactions and resolves card associations. */
-export const CONFIRM_PDF_BILL_IMPORT = gql`
-  mutation ConfirmPdfBillImport($input: ConfirmPdfBillImportInput!) {
-    confirmPdfBillImport(input: $input) {
+export const CONFIRM_BILL_IMPORT = gql`
+  mutation ConfirmBillImport($input: ConfirmBillImportInput!) {
+    confirmBillImport(input: $input) {
       id
       status
       createdAt

@@ -92,6 +92,18 @@ interface TransactionRepository {
     ): List<Transaction>
 
     /**
+     * Returns transactions in the given month/year for the account (optionally scoped to one financial account).
+     * When [financialAccountId] is null and transaction type is CARD with installmentNumber > 1,
+     * month matching is based on the bill due date (fallback to transaction date when bill is absent).
+     */
+    fun findInDateRange(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<Transaction>
+
+    /**
      * Returns transactions in the given month/year for the account (optionally scoped to one financial account)
      * with category_id IS NULL. Used for uncategorized filter on transactions query.
      */

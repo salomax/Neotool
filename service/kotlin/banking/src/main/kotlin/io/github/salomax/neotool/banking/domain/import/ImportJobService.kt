@@ -212,6 +212,35 @@ open class ImportJobService(
             importJobRepository.findByAccount(accountId)
         }
 
+    open fun listPendingReviews(
+        accountId: UUID,
+        financialAccountId: UUID?,
+    ): List<ImportJob> = importJobRepository.findPendingReviews(accountId, financialAccountId)
+
+    /**
+     * Cancels a [ImportJobStatus.REVIEW_REQUIRED] job, discarding unresolved candidates.
+     * Sets status to [ImportJobStatus.REVIEW_CANCELLED] and clears [ImportJob.reviewPayload].
+     */
+    @Transactional
+    open fun cancelImportReview(
+        jobId: UUID,
+        accountId: UUID,
+    ) {
+        val job =
+            importJobRepository.findById(jobId, accountId)
+                ?: throw NoSuchElementException("ImportJob not found: $jobId")
+        require(job.status == ImportJobStatus.REVIEW_REQUIRED) {
+            "Import job must be in REVIEW_REQUIRED status to cancel, got ${job.status}"
+        }
+        importJobRepository.update(
+            job.copy(
+                status = ImportJobStatus.REVIEW_CANCELLED,
+                reviewPayload = null,
+                updatedAt = Instant.now(),
+            ),
+        )
+    }
+
     /**
      * Resolves one duplicate candidate. Job must be [ImportJobStatus.REVIEW_REQUIRED].
      * When all candidates are resolved, job status is set to COMPLETED.

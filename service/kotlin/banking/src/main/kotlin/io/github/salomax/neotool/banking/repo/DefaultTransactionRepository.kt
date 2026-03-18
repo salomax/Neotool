@@ -186,6 +186,24 @@ open class DefaultTransactionRepository(
             accountId,
         )
 
+    override fun findInDateRange(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+    ): List<Transaction> =
+        withTags(
+            entityRepository
+                .findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = financialAccountId,
+                    year = year,
+                    month = month,
+                )
+                .map(TransactionMapper::toDomain),
+            accountId,
+        )
+
     @Transactional(readOnly = true)
     override fun getCategoryBreakdown(
         accountId: UUID,
@@ -286,8 +304,8 @@ open class DefaultTransactionRepository(
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0)
             FROM banking.transactions
             WHERE financial_account_id = CAST(:financialAccountId AS uuid)
-              AND EXTRACT(YEAR  FROM date) = :year
-              AND EXTRACT(MONTH FROM date) = :month
+              AND date >= make_date(:year, :month, 1)
+              AND date < (make_date(:year, :month, 1) + INTERVAL '1 month')
               AND deleted_at IS NULL
             """.trimIndent()
 
@@ -300,8 +318,8 @@ open class DefaultTransactionRepository(
             WHERE financial_account_id = CAST(:financialAccountId AS uuid)
               AND type = 'TRANSFER'
               AND status IN ('POSTED','PENDING')
-              AND EXTRACT(YEAR  FROM date) = :year
-              AND EXTRACT(MONTH FROM date) = :month
+              AND date >= make_date(:year, :month, 1)
+              AND date < (make_date(:year, :month, 1) + INTERVAL '1 month')
               AND deleted_at IS NULL
             """.trimIndent()
 
@@ -322,8 +340,8 @@ open class DefaultTransactionRepository(
             JOIN banking.transaction_categories tc ON t.category_id = tc.id AND tc.deleted_at IS NULL
             WHERE t.account_id = CAST(:accountId AS uuid)
               AND (CAST(:financialAccountId AS uuid) IS NULL OR t.financial_account_id = CAST(:financialAccountId AS uuid))
-              AND EXTRACT(YEAR  FROM t.date) = :year
-              AND EXTRACT(MONTH FROM t.date) = :month
+              AND t.date >= make_date(:year, :month, 1)
+              AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
               AND t.deleted_at IS NULL
               AND t.status IN ('POSTED', 'PENDING')
               AND (CAST(:applicableTo AS text) IS NULL
@@ -364,6 +382,11 @@ open class DefaultTransactionRepository(
         tags: List<String>,
     ) {
         transactionTagEntityRepository.deleteByTransactionIdAndAccountId(transactionId, accountId)
+        // Clear the persistence context after the bulk delete to avoid
+        // NonUniqueObjectException when re-inserting tags with the same id
+        // in the same Hibernate session.
+        entityManager.flush()
+        entityManager.clear()
         if (tags.isEmpty()) return
         val now = Instant.now()
         val entities =

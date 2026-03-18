@@ -14,6 +14,7 @@ import {
   alpha,
   useTheme,
   Button,
+  CircularProgress,
   IconButton,
   Link,
   Popover,
@@ -24,7 +25,9 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckIcon from '@mui/icons-material/Check';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { useQuery, useMutation } from '@apollo/client/react';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
 import {
   CREATE_TRANSACTION_CATEGORY,
@@ -47,15 +50,36 @@ export type CategoryPickerView = 'browse' | 'create' | 'confirm' | 'deleteConfir
 export interface CategoryPickerProps {
   value: string | null;
   onChange: (categoryId: string | null) => void;
-  creditDebitType: 'CREDIT' | 'DEBIT';
+  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER';
   anchorEl: HTMLElement | null;
   onClose: () => void;
+}
+
+const CATEGORY_NAME_COLLATOR = new Intl.Collator(undefined, {
+  sensitivity: 'base',
+  numeric: true,
+});
+
+function compareCategoryForPicker(a: TransactionCategory, b: TransactionCategory) {
+  const aSystem = a.isSystem === true;
+  const bSystem = b.isSystem === true;
+  if (aSystem !== bSystem) return aSystem ? 1 : -1;
+
+  if (aSystem && bSystem) {
+    const byOrder = a.sortOrder - b.sortOrder;
+    if (byOrder !== 0) return byOrder;
+  }
+
+  const byName = CATEGORY_NAME_COLLATOR.compare(a.name, b.name);
+  if (byName !== 0) return byName;
+
+  return a.sortOrder - b.sortOrder;
 }
 
 function buildTree(categories: TransactionCategory[]) {
   const roots = categories
     .filter((c) => !c.parentId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
+    .sort(compareCategoryForPicker);
   const byParent = categories.reduce<Record<string, TransactionCategory[]>>(
     (acc, c) => {
       const key = c.parentId ?? 'root';
@@ -65,10 +89,7 @@ function buildTree(categories: TransactionCategory[]) {
     },
     {}
   );
-  roots.forEach((r) => {
-    const children = r.id ? byParent[r.id] : undefined;
-    if (children) children.sort((a, b) => a.sortOrder - b.sortOrder);
-  });
+  Object.values(byParent).forEach((children) => children.sort(compareCategoryForPicker));
   return { roots, byParent };
 }
 
@@ -103,15 +124,56 @@ export function CategoryPicker({
     useMutation<CreateTransactionCategoryMutation>(CREATE_TRANSACTION_CATEGORY, {
       refetchQueries: [{ query: TRANSACTION_CATEGORIES }],
     });
-  const [deleteCategory] = useMutation<DeleteTransactionCategoryMutation>(
+  const [deleteCategory, { loading: deleteLoading }] = useMutation<DeleteTransactionCategoryMutation>(
     DELETE_TRANSACTION_CATEGORY,
     { refetchQueries: [{ query: TRANSACTION_CATEGORIES }] }
   );
+  const [deleteError, setDeleteError] = useState<unknown>(null);
 
   const { roots, byParent } = useMemo(() => {
     const allCategories = data?.transactionCategories ?? [];
-    return buildTree(allCategories);
-  }, [data?.transactionCategories]);
+    const mainApplicableTo =
+      creditDebitType === 'DEBIT'
+        ? CategoryApplicableTo.Expense
+        : creditDebitType === 'CREDIT'
+          ? CategoryApplicableTo.Income
+          : CategoryApplicableTo.Transfer;
+    const allowedApplicableTo = new Set<CategoryApplicableTo>(
+      mainApplicableTo === CategoryApplicableTo.Transfer
+        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+        : [mainApplicableTo, CategoryApplicableTo.Any]
+    );
+    const typeFiltered = allCategories.filter((c) => allowedApplicableTo.has(c.applicableTo));
+    const idSet = new Set(typeFiltered.map((c) => c.id));
+    const nonOrphaned = typeFiltered.filter((c) => !c.parentId || idSet.has(c.parentId));
+    return buildTree(nonOrphaned);
+  }, [data?.transactionCategories, creditDebitType]);
+
+  const prevCreditDebitType = React.useRef(creditDebitType);
+  React.useEffect(() => {
+    if (prevCreditDebitType.current === creditDebitType) return;
+    prevCreditDebitType.current = creditDebitType;
+    if (value !== null) onChange(null);
+  }, [creditDebitType, value, onChange]);
+
+  React.useEffect(() => {
+    if (value === null) return;
+    const allCategories = data?.transactionCategories ?? [];
+    const selected = allCategories.find((c) => c.id === value);
+    if (!selected) return;
+    const expectedApplicableTo =
+      creditDebitType === 'DEBIT'
+        ? CategoryApplicableTo.Expense
+        : creditDebitType === 'CREDIT'
+          ? CategoryApplicableTo.Income
+          : CategoryApplicableTo.Transfer;
+    const allowedApplicableTo = new Set<CategoryApplicableTo>(
+      expectedApplicableTo === CategoryApplicableTo.Transfer
+        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+        : [expectedApplicableTo, CategoryApplicableTo.Any]
+    );
+    if (!allowedApplicableTo.has(selected.applicableTo)) onChange(null);
+  }, [value, data?.transactionCategories, creditDebitType, onChange]);
 
   const searchLower = searchQuery.trim().toLowerCase();
   const filteredRoots = useMemo(() => {
@@ -128,7 +190,7 @@ export function CategoryPicker({
       const children = (byParent[id] ?? []).filter((c) =>
         c.name.toLowerCase().includes(searchLower)
       );
-      if (children.length > 0) out[id] = children;
+      if (children.length > 0) out[id] = [...children].sort(compareCategoryForPicker);
     });
     return out;
   }, [roots, byParent, searchLower]);
@@ -159,7 +221,11 @@ export function CategoryPicker({
   const handleCreateSubmit = useCallback(async () => {
     if (!createName.trim()) return;
     const applicableTo =
-      creditDebitType === 'DEBIT' ? CategoryApplicableTo.Expense : CategoryApplicableTo.Income;
+      creditDebitType === 'DEBIT'
+        ? CategoryApplicableTo.Expense
+        : creditDebitType === 'CREDIT'
+          ? CategoryApplicableTo.Income
+          : CategoryApplicableTo.Transfer;
     try {
       const { data: result } = await createCategory({
         variables: {
@@ -210,13 +276,19 @@ export function CategoryPicker({
 
   const handleDeleteConfirm = useCallback(async () => {
     if (!deleteTarget) return;
-    await deleteCategory({ variables: { id: deleteTarget.category.id } });
-    setDeleteTarget(null);
-    setView('browse');
+    setDeleteError(null);
+    try {
+      await deleteCategory({ variables: { id: deleteTarget.category.id } });
+      setDeleteTarget(null);
+      setView('browse');
+    } catch (err) {
+      setDeleteError(err);
+    }
   }, [deleteTarget, deleteCategory]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteTarget(null);
+    setDeleteError(null);
     setView('browse');
   }, []);
 
@@ -360,6 +432,7 @@ export function CategoryPicker({
           borderColor: 'divider',
           flexShrink: 0,
           p: 1,
+          height: 48,
           bgcolor: 'background.paper',
         }}
       >
@@ -389,8 +462,7 @@ export function CategoryPicker({
         alignItems="center"
         spacing={1}
         sx={{
-          px: 1.5,
-          py: 1.25,
+          p: 1,
           borderBottom: 1,
           borderColor: 'divider',
           bgcolor: alpha(theme.palette.primary.main, 0.04),
@@ -425,7 +497,7 @@ export function CategoryPicker({
       >
         {createError && (
           <Alert severity="error" onClose={() => resetCreateState()} sx={{ py: 0 }}>
-            {createError.message}
+            {extractErrorMessage(createError)}
           </Alert>
         )}
         <TextField
@@ -449,11 +521,10 @@ export function CategoryPicker({
               gap: 1,
               maxHeight: 144,
               overflow: 'auto',
-              p: 1.5,
               border: 1,
               borderColor: 'divider',
               borderRadius: 1,
-              bgcolor: theme.palette.action.hover,
+              bgcolor: createColor ? alpha(createColor, 0.08) : theme.palette.action.hover,
             }}
           >
             {CATEGORY_ICON_NAMES.map((iconName) => (
@@ -466,14 +537,14 @@ export function CategoryPicker({
                   height: 32,
                   bgcolor:
                     createIcon === iconName
-                      ? alpha(theme.palette.primary.main, 0.14)
+                      ? alpha(createColor ?? theme.palette.primary.main, 0.14)
                       : 'transparent',
                   border:
                     createIcon === iconName
-                      ? `2px solid ${theme.palette.primary.main}`
+                      ? `2px solid ${createColor ?? theme.palette.primary.main}`
                       : '2px solid transparent',
                   '&:hover': {
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    bgcolor: alpha(createColor ?? theme.palette.primary.main, 0.08),
                   },
                 }}
                 aria-label={iconName}
@@ -501,8 +572,12 @@ export function CategoryPicker({
                   borderColor: createColor === hex ? 'primary.main' : 'divider',
                   boxSizing: 'border-box',
                   '&:hover': {
+                    bgcolor: alpha(hex, 0.85),
                     borderColor: alpha(hex, 0.8),
                     borderWidth: 2,
+                  },
+                  '&.Mui-focusVisible': {
+                    bgcolor: alpha(hex, 0.85),
                   },
                 }}
                 aria-label={hex}
@@ -523,7 +598,8 @@ export function CategoryPicker({
           variant="contained"
           onClick={handleCreateSubmit}
           disabled={!createName.trim() || createLoading}
-          sx={{ minHeight: 48, borderRadius: 0 }}
+          startIcon={createLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
+          sx={{ height: 48, borderRadius: 0 }}
         >
           {createLoading ? 'Salvando...' : 'Salvar'}
         </Button>
@@ -545,31 +621,105 @@ export function CategoryPicker({
     const { category, children } = deleteTarget;
     const hasChildren = children.length > 0;
     return (
-      <Box sx={{ p: 2 }}>
-        <Typography variant="subtitle2" sx={{ mb: 1 }}>
-          Excluir &quot;{category.name}&quot;?
+      <Box sx={{ p: 3, textAlign: 'center' }}>
+        <Box
+          sx={{
+            width: 56,
+            height: 56,
+            borderRadius: 1,
+            bgcolor: alpha(theme.palette.error.main, 0.08),
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mx: 'auto',
+            mb: 2,
+          }}
+        >
+          <WarningAmberRoundedIcon sx={{ fontSize: 34, color: theme.palette.error.main }} />
+        </Box>
+
+        <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
+          Excluir &apos;{category.name}&apos;?
         </Typography>
-        {hasChildren ? (
-          <>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              As subcategorias a seguir também serão excluídas:
-            </Typography>
-            <Box component="ul" sx={{ m: 0, pl: 2, mb: 1 }}>
-              {children.map((c) => (
-                <li key={c.id}>
-                  <Typography variant="body2">{c.name}</Typography>
-                </li>
-              ))}
-            </Box>
-          </>
-        ) : null}
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+
+        <Typography variant="body2" color="text.secondary" sx={{ mb: hasChildren ? 1.5 : 3 }}>
           As transações que usam esta categoria manterão a atribuição no histórico. Esta ação não
           pode ser desfeita.
         </Typography>
-        <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-          <Button onClick={handleDeleteCancel}>Cancelar</Button>
-          <Button variant="contained" color="error" onClick={handleDeleteConfirm}>
+
+        {deleteError ? (
+          <Alert severity="error" sx={{ mb: 3, textAlign: 'left' }}>
+            {extractErrorMessage(deleteError)}
+          </Alert>
+        ) : null}
+
+        {hasChildren ? (
+          <Box
+            sx={{
+              textAlign: 'left',
+              bgcolor: alpha(theme.palette.text.primary, 0.03),
+              border: 1,
+              borderColor: 'divider',
+              borderRadius: 2,
+              px: 2,
+              py: 1.5,
+              mb: 3,
+            }}
+          >
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+              As subcategorias a seguir também serão excluídas:
+            </Typography>
+            <Box component="ul" sx={{ m: 0, pl: 2 }}>
+              {children.map((c) => (
+                <li key={c.id}>
+                  <Typography variant="body2" color="text.secondary">
+                    {c.name}
+                  </Typography>
+                </li>
+              ))}
+            </Box>
+          </Box>
+        ) : null}
+
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            onClick={handleDeleteCancel}
+            variant="contained"
+            sx={{
+              flex: 1,
+              height: 48,
+              borderRadius: 1,
+              bgcolor: alpha(theme.palette.text.primary, 0.06),
+              color: 'text.primary',
+              boxShadow: 'none',
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': {
+                bgcolor: alpha(theme.palette.text.primary, 0.1),
+                boxShadow: 'none',
+              },
+            }}
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleDeleteConfirm}
+            sx={{
+              flex: 1,
+              height: 48,
+              borderRadius: 1,
+              boxShadow: `0px 8px 8px ${alpha(theme.palette.error.main, 0.15)}`,
+              textTransform: 'none',
+              fontWeight: 700,
+              '&:hover': {
+                boxShadow: 'none',
+              },
+            }}
+            disabled={deleteLoading}
+            startIcon={deleteLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
+          >
             Confirmar
           </Button>
         </Box>

@@ -103,6 +103,8 @@ export function TagsInput({
         />
       )}
       sx={{
+        width: '100%',
+        minWidth: 0,
         '& .MuiAutocomplete-tag': {
           margin: 0.5,
         },

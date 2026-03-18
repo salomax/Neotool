@@ -21,7 +21,7 @@ export interface CategorySelectProps {
   value: string | null;
   onChange: (categoryId: string | null) => void;
   categories: TransactionCategory[];
-  creditDebitType: 'CREDIT' | 'DEBIT';
+  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER';
   placeholder?: string;
 }
 

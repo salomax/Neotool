@@ -290,6 +290,76 @@ export type BankAccountDataInput = {
   number?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type BillImportJob = {
+  __typename: 'BillImportJob';
+  createdAt: Scalars['DateTime']['output'];
+  errorCode: Maybe<Scalars['String']['output']>;
+  /** @deprecated Use errorCode/errorParameters for i18n */
+  errorMessage: Maybe<Scalars['String']['output']>;
+  errorParameters: Maybe<Scalars['JSON']['output']>;
+  fileName: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  importType: ImportType;
+  reviewPayload: Maybe<BillImportReview>;
+  status: BillImportJobStatus;
+};
+
+export enum BillImportJobStatus {
+  AwaitingReview = 'AWAITING_REVIEW',
+  Done = 'DONE',
+  Extracted = 'EXTRACTED',
+  Extracting = 'EXTRACTING',
+  Failed = 'FAILED',
+  Importing = 'IMPORTING',
+  LlmProcessing = 'LLM_PROCESSING',
+  Pending = 'PENDING'
+}
+
+export type BillImportMatchCandidate = {
+  __typename: 'BillImportMatchCandidate';
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+};
+
+export type BillImportReview = {
+  __typename: 'BillImportReview';
+  bankName: Maybe<Scalars['String']['output']>;
+  cards: Array<BillImportReviewCard>;
+  reviewMode: BillImportReviewMode;
+  statementPeriod: Maybe<DateRange>;
+};
+
+export type BillImportReviewCard = {
+  __typename: 'BillImportReviewCard';
+  closingDate: Maybe<Scalars['Date']['output']>;
+  computedTotal: Scalars['Float']['output'];
+  declaredTotal: Scalars['Float']['output'];
+  dueDate: Maybe<Scalars['Date']['output']>;
+  holderName: Maybe<Scalars['String']['output']>;
+  lastFourDigits: Maybe<Scalars['String']['output']>;
+  matchAmbiguous: Scalars['Boolean']['output'];
+  matchCandidates: Array<BillImportMatchCandidate>;
+  matchedFinancialAccountId: Maybe<Scalars['ID']['output']>;
+  reviewCardId: Scalars['ID']['output'];
+  totalMatchesDeclared: Scalars['Boolean']['output'];
+  transactions: Array<BillImportReviewTransaction>;
+};
+
+export enum BillImportReviewMode {
+  CardBucketMatching = 'CARD_BUCKET_MATCHING',
+  TxCardAssignment = 'TX_CARD_ASSIGNMENT'
+}
+
+export type BillImportReviewTransaction = {
+  __typename: 'BillImportReviewTransaction';
+  amount: Scalars['Float']['output'];
+  creditDebitType: CreditDebitType;
+  date: Maybe<Scalars['Date']['output']>;
+  description: Scalars['String']['output'];
+  installment: Maybe<InstallmentInfo>;
+  isBillPayment: Scalars['Boolean']['output'];
+};
+
 /**
  * Lifecycle status of a credit card bill (fatura).
  * OPEN    → closingDate >= today (bill still accepting charges).
@@ -495,23 +565,26 @@ export type ConfirmAssetUploadInput = {
   checksum?: InputMaybe<Scalars['String']['input']>;
 };
 
-export type ConfirmPdfBillImportInput = {
-  cards: Array<ConfirmPdfCardInput>;
+export type ConfirmBillImportInput = {
+  cards: Array<ConfirmBillReviewCardInput>;
+  closingDate?: InputMaybe<Scalars['Date']['input']>;
+  dueDate?: InputMaybe<Scalars['Date']['input']>;
   jobId: Scalars['ID']['input'];
 };
 
-export type ConfirmPdfCardInput = {
+export type ConfirmBillReviewCardInput = {
   financialAccountId: Scalars['ID']['input'];
-  lastFourDigits: Scalars['String']['input'];
-  transactions: Array<ConfirmPdfTransactionInput>;
+  reviewCardId: Scalars['ID']['input'];
+  transactions: Array<ConfirmBillReviewTransactionInput>;
 };
 
-export type ConfirmPdfTransactionInput = {
+export type ConfirmBillReviewTransactionInput = {
   amount: Scalars['Float']['input'];
   creditDebitType: CreditDebitType;
   date: Scalars['Date']['input'];
   description: Scalars['String']['input'];
   include: Scalars['Boolean']['input'];
+  installment?: InputMaybe<InstallmentInfoInput>;
   isBillPayment?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
@@ -1080,6 +1153,7 @@ export enum ImportStatus {
   Failed = 'FAILED',
   Pending = 'PENDING',
   Processing = 'PROCESSING',
+  ReviewCancelled = 'REVIEW_CANCELLED',
   ReviewRequired = 'REVIEW_REQUIRED'
 }
 
@@ -1121,6 +1195,11 @@ export type InstallmentInfo = {
   __typename: 'InstallmentInfo';
   current: Scalars['Int']['output'];
   total: Scalars['Int']['output'];
+};
+
+export type InstallmentInfoInput = {
+  current: Scalars['Int']['input'];
+  total: Scalars['Int']['input'];
 };
 
 export type InstitutionRating = {
@@ -1366,6 +1445,7 @@ export type Mutation = {
   assignRoleToGroup: Group;
   /** Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL. */
   bulkCategorize: BulkOperationResult;
+  cancelImportReview: Scalars['Boolean']['output'];
   chat: ChatResponse;
   clearConversation: Scalars['Boolean']['output'];
   /**
@@ -1393,7 +1473,7 @@ export type Mutation = {
    * ```
    */
   confirmAssetUpload: Asset;
-  confirmPdfBillImport: PdfImportJob;
+  confirmBillImport: BillImportJob;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
    *
@@ -1495,7 +1575,7 @@ export type Mutation = {
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
-  submitPdfBillImport: PdfImportJob;
+  submitBillImport: BillImportJob;
   /** Update a user-owned category rule. */
   updateCategoryRule: CategoryRule;
   updateGroup: Group;
@@ -1533,6 +1613,11 @@ export type MutationBulkCategorizeArgs = {
 };
 
 
+export type MutationCancelImportReviewArgs = {
+  jobId: Scalars['ID']['input'];
+};
+
+
 export type MutationChatArgs = {
   input: ChatInput;
 };
@@ -1548,8 +1633,8 @@ export type MutationConfirmAssetUploadArgs = {
 };
 
 
-export type MutationConfirmPdfBillImportArgs = {
-  input: ConfirmPdfBillImportInput;
+export type MutationConfirmBillImportArgs = {
+  input: ConfirmBillImportInput;
 };
 
 
@@ -1745,8 +1830,8 @@ export type MutationSignUpArgs = {
 };
 
 
-export type MutationSubmitPdfBillImportArgs = {
-  input: SubmitPdfBillImportInput;
+export type MutationSubmitBillImportArgs = {
+  input: SubmitBillImportInput;
 };
 
 
@@ -1827,74 +1912,6 @@ export enum PatternType {
   Regex = 'REGEX',
   StartsWith = 'STARTS_WITH'
 }
-
-export type PdfBillExtractionResult = {
-  __typename: 'PdfBillExtractionResult';
-  bankName: Maybe<Scalars['String']['output']>;
-  cards: Array<PdfExtractedCard>;
-  extractionConfidence: Scalars['Float']['output'];
-  needsReview: Scalars['Boolean']['output'];
-  statementPeriod: Maybe<DateRange>;
-  warnings: Array<Scalars['String']['output']>;
-};
-
-export type PdfExtractedCard = {
-  __typename: 'PdfExtractedCard';
-  closingDate: Maybe<Scalars['Date']['output']>;
-  computedTotal: Scalars['Float']['output'];
-  confidence: Scalars['Float']['output'];
-  declaredTotal: Scalars['Float']['output'];
-  dueDate: Maybe<Scalars['Date']['output']>;
-  holderName: Maybe<Scalars['String']['output']>;
-  lastFourDigits: Scalars['String']['output'];
-  matchAmbiguous: Scalars['Boolean']['output'];
-  matchCandidates: Array<PdfMatchCandidate>;
-  matchedFinancialAccountId: Maybe<Scalars['ID']['output']>;
-  totalMatchesDeclared: Scalars['Boolean']['output'];
-  transactions: Array<PdfExtractedTransaction>;
-};
-
-export type PdfExtractedTransaction = {
-  __typename: 'PdfExtractedTransaction';
-  amount: Scalars['Float']['output'];
-  confidence: Scalars['Float']['output'];
-  creditDebitType: CreditDebitType;
-  date: Maybe<Scalars['Date']['output']>;
-  description: Scalars['String']['output'];
-  installment: Maybe<InstallmentInfo>;
-  isBillPayment: Scalars['Boolean']['output'];
-};
-
-export type PdfImportJob = {
-  __typename: 'PdfImportJob';
-  createdAt: Scalars['DateTime']['output'];
-  errorCode: Maybe<Scalars['String']['output']>;
-  /** @deprecated Use errorCode/errorParameters for i18n */
-  errorMessage: Maybe<Scalars['String']['output']>;
-  errorParameters: Maybe<Scalars['JSON']['output']>;
-  fileName: Maybe<Scalars['String']['output']>;
-  id: Scalars['ID']['output'];
-  importType: ImportType;
-  reviewPayload: Maybe<PdfBillExtractionResult>;
-  status: PdfImportJobStatus;
-};
-
-export enum PdfImportJobStatus {
-  AwaitingReview = 'AWAITING_REVIEW',
-  Done = 'DONE',
-  Extracted = 'EXTRACTED',
-  Extracting = 'EXTRACTING',
-  Failed = 'FAILED',
-  Importing = 'IMPORTING',
-  LlmProcessing = 'LLM_PROCESSING',
-  Pending = 'PENDING'
-}
-
-export type PdfMatchCandidate = {
-  __typename: 'PdfMatchCandidate';
-  id: Scalars['ID']['output'];
-  name: Scalars['String']['output'];
-};
 
 export type Permission = {
   __typename: 'Permission';
@@ -2016,6 +2033,8 @@ export type Query = {
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
+  billImportJob: Maybe<BillImportJob>;
+  billImportJobs: Array<BillImportJob>;
   /** All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned. */
   categoryRules: Array<CategoryRule>;
   checkPermission: AuthorizationResult;
@@ -2064,8 +2083,7 @@ export type Query = {
   monthSummary: MonthSummary;
   myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
-  pdfImportJob: Maybe<PdfImportJob>;
-  pdfImportJobs: Array<PdfImportJob>;
+  pendingReviewImports: Array<TransactionImport>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
   prompt: Maybe<Prompt>;
@@ -2123,6 +2141,16 @@ export type QueryBacenInstitutionsArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryBillImportJobArgs = {
+  jobId: Scalars['ID']['input'];
+};
+
+
+export type QueryBillImportJobsArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 
@@ -2220,12 +2248,7 @@ export type QueryMyUsageArgs = {
 };
 
 
-export type QueryPdfImportJobArgs = {
-  jobId: Scalars['ID']['input'];
-};
-
-
-export type QueryPdfImportJobsArgs = {
+export type QueryPendingReviewImportsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -2540,11 +2563,12 @@ export type SignUpPayload = {
   user: User;
 };
 
-export type SubmitPdfBillImportInput = {
+export type SubmitBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   importType: ImportType;
+  password?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type Subscription = {

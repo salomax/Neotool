@@ -17,19 +17,20 @@ class BankingReaderOutputValidator {
         }
 
         validateNullableString(output.path("bank_name"), "bank_name", errors)
-        validateStatementPeriod(output.path("statement_period"), errors)
+        validateDate(output.path("closing_date"), "closing_date", errors)
+        validateDate(output.path("due_date"), "due_date", errors)
+        validateOptionalStatementPeriod(output.path("statement_period"), errors)
         validateCards(output.path("cards"), errors)
-        validateConfidence(output.path("extraction_confidence"), "extraction_confidence", errors)
-        validateBoolean(output.path("needs_review"), "needs_review", errors)
         validateStringArray(output.path("warnings"), "warnings", errors)
 
         return errors
     }
 
-    private fun validateStatementPeriod(
+    private fun validateOptionalStatementPeriod(
         node: JsonNode,
         errors: MutableList<String>,
     ) {
+        if (node.isMissingNode || node.isNull) return
         if (!node.isObject) {
             errors += "statement_period must be an object"
             return
@@ -57,12 +58,9 @@ class BankingReaderOutputValidator {
             if (!digits.isTextual || !FOUR_DIGITS_REGEX.matches(digits.asText())) {
                 errors += "$prefix.last_four_digits must match ^[0-9]{4}$"
             }
-            validateDate(card.path("closing_date"), "$prefix.closing_date", errors)
-            validateDate(card.path("due_date"), "$prefix.due_date", errors)
-            validateNumber(card.path("declared_total"), "$prefix.declared_total", errors)
+            validateNullableNumber(card.path("declared_total"), "$prefix.declared_total", errors)
             validateNumber(card.path("computed_total"), "$prefix.computed_total", errors)
             validateBoolean(card.path("total_matches_declared"), "$prefix.total_matches_declared", errors)
-            validateConfidence(card.path("confidence"), "$prefix.confidence", errors)
             validateTransactions(card.path("transactions"), "$prefix.transactions", errors)
         }
     }
@@ -86,7 +84,6 @@ class BankingReaderOutputValidator {
             validateDate(transaction.path("date"), "$txPrefix.date", errors)
             validateNonBlankString(transaction.path("description"), "$txPrefix.description", errors)
             validateNumber(transaction.path("amount"), "$txPrefix.amount", errors)
-            validateConfidence(transaction.path("confidence"), "$txPrefix.confidence", errors)
 
             val creditDebit = transaction.path("credit_debit_type")
             if (!creditDebit.isTextual || !VALID_CREDIT_DEBIT_TYPES.contains(creditDebit.asText())) {
@@ -184,6 +181,16 @@ class BankingReaderOutputValidator {
         }
     }
 
+    private fun validateNullableNumber(
+        node: JsonNode,
+        path: String,
+        errors: MutableList<String>,
+    ) {
+        if (!node.isNull && !node.isNumber) {
+            errors += "$path must be a number or null"
+        }
+    }
+
     private fun validateBoolean(
         node: JsonNode,
         path: String,
@@ -218,7 +225,7 @@ class BankingReaderOutputValidator {
         try {
             parseDate(value)
         } catch (_: IllegalArgumentException) {
-            errors += "$path must be a valid date (YYYY-MM-DD or DD/MM/YYYY)"
+            errors += "$path must be a valid date (YYYY-MM-DD or DD/MM/YYYY), got: \"$value\""
         }
     }
 
@@ -235,21 +242,6 @@ class BankingReaderOutputValidator {
         val month = match.groupValues[2].toInt()
         val year = match.groupValues[3].toInt()
         return LocalDate.of(year, month, day)
-    }
-
-    private fun validateConfidence(
-        node: JsonNode,
-        path: String,
-        errors: MutableList<String>,
-    ) {
-        if (!node.isNumber) {
-            errors += "$path must be a number between 0 and 1"
-            return
-        }
-        val value = node.asDouble()
-        if (value < 0.0 || value > 1.0) {
-            errors += "$path must be between 0 and 1"
-        }
     }
 
     private companion object {

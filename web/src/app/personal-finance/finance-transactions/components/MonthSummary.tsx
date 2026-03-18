@@ -9,6 +9,7 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { CategoryIcon } from './category/CategoryIcon';
 
 export interface CategoryTotalItem {
@@ -30,6 +31,8 @@ export interface MonthSummaryData {
   projectedClosingBalance: number | null;
   isCurrentMonth: boolean;
   isFutureMonth?: boolean;
+  expensesByCategory?: CategoryTotalItem[];
+  incomeByCategory?: CategoryTotalItem[];
 }
 
 interface MonthSummaryProps {
@@ -38,8 +41,8 @@ interface MonthSummaryProps {
   error?: unknown;
   onRetry?: () => void;
   isConsolidated?: boolean;
-  /** Category breakdown (CAT-24). When schema/query provides expensesByCategory, pass it here. */
   expensesByCategory?: CategoryTotalItem[];
+  incomeByCategory?: CategoryTotalItem[];
   /** Called when user clicks a category row to filter transactions by category. */
   onCategoryClick?: (categoryId: string) => void;
 }
@@ -50,10 +53,15 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   error,
   onRetry,
   expensesByCategory,
+  incomeByCategory,
   onCategoryClick,
 }) => {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const [drawerState, setDrawerState] = React.useState<{ open: boolean; kind: 'expenses' | 'income' | null }>({
+    open: false,
+    kind: null,
+  });
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -133,6 +141,98 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
   const incomePercentage = totalVolume > 0 ? calculatePercentage(absIncome, totalVolume) : 0;
   const expensesPercentage = totalVolume > 0 ? calculatePercentage(absExpenses, totalVolume) : 0;
+
+  const renderCategorySummary = ({
+    title,
+    emptyText,
+    items,
+    kind,
+  }: {
+    title: string;
+    emptyText: string;
+    items: CategoryTotalItem[];
+    kind: 'expenses' | 'income';
+  }) => {
+    const topItems = items.slice(0, 5);
+    const canSeeAll = items.length > 5;
+
+    return (
+      <Box>
+        <Divider sx={{ mb: 3 }}/>
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+            {title}
+          </Typography>
+          {canSeeAll && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => setDrawerState({ open: true, kind })}
+              sx={{
+                p: 0,
+                minWidth: 'auto',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                letterSpacing: 0.6,
+                fontSize: '0.75rem',
+              }}
+            >
+              {t('financeTransactions.monthSummary.seeAll')}
+            </Button>
+          )}
+        </Box>
+
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {emptyText}
+          </Typography>
+        ) : (
+          <Stack spacing={2}>
+            {topItems.map((item) => (
+              <Box
+                key={item.category.id}
+                onClick={() => onCategoryClick?.(item.category.id)}
+                sx={{
+                  cursor: onCategoryClick ? 'pointer' : 'default',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <CategoryIcon
+                      iconName={item.category.icon}
+                      color={item.category.color ?? undefined}
+                      size={18}
+                      sx={{ flexShrink: 0 }}
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
+                      {item.category.name}
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
+                    {Math.round(item.percentage)}%
+                  </Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min(item.percentage, 100)}
+                  sx={{
+                    mt: 1,
+                    height: 6,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.text.primary, 0.08),
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: item.category.color ?? theme.palette.primary.main,
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+              </Box>
+            ))}
+          </Stack>
+        )}
+      </Box>
+    );
+  };
 
   if (error && !loading && !summary) {
     const defaultErrorMessage = tCommon('errors.default');
@@ -275,71 +375,82 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         </Box>
       )}
 
-      {/* Category breakdown (CAT-24). Renders when expensesByCategory is provided. */}
-      {summary && !loading && expensesByCategory !== undefined && (
-        <Box sx={{ mt: 3 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1.5 }}>
-            {t('financeTransactions.monthSummary.expensesByCategory')}
-          </Typography>
-          {expensesByCategory.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              {t('financeTransactions.monthSummary.noCategorizedExpenses')}
-            </Typography>
-          ) : (
-            <Stack spacing={1}>
-              {expensesByCategory.map((item) => (
-                <Box
-                  key={item.category.id}
-                  onClick={() => onCategoryClick?.(item.category.id)}
-                  sx={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    cursor: onCategoryClick ? 'pointer' : 'default',
-                    '&:hover': onCategoryClick
-                      ? { bgcolor: alpha(theme.palette.primary.main, 0.06), borderRadius: 1 }
-                      : {},
-                  }}
-                >
-                  <CategoryIcon
-                    iconName={item.category.icon}
-                    color={item.category.color ?? undefined}
-                    size={20}
-                  />
-                  <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="body2" noWrap>
+      {summary && !loading && expensesByCategory !== undefined && incomeByCategory !== undefined && (
+        <Stack spacing={3} sx={{ mt: 3 }}>
+          {renderCategorySummary({
+            title: t('financeTransactions.monthSummary.expensesByCategory'),
+            emptyText: t('financeTransactions.monthSummary.noCategorizedExpenses'),
+            items: expensesByCategory,
+            kind: 'expenses',
+          })}
+          {renderCategorySummary({
+            title: t('financeTransactions.monthSummary.incomeByCategory'),
+            emptyText: t('financeTransactions.monthSummary.noCategorizedIncome'),
+            items: incomeByCategory,
+            kind: 'income',
+          })}
+        </Stack>
+      )}
+
+      <Drawer
+        open={drawerState.open}
+        onClose={() => setDrawerState({ open: false, kind: null })}
+        anchor="right"
+        size="sm"
+      >
+        <Drawer.Header
+          title={
+            drawerState.kind === 'expenses'
+              ? t('financeTransactions.monthSummary.expensesByCategory')
+              : t('financeTransactions.monthSummary.incomeByCategory')
+          }
+          showCloseButton
+        />
+        <Drawer.Body>
+          <Stack spacing={2}>
+            {(drawerState.kind === 'expenses' ? expensesByCategory : incomeByCategory)?.map((item) => (
+              <Box
+                key={item.category.id}
+                onClick={() => onCategoryClick?.(item.category.id)}
+                sx={{
+                  cursor: onCategoryClick ? 'pointer' : 'default',
+                }}
+              >
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                    <CategoryIcon
+                      iconName={item.category.icon}
+                      color={item.category.color ?? undefined}
+                      size={18}
+                      sx={{ flexShrink: 0 }}
+                    />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
                       {item.category.name}
                     </Typography>
-                    <LinearProgress
-                      variant="determinate"
-                      value={Math.min(item.percentage, 100)}
-                      sx={{
-                        mt: 0.5,
-                        height: 6,
-                        borderRadius: 1,
-                        bgcolor: alpha(theme.palette.error.main, 0.12),
-                        '& .MuiLinearProgress-bar': {
-                          bgcolor: item.category.color ?? theme.palette.error.main,
-                        },
-                      }}
-                    />
                   </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {formatCurrency(item.totalAmount)}
-                  </Typography>
-                  <Typography variant="caption" color="text.secondary">
+                  <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
                     {Math.round(item.percentage)}%
                   </Typography>
                 </Box>
-              ))}
-              <Divider sx={{ my: 1 }} />
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                {t('financeTransactions.monthSummary.totalExpenses')}: {formatCurrency(summary.totalExpenses)}
-              </Typography>
-            </Stack>
-          )}
-        </Box>
-      )}
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min(item.percentage, 100)}
+                  sx={{
+                    mt: 1,
+                    height: 6,
+                    borderRadius: 2,
+                    bgcolor: alpha(theme.palette.text.primary, 0.08),
+                    '& .MuiLinearProgress-bar': {
+                      bgcolor: item.category.color ?? theme.palette.primary.main,
+                      borderRadius: 2,
+                    },
+                  }}
+                />
+              </Box>
+            ))}
+          </Stack>
+        </Drawer.Body>
+      </Drawer>
     </Box>
   );
 };

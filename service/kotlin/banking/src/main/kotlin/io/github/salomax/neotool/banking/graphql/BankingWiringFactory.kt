@@ -12,7 +12,7 @@ import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolv
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
-import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
@@ -31,7 +31,7 @@ class BankingWiringFactory(
     private val transactionResolver: TransactionResolver,
     private val transactionCategoryResolver: TransactionCategoryResolver,
     private val importResolver: ImportResolver,
-    private val pdfImportResolver: PdfImportResolver,
+    private val billImportResolver: BillImportResolver,
     private val investmentResolver: InvestmentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
@@ -180,22 +180,31 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
-                "pdfImportJob",
+                "pendingReviewImports",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
+                        importResolver.pendingReviewImports(financialAccountId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "billImportJob",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         val jobId =
                             env.getArgument<String>("jobId")
                                 ?: throw IllegalArgumentException("jobId is required")
-                        pdfImportResolver.pdfImportJob(jobId, principal)
+                        billImportResolver.billImportJob(jobId, principal)
                     }
                 },
             )
             .dataFetcher(
-                "pdfImportJobs",
+                "billImportJobs",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         val financialAccountId = env.getArgument<String?>("financialAccountId")
-                        pdfImportResolver.pdfImportJobs(financialAccountId, principal)
+                        billImportResolver.billImportJobs(financialAccountId, principal)
                     }
                 },
             )
@@ -393,24 +402,35 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
-                "submitPdfBillImport",
+                "cancelImportReview",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
-                        val input =
-                            env.getArgument<Map<String, Any?>>("input")
-                                ?: throw IllegalArgumentException("input is required")
-                        pdfImportResolver.submitPdfBillImport(input, principal)
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val jobId =
+                            env.getArgument<String>("jobId")
+                                ?: throw IllegalArgumentException("jobId is required")
+                        importResolver.cancelImportReview(jobId, principal)
                     }
                 },
             )
             .dataFetcher(
-                "confirmPdfBillImport",
+                "submitBillImport",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
-                        pdfImportResolver.confirmPdfBillImport(input, principal)
+                        billImportResolver.submitBillImport(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "confirmBillImport",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        billImportResolver.confirmBillImport(input, principal)
                     }
                 },
             )

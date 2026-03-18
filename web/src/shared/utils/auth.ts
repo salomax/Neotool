@@ -69,6 +69,20 @@ export function updateAuthToken(newToken: string): void {
 }
 
 /**
+ * Updates the refresh token in storage
+ * Updates in the same storage location where it was originally stored
+ */
+export function updateAuthRefreshToken(newRefreshToken: string): void {
+  if (typeof window === 'undefined') return;
+
+  if (localStorage.getItem(REFRESH_TOKEN_KEY)) {
+    localStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+  } else if (sessionStorage.getItem(REFRESH_TOKEN_KEY)) {
+    sessionStorage.setItem(REFRESH_TOKEN_KEY, newRefreshToken);
+  }
+}
+
+/**
  * Updates the user data in storage
  * Updates in the same storage location where it was originally stored
  */

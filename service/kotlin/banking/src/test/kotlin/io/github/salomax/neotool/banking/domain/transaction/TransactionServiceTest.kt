@@ -829,6 +829,164 @@ class TransactionServiceTest {
     }
 
     @Nested
+    @DisplayName("findAccessibleCategory")
+    inner class FindAccessibleCategoryTests {
+        @Test
+        fun `returns category when system-owned`() {
+            val categoryId = UUID.randomUUID()
+            val category =
+                TransactionCategory(
+                    id = categoryId,
+                    accountId = null,
+                    parentId = null,
+                    name = "System",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    icon = null,
+                    color = null,
+                    isSystem = true,
+                    sortOrder = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category)
+
+            val result = service.findAccessibleCategory(categoryId, accountId)
+
+            assertThat(result).isEqualTo(category)
+        }
+
+        @Test
+        fun `returns category when owned by current account`() {
+            val categoryId = UUID.randomUUID()
+            val category =
+                TransactionCategory(
+                    id = categoryId,
+                    accountId = accountId,
+                    parentId = null,
+                    name = "User",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    icon = null,
+                    color = null,
+                    isSystem = false,
+                    sortOrder = 10,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category)
+
+            val result = service.findAccessibleCategory(categoryId, accountId)
+
+            assertThat(result).isEqualTo(category)
+        }
+
+        @Test
+        fun `returns null when category belongs to another account`() {
+            val categoryId = UUID.randomUUID()
+            val category =
+                TransactionCategory(
+                    id = categoryId,
+                    accountId = UUID.randomUUID(),
+                    parentId = null,
+                    name = "Foreign",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    icon = null,
+                    color = null,
+                    isSystem = false,
+                    sortOrder = 10,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(categoryRepository.findById(categoryId)).thenReturn(category)
+
+            val result = service.findAccessibleCategory(categoryId, accountId)
+
+            assertThat(result).isNull()
+        }
+    }
+
+    @Nested
+    @DisplayName("findAccessibleCategoriesByIds")
+    inner class FindAccessibleCategoriesByIdsTests {
+        @Test
+        fun `returns only requested and accessible categories`() {
+            val systemId = UUID.randomUUID()
+            val userId = UUID.randomUUID()
+            val ignoredId = UUID.randomUUID()
+            val foreignId = UUID.randomUUID()
+            val systemCategory =
+                TransactionCategory(
+                    id = systemId,
+                    accountId = null,
+                    parentId = null,
+                    name = "System",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    icon = null,
+                    color = null,
+                    isSystem = true,
+                    sortOrder = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val userCategory =
+                TransactionCategory(
+                    id = userId,
+                    accountId = accountId,
+                    parentId = null,
+                    name = "User",
+                    applicableTo = CategoryApplicableTo.ANY,
+                    icon = null,
+                    color = null,
+                    isSystem = false,
+                    sortOrder = 10,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val nonRequestedCategory =
+                TransactionCategory(
+                    id = ignoredId,
+                    accountId = accountId,
+                    parentId = null,
+                    name = "Not requested",
+                    applicableTo = CategoryApplicableTo.ANY,
+                    icon = null,
+                    color = null,
+                    isSystem = false,
+                    sortOrder = 20,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val foreignCategory =
+                TransactionCategory(
+                    id = foreignId,
+                    accountId = UUID.randomUUID(),
+                    parentId = null,
+                    name = "Foreign",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    icon = null,
+                    color = null,
+                    isSystem = false,
+                    sortOrder = 30,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(categoryRepository.findAll(accountId))
+                .thenReturn(listOf(systemCategory, userCategory, nonRequestedCategory, foreignCategory))
+
+            val result =
+                service.findAccessibleCategoriesByIds(
+                    categoryIds = setOf(systemId, userId, foreignId),
+                    accountId = accountId,
+                )
+
+            assertThat(result.keys).containsExactlyInAnyOrder(systemId, userId)
+            assertThat(result[systemId]).isEqualTo(systemCategory)
+            assertThat(result[userId]).isEqualTo(userCategory)
+            assertThat(result[foreignId]).isNull()
+            verify(categoryRepository).findAll(accountId)
+        }
+    }
+
+    @Nested
     @DisplayName("listTags")
     inner class ListTagsTests {
         @Test
@@ -1030,7 +1188,14 @@ class TransactionServiceTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(transactionRepository.findByAccount(accountId)).thenReturn(listOf(tx1, tx2))
+            whenever(
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = today.year,
+                    month = today.monthValue,
+                ),
+            ).thenReturn(listOf(tx1, tx2))
 
             val result =
                 service.listTransactions(
@@ -1085,7 +1250,14 @@ class TransactionServiceTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(transactionRepository.findByAccount(accountId)).thenReturn(listOf(tx1, tx2))
+            whenever(
+                transactionRepository.findInDateRange(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = today.year,
+                    month = today.monthValue,
+                ),
+            ).thenReturn(listOf(tx1, tx2))
 
             val result =
                 service.listTransactions(

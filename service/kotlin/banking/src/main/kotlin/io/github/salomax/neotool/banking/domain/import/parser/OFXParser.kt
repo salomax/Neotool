@@ -41,18 +41,28 @@ object OFXParser {
         val intent = classifyStatementIntent(text)
         return when {
             text.trimStart().startsWith(SGML_HEADER, ignoreCase = true) ->
-                OfxParseResult(
-                    rows = parseSgml(text),
-                    statementIntent = intent,
-                    format = OfxDocumentFormat.SGML,
-                )
+                parseSgml(text).let { parsed ->
+                    OfxParseResult(
+                        rows = parsed.rows,
+                        statementIntent = intent,
+                        format = OfxDocumentFormat.SGML,
+                        accountIdentifier = parsed.accountIdentifier,
+                        statementFrom = parsed.statementFrom,
+                        statementTo = parsed.statementTo,
+                    )
+                }
             text.trimStart().startsWith(XML_OFX_PREFIX, ignoreCase = true) ||
                 text.trimStart().startsWith(XML_DECL_PREFIX, ignoreCase = true) ->
-                OfxParseResult(
-                    rows = parseXml(bytes),
-                    statementIntent = intent,
-                    format = OfxDocumentFormat.XML,
-                )
+                parseXml(bytes).let { parsed ->
+                    OfxParseResult(
+                        rows = parsed.rows,
+                        statementIntent = intent,
+                        format = OfxDocumentFormat.XML,
+                        accountIdentifier = parsed.accountIdentifier,
+                        statementFrom = parsed.statementFrom,
+                        statementTo = parsed.statementTo,
+                    )
+                }
             else ->
                 OfxParseResult(
                     rows = emptyList(),
@@ -73,9 +83,14 @@ object OFXParser {
         }
     }
 
-    private fun parseSgml(text: String): List<ParsedTransaction> {
+    private fun parseSgml(text: String): ParsedOfxDocument {
         val blocks = splitSgmlStmtTrnBlocks(text)
-        return blocks.mapNotNull { block -> parseSgmlBlock(block) }
+        return ParsedOfxDocument(
+            rows = blocks.mapNotNull { block -> parseSgmlBlock(block) },
+            accountIdentifier = extractSgmlTagValue(text, "ACCTID"),
+            statementFrom = extractSgmlTagValue(text, "DTSTART")?.let(::parseOfxDateOnly),
+            statementTo = extractSgmlTagValue(text, "DTEND")?.let(::parseOfxDateOnly),
+        )
     }
 
     private fun splitSgmlStmtTrnBlocks(text: String): List<String> {
@@ -103,16 +118,21 @@ object OFXParser {
         return mapToParsedTransaction(map)
     }
 
-    private fun parseXml(bytes: ByteArray): List<ParsedTransaction> {
+    private fun parseXml(bytes: ByteArray): ParsedOfxDocument {
         return try {
             val factory = DocumentBuilderFactory.newInstance()
             factory.isNamespaceAware = false
             hardenXmlFactory(factory)
             val builder = factory.newDocumentBuilder()
             val doc = builder.parse(bytes.inputStream())
-            extractStmtTrnFromDocument(doc)
+            ParsedOfxDocument(
+                rows = extractStmtTrnFromDocument(doc),
+                accountIdentifier = doc.firstTagText("CCACCTFROM", "ACCTID") ?: doc.firstTagText("BANKACCTFROM", "ACCTID"),
+                statementFrom = doc.firstTagText("BANKTRANLIST", "DTSTART")?.let(::parseOfxDateOnly),
+                statementTo = doc.firstTagText("BANKTRANLIST", "DTEND")?.let(::parseOfxDateOnly),
+            )
         } catch (e: Exception) {
-            emptyList()
+            ParsedOfxDocument()
         }
     }
 
@@ -152,6 +172,11 @@ object OFXParser {
         }
         return map
     }
+
+    private fun extractSgmlTagValue(
+        text: String,
+        tag: String,
+    ): String? = Regex("(?is)<$tag>\\s*([^<\\r\\n]+)").find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun mapToParsedTransaction(map: Map<String, String>): ParsedTransaction? {
         val dtPosted = map["DTPOSTED"] ?: return null
@@ -208,6 +233,27 @@ object OFXParser {
             }
         }
     }
+
+    private fun parseOfxDateOnly(value: String): LocalDate? =
+        runCatching { parseDtPosted(value).first }.getOrNull()
+
+    private fun Document.firstTagText(
+        parentTag: String,
+        childTag: String,
+    ): String? {
+        val parents = getElementsByTagName(parentTag)
+        for (i in 0 until parents.length) {
+            val parent = parents.item(i) ?: continue
+            val children = parent.childNodes
+            for (j in 0 until children.length) {
+                val child = children.item(j)
+                if (child.nodeType == Node.ELEMENT_NODE && child.nodeName.equals(childTag, ignoreCase = true)) {
+                    return child.textContent?.trim()?.takeIf { it.isNotEmpty() }
+                }
+            }
+        }
+        return null
+    }
 }
 
 enum class OfxStatementIntent {
@@ -226,4 +272,14 @@ data class OfxParseResult(
     val rows: List<ParsedTransaction>,
     val statementIntent: OfxStatementIntent,
     val format: OfxDocumentFormat,
+    val accountIdentifier: String? = null,
+    val statementFrom: LocalDate? = null,
+    val statementTo: LocalDate? = null,
+)
+
+private data class ParsedOfxDocument(
+    val rows: List<ParsedTransaction> = emptyList(),
+    val accountIdentifier: String? = null,
+    val statementFrom: LocalDate? = null,
+    val statementTo: LocalDate? = null,
 )

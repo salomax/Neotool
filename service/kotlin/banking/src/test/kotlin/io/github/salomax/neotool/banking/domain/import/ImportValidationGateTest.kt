@@ -9,14 +9,13 @@ class ImportValidationGateTest {
     private val gate = ImportValidationGate()
 
     @Test
-    fun `llm low confidence routes to review required`() {
+    fun `llm warnings route to review required`() {
         val decision =
             gate.evaluateBeforeCommit(
                 quality =
                     ImportValidationQuality(
                         processorType = CanonicalProcessorType.LLM,
-                        confidence = 0.40,
-                        warnings = emptyList(),
+                        warnings = listOf("schema_warning"),
                     ),
                 totalRows = 5,
                 invalidRowCount = 0,
@@ -24,7 +23,7 @@ class ImportValidationGateTest {
 
         assertThat(decision).isNotNull
         assertThat(decision!!.status).isEqualTo(ImportJobStatus.REVIEW_REQUIRED)
-        assertThat(decision.reason).isEqualTo("llm_low_confidence")
+        assertThat(decision.reason).isEqualTo("llm_warnings_present")
     }
 
     @Test
@@ -34,7 +33,6 @@ class ImportValidationGateTest {
                 quality =
                     ImportValidationQuality(
                         processorType = CanonicalProcessorType.LLM,
-                        confidence = 0.99,
                         warnings = emptyList(),
                     ),
                 totalRows = 3,
@@ -53,7 +51,6 @@ class ImportValidationGateTest {
                 quality =
                     ImportValidationQuality(
                         processorType = CanonicalProcessorType.DETERMINISTIC,
-                        confidence = 1.0,
                         warnings = emptyList(),
                     ),
                 totalRows = 2,

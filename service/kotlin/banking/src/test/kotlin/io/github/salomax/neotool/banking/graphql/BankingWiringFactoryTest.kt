@@ -9,7 +9,7 @@ import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolv
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
-import io.github.salomax.neotool.banking.graphql.resolver.PdfImportResolver
+import io.github.salomax.neotool.banking.graphql.resolver.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -36,7 +36,7 @@ class BankingWiringFactoryTest {
     private lateinit var transactionResolver: TransactionResolver
     private lateinit var transactionCategoryResolver: TransactionCategoryResolver
     private lateinit var importResolver: ImportResolver
-    private lateinit var pdfImportResolver: PdfImportResolver
+    private lateinit var pdfImportResolver: BillImportResolver
     private lateinit var investmentResolver: InvestmentResolver
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
@@ -164,9 +164,9 @@ class BankingWiringFactoryTest {
         }
 
         @Test
-        fun `submitPdfBillImport requires banking_transaction_create permission`() {
+        fun `submitBillImport requires banking_transaction_create permission`() {
             val wiring = wiringFactory.build()
-            val dataFetcher = wiring.dataFetchers["Mutation"]!!["submitPdfBillImport"]!!
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["submitBillImport"]!!
 
             val env =
                 envWithToken(
@@ -179,9 +179,9 @@ class BankingWiringFactoryTest {
         }
 
         @Test
-        fun `confirmPdfBillImport requires banking_transaction_create permission`() {
+        fun `confirmBillImport requires banking_transaction_create permission`() {
             val wiring = wiringFactory.build()
-            val dataFetcher = wiring.dataFetchers["Mutation"]!!["confirmPdfBillImport"]!!
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["confirmBillImport"]!!
 
             val env =
                 envWithToken(

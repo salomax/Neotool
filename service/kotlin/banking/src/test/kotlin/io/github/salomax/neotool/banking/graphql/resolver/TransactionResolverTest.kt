@@ -8,7 +8,6 @@ import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQuerySer
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -36,7 +35,6 @@ import java.util.UUID
 @DisplayName("TransactionResolver")
 class TransactionResolverTest {
     private lateinit var service: TransactionService
-    private lateinit var categoryRepository: TransactionCategoryRepository
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var resolver: TransactionResolver
@@ -60,10 +58,12 @@ class TransactionResolverTest {
     @BeforeEach
     fun setUp() {
         service = mock()
-        categoryRepository = mock()
         monthSummaryQueryService = mock()
         creditCardBillService = mock()
-        resolver = TransactionResolver(service, categoryRepository, monthSummaryQueryService, creditCardBillService)
+        whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenReturn(emptyMap())
+        whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
+        resolver = TransactionResolver(service, monthSummaryQueryService, creditCardBillService)
     }
 
     @Nested
@@ -103,6 +103,7 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(service.create(org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(savedTx)
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.createTransaction(input, principal())
 
@@ -150,6 +151,7 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
@@ -189,6 +191,7 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
@@ -222,6 +225,7 @@ class TransactionResolverTest {
                     updatedAt = now,
                 )
             whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
@@ -324,7 +328,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
             )
-            whenever(categoryRepository.findAll(org.mockito.kotlin.any())).thenReturn(listOf(category))
+            whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId))
+                .thenReturn(mapOf(catId to category))
 
             val result =
                 resolver.transactions(
@@ -351,6 +356,137 @@ class TransactionResolverTest {
             assertThat(edge.node.category!!.name).isEqualTo("Food")
             assertThat(result.pageInfo.hasNextPage).isFalse()
             assertThat(result.pageInfo.hasPreviousPage).isFalse()
+        }
+
+        @Test
+        fun `month and year filters are forwarded`() {
+            val emptyConnection =
+                io.github.salomax.neotool.common.graphql.pagination.Connection<Transaction>(
+                    edges = emptyList(),
+                    pageInfo =
+                        io.github.salomax.neotool.common.graphql.pagination.PageInfo(
+                            hasNextPage = false,
+                            hasPreviousPage = false,
+                            startCursor = null,
+                            endCursor = null,
+                        ),
+                    totalCount = 0L,
+                )
+            doReturn(emptyConnection).whenever(service).listTransactions(
+                org.mockito.kotlin.any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+            )
+            resolver.transactions(
+                financialAccountId = financialAccountId.toString(),
+                belongsToUserId = null,
+                belongsToName = null,
+                tags = null,
+                billId = null,
+                categoryId = null,
+                uncategorized = null,
+                month = 1,
+                year = 2025,
+                first = 20,
+                after = null,
+                principal = principal(),
+            )
+
+            verify(service).listTransactions(
+                eq(accountId),
+                eq(financialAccountId),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                eq(1),
+                eq(2025),
+                eq(20),
+                anyOrNull(),
+            )
+        }
+
+        @Test
+        fun `category is null when service does not return accessible category mapping`() {
+            val catId = UUID.randomUUID()
+            val tx =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Lunch",
+                    categoryId = catId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val connection =
+                io.github.salomax.neotool.common.graphql.pagination.Connection(
+                    edges =
+                        listOf(
+                            io.github.salomax.neotool.common.graphql.pagination.Edge(
+                                node = tx,
+                                cursor = "cursor-0",
+                            ),
+                        ),
+                    pageInfo =
+                        io.github.salomax.neotool.common.graphql.pagination.PageInfo(
+                            hasNextPage = false,
+                            hasPreviousPage = false,
+                            startCursor = "cursor-0",
+                            endCursor = "cursor-0",
+                        ),
+                    totalCount = 1,
+                )
+            doReturn(connection).whenever(service).listTransactions(
+                org.mockito.kotlin.any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+            )
+            whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId)).thenReturn(emptyMap())
+
+            val result =
+                resolver.transactions(
+                    financialAccountId = financialAccountId.toString(),
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    month = today.monthValue,
+                    year = today.year,
+                    first = 10,
+                    after = null,
+                    principal = principal(),
+                )
+
+            assertThat(result.edges).hasSize(1)
+            assertThat(result.edges[0].node.category).isNull()
         }
     }
 

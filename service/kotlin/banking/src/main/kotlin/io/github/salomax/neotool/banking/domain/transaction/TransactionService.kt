@@ -39,6 +39,32 @@ open class TransactionService(
 
     fun listCategories(accountId: UUID): List<TransactionCategory> = categoryRepository.findAll(accountId)
 
+    fun findAccessibleCategory(
+        categoryId: UUID?,
+        accountId: UUID,
+    ): TransactionCategory? {
+        if (categoryId == null) return null
+        val category = categoryRepository.findById(categoryId) ?: return null
+        return if (isCategoryAccessible(category, accountId)) category else null
+    }
+
+    fun findAccessibleCategoriesByIds(
+        categoryIds: Set<UUID>,
+        accountId: UUID,
+    ): Map<UUID, TransactionCategory> {
+        if (categoryIds.isEmpty()) return emptyMap()
+        return categoryRepository.findAll(accountId)
+            .mapNotNull { category ->
+                val id = category.id
+                if (id != null && categoryIds.contains(id) && isCategoryAccessible(category, accountId)) {
+                    id to category
+                } else {
+                    null
+                }
+            }
+            .toMap()
+    }
+
     // ── Transactions ─────────────────────────────────────────────────────────
 
     fun listByFinancialAccount(
@@ -56,7 +82,7 @@ open class TransactionService(
 
     /**
      * List transactions for the authenticated account with optional financialAccountId filter,
-     * required (but defaultable) month/year filters, and Relay-style forward pagination.
+     * optional (defaultable) month/year filters, and Relay-style forward pagination.
      *
      * - When [financialAccountId] is null, returns transactions from all financial accounts
      *   belonging to the given [accountId].
@@ -112,8 +138,6 @@ open class TransactionService(
                 require(targetMonth in 1..12) {
                     "month must be between 1 and 12, got: $targetMonth"
                 }
-                val fromDate = LocalDate.of(targetYear, targetMonth, 1)
-                val toDate = fromDate.withDayOfMonth(fromDate.lengthOfMonth())
 
                 val allTransactions: List<Transaction> =
                     when {
@@ -159,12 +183,13 @@ open class TransactionService(
                         else -> {
                             if (financialAccountId != null) {
                                 requireAccountOwnsFinancialAccount(financialAccountId, accountId)
-                                transactionRepository.findByFinancialAccount(financialAccountId, accountId)
-                            } else {
-                                transactionRepository.findByAccount(accountId)
-                            }.filter { tx ->
-                                !tx.date.isBefore(fromDate) && !tx.date.isAfter(toDate)
                             }
+                            transactionRepository.findInDateRange(
+                                accountId = accountId,
+                                financialAccountId = financialAccountId,
+                                year = targetYear,
+                                month = targetMonth,
+                            )
                         }
                     }
 
@@ -425,7 +450,7 @@ open class TransactionService(
         }
         creditCardBillService.recomputeBill(saved.billId, accountId)
 
-        // Recompute from the earliest affected month (old date or new date).
+        // Recompute from the earliest affected transaction month.
         val fromDate = minOf(existing.date, saved.date)
         snapshotComputationService.recomputeChain(
             financialAccountId = saved.financialAccountId,
@@ -655,6 +680,11 @@ open class TransactionService(
         }
         return normalized.distinct()
     }
+
+    private fun isCategoryAccessible(
+        category: TransactionCategory,
+        accountId: UUID,
+    ): Boolean = category.accountId == null || category.accountId == accountId
 
     private fun validateDateWithinMovingWindow(date: LocalDate) {
         val minAllowedDate = DateWindowPolicy.minAllowedDate()

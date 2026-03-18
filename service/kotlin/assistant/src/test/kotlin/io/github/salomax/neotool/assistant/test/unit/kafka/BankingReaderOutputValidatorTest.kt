@@ -18,8 +18,6 @@ class BankingReaderOutputValidatorTest {
                   "bank_name": "Itau",
                   "statement_period": { "from": null, "to": null },
                   "cards": [],
-                  "extraction_confidence": 0.9,
-                  "needs_review": false,
                   "warnings": []
                 }
                 """.trimIndent(),
@@ -58,8 +56,6 @@ class BankingReaderOutputValidatorTest {
                       ]
                     }
                   ],
-                  "extraction_confidence": 0.9,
-                  "needs_review": false,
                   "warnings": []
                 }
                 """.trimIndent(),
@@ -79,8 +75,6 @@ class BankingReaderOutputValidatorTest {
                   "bank_name": "Inter",
                   "statement_period": { "from": "2026/03/01", "to": "2026-03-31" },
                   "cards": [],
-                  "extraction_confidence": 0.8,
-                  "needs_review": false,
                   "warnings": []
                 }
                 """.trimIndent(),
@@ -88,7 +82,7 @@ class BankingReaderOutputValidatorTest {
 
         val errors = validator.validate(documentType = "BANK_STATEMENT", output = output)
 
-        assertThat(errors).contains("statement_period.from must be a valid date (YYYY-MM-DD or DD/MM/YYYY)")
+        assertThat(errors).anyMatch { it.startsWith("statement_period.from must be a valid date") }
     }
 
     @Test
@@ -100,8 +94,6 @@ class BankingReaderOutputValidatorTest {
                   "bank_name": "Inter",
                   "statement_period": { "from": "3/1/2026", "to": "31/1/2026" },
                   "cards": [],
-                  "extraction_confidence": 0.8,
-                  "needs_review": false,
                   "warnings": []
                 }
                 """.trimIndent(),
@@ -144,8 +136,6 @@ class BankingReaderOutputValidatorTest {
                       ]
                     }
                   ],
-                  "extraction_confidence": 0.9,
-                  "needs_review": false,
                   "warnings": []
                 }
                 """.trimIndent(),

@@ -18,6 +18,8 @@ import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedEvent
+import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedProducer
 import io.github.salomax.neotool.banking.infra.kafka.parser.CsvImportParserStrategy
 import io.github.salomax.neotool.banking.infra.kafka.parser.ExcelImportParserStrategy
 import io.github.salomax.neotool.banking.infra.kafka.parser.ImportAssistantRequest
@@ -413,7 +415,7 @@ class ImportFileConsumer(
                     extracted_text = assistantRequest.extractedText,
                     extraction_metadata = assistantRequest.extractionMetadata,
                     callback_context =
-                        PdfImportCallbackContext(
+                        ImportCallbackContext(
                             job_id = jobId,
                             account_id = event.accountId,
                             user_id = job.createdByUserId,
@@ -453,7 +455,7 @@ class ImportFileConsumer(
                 download_url = downloadUrl,
                 document_type = PDF_BANK_STATEMENT_DOCUMENT_TYPE,
                 callback_context =
-                    PdfImportCallbackContext(
+                    ImportCallbackContext(
                         job_id = event.jobId,
                         account_id = event.accountId,
                         user_id = job.createdByUserId,
