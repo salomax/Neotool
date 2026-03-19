@@ -4,7 +4,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * Domain model for the legacy banking.pdf_import_jobs table.
+ * Bill-import projection of banking.document_import_jobs.
  * JSONB fields are represented as JSON strings.
  */
 data class BillImportJob(

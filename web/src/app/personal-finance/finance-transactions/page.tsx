@@ -37,6 +37,7 @@ export default function FinanceTransactionsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImportDrawerOpen, setIsImportDrawerOpen] = useState(false);
   const [isImportBillDrawerOpen, setIsImportBillDrawerOpen] = useState(false);
+  const [isCreateDrawerFromImport, setIsCreateDrawerFromImport] = useState(false);
   const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -179,6 +180,7 @@ export default function FinanceTransactionsPage() {
 
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
+    setIsCreateDrawerFromImport(false);
     // Reset initial type after drawer closes (timeout to avoid flicker)
     setTimeout(() => setInitialType(null), 300);
   };
@@ -380,6 +382,16 @@ export default function FinanceTransactionsPage() {
         open={isDrawerOpen} 
         onClose={handleCloseDrawer}
         initialType={initialType}
+        onBackFromPrefilledType={
+          isCreateDrawerFromImport
+            ? () => {
+                setIsDrawerOpen(false);
+                setIsCreateDrawerFromImport(false);
+                setTimeout(() => setInitialType(null), 300);
+                setIsImportDrawerOpen(true);
+              }
+            : undefined
+        }
         onCreated={handleAccountCreated}
       />
       <ImportTransactionsDrawer
@@ -391,10 +403,11 @@ export default function FinanceTransactionsPage() {
         selectedAccountId={effectiveSelectedAccountId}
         selectedAccountType={selectedAccount?.type ?? null}
         onImportCompleted={handleImportCompleted}
-        onRequestCreateAccount={() => {
+        onRequestCreateAccount={(type) => {
           setIsImportDrawerOpen(false);
           setReviewJobId(null);
-          handleOpenDrawer();
+          setIsCreateDrawerFromImport(true);
+          handleOpenDrawer(type);
         }}
         reviewJobId={reviewJobId ?? undefined}
       />

@@ -31,6 +31,7 @@ object BillImportJobMapper {
     fun toEntity(job: BillImportJob): BillImportJobEntity =
         BillImportJobEntity(
             id = null,
+            jobKind = BillImportJobEntity.JOB_KIND,
             financialAccountId = job.financialAccountId,
             accountId = job.accountId,
             createdByUserId = job.createdByUserId,
@@ -54,6 +55,7 @@ object BillImportJobMapper {
         entity: BillImportJobEntity,
         job: BillImportJob,
     ) {
+        entity.jobKind = BillImportJobEntity.JOB_KIND
         entity.financialAccountId = job.financialAccountId
         entity.importType = job.importType
         entity.status = job.status

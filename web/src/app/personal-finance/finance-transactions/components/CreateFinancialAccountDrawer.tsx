@@ -150,6 +150,7 @@ interface CreateFinancialAccountDrawerProps {
   open: boolean;
   onClose: () => void;
   initialType?: 'BANK' | 'CARD' | null;
+  onBackFromPrefilledType?: () => void;
   /** Pre-fills the last 4 digits field when creating a card inline from import. */
   initialMaskedNumber?: string;
   /** Pre-fills the card closing day (1-31) when creating from bill import. */
@@ -175,6 +176,7 @@ export function CreateFinancialAccountDrawer({
   open,
   onClose,
   initialType,
+  onBackFromPrefilledType,
   initialMaskedNumber,
   initialClosingDay,
   initialDueDay,
@@ -430,7 +432,7 @@ export function CreateFinancialAccountDrawer({
   const handleBack = () => {
     // When opened with a pre-selected type (e.g. inline from import), back = close drawer
     if (initialType) {
-      handleClose();
+      onBackFromPrefilledType?.() ?? handleClose();
       return;
     }
     setStep(1);

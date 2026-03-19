@@ -11,17 +11,23 @@ const mockUseQuery = vi.fn();
 
 vi.mock('@/shared/components/ui/forms/form', async () => {
   const actual = await vi.importActual<typeof import('@/shared/components/ui/forms/form')>('@/shared/components/ui/forms/form');
-  const rhf = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
+  const { Controller, useFormContext } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
 
   return {
     ...actual,
     DatePickerField: ({ name, label }: { name: string; label?: string; minDate?: Date }) => {
-      const { control } = rhf.useFormContext();
+      const { control } = useFormContext();
       return (
-        <rhf.Controller
+        <Controller
           name={name}
           control={control}
-          render={({ field, fieldState }) => (
+          render={({
+            field,
+            fieldState,
+          }: {
+            field: { value: unknown; onChange: (value: unknown) => void };
+            fieldState: { error?: { message?: string } };
+          }) => (
             <>
               <input
                 aria-label={label}
@@ -126,7 +132,7 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     await user.click(issuerInput);
     await user.click(screen.getByText('Banco Teste'));
 
-    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' }));
+    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addCard' }));
 
     await waitFor(() => {
       expect(mockCreateAccount).toHaveBeenCalledWith(

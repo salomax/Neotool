@@ -16,14 +16,61 @@ class BankingReaderOutputValidator {
             return errors
         }
 
+        when (documentType.trim().uppercase()) {
+            DOCUMENT_TYPE_BANK_STATEMENT -> validateBankStatement(output, errors)
+            else -> validateLegacyDocument(output, errors)
+        }
+
+        return errors
+    }
+
+    private fun validateLegacyDocument(
+        output: JsonNode,
+        errors: MutableList<String>,
+    ) {
         validateNullableString(output.path("bank_name"), "bank_name", errors)
         validateDate(output.path("closing_date"), "closing_date", errors)
         validateDate(output.path("due_date"), "due_date", errors)
         validateOptionalStatementPeriod(output.path("statement_period"), errors)
         validateCards(output.path("cards"), errors)
         validateStringArray(output.path("warnings"), "warnings", errors)
+    }
 
-        return errors
+    private fun validateBankStatement(
+        output: JsonNode,
+        errors: MutableList<String>,
+    ) {
+        validateNullableString(output.path("bank_name"), "bank_name", errors)
+        validateStatementPeriod(output.path("statement_period"), errors)
+        validateStringArray(output.path("warnings"), "warnings", errors)
+
+        val transactionsNode = output.path("transactions")
+        val cardsNode = output.path("cards")
+        val hasTransactions = !transactionsNode.isMissingNode && !transactionsNode.isNull
+        val hasCards = !cardsNode.isMissingNode && !cardsNode.isNull
+
+        if (!hasTransactions && !hasCards) {
+            errors += "transactions or cards must be present"
+            return
+        }
+
+        if (hasTransactions) {
+            validateTransactions(transactionsNode, "transactions", errors)
+        }
+        if (hasCards) {
+            validateCards(cardsNode, errors)
+        }
+    }
+
+    private fun validateStatementPeriod(
+        node: JsonNode,
+        errors: MutableList<String>,
+    ) {
+        if (node.isMissingNode || node.isNull) {
+            errors += "statement_period must be an object"
+            return
+        }
+        validateOptionalStatementPeriod(node, errors)
     }
 
     private fun validateOptionalStatementPeriod(
@@ -245,6 +292,7 @@ class BankingReaderOutputValidator {
     }
 
     private companion object {
+        const val DOCUMENT_TYPE_BANK_STATEMENT = "BANK_STATEMENT"
         val VALID_CREDIT_DEBIT_TYPES = setOf("DEBIT", "CREDIT")
         val FOUR_DIGITS_REGEX = Regex("^[0-9]{4}$")
         val FLEXIBLE_BR_DATE_REGEX = Regex("""^(\d{1,2})/(\d{1,2})/(\d{4})$""")

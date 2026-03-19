@@ -18,7 +18,6 @@ import {
   alpha,
 } from '@mui/material';
 import { CloudUpload as UploadIcon, Add as AddIcon, AccountBalance as BankIcon, InsertDriveFile as FileIcon, TipsAndUpdates as TipsAndUpdatesIcon } from '@mui/icons-material';
-import { CreditCard as CreditCardIcon } from '@mui/icons-material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
@@ -29,7 +28,7 @@ import { ImportDuplicateReview } from './ImportDuplicateReview';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import Link from '@/shared/components/ui/navigation/Link';
-import { extractErrorCode, extractErrorParameters, extractErrorMessage } from '@/shared/utils/error';
+import { cleanErrorMessage, extractErrorCode, extractErrorParameters, extractErrorMessage } from '@/shared/utils/error';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -37,6 +36,57 @@ const ACCEPTED_TYPES =
   'application/x-ofx,.ofx,text/csv,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls,application/pdf,.pdf';
 
 type Step = 'account' | 'upload' | 'processing' | 'result' | 'review' | 'error';
+
+interface AsyncImportErrorDetails {
+  errorCode?: string;
+  parameters?: Record<string, unknown>;
+  message?: string;
+}
+
+function parseAsyncImportErrorDetails(raw: unknown): AsyncImportErrorDetails | null {
+  if (typeof raw !== 'string' || raw.trim().length === 0) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+
+    return {
+      errorCode: typeof parsed.errorCode === 'string' ? parsed.errorCode : undefined,
+      parameters:
+        parsed.parameters && typeof parsed.parameters === 'object' && !Array.isArray(parsed.parameters)
+          ? parsed.parameters as Record<string, unknown>
+          : undefined,
+      message: typeof parsed.message === 'string' ? parsed.message : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function resolveAsyncImportError(
+  tCommon: (key: string, params?: Record<string, unknown>) => string,
+  rawDetails: unknown,
+  fallbackMessage: string,
+): { message: string; details: string | null } {
+  if (typeof rawDetails !== 'string' || rawDetails.trim().length === 0) {
+    return { message: fallbackMessage, details: null };
+  }
+
+  const parsed = parseAsyncImportErrorDetails(rawDetails);
+  if (parsed?.errorCode) {
+    const translationKey = `errors.${parsed.errorCode}`;
+    const translated = tCommon(translationKey, parsed.parameters);
+    if (translated !== translationKey) {
+      return { message: translated, details: null };
+    }
+  }
+
+  if (parsed?.message) {
+    return { message: cleanErrorMessage(parsed.message), details: null };
+  }
+
+  return { message: cleanErrorMessage(rawDetails), details: null };
+}
 
 function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -71,7 +121,7 @@ export interface ImportTransactionsDrawerProps {
   selectedAccountId: string | null;
   selectedAccountType?: FinancialAccount['type'] | null;
   onImportCompleted?: () => void;
-  onRequestCreateAccount?: () => void;
+  onRequestCreateAccount?: (type: 'BANK' | 'CARD') => void;
   /** When set, drawer opens directly on the duplicate review step for this job (e.g. from page load). */
   reviewJobId?: string | null;
 }
@@ -85,7 +135,7 @@ export function ImportTransactionsDrawer({
   onRequestCreateAccount,
   reviewJobId,
 }: ImportTransactionsDrawerProps) {
-  const { t } = useTranslation(personalFinanceTranslations);
+  const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('account');
   const [targetAccountId, setTargetAccountId] = useState<string | null>(selectedAccountId);
@@ -96,7 +146,7 @@ export function ImportTransactionsDrawer({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
 
-  const isImportableAccountType = (type: FinancialAccount['type'] | null | undefined) => type === 'BANK' || type === 'CREDIT';
+  const isImportableAccountType = (type: FinancialAccount['type'] | null | undefined) => type === 'BANK';
   const canUseSelectedImportableAccount = !!selectedAccountId && isImportableAccountType(selectedAccountType);
 
   React.useEffect(() => {
@@ -127,6 +177,30 @@ export function ImportTransactionsDrawer({
     },
   );
 
+  React.useEffect(() => {
+    if (!open) return;
+    if (reviewJobId) return;
+    if (canUseSelectedImportableAccount) return;
+    if (step !== 'account') return;
+    if (accountsLoading) return;
+
+    const accounts = accountsData?.financialAccounts ?? [];
+    const bankAccounts = accounts.filter((account) => isImportableAccountType(account.type));
+    if (bankAccounts.length !== 1) return;
+
+    setTargetAccountId(bankAccounts[0]!.id);
+    setStep('upload');
+    setFile(null);
+    setFileError(null);
+  }, [
+    open,
+    reviewJobId,
+    canUseSelectedImportableAccount,
+    step,
+    accountsLoading,
+    accountsData?.financialAccounts,
+  ]);
+
   const handleClose = useCallback(() => {
     onClose();
     setStep('account');
@@ -149,8 +223,10 @@ export function ImportTransactionsDrawer({
       setStep('review');
     },
     onFailed: (details) => {
-      setErrorMessage(t('financeTransactions.import.errorStep.message'));
-      setErrorDetails(typeof details === 'string' ? details : null);
+      const fallbackMessage = t('financeTransactions.import.errorStep.message');
+      const resolved = resolveAsyncImportError(tCommon, details, fallbackMessage);
+      setErrorMessage(resolved.message);
+      setErrorDetails(resolved.details);
       setStep('error');
     },
   });
@@ -162,9 +238,28 @@ export function ImportTransactionsDrawer({
     setFileError(null);
   };
 
+  const handleCancelFromUpload = () => {
+    if (canUseSelectedImportableAccount) {
+      handleClose();
+      return;
+    }
+
+    const accounts = accountsData?.financialAccounts ?? [];
+    const bankAccounts = accounts.filter((account) => isImportableAccountType(account.type));
+    if (bankAccounts.length <= 1) {
+      handleClose();
+      return;
+    }
+
+    setTargetAccountId(null);
+    setFile(null);
+    setFileError(null);
+    setStep('account');
+  };
+
   const handleCreateAccountFromImport = () => {
     handleClose();
-    onRequestCreateAccount?.();
+    onRequestCreateAccount?.('BANK');
   };
 
   const validateFile = (f: File): string | null => {
@@ -224,7 +319,7 @@ export function ImportTransactionsDrawer({
 
       if (errorCode) {
         const translationKey = `errors.${errorCode}`;
-        const translated = t(translationKey, parameters);
+        const translated = tCommon(translationKey, parameters);
         setErrorMessage(translated !== translationKey ? translated : t('financeTransactions.import.errorStep.message'));
       } else {
         setErrorMessage(extractErrorMessage(err, t('financeTransactions.import.errorStep.message')));
@@ -272,7 +367,7 @@ export function ImportTransactionsDrawer({
                     src={account.issuer?.logoAsset?.publicUrl ?? undefined}
                     sx={{ mr: 2, borderRadius: 1.25, bgcolor: account.themeColor || 'primary.main' }}
                   >
-                    {account.type === 'CREDIT' ? <CreditCardIcon /> : <BankIcon />}
+                    <BankIcon />
                   </Avatar>
                   <ListItemText
                     primary={account.name}
@@ -298,7 +393,7 @@ export function ImportTransactionsDrawer({
           }}            
             onClick={handleCreateAccountFromImport}>
               <AddIcon fontSize="small" />
-              {t('financeTransactions.import.accountStep.createAccountOrCard')}
+              {t('financeTransactions.import.accountStep.createAccount')}
           </Link>
         </Box>
         <Divider sx={{ my: 3 }} />
@@ -399,7 +494,7 @@ export function ImportTransactionsDrawer({
         )}
         <Divider sx={{ my: 3 }} />
         <Stack direction="row" spacing={2} sx={{ mt: 3 }} justifyContent="flex-end">
-          <Button variant="outlined" onClick={() => (selectedAccountId ? handleClose() : setStep('account'))}>
+          <Button variant="outlined" onClick={handleCancelFromUpload}>
             {t('financeTransactions.actions.cancel')}
           </Button>
           <Button

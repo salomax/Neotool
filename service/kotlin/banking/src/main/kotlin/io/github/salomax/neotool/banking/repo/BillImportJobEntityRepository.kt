@@ -7,20 +7,26 @@ import java.util.UUID
 
 @Repository
 interface BillImportJobEntityRepository : JpaRepository<BillImportJobEntity, UUID> {
-    fun findByIdAndAccountId(
+    fun findByIdAndAccountIdAndJobKind(
         id: UUID,
         accountId: UUID,
+        jobKind: String,
     ): BillImportJobEntity?
 
-    fun findByAccountIdAndFileHash(
+    fun findByAccountIdAndFileHashAndJobKind(
         accountId: UUID,
         fileHash: String,
+        jobKind: String,
     ): BillImportJobEntity?
 
-    fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<BillImportJobEntity>
+    fun findByAccountIdAndJobKindOrderByCreatedAtDesc(
+        accountId: UUID,
+        jobKind: String,
+    ): List<BillImportJobEntity>
 
-    fun findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
+    fun findByFinancialAccountIdAndAccountIdAndJobKindOrderByCreatedAtDesc(
         financialAccountId: UUID,
         accountId: UUID,
+        jobKind: String,
     ): List<BillImportJobEntity>
 }

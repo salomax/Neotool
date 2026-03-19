@@ -11,6 +11,7 @@ export interface DesignTokens {
     xl: number;
   };
   radius: {
+    optionCard: number;
     sm: number;
     md: number;
     button: number;
@@ -93,7 +94,7 @@ export interface DesignTokens {
 export const tokens: Record<Mode, DesignTokens> = {
   light: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
+    radius: { optionCard: 2, sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
     border: {
       default: 1,
       focused: 2,
@@ -167,7 +168,7 @@ export const tokens: Record<Mode, DesignTokens> = {
   },
   dark: {
     spacing: { xs: 4, sm: 8, md: 12, lg: 16, xl: 24 },
-    radius: { sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
+    radius: { optionCard: 2, sm: 4, md: 8, button: 12, lg: 12, xl: 16, table: 8 },
     border: {
       default: 1,
       focused: 2,

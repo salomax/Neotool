@@ -473,6 +473,7 @@
       "accountStep": {
         "title": "Selecione a conta para importar",
         "noAccounts": "Nenhuma conta encontrada. Crie uma conta para continuar a importação.",
+        "createAccount": "Criar nova conta",
         "createAccountOrCard": "Criar nova conta ou cartão"
       },
       "sourceStep": {

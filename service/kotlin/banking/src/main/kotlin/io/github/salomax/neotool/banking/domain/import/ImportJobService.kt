@@ -33,7 +33,7 @@ import java.time.ZoneId
 import java.util.UUID
 
 private const val DEFAULT_MIME = "application/octet-stream"
-private const val DUPLICATE_FILE_HASH_CONSTRAINT = "uq_transaction_imports_account_file_hash"
+private const val DUPLICATE_FILE_HASH_CONSTRAINT = "uq_document_import_jobs_transaction_account_hash"
 
 @Singleton
 open class ImportJobService(

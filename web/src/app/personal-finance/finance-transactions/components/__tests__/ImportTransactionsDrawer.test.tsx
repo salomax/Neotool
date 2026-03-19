@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImportTransactionsDrawer } from '../ImportTransactionsDrawer';
 import { useImportJobStatus } from '@/lib/hooks/useImportJobStatus';
@@ -55,7 +55,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
     expect(screen.getAllByText(/Select file|Selecione o arquivo/).length).toBeGreaterThan(0);
   });
 
-  it('givenConsolidatedView_whenRendered_thenShowsAccountSelectionStep', () => {
+  it('givenConsolidatedViewWithMultipleBanks_whenRendered_thenShowsAccountSelectionStep', () => {
     mockUseQuery.mockReturnValue({
       data: {
         financialAccounts: [
@@ -65,6 +65,13 @@ describe.sequential('ImportTransactionsDrawer', () => {
             type: 'BANK',
             issuer: { name: 'XP', logoAsset: null },
             issuerName: 'XP',
+          },
+          {
+            id: 'acc-2',
+            name: 'Conta Itau',
+            type: 'BANK',
+            issuer: { name: 'Itau', logoAsset: null },
+            issuerName: 'Itau',
           },
         ],
       },
@@ -81,7 +88,7 @@ describe.sequential('ImportTransactionsDrawer', () => {
     expect(screen.getByText('Conta XP')).toBeInTheDocument();
   });
 
-  it('givenConsolidatedView_whenRendered_thenShowsCards', () => {
+  it('givenConsolidatedViewWithSingleBank_whenRendered_thenSkipsAccountSelectionStep', async () => {
     mockUseQuery.mockReturnValue({
       data: {
         financialAccounts: [
@@ -91,6 +98,68 @@ describe.sequential('ImportTransactionsDrawer', () => {
             type: 'BANK',
             issuer: { name: 'XP', logoAsset: null },
             issuerName: 'XP',
+          },
+        ],
+      },
+      loading: false,
+    } as unknown as ReturnType<typeof mockUseQuery>);
+
+    render(
+      <ImportTransactionsDrawer open onClose={onClose} selectedAccountId={null} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Select file|Selecione o arquivo/).length).toBeGreaterThan(0);
+    });
+  });
+
+  it('givenSingleBankAutoSelected_whenCancelFromUpload_thenClosesDrawer', async () => {
+    const user = userEvent.setup();
+
+    mockUseQuery.mockReturnValue({
+      data: {
+        financialAccounts: [
+          {
+            id: 'acc-1',
+            name: 'Conta XP',
+            type: 'BANK',
+            issuer: { name: 'XP', logoAsset: null },
+            issuerName: 'XP',
+          },
+        ],
+      },
+      loading: false,
+    } as unknown as ReturnType<typeof mockUseQuery>);
+
+    render(
+      <ImportTransactionsDrawer open onClose={onClose} selectedAccountId={null} />,
+    );
+
+    await waitFor(() => {
+      expect(screen.getAllByText(/Select file|Selecione o arquivo/).length).toBeGreaterThan(0);
+    });
+
+    await user.click(screen.getByRole('button', { name: /Cancel|Cancelar/i }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('givenConsolidatedView_whenRendered_thenHidesNonBankAccounts', () => {
+    mockUseQuery.mockReturnValue({
+      data: {
+        financialAccounts: [
+          {
+            id: 'acc-1',
+            name: 'Conta XP',
+            type: 'BANK',
+            issuer: { name: 'XP', logoAsset: null },
+            issuerName: 'XP',
+          },
+          {
+            id: 'acc-2',
+            name: 'Conta Itau',
+            type: 'BANK',
+            issuer: { name: 'Itau', logoAsset: null },
+            issuerName: 'Itau',
           },
           {
             id: 'card-1',
@@ -109,7 +178,8 @@ describe.sequential('ImportTransactionsDrawer', () => {
     );
 
     expect(screen.queryAllByText('Conta XP').length).toBeGreaterThan(0);
-    expect(screen.queryAllByText('Cartao Gold').length).toBeGreaterThan(0);
+    expect(screen.queryAllByText('Conta Itau').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Cartao Gold')).not.toBeInTheDocument();
   });
 
   it('givenDuplicateImportError_whenSubmit_thenShowsFriendlyTranslatedError', async () => {
@@ -148,6 +218,37 @@ describe.sequential('ImportTransactionsDrawer', () => {
     });
 
     expect(screen.queryByText(/Algo deu errado/i)).not.toBeInTheDocument();
+  });
+
+  it('givenAsyncOfxDestinationMismatch_whenJobFails_thenShowsFriendlyTranslatedError', async () => {
+    let latestCallbacks: Parameters<typeof useImportJobStatus>[1] | undefined;
+    vi.mocked(useImportJobStatus).mockImplementation((_jobId, callbacks) => {
+      latestCallbacks = callbacks;
+    });
+
+    render(
+      <ImportTransactionsDrawer open onClose={onClose} selectedAccountId="acc-1" selectedAccountType={FinancialAccountType.Bank} />,
+    );
+
+    act(() => {
+      latestCallbacks?.onFailed(
+        JSON.stringify({
+          errorCode: 'IMPORT_OFX_DESTINATION_MISMATCH',
+          message: 'OFX statement type is not compatible with the destination financial account',
+          parameters: {
+            statementIntent: 'CREDIT_CARD_STATEMENT',
+          },
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/fatura\/cartão|credit card bill/i),
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.queryByText(/Algo deu errado\. Tente novamente\./i)).not.toBeInTheDocument();
   });
 
 });

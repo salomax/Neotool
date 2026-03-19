@@ -5,7 +5,7 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * Domain model for banking.transaction_imports (import job audit and idempotency).
+ * Transaction-import projection of banking.document_import_jobs.
  * JSONB columns [errorDetails] and [reviewPayload] are held as JSON strings.
  */
 data class ImportJob(
@@ -17,6 +17,11 @@ data class ImportJob(
     val fileName: String? = null,
     val fileHash: String,
     val status: ImportJobStatus,
+    val extractedText: String? = null,
+    /** JSON string (from JSONB). */
+    val extractionMetadata: String? = null,
+    /** JSON string (from JSONB). */
+    val assistantResponse: String? = null,
     val totalRows: Int? = null,
     val importedCount: Int? = null,
     val skippedCount: Int? = null,

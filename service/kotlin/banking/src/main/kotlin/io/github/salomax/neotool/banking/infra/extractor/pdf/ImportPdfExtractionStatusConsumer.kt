@@ -80,9 +80,17 @@ class ImportPdfExtractionStatusConsumer(
             }
 
             val extractionMetadata = normalizeMetadata(event["extraction_metadata"])
+            val updated =
+                importJobRepository.update(
+                    job.copy(
+                        extractedText = extractedText,
+                        extractionMetadata = objectMapper.writeValueAsString(extractionMetadata),
+                        updatedAt = Instant.now(),
+                    ),
+                )
             producer.publish(
                 AssistantBankingReaderRequestedEvent(
-                    job_id = requireNotNull(job.id),
+                    job_id = requireNotNull(updated.id),
                     document_type = IMPORT_PDF_DOCUMENT_TYPE,
                     file_type = IMPORT_PDF_FILE_TYPE,
                     account_type = IMPORT_PDF_ACCOUNT_TYPE,
@@ -91,20 +99,20 @@ class ImportPdfExtractionStatusConsumer(
                     extraction_metadata = extractionMetadata,
                     callback_context =
                         ImportCallbackContext(
-                            job_id = requireNotNull(job.id),
-                            account_id = job.accountId,
-                            user_id = job.createdByUserId,
+                            job_id = requireNotNull(updated.id),
+                            account_id = updated.accountId,
+                            user_id = updated.createdByUserId,
                         ),
                 ),
             )
 
-            val marked = importJobRepository.markAssistantRequestPublished(requireNotNull(job.id))
+            val marked = importJobRepository.markAssistantRequestPublished(requireNotNull(updated.id))
             if (!marked) {
-                log.info("Assistant request marker already set for import jobId={}", job.id)
+                log.info("Assistant request marker already set for import jobId={}", updated.id)
             }
 
-            deleteAssetBestEffort(event, callbackContext, job.accountId)
-            job
+            deleteAssetBestEffort(event, callbackContext, updated.accountId)
+            updated
         }
     }
 
@@ -205,6 +213,7 @@ class ImportPdfExtractionStatusConsumer(
                 jobId = requireNotNull(job.id),
                 accountId = job.accountId,
                 status = job.status,
+                errorDetails = job.errorDetails,
                 importedCount = job.importedCount,
                 skippedCount = job.skippedCount,
                 duplicateReviewCount = job.duplicateReviewCount,
