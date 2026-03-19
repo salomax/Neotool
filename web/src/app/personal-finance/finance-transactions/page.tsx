@@ -19,12 +19,11 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import { CreateFinancialAccountDrawer } from './components/CreateFinancialAccountDrawer';
 import { ImportTransactionsDrawer } from './components/ImportTransactionsDrawer';
 import { BillImportDrawer } from './components/BillImportDrawer';
-import { ScanNfceButton } from './components/ScanNfceButton';
 import { FinancialAccountSelector } from './components/FinancialAccountSelector';
 import { EmptyFinancialAccountsState } from './components/EmptyFinancialAccountsState';
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
 import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
-import { FinancialAccount, Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { FinancialAccount, FinancialAccountType, Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { MonthYearCarousel } from './components/MonthYearCarousel';
 import { TransactionTable } from './components/TransactionTable';
 import { MonthSummary, MonthSummaryData } from './components/MonthSummary';
@@ -51,7 +50,15 @@ export default function FinanceTransactionsPage() {
     errorPolicy: 'all',
   });
   
-  const selectedAccount = data?.financialAccounts.find(a => a.id === selectedAccountId) || null;
+  const transactionAccountTypes: FinancialAccountType[] = [
+    FinancialAccountType.Bank,
+    FinancialAccountType.Credit,
+    FinancialAccountType.Payment,
+  ];
+  const transactionAccounts = (data?.financialAccounts ?? []).filter((account) => transactionAccountTypes.includes(account.type));
+  const effectiveSelectedAccountId =
+    selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : null;
+  const selectedAccount = transactionAccounts.find((a) => a.id === effectiveSelectedAccountId) || null;
   const displayMode = useAccountDisplayMode(selectedAccount);
 
   const { 
@@ -61,7 +68,7 @@ export default function FinanceTransactionsPage() {
     refetch: refetchTransactions 
   } = useQuery<TransactionsQuery>(TRANSACTIONS, {
     variables: {
-      financialAccountId: displayMode.kind === 'calendar' ? selectedAccountId : undefined,
+      financialAccountId: displayMode.kind === 'calendar' ? effectiveSelectedAccountId : undefined,
       billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
@@ -78,7 +85,7 @@ export default function FinanceTransactionsPage() {
     refetch: refetchMonthSummary,
   } = useQuery<{ monthSummary: MonthSummaryData }>(MONTH_SUMMARY, {
     variables: {
-      financialAccountId: selectedAccountId,
+      financialAccountId: effectiveSelectedAccountId,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
     },
@@ -87,8 +94,8 @@ export default function FinanceTransactionsPage() {
   });
 
   const { data: importsData, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
-    variables: { financialAccountId: selectedAccountId },
-    skip: !selectedAccountId,
+    variables: { financialAccountId: effectiveSelectedAccountId },
+    skip: !effectiveSelectedAccountId,
   });
   const reviewRequiredJob = importsData?.transactionImports?.find((j) => j.status === 'REVIEW_REQUIRED');
 
@@ -196,7 +203,7 @@ export default function FinanceTransactionsPage() {
     );
   }
 
-  const hasAccounts = data?.financialAccounts && data.financialAccounts.length > 0;
+  const hasAccounts = transactionAccounts.length > 0;
 
   if (!hasAccounts) {
     return (
@@ -222,8 +229,9 @@ export default function FinanceTransactionsPage() {
           <Box sx={{ p: 3, pb: 2 }}>
             <FinancialAccountSelector 
               onNewAccount={() => handleOpenDrawer()}
-              selectedAccountId={selectedAccountId}
+              selectedAccountId={effectiveSelectedAccountId}
               onSelectAccount={setSelectedAccountId}
+              accountTypes={[FinancialAccountType.Bank, FinancialAccountType.Credit, FinancialAccountType.Payment]}
             />
             <Divider sx={{ my: 3 }} />
             {displayMode.kind === 'calendar' ? (
@@ -232,7 +240,7 @@ export default function FinanceTransactionsPage() {
                   loading={monthSummaryLoading}
                   error={monthSummaryError}
                   onRetry={() => refetchMonthSummary()}
-                  isConsolidated={!selectedAccountId}
+                  isConsolidated={!effectiveSelectedAccountId}
                   expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
                   incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
                 />
@@ -355,7 +363,7 @@ export default function FinanceTransactionsPage() {
 
           <TransactionTable 
             transactions={transactions} 
-            financialAccounts={data?.financialAccounts}
+            financialAccounts={transactionAccounts}
             loading={transactionsLoading || isFetchingMore} 
             hasMore={hasMore} 
             onLoadMore={handleLoadMore} 
@@ -365,7 +373,7 @@ export default function FinanceTransactionsPage() {
               refetchTransactions();
               refetchSummary();
             }}
-            selectedAccountId={selectedAccountId}
+            selectedAccountId={effectiveSelectedAccountId}
           />
         </Container>
       </Page>
@@ -392,7 +400,7 @@ export default function FinanceTransactionsPage() {
           setIsImportDrawerOpen(false);
           setReviewJobId(null);
         }}
-        selectedAccountId={selectedAccountId}
+        selectedAccountId={effectiveSelectedAccountId}
         selectedAccountType={selectedAccount?.type ?? null}
         onImportCompleted={handleImportCompleted}
         onRequestCreateAccount={(type) => {

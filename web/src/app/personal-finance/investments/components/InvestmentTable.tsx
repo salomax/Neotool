@@ -21,9 +21,9 @@ import {
   useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import InfoIcon from '@mui/icons-material/Info';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import SavingsIcon from '@mui/icons-material/Savings';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { GrowthChip } from '@/shared/components/ui/data-display';
@@ -164,6 +164,30 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
   const locale = getCurrentLocale();
   const [expandedGroup, setExpandedGroup] = React.useState<AssetGroupKey | false>(false);
   const didInitExpansionRef = React.useRef(false);
+
+  const EstimatedInfoBadge = React.forwardRef<HTMLSpanElement, { ml?: number }>(({ ml = 0 }, ref) => (
+    <Box
+      ref={ref}
+      component="span"
+      sx={{
+        width: 18,
+        height: 18,
+        borderRadius: '50%',
+        border: 'none',
+        bgcolor: alpha(theme.palette.info.main, 0.16),
+        color: 'info.main',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        ml,
+        flex: '0 0 auto',
+      }}
+      aria-hidden
+    >
+      <InfoIcon sx={{ fontSize: 14 }} />
+    </Box>
+  ));
+  EstimatedInfoBadge.displayName = 'EstimatedInfoBadge';
 
   const accountHoldingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
     variables: { financialAccountId: selectedAccountId || '' },
@@ -317,7 +341,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
             const summaryAdornment =
               group.hasEstimatedInGroup ? (
                 <Tooltip title={t('investments.table.groupTotalEstimated')}>
-                  <WarningAmberIcon sx={{ fontSize: 16, color: 'warning.main' }} aria-hidden />
+                  <EstimatedInfoBadge ml={0.25} />
                 </Tooltip>
               ) : null;
 
@@ -423,7 +447,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                           </Tooltip>
                         ) : source === ValuationSource.Estimated ? (
                           <Tooltip title={valueTooltip ?? ''}>
-                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main', ml: 0.25 }} aria-hidden />
+                            <EstimatedInfoBadge ml={0.25} />
                           </Tooltip>
                         ) : null;
 
@@ -517,7 +541,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                                         </Typography>
                                         {gainEstimated && (
                                           <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
+                                            <EstimatedInfoBadge />
                                           </Tooltip>
                                         )}
                                       </Box>
@@ -572,7 +596,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                                         </Typography>
                                         {gainEstimated && (
                                           <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <WarningAmberIcon sx={{ fontSize: 14, color: 'warning.main' }} aria-hidden />
+                                            <EstimatedInfoBadge />
                                           </Tooltip>
                                         )}
                                       </Box>

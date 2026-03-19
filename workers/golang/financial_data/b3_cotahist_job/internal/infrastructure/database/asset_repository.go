@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log/slog"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,8 +17,7 @@ import (
 
 const (
 	// upsertAssetSQL upserts one B3 asset, keyed on ticker.
-	// The content_hash WHERE guard makes the UPDATE a no-op when data is unchanged,
-	// avoiding spurious updated_at writes on re-runs.
+	// The content_hash WHERE guard makes the UPDATE a no-op when data is unchanged.
 	upsertAssetSQL = `
 		INSERT INTO financial_data.investment_asset
 			(id, ticker, isin_code, name, asset_type, exchange, currency_code,
@@ -38,7 +38,6 @@ const (
 	`
 
 	// findTickerIDsSQL loads ticker→UUID for a set of tickers in one query.
-	// Used after the catalog upsert to build the in-memory map for price inserts.
 	findTickerIDsSQL = `
 		SELECT ticker, id
 		FROM financial_data.investment_asset
@@ -57,16 +56,20 @@ func NewAssetRepository(pool *pgxpool.Pool, logger *slog.Logger) *AssetRepositor
 	return &AssetRepository{pool: pool, logger: logger}
 }
 
-// UpsertBatch upserts a slice of asset records using pgx.Batch.
-// Records are sorted by ticker before sending to ensure a consistent
-// lock-acquisition order across concurrent workers, reducing deadlock probability.
+// UpsertBatch upserts a slice of asset records in a single explicit transaction.
+//
+// Records are sorted by ticker before sending so that concurrent workers acquire
+// row locks in a consistent order, reducing deadlock probability.
+//
+// ISIN handling:
+//   - Intra-batch duplicates (two tickers in the same file sharing an ISIN) are
+//     stripped in a single O(n) pass before the batch reaches the DB.
+//   - Any residual conflict with an existing DB row (different ticker, same ISIN)
+//     is resolved by stripping that specific ISIN and retrying — up to maxRetries.
 //
 // Retry behaviour:
-//   - PostgreSQL deadlock (40P01): retried up to 3 times with exponential backoff.
-//   - ISIN unique constraint (23505 on uq_investment_asset_isin_code): the batch is
-//     retried once with all ISIN codes set to NULL. This is a safety net for the rare
-//     case where two non-option assets share an ISIN (e.g. a ticker change mid-year).
-//     Options never carry an ISIN — that is enforced upstream in collectAssets.
+//   - PostgreSQL deadlock (40P01): retried up to maxRetries with exponential backoff.
+//   - Residual ISIN conflict (23505): strip conflicting ISIN and retry immediately.
 func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.AssetRecord) error {
 	if len(records) == 0 {
 		return nil
@@ -75,12 +78,16 @@ func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.Asse
 	// Consistent lock order across concurrent workers.
 	sort.Slice(records, func(i, j int) bool { return records[i].Ticker < records[j].Ticker })
 
+	// Strip ISINs that appear more than once in this batch before hitting the DB.
+	// This handles the common B3 data quality issue (same ISIN on two tickers in
+	// the same file) without needing any round-trips.
+	records = stripDuplicateISINs(records)
+
 	const maxRetries = 3
 	delay := 50 * time.Millisecond
-	isinStripped := false
 
 	for attempt := range maxRetries + 1 {
-		err := r.sendAssetBatch(ctx, records)
+		err := r.sendAssetBatchTx(ctx, records)
 		if err == nil {
 			return nil
 		}
@@ -89,7 +96,7 @@ func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.Asse
 		case isDeadlock(err) && attempt < maxRetries:
 			r.logger.Warn("asset upsert deadlock, retrying",
 				"attempt", attempt+1,
-				"delay", delay,
+				"delay_ms", delay.Milliseconds(),
 			)
 			select {
 			case <-ctx.Done():
@@ -98,20 +105,10 @@ func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.Asse
 			}
 			delay *= 2
 
-		case isISINConflict(err) && !isinStripped:
-			// Strip all ISINs from the batch and retry once. This happens when two
-			// assets in the same batch have the same ISIN (data quality issue in
-			// COTAHIST). Storing NULL is safe — tickers remain the primary key.
-			r.logger.Warn("asset upsert ISIN conflict, retrying with null ISINs",
-				"records", len(records),
-			)
-			stripped := make([]domain.AssetRecord, len(records))
-			copy(stripped, records)
-			for i := range stripped {
-				stripped[i].IsinCode = ""
-			}
-			records = stripped
-			isinStripped = true
+		case isISINConflict(err) && attempt < maxRetries:
+			// Residual conflict: this ISIN is already owned by a different ticker in
+			// the DB (e.g. from a previously processed chunk). Strip it and retry.
+			records = stripISIN(records, extractConflictingISIN(err))
 
 		default:
 			return err
@@ -120,7 +117,19 @@ func (r *AssetRepository) UpsertBatch(ctx context.Context, records []domain.Asse
 	return nil
 }
 
-func (r *AssetRepository) sendAssetBatch(ctx context.Context, records []domain.AssetRecord) error {
+func (r *AssetRepository) sendAssetBatchTx(ctx context.Context, records []domain.AssetRecord) error {
+	conn, err := r.pool.Acquire(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Release()
+
+	tx, err := conn.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx) // no-op if Commit succeeds
+
 	batch := &pgx.Batch{}
 	for _, rec := range records {
 		// Store empty ISIN as NULL to avoid unique-constraint conflicts on "".
@@ -142,21 +151,23 @@ func (r *AssetRepository) sendAssetBatch(ctx context.Context, records []domain.A
 		)
 	}
 
-	br := r.pool.SendBatch(ctx, batch)
-	defer br.Close()
+	br := tx.SendBatch(ctx, batch)
 
-	// Drain every result even on error — leaving unread results corrupts the connection.
 	var firstErr error
 	for range records {
 		if _, execErr := br.Exec(); execErr != nil && firstErr == nil {
 			firstErr = execErr
 		}
 	}
-	return firstErr
+	br.Close()
+
+	if firstErr != nil {
+		return firstErr
+	}
+	return tx.Commit(ctx)
 }
 
 // FindTickerIDs returns a map of ticker → asset UUID for the given tickers.
-// Called after UpsertBatch so the map includes newly-inserted rows.
 func (r *AssetRepository) FindTickerIDs(ctx context.Context, tickers []string) (map[string]uuid.UUID, error) {
 	if len(tickers) == 0 {
 		return map[string]uuid.UUID{}, nil
@@ -187,10 +198,61 @@ func isDeadlock(err error) bool {
 }
 
 // isISINConflict returns true when the error is a unique-violation on the ISIN
-// constraint specifically (SQLSTATE 23505, constraint uq_investment_asset_isin_code).
+// constraint (SQLSTATE 23505, constraint uq_investment_asset_isin_code).
 func isISINConflict(err error) bool {
 	var pgErr *pgconn.PgError
 	return errors.As(err, &pgErr) &&
 		pgErr.Code == "23505" &&
 		pgErr.ConstraintName == "uq_investment_asset_isin_code"
 }
+
+// extractConflictingISIN parses the ISIN value from a pgconn.PgError detail string.
+// PostgreSQL formats the detail as: "Key (isin_code)=(BR...) conflicts with existing row."
+// Returns an empty string if the value cannot be extracted.
+func extractConflictingISIN(err error) string {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return ""
+	}
+	// Detail example: "Key (isin_code)=(BRPETRACNPR6) conflicts with existing row."
+	detail := pgErr.Detail
+	start := strings.Index(detail, ")=(")
+	if start == -1 {
+		return ""
+	}
+	start += 3
+	end := strings.Index(detail[start:], ")")
+	if end == -1 {
+		return ""
+	}
+	return detail[start : start+end]
+}
+
+// stripDuplicateISINs nullifies any ISIN that appears on more than one record in
+// the batch. Single O(n) pass: no DB round-trip required.
+func stripDuplicateISINs(records []domain.AssetRecord) []domain.AssetRecord {
+	counts := make(map[string]int, len(records))
+	for _, r := range records {
+		if r.IsinCode != "" {
+			counts[r.IsinCode]++
+		}
+	}
+	for i := range records {
+		if records[i].IsinCode != "" && counts[records[i].IsinCode] > 1 {
+			records[i].IsinCode = ""
+		}
+	}
+	return records
+}
+
+// stripISIN sets IsinCode to "" for all records whose IsinCode matches target.
+// If target is empty, strips all ISINs as a fallback.
+func stripISIN(records []domain.AssetRecord, target string) []domain.AssetRecord {
+	for i := range records {
+		if target == "" || records[i].IsinCode == target {
+			records[i].IsinCode = ""
+		}
+	}
+	return records
+}
+

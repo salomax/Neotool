@@ -33,7 +33,7 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import { FinancialAccount, InvestmentTransactionDirection, InvestmentTransactionType } from "@/lib/graphql/types/__generated__/graphql";
 import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
-import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
+import { DatePickerField, MoneyInput } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
@@ -138,7 +138,7 @@ export function RecordFundHoldingDrawer({
           }),
         ),
       }),
-    [t, localeDecimal, localeGroup],
+    [localeDecimal, localeGroup, t],
   );
 
   const methods = useForm<RecordFundFormData>({
