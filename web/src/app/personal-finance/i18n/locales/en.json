@@ -499,6 +499,7 @@
       "accountStep": {
         "title": "Select account to import into",
         "noAccounts": "No accounts found. Create an account to continue.",
+        "createAccount": "Create new account",
         "createAccountOrCard": "Create new account or card"
       },
       "sourceStep": {

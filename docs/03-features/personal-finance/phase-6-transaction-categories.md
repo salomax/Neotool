@@ -12,7 +12,7 @@ related:
   - 03-features/personal-finance/phase-2-monthly-summary-snapshots.md
   - 03-features/personal-finance/phase-3-credit-card-bills.md
   - 03-features/personal-finance/personal-finance-overview.md
-last_updated: 2026-03-11
+last_updated: 2026-03-19
 ---
 
 # Phase 6 — Transaction Categories (Categorização)
@@ -150,7 +150,7 @@ Auto-categorization rules. One row per pattern → category mapping.
 | `pattern` | TEXT NOT NULL | Normalized text pattern (see Pattern Types below) |
 | `pattern_type` | TEXT NOT NULL | Enum: CONTAINS, STARTS_WITH, EXACT, REGEX |
 | `applicable_to` | TEXT NOT NULL | Which transaction side this rule applies to: INCOME, EXPENSE, TRANSFER, ANY |
-| `priority` | INT NOT NULL DEFAULT 100 | Lower number = higher priority. User rules default to 50; system rules to 100. |
+| `priority` | INT NOT NULL DEFAULT 100 | Lower number = higher priority. Explicit user rules: 40; implicit rules: 60; system rules: 100. |
 | `is_system` | BOOLEAN NOT NULL DEFAULT false | System-provided rules; not editable by user |
 | `is_implicit` | BOOLEAN NOT NULL DEFAULT false | Created silently from user's manual categorization (see Implicit Learning) |
 | `match_count` | INT NOT NULL DEFAULT 0 | How many times this rule has matched. Used for confidence display. |
@@ -233,69 +233,6 @@ export const categoryIconMap: Record<string, React.ComponentType> = {
 }
 ```
 
-The static map approach is recommended for production (no font dependency, tree-shaken, works offline).
-
-### DB migration: replace emojis with MUI icon names
-
-A new Flyway migration (`V0_12__update_category_icons_to_mui.sql`) updates the `icon` column of all system seed categories from emoji strings to MUI icon name strings.
-
-**Mapping (complete)**:
-
-| Category | Old emoji | New MUI icon name |
-|---|---|---|
-| Salário | 💰 | `payments` |
-| Renda Extra | 💼 | `work` |
-| Aposentadoria | 👴 | `elderly` |
-| Investimentos | 📈 | `trending_up` |
-| Transferência recebida | ↙️ | `call_received` |
-| Alimentação | 🍽️ | `restaurant` |
-| Supermercado | 🛒 | `shopping_cart` |
-| Restaurante | 🍜 | `ramen_dining` |
-| Delivery | 🛵 | `delivery_dining` |
-| Lanchonete | ☕ | `local_cafe` |
-| Moradia | 🏠 | `home` |
-| Aluguel | 🔑 | `key` |
-| Condomínio | 🏢 | `apartment` |
-| Conta de luz | 💡 | `bolt` |
-| Água | 💧 | `water_drop` |
-| Gás | 🔥 | `local_fire_department` |
-| Transporte | 🚗 | `directions_car` |
-| Combustível | ⛽ | `local_gas_station` |
-| Transporte público | 🚌 | `directions_bus` |
-| Aplicativos (Uber) | 📱 | `smartphone` |
-| Saúde | 💊 | `local_hospital` |
-| Farmácia | 💉 | `medication` |
-| Médico | 🩺 | `medical_services` |
-| Plano de saúde | 🏥 | `health_and_safety` |
-| Educação | 📚 | `school` |
-| Mensalidade | 🎓 | `account_balance` |
-| Cursos | 📖 | `menu_book` |
-| Material escolar | ✏️ | `edit` |
-| Lazer | 🎉 | `celebration` |
-| Cinema / Shows | 🎬 | `movie` |
-| Academia | 🏋️ | `fitness_center` |
-| Viagens | ✈️ | `flight` |
-| Compras | 🛍️ | `shopping_bag` |
-| Roupas | 👕 | `checkroom` |
-| Eletrônicos | 💻 | `devices` |
-| Casa / Decoração | 🛋️ | `chair` |
-| Serviços Digitais | 📺 | `live_tv` |
-| Streaming | 🎧 | `headphones` |
-| Assinaturas | 🔄 | `autorenew` |
-| Telecomunicações | 📡 | `cell_tower` |
-| Internet | 🌐 | `wifi` |
-| Celular | 📞 | `phone_iphone` |
-| Seguros | 🛡️ | `shield` |
-| Impostos | 🏛️ | `account_balance` |
-| IPTU / IPVA | 📋 | `receipt_long` |
-| IR | 📊 | `bar_chart` |
-| Tarifas Bancárias | 🏦 | `account_balance_wallet` |
-| Empréstimos | 💳 | `credit_card` |
-| Doações | ❤️ | `favorite` |
-| Transferência enviada | ↗️ | `call_made` |
-| Investimento aplicado | 📉 | `savings` |
-| Outros | ❓ | `help_outline` |
-
 ---
 
 ## Business Rules
@@ -336,12 +273,23 @@ A new Flyway migration (`V0_12__update_category_icons_to_mui.sql`) updates the `
 
 ### 6. Auto-categorization rule evaluation order
 
+Priority tiers (lower number = evaluated first):
+
+| Priority | Rule type | `is_implicit` | `is_system` | Rationale |
+|---|---|---|---|---|
+| **40** | Explicit user rule | false | false | Deliberate user configuration — highest confidence |
+| **60** | Implicit rule | true | false | Learned from past manual categorization — fills gaps |
+| **100** | System rule | false | true | Global defaults — lowest precedence |
+
+Within the same priority tier, rules are ordered by `match_count DESC, created_at DESC` (more proven rules first).
+
 When a new transaction is created (or its description is updated):
 
 ```
 1. Load all active rules for the account:
-   - User rules (account_id = tenant's account_id, deleted_at IS NULL)
-   - System rules (account_id IS NULL, is_system = true, deleted_at IS NULL)
+   - Explicit user rules  (account_id = tenant's account_id, is_implicit = false, deleted_at IS NULL)  → priority 40
+   - Implicit rules       (account_id = tenant's account_id, is_implicit = true,  deleted_at IS NULL)  → priority 60
+   - System rules         (account_id IS NULL, is_system = true, deleted_at IS NULL)                   → priority 100
    ORDER BY priority ASC, match_count DESC, created_at DESC
 
 2. For each rule:
@@ -355,6 +303,8 @@ When a new transaction is created (or its description is updated):
 
 3. If no rule matches: leave categoryId and categorySource as-is (null for new transactions)
 ```
+
+**Why explicit user rules beat implicit rules**: an explicit rule is intentional configuration ("always categorize IFOOD as Delivery"). An implicit rule is learned from a past one-time action and should only fire when no deliberate rule covers the description.
 
 ### 7. Implicit learning from manual categorization
 
@@ -374,7 +324,7 @@ When a user manually sets a category on a transaction (mutation `updateTransacti
    - pattern_type = CONTAINS
    - category_id = new categoryId
    - is_implicit = true
-   - priority = 50  (higher than system rules)
+   - priority = 60  (beats system rules at 100; yields to explicit user rules at 40)
 
 3. If exists (same pattern, different category): UPDATE category_id to new choice.
    User's latest manual choice wins.
@@ -1002,6 +952,7 @@ CREATE TABLE banking.category_rules (
     CHECK (pattern_type IN ('CONTAINS', 'STARTS_WITH', 'EXACT', 'REGEX')),
   applicable_to   TEXT          NOT NULL
     CHECK (applicable_to IN ('INCOME', 'EXPENSE', 'TRANSFER', 'ANY')),
+  -- priority tiers: explicit user rules = 40, implicit rules = 60, system rules = 100
   priority        INT           NOT NULL DEFAULT 100,
   is_system       BOOLEAN       NOT NULL DEFAULT false,
   is_implicit     BOOLEAN       NOT NULL DEFAULT false,
@@ -1083,7 +1034,7 @@ VALUES
 - `domain/transaction/CategorizationService.kt` — domain service interface
 - `domain/transaction/CategoryRule.kt` — domain data class
 - `domain/transaction/CategoryRuleRepository.kt` — repository interface with:
-  - `findRulesForAccount(accountId: UUID): List<CategoryRule>` — returns user + system rules ordered by priority
+  - `findRulesForAccount(accountId: UUID): List<CategoryRule>` — returns all active rules (explicit user priority=40, implicit priority=60, system priority=100) ordered by priority ASC, match_count DESC, created_at DESC
   - `save(rule: CategoryRule): CategoryRule`
   - `softDelete(id: UUID, accountId: UUID)`
   - `findImplicitByPattern(accountId: UUID, pattern: String): CategoryRule?`
@@ -1121,7 +1072,7 @@ class DefaultCategorizationService(
       ruleRepository.save(CategoryRule(
         accountId = accountId, categoryId = categoryId, pattern = pattern,
         patternType = CONTAINS, applicableTo = ANY,
-        priority = 50, isSystem = false, isImplicit = true
+        priority = 60, isSystem = false, isImplicit = true
       ))
     } else if (existing.categoryId != categoryId) {
       ruleRepository.save(existing.copy(categoryId = categoryId))
@@ -1161,7 +1112,7 @@ data class CategorySuggestion(val categoryId: UUID, val ruleId: UUID)
 - `suggest("NETFLIX.COM*BR", CREDIT_DEBIT_DEBIT)` returns the Streaming category via the seeded rule
 - `suggest("PADARIA DO ZE", DEBIT)` returns null (no rule matches)
 - `normalize("IFOOD*BR  LTDA")` returns `"ifood*br ltda"` (lowercase, trimmed)
-- User-defined rules (priority=50) take precedence over system rules (priority=100)
+- Explicit user rules (priority=40) take precedence over implicit rules (priority=60), which take precedence over system rules (priority=100)
 
 ---
 
@@ -1370,7 +1321,9 @@ rows.map { it.copy(percentage = if (totalForPeriod > 0) it.totalAmount / totalFo
 | `suggest` — null description | Returns null |
 | `suggest` — blank description | Returns null |
 | `suggest` — no matching rules | Returns null |
-| `suggest` — user rule (priority 50) overrides system rule (priority 100) | Returns user rule's category |
+| `suggest` — explicit user rule (priority 40) overrides implicit rule (priority 60) | Returns explicit rule's category |
+| `suggest` — implicit rule (priority 60) overrides system rule (priority 100) | Returns implicit rule's category |
+| `suggest` — explicit user rule (priority 40) overrides system rule (priority 100) | Returns explicit rule's category |
 | `suggest` — applicable_to INCOME rule skipped for EXPENSE transaction | Returns null |
 | `suggest` — applicable_to ANY matches both INCOME and EXPENSE | Returns categoryId for both |
 | `normalize` — removes accents | `"café"` → `"cafe"` |
@@ -1399,8 +1352,10 @@ rows.map { it.copy(percentage = if (totalForPeriod > 0) it.totalAmount / totalFo
 | Create second transaction with same description after manual categorization | Auto-matched to new implicit rule; `categorySource = RULE` |
 | Re-categorize again to different category | Implicit rule updated to new category |
 | User creates explicit rule via `createCategoryRule` mutation | Next transaction with matching description uses explicit rule |
-| Explicit rule (priority 50) overrides system rule (priority 100) for same description | Explicit rule's category is assigned |
-| Delete explicit rule | Subsequent transactions fall through to system rule (if any) |
+| Explicit rule (priority 40) overrides system rule (priority 100) for same description | Explicit rule's category is assigned |
+| Implicit rule (priority 60) overrides system rule (priority 100) for same description | Implicit rule's category is assigned |
+| Explicit rule (priority 40) overrides implicit rule (priority 60) for same description | Explicit rule's category is assigned; implicit rule is not evaluated |
+| Delete explicit rule | Subsequent transactions fall through to implicit rule (if any), then system rule |
 | `bulkCategorize` with 3 transaction IDs | All 3 updated; `categorySource = MANUAL` for all; no implicit rules created |
 | `transactions(uncategorized: true)` | Returns only transactions with `categoryId = null` |
 | `transactions(categoryId: <alimentacao-root-id>)` | Returns transactions assigned to Alimentação AND all subcategories |

@@ -94,6 +94,32 @@ describe.sequential('useImportJobStatus', () => {
     );
   });
 
+  it('givenStreamFailedWithErrorDetails_whenHook_thenOnFailedReceivesDetails', async () => {
+    const errorDetails = JSON.stringify({
+      errorCode: 'IMPORT_OFX_DESTINATION_MISMATCH',
+      message: 'OFX statement type is not compatible with the destination financial account',
+    });
+
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      body: createStream([`data: ${JSON.stringify({ status: 'FAILED', errorDetails })}\n\n`]),
+    });
+
+    const onFailed = vi.fn();
+
+    renderHook(() =>
+      useImportJobStatus(jobId, {
+        onCompleted: vi.fn(),
+        onReviewRequired: vi.fn(),
+        onFailed,
+      })
+    );
+
+    await waitFor(() => {
+      expect(onFailed).toHaveBeenCalledWith(errorDetails);
+    });
+  });
+
   it('givenConnectionError_whenHook_thenFallbackQueryTriggered', async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('Network error'));
 

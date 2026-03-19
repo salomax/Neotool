@@ -8,27 +8,30 @@ import io.micronaut.data.jpa.repository.JpaRepository
 import java.util.UUID
 
 /**
- * JPA repository for banking.transaction_imports.
- * All finders scope by account_id for tenant isolation.
+ * JPA repository for transaction-import rows in banking.document_import_jobs.
+ * All finders scope by account_id (tenant isolation).
  */
 @Repository
 interface TransactionImportEntityRepository : JpaRepository<TransactionImportEntity, UUID> {
-    fun findByIdAndAccountId(
+    fun findByIdAndAccountIdAndJobKind(
         id: UUID,
         accountId: UUID,
+        jobKind: String,
     ): TransactionImportEntity?
 
-    fun findByFinancialAccountIdAndFileHash(
+    fun findByFinancialAccountIdAndFileHashAndJobKind(
         financialAccountId: UUID,
         fileHash: String,
+        jobKind: String,
     ): TransactionImportEntity?
 
     @Query(
         """
         SELECT *
-          FROM banking.transaction_imports
+          FROM banking.document_import_jobs
          WHERE account_id = :accountId
            AND file_hash = :fileHash
+           AND job_kind = :jobKind
          ORDER BY created_at DESC
          LIMIT 1
         """,
@@ -37,47 +40,60 @@ interface TransactionImportEntityRepository : JpaRepository<TransactionImportEnt
     fun findLatestByAccountIdAndFileHash(
         accountId: UUID,
         fileHash: String,
+        jobKind: String,
     ): TransactionImportEntity?
 
-    fun findByFinancialAccountIdAndAccountIdOrderByCreatedAtDesc(
+    fun findByFinancialAccountIdAndAccountIdAndJobKindOrderByCreatedAtDesc(
         financialAccountId: UUID,
         accountId: UUID,
+        jobKind: String,
     ): List<TransactionImportEntity>
 
-    fun findByAccountIdOrderByCreatedAtDesc(accountId: UUID): List<TransactionImportEntity>
+    fun findByAccountIdAndJobKindOrderByCreatedAtDesc(
+        accountId: UUID,
+        jobKind: String,
+    ): List<TransactionImportEntity>
 
     fun findByFinancialAccountIdAndAccountIdAndStatusOrderByCreatedAtDesc(
         financialAccountId: UUID,
         accountId: UUID,
         status: ImportJobStatus,
+        jobKind: String,
     ): List<TransactionImportEntity>
 
-    fun findByAccountIdAndStatusOrderByCreatedAtDesc(
+    fun findByAccountIdAndStatusAndJobKindOrderByCreatedAtDesc(
         accountId: UUID,
         status: ImportJobStatus,
+        jobKind: String,
     ): List<TransactionImportEntity>
 
     @Query(
         """
-        UPDATE banking.transaction_imports
+        UPDATE banking.document_import_jobs
            SET status = :status, updated_at = NOW()
          WHERE id = :id
+           AND job_kind = :jobKind
         """,
         nativeQuery = true,
     )
     fun updateStatus(
         id: UUID,
         status: String,
+        jobKind: String,
     ): Int
 
     @Query(
         """
-        UPDATE banking.transaction_imports
+        UPDATE banking.document_import_jobs
            SET assistant_request_published_at = NOW(), updated_at = NOW()
          WHERE id = :id
+           AND job_kind = :jobKind
            AND assistant_request_published_at IS NULL
         """,
         nativeQuery = true,
     )
-    fun markAssistantRequestPublished(id: UUID): Int
+    fun markAssistantRequestPublished(
+        id: UUID,
+        jobKind: String,
+    ): Int
 }

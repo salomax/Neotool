@@ -138,7 +138,7 @@ export function RecordFundHoldingDrawer({
           }),
         ),
       }),
-    [t],
+    [t, localeDecimal, localeGroup],
   );
 
   const methods = useForm<RecordFundFormData>({
@@ -371,4 +371,3 @@ export function RecordFundHoldingDrawer({
     </Drawer>
   );
 }
-

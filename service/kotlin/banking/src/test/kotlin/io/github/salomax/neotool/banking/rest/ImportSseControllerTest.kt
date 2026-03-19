@@ -123,9 +123,29 @@ class ImportSseControllerTest {
             StepVerifier.create(flux)
                 .then {
                     importEventBus.emit(
-                        ImportJobStatusPayload(jobId, accountId, ImportJobStatus.PROCESSING, null, null, null, null),
+                        ImportJobStatusPayload(
+                            jobId = jobId,
+                            accountId = accountId,
+                            status = ImportJobStatus.PROCESSING,
+                            errorDetails = null,
+                            importedCount = null,
+                            skippedCount = null,
+                            duplicateReviewCount = null,
+                            errorCount = null,
+                        ),
                     )
-                    importEventBus.emit(ImportJobStatusPayload(jobId, accountId, ImportJobStatus.COMPLETED, 5, 1, 0, 0))
+                    importEventBus.emit(
+                        ImportJobStatusPayload(
+                            jobId = jobId,
+                            accountId = accountId,
+                            status = ImportJobStatus.COMPLETED,
+                            errorDetails = null,
+                            importedCount = 5,
+                            skippedCount = 1,
+                            duplicateReviewCount = 0,
+                            errorCount = 0,
+                        ),
+                    )
                 }
                 .expectNextMatches { e -> e.data.status == ImportJobStatus.PENDING }
                 .expectNextMatches { e -> e.data.status == ImportJobStatus.PROCESSING }
@@ -157,9 +177,29 @@ class ImportSseControllerTest {
             StepVerifier.create(flux)
                 .then {
                     importEventBus.emit(
-                        ImportJobStatusPayload(jobId, otherAccountId, ImportJobStatus.COMPLETED, 1, 0, 0, 0),
+                        ImportJobStatusPayload(
+                            jobId = jobId,
+                            accountId = otherAccountId,
+                            status = ImportJobStatus.COMPLETED,
+                            errorDetails = null,
+                            importedCount = 1,
+                            skippedCount = 0,
+                            duplicateReviewCount = 0,
+                            errorCount = 0,
+                        ),
                     )
-                    importEventBus.emit(ImportJobStatusPayload(jobId, accountId, ImportJobStatus.COMPLETED, 1, 0, 0, 0))
+                    importEventBus.emit(
+                        ImportJobStatusPayload(
+                            jobId = jobId,
+                            accountId = accountId,
+                            status = ImportJobStatus.COMPLETED,
+                            errorDetails = null,
+                            importedCount = 1,
+                            skippedCount = 0,
+                            duplicateReviewCount = 0,
+                            errorCount = 0,
+                        ),
+                    )
                 }
                 .expectNextMatches { e -> e.data.status == ImportJobStatus.PENDING && e.data.accountId == accountId }
                 .expectNextMatches { e -> e.data.accountId == accountId }

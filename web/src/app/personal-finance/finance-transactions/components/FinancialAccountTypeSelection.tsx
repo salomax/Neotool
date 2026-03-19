@@ -15,10 +15,11 @@ interface FinancialAccountTypeSelectionProps {
 export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountTypeSelectionProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const optionRadius = theme.custom?.radius?.button ?? theme.shape.borderRadius;
+  const optionRadius = theme.custom?.radius?.optionCard ?? 2;
+  const hoverAccent = theme.palette.primary.main;
 
   const getOptionCardSx = React.useCallback(
-    (accentColor: string) => ({
+    () => ({
       width: '100%',
       minHeight: { xs: 176, md: 196 },
       p: 3,
@@ -33,13 +34,22 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
       overflow: 'hidden',
       boxShadow: theme.shadows[1],
       transition: 'transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out, border-color 0.2s ease-in-out',
+      '&::before': {
+        content: '""',
+        position: 'absolute',
+        inset: 0,
+        background: `radial-gradient(850px circle at 80% 100%, ${alpha(hoverAccent, 0.12)}, transparent 55%)`,
+        opacity: 0,
+        transition: 'opacity 0.7s',
+        pointerEvents: 'none',
+        zIndex: 0,
+      },
       '&::after': {
         content: '""',
         position: 'absolute',
         inset: 0,
-        background: `radial-gradient(850px circle at 80% 100%, ${alpha(accentColor, 0.12)}, transparent 55%)`,
+        background: `radial-gradient(850px circle at 80% 100%, ${alpha(hoverAccent, 0.10)}, transparent 85%)`,
         opacity: 1,
-        transition: 'opacity 0.7s',
         pointerEvents: 'none',
         zIndex: 0,
       },
@@ -59,35 +69,46 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
         color: alpha(theme.palette.text.primary, 0.35),
         flex: '0 0 auto',
       },
+      '& .option-action': {
+        transition: 'color 0.2s ease-in-out',
+        color: 'text.secondary',
+      },
       '& .option-bg-icon': {
         position: 'absolute',
         right: 14,
         bottom: -4,
         opacity: 0.3,
         transition: 'transform 0.7s, opacity 0.7s',
-        color: alpha(accentColor, 0.22),
+        color: alpha(theme.palette.text.primary, 0.12),
         transform: 'translate(0, 0) scale(1.1)',
         zIndex: 0,
         pointerEvents: 'none',
       },
       '&:hover': {
         transform: 'translateY(-2px)',
-        boxShadow: theme.custom?.shadow?.(4, accentColor) ?? theme.shadows[4],
-        borderColor: accentColor,
+        boxShadow: theme.custom?.shadow?.(4, hoverAccent) ?? theme.shadows[4],
+        borderColor: hoverAccent,
+        '&::before': {
+          opacity: 1,
+        },
         '& .option-arrow': {
           transform: 'translateX(4px)',
-          color: accentColor,
+          color: hoverAccent,
+        },
+        '& .option-action': {
+          color: hoverAccent,
         },
         '& .option-bg-icon': {
           transform: 'translate(8px, 10px) scale(1.4)',
           opacity: 0.12,
+          color: alpha(hoverAccent, 0.22),
         },
       },
       '&:active': {
         transform: 'translateY(-1px)',
       },
     }),
-    [optionRadius, theme]
+    [hoverAccent, optionRadius, theme]
   );
 
   return (
@@ -110,12 +131,12 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
           maxWidth: { md: 360 },
           cursor: 'pointer',
           '&:focus-visible .option-card': {
-            outline: `2px solid ${alpha(theme.palette.success.main, 0.5)}`,
+            outline: `2px solid ${alpha(hoverAccent, 0.55)}`,
             outlineOffset: 2,
           },
         }}
       >
-        <Box className="option-card" sx={getOptionCardSx(theme.palette.success.main)}>
+        <Box className="option-card" sx={getOptionCardSx()}>
           <Box className="option-content" sx={{ minWidth: 0 }}>
             <Typography variant="subtitle1" fontWeight={700} noWrap>
               {t('financeTransactions.createAccount.step1.bankAccount.label')}
@@ -133,7 +154,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
             >
               {t('financeTransactions.createAccount.step1.bankAccount.subtitle')}
             </Typography>
-            <Typography variant="body2" sx={{ mt: 'auto', pt: 1, color: theme.palette.success.main, fontWeight: 700 }} noWrap>
+            <Typography className="option-action" variant="body2" sx={{ mt: 'auto', pt: 1, fontWeight: 700 }} noWrap>
               {t('financeTransactions.createAccount.step1.action')}
             </Typography>
           </Box>
@@ -155,12 +176,12 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
           maxWidth: { md: 360 },
           cursor: 'pointer',
           '&:focus-visible .option-card': {
-            outline: `2px solid ${alpha(theme.palette.secondary.main, 0.5)}`,
+            outline: `2px solid ${alpha(hoverAccent, 0.55)}`,
             outlineOffset: 2,
           },
         }}
       >
-        <Box className="option-card" sx={getOptionCardSx(theme.palette.secondary.main)}>
+        <Box className="option-card" sx={getOptionCardSx()}>
           <Box className="option-content" sx={{ minWidth: 0 }}>
             <Typography variant="subtitle1" fontWeight={700} noWrap>
               {t('financeTransactions.createAccount.step1.card.label')}
@@ -178,7 +199,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
             >
               {t('financeTransactions.createAccount.step1.card.subtitle')}
             </Typography>
-            <Typography variant="body2" sx={{ mt: 'auto', pt: 1, color: theme.palette.secondary.main, fontWeight: 700 }} noWrap>
+            <Typography className="option-action" variant="body2" sx={{ mt: 'auto', pt: 1, fontWeight: 700 }} noWrap>
               {t('financeTransactions.createAccount.step1.action')}
             </Typography>
           </Box>

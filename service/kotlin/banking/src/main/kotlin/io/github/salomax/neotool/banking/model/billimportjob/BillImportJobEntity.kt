@@ -17,12 +17,14 @@ import java.time.Instant
 import java.util.UUID
 
 @Entity
-@Table(name = "pdf_import_jobs", schema = "banking")
+@Table(name = "document_import_jobs", schema = "banking")
 open class BillImportJobEntity(
     @Id
     @Generated(event = [EventType.INSERT])
     @Column(columnDefinition = "uuid", insertable = false, updatable = false)
     override val id: UUID? = null,
+    @Column(name = "job_kind", nullable = false, length = 32)
+    open var jobKind: String = JOB_KIND,
     @Column(name = "financial_account_id")
     open var financialAccountId: UUID? = null,
     @Column(name = "account_id", nullable = false)
@@ -30,7 +32,7 @@ open class BillImportJobEntity(
     @Column(name = "created_by_user_id", nullable = false)
     open var createdByUserId: UUID,
     @Enumerated(EnumType.STRING)
-    @Column(name = "import_type", nullable = false, length = 32)
+    @Column(name = "document_type", nullable = false, length = 32)
     open var importType: ImportDocumentType = ImportDocumentType.CREDIT_CARD_BILL,
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
@@ -63,4 +65,8 @@ open class BillImportJobEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-) : BaseEntity<UUID?>(id)
+) : BaseEntity<UUID?>(id) {
+    companion object {
+        const val JOB_KIND = "BILL_IMPORT"
+    }
+}

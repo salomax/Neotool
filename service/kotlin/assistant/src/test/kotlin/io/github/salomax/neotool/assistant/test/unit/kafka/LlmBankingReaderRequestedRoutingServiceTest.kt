@@ -262,10 +262,9 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                         """
                         {
                           "bank_name":"Itau",
-                          "closing_date":"2026-02-28",
-                          "due_date":"2026-03-10",
                           "statement_period":{"from":"2026-02-01","to":"2026-02-28"},
-                          "cards":[{"last_four_digits":"0000","closing_date":"2026-02-28","due_date":"2026-03-10","declared_total":0.0,"computed_total":0.0,"total_matches_declared":true,"transactions":[],"confidence":0.91}],
+                          "transactions":[{"date":"2026-02-03","description":"Pix recebido","amount":5600.0,"credit_debit_type":"CREDIT"}],
+                          "cards":[],
                           "warnings":[]
                         }
                         """.trimIndent(),
@@ -285,6 +284,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
             argumentCaptor<AssistantBankingReaderDoneEvent>()
         verify(doneProducer).publish(doneCaptor.capture())
         assertThat(doneCaptor.firstValue.parse_metadata.reader_id).isEqualTo("assistant-banking-reader-v1")
+        assertThat(doneCaptor.firstValue.llm_output).doesNotContainKeys("closing_date", "due_date")
     }
 
     @Test

@@ -20,6 +20,9 @@ object TransactionImportMapper {
             fileName = entity.fileName,
             fileHash = entity.fileHash,
             status = entity.status,
+            extractedText = entity.extractedText,
+            extractionMetadata = deserializeJsonb(entity.extractionMetadata),
+            assistantResponse = deserializeJsonb(entity.assistantResponse),
             totalRows = entity.totalRows,
             importedCount = entity.importedCount,
             skippedCount = entity.skippedCount,
@@ -38,6 +41,7 @@ object TransactionImportMapper {
     fun toEntity(job: ImportJob): TransactionImportEntity =
         TransactionImportEntity(
             id = null,
+            jobKind = TransactionImportEntity.JOB_KIND,
             financialAccountId = job.financialAccountId,
             accountId = job.accountId,
             createdByUserId = job.createdByUserId,
@@ -45,6 +49,9 @@ object TransactionImportMapper {
             fileName = job.fileName,
             fileHash = job.fileHash,
             status = job.status,
+            extractedText = job.extractedText,
+            extractionMetadata = job.extractionMetadata,
+            assistantResponse = job.assistantResponse,
             totalRows = job.totalRows,
             importedCount = job.importedCount,
             skippedCount = job.skippedCount,
@@ -64,8 +71,12 @@ object TransactionImportMapper {
         entity: TransactionImportEntity,
         job: ImportJob,
     ) {
+        entity.jobKind = TransactionImportEntity.JOB_KIND
         entity.source = job.source
         entity.status = job.status
+        entity.extractedText = job.extractedText
+        entity.extractionMetadata = job.extractionMetadata
+        entity.assistantResponse = job.assistantResponse
         entity.totalRows = job.totalRows
         entity.importedCount = job.importedCount
         entity.skippedCount = job.skippedCount

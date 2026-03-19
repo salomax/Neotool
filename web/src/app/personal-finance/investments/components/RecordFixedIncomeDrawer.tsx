@@ -223,7 +223,7 @@ export function RecordFixedIncomeDrawer({
             });
           }
         }),
-    [t],
+    [t, localeDecimal, localeGroup],
   );
 
   const methods = useForm<RecordFixedIncomeFormData>({

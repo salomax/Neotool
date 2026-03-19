@@ -18,16 +18,18 @@ import java.time.LocalDate
 import java.util.UUID
 
 /**
- * JPA entity for banking.transaction_imports.
+ * Transaction-import projection of banking.document_import_jobs.
  * JSONB columns [errorDetails] and [reviewPayload] are stored as String and serialized with Jackson.
  */
 @Entity
-@Table(name = "transaction_imports", schema = "banking")
+@Table(name = "document_import_jobs", schema = "banking")
 open class TransactionImportEntity(
     @Id
     @Generated(event = [EventType.INSERT])
     @Column(columnDefinition = "uuid", insertable = false, updatable = false)
     override val id: UUID? = null,
+    @Column(name = "job_kind", nullable = false, length = 32)
+    open var jobKind: String = JOB_KIND,
     @Column(name = "financial_account_id", nullable = false)
     open var financialAccountId: UUID,
     @Column(name = "account_id", nullable = false)
@@ -44,6 +46,14 @@ open class TransactionImportEntity(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var status: ImportJobStatus,
+    @Column(name = "extracted_text")
+    open var extractedText: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "extraction_metadata", columnDefinition = "jsonb")
+    open var extractionMetadata: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "assistant_response", columnDefinition = "jsonb")
+    open var assistantResponse: String? = null,
     @Column(name = "total_rows")
     open var totalRows: Int? = null,
     @Column(name = "imported_count")
@@ -72,4 +82,8 @@ open class TransactionImportEntity(
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)
     open var updatedAt: Instant = Instant.now(),
-) : BaseEntity<UUID?>(id)
+) : BaseEntity<UUID?>(id) {
+    companion object {
+        const val JOB_KIND = "TRANSACTION_IMPORT"
+    }
+}

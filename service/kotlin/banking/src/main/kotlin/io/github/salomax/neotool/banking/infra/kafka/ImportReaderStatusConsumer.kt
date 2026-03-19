@@ -158,6 +158,7 @@ open class ImportReaderStatusConsumer(
             val updated =
                 job.copy(
                     status = finalStatus,
+                    assistantResponse = objectMapper.writeValueAsString(event),
                     totalRows = rowsResult.rows.size,
                     importedCount = importedCount,
                     skippedCount = skippedCount,
@@ -198,6 +199,7 @@ open class ImportReaderStatusConsumer(
             markFailed(
                 job = job,
                 errorMessage = summary,
+                assistantResponse = event,
                 details =
                     mapOf(
                         "topic" to "assistant.banking-pdf-reader.failed",
@@ -248,12 +250,15 @@ open class ImportReaderStatusConsumer(
     private fun markFailed(
         job: ImportJob,
         errorMessage: String,
+        assistantResponse: Any? = null,
         details: Map<String, Any?>,
     ): ImportJob {
         val now = Instant.now()
         val updated =
             job.copy(
                 status = ImportJobStatus.FAILED,
+                assistantResponse =
+                    assistantResponse?.let { objectMapper.writeValueAsString(it) } ?: job.assistantResponse,
                 errorCount = (job.errorCount ?: 0) + 1,
                 errorDetails = objectMapper.writeValueAsString(details),
                 completedAt = now,
@@ -413,7 +418,12 @@ open class ImportReaderStatusConsumer(
     ): ImportJob =
         when (decision.status) {
             ImportJobStatus.REVIEW_REQUIRED -> markReviewRequired(job, totalRows, decision)
-            ImportJobStatus.FAILED -> markFailed(job, "validation_gate_failed: ${decision.reason}", decision.details)
+            ImportJobStatus.FAILED ->
+                markFailed(
+                    job = job,
+                    errorMessage = "validation_gate_failed: ${decision.reason}",
+                    details = decision.details,
+                )
             else -> job
         }
 
@@ -541,6 +551,7 @@ open class ImportReaderStatusConsumer(
                 jobId = requireNotNull(job.id),
                 accountId = job.accountId,
                 status = job.status,
+                errorDetails = job.errorDetails,
                 importedCount = job.importedCount,
                 skippedCount = job.skippedCount,
                 duplicateReviewCount = job.duplicateReviewCount,
