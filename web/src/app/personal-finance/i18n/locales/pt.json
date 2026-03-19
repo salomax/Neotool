@@ -601,6 +601,7 @@
         "dueDateLabel": "Data de vencimento",
         "dueDateHint": "A data de vencimento deve ser igual ou posterior à data de fechamento.",
         "paymentChip": "Pagamento",
+        "suggestedBadge": "Sugerido",
         "confirming": "Confirmando...",
         "confirmButton": "Confirmar {{count}} transação(ões)"
       },

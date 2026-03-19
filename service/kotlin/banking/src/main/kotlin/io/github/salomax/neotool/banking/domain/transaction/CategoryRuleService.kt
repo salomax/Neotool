@@ -34,7 +34,7 @@ open class CategoryRuleService(
                 pattern = input.pattern.trim(),
                 patternType = input.patternType,
                 applicableTo = input.applicableTo,
-                priority = input.priority ?: 100,
+                priority = input.priority ?: 40,
                 isSystem = false,
                 isImplicit = false,
                 matchCount = 0,

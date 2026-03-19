@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.graphql.dto
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import java.time.LocalDate
 import java.time.OffsetDateTime
@@ -59,6 +60,8 @@ data class BillImportReviewTransactionDTO(
     val creditDebitType: CreditDebitType,
     val installment: InstallmentInfoDTO?,
     val isBillPayment: Boolean,
+    val categoryId: UUID?,
+    val categorySource: CategorySource?,
 )
 
 data class InstallmentInfoDTO(

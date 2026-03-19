@@ -4,18 +4,50 @@ import jakarta.inject.Singleton
 import java.text.Normalizer
 import java.util.UUID
 
+
 @Singleton
 class DefaultCategorizationService(
     private val ruleRepository: CategoryRuleRepository,
+    private val categoryRepository: TransactionCategoryRepository,
 ) : CategorizationService {
+    override fun preloadRules(accountId: UUID): List<CategoryRule> = ruleRepository.findRulesForAccount(accountId)
+
     override fun suggest(
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
     ): CategorySuggestion? {
         if (description.isNullOrBlank()) return null
-        val normalized = normalize(description)
         val rules = ruleRepository.findRulesForAccount(accountId)
+        return suggestInternal(
+            rules = rules,
+            description = description,
+            creditDebitType = creditDebitType,
+            incrementMatchCount = true,
+        )
+    }
+
+    override fun suggestFromRules(
+        rules: List<CategoryRule>,
+        description: String?,
+        creditDebitType: CreditDebitType,
+    ): CategorySuggestion? {
+        if (description.isNullOrBlank()) return null
+        return suggestInternal(
+            rules = rules,
+            description = description,
+            creditDebitType = creditDebitType,
+            incrementMatchCount = false,
+        )
+    }
+
+    private fun suggestInternal(
+        rules: List<CategoryRule>,
+        description: String,
+        creditDebitType: CreditDebitType,
+        incrementMatchCount: Boolean,
+    ): CategorySuggestion? {
+        val normalized = normalize(description)
         val side =
             if (creditDebitType == CreditDebitType.CREDIT) {
                 CategoryApplicableTo.INCOME
@@ -26,7 +58,15 @@ class DefaultCategorizationService(
         for (rule in rules) {
             if (!isApplicable(rule.applicableTo, side)) continue
             if (matches(normalized, rule.pattern, rule.patternType)) {
-                ruleRepository.incrementMatchCount(rule.id!!)
+                // If the category was soft-deleted, the rule should not produce a suggestion.
+                // The rule remains stored for future category restores/reassignments,
+                // but evaluation should skip it silently (CAT-12 edge case).
+                val categoryExists = categoryRepository.findById(rule.categoryId) != null
+                if (!categoryExists) continue
+
+                if (incrementMatchCount) {
+                    ruleRepository.incrementMatchCount(rule.id!!)
+                }
                 return CategorySuggestion(rule.categoryId, rule.id!!)
             }
         }
@@ -50,7 +90,7 @@ class DefaultCategorizationService(
                     pattern = pattern,
                     patternType = PatternType.CONTAINS,
                     applicableTo = CategoryApplicableTo.ANY,
-                    priority = 50,
+                    priority = 60,
                     isSystem = false,
                     isImplicit = true,
                     matchCount = 0,
@@ -66,7 +106,9 @@ class DefaultCategorizationService(
     private fun normalize(s: String): String =
         Normalizer.normalize(s, Normalizer.Form.NFD)
             .replace(Regex("[^\\p{ASCII}]"), "")
-            .replace(Regex("[^a-zA-Z0-9\\s]"), " ")
+            // Keep '*' as it can be present in provider-generated descriptors (e.g. "NETFLIX.COM*BR").
+            // Strip other punctuation to keep CONTAINS matching robust.
+            .replace(Regex("[^a-zA-Z0-9\\s*]"), " ")
             .lowercase()
             .trim()
             .replace(Regex("\\s+"), " ")

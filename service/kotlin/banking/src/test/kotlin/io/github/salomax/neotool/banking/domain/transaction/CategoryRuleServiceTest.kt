@@ -118,7 +118,7 @@ class CategoryRuleServiceTest {
         }
 
         @Test
-        fun `trims pattern and defaults priority to 100`() {
+        fun `trims pattern and defaults priority to 40`() {
             whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
             whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
             whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
@@ -138,13 +138,13 @@ class CategoryRuleServiceTest {
             verify(ruleRepository).save(ruleCaptor.capture())
             val saved = ruleCaptor.firstValue
             assertThat(saved.pattern).isEqualTo("supermercado")
-            assertThat(saved.priority).isEqualTo(100)
+            assertThat(saved.priority).isEqualTo(40)
             assertThat(saved.isSystem).isFalse()
             assertThat(saved.isImplicit).isFalse()
             assertThat(saved.accountId).isEqualTo(accountId)
 
             assertThat(result.pattern).isEqualTo("supermercado")
-            assertThat(result.priority).isEqualTo(100)
+            assertThat(result.priority).isEqualTo(40)
         }
     }
 

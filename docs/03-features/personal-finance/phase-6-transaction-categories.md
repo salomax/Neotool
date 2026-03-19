@@ -2,7 +2,7 @@
 title: Phase 6 — Transaction Categories (Categorização)
 type: feature-spec
 category: personal-finance
-status: partially-implemented
+status: in-progress — sprints 1–2 done, sprint 3 next
 version: 1.0.0
 tags: [feature, personal-finance, categories, categorization, auto-categorize, rule-engine, analytics, MUI-icons]
 ai_optimized: true
@@ -58,22 +58,26 @@ The backend category foundation is **already implemented** as part of Phase 2 (t
 | `BANKING_CATEGORY_VIEW` + `BANKING_CATEGORY_MANAGE` permissions defined | `BankingWiringFactory.kt` | ✅ Done (MANAGE not yet wired) |
 | Integration test for category repository | `test/integration/TransactionCategoryRepositoryIT.kt` | ✅ Done |
 | `listCategories(accountId)` in `TransactionService` | `domain/transaction/TransactionService.kt` | ✅ Done |
+| `createTransactionCategory` / `updateTransactionCategory` / `deleteTransactionCategory` mutations | `graphql/schema.graphqls`, `TransactionCategoryService.kt`, `TransactionCategoryResolver.kt` | ✅ Done |
+| Business rule validations (max depth, isSystem guard, applicable_to inheritance, name uniqueness) | `domain/transaction/TransactionCategoryService.kt` | ✅ Done |
+| `categoryId` + `uncategorized` filters on `transactions` query | `graphql/schema.graphqls`, `TransactionEntityRepository.kt` | ✅ Done |
+| `bulkCategorize` mutation | `graphql/schema.graphqls`, `TransactionService.kt` | ✅ Done |
+| `category_source` column on `banking.transactions` + `CategorySource` enum | `db/migration/V0_XX__add_category_source.sql` | ✅ Done |
+| DB table `banking.category_rules` (DDL + indexes) | `db/migration/V0_14__create_category_rules.sql` | ✅ Done |
 
-### What is missing (backlog)
+### What is missing (backlog — Sprint 3 onward)
 
 | Gap | Severity |
 |---|---|
-| No mutations for custom category CRUD (create/update/delete) | 🔴 Critical |
-| No business-rule validations (max depth, isSystem guard, applicable_to inheritance) | 🔴 Critical |
-| Icon strategy: emojis break visual consistency (color, dark mode, font-family) | 🟠 High |
-| No `bulkCategorize` mutation | 🟠 High |
-| No `categoryId` filter on `transactions` query | 🟠 High |
-| No `uncategorized` filter (users can't easily find unlabeled transactions) | 🟠 High |
-| No auto-categorization rule engine (`category_rules` table exists, engine not yet implemented) | 🟠 High |
-| No `CategorySource` distinction (MANUAL vs RULE vs IMPORTED) | 🟡 Medium |
-| No category breakdown in `MonthSummary` | 🟡 Medium |
-| No `transactionsByCategory` analytics query | 🟡 Medium |
-| No implicit rule learning from user actions | 🟡 Medium |
+| Merchant rule seed (`V0_15`) — ~500 CONTAINS rules from merchant CSV | 🔴 Critical (blocks auto-categorization) |
+| `CategorizationService` — rule engine (CAT-10) | 🔴 Critical |
+| Hook `CategorizationService` into `TransactionService.create/update` (CAT-11) | 🔴 Critical |
+| Implicit rule learning from manual categorization (CAT-12) | 🟠 High |
+| `CategoryRule` CRUD mutations — user manages explicit rules (CAT-13) | 🟠 High |
+| Category breakdown in `MonthSummary` (CAT-15) | 🟡 Medium |
+| `transactionsByCategory` analytics query (CAT-14) | 🟡 Medium |
+| Unit + integration tests for categorization engine (CAT-16, CAT-17) | 🟡 Medium |
+| Frontend: category picker, rules screen, breakdown chart (CAT-19–24) | 🟡 Medium |
 | No Pluggy category mapping (`pluggy_category_id` reserved but unused) | 🟢 Low (Phase 5 dependency) |
 | No AI-based suggestion (Claude API) | 🟢 Low (future premium) |
 
@@ -340,7 +344,10 @@ This gives the user a "it just works" experience. The implicit rules are visible
 - `createTransaction` with `categoryId` provided: `categorySource = MANUAL`.
 - `updateTransaction` with new `categoryId`: `categorySource = MANUAL`; trigger implicit rule learning.
 - `updateTransaction` without `categoryId` change: `categorySource` unchanged.
+- `confirmCategory(transactionId)`: user confirms the auto-suggested category without changing it → `categorySource = MANUAL`; **does NOT trigger implicit rule learning** (the rule that assigned it already exists and works correctly).
 - On import (OFX/CSV with existing Pluggy category): `categorySource = IMPORTED`.
+
+**Why `confirmCategory` matters**: the UI shows a "sugerido" badge on `categorySource = RULE` transactions. When the user taps "confirmar", the category stays the same but the source flips to `MANUAL` — marking it as high-confidence data and removing the badge. Without an explicit confirm action, the only way to promote `RULE → MANUAL` would be to re-select the same category, which is poor UX.
 
 ---
 
@@ -464,6 +471,7 @@ type BulkOperationResult {
 
 extend type Mutation {
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+  confirmCategory(transactionId: ID!): Transaction!   # promotes categorySource RULE → MANUAL, no category change
 }
 
 # ─── Transaction filters ─────────────────────────────────────────────────────
@@ -568,20 +576,20 @@ Note: `bulkCategorize` does not trigger implicit rule learning — bulk assignme
 ### Dependency Graph
 
 ```
-Sprint 1 — Backend: Category CRUD
-  CAT-01 (createTransactionCategory mutation)
-  CAT-02 (updateTransactionCategory mutation)
-  CAT-03 (deleteTransactionCategory mutation — soft-delete)
-  CAT-04 (Business rule validations — depth, isSystem, applicable_to)
+Sprint 1 — Backend: Category CRUD ✅ Done
+  CAT-01 (createTransactionCategory mutation)            ✅
+  CAT-02 (updateTransactionCategory mutation)            ✅
+  CAT-03 (deleteTransactionCategory mutation — soft-delete) ✅
+  CAT-04 (Business rule validations — depth, isSystem, applicable_to) ✅
 
-Sprint 2 — Backend: Icon migration + Transaction filters
-  CAT-05 (MUI icon migration — V0_12 Flyway)    ← no deps
-  CAT-06 (categoryId + uncategorized filter on transactions query)  ← no deps
-  CAT-07 (bulkCategorize mutation)              ← no deps
-  CAT-08 (categorySource column on transactions) ← no deps
+Sprint 2 — Backend: Icon migration + Transaction filters ✅ Done
+  CAT-05 (MUI icon migration — V0_24 Flyway)             ✅
+  CAT-06 (categoryId + uncategorized filter on transactions query)  ✅
+  CAT-07 (bulkCategorize mutation)                       ✅
+  CAT-08 (categorySource column on transactions)         ✅
 
-Sprint 3 — Backend: Auto-categorization engine
-  CAT-09 (category_rules table V0_14 + merchant seed V0_15)  ← no deps
+Sprint 3 — Backend: Auto-categorization engine  ← CURRENT
+  CAT-09 (category_rules DDL V0_26 ✅ + merchant seed V0_29 ← TODO)
   CAT-10 (CategorizationService — rule engine)  ← depends on CAT-09
   CAT-11 (Hook CategorizationService into TransactionService.create/update) ← depends on CAT-10
   CAT-12 (Implicit learning from manual categorization) ← depends on CAT-11
@@ -603,6 +611,10 @@ Sprint 6 — Frontend (parallel stories, all depend on Sprint 1–2 backend)
   CAT-22 (Bulk categorize UI — post-import flow)
   CAT-23 (Category rules management screen)
   CAT-24 (Category breakdown chart in MonthSummary)
+
+Sprint 7 — Import integration
+  CAT-25 (Apply categorization suggestions in credit card import review) ← depends on CAT-10
+  (Bank statement import — handled automatically by CAT-11 via TransactionService.create)
 ```
 
 ---
@@ -938,50 +950,23 @@ bulkCategorize(transactionIds, categoryId, accountId):
 
 **Depends on**: _(nothing)_
 
-**Description**: Create the `banking.category_rules` table and seed it with ~500 system rules derived from the merchant database at `docs/03-features/banking/transaction-enrichment/merchants-seed.csv`. Each merchant name maps to a specific category via an `EXACT` pattern match against the normalized transaction description.
+**Description**: The `banking.category_rules` table and its DDL (`V0_14`) already exist in production. This story covers only the seed migration: ~500 system rules derived from `docs/03-features/banking/transaction-enrichment/merchants-seed.csv`, covering real Brazilian merchants mapped to the correct subcategory.
 
-**New files**:
-- `src/main/resources/db/migration/V0_14__create_category_rules.sql` — DDL + indexes
-- `src/main/resources/db/migration/V0_15__seed_category_rules.sql` — merchant-based rule seeds (generated)
-- `scripts/generate_category_rules_seed.py` (or `.kt`) — generation script that reads the CSV and produces `V0_15`
+**New file**: `src/main/resources/db/migration/V0_29__seed_category_rules.sql`
 
-Splitting DDL and seed into two migrations makes it easy to regenerate the seed as the merchant CSV grows without touching the schema migration.
+The migration deletes the sparse V0_26 seed (wrong category names, wrong priority) and inserts the full comprehensive set.
 
----
-
-**`V0_14` — DDL**:
-
-```sql
-CREATE TABLE banking.category_rules (
-  id              UUID          NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
-  account_id      UUID          REFERENCES security.accounts(id),
-  category_id     UUID          NOT NULL REFERENCES banking.transaction_categories(id),
-  pattern         TEXT          NOT NULL,
-  pattern_type    TEXT          NOT NULL
-    CHECK (pattern_type IN ('CONTAINS', 'STARTS_WITH', 'EXACT', 'REGEX')),
-  applicable_to   TEXT          NOT NULL
-    CHECK (applicable_to IN ('INCOME', 'EXPENSE', 'TRANSFER', 'ANY')),
-  -- priority tiers: explicit user rules = 40, implicit rules = 60, system rules = 100
-  priority        INT           NOT NULL DEFAULT 100,
-  is_system       BOOLEAN       NOT NULL DEFAULT false,
-  is_implicit     BOOLEAN       NOT NULL DEFAULT false,
-  match_count     INT           NOT NULL DEFAULT 0,
-  deleted_at      TIMESTAMPTZ,
-  created_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW(),
-  updated_at      TIMESTAMPTZ   NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX idx_category_rules_account_id ON banking.category_rules (account_id)
-  WHERE deleted_at IS NULL;
-CREATE INDEX idx_category_rules_system ON banking.category_rules (is_system)
-  WHERE is_system = true AND deleted_at IS NULL;
-```
+**✅ Already done**: `V0_26__create_category_rules.sql` (table + indexes + sparse seed — superseded by V0_29)
 
 ---
 
 **`V0_15` — Merchant seed rules**:
 
-Rules use `EXACT` pattern type (merchant names in the CSV are already normalized: lowercase, no accents, no special chars) and `applicable_to = 'EXPENSE'` unless noted. System rules use `priority = 100`.
+Rules use `CONTAINS` + case-insensitive matching (via `normalize()` which lowercases and strips accents). Bank and card providers append suffixes, location codes, and identifiers to merchant names — e.g., `NETFLIX.COM*BR`, `IFOOD*99123 SP`, `CARREFOUR MKT 042` — so `EXACT` would never match. User-typed descriptions are equally unpredictable. `CONTAINS` catches all variants as long as the merchant name appears somewhere in the description.
+
+> ⚠️ **Short/ambiguous names**: merchants with very short names (e.g., `99`, `max`, `sky`) carry a higher false-positive risk with `CONTAINS`. These are acceptable at priority=100 (user rules and implicit rules always override), but note them in the generation script for future review.
+
+System rules use `applicable_to = 'EXPENSE'` unless noted, and `priority = 100`.
 
 #### Sector → Category mapping
 
@@ -1070,37 +1055,37 @@ INSERT INTO banking.category_rules
   (account_id, category_id, pattern, pattern_type, applicable_to, priority, is_system)
 VALUES
   -- alimentacao → Supermercado
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'carrefour',        'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'atacadao',         'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'pao de acucar',    'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'carrefour',        'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'atacadao',         'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'pao de acucar',    'CONTAINS', 'EXPENSE', 100, true),
   -- delivery → Delivery
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'ifood',            'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'rappi',            'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'ifood',            'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'rappi',            'CONTAINS', 'EXPENSE', 100, true),
   -- restaurante → Restaurante
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'mcdonalds',        'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'starbucks',        'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'mcdonalds',        'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'starbucks',        'CONTAINS', 'EXPENSE', 100, true),
   -- transporte (uber/taxi)
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), 'uber',             'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), '99',               'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), 'uber',             'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), '99app',            'CONTAINS', 'EXPENSE', 100, true),  -- '99' alone is too short
   -- transporte (combustível)
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'ipiranga',         'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'shell',            'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'ipiranga',         'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'shell',            'CONTAINS', 'EXPENSE', 100, true),
   -- streaming vídeo
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'netflix',       'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'disney+',       'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'netflix',       'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'disney',        'CONTAINS', 'EXPENSE', 100, true),  -- covers 'disney+' and 'disney plus'
   -- streaming música
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Música' AND is_system = true LIMIT 1), 'spotify',      'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Música' AND is_system = true LIMIT 1), 'spotify',      'CONTAINS', 'EXPENSE', 100, true),
   -- saúde (farmácia)
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'drogasil',         'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'droga raia',       'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'drogasil',         'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'droga raia',       'CONTAINS', 'EXPENSE', 100, true),
   -- saúde (academia)
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Academia'     AND is_system = true LIMIT 1), 'smartfit',         'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Academia'     AND is_system = true LIMIT 1), 'smartfit',         'CONTAINS', 'EXPENSE', 100, true),
   -- utilities (luz)
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'enel',             'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'cemig',            'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'enel',             'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'cemig',            'CONTAINS', 'EXPENSE', 100, true),
   -- moda → Roupas
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'renner',           'EXACT', 'EXPENSE', 100, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'zara',             'EXACT', 'EXPENSE', 100, true)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'renner',           'CONTAINS', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'zara',             'CONTAINS', 'EXPENSE', 100, true)
   -- ... (~480 more rows for all merchants in the CSV)
 ;
 ```
@@ -1109,9 +1094,10 @@ VALUES
 - `V0_14` creates the table and indexes cleanly on fresh and existing DBs
 - `V0_15` inserts rules for all non-`financas` merchants in the CSV (~500 rows)
 - Each rule uses `EXACT` pattern type and `priority = 100`
-- `suggest("netflix", DEBIT)` returns `Streaming Vídeo` category
-- `suggest("carrefour", DEBIT)` returns `Supermercado` category
-- `suggest("nubank", DEBIT)` returns `null` (financas sector excluded)
+- `suggest("NETFLIX.COM*BR", DEBIT)` returns `Streaming Vídeo` (CONTAINS "netflix" after normalize)
+- `suggest("CARREFOUR MKT 042 SP", DEBIT)` returns `Supermercado` (CONTAINS "carrefour" after normalize)
+- `suggest("IFOOD*99123 DELIVERY", DEBIT)` returns `Delivery` (CONTAINS "ifood")
+- `suggest("NUBANK PAGAMENTO", DEBIT)` returns `null` (financas sector excluded from seed)
 - Generation script can be re-run to refresh `V0_15` when the CSV is updated
 
 ---
@@ -1426,6 +1412,9 @@ rows.map { it.copy(percentage = if (totalForPeriod > 0) it.totalAmount / totalFo
 | `learnFromManualCategorization` — existing rule, same category | Does not create duplicate |
 | `learnFromManualCategorization` — existing rule, different category | Updates existing rule's categoryId |
 | `learnFromManualCategorization` — null description | No-op, no exception |
+| `confirmCategory` — transaction with `categorySource = RULE` | `categorySource` becomes `MANUAL`; `categoryId` unchanged; `learnFromManualCategorization` NOT called |
+| `confirmCategory` — transaction already `categorySource = MANUAL` | No-op (idempotent) |
+| `confirmCategory` — transaction with `categorySource = null` | No-op (nothing to confirm) |
 
 ---
 
@@ -1441,6 +1430,7 @@ rows.map { it.copy(percentage = if (totalForPeriod > 0) it.totalAmount / totalFo
 | Create transaction with explicit `categoryId` | `categoryId` set; `categorySource = MANUAL`; rule NOT created |
 | Create transaction with no matching rule | `categoryId = null`; `categorySource = null` |
 | Manually re-categorize a transaction | `categorySource = MANUAL`; implicit rule created |
+| Confirm auto-suggested category via `confirmCategory` (no change) | `categorySource` flips `RULE → MANUAL`; `categoryId` unchanged; no implicit rule created |
 | Create second transaction with same description after manual categorization | Auto-matched to new implicit rule; `categorySource = RULE` |
 | Re-categorize again to different category | Implicit rule updated to new category |
 | User creates explicit rule via `createCategoryRule` mutation | Next transaction with matching description uses explicit rule |
@@ -1710,6 +1700,62 @@ Selecionar tudo  [ 12 selecionadas ]   [Categorizar selecionadas]
 - Clicking a category row navigates to `transactions(categoryId)` filtered list
 - "Outros / Sem cat" row aggregates all uncategorized transaction expenses
 - Updates when user switches month in `MonthYearCarousel`
+
+---
+
+### Sprint 7 — Import Integration
+
+---
+
+#### CAT-25 — Apply categorization suggestions in credit card import review
+
+**Depends on**: CAT-10 (`CategorizationService`)
+
+**Background**: The two import flows behave differently:
+
+| Import flow | Review step | Categorization path |
+|---|---|---|
+| Bank statement (OFX/CSV) | None — transactions created directly | CAT-11 handles it automatically via `TransactionService.create`. No extra work. |
+| Credit card bill import | Review screen before confirmation | Needs explicit categorization pass on the **preview/draft data** before the screen is shown. |
+
+For bank statement imports, categorization already fires in `TransactionService.create` (CAT-11). This story is exclusively about the credit card bill import review.
+
+**Description**: Integrate `CategorizationService.suggest()` into the credit card import preview pipeline so that when the review screen is rendered, each draft transaction already carries a category suggestion the user can confirm or override.
+
+**Modified files**:
+- The import service that builds the draft/preview payload (identify the exact class — likely in `domain/transaction/import/` or similar)
+- Inject `CategorizationService` and call `suggest()` for each draft transaction before returning the preview
+
+**Preview enrichment logic**:
+```
+buildImportPreview(rawTransactions, accountId):
+  rules = ruleRepository.findRulesForAccount(accountId)   // load once — avoids N+1
+  for each draft in rawTransactions:
+    suggestion = suggest(rules, normalize(draft.description), draft.creditDebitType)
+    draft.categoryId     = suggestion?.categoryId          // null if no rule matched
+    draft.categorySource = if suggestion != null then RULE else null
+  return preview
+```
+
+Loading rules once before the loop is important — a credit card statement can have 100+ transactions and loading rules per transaction would cause N+1 queries.
+
+**Review screen behaviour** (frontend):
+- Transactions with `categorySource = RULE` show a "sugerido" badge on the category chip
+- User can tap the chip to override the category inline, which sets `categorySource = MANUAL` in the draft state
+- Transactions with `categorySource = null` show an empty category picker
+- On confirm (user submits the review):
+  - User-changed categories → `TransactionService.create` called with `categoryId` + `categorySource = MANUAL`
+  - Untouched rule suggestions → `TransactionService.create` called with `categoryId` + `categorySource = RULE`
+  - Empty categories → `TransactionService.create` called without `categoryId`; CAT-11 re-runs the rule engine (which will find the same suggestion anyway — idempotent)
+
+**Acceptance criteria**:
+- Credit card import review screen shows category suggestions for known merchants (e.g., NETFLIX → Streaming Vídeo, IFOOD → Delivery)
+- Suggestions display with "sugerido" badge
+- User can override a suggestion inline; overridden category shows no badge
+- Confirming the import without changing a suggestion creates the transaction with `categorySource = RULE`
+- Overriding a suggestion creates the transaction with `categorySource = MANUAL`; implicit rule learning fires
+- Bank statement import is unaffected (no regression)
+- Rules are loaded once per import preview call, not once per transaction
 
 ---
 

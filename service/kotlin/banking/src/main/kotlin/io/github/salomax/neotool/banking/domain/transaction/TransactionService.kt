@@ -18,6 +18,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import org.slf4j.LoggerFactory
 
 /**
  * Domain service for [Transaction] and [TransactionCategory] operations.
@@ -35,6 +36,7 @@ open class TransactionService(
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
 ) {
+    private val logger = LoggerFactory.getLogger(TransactionService::class.java)
     // ── Categories ───────────────────────────────────────────────────────────
 
     fun listCategories(accountId: UUID): List<TransactionCategory> = categoryRepository.findAll(accountId)
@@ -288,7 +290,14 @@ open class TransactionService(
                     categorizationService.suggest(accountId, command.description, command.creditDebitType)
                         ?.let { it.categoryId to CategorySource.RULE }
                         ?: (null to null)
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    logger.warn(
+                        "Auto-categorization failed; continuing without rule suggestion (accountId={}, txType={}, descriptionLength={})",
+                        accountId,
+                        command.creditDebitType,
+                        command.description?.length,
+                        e,
+                    )
                     null to null
                 }
             }
@@ -390,8 +399,14 @@ open class TransactionService(
                     existing.description,
                     command.categoryId!!,
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
                 // Learning failure must not fail the update
+                logger.warn(
+                    "Implicit rule learning failed; continuing update without learning (accountId={}, txId={})",
+                    accountId,
+                    id,
+                    e,
+                )
             }
         }
 

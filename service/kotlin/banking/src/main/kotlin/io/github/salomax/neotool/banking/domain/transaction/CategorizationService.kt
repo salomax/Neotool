@@ -7,11 +7,30 @@ import java.util.UUID
  */
 interface CategorizationService {
     /**
+     * Loads all active rules for the account, including system rules, in the same order
+     * expected by the categorization engine.
+     *
+     * Used by preview flows that must avoid N+1 rule loading.
+     */
+    fun preloadRules(accountId: UUID): List<CategoryRule>
+
+    /**
      * Returns the first matching rule's category for the given description and side (INCOME/EXPENSE).
      * Returns null if no rule matches or description is blank.
      */
     fun suggest(
         accountId: UUID,
+        description: String?,
+        creditDebitType: CreditDebitType,
+    ): CategorySuggestion?
+
+    /**
+     * Suggests a category for preview usage using preloaded [rules].
+     *
+     * This method must be side-effect free (e.g. it must not increment match_count).
+     */
+    fun suggestFromRules(
+        rules: List<CategoryRule>,
         description: String?,
         creditDebitType: CreditDebitType,
     ): CategorySuggestion?

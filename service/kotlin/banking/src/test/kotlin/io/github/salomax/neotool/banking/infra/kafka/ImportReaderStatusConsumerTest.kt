@@ -9,7 +9,10 @@ import io.github.salomax.neotool.banking.domain.import.ImportProcessor
 import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.import.statement.AssistantStatementTransactionExtractor
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -32,6 +35,7 @@ class ImportReaderStatusConsumerTest {
     private lateinit var importEventBus: ImportEventBus
     private lateinit var jobCompletedProducer: ImportJobCompletedProducer
     private lateinit var snapshotComputationService: SnapshotComputationService
+    private lateinit var statementTransactionExtractor: AssistantStatementTransactionExtractor
     private lateinit var consumer: ImportReaderStatusConsumer
     private val objectMapper = jacksonObjectMapper()
 
@@ -42,6 +46,7 @@ class ImportReaderStatusConsumerTest {
         importEventBus = mock()
         jobCompletedProducer = mock()
         snapshotComputationService = mock()
+        statementTransactionExtractor = AssistantStatementTransactionExtractor()
         consumer =
             ImportReaderStatusConsumer(
                 importJobRepository = importJobRepository,
@@ -50,6 +55,7 @@ class ImportReaderStatusConsumerTest {
                 jobCompletedProducer = jobCompletedProducer,
                 snapshotComputationService = snapshotComputationService,
                 importValidationGate = ImportValidationGate(),
+                statementTransactionExtractor = statementTransactionExtractor,
                 objectMapper = objectMapper,
             )
     }
@@ -206,7 +212,45 @@ class ImportReaderStatusConsumerTest {
         verify(jobCompletedProducer).publish(any())
     }
 
-    private fun processingJob(): ImportJob {
+    @Test
+    fun `done event extracts date-grouped multiline statement rows from parser config`() {
+        val extractedText =
+            """
+            04 JAN 2025 Total de saídas - 2.250,00
+            Transferência enviada pelo Pix LILIAN PRISCILLA ONISHI SALOMAO - •••.672.098- 2.000,00
+            •• - BCO DO BRASIL S.A. (0001) Agência: 4851
+            Conta: 6263735-5
+            Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00
+            SANTANDER (BRASIL) S.A. (0033) Agência: 3200
+            Conta: 2000051-7
+            """.trimIndent()
+        val job = processingJob(extractedText = extractedText)
+        val jobId = requireNotNull(job.id)
+        whenever(importJobRepository.findById(eq(jobId), eq(job.accountId))).thenReturn(job)
+        whenever(importProcessor.process(eq(job), any(), eq(false))).thenReturn(
+            ImportProcessingResult(
+                imported = emptyList(),
+                skipped = 2,
+                duplicateCandidates = emptyList(),
+                errors = emptyList(),
+            ),
+        )
+        whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+        consumer.onBankingReaderDone(doneEventWithStatementParserConfig(jobId, job.accountId))
+
+        val rowsCaptor = argumentCaptor<List<ParsedTransaction>>()
+        verify(importProcessor).process(eq(job), rowsCaptor.capture(), eq(false))
+        assertThat(rowsCaptor.firstValue).hasSize(2)
+        assertThat(rowsCaptor.firstValue.map { it.date.toString() }).containsOnly("2025-01-04")
+        assertThat(rowsCaptor.firstValue.map { it.amount }).containsExactlyInAnyOrder("2000.00".toBigDecimal(), "250.00".toBigDecimal())
+        assertThat(rowsCaptor.firstValue.map { it.creditDebitType }).containsOnly(CreditDebitType.DEBIT)
+        assertThat(rowsCaptor.firstValue.map { it.description })
+            .anySatisfy { description -> assertThat(description).contains("Maria Jose da Silva", "SANTANDER (BRASIL) S.A.") }
+            .anySatisfy { description -> assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.") }
+    }
+
+    private fun processingJob(extractedText: String? = null): ImportJob {
         val now = Instant.now()
         return ImportJob(
             id = UUID.randomUUID(),
@@ -217,6 +261,7 @@ class ImportReaderStatusConsumerTest {
             fileName = "planilha.xlsx",
             fileHash = "hash",
             status = ImportJobStatus.PROCESSING,
+            extractedText = extractedText,
             createdAt = now,
             updatedAt = now,
         )
@@ -363,6 +408,40 @@ class ImportReaderStatusConsumerTest {
                             ),
                         ),
                     "cards" to emptyList<Map<String, Any?>>(),
+                ),
+            "callback_context" to
+                mapOf(
+                    "job_id" to jobId.toString(),
+                    "account_id" to accountId.toString(),
+                    "user_id" to UUID.randomUUID().toString(),
+                ),
+        )
+
+    private fun doneEventWithStatementParserConfig(
+        jobId: UUID,
+        accountId: UUID,
+    ): Map<String, Any?> =
+        mapOf(
+            "job_id" to jobId.toString(),
+            "document_type" to "BANK_STATEMENT",
+            "llm_output" to
+                mapOf(
+                    "bank_name" to "Nubank",
+                    "statement_period" to mapOf("from" to "2025-01-01", "to" to "2025-01-31"),
+                    "parser_config" to
+                        mapOf(
+                            "layout_type" to "DATE_GROUPED_MULTILINE",
+                            "date_format" to "DD_MMM_YYYY",
+                            "date_header_pattern" to "^(\\d{2}\\s+[A-Z]{3}\\s+\\d{4})\\b",
+                            "inline_transaction_date_pattern" to null,
+                            "amount_pattern" to "([\\-−]?[\\d.]+,\\d{2})",
+                            "decimal_separator" to "comma",
+                            "credit_patterns" to listOf("recebid"),
+                            "debit_patterns" to listOf("enviad"),
+                            "skip_line_patterns" to listOf("^.*Total de saídas.*$", "^Saldo.*$"),
+                            "default_credit_debit_type" to "DEBIT",
+                        ),
+                    "warnings" to emptyList<String>(),
                 ),
             "callback_context" to
                 mapOf(

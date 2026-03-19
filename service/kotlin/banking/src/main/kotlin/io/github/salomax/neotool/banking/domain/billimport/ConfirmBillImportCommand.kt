@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
@@ -26,4 +27,6 @@ data class ConfirmBillReviewTransactionCommand(
     val include: Boolean,
     val isBillPayment: Boolean = false,
     val installment: InstallmentInfo? = null,
+    val categoryId: UUID? = null,
+    val categorySource: CategorySource? = null,
 )

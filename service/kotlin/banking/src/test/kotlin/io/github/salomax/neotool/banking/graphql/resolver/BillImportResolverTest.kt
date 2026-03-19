@@ -193,6 +193,17 @@ class BillImportResolverTest {
                 updatedAt = now,
             )
         whenever(billImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
+        whenever(billImportService.projectReviewPayload(eq(awaiting.reviewPayload), eq(accountId))).thenReturn(
+            io.github.salomax.neotool.banking.domain.billimport.BillImportReview(
+                cards =
+                    listOf(
+                        io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard(
+                            reviewCardId = "card-1",
+                            lastFourDigits = "1234",
+                        ),
+                    ),
+            ),
+        )
 
         val result = resolver.billImportJob(jobId.toString(), principal())
 

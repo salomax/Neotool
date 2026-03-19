@@ -92,9 +92,11 @@ import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import HotelIcon from '@mui/icons-material/Hotel';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import GavelIcon from '@mui/icons-material/Gavel';
+import PixIcon from '@mui/icons-material/Pix';
 
 export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> = {
   payments: PaymentsIcon,
+  pix: PixIcon,
   work: WorkIcon,
   elderly: ElderlyIcon,
   trending_up: TrendingUpIcon,
@@ -190,6 +192,7 @@ export const CATEGORY_ICON_NAMES: string[] = [
   'help_outline',
 
   'payments',
+  'pix',
   'account_balance_wallet',
   'account_balance',
   'credit_card',

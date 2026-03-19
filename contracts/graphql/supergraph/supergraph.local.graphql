@@ -401,6 +401,8 @@ type BillImportReviewTransaction
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
   isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 """
@@ -691,6 +693,8 @@ input ConfirmBillReviewTransactionInput
   include: Boolean!
   isBillPayment: Boolean
   installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 enum ConnectionStatus

@@ -713,6 +713,8 @@ input ConfirmBillReviewTransactionInput {
   include: Boolean!
   isBillPayment: Boolean
   installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 input InstallmentInfoInput {
@@ -820,6 +822,8 @@ type BillImportReviewTransaction {
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
   isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 type InstallmentInfo {

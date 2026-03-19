@@ -44,13 +44,14 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { SUBMIT_BILL_IMPORT, CONFIRM_BILL_IMPORT, CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
-import { BILL_IMPORT_JOB, FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
-import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
+import { BILL_IMPORT_JOB, FINANCIAL_ACCOUNTS, ISSUERS, TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
+import { CategorySource, FinancialAccount, Issuer, type TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
 import { CreateFinancialAccountDrawer } from './CreateFinancialAccountDrawer';
 import { extractErrorCode, extractErrorMessage } from '@/shared/utils/error';
 import { NumericFormat } from 'react-number-format';
 import dayjs from 'dayjs';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
+import { CategorySelect } from './CategorySelect';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -95,6 +96,16 @@ interface CardResolution {
 
 /** Per-transaction selection state (include/exclude). Key: `${reviewCardId}-${txIndex}` */
 type TxSelections = Record<string, boolean>;
+
+type TxCategorySource = CategorySource | null;
+
+type TxCategorySelections = Record<
+  string,
+  {
+    categoryId: string | null;
+    categorySource: TxCategorySource;
+  }
+>;
 
 interface CardAccountOption {
   id: string;
@@ -295,6 +306,7 @@ export function BillImportDrawer({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [cardResolutions, setCardResolutions] = useState<CardResolution[]>([]);
   const [txSelections, setTxSelections] = useState<TxSelections>({});
+  const [txCategorySelections, setTxCategorySelections] = useState<TxCategorySelections>({});
   const [draftCards, setDraftCards] = useState<DraftCardResolution[]>([]);
   const [flatTxAssignments, setFlatTxAssignments] = useState<FlatTxAssignments>({});
   const [flatTxSelections, setFlatTxSelections] = useState<FlatTxSelections>({});
@@ -356,6 +368,7 @@ export function BillImportDrawer({
     setErrorMessage(null);
     setCardResolutions([]);
     setTxSelections({});
+    setTxCategorySelections({});
     setDraftCards([]);
     setFlatTxAssignments({});
     setFlatTxSelections({});
@@ -423,6 +436,8 @@ export function BillImportDrawer({
             creditDebitType: string;
             isBillPayment?: boolean;
             installment?: { current: number; total: number };
+            categoryId?: string | null;
+            categorySource?: TxCategorySource;
           }>;
         }>;
       };
@@ -439,6 +454,12 @@ export function BillImportDrawer({
     [jobData?.billImportJob?.reviewPayload?.cards],
   );
   const reviewMode = jobData?.billImportJob?.reviewPayload?.reviewMode ?? 'CARD_BUCKET_MATCHING';
+
+  const { data: categoriesData } = useQuery<{ transactionCategories: TransactionCategory[] }>(
+    TRANSACTION_CATEGORIES,
+    { skip: !open, fetchPolicy: 'cache-first' },
+  );
+  const allCategories = categoriesData?.transactionCategories ?? [];
 
   // React to job status changes during polling
   React.useEffect(() => {
@@ -496,6 +517,26 @@ export function BillImportDrawer({
           closingDate: cards.find((card) => !!card.closingDate)?.closingDate ?? job.reviewPayload?.statementPeriod?.to ?? '',
           dueDate: cards.find((card) => !!card.dueDate)?.dueDate ?? '',
         });
+
+        const initialCategorySelections: TxCategorySelections = {};
+        if (shouldUseFlatAssignmentMode) {
+          cards[0]?.transactions?.forEach((tx: any, txIndex: number) => {
+            initialCategorySelections[`flat-${txIndex}`] = {
+              categoryId: tx.categoryId ?? null,
+              categorySource: tx.categorySource ?? null,
+            };
+          });
+        } else {
+          cards.forEach((card: any) => {
+            card.transactions.forEach((tx: any, ti: number) => {
+              initialCategorySelections[txSelectionKey(card.reviewCardId, ti)] = {
+                categoryId: tx.categoryId ?? null,
+                categorySource: tx.categorySource ?? null,
+              };
+            });
+          });
+        }
+        setTxCategorySelections(initialCategorySelections);
         return 'card-matching';
       });
     } else if (status === 'FAILED') {
@@ -1006,6 +1047,7 @@ export function BillImportDrawer({
     setErrorMessage(null);
     setCardResolutions([]);
     setTxSelections({});
+    setTxCategorySelections({});
     setDraftCards([]);
     setFlatTxAssignments({});
     setFlatTxSelections({});
@@ -1151,39 +1193,49 @@ export function BillImportDrawer({
               transactions: flatSourceCard.transactions
                 .map((tx, txIndex) => ({ tx, txIndex }))
                 .filter(({ txIndex }) => flatTxAssignments[txIndex] === draft.draftCardId)
-                .map(({ tx, txIndex }) => ({
-                  date: tx.date ?? '',
-                  description: tx.description,
-                  amount: tx.amount,
-                  creditDebitType: tx.creditDebitType,
-                  include: flatTxInclusions[txIndex] ?? true,
-                  isBillPayment: !!tx.isBillPayment,
-                  installment: tx.installment
-                    ? {
-                        current: tx.installment.current,
-                        total: tx.installment.total,
-                      }
-                    : null,
-                })),
+                .map(({ tx, txIndex }) => {
+                  const categoryKey = `flat-${txIndex}`;
+                  const categoryState = txCategorySelections[categoryKey];
+
+                  return {
+                    date: tx.date ?? '',
+                    description: tx.description,
+                    amount: tx.amount,
+                    creditDebitType: tx.creditDebitType,
+                    include: flatTxInclusions[txIndex] ?? true,
+                    isBillPayment: !!tx.isBillPayment,
+                    categoryId: categoryState?.categoryId ?? undefined,
+                    categorySource: categoryState?.categorySource ?? undefined,
+                    installment: tx.installment
+                      ? { current: tx.installment.current, total: tx.installment.total }
+                      : null,
+                  };
+                }),
             }))
             .filter((draft) => !!draft.financialAccountId && draft.transactions.length > 0)
         : cards.map((card, ci) => ({
             reviewCardId: card.reviewCardId,
             financialAccountId: cardResolutions[ci]!.financialAccountId,
-            transactions: card.transactions.map((tx, ti) => ({
-              date: tx.date ?? '',
-              description: tx.description,
-              amount: tx.amount,
-              creditDebitType: tx.creditDebitType,
-              include: txSelections[txSelectionKey(card.reviewCardId, ti)] ?? true,
-              isBillPayment: !!tx.isBillPayment,
-              installment: tx.installment
-                ? {
-                    current: tx.installment.current,
-                    total: tx.installment.total,
-                  }
-                : null,
-            })),
+            transactions: card.transactions.map((tx, ti) => {
+              const categoryKey = txSelectionKey(card.reviewCardId, ti);
+              const categoryState = txCategorySelections[categoryKey];
+              return {
+                date: tx.date ?? '',
+                description: tx.description,
+                amount: tx.amount,
+                creditDebitType: tx.creditDebitType,
+                include: txSelections[categoryKey] ?? true,
+                isBillPayment: !!tx.isBillPayment,
+                categoryId: categoryState?.categoryId ?? undefined,
+                categorySource: categoryState?.categorySource ?? undefined,
+                installment: tx.installment
+                  ? {
+                      current: tx.installment.current,
+                      total: tx.installment.total,
+                    }
+                  : null,
+              };
+            }),
           }));
       const result = await confirmImport({
         variables: {
@@ -2086,6 +2138,10 @@ export function BillImportDrawer({
                       : (txSelections[key] ?? true);
                     const isDebit = tx.creditDebitType === 'DEBIT';
                     const isBillPayment = !!tx.isBillPayment;
+                    const categoryState =
+                      txCategorySelections[key] ?? { categoryId: tx.categoryId ?? null, categorySource: tx.categorySource ?? null };
+                    const showSuggested = !isBillPayment && categoryState.categorySource === CategorySource.Rule && categoryState.categoryId;
+                    const selectedCategoryId = categoryState.categoryId;
 
                     return (
                       <React.Fragment key={key}>
@@ -2128,6 +2184,33 @@ export function BillImportDrawer({
                                 </Typography>
                                 {isBillPayment && (
                                   <Chip label={t('financeTransactions.billImport.txReviewStep.paymentChip')} size="small" color="info" variant="outlined" sx={{ fontSize: 10 }} />
+                                )}
+                                {!isBillPayment && (
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <CategorySelect
+                                      value={selectedCategoryId}
+                                      onChange={(categoryId) => {
+                                        setTxCategorySelections((prev) => ({
+                                          ...prev,
+                                          [key]: {
+                                            categoryId,
+                                            categorySource: categoryId ? CategorySource.Manual : null,
+                                          },
+                                        }));
+                                      }}
+                                      categories={allCategories}
+                                      creditDebitType={tx.creditDebitType}
+                                    />
+                                    {showSuggested && (
+                                      <Chip
+                                        label={t('financeTransactions.billImport.txReviewStep.suggestedBadge')}
+                                        size="small"
+                                        color="success"
+                                        variant="filled"
+                                        sx={{ fontSize: 10 }}
+                                      />
+                                    )}
+                                  </Stack>
                                 )}
                                 {tx.installment && (
                                   <Chip

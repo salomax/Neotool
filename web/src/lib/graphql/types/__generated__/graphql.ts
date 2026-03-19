@@ -353,6 +353,8 @@ export enum BillImportReviewMode {
 export type BillImportReviewTransaction = {
   __typename: 'BillImportReviewTransaction';
   amount: Scalars['Float']['output'];
+  categoryId: Maybe<Scalars['ID']['output']>;
+  categorySource: Maybe<CategorySource>;
   creditDebitType: CreditDebitType;
   date: Maybe<Scalars['Date']['output']>;
   description: Scalars['String']['output'];
@@ -599,6 +601,8 @@ export type ConfirmBillReviewCardInput = {
 
 export type ConfirmBillReviewTransactionInput = {
   amount: Scalars['Float']['input'];
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  categorySource?: InputMaybe<CategorySource>;
   creditDebitType: CreditDebitType;
   date: Scalars['Date']['input'];
   description: Scalars['String']['input'];

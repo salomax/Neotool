@@ -74,9 +74,9 @@ class BankingWiringFactoryTest {
                 financialAccountResolver,
                 transactionResolver,
                 transactionCategoryResolver,
+                investmentResolver,
                 importResolver,
                 pdfImportResolver,
-                investmentResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )

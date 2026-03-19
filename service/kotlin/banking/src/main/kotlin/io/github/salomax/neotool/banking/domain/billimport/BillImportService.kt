@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.CategorizationService
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
@@ -42,6 +44,7 @@ open class BillImportService(
     private val financialAccountRepository: FinancialAccountRepository,
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
+    private val categorizationService: CategorizationService,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -237,7 +240,10 @@ open class BillImportService(
     open fun projectReviewPayload(
         reviewPayload: String?,
         accountId: UUID,
-    ): BillImportReview? = runCatching { parsePdfReviewPayload(reviewPayload, accountId) }.getOrNull()
+    ): BillImportReview? =
+        runCatching { parsePdfReviewPayload(reviewPayload, accountId) }
+            .getOrNull()
+            ?.let { enrichReviewPayloadWithCategorizationSuggestions(it, accountId) }
 
     @Transactional
     open fun confirmBillImport(
@@ -408,6 +414,51 @@ open class BillImportService(
                             }
                             if (duplicate) return@forEach
 
+                            val (effectiveCategoryId, effectiveCategorySource, shouldLearnImplicitRule) =
+                                when {
+                                    tx.categorySource == CategorySource.MANUAL && tx.categoryId != null -> Triple(
+                                        tx.categoryId,
+                                        CategorySource.MANUAL,
+                                        true,
+                                    )
+                                    tx.categorySource == CategorySource.RULE && tx.categoryId != null -> Triple(
+                                        tx.categoryId,
+                                        CategorySource.RULE,
+                                        false,
+                                    )
+                                    tx.categoryId == null -> {
+                                        // Empty category => re-run rules on confirm (CAT-11 idempotency).
+                                        val suggestion =
+                                            categorizationService.suggest(
+                                                accountId = accountId,
+                                                description = tx.description,
+                                                creditDebitType = tx.creditDebitType,
+                                            )
+                                        Triple(
+                                            suggestion?.categoryId,
+                                            suggestion?.let { CategorySource.RULE },
+                                            false,
+                                        )
+                                    }
+                                    else -> {
+                                        // categoryId present but categorySource missing: treat as MANUAL override.
+                                        val source = tx.categorySource ?: CategorySource.MANUAL
+                                        Triple(
+                                            tx.categoryId,
+                                            source,
+                                            source == CategorySource.MANUAL,
+                                        )
+                                    }
+                                }
+
+                            if (shouldLearnImplicitRule && effectiveCategoryId != null) {
+                                categorizationService.learnFromManualCategorization(
+                                    accountId = accountId,
+                                    description = tx.description,
+                                    categoryId = effectiveCategoryId,
+                                )
+                            }
+
                             val saved =
                                 transactionRepository.save(
                                     Transaction(
@@ -429,6 +480,8 @@ open class BillImportService(
                                         cardIdentifier = normalizedCardIdentifier(reviewCard?.lastFourDigits),
                                         importFingerprint = fingerprint,
                                         importJobId = command.jobId,
+                                        categoryId = effectiveCategoryId,
+                                        categorySource = effectiveCategorySource,
                                         createdAt = now,
                                         updatedAt = now,
                                     ),
@@ -629,6 +682,34 @@ open class BillImportService(
             return objectMapper.writeValueAsString(applyCardMatches(builtReview, accountId))
         }
         return enrichReviewPayloadWithCardMatches(assistantOutput, accountId)
+    }
+
+    private fun enrichReviewPayloadWithCategorizationSuggestions(
+        payload: BillImportReview,
+        accountId: UUID,
+    ): BillImportReview {
+        // Load rules once per preview call (avoid N+1 rule loading).
+        val rules = categorizationService.preloadRules(accountId)
+
+        return payload.copy(
+            cards =
+                payload.cards.map { card ->
+                    card.copy(
+                        transactions =
+                            card.transactions.map { tx ->
+                                if (tx.isBillPayment) {
+                                    tx.copy(categoryId = null, categorySource = null)
+                                } else {
+                                    val suggestion = categorizationService.suggestFromRules(rules, tx.description, tx.creditDebitType)
+                                    tx.copy(
+                                        categoryId = suggestion?.categoryId,
+                                        categorySource = suggestion?.let { CategorySource.RULE },
+                                    )
+                                }
+                            },
+                    )
+                },
+        )
     }
 
     private fun normalizeLlmBillReviewPayload(llmOutput: Any?): Any? {

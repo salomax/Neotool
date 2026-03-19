@@ -13,6 +13,8 @@ import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
 import io.github.salomax.neotool.banking.domain.import.ImportValidationPreDecision
 import io.github.salomax.neotool.banking.domain.import.ImportValidationQuality
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.import.statement.AssistantStatementExtractionMeta
+import io.github.salomax.neotool.banking.domain.import.statement.AssistantStatementTransactionExtractor
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -44,6 +46,7 @@ open class ImportReaderStatusConsumer(
     private val jobCompletedProducer: ImportJobCompletedProducer,
     private val snapshotComputationService: SnapshotComputationService,
     private val importValidationGate: ImportValidationGate,
+    private val statementTransactionExtractor: AssistantStatementTransactionExtractor,
     private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -75,7 +78,12 @@ open class ImportReaderStatusConsumer(
                 )
             }
 
-            val rowsResult = parseRowsFromLlmOutput(llmOutput, job.id)
+            val rowsResult =
+                parseRows(
+                    job = job,
+                    documentType = event["document_type"]?.toString(),
+                    llmOutput = llmOutput,
+                )
             if (rowsResult.rows.isEmpty()) {
                 return@handleEvent markFailed(
                     job = job,
@@ -90,7 +98,7 @@ open class ImportReaderStatusConsumer(
                 )
             }
 
-            val quality = extractValidationQuality(event, llmOutput)
+            val quality = extractValidationQuality(event, llmOutput, rowsResult.warnings)
             val preDecision =
                 importValidationGate.evaluateBeforeCommit(
                     quality = quality,
@@ -271,6 +279,50 @@ open class ImportReaderStatusConsumer(
         return saved
     }
 
+    private fun parseRows(
+        job: ImportJob,
+        documentType: String?,
+        llmOutput: Map<*, *>,
+    ): ParsedRowsResult =
+        if (documentType == "BANK_STATEMENT" && llmOutput["parser_config"] is Map<*, *>) {
+            parseRowsFromStatementMeta(job, llmOutput)
+        } else {
+            parseRowsFromLlmOutput(llmOutput, job.id)
+        }
+
+    private fun parseRowsFromStatementMeta(
+        job: ImportJob,
+        llmOutput: Map<*, *>,
+    ): ParsedRowsResult {
+        val extractedText = job.extractedText?.takeIf { it.isNotBlank() }
+        if (extractedText == null) {
+            log.warn("Cannot extract BANK_STATEMENT rows from parser_config without extractedText: jobId={}", job.id)
+            return ParsedRowsResult(
+                rows = emptyList(),
+                invalidCount = 1,
+                warnings = listOf("missing_extracted_text_for_statement_meta"),
+            )
+        }
+
+        val meta =
+            runCatching { objectMapper.convertValue(llmOutput, AssistantStatementExtractionMeta::class.java) }
+                .getOrElse { error ->
+                    log.warn("Failed converting BANK_STATEMENT parser_config to statement meta: jobId={}", job.id, error)
+                    return ParsedRowsResult(
+                        rows = emptyList(),
+                        invalidCount = 1,
+                        warnings = listOf("invalid_statement_parser_config"),
+                    )
+                }
+
+        val result = statementTransactionExtractor.extract(extractedText, meta)
+        return ParsedRowsResult(
+            rows = result.rows,
+            invalidCount = 0,
+            warnings = result.warnings,
+        )
+    }
+
     private fun parseRowsFromLlmOutput(
         llmOutput: Map<*, *>,
         jobId: UUID?,
@@ -348,7 +400,11 @@ open class ImportReaderStatusConsumer(
                 jobId,
             )
         }
-        return ParsedRowsResult(rows = rows, invalidCount = invalidCount + parseFailures)
+        return ParsedRowsResult(
+            rows = rows,
+            invalidCount = invalidCount + parseFailures,
+            warnings = emptyList(),
+        )
     }
 
     private fun extractFirstMapList(
@@ -396,6 +452,7 @@ open class ImportReaderStatusConsumer(
     private fun extractValidationQuality(
         event: Map<String, Any?>,
         llmOutput: Map<*, *>,
+        parserWarnings: List<String> = emptyList(),
     ): ImportValidationQuality {
         val parseMetadata = event["parse_metadata"] as? Map<*, *>
         val processorType =
@@ -407,7 +464,7 @@ open class ImportReaderStatusConsumer(
         val llmWarnings = parseWarnings(llmOutput["warnings"])
         return ImportValidationQuality(
             processorType = processorType,
-            warnings = (parseMetadataWarnings + llmWarnings).distinct(),
+            warnings = (parseMetadataWarnings + llmWarnings + parserWarnings).distinct(),
         )
     }
 
@@ -613,5 +670,6 @@ open class ImportReaderStatusConsumer(
     private data class ParsedRowsResult(
         val rows: List<ParsedTransaction>,
         val invalidCount: Int,
+        val warnings: List<String> = emptyList(),
     )
 }

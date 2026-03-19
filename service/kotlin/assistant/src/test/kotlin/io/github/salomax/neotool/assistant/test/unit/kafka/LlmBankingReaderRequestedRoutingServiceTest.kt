@@ -11,6 +11,7 @@ import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderPromptResolv
 import io.github.salomax.neotool.assistant.infra.kafka.BankingReaderPromptResolverConfig
 import io.github.salomax.neotool.assistant.infra.kafka.BillExtractionMetaValidator
 import io.github.salomax.neotool.assistant.infra.kafka.LlmBankingReaderRequestedRoutingService
+import io.github.salomax.neotool.assistant.infra.kafka.StatementExtractionMetaValidator
 import io.github.salomax.neotool.assistant.provider.error.ErrorType
 import io.github.salomax.neotool.assistant.provider.error.ProviderClientException
 import io.github.salomax.neotool.assistant.provider.model.ProviderMessageRole
@@ -58,6 +59,7 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                 promptResolver = promptResolver,
                 outputValidator = outputValidator,
                 metaValidator = BillExtractionMetaValidator(),
+                statementMetaValidator = StatementExtractionMetaValidator(),
                 doneProducer = doneProducer,
                 objectMapper = jacksonObjectMapper(),
             )
@@ -263,8 +265,18 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                         {
                           "bank_name":"Itau",
                           "statement_period":{"from":"2026-02-01","to":"2026-02-28"},
-                          "transactions":[{"date":"2026-02-03","description":"Pix recebido","amount":5600.0,"credit_debit_type":"CREDIT"}],
-                          "cards":[],
+                          "parser_config":{
+                            "layout_type":"DATE_GROUPED_MULTILINE",
+                            "date_format":"DD_MMM_YYYY",
+                            "date_header_pattern":"^(\\d{2}\\s+[A-Z]{3}\\s+\\d{4})\\b",
+                            "inline_transaction_date_pattern":null,
+                            "amount_pattern":"([\\-−]?[\\d.]+,\\d{2})",
+                            "decimal_separator":"comma",
+                            "credit_patterns":["recebid"],
+                            "debit_patterns":["enviad"],
+                            "skip_line_patterns":["^Saldo.*$","^Total de entradas.*$","^Total de saídas.*$"],
+                            "default_credit_debit_type":"DEBIT"
+                          },
                           "warnings":[]
                         }
                         """.trimIndent(),
@@ -279,12 +291,59 @@ class LlmBankingReaderRequestedRoutingServiceTest {
             verify(completionService).generateCompletion(inputCaptor.capture(), eq(request.callback_context.account_id))
         }
         assertThat(inputCaptor.firstValue.purpose).isEqualTo("banking_reader_bank_statement")
+        assertThat(inputCaptor.firstValue.messages.first().content).contains("A single date heading may apply to multiple consecutive transaction blocks")
+        assertThat(inputCaptor.firstValue.messages.first().content).contains("Do not merge adjacent PIX/TED/transfer transactions that share the same day")
+        assertThat(inputCaptor.firstValue.messages.first().content).contains("Do NOT extract final transactions")
+        assertThat(inputCaptor.firstValue.messages.first().content).contains("parser_config")
 
         val doneCaptor =
             argumentCaptor<AssistantBankingReaderDoneEvent>()
         verify(doneProducer).publish(doneCaptor.capture())
         assertThat(doneCaptor.firstValue.parse_metadata.reader_id).isEqualTo("assistant-banking-reader-v1")
         assertThat(doneCaptor.firstValue.llm_output).doesNotContainKeys("closing_date", "due_date")
+        assertThat(doneCaptor.firstValue.llm_output["parser_config"]).isInstanceOf(Map::class.java)
+        assertThat(doneCaptor.firstValue.llm_output).doesNotContainKey("transactions")
+    }
+
+    @Test
+    fun `onBankStatement normalizes common date format and decimal separator aliases`() {
+        val request = validRequest(documentType = "BANK_STATEMENT", accountType = "BANK", fileType = "PDF")
+        runBlocking {
+            whenever(completionService.generateCompletion(any(), any())).thenReturn(
+                completionResult(
+                    content =
+                        """
+                        {
+                          "bank_name":"Itau",
+                          "statement_period":{"from":"2026-02-01","to":"2026-02-28"},
+                          "parser_config":{
+                            "layout_type":"grouped by date",
+                            "date_format":"DD MMM YYYY",
+                            "date_header_pattern":"^(\\d{2}\\s+[A-Z]{3}\\s+\\d{4})\\b",
+                            "inline_transaction_date_pattern":null,
+                            "amount_pattern":"([\\-−]?[\\d.]+,\\d{2})",
+                            "decimal_separator":",",
+                            "credit_patterns":["recebid"],
+                            "debit_patterns":["enviad"],
+                            "skip_line_patterns":["^Saldo.*$"],
+                            "default_credit_debit_type":"debit"
+                          },
+                          "warnings":[]
+                        }
+                        """.trimIndent(),
+                ),
+            )
+        }
+
+        service.onBankStatement(request)
+
+        val doneCaptor = argumentCaptor<AssistantBankingReaderDoneEvent>()
+        verify(doneProducer).publish(doneCaptor.capture())
+        val parserConfig = doneCaptor.firstValue.llm_output["parser_config"] as Map<*, *>
+        assertThat(parserConfig["layout_type"]).isEqualTo("DATE_GROUPED_MULTILINE")
+        assertThat(parserConfig["date_format"]).isEqualTo("DD_MMM_YYYY")
+        assertThat(parserConfig["decimal_separator"]).isEqualTo("comma")
+        assertThat(parserConfig["default_credit_debit_type"]).isEqualTo("DEBIT")
     }
 
     @Test
