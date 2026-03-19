@@ -72,6 +72,13 @@ func (c *B3Client) DownloadAnnualToTempFile(ctx context.Context, year int) (stri
 	return c.downloadToTempFile(ctx, filename, fmt.Sprintf("b3-annual-%d-*.zip", year))
 }
 
+// DownloadMonthlyToTempFile downloads COTAHIST_M{MMYYYY}.ZIP to a temp file.
+// e.g. February 2026 → COTAHIST_M022026.ZIP
+func (c *B3Client) DownloadMonthlyToTempFile(ctx context.Context, year int, month time.Month) (string, func(), error) {
+	filename := fmt.Sprintf("COTAHIST_M%02d%d.ZIP", int(month), year)
+	return c.downloadToTempFile(ctx, filename, fmt.Sprintf("b3-monthly-%d%02d-*.zip", year, int(month)))
+}
+
 // DownloadDailyToTempFile downloads COTAHIST_D{DDMMYYYY}.ZIP to a temp file.
 // Returns ErrFileNotFound (wrapped) when the date has no file (weekend / holiday).
 func (c *B3Client) DownloadDailyToTempFile(ctx context.Context, date time.Time) (string, func(), error) {
@@ -117,6 +124,25 @@ func (c *B3Client) downloadToTempFile(ctx context.Context, filename, pattern str
 		if err != nil {
 			return err
 		}
+
+		// Mimic a real Chrome browser so Cloudflare does not fingerprint and
+		// rate-limit the Go default user-agent.
+		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
+		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
+		req.Header.Set("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
+		// Accept-Encoding is intentionally omitted: Go's transport adds it
+		// automatically and handles decompression transparently, which avoids
+		// receiving gzip-wrapped bytes when writing a binary ZIP to disk.
+		req.Header.Set("Referer", "https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/")
+		req.Header.Set("Upgrade-Insecure-Requests", "1")
+		req.Header.Set("Sec-Fetch-Dest", "document")
+		req.Header.Set("Sec-Fetch-Mode", "navigate")
+		req.Header.Set("Sec-Fetch-Site", "same-site")
+		req.Header.Set("Sec-Fetch-User", "?1")
+		req.Header.Set("Sec-Ch-Ua", `"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"`)
+		req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
+		req.Header.Set("Sec-Ch-Ua-Platform", `"Windows"`)
+
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
 			return fmt.Errorf("GET %s: %w", url, err)

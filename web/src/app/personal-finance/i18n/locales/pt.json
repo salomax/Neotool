@@ -314,32 +314,6 @@
       }
     }
   },
-  "investments": {
-    "sidebar": {
-      "allBrokers": "Todas as Corretoras",
-      "consolidatedView": "VISÃO CONSOLIDADA",
-      "summaryTitle": "VISÃO CONSOLIDADA",
-      "totalLabel": "Total da Carteira",
-      "metrics": {
-        "contributions": "Aportes",
-        "returns": "Rentabilidade"
-      },
-      "allocation": "ALOCAÇÃO"
-    },
-    "emptyState": {
-      "title": "Sua carteira de investimentos está vazia",
-      "description": "Comece a organizar seus ativos para ter uma visão completa da sua rentabilidade e evolução patrimonial. Acompanhe ações, fundos, tesouro e muito mais em um só lugar.",
-      "primaryAction": "Criar conta de investimento",
-      "secondaryAction": "Registrar primeiro ativo"
-    },
-    "trackableAssets": {
-      "title": "ATIVOS QUE VOCÊ PODE ACOMPANHAR",
-      "crypto": "Cripto",
-      "reits": "FIIs",
-      "stocks": "Ações",
-      "fixedIncome": "Renda Fixa"
-    }
-  },
   "financeTransactions": {
     "title": "Movimentações Financeiras",
     "quickAdd": "Nova movimentação",

@@ -35,16 +35,16 @@ func (c DatabaseConfig) ConnectionString() string {
 }
 
 type JobConfig struct {
-	// Number of concurrent year/day tasks processed by the worker pool.
-	// Keep low (default 3) — each active task holds one temp ZIP in disk.
-	Workers     int `env:"B3_WORKERS"      envDefault:"3"`
-	QueueBuffer int `env:"B3_QUEUE_BUFFER" envDefault:"2"`
+	// ChunkSize is the number of rows per BEGIN/COMMIT transaction.
+	// Smaller chunks reduce deadlock scope; 1000 is a good balance.
+	ChunkSize int `env:"B3_CHUNK_SIZE" envDefault:"1000"`
 
-	// Rows accumulated before each pgx.Batch commit within a task.
-	ChunkSize int `env:"B3_CHUNK_SIZE" envDefault:"500"`
-
-	// Number of past years to load on the first run (no last_data_date).
+	// BackfillYears is the number of past years to load on the first run.
 	BackfillYears int `env:"B3_BACKFILL_YEARS" envDefault:"5"`
+
+	// GapThresholdDays: when the outstanding data window is this many days or fewer,
+	// only daily files are fetched (no annual/monthly ZIPs).
+	GapThresholdDays int `env:"B3_GAP_THRESHOLD_DAYS" envDefault:"3"`
 }
 
 type B3Config struct {
@@ -85,17 +85,14 @@ func (c *Config) Validate() error {
 	if c.Database.Password == "" {
 		errs = append(errs, "POSTGRES_PASSWORD is required")
 	}
-	if c.Job.Workers < 1 || c.Job.Workers > 8 {
-		errs = append(errs, "B3_WORKERS must be between 1 and 8")
-	}
-	if c.Job.QueueBuffer < 1 {
-		errs = append(errs, "B3_QUEUE_BUFFER must be >= 1")
-	}
 	if c.Job.ChunkSize < 100 || c.Job.ChunkSize > 5000 {
 		errs = append(errs, "B3_CHUNK_SIZE must be between 100 and 5000")
 	}
 	if c.Job.BackfillYears < 1 || c.Job.BackfillYears > 30 {
 		errs = append(errs, "B3_BACKFILL_YEARS must be between 1 and 30")
+	}
+	if c.Job.GapThresholdDays < 0 || c.Job.GapThresholdDays > 30 {
+		errs = append(errs, "B3_GAP_THRESHOLD_DAYS must be between 0 and 30")
 	}
 	if c.B3.TimeoutSeconds < 30 {
 		errs = append(errs, "B3_TIMEOUT_SECONDS must be >= 30")

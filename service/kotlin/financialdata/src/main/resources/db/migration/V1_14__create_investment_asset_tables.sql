@@ -23,9 +23,7 @@ CREATE TABLE IF NOT EXISTS financial_data.investment_asset
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT pk_investment_asset PRIMARY KEY (id),
-    CONSTRAINT uq_investment_asset_ticker    UNIQUE (ticker),
-    CONSTRAINT uq_investment_asset_isin_code UNIQUE (isin_code),
-    CONSTRAINT uq_investment_asset_fund_cnpj UNIQUE (fund_cnpj)
+    CONSTRAINT uq_investment_asset_ticker    UNIQUE (ticker)
 );
 
 CREATE INDEX IF NOT EXISTS idx_investment_asset_type

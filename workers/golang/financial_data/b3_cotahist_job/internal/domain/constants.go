@@ -19,11 +19,12 @@ const (
 	AssetTypeOptionCall = "OPTION_CALL"
 	AssetTypeOptionPut  = "OPTION_PUT"
 
-	// BDI codes from the COTAHIST format.
+	// BDI codes from the COTAHIST layout.
+	// Source: B3 "Séries Históricas — Layout", Tabela de CÓDIGO BDI.
 	BDIEquityLot  = "02" // Lote padrão — standard equity lot
 	BDIFII        = "12" // Fundos de Investimento Imobiliário
-	BDIOptionCall = "78" // Opções de compra
-	BDIOptionPut  = "79" // Opções de venda
+	BDIOptionCall = "78" // Opções de Compra
+	BDIOptionPut  = "82" // Opções de Venda
 
 	// TPMERC values we care about.
 	TpMercSpot = "010" // Mercado à vista (spot)

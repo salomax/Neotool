@@ -17,25 +17,25 @@ import (
 // downloadFn is the function signature both annual and daily downloaders satisfy.
 type downloadFn func(ctx context.Context) (zipPath string, cleanup func(), err error)
 
-// CotahistTask downloads one COTAHIST ZIP (annual or daily) and processes it
-// in two passes:
+// CotahistTask downloads one COTAHIST ZIP (annual, monthly, or daily) and
+// processes it in two passes:
 //
 //  1. Pass 1 — catalog: stream all records, collect unique AssetRecords, upsert to
-//     investment_asset, then bulk-SELECT ticker→UUID into an in-memory map.
-//  2. Pass 2 — prices: stream all records again, look up UUID from map, upsert
-//     OHLCV rows to asset_daily_price in chunks.
+//     investment_asset in chunks, then bulk-SELECT ticker→UUID into memory.
+//  2. Pass 2 — prices: stream all records again, look up UUID, upsert OHLCV rows
+//     to asset_daily_price in chunks. Each chunk runs in its own BEGIN/COMMIT
+//     transaction, limiting lock scope and making deadlock retries cheap.
 //
-// The task is idempotent: both upserts are guarded by content_hash comparisons.
+// Both upserts are guarded by content_hash comparisons (idempotent re-runs).
 type CotahistTask struct {
-	label      string     // for logging: "2026" or "20260317"
-	download   downloadFn
-	assetRepo  *database.AssetRepository
-	priceRepo  *database.PriceRepository
-	chunkSize  int
-	logger     *slog.Logger
+	label     string     // for logging: "2026", "202602", "20260302"
+	download  downloadFn
+	assetRepo *database.AssetRepository
+	priceRepo *database.PriceRepository
+	chunkSize int
+	logger    *slog.Logger
 }
 
-// NewAnnualTask creates a task that processes a full-year COTAHIST_A{year}.ZIP.
 func NewAnnualTask(
 	year int,
 	client *b3http.B3Client,
@@ -56,7 +56,6 @@ func NewAnnualTask(
 	}
 }
 
-// NewDailyTask creates a task that processes a single-day COTAHIST_D{DDMMYYYY}.ZIP.
 func NewDailyTask(
 	date time.Time,
 	client *b3http.B3Client,
@@ -77,9 +76,8 @@ func NewDailyTask(
 	}
 }
 
-// newPreDownloadedTask creates a task that processes an already-downloaded ZIP.
-// Used by the dispatcher pipeline: the dispatcher downloads files sequentially
-// and hands the path to a process-only task, so workers never download concurrently.
+// newPreDownloadedTask creates a process-only task from an already-downloaded ZIP.
+// Used by the dispatcher pipeline: downloads are sequential, processing is parallel.
 func newPreDownloadedTask(
 	label string,
 	zipPath string,
@@ -101,22 +99,23 @@ func newPreDownloadedTask(
 	}
 }
 
-// Process implements workerpool.WorkItem.
-func (t *CotahistTask) Process(ctx context.Context) error {
+// Process runs the full ETL for one COTAHIST file and returns the most recent
+// price date found in the file (used by the dispatcher to update job_control).
+func (t *CotahistTask) Process(ctx context.Context) (time.Time, error) {
 	startedAt := time.Now()
 	t.logger.Info("cotahist task starting", "label", t.label)
 
 	// ── Download ──────────────────────────────────────────────────────────────
 	zipPath, cleanup, err := t.download(ctx)
 	if err != nil {
-		return fmt.Errorf("task %s: download: %w", t.label, err)
+		return time.Time{}, fmt.Errorf("task %s: download: %w", t.label, err)
 	}
-	defer cleanup()
+	defer cleanup() // always remove the temp file when done
 
 	// ── Pass 1: catalog ───────────────────────────────────────────────────────
 	assets, err := t.collectAssets(zipPath)
 	if err != nil {
-		return fmt.Errorf("task %s: pass 1 (catalog): %w", t.label, err)
+		return time.Time{}, fmt.Errorf("task %s: pass 1 (catalog): %w", t.label, err)
 	}
 	t.logger.Info("cotahist task: unique assets collected",
 		"label", t.label,
@@ -125,11 +124,23 @@ func (t *CotahistTask) Process(ctx context.Context) error {
 
 	if len(assets) == 0 {
 		t.logger.Warn("cotahist task: no qualifying records found", "label", t.label)
-		return nil
+		return time.Time{}, nil
 	}
 
-	if err := t.assetRepo.UpsertBatch(ctx, assets); err != nil {
-		return fmt.Errorf("task %s: upserting assets: %w", t.label, err)
+	// Upsert assets in chunks — each chunk is one BEGIN/COMMIT transaction,
+	// keeping lock scope small and deadlock retries cheap.
+	totalAssetChunks := (len(assets) + t.chunkSize - 1) / t.chunkSize
+	for i := 0; i < len(assets); i += t.chunkSize {
+		end := min(i+t.chunkSize, len(assets))
+		chunkIdx := i/t.chunkSize + 1
+		if err := t.assetRepo.UpsertBatch(ctx, assets[i:end]); err != nil {
+			return time.Time{}, fmt.Errorf("task %s: upserting assets chunk %d/%d: %w", t.label, chunkIdx, totalAssetChunks, err)
+		}
+		t.logger.Info("cotahist task: asset chunk committed",
+			"label", t.label,
+			"chunk", fmt.Sprintf("%d/%d", chunkIdx, totalAssetChunks),
+			"records", end-i,
+		)
 	}
 
 	// Build ticker slice for the lookup query.
@@ -139,7 +150,7 @@ func (t *CotahistTask) Process(ctx context.Context) error {
 	}
 	tickerToID, err := t.assetRepo.FindTickerIDs(ctx, tickers)
 	if err != nil {
-		return fmt.Errorf("task %s: loading ticker IDs: %w", t.label, err)
+		return time.Time{}, fmt.Errorf("task %s: loading ticker IDs: %w", t.label, err)
 	}
 	t.logger.Info("cotahist task: ticker map loaded",
 		"label", t.label,
@@ -149,7 +160,7 @@ func (t *CotahistTask) Process(ctx context.Context) error {
 	// ── Pass 2: prices ────────────────────────────────────────────────────────
 	stats, err := t.upsertPrices(ctx, zipPath, tickerToID)
 	if err != nil {
-		return fmt.Errorf("task %s: pass 2 (prices): %w", t.label, err)
+		return time.Time{}, fmt.Errorf("task %s: pass 2 (prices): %w", t.label, err)
 	}
 
 	t.logger.Info("cotahist task completed",
@@ -158,13 +169,13 @@ func (t *CotahistTask) Process(ctx context.Context) error {
 		"price_inserted", stats.inserted,
 		"price_unchanged", stats.unchanged,
 		"price_skipped", stats.skipped,
+		"last_date", stats.lastDate.Format("2006-01-02"),
 		"duration_ms", time.Since(startedAt).Milliseconds(),
 	)
-	return nil
+	return stats.lastDate, nil
 }
 
 // collectAssets streams the ZIP once and returns one AssetRecord per unique ticker.
-// Only records matching our BDI + TPMERC filters are included.
 func (t *CotahistTask) collectAssets(zipPath string) ([]domain.AssetRecord, error) {
 	zr, rc, err := b3http.OpenTXTFromZip(zipPath)
 	if err != nil {
@@ -173,7 +184,7 @@ func (t *CotahistTask) collectAssets(zipPath string) ([]domain.AssetRecord, erro
 	defer zr.Close()
 	defer rc.Close()
 
-	seen := make(map[string]domain.AssetRecord) // ticker → best record seen
+	seen := make(map[string]domain.AssetRecord)
 	scanner := bufio.NewScanner(rc)
 
 	for scanner.Scan() {
@@ -184,23 +195,20 @@ func (t *CotahistTask) collectAssets(zipPath string) ([]domain.AssetRecord, erro
 
 		assetType, ok := domain.BDIToAssetType(rec.CodBDI)
 		if !ok {
-			continue // BDI code not in our target set
+			continue
 		}
-		// For equities and FIIs, restrict to spot market (options have their own TPMERC).
 		if (assetType == domain.AssetTypeEquity || assetType == domain.AssetTypeFII) &&
 			rec.TpMerc != domain.TpMercSpot {
 			continue
 		}
 
 		if _, alreadySeen := seen[rec.Ticker]; alreadySeen {
-			continue // deduplicate — catalog fields don't change within one file
+			continue
 		}
 
-		// Options in COTAHIST reuse the underlying equity's CODISI (ISIN), which
-		// would violate uq_investment_asset_isin_code when both the option and its
-		// underlying are inserted in the same batch. Options are uniquely identified
-		// by their ticker (encoding underlying + expiry + strike), so ISIN is not
-		// needed and is always stored as NULL for option assets.
+		// Options in COTAHIST reuse the underlying equity's ISIN, which would
+		// violate uq_investment_asset_isin_code. Options are identified by ticker
+		// (underlying + expiry + strike), so ISIN is stored as NULL for them.
 		isin := rec.IsinCode
 		if assetType == domain.AssetTypeOptionCall || assetType == domain.AssetTypeOptionPut {
 			isin = ""
@@ -233,10 +241,11 @@ type priceStats struct {
 	inserted   int
 	unchanged  int
 	skipped    int
+	lastDate   time.Time // most recent price_date seen in the file
 }
 
 // upsertPrices streams the ZIP a second time and batch-upserts OHLCV rows.
-// Rows whose tickers are not in tickerToID (catalog miss) are silently skipped.
+// Each chunk of chunkSize rows is committed in its own transaction.
 func (t *CotahistTask) upsertPrices(
 	ctx context.Context,
 	zipPath string,
@@ -250,9 +259,9 @@ func (t *CotahistTask) upsertPrices(
 	defer rc.Close()
 
 	var stats priceStats
-	// chunk is allocated once and reset via [:0] after each commit — backing array reused.
 	chunk := make([]domain.PriceUpsertParam, 0, t.chunkSize)
 	scanner := bufio.NewScanner(rc)
+	chunkIdx := 0
 
 	flush := func() error {
 		ins, unc, batchErr := t.priceRepo.UpsertBatch(ctx, chunk)
@@ -261,6 +270,16 @@ func (t *CotahistTask) upsertPrices(
 		}
 		stats.inserted += ins
 		stats.unchanged += unc
+		chunkIdx++
+		// Log progress every 10 chunks (~10 000 rows).
+		if chunkIdx%10 == 0 {
+			t.logger.Info("cotahist task: price progress",
+				"label", t.label,
+				"chunks_committed", chunkIdx,
+				"inserted", stats.inserted,
+				"unchanged", stats.unchanged,
+			)
+		}
 		chunk = chunk[:0]
 		return nil
 	}
@@ -286,9 +305,12 @@ func (t *CotahistTask) upsertPrices(
 
 		assetID, ok := tickerToID[rec.Ticker]
 		if !ok {
-			// Should not happen after a successful catalog pass, but guard anyway.
 			stats.skipped++
 			continue
+		}
+
+		if rec.Date.After(stats.lastDate) {
+			stats.lastDate = rec.Date
 		}
 
 		dateStr := rec.Date.Format("2006-01-02")
@@ -316,7 +338,6 @@ func (t *CotahistTask) upsertPrices(
 		return stats, fmt.Errorf("scanning ZIP: %w", err)
 	}
 
-	// Flush the final partial chunk.
 	if len(chunk) > 0 {
 		if err := flush(); err != nil {
 			return stats, fmt.Errorf("upserting final price chunk: %w", err)
@@ -324,4 +345,11 @@ func (t *CotahistTask) upsertPrices(
 	}
 
 	return stats, nil
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
