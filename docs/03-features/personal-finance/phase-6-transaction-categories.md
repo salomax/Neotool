@@ -69,7 +69,7 @@ The backend category foundation is **already implemented** as part of Phase 2 (t
 | No `bulkCategorize` mutation | 🟠 High |
 | No `categoryId` filter on `transactions` query | 🟠 High |
 | No `uncategorized` filter (users can't easily find unlabeled transactions) | 🟠 High |
-| No auto-categorization rule engine | 🟠 High |
+| No auto-categorization rule engine (`category_rules` table exists, engine not yet implemented) | 🟠 High |
 | No `CategorySource` distinction (MANUAL vs RULE vs IMPORTED) | 🟡 Medium |
 | No category breakdown in `MonthSummary` | 🟡 Medium |
 | No `transactionsByCategory` analytics query | 🟡 Medium |
@@ -581,7 +581,7 @@ Sprint 2 — Backend: Icon migration + Transaction filters
   CAT-08 (categorySource column on transactions) ← no deps
 
 Sprint 3 — Backend: Auto-categorization engine
-  CAT-09 (category_rules table + migration)     ← no deps
+  CAT-09 (category_rules table V0_14 + merchant seed V0_15)  ← no deps
   CAT-10 (CategorizationService — rule engine)  ← depends on CAT-09
   CAT-11 (Hook CategorizationService into TransactionService.create/update) ← depends on CAT-10
   CAT-12 (Implicit learning from manual categorization) ← depends on CAT-11
@@ -938,9 +938,18 @@ bulkCategorize(transactionIds, categoryId, accountId):
 
 **Depends on**: _(nothing)_
 
-**Description**: Create the `banking.category_rules` table as defined in the Data Model section.
+**Description**: Create the `banking.category_rules` table and seed it with ~500 system rules derived from the merchant database at `docs/03-features/banking/transaction-enrichment/merchants-seed.csv`. Each merchant name maps to a specific category via an `EXACT` pattern match against the normalized transaction description.
 
-**New file**: `src/main/resources/db/migration/V0_14__create_category_rules.sql`
+**New files**:
+- `src/main/resources/db/migration/V0_14__create_category_rules.sql` — DDL + indexes
+- `src/main/resources/db/migration/V0_15__seed_category_rules.sql` — merchant-based rule seeds (generated)
+- `scripts/generate_category_rules_seed.py` (or `.kt`) — generation script that reads the CSV and produces `V0_15`
+
+Splitting DDL and seed into two migrations makes it easy to regenerate the seed as the merchant CSV grows without touching the schema migration.
+
+---
+
+**`V0_14` — DDL**:
 
 ```sql
 CREATE TABLE banking.category_rules (
@@ -966,61 +975,144 @@ CREATE INDEX idx_category_rules_account_id ON banking.category_rules (account_id
   WHERE deleted_at IS NULL;
 CREATE INDEX idx_category_rules_system ON banking.category_rules (is_system)
   WHERE is_system = true AND deleted_at IS NULL;
+```
 
--- Seed common Brazilian system rules (is_system = true, account_id = NULL)
--- These are high-quality rules based on common Brazilian transaction descriptions
+---
+
+**`V0_15` — Merchant seed rules**:
+
+Rules use `EXACT` pattern type (merchant names in the CSV are already normalized: lowercase, no accents, no special chars) and `applicable_to = 'EXPENSE'` unless noted. System rules use `priority = 100`.
+
+#### Sector → Category mapping
+
+The CSV `sector` field maps to categories as follows. Sectors with multiple subcategories use the per-merchant override table below.
+
+| CSV sector | Category name | Notes |
+|---|---|---|
+| `alimentacao` | `Supermercado` | |
+| `delivery` | `Delivery` | |
+| `restaurante` | `Restaurante` | |
+| `transporte` | _(see sub-mapping)_ | Uber/fuel/toll/parking/bus/rental each → different subcategory |
+| `streaming` | _(see sub-mapping)_ | Video/music/cinema/events → different subcategories |
+| `saude` | _(see sub-mapping)_ | Pharmacy/plan/gym/clinic → different subcategories |
+| `educacao` | _(see sub-mapping)_ | Online courses/schools/bookstores → different subcategories |
+| `utilities` | _(see sub-mapping)_ | Electricity/water/gas/telecom/insurance → different subcategories |
+| `ecommerce` | `Compras` | Except electronics specialists → `Eletrônicos` |
+| `moda` | `Roupas` | |
+| `financas` | _(skip)_ | Bank/fintech names in descriptions are ambiguous (fees vs transfers); excluded from seed |
+
+#### `transporte` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| uber, 99, indrive, cabify | `Uber / Taxi` |
+| ipiranga, shell, br distribuidora, ale combustiveis, vibra energia, raizen, texaco | `Combustível` |
+| sem parar, conectcar, veloe, via facil, ecovias | `Pedágio` |
+| estapar, indigo, multipark | `Estacionamento` |
+| sptrans, metro sp, cptm, supervia, metro rio, riocard, vlt rio, trensurb, urbs, buser, flixbus, itapemirim, cometa, real expresso, util, 1001, gontijo, penha, pluma, catarinense, otimo, tembici, grow | `Transporte Público` |
+| localiza, movida, unidas, hertz, avis, budget | `Transporte` (car rental) |
+
+#### `streaming` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| netflix, disney+, disney plus, amazon prime, prime video, hbo max, max, globoplay, paramount+, paramount plus, apple tv, youtube premium, crunchyroll, telecine, looke, mubi, sky, premiere, dazn | `Streaming Vídeo` |
+| spotify, deezer, apple music, amazon music, tidal, audible, storytel | `Streaming Música` |
+| cinemark, cinepolis, uci cinemas, cinesystem, kinoplex, ingresso.com | `Cinema / Teatro` |
+| sympla, eventbrite, ticketmaster | `Lazer e Entretenimento` |
+
+#### `saude` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| drogasil, droga raia, drogaria sao paulo, ultrafarma, pague menos, panvel, nissei, extrafarma, drogal, araujo, dpsp, drogaria venancio, farma conde, onofre | `Farmácia` |
+| unimed, amil, bradesco saude, sulamerica saude, hapvida, notre dame intermedica, prevent senior, golden cross, omint, assim saude, porto seguro saude, cassi, geap, alice saude, sami saude, odontoprev, uniodonto | `Plano de Saúde` |
+| smartfit, bodytech, bio ritmo, bluefit, golds gym, gympass, wellhub, totalpass, cia athletica | `Academia` |
+| fleury, dasa, hermes pardini, sabin, lavoisier, alta exames, einstein, sirio libanes, rede d'or, bp beneficencia portuguesa, hcor, moinhos de vento, oswaldo cruz, hospital nove de julho, dr. consulta, doctoralia, conexa saude, psicologia viva, zenklub, vittude | `Médico / Consulta` |
+| oticas carol, oticas diniz, oticas penha, grandvision, formula e acao | `Saúde` (parent — optician/other) |
+
+#### `educacao` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| duolingo, udemy, coursera, alura, descomplica, hotmart, eduzz, kiwify, rocketseat, dio, pluralsight, skillshare, linkedin learning, domestika, masterclass, babbel, open english, rosetta stone, empiricus, hashtag treinamentos | `Curso Online` |
+| estacio, anhanguera, unopar, unip, fgv, insper, espm, mackenzie, faap, ibmec, wizard, fisk, ccaa, cna, cultura inglesa, berlitz, yazigi, senai, senac, sebrae, maple bear, coc, anglo, objetivo, dante alighieri, santa cruz, bandeirantes, etapa, marista, salesiano, bernoulli, positivo, pitagoras, poliedro, eleva, ph cursinho, cogna, cruzeiro do sul, sao judas, belas artes, puc, uniseb, ampli | `Mensalidade` |
+| saraiva, livraria cultura, kalunga | `Material Escolar` |
+
+#### `utilities` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| enel, eletropaulo, cemig, copel, cpfl, light, energisa, celesc, neoenergia, coelba, elektro, edp, ceee, equatorial, celpe, cosern, coelce, celg, rge | `Luz` |
+| sabesp, cedae, sanepar, embasa, caesb, copasa, cagece, corsan, casan, saneago, aegea, brk ambiental, caern, deso, sanesul, caema, cosama, agespisa | `Água` |
+| comgas, ceg, gasmig, naturgy, bahiagas, supergasbras, ultragaz, copagaz, liquigas, scgas, copergas, algas | `Gás` |
+| claro, vivo, tim, oi, algar telecom, brisanet, unifique, desktop, surf telecom | `Telecomunicações` (parent — plan type unknown) |
+| starlink | `Internet` |
+| porto seguro seguros, bradesco seguros, mapfre, allianz, liberty seguros, hdi seguros, tokio marine, zurich, sompo | `Seguros` (parent) |
+
+#### `ecommerce` sub-mapping
+
+| Merchants | Category |
+|---|---|
+| kabum, terabyte, pichau, fastshop | `Eletrônicos` |
+| all others | `Compras` |
+
+---
+
+**Sample generated SQL** (representative — full set in `V0_15`):
+
+```sql
+-- V0_15__seed_category_rules.sql
+-- Auto-generated from docs/03-features/banking/transaction-enrichment/merchants-seed.csv
+-- DO NOT EDIT MANUALLY — regenerate using scripts/generate_category_rules_seed.py
+
 INSERT INTO banking.category_rules
   (account_id, category_id, pattern, pattern_type, applicable_to, priority, is_system)
 VALUES
-  -- Streaming / Serviços Digitais
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming' AND is_system = true LIMIT 1),
-   'netflix', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming' AND is_system = true LIMIT 1),
-   'spotify', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming' AND is_system = true LIMIT 1),
-   'prime video', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Delivery
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery' AND is_system = true LIMIT 1),
-   'ifood', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery' AND is_system = true LIMIT 1),
-   'rappi', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Transporte
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Aplicativos (Uber)' AND is_system = true LIMIT 1),
-   'uber', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Aplicativos (Uber)' AND is_system = true LIMIT 1),
-   '99pop', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Combustível
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível' AND is_system = true LIMIT 1),
-   'posto', 'CONTAINS', 'EXPENSE', 20, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível' AND is_system = true LIMIT 1),
-   'shell', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível' AND is_system = true LIMIT 1),
-   'ipiranga', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Farmácia
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia' AND is_system = true LIMIT 1),
-   'drogasil', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia' AND is_system = true LIMIT 1),
-   'droga raia', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia' AND is_system = true LIMIT 1),
-   'ultrafarma', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Supermercado
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1),
-   'carrefour', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1),
-   'extra supermercado', 'CONTAINS', 'EXPENSE', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1),
-   'pao de acucar', 'CONTAINS', 'EXPENSE', 10, true),
-  -- Salário
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Salário' AND is_system = true LIMIT 1),
-   'salario', 'CONTAINS', 'INCOME', 10, true),
-  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Salário' AND is_system = true LIMIT 1),
-   'folha pagamento', 'CONTAINS', 'INCOME', 10, true);
+  -- alimentacao → Supermercado
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'carrefour',        'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'atacadao',         'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Supermercado' AND is_system = true LIMIT 1), 'pao de acucar',    'EXACT', 'EXPENSE', 100, true),
+  -- delivery → Delivery
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'ifood',            'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Delivery'     AND is_system = true LIMIT 1), 'rappi',            'EXACT', 'EXPENSE', 100, true),
+  -- restaurante → Restaurante
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'mcdonalds',        'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Restaurante'  AND is_system = true LIMIT 1), 'starbucks',        'EXACT', 'EXPENSE', 100, true),
+  -- transporte (uber/taxi)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), 'uber',             'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Uber / Taxi'  AND is_system = true LIMIT 1), '99',               'EXACT', 'EXPENSE', 100, true),
+  -- transporte (combustível)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'ipiranga',         'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Combustível'  AND is_system = true LIMIT 1), 'shell',            'EXACT', 'EXPENSE', 100, true),
+  -- streaming vídeo
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'netflix',       'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Vídeo' AND is_system = true LIMIT 1), 'disney+',       'EXACT', 'EXPENSE', 100, true),
+  -- streaming música
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Streaming Música' AND is_system = true LIMIT 1), 'spotify',      'EXACT', 'EXPENSE', 100, true),
+  -- saúde (farmácia)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'drogasil',         'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Farmácia'     AND is_system = true LIMIT 1), 'droga raia',       'EXACT', 'EXPENSE', 100, true),
+  -- saúde (academia)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Academia'     AND is_system = true LIMIT 1), 'smartfit',         'EXACT', 'EXPENSE', 100, true),
+  -- utilities (luz)
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'enel',             'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Luz'          AND is_system = true LIMIT 1), 'cemig',            'EXACT', 'EXPENSE', 100, true),
+  -- moda → Roupas
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'renner',           'EXACT', 'EXPENSE', 100, true),
+  (NULL, (SELECT id FROM banking.transaction_categories WHERE name = 'Roupas'       AND is_system = true LIMIT 1), 'zara',             'EXACT', 'EXPENSE', 100, true)
+  -- ... (~480 more rows for all merchants in the CSV)
+;
 ```
 
 **Acceptance criteria**:
-- Migration runs cleanly on fresh and existing DBs
-- System rules are seeded for common Brazilian services
-- Indexes exist for efficient rule lookup by `account_id`
+- `V0_14` creates the table and indexes cleanly on fresh and existing DBs
+- `V0_15` inserts rules for all non-`financas` merchants in the CSV (~500 rows)
+- Each rule uses `EXACT` pattern type and `priority = 100`
+- `suggest("netflix", DEBIT)` returns `Streaming Vídeo` category
+- `suggest("carrefour", DEBIT)` returns `Supermercado` category
+- `suggest("nubank", DEBIT)` returns `null` (financas sector excluded)
+- Generation script can be re-run to refresh `V0_15` when the CSV is updated
 
 ---
 
