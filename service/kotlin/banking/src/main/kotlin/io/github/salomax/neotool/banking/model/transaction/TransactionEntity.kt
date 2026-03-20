@@ -77,6 +77,9 @@ open class TransactionEntity(
     open var categoryId: UUID? = null,
     @Column(name = "category_source", length = 20)
     open var categorySource: String? = null,
+    // Merchant
+    @Column(name = "merchant_id")
+    open var merchantId: UUID? = null,
     // Counterparty
     @Column(name = "counterparty_name")
     open var counterpartyName: String? = null,

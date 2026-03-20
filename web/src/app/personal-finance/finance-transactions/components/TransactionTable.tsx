@@ -20,6 +20,7 @@ import {
   Tooltip,
   Menu,
   MenuItem,
+  Divider,
   ListItemIcon,
   ListItemText,
 } from '@mui/material';
@@ -30,17 +31,20 @@ import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { AccountBalance as BankIcon, CreditCard as CardIcon } from '@mui/icons-material';
-import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountSubtype, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
+import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountSubtype, FinancialAccountType, Merchant, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
-import { useEffect, useRef, useMemo, useState, Fragment } from 'react';
+import { useEffect, useRef, useMemo, useState, Fragment, type MouseEvent } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { CategoryIcon } from './category/CategoryIcon';
+import { CategoryPicker } from './category/CategoryPicker';
 import { useMutation } from '@apollo/client/react';
-import { DELETE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { DELETE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { useToast } from '@/shared/providers';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -86,7 +90,9 @@ export function TransactionTable({
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const toast = useToast();
   const loaderRef = useRef<HTMLDivElement>(null);
+  const transactionsRef = useRef<Transaction[]>(transactions);
   const borderRadius = '.3rem';
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
@@ -94,8 +100,36 @@ export function TransactionTable({
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
   const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
+  const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
+  const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
+  const [categoryPickerTransaction, setCategoryPickerTransaction] = useState<Transaction | null>(null);
+  const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
+  const [forceNoCategoryByTransactionId, setForceNoCategoryByTransactionId] = useState<Record<string, true>>({});
 
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
+  const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
+
+  useEffect(() => {
+    transactionsRef.current = transactions;
+  }, [transactions]);
+
+  useEffect(() => {
+    setForceNoCategoryByTransactionId((prev) => {
+      const ids = Object.keys(prev);
+      if (ids.length === 0) return prev;
+
+      let changed = false;
+      const next = { ...prev };
+      for (const tx of transactions) {
+        if (!next[tx.id]) continue;
+        if (!tx.category) {
+          delete next[tx.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [transactions]);
 
   const closeActionMenu = () => {
     setActionMenuAnchorEl(null);
@@ -123,6 +157,107 @@ export function TransactionTable({
     } catch (error) {
       setTransactionToRemove(null);
     }
+  };
+
+  const handleMarkAsInternalTransfer = async () => {
+    const tx = actionMenuTransaction;
+    if (!tx) return;
+    if (tx.type === TransactionType.Transfer) return;
+
+    setMarkingTransferTransactionId(tx.id);
+    try {
+      await updateTransaction({
+        variables: {
+          id: tx.id,
+          input: { type: TransactionType.Transfer },
+        },
+      });
+
+      toast.success('Transação marcada como transferência interna');
+      onSuccessCreate?.();
+      closeActionMenu();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível marcar como transferência interna'));
+    } finally {
+      setMarkingTransferTransactionId(null);
+    }
+  };
+
+  const closeCategoryPicker = () => {
+    setCategoryPickerAnchorEl(null);
+    setCategoryPickerTransaction(null);
+  };
+
+  const handleOpenCategoryPicker = (event: MouseEvent<HTMLElement>, transaction: Transaction) => {
+    setCategoryPickerAnchorEl(event.currentTarget);
+    const isForcedNoCategory = Boolean(forceNoCategoryByTransactionId[transaction.id]);
+    if (!isForcedNoCategory) {
+      setCategoryPickerTransaction(transaction);
+      return;
+    }
+
+    setCategoryPickerTransaction({
+      ...transaction,
+      category: null,
+    });
+  };
+
+  const handleSelectCategory = (categoryId: string | null) => {
+    const tx = categoryPickerTransaction;
+    closeCategoryPicker();
+    if (!tx) return;
+
+    const hadForcedNoCategory = Boolean(forceNoCategoryByTransactionId[tx.id]);
+    if (categoryId === null) {
+      setForceNoCategoryByTransactionId((prev) => ({ ...prev, [tx.id]: true }));
+    } else if (hadForcedNoCategory) {
+      setForceNoCategoryByTransactionId((prev) => {
+        const next = { ...prev };
+        delete next[tx.id];
+        return next;
+      });
+    }
+
+    setUpdatingCategoryTransactionId(tx.id);
+    updateTransaction({
+      variables: {
+        id: tx.id,
+        input: { categoryId },
+      },
+    })
+      .then(() => {
+        toast.success('Categoria atualizada');
+        onSuccessCreate?.();
+
+        if (categoryId === null) {
+          window.setTimeout(() => {
+            setForceNoCategoryByTransactionId((prev) => {
+              if (!prev[tx.id]) return prev;
+              const latest = transactionsRef.current.find((t) => t.id === tx.id);
+              if (latest?.category) {
+                const next = { ...prev };
+                delete next[tx.id];
+                return next;
+              }
+              return prev;
+            });
+          }, 2500);
+        }
+      })
+      .catch((err) => {
+        if (categoryId === null) {
+          setForceNoCategoryByTransactionId((prev) => {
+            if (!prev[tx.id]) return prev;
+            const next = { ...prev };
+            delete next[tx.id];
+            return next;
+          });
+        }
+        toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
+      })
+      .finally(() => {
+        setUpdatingCategoryTransactionId(null);
+      });
   };
 
   const stringToColor = (string: string) => {
@@ -245,28 +380,66 @@ export function TransactionTable({
     );
   };
 
-  const getTransactionTypeIcon = (creditDebitType: CreditDebitType, transactionType: TransactionType) => {
-    let icon = null;
-    let color = '';
-
+  const getTypeIconProps = (creditDebitType: CreditDebitType, transactionType: TransactionType) => {
     if (transactionType === TransactionType.Transfer) {
-      icon = <SwapHorizIcon color="info" fontSize="small" />;
-      color = theme.palette.info.main;
-    } else {
-      switch (creditDebitType) {
-        case CreditDebitType.Credit:
-          icon = <ArrowUpwardIcon color="success" fontSize="small" />;
-          color = theme.palette.success.main;
-          break;
-        case CreditDebitType.Debit:
-          icon = <ArrowDownwardIcon color="error" fontSize="small" />;
-          color = theme.palette.error.main;
-          break;
-        default:
-          return null;
-      }
+      return { icon: <SwapHorizIcon fontSize="inherit" />, color: theme.palette.info.main };
+    }
+    if (creditDebitType === CreditDebitType.Credit) {
+      return { icon: <ArrowUpwardIcon fontSize="inherit" />, color: theme.palette.success.main };
+    }
+    if (creditDebitType === CreditDebitType.Debit) {
+      return { icon: <ArrowDownwardIcon fontSize="inherit" />, color: theme.palette.error.main };
+    }
+    return null;
+  };
+
+  const renderTransactionIcon = (
+    creditDebitType: CreditDebitType,
+    transactionType: TransactionType,
+    merchant: Pick<Merchant, 'name' | 'logoAsset'> | null | undefined,
+  ) => {
+    const typeProps = getTypeIconProps(creditDebitType, transactionType);
+    const logoUrl = merchant?.logoAsset?.publicUrl;
+
+    if (logoUrl) {
+      return (
+        <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
+          <Avatar
+            src={logoUrl}
+            alt={merchant?.name ?? ''}
+            variant="rounded"
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: '.3rem',
+            }}
+          />
+          {typeProps && (
+            <Box
+              sx={{
+                position: 'absolute',
+                bottom: -8,
+                right: -8,
+                width: 18,
+                height: 18,
+                border: 'none',
+                borderRadius: .2,
+                display: 'flex',
+                bgcolor: `color-mix(in srgb, ${typeProps.color} 5%, ${theme.palette.background.paper})`,
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: typeProps.color,
+                fontSize: 16,
+              }}
+            >
+              {typeProps.icon}
+            </Box>
+          )}
+        </Box>
+      );
     }
 
+    if (!typeProps) return null;
     return (
       <Box
         sx={{
@@ -276,10 +449,12 @@ export function TransactionTable({
           width: 32,
           height: 32,
           borderRadius: '.3rem',
-          bgcolor: alpha(color, 0.05),
+          bgcolor: alpha(typeProps.color, 0.05),
+          color: typeProps.color,
+          fontSize: 20,
         }}
       >
-        {icon}
+        {typeProps.icon}
       </Box>
     );
   };
@@ -343,6 +518,9 @@ export function TransactionTable({
                   typeof totalInstallments === 'number' &&
                   totalInstallments > 1 &&
                   installmentNumber >= 1;
+                const displayedCategory = forceNoCategoryByTransactionId[transaction.id]
+                  ? null
+                  : transaction.category;
                 
                 return (
                   <Fragment key={transaction.id}>
@@ -368,7 +546,7 @@ export function TransactionTable({
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ pl: 2 }}>
-                        {getTransactionTypeIcon(transaction.creditDebitType, transaction.type)}
+                        {renderTransactionIcon(transaction.creditDebitType, transaction.type, transaction.merchant)}
                       </TableCell>
                       <TableCell component="th" scope="row">
                         <Stack spacing={0.5}>
@@ -436,47 +614,100 @@ export function TransactionTable({
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        {transaction.category && (
-                          <Chip 
-                            label={
-                              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                                <CategoryIcon
-                                  iconName={transaction.category.icon}
-                                  color={transaction.category.color ?? undefined}
-                                  size={20}
-                                  sx={{ flexShrink: 0 }}
-                                />
-                                <Typography
-                                  variant="body2"
-                                  title={transaction.category.name}
-                                  sx={{
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    whiteSpace: 'nowrap',
-                                    minWidth: 0,
-                                    maxWidth: '22ch',
-                                  }}
-                                >
-                                  {transaction.category.name}
-                                </Typography>
-                              </Stack>
-                            }
-                            variant="filled"
-                            sx={{ 
-                              color: transaction.category.color || 'text.primary',
-                              bgcolor: transaction.category.color
-                                ? alpha(transaction.category.color, 0.1)
-                                : 'action.selected',
-                              borderColor: transaction.category.color
-                                ? alpha(transaction.category.color, 0.3)
-                                : 'divider',
-                              borderWidth: 1,
-                              borderStyle: 'solid',
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'inline-block',
+                            maxWidth: '100%',
+                            '& .MuiChip-root': {
                               maxWidth: '100%',
-                              '& .MuiChip-label': { minWidth: 0, maxWidth: '100%' },
-                            }}
-                          />
-                        )}
+                            },
+                          }}
+                        >
+                          {displayedCategory ? (
+                            <Chip
+                              clickable
+                              disabled={updatingCategoryTransactionId === transaction.id}
+                              onClick={(e) => handleOpenCategoryPicker(e, transaction)}
+                              icon={
+                                updatingCategoryTransactionId === transaction.id
+                                  ? <CircularProgress size={14} />
+                                  : undefined
+                              }
+                              label={
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                                  <CategoryIcon
+                                    iconName={displayedCategory.icon}
+                                    color={displayedCategory.color ?? undefined}
+                                    size={20}
+                                    sx={{ flexShrink: 0 }}
+                                  />
+                                  <Typography
+                                    variant="body2"
+                                    title={displayedCategory.name}
+                                    sx={{
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                      whiteSpace: 'nowrap',
+                                      minWidth: 0,
+                                      maxWidth: '22ch',
+                                    }}
+                                  >
+                                    {displayedCategory.name}
+                                  </Typography>
+                                </Stack>
+                              }
+                              variant="filled"
+                              sx={{
+                                color: displayedCategory.color || 'text.primary',
+                                bgcolor: displayedCategory.color
+                                  ? alpha(displayedCategory.color, 0.1)
+                                  : 'action.selected',
+                                borderColor: displayedCategory.color
+                                  ? alpha(displayedCategory.color, 0.3)
+                                  : 'divider',
+                                borderWidth: 1,
+                                borderStyle: 'solid',
+                                '&:hover': {
+                                  bgcolor: displayedCategory.color
+                                    ? alpha(displayedCategory.color, 0.2)
+                                    : 'action.hover',
+                                },
+                                transition: 'background-color 0.15s ease',
+                                '& .MuiChip-label': { minWidth: 0, maxWidth: '100%' },
+                              }}
+                            />
+                          ) : (
+                            <Chip
+                              clickable
+                              disabled={updatingCategoryTransactionId === transaction.id}
+                              onClick={(e) => handleOpenCategoryPicker(e, transaction)}
+                              icon={
+                                updatingCategoryTransactionId === transaction.id
+                                  ? <CircularProgress size={14} />
+                                  : undefined
+                              }
+                              label={
+                                <Typography variant="body2" sx={{ opacity: 0.65 }}>
+                                  {t('financeTransactions.category')}
+                                </Typography>
+                              }
+                              variant="outlined"
+                              sx={{
+                                borderStyle: 'dashed',
+                                color: 'text.secondary',
+                                bgcolor: alpha(theme.palette.text.primary, 0.02),
+                                boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.text.primary, 0.06)}`,
+                                '&:hover': {
+                                  borderColor: 'primary.main',
+                                  color: 'primary.main',
+                                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                                },
+                                transition: 'background-color 0.15s ease',
+                              }}
+                            />
+                          )}
+                        </Box>
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -640,12 +871,29 @@ export function TransactionTable({
             setEditedTransaction(tx);
             setIsEditFormOpen(true);
           }}
+          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
         >
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>{t('financeTransactions.transactionTable.rowActions.edit')}</ListItemText>
         </MenuItem>
+        {actionMenuTransaction?.type !== TransactionType.Transfer && (
+          <MenuItem
+            onClick={handleMarkAsInternalTransfer}
+            disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+          >
+            <ListItemIcon>
+              {markingTransferTransactionId === actionMenuTransaction?.id ? (
+                <CircularProgress size={18} />
+              ) : (
+                <SwapHorizIcon color="info" fontSize="small" />
+              )}
+            </ListItemIcon>
+            <ListItemText>Marcar como transferência interna</ListItemText>
+          </MenuItem>
+        )}
+        <Divider />
         <MenuItem
           onClick={() => {
             const tx = actionMenuTransaction;
@@ -654,6 +902,7 @@ export function TransactionTable({
             setTransactionToRemove(tx);
           }}
           sx={{ color: 'error.main' }}
+          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
         >
           <ListItemIcon sx={{ color: 'inherit' }}>
             <DeleteOutlineIcon fontSize="small" />
@@ -661,6 +910,20 @@ export function TransactionTable({
           <ListItemText>{t('financeTransactions.transactionTable.rowActions.remove')}</ListItemText>
         </MenuItem>
       </Menu>
+
+      <CategoryPicker
+        value={categoryPickerTransaction?.category?.id ?? null}
+        onChange={handleSelectCategory}
+        creditDebitType={
+          categoryPickerTransaction?.type === TransactionType.Transfer
+            ? 'TRANSFER'
+            : categoryPickerTransaction?.creditDebitType === CreditDebitType.Credit
+              ? 'CREDIT'
+              : 'DEBIT'
+        }
+        anchorEl={categoryPickerAnchorEl}
+        onClose={closeCategoryPicker}
+      />
 
       <ConfirmationDialog
         open={Boolean(transactionToRemove)}

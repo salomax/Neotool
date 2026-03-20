@@ -25,6 +25,7 @@ data class CreateTransactionCommand(
     val notes: String? = null,
     val tags: List<String> = emptyList(),
     val categoryId: UUID? = null,
+    val merchantId: UUID? = null,
     val belongsToUserId: UUID? = null,
     val belongsToName: String? = null,
     // Counterparty
@@ -60,6 +61,9 @@ data class UpdateTransactionCommand(
     val tags: List<String>? = null,
     val tagsProvided: Boolean = false,
     val categoryId: UUID? = null,
+    val merchantId: UUID? = null,
+    /** True when the caller explicitly set merchantId (even to null = clear merchant). */
+    val merchantIdProvided: Boolean = false,
     val belongsToUserId: UUID? = null,
     val belongsToName: String? = null,
     val belongsToProvided: Boolean = false,

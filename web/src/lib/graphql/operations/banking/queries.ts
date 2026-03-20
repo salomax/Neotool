@@ -94,6 +94,14 @@ export const TRANSACTIONS = gql`
             color
             icon
           }
+          merchant {
+            id
+            name
+            logoAsset {
+              id
+              publicUrl
+            }
+          }
           type
           amount
           creditDebitType
@@ -385,6 +393,10 @@ export const BILL_IMPORT_JOB = gql`
       reviewPayload {
         bankName
         reviewMode
+        statementPeriod {
+          from
+          to
+        }
         cards {
           reviewCardId
           lastFourDigits
@@ -406,6 +418,8 @@ export const BILL_IMPORT_JOB = gql`
             amount
             creditDebitType
             isBillPayment
+            categoryId
+            categorySource
             installment {
               current
               total
@@ -430,6 +444,14 @@ export const TRANSACTIONS_BY_BILL = gql`
             name
             color
             icon
+          }
+          merchant {
+            id
+            name
+            logoAsset {
+              id
+              publicUrl
+            }
           }
           type
           amount

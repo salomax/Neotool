@@ -15,7 +15,9 @@ import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
@@ -66,6 +68,7 @@ class BillImportServiceTest {
     private lateinit var billAssetStorage: BillImportAssetStorage
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
     private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
+    private lateinit var categorizationService: TransactionRuleEngine
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -83,6 +86,7 @@ class BillImportServiceTest {
         importFingerprintService = mock()
         snapshotComputationService = mock()
         creditCardBillRepository = mock()
+        categorizationService = mock()
         creditCardBillService = spy(CreditCardBillService(creditCardBillRepository))
         billImportCommitPreparer = BillImportCommitPreparer(creditCardBillService)
         billAssetStorage = mock()
@@ -94,6 +98,7 @@ class BillImportServiceTest {
                 financialAccountRepository = financialAccountRepository,
                 transactionRepository = transactionRepository,
                 importFingerprintService = importFingerprintService,
+                categorizationService = categorizationService,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 billImportCommitPreparer = billImportCommitPreparer,
@@ -730,6 +735,64 @@ class BillImportServiceTest {
 
             assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
             verify(transactionRepository, times(1)).save(any())
+        }
+
+        @Test
+        fun `confirm applies manual category and triggers implicit learning`() {
+            val jobId = UUID.randomUUID()
+            val cardA = UUID.randomUUID()
+            val billA = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+
+            val job = awaitingReviewJob(jobId)
+            val tx =
+                ConfirmBillReviewTransactionCommand(
+                    date = LocalDate.of(2026, 1, 15),
+                    description = "NETFLIX.COM*BR",
+                    amount = BigDecimal("45.90"),
+                    creditDebitType = CreditDebitType.DEBIT,
+                    include = true,
+                    categoryId = categoryId,
+                    categorySource = CategorySource.MANUAL,
+                )
+
+            val command =
+                ConfirmBillImportCommand(
+                    jobId = jobId,
+                    cards =
+                        listOf(
+                            ConfirmBillReviewCardCommand(
+                                reviewCardId = "card-1",
+                                financialAccountId = cardA,
+                                transactions = listOf(tx),
+                            ),
+                        ),
+                )
+
+            whenever(repository.findById(jobId, accountId)).thenReturn(job)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+
+            whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
+            whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
+
+            doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), eq(TransactionType.CARD))
+            doReturn(
+                creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
+            ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
+
+            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
+
+            val result = service.confirmBillImport(accountId, userId, command)
+
+            assertThat(result.status).isEqualTo(BillImportJobStatus.DONE)
+
+            val txCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository, times(1)).save(txCaptor.capture())
+            assertThat(txCaptor.firstValue.categoryId).isEqualTo(categoryId)
+            assertThat(txCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
+
+            verify(categorizationService).learnFromManualAssignment(eq(accountId), eq(tx.description), eq(categoryId), eq(null))
         }
 
         @Test

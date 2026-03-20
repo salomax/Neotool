@@ -185,7 +185,7 @@ enum CategoryApplicableTo {
   ANY
 }
 
-"""Pattern type for category rule description matching."""
+"""Pattern type for transaction rule description matching."""
 enum PatternType {
   CONTAINS
   STARTS_WITH
@@ -305,6 +305,34 @@ type FinancialAccount {
 # ============================================================================
 
 """
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant {
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+  """Logo asset via federation. Null until the hydration job has run for the domain."""
+  logoAsset: Asset
+}
+
+"""A top-merchant analytics row."""
+type TopMerchant {
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
+input CreateMerchantInput {
+  name: String!
+  domain: String
+  sector: String
+}
+
+"""
 Category for classifying transactions (system + user-defined).
 """
 type TransactionCategory {
@@ -335,12 +363,15 @@ input UpdateCategoryInput {
 }
 
 """
-Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned.
+Auto-assignment rule that maps a description pattern to a category and/or merchant.
+Explicit or implicit. System rules are not exposed; only user rules are returned.
 """
-type CategoryRule {
+type TransactionRule {
   id: ID!
-  categoryId: ID!
-  category: TransactionCategory!
+  categoryId: ID
+  category: TransactionCategory
+  merchantId: ID
+  merchant: Merchant
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
@@ -351,16 +382,18 @@ type CategoryRule {
   createdAt: DateTime!
 }
 
-input CreateCategoryRuleInput {
-  categoryId: ID!
+input CreateTransactionRuleInput {
+  categoryId: ID
+  merchantId: ID
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
   priority: Int
 }
 
-input UpdateCategoryRuleInput {
+input UpdateTransactionRuleInput {
   categoryId: ID
+  merchantId: ID
   pattern: String
   patternType: PatternType
   priority: Int
@@ -401,6 +434,9 @@ type Transaction {
   category: TransactionCategory
   """How the category was assigned. Null when uncategorized."""
   categorySource: CategorySource
+
+  # Merchant
+  merchant: Merchant
 
   # Counterparty (bank account transactions / PIX / TED)
   counterpartyName: String
@@ -608,6 +644,7 @@ input CreateTransactionInput {
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
 
@@ -641,6 +678,7 @@ input UpdateTransactionInput {
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
 
@@ -698,6 +736,8 @@ input ConfirmBillReviewTransactionInput {
   include: Boolean!
   isBillPayment: Boolean
   installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 input InstallmentInfoInput {
@@ -805,6 +845,8 @@ type BillImportReviewTransaction {
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
   isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 type InstallmentInfo {
@@ -1159,14 +1201,18 @@ extend type Query {
   When month/year are not provided, the current month/year are used.
   """
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary!
+  """All merchants (system + user-created) available to the authenticated account."""
+  merchants: [Merchant!]!
+  """Top merchants by spend for the authenticated account. Defaults to top 10 for the current month."""
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]!
   """
   All categories (system + custom) available to the authenticated account.
   """
   transactionCategories: [TransactionCategory!]!
   """
-  All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned.
+  All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
-  categoryRules: [CategoryRule!]!
+  transactionRules: [TransactionRule!]!
   """
   Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts.
   """
@@ -1284,6 +1330,12 @@ extend type Mutation {
   deleteInvestmentTransaction(id: ID!): Boolean!
 
   """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant!
+
+  """
   Create a new custom transaction category for the authenticated account.
   """
   createTransactionCategory(input: CreateCategoryInput!): TransactionCategory!
@@ -1298,17 +1350,17 @@ extend type Mutation {
   """
   deleteTransactionCategory(id: ID!): Boolean!
   """
-  Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error.
+  Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
   """
-  createCategoryRule(input: CreateCategoryRuleInput!): CategoryRule!
+  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule!
   """
-  Update a user-owned category rule.
+  Update a user-owned transaction rule.
   """
-  updateCategoryRule(id: ID!, input: UpdateCategoryRuleInput!): CategoryRule!
+  updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule!
   """
-  Soft-delete a user-owned category rule. System rules cannot be deleted.
+  Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
-  deleteCategoryRule(id: ID!): Boolean!
+  deleteTransactionRule(id: ID!): Boolean!
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """

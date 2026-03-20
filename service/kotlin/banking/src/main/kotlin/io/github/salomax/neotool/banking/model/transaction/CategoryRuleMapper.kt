@@ -1,16 +1,17 @@
 package io.github.salomax.neotool.banking.model.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.CategoryRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 
 /**
- * Maps between [CategoryRule] domain and [CategoryRuleEntity].
+ * Maps between [TransactionRule] domain and [CategoryRuleEntity].
  */
 object CategoryRuleMapper {
-    fun toDomain(entity: CategoryRuleEntity): CategoryRule =
-        CategoryRule(
+    fun toDomain(entity: CategoryRuleEntity): TransactionRule =
+        TransactionRule(
             id = entity.id,
             accountId = entity.accountId,
             categoryId = entity.categoryId,
+            merchantId = entity.merchantId,
             pattern = entity.pattern,
             patternType = entity.patternType,
             applicableTo = entity.applicableTo,
@@ -23,11 +24,12 @@ object CategoryRuleMapper {
             updatedAt = entity.updatedAt,
         )
 
-    fun toEntity(domain: CategoryRule): CategoryRuleEntity =
+    fun toEntity(domain: TransactionRule): CategoryRuleEntity =
         CategoryRuleEntity(
             id = domain.id,
             accountId = domain.accountId,
             categoryId = domain.categoryId,
+            merchantId = domain.merchantId,
             pattern = domain.pattern,
             patternType = domain.patternType,
             applicableTo = domain.applicableTo,

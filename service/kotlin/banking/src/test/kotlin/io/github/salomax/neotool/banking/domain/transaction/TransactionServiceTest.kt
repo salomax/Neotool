@@ -30,7 +30,8 @@ import java.util.UUID
 class TransactionServiceTest {
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
-    private lateinit var categorizationService: CategorizationService
+    private lateinit var transactionRuleEngine: TransactionRuleEngine
+    private lateinit var merchantService: MerchantService
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
@@ -60,20 +61,22 @@ class TransactionServiceTest {
     fun setUp() {
         transactionRepository = mock()
         categoryRepository = mock()
-        categorizationService = mock()
+        transactionRuleEngine = mock()
+        merchantService = mock()
         financialAccountRepository = mock()
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
         creditCardBillService = mock()
         service =
             TransactionService(
-                transactionRepository,
-                categoryRepository,
-                categorizationService,
-                financialAccountRepository,
-                accountMembershipValidationPort,
-                snapshotComputationService,
-                creditCardBillService,
+                transactionRepository = transactionRepository,
+                categoryRepository = categoryRepository,
+                transactionRuleEngine = transactionRuleEngine,
+                merchantService = merchantService,
+                financialAccountRepository = financialAccountRepository,
+                accountMembershipValidationPort = accountMembershipValidationPort,
+                snapshotComputationService = snapshotComputationService,
+                creditCardBillService = creditCardBillService,
             )
     }
 

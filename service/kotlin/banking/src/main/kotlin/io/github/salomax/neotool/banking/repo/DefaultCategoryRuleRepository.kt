@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo
 
-import io.github.salomax.neotool.banking.domain.transaction.CategoryRule
-import io.github.salomax.neotool.banking.domain.transaction.CategoryRuleRepository
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.model.transaction.CategoryRuleMapper
 import jakarta.inject.Singleton
 import java.time.Instant
@@ -10,17 +10,17 @@ import java.util.UUID
 @Singleton
 class DefaultCategoryRuleRepository(
     private val entityRepository: CategoryRuleEntityRepository,
-) : CategoryRuleRepository {
-    override fun findRulesForAccount(accountId: UUID): List<CategoryRule> =
+) : TransactionRuleRepository {
+    override fun findRulesForAccount(accountId: UUID): List<TransactionRule> =
         entityRepository.findRulesForAccount(accountId).map(CategoryRuleMapper::toDomain)
 
-    override fun findUserRulesForAccount(accountId: UUID): List<CategoryRule> =
+    override fun findUserRulesForAccount(accountId: UUID): List<TransactionRule> =
         entityRepository.findUserRulesForAccount(accountId).map(CategoryRuleMapper::toDomain)
 
-    override fun findById(id: UUID): CategoryRule? =
+    override fun findById(id: UUID): TransactionRule? =
         entityRepository.findByIdAndDeletedAtIsNull(id)?.let(CategoryRuleMapper::toDomain)
 
-    override fun save(rule: CategoryRule): CategoryRule {
+    override fun save(rule: TransactionRule): TransactionRule {
         val entity =
             if (rule.id == null) {
                 CategoryRuleMapper.toEntity(rule)
@@ -29,6 +29,7 @@ class DefaultCategoryRuleRepository(
                     ?.apply {
                         accountId = rule.accountId
                         categoryId = rule.categoryId
+                        merchantId = rule.merchantId
                         pattern = rule.pattern
                         patternType = rule.patternType
                         applicableTo = rule.applicableTo
@@ -55,7 +56,7 @@ class DefaultCategoryRuleRepository(
     override fun findImplicitByPattern(
         accountId: UUID,
         pattern: String,
-    ): CategoryRule? =
+    ): TransactionRule? =
         entityRepository.findByAccountIdAndPatternAndIsImplicitAndDeletedAtIsNull(
             accountId = accountId,
             pattern = pattern,

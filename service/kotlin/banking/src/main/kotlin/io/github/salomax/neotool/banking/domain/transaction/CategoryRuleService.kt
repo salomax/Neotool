@@ -5,36 +5,42 @@ import java.time.Instant
 import java.util.UUID
 
 @Singleton
-open class CategoryRuleService(
-    private val ruleRepository: CategoryRuleRepository,
+open class TransactionRuleService(
+    private val ruleRepository: TransactionRuleRepository,
     private val categoryRepository: TransactionCategoryRepository,
+    private val merchantRepository: MerchantRepository,
 ) {
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
-    fun listUserRules(accountId: UUID): List<CategoryRule> = ruleRepository.findUserRulesForAccount(accountId)
+    fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
 
     fun create(
-        input: CreateCategoryRuleInput,
+        input: CreateTransactionRuleInput,
         accountId: UUID,
-    ): CategoryRule {
-        requireCategoryAccessible(input.categoryId, accountId)
+    ): TransactionRule {
+        require(input.categoryId != null || input.merchantId != null) {
+            "At least one of categoryId or merchantId is required"
+        }
+        input.categoryId?.let { requireCategoryAccessible(it, accountId) }
+        input.merchantId?.let { requireMerchantAccessible(it, accountId) }
         validatePattern(input.patternType, input.pattern)
 
         val duplicate =
             ruleRepository.findUserRulesForAccount(accountId)
                 .any { it.pattern == input.pattern && it.patternType == input.patternType }
         if (duplicate) {
-            throw DuplicateCategoryRuleException(input.pattern, input.patternType)
+            throw DuplicateTransactionRuleException(input.pattern, input.patternType)
         }
 
         val now = Instant.now()
         val rule =
-            CategoryRule(
+            TransactionRule(
                 accountId = accountId,
                 categoryId = input.categoryId,
+                merchantId = input.merchantId,
                 pattern = input.pattern.trim(),
                 patternType = input.patternType,
                 applicableTo = input.applicableTo,
-                priority = input.priority ?: 100,
+                priority = input.priority ?: 40,
                 isSystem = false,
                 isImplicit = false,
                 matchCount = 0,
@@ -46,17 +52,17 @@ open class CategoryRuleService(
 
     fun update(
         id: UUID,
-        input: UpdateCategoryRuleInput,
+        input: UpdateTransactionRuleInput,
         accountId: UUID,
-    ): CategoryRule {
+    ): TransactionRule {
         val existing =
             ruleRepository.findById(id)
-                ?: throw CategoryRuleNotFoundException(id)
+                ?: throw TransactionRuleNotFoundException(id)
         if (existing.accountId != accountId) {
-            throw CategoryRuleNotFoundException(id)
+            throw TransactionRuleNotFoundException(id)
         }
         if (existing.isSystem) {
-            throw SystemCategoryRuleNotEditableException()
+            throw SystemTransactionRuleNotEditableException()
         }
 
         input.patternType?.let { validatePattern(it, input.pattern ?: existing.pattern) }
@@ -68,16 +74,24 @@ open class CategoryRuleService(
                 ruleRepository.findUserRulesForAccount(accountId)
                     .any { it.id != id && it.pattern == pattern && it.patternType == patternType }
             if (duplicate) {
-                throw DuplicateCategoryRuleException(pattern, patternType)
+                throw DuplicateTransactionRuleException(pattern, patternType)
             }
         }
 
         input.categoryId?.let { requireCategoryAccessible(it, accountId) }
+        input.merchantId?.let { requireMerchantAccessible(it, accountId) }
+
+        val newCategoryId = input.categoryId ?: existing.categoryId
+        val newMerchantId = if (input.merchantIdProvided) input.merchantId else existing.merchantId
+        require(newCategoryId != null || newMerchantId != null) {
+            "At least one of categoryId or merchantId is required"
+        }
 
         val now = Instant.now()
         val updated =
             existing.copy(
-                categoryId = input.categoryId ?: existing.categoryId,
+                categoryId = newCategoryId,
+                merchantId = newMerchantId,
                 pattern = pattern,
                 patternType = patternType,
                 applicableTo = existing.applicableTo,
@@ -93,12 +107,12 @@ open class CategoryRuleService(
     ): Boolean {
         val rule =
             ruleRepository.findById(id)
-                ?: throw CategoryRuleNotFoundException(id)
+                ?: throw TransactionRuleNotFoundException(id)
         if (rule.accountId != accountId) {
-            throw CategoryRuleNotFoundException(id)
+            throw TransactionRuleNotFoundException(id)
         }
         if (rule.isSystem) {
-            throw SystemCategoryRuleNotDeletableException()
+            throw SystemTransactionRuleNotDeletableException()
         }
         ruleRepository.softDelete(id, accountId)
         return true
@@ -111,6 +125,15 @@ open class CategoryRuleService(
         val category = categoryRepository.findById(categoryId) ?: throw CategoryNotFoundException(categoryId)
         val accessible = category.accountId == null || category.accountId == accountId
         require(accessible) { throw CategoryNotFoundException(categoryId) }
+    }
+
+    private fun requireMerchantAccessible(
+        merchantId: UUID,
+        accountId: UUID,
+    ) {
+        val merchant = merchantRepository.findById(merchantId) ?: throw MerchantNotFoundException(merchantId)
+        val accessible = merchant.accountId == null || merchant.accountId == accountId
+        require(accessible) { throw MerchantNotFoundException(merchantId) }
     }
 
     private fun validatePattern(
@@ -126,16 +149,20 @@ open class CategoryRuleService(
     }
 }
 
-data class CreateCategoryRuleInput(
-    val categoryId: UUID,
+data class CreateTransactionRuleInput(
+    val categoryId: UUID? = null,
+    val merchantId: UUID? = null,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
     val priority: Int? = null,
 )
 
-data class UpdateCategoryRuleInput(
+data class UpdateTransactionRuleInput(
     val categoryId: UUID? = null,
+    val merchantId: UUID? = null,
+    /** When true, merchantId is being explicitly set (possibly to null to clear it). */
+    val merchantIdProvided: Boolean = false,
     val pattern: String? = null,
     val patternType: PatternType? = null,
     val priority: Int? = null,

@@ -15,6 +15,7 @@ import io.github.salomax.neotool.banking.domain.billimport.BillImportService
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
 import io.github.salomax.neotool.banking.domain.billimport.BillImportMatchCandidate
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.graphql.dto.DateRangeDTO
 import io.github.salomax.neotool.banking.graphql.dto.InstallmentInfoDTO
 import io.github.salomax.neotool.banking.graphql.dto.BillImportReviewDTO
@@ -154,6 +155,10 @@ class BillImportResolver(
                                             parameters = mapOf("reason" to "include is required"),
                                         )
                                     val isBillPayment = txInput["isBillPayment"] as? Boolean ?: false
+                                    val categoryId =
+                                        (txInput["categoryId"] as? String)?.let { UUID.fromString(it) }
+                                    val categorySource =
+                                        (txInput["categorySource"] as? String)?.let { CategorySource.valueOf(it) }
                                     val installment =
                                         parseInstallmentInput(
                                             txInput["installment"],
@@ -167,6 +172,8 @@ class BillImportResolver(
                                         include = include,
                                         isBillPayment = isBillPayment,
                                         installment = installment,
+                                        categoryId = categoryId,
+                                        categorySource = categorySource,
                                     )
                                 },
                         )
@@ -261,15 +268,8 @@ class BillImportResolver(
         if (looksCanonical) {
             return billImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
         }
-
-        val llmShape =
-            runCatching {
-                objectMapper.readValue(payload, BillImportReview::class.java)
-            }.getOrNull()
-        if (llmShape != null) {
-            return llmShape.toDTO()
-        }
-
+        // Always go through projectReviewPayload so we can enrich with categorization suggestions
+        // (CAT-25) before the review screen is rendered.
         return billImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
     }
 
@@ -317,6 +317,8 @@ class BillImportResolver(
             creditDebitType = creditDebitType,
             installment = installment?.toDTO(),
             isBillPayment = isBillPayment,
+            categoryId = categoryId,
+            categorySource = categorySource,
         )
 
     private fun InstallmentInfo.toDTO(): InstallmentInfoDTO =

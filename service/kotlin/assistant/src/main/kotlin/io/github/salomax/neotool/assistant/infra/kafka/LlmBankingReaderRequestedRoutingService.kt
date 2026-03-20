@@ -20,6 +20,7 @@ class LlmBankingReaderRequestedRoutingService(
     private val promptResolver: BankingReaderPromptResolver,
     private val outputValidator: BankingReaderOutputValidator,
     private val metaValidator: BillExtractionMetaValidator,
+    private val statementMetaValidator: StatementExtractionMetaValidator,
     private val doneProducer: AssistantBankingReaderDoneProducer,
     private val objectMapper: ObjectMapper,
 ) : BankingReaderRequestedRoutingService {
@@ -60,7 +61,7 @@ class LlmBankingReaderRequestedRoutingService(
     }
 
     override fun onBankStatement(request: AssistantBankingReaderRequestedEvent) {
-        processLegacy(request)
+        processStatementMeta(request)
     }
 
     override fun onInvestmentIrReport(request: AssistantBankingReaderRequestedEvent) {
@@ -100,6 +101,41 @@ class LlmBankingReaderRequestedRoutingService(
         val warnings = extractWarnings(llmOutput)
 
         publishDone(request, promptSelection, completionResult, llmOutput, warnings)
+    }
+
+    private fun processStatementMeta(request: AssistantBankingReaderRequestedEvent) {
+        val promptSelection = promptResolver.resolve(request)
+        val completionResult = callLlm(request, promptSelection)
+
+        val meta =
+            try {
+                objectMapper.readValue(stripMarkdown(completionResult.content), StatementExtractionMeta::class.java)
+            } catch (ex: Exception) {
+                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                throw BankingReaderProcessingException(
+                    code = "LLM_NON_JSON",
+                    message = "Model returned non-JSON output",
+                    retryable = false,
+                    stage = "OUTPUT_VALIDATION",
+                    cause = ex,
+                )
+            }
+
+        val normalizedMeta = meta.normalized()
+        val metaErrors = statementMetaValidator.validate(normalizedMeta)
+        if (metaErrors.isNotEmpty()) {
+            throw BankingReaderProcessingException(
+                code = "SCHEMA_VALIDATION_FAILED",
+                message = "Output did not match contract: ${metaErrors.take(10).joinToString("; ")}",
+                retryable = false,
+                stage = "OUTPUT_VALIDATION",
+            )
+        }
+
+        val llmOutput =
+            objectMapper.convertValue(normalizedMeta, object : TypeReference<Map<String, Any?>>() {})
+
+        publishDone(request, promptSelection, completionResult, llmOutput, normalizedMeta.warnings)
     }
 
     private fun callLlm(

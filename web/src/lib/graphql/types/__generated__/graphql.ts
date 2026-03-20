@@ -372,6 +372,8 @@ export enum BillImportReviewMode {
 export type BillImportReviewTransaction = {
   __typename: 'BillImportReviewTransaction';
   amount: Scalars['Float']['output'];
+  categoryId: Maybe<Scalars['ID']['output']>;
+  categorySource: Maybe<CategorySource>;
   creditDebitType: CreditDebitType;
   date: Maybe<Scalars['Date']['output']>;
   description: Scalars['String']['output'];
@@ -510,22 +512,6 @@ export enum CategoryApplicableTo {
   Transfer = 'TRANSFER'
 }
 
-/** Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned. */
-export type CategoryRule = {
-  __typename: 'CategoryRule';
-  applicableTo: CategoryApplicableTo;
-  category: TransactionCategory;
-  categoryId: Scalars['ID']['output'];
-  createdAt: Scalars['DateTime']['output'];
-  id: Scalars['ID']['output'];
-  isImplicit: Scalars['Boolean']['output'];
-  isSystem: Scalars['Boolean']['output'];
-  matchCount: Scalars['Int']['output'];
-  pattern: Scalars['String']['output'];
-  patternType: PatternType;
-  priority: Scalars['Int']['output'];
-};
-
 /** How the transaction's category was assigned. Null when uncategorized. */
 export enum CategorySource {
   Ai = 'AI',
@@ -618,6 +604,8 @@ export type ConfirmBillReviewCardInput = {
 
 export type ConfirmBillReviewTransactionInput = {
   amount: Scalars['Float']['input'];
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  categorySource?: InputMaybe<CategorySource>;
   creditDebitType: CreditDebitType;
   date: Scalars['Date']['input'];
   description: Scalars['String']['input'];
@@ -686,14 +674,6 @@ export type CreateCategoryInput = {
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type CreateCategoryRuleInput = {
-  applicableTo: CategoryApplicableTo;
-  categoryId: Scalars['ID']['input'];
-  pattern: Scalars['String']['input'];
-  patternType: PatternType;
-  priority?: InputMaybe<Scalars['Int']['input']>;
-};
-
 export type CreateFinancialAccountInput = {
   /** Required when type = BANK. */
   bankData?: InputMaybe<BankAccountDataInput>;
@@ -738,6 +718,12 @@ export type CreateInvestmentAssetInput = {
   ticker?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CreateMerchantInput = {
+  domain?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  sector?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreatePromptInput = {
   category: Scalars['String']['input'];
   createdBy: Scalars['ID']['input'];
@@ -772,6 +758,7 @@ export type CreateTransactionInput = {
   description: Scalars['String']['input'];
   financialAccountId: Scalars['ID']['input'];
   installmentNumber?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   payeeMcc?: InputMaybe<Scalars['Int']['input']>;
   paymentReason?: InputMaybe<Scalars['String']['input']>;
@@ -779,6 +766,15 @@ export type CreateTransactionInput = {
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   totalInstallments?: InputMaybe<Scalars['Int']['input']>;
   type: TransactionType;
+};
+
+export type CreateTransactionRuleInput = {
+  applicableTo: CategoryApplicableTo;
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  pattern: Scalars['String']['input'];
+  patternType: PatternType;
+  priority?: InputMaybe<Scalars['Int']['input']>;
 };
 
 /**
@@ -1527,6 +1523,21 @@ export type ListedAssetEdge = {
   node: ListedAsset;
 };
 
+/**
+ * A merchant (payee) associated with a transaction.
+ * System merchants are shared across all accounts; user merchants are account-scoped.
+ */
+export type Merchant = {
+  __typename: 'Merchant';
+  domain: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isSystem: Scalars['Boolean']['output'];
+  /** Logo asset via federation. Null until the hydration job has run for the domain. */
+  logoAsset: Maybe<Asset>;
+  name: Scalars['String']['output'];
+  sector: Maybe<Scalars['String']['output']>;
+};
+
 export type MessageInput = {
   content?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -1661,8 +1672,6 @@ export type Mutation = {
    * ```
    */
   createAssetUpload: Asset;
-  /** Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error. */
-  createCategoryRule: CategoryRule;
   /**
    * Create a new financial account or card.
    * Requires either issuerId (from the issuers list) or issuerName (custom institution).
@@ -1675,12 +1684,19 @@ export type Mutation = {
    * Creates the holding automatically on the first PURCHASE of an asset.
    */
   createInvestmentAsset: InvestmentAsset;
+  /**
+   * Create a custom merchant for the authenticated account.
+   * System merchants cannot be created via this mutation.
+   */
+  createMerchant: Merchant;
   createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
   createTransaction: Transaction;
   /** Create a new custom transaction category for the authenticated account. */
   createTransactionCategory: TransactionCategory;
+  /** Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error. */
+  createTransactionRule: TransactionRule;
   /**
    * Delete an asset.
    *
@@ -1691,8 +1707,6 @@ export type Mutation = {
    * Only the asset owner can delete the asset.
    */
   deleteAsset: Scalars['Boolean']['output'];
-  /** Soft-delete a user-owned category rule. System rules cannot be deleted. */
-  deleteCategoryRule: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
   deleteInvestmentTransaction: Scalars['Boolean']['output'];
@@ -1701,6 +1715,8 @@ export type Mutation = {
   deleteTransaction: Scalars['Boolean']['output'];
   /** Soft-delete a custom transaction category (and its subcategories when deleting a root). */
   deleteTransactionCategory: Scalars['Boolean']['output'];
+  /** Soft-delete a user-owned transaction rule. System rules cannot be deleted. */
+  deleteTransactionRule: Scalars['Boolean']['output'];
   disableUser: User;
   enableUser: User;
   generateCompletion: CompletionResponse;
@@ -1729,14 +1745,14 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
-  /** Update a user-owned category rule. */
-  updateCategoryRule: CategoryRule;
   updateGroup: Group;
   updateRole: Role;
   /** Update an existing manual transaction. */
   updateTransaction: Transaction;
   /** Update a custom transaction category for the authenticated account. */
   updateTransactionCategory: TransactionCategory;
+  /** Update a user-owned transaction rule. */
+  updateTransactionRule: TransactionRule;
   updateUser: User;
   verifyEmailWithToken: VerifyEmailPayload;
 };
@@ -1796,11 +1812,6 @@ export type MutationCreateAssetUploadArgs = {
 };
 
 
-export type MutationCreateCategoryRuleArgs = {
-  input: CreateCategoryRuleInput;
-};
-
-
 export type MutationCreateFinancialAccountArgs = {
   input: CreateFinancialAccountInput;
 };
@@ -1813,6 +1824,11 @@ export type MutationCreateGroupArgs = {
 
 export type MutationCreateInvestmentAssetArgs = {
   input: CreateInvestmentAssetInput;
+};
+
+
+export type MutationCreateMerchantArgs = {
+  input: CreateMerchantInput;
 };
 
 
@@ -1836,13 +1852,13 @@ export type MutationCreateTransactionCategoryArgs = {
 };
 
 
-export type MutationDeleteAssetArgs = {
-  assetId: Scalars['ID']['input'];
+export type MutationCreateTransactionRuleArgs = {
+  input: CreateTransactionRuleInput;
 };
 
 
-export type MutationDeleteCategoryRuleArgs = {
-  id: Scalars['ID']['input'];
+export type MutationDeleteAssetArgs = {
+  assetId: Scalars['ID']['input'];
 };
 
 
@@ -1867,6 +1883,11 @@ export type MutationDeleteTransactionArgs = {
 
 
 export type MutationDeleteTransactionCategoryArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteTransactionRuleArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -1988,12 +2009,6 @@ export type MutationSubmitBillImportArgs = {
 };
 
 
-export type MutationUpdateCategoryRuleArgs = {
-  id: Scalars['ID']['input'];
-  input: UpdateCategoryRuleInput;
-};
-
-
 export type MutationUpdateGroupArgs = {
   groupId: Scalars['ID']['input'];
   input: UpdateGroupInput;
@@ -2015,6 +2030,12 @@ export type MutationUpdateTransactionArgs = {
 export type MutationUpdateTransactionCategoryArgs = {
   id: Scalars['ID']['input'];
   input: UpdateCategoryInput;
+};
+
+
+export type MutationUpdateTransactionRuleArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateTransactionRuleInput;
 };
 
 
@@ -2058,7 +2079,7 @@ export type ParsedImportRow = {
   description: Scalars['String']['output'];
 };
 
-/** Pattern type for category rule description matching. */
+/** Pattern type for transaction rule description matching. */
 export enum PatternType {
   Contains = 'CONTAINS',
   Exact = 'EXACT',
@@ -2188,8 +2209,6 @@ export type Query = {
   bacenInstitutions: BacenInstitutionConnection;
   billImportJob: Maybe<BillImportJob>;
   billImportJobs: Array<BillImportJob>;
-  /** All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned. */
-  categoryRules: Array<CategoryRule>;
   checkPermission: AuthorizationResult;
   conversation: Maybe<Conversation>;
   /**
@@ -2233,6 +2252,8 @@ export type Query = {
    * When categories is omitted, returns all active issuers.
    */
   issuers: Array<Issuer>;
+  /** All merchants (system + user-created) available to the authenticated account. */
+  merchants: Array<Merchant>;
   /**
    * Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
    * When financialAccountId is omitted, returns the aggregate across all accounts.
@@ -2254,6 +2275,8 @@ export type Query = {
   searchInvestmentAssetsAutocomplete: ListedAssetAutocompleteConnection;
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
+  /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
+  topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
   transaction: Maybe<Transaction>;
   /** Distinct values used in transaction attribution ("belongs to"), across all account transactions. */
@@ -2262,6 +2285,8 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
+  /** All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned. */
+  transactionRules: Array<TransactionRule>;
   /** Distinct tags used in transactions for the authenticated account. */
   transactionTags: Array<TransactionTagOption>;
   /**
@@ -2502,6 +2527,14 @@ export type QuerySearchInvestmentFundsAutocompleteArgs = {
 export type QueryServiceUsageArgs = {
   period: UsagePeriod;
   serviceId: Scalars['String']['input'];
+};
+
+
+export type QueryTopMerchantsArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  month?: InputMaybe<Scalars['Int']['input']>;
+  year?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -2824,6 +2857,15 @@ export enum TopInstitutionMetric {
   Profit = 'PROFIT'
 }
 
+/** A top-merchant analytics row. */
+export type TopMerchant = {
+  __typename: 'TopMerchant';
+  lastUsedAt: Scalars['Date']['output'];
+  merchant: Merchant;
+  totalAmount: Scalars['Float']['output'];
+  transactionCount: Scalars['Int']['output'];
+};
+
 /** Core ledger transaction row. */
 export type Transaction = {
   __typename: 'Transaction';
@@ -2850,6 +2892,7 @@ export type Transaction = {
   financialAccountId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
   installmentNumber: Maybe<Scalars['Int']['output']>;
+  merchant: Maybe<Merchant>;
   notes: Maybe<Scalars['String']['output']>;
   payeeMcc: Maybe<Scalars['Int']['output']>;
   paymentReason: Maybe<Scalars['String']['output']>;
@@ -2923,6 +2966,27 @@ export type TransactionImport = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+/**
+ * Auto-assignment rule that maps a description pattern to a category and/or merchant.
+ * Explicit or implicit. System rules are not exposed; only user rules are returned.
+ */
+export type TransactionRule = {
+  __typename: 'TransactionRule';
+  applicableTo: CategoryApplicableTo;
+  category: Maybe<TransactionCategory>;
+  categoryId: Maybe<Scalars['ID']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  isImplicit: Scalars['Boolean']['output'];
+  isSystem: Scalars['Boolean']['output'];
+  matchCount: Scalars['Int']['output'];
+  merchant: Maybe<Merchant>;
+  merchantId: Maybe<Scalars['ID']['output']>;
+  pattern: Scalars['String']['output'];
+  patternType: PatternType;
+  priority: Scalars['Int']['output'];
+};
+
 /** How the transaction entered the system. */
 export enum TransactionSource {
   Manual = 'MANUAL',
@@ -2979,13 +3043,6 @@ export type UpdateCategoryInput = {
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
 };
 
-export type UpdateCategoryRuleInput = {
-  categoryId?: InputMaybe<Scalars['ID']['input']>;
-  pattern?: InputMaybe<Scalars['String']['input']>;
-  patternType?: InputMaybe<PatternType>;
-  priority?: InputMaybe<Scalars['Int']['input']>;
-};
-
 export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -3013,12 +3070,21 @@ export type UpdateTransactionInput = {
   creditDebitType?: InputMaybe<CreditDebitType>;
   date?: InputMaybe<Scalars['Date']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   payeeMcc?: InputMaybe<Scalars['Int']['input']>;
   paymentReason?: InputMaybe<Scalars['String']['input']>;
   status?: InputMaybe<TransactionStatus>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   type?: InputMaybe<TransactionType>;
+};
+
+export type UpdateTransactionRuleInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  pattern?: InputMaybe<Scalars['String']['input']>;
+  patternType?: InputMaybe<PatternType>;
+  priority?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UpdateUserInput = {

@@ -13,6 +13,8 @@ import io.github.salomax.neotool.banking.domain.import.ImportValidationGate
 import io.github.salomax.neotool.banking.domain.import.ImportValidationPreDecision
 import io.github.salomax.neotool.banking.domain.import.ImportValidationQuality
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.import.statement.AssistantStatementExtractionMeta
+import io.github.salomax.neotool.banking.domain.import.statement.AssistantStatementTransactionExtractor
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -44,6 +46,7 @@ open class ImportReaderStatusConsumer(
     private val jobCompletedProducer: ImportJobCompletedProducer,
     private val snapshotComputationService: SnapshotComputationService,
     private val importValidationGate: ImportValidationGate,
+    private val statementTransactionExtractor: AssistantStatementTransactionExtractor,
     private val objectMapper: ObjectMapper,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
@@ -75,22 +78,33 @@ open class ImportReaderStatusConsumer(
                 )
             }
 
-            val rowsResult = parseRowsFromLlmOutput(llmOutput, job.id)
+            val rowsResult =
+                parseRows(
+                    job = job,
+                    documentType = event["document_type"]?.toString(),
+                    llmOutput = llmOutput,
+                )
+            val dateRange = extractDateRange(event["document_type"]?.toString(), llmOutput, rowsResult.rows)
             if (rowsResult.rows.isEmpty()) {
                 return@handleEvent markFailed(
                     job = job,
                     errorMessage = "assistant_done_without_transactions",
+                    assistantResponse = event,
+                    documentType = event["document_type"]?.toString(),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                     details =
                         mapOf(
                             "topic" to "assistant.banking-pdf-reader.done",
                             "reason" to "no_transaction_rows",
                             "invalid_row_count" to rowsResult.invalidCount,
                             "document_type" to event["document_type"]?.toString(),
+                            "warnings" to rowsResult.warnings.take(20),
                         ),
                 )
             }
 
-            val quality = extractValidationQuality(event, llmOutput)
+            val quality = extractValidationQuality(event, llmOutput, rowsResult.warnings)
             val preDecision =
                 importValidationGate.evaluateBeforeCommit(
                     quality = quality,
@@ -102,6 +116,10 @@ open class ImportReaderStatusConsumer(
                     job = job,
                     totalRows = rowsResult.rows.size,
                     decision = preDecision,
+                    assistantResponse = event,
+                    documentType = event["document_type"]?.toString(),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                 )
             }
 
@@ -158,7 +176,10 @@ open class ImportReaderStatusConsumer(
             val updated =
                 job.copy(
                     status = finalStatus,
+                    documentType = event["document_type"]?.toString() ?: job.documentType,
                     assistantResponse = objectMapper.writeValueAsString(event),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                     totalRows = rowsResult.rows.size,
                     importedCount = importedCount,
                     skippedCount = skippedCount,
@@ -200,6 +221,7 @@ open class ImportReaderStatusConsumer(
                 job = job,
                 errorMessage = summary,
                 assistantResponse = event,
+                documentType = event["document_type"]?.toString(),
                 details =
                     mapOf(
                         "topic" to "assistant.banking-pdf-reader.failed",
@@ -251,14 +273,20 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         errorMessage: String,
         assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
         details: Map<String, Any?>,
     ): ImportJob {
         val now = Instant.now()
         val updated =
             job.copy(
                 status = ImportJobStatus.FAILED,
+                documentType = documentType ?: job.documentType,
                 assistantResponse =
                     assistantResponse?.let { objectMapper.writeValueAsString(it) } ?: job.assistantResponse,
+                dateFrom = dateFrom ?: job.dateFrom,
+                dateTo = dateTo ?: job.dateTo,
                 errorCount = (job.errorCount ?: 0) + 1,
                 errorDetails = objectMapper.writeValueAsString(details),
                 completedAt = now,
@@ -269,6 +297,50 @@ open class ImportReaderStatusConsumer(
         publishCompleted(saved)
         log.warn("Import job marked FAILED by assistant status consumer: jobId={}, reason={}", job.id, errorMessage)
         return saved
+    }
+
+    private fun parseRows(
+        job: ImportJob,
+        documentType: String?,
+        llmOutput: Map<*, *>,
+    ): ParsedRowsResult =
+        if (documentType == "BANK_STATEMENT" && llmOutput["parser_config"] is Map<*, *>) {
+            parseRowsFromStatementMeta(job, llmOutput)
+        } else {
+            parseRowsFromLlmOutput(llmOutput, job.id)
+        }
+
+    private fun parseRowsFromStatementMeta(
+        job: ImportJob,
+        llmOutput: Map<*, *>,
+    ): ParsedRowsResult {
+        val extractedText = job.extractedText?.takeIf { it.isNotBlank() }
+        if (extractedText == null) {
+            log.warn("Cannot extract BANK_STATEMENT rows from parser_config without extractedText: jobId={}", job.id)
+            return ParsedRowsResult(
+                rows = emptyList(),
+                invalidCount = 1,
+                warnings = listOf("missing_extracted_text_for_statement_meta"),
+            )
+        }
+
+        val meta =
+            runCatching { objectMapper.convertValue(llmOutput, AssistantStatementExtractionMeta::class.java) }
+                .getOrElse { error ->
+                    log.warn("Failed converting BANK_STATEMENT parser_config to statement meta: jobId={}", job.id, error)
+                    return ParsedRowsResult(
+                        rows = emptyList(),
+                        invalidCount = 1,
+                        warnings = listOf("invalid_statement_parser_config"),
+                    )
+                }
+
+        val result = statementTransactionExtractor.extract(extractedText, meta)
+        return ParsedRowsResult(
+            rows = result.rows,
+            invalidCount = 0,
+            warnings = result.warnings,
+        )
     }
 
     private fun parseRowsFromLlmOutput(
@@ -348,7 +420,11 @@ open class ImportReaderStatusConsumer(
                 jobId,
             )
         }
-        return ParsedRowsResult(rows = rows, invalidCount = invalidCount + parseFailures)
+        return ParsedRowsResult(
+            rows = rows,
+            invalidCount = invalidCount + parseFailures,
+            warnings = emptyList(),
+        )
     }
 
     private fun extractFirstMapList(
@@ -396,6 +472,7 @@ open class ImportReaderStatusConsumer(
     private fun extractValidationQuality(
         event: Map<String, Any?>,
         llmOutput: Map<*, *>,
+        parserWarnings: List<String> = emptyList(),
     ): ImportValidationQuality {
         val parseMetadata = event["parse_metadata"] as? Map<*, *>
         val processorType =
@@ -407,7 +484,7 @@ open class ImportReaderStatusConsumer(
         val llmWarnings = parseWarnings(llmOutput["warnings"])
         return ImportValidationQuality(
             processorType = processorType,
-            warnings = (parseMetadataWarnings + llmWarnings).distinct(),
+            warnings = (parseMetadataWarnings + llmWarnings + parserWarnings).distinct(),
         )
     }
 
@@ -415,13 +492,30 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         totalRows: Int,
         decision: ImportValidationPreDecision,
+        assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
     ): ImportJob =
         when (decision.status) {
-            ImportJobStatus.REVIEW_REQUIRED -> markReviewRequired(job, totalRows, decision)
+            ImportJobStatus.REVIEW_REQUIRED ->
+                markReviewRequired(
+                    job = job,
+                    totalRows = totalRows,
+                    decision = decision,
+                    assistantResponse = assistantResponse,
+                    documentType = documentType,
+                    dateFrom = dateFrom,
+                    dateTo = dateTo,
+                )
             ImportJobStatus.FAILED ->
                 markFailed(
                     job = job,
                     errorMessage = "validation_gate_failed: ${decision.reason}",
+                    assistantResponse = assistantResponse,
+                    documentType = documentType,
+                    dateFrom = dateFrom,
+                    dateTo = dateTo,
                     details = decision.details,
                 )
             else -> job
@@ -431,11 +525,20 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         totalRows: Int,
         decision: ImportValidationPreDecision,
+        assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
     ): ImportJob {
         val now = Instant.now()
         val updated =
             job.copy(
                 status = ImportJobStatus.REVIEW_REQUIRED,
+                documentType = documentType ?: job.documentType,
+                assistantResponse =
+                    assistantResponse?.let { objectMapper.writeValueAsString(it) } ?: job.assistantResponse,
+                dateFrom = dateFrom ?: job.dateFrom,
+                dateTo = dateTo ?: job.dateTo,
                 totalRows = totalRows,
                 importedCount = 0,
                 skippedCount = 0,
@@ -476,6 +579,24 @@ open class ImportReaderStatusConsumer(
             totalInstallments =
                 ((transaction["installment"] as? Map<*, *>)?.get("total") as? Number)?.toInt()
                     ?: (transaction["total_installments"] as? Number)?.toInt(),
+        )
+    }
+
+    private fun extractDateRange(
+        documentType: String?,
+        llmOutput: Map<*, *>,
+        rows: List<ParsedTransaction>,
+    ): Pair<LocalDate?, LocalDate?> {
+        if (rows.isNotEmpty()) {
+            return Pair(rows.minOf { it.date }, rows.maxOf { it.date })
+        }
+        if (documentType != "BANK_STATEMENT") {
+            return Pair(null, null)
+        }
+        val statementPeriod = llmOutput["statement_period"] as? Map<*, *> ?: return Pair(null, null)
+        return Pair(
+            parseDate(statementPeriod["from"]),
+            parseDate(statementPeriod["to"]),
         )
     }
 
@@ -613,5 +734,6 @@ open class ImportReaderStatusConsumer(
     private data class ParsedRowsResult(
         val rows: List<ParsedTransaction>,
         val invalidCount: Int,
+        val warnings: List<String> = emptyList(),
     )
 }

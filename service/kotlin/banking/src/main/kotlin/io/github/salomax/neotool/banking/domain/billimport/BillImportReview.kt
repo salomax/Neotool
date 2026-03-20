@@ -4,9 +4,10 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import java.util.UUID
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.util.UUID
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
@@ -50,6 +51,8 @@ data class BillImportReviewTransaction(
     val creditDebitType: CreditDebitType = CreditDebitType.DEBIT,
     val installment: InstallmentInfo? = null,
     val isBillPayment: Boolean = false,
+    val categoryId: UUID? = null,
+    val categorySource: CategorySource? = null,
 )
 
 @JsonIgnoreProperties(ignoreUnknown = true)

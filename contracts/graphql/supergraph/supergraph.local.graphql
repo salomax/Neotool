@@ -423,6 +423,8 @@ type BillImportReviewTransaction
   creditDebitType: CreditDebitType!
   installment: InstallmentInfo
   isBillPayment: Boolean!
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 """
@@ -574,25 +576,6 @@ enum CategoryApplicableTo
   ANY @join__enumValue(graph: BANKING)
 }
 
-"""
-Auto-categorization rule (explicit or implicit). System rules are not exposed; only user rules are returned.
-"""
-type CategoryRule
-  @join__type(graph: BANKING)
-{
-  id: ID!
-  categoryId: ID!
-  category: TransactionCategory!
-  pattern: String!
-  patternType: PatternType!
-  applicableTo: CategoryApplicableTo!
-  priority: Int!
-  isSystem: Boolean!
-  isImplicit: Boolean!
-  matchCount: Int!
-  createdAt: DateTime!
-}
-
 """How the transaction's category was assigned. Null when uncategorized."""
 enum CategorySource
   @join__type(graph: BANKING)
@@ -713,6 +696,8 @@ input ConfirmBillReviewTransactionInput
   include: Boolean!
   isBillPayment: Boolean
   installment: InstallmentInfoInput
+  categoryId: ID
+  categorySource: CategorySource
 }
 
 enum ConnectionStatus
@@ -789,16 +774,6 @@ input CreateCategoryInput
   sortOrder: Int
 }
 
-input CreateCategoryRuleInput
-  @join__type(graph: BANKING)
-{
-  categoryId: ID!
-  pattern: String!
-  patternType: PatternType!
-  applicableTo: CategoryApplicableTo!
-  priority: Int
-}
-
 input CreateFinancialAccountInput
   @join__type(graph: BANKING)
 {
@@ -864,6 +839,14 @@ input CreateInvestmentAssetInput
   currencyCode: String
 }
 
+input CreateMerchantInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  domain: String
+  sector: String
+}
+
 input CreatePromptInput
   @join__type(graph: ASSISTANT)
 {
@@ -900,6 +883,7 @@ input CreateTransactionInput
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
   counterpartyName: String
@@ -911,6 +895,17 @@ input CreateTransactionInput
   totalInstallments: Int
   cardIdentifier: String
   payeeMcc: Int
+}
+
+input CreateTransactionRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID
+  merchantId: ID
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int
 }
 
 """
@@ -1836,6 +1831,25 @@ scalar Long
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+"""
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+
+  """
+  Logo asset via federation. Null until the hydration job has run for the domain.
+  """
+  logoAsset: Asset
+}
+
 input MessageInput
   @join__type(graph: ASSISTANT)
 {
@@ -2058,6 +2072,12 @@ type Mutation
   deleteInvestmentTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant! @join__field(graph: BANKING)
+
+  """
   Create a new custom transaction category for the authenticated account.
   """
   createTransactionCategory(input: CreateCategoryInput!): TransactionCategory! @join__field(graph: BANKING)
@@ -2071,17 +2091,17 @@ type Mutation
   deleteTransactionCategory(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """
-  Create a category rule for auto-categorization (explicit rule). Invalid REGEX pattern returns a validation error.
+  Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error.
   """
-  createCategoryRule(input: CreateCategoryRuleInput!): CategoryRule! @join__field(graph: BANKING)
+  createTransactionRule(input: CreateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
 
-  """Update a user-owned category rule."""
-  updateCategoryRule(id: ID!, input: UpdateCategoryRuleInput!): CategoryRule! @join__field(graph: BANKING)
+  """Update a user-owned transaction rule."""
+  updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
 
   """
-  Soft-delete a user-owned category rule. System rules cannot be deleted.
+  Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
-  deleteCategoryRule(id: ID!): Boolean! @join__field(graph: BANKING)
+  deleteTransactionRule(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
@@ -2151,7 +2171,7 @@ type ParsedImportRow
   counterpartyDocument: String
 }
 
-"""Pattern type for category rule description matching."""
+"""Pattern type for transaction rule description matching."""
 enum PatternType
   @join__type(graph: BANKING)
 {
@@ -2323,14 +2343,24 @@ type Query
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary! @join__field(graph: BANKING)
 
   """
+  All merchants (system + user-created) available to the authenticated account.
+  """
+  merchants: [Merchant!]! @join__field(graph: BANKING)
+
+  """
+  Top merchants by spend for the authenticated account. Defaults to top 10 for the current month.
+  """
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]! @join__field(graph: BANKING)
+
+  """
   All categories (system + custom) available to the authenticated account.
   """
   transactionCategories: [TransactionCategory!]! @join__field(graph: BANKING)
 
   """
-  All user-defined category rules (explicit + implicit) for auto-categorization. System rules are not returned.
+  All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
-  categoryRules: [CategoryRule!]! @join__field(graph: BANKING)
+  transactionRules: [TransactionRule!]! @join__field(graph: BANKING)
 
   """
   Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts.
@@ -2756,6 +2786,16 @@ enum TopInstitutionMetric
   MOBILIZATION_INDEX @join__enumValue(graph: FINANCIALDATA)
 }
 
+"""A top-merchant analytics row."""
+type TopMerchant
+  @join__type(graph: BANKING)
+{
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
 """Core ledger transaction row."""
 type Transaction
   @join__type(graph: BANKING)
@@ -2786,6 +2826,7 @@ type Transaction
 
   """How the category was assigned. Null when uncategorized."""
   categorySource: CategorySource
+  merchant: Merchant
   counterpartyName: String
   counterpartyDocument: String
   counterpartyBankCode: String
@@ -2866,6 +2907,28 @@ type TransactionImport
   updatedAt: DateTime!
 }
 
+"""
+Auto-assignment rule that maps a description pattern to a category and/or merchant.
+Explicit or implicit. System rules are not exposed; only user rules are returned.
+"""
+type TransactionRule
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  categoryId: ID
+  category: TransactionCategory
+  merchantId: ID
+  merchant: Merchant
+  pattern: String!
+  patternType: PatternType!
+  applicableTo: CategoryApplicableTo!
+  priority: Int!
+  isSystem: Boolean!
+  isImplicit: Boolean!
+  matchCount: Int!
+  createdAt: DateTime!
+}
+
 """How the transaction entered the system."""
 enum TransactionSource
   @join__type(graph: BANKING)
@@ -2933,15 +2996,6 @@ input UpdateCategoryInput
   sortOrder: Int
 }
 
-input UpdateCategoryRuleInput
-  @join__type(graph: BANKING)
-{
-  categoryId: ID
-  pattern: String
-  patternType: PatternType
-  priority: Int
-}
-
 input UpdateGroupInput
   @join__type(graph: SECURITY)
 {
@@ -2972,6 +3026,7 @@ input UpdateTransactionInput
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
   counterpartyName: String
@@ -2981,6 +3036,16 @@ input UpdateTransactionInput
   paymentReason: String
   cardIdentifier: String
   payeeMcc: Int
+}
+
+input UpdateTransactionRuleInput
+  @join__type(graph: BANKING)
+{
+  categoryId: ID
+  merchantId: ID
+  pattern: String
+  patternType: PatternType
+  priority: Int
 }
 
 input UpdateUserInput

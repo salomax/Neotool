@@ -706,6 +706,7 @@
         "dueDateLabel": "Due date",
         "dueDateHint": "Due date must be on or after the closing date.",
         "paymentChip": "Payment",
+        "suggestedBadge": "Suggested",
         "confirming": "Confirming...",
         "confirmButton": "Confirm {{count}} transaction(s)"
       },

@@ -14,6 +14,7 @@ data class ImportJob(
     val accountId: UUID,
     val createdByUserId: UUID,
     val source: ImportSource,
+    val documentType: String? = null,
     val fileName: String? = null,
     val fileHash: String,
     val status: ImportJobStatus,

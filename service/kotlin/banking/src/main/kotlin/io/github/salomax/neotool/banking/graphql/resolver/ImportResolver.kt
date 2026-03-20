@@ -274,6 +274,7 @@ class ImportResolver(
             tags = tags,
             category = null,
             categorySource = categorySource,
+            merchant = null,
             counterpartyName = counterpartyName,
             counterpartyDocument = counterpartyDocument,
             counterpartyBankCode = counterpartyBankCode,

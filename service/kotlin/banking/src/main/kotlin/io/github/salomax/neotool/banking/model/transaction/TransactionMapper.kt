@@ -66,6 +66,7 @@ object TransactionMapper {
             notes = entity.notes,
             categoryId = entity.categoryId,
             categorySource = entity.categorySource?.let { CategorySource.valueOf(it) },
+            merchantId = entity.merchantId,
             counterpartyName = entity.counterpartyName,
             counterpartyDocument = entity.counterpartyDocument,
             counterpartyBankCode = entity.counterpartyBankCode,
@@ -109,6 +110,7 @@ object TransactionMapper {
             notes = domain.notes,
             categoryId = domain.categoryId,
             categorySource = domain.categorySource?.name,
+            merchantId = domain.merchantId,
             counterpartyName = domain.counterpartyName,
             counterpartyDocument = domain.counterpartyDocument,
             counterpartyBankCode = domain.counterpartyBankCode,
@@ -146,6 +148,7 @@ object TransactionMapper {
         entity.notes = domain.notes
         entity.categoryId = domain.categoryId
         entity.categorySource = domain.categorySource?.name
+        entity.merchantId = domain.merchantId
         entity.belongsToUserId = domain.belongsToUserId
         entity.belongsToName = domain.belongsToName
         entity.counterpartyName = domain.counterpartyName
