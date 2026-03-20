@@ -8,23 +8,26 @@ data class StatementPeriodMeta(
 )
 
 data class StatementParserConfig(
-    @param:JsonProperty("layout_type") val layoutType: String,
-    @param:JsonProperty("date_format") val dateFormat: String,
-    @param:JsonProperty("date_header_pattern") val dateHeaderPattern: String?,
-    @param:JsonProperty("inline_transaction_date_pattern") val inlineTransactionDatePattern: String?,
-    @param:JsonProperty("amount_pattern") val amountPattern: String,
-    @param:JsonProperty("decimal_separator") val decimalSeparator: String,
-    @param:JsonProperty("credit_patterns") val creditPatterns: List<String>,
-    @param:JsonProperty("debit_patterns") val debitPatterns: List<String>,
-    @param:JsonProperty("skip_line_patterns") val skipLinePatterns: List<String>,
-    @param:JsonProperty("default_credit_debit_type") val defaultCreditDebitType: String?,
+    @param:JsonProperty("layout_type") val layoutType: String = "",
+    @param:JsonProperty("date_format") val dateFormat: String = "",
+    @param:JsonProperty("date_header_pattern") val dateHeaderPattern: String? = null,
+    @param:JsonProperty("inline_transaction_date_pattern") val inlineTransactionDatePattern: String? = null,
+    @param:JsonProperty("amount_pattern") val amountPattern: String = "",
+    @param:JsonProperty("decimal_separator") val decimalSeparator: String = "comma",
+    @param:JsonProperty("sign_rule") val signRule: String? = null,
+    @param:JsonProperty("ignore_line_kinds") val ignoreLineKinds: List<String> = emptyList(),
+    @param:JsonProperty("examples") val examples: List<String> = emptyList(),
+    @param:JsonProperty("credit_patterns") val creditPatterns: List<String> = emptyList(),
+    @param:JsonProperty("debit_patterns") val debitPatterns: List<String> = emptyList(),
+    @param:JsonProperty("skip_line_patterns") val skipLinePatterns: List<String> = emptyList(),
+    @param:JsonProperty("default_credit_debit_type") val defaultCreditDebitType: String? = null,
 )
 
 data class StatementExtractionMeta(
-    @param:JsonProperty("bank_name") val bankName: String?,
-    @param:JsonProperty("statement_period") val statementPeriod: StatementPeriodMeta?,
-    @param:JsonProperty("parser_config") val parserConfig: StatementParserConfig,
-    @param:JsonProperty("warnings") val warnings: List<String>,
+    @param:JsonProperty("bank_name") val bankName: String? = null,
+    @param:JsonProperty("statement_period") val statementPeriod: StatementPeriodMeta? = null,
+    @param:JsonProperty("parser_config") val parserConfig: StatementParserConfig = StatementParserConfig(),
+    @param:JsonProperty("warnings") val warnings: List<String> = emptyList(),
 )
 
 fun StatementExtractionMeta.normalized(): StatementExtractionMeta =
@@ -34,6 +37,12 @@ fun StatementExtractionMeta.normalized(): StatementExtractionMeta =
                 layoutType = normalizeLayoutType(parserConfig.layoutType),
                 dateFormat = normalizeDateFormat(parserConfig.dateFormat),
                 decimalSeparator = normalizeDecimalSeparator(parserConfig.decimalSeparator),
+                signRule = parserConfig.signRule?.let(::normalizeSignRule),
+                ignoreLineKinds = parserConfig.ignoreLineKinds.map(::normalizeIgnoreLineKind).distinct(),
+                examples = parserConfig.examples.mapNotNull(::normalizeExample),
+                creditPatterns = parserConfig.creditPatterns.mapNotNull(::normalizeRegexLikeValue),
+                debitPatterns = parserConfig.debitPatterns.mapNotNull(::normalizeRegexLikeValue),
+                skipLinePatterns = parserConfig.skipLinePatterns.mapNotNull(::normalizeRegexLikeValue),
                 defaultCreditDebitType = parserConfig.defaultCreditDebitType?.trim()?.uppercase(),
             ),
     )
@@ -75,6 +84,39 @@ private fun normalizeDecimalSeparator(value: String): String {
         else -> value.trim().lowercase()
     }
 }
+
+private fun normalizeSignRule(value: String): String {
+    val token = normalizeToken(value)
+    return when (token) {
+        "KEYWORD_BASED", "KEYWORD", "KEYWORD_DEBIT_CREDIT", "KEYWORD_RULE" -> "KEYWORD_BASED"
+        "NEGATIVE_IS_DEBIT", "AMOUNT_SIGN", "SIGN_BASED", "NEGATIVE_DEBIT" -> "NEGATIVE_IS_DEBIT"
+        "DEFAULT_TYPE", "FIXED_TYPE", "DEFAULT_CREDIT_DEBIT_TYPE" -> "DEFAULT_TYPE"
+        else -> token
+    }
+}
+
+private fun normalizeIgnoreLineKind(value: String): String {
+    val token = normalizeToken(value)
+    return when (token) {
+        "DAY_TOTAL", "DAILY_TOTAL", "TOTAL_LINE", "TOTAL" -> "DAY_TOTAL"
+        "RUNNING_BALANCE", "BALANCE", "BALANCE_LINE", "SALDO" -> "RUNNING_BALANCE"
+        "SECTION_HEADER", "SECTION_TITLE" -> "SECTION_HEADER"
+        "HEADER", "PAGE_HEADER", "DOCUMENT_HEADER" -> "HEADER"
+        "FOOTER", "PAGE_FOOTER", "DOCUMENT_FOOTER" -> "FOOTER"
+        else -> token
+    }
+}
+
+private fun normalizeExample(value: String?): String? =
+    value
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?.replace(Regex("\\s+"), " ")
+
+private fun normalizeRegexLikeValue(value: String?): String? =
+    value
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
 
 private fun normalizeToken(value: String): String =
     value

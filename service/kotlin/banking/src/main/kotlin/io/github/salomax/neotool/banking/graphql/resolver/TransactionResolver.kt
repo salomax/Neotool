@@ -7,6 +7,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCom
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
@@ -16,6 +17,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.graphql.dto.CategoryTotalDTO
 import io.github.salomax.neotool.banking.graphql.dto.CreditCardBillDTO
+import io.github.salomax.neotool.banking.graphql.dto.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.dto.MonthSummaryDTO
 import io.github.salomax.neotool.banking.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionBelongsToOptionDTO
@@ -39,6 +41,7 @@ class TransactionResolver(
     private val service: TransactionService,
     private val monthSummaryQueryService: MonthSummaryQueryService,
     private val creditCardBillService: CreditCardBillService,
+    private val merchantRepository: MerchantRepository,
 ) {
     // ── Queries ──────────────────────────────────────────────────────────────
 
@@ -101,12 +104,14 @@ class TransactionResolver(
 
         val categoryIds = connection.edges.mapNotNull { it.node.categoryId }.toSet()
         val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
+        val merchantDTOs = buildMerchantDTOMap(connection.edges.mapNotNull { it.node.merchantId }.toSet())
 
         val edges =
             connection.edges.map { edge ->
                 val tx = edge.node
                 val category = categories[tx.categoryId]
-                val dto = tx.toDTO(category)
+                val merchant = merchantDTOs[tx.merchantId]
+                val dto = tx.toDTO(category, merchant)
                 TransactionEdgeDTO(
                     node = dto,
                     cursor = edge.cursor,
@@ -137,7 +142,8 @@ class TransactionResolver(
 
         val tx = service.findById(txId, accountId)
         val category = service.findAccessibleCategory(tx.categoryId, accountId)
-        return tx.toDTO(category)
+        val merchant = tx.merchantId?.let { loadMerchantDTO(it) }
+        return tx.toDTO(category, merchant)
     }
 
     fun monthSummary(
@@ -235,7 +241,8 @@ class TransactionResolver(
         val command = input.toCreateCommand()
         val saved = service.create(command, accountId, userId)
         val category = service.findAccessibleCategory(saved.categoryId, accountId)
-        return saved.toDTO(category)
+        val merchant = saved.merchantId?.let { loadMerchantDTO(it) }
+        return saved.toDTO(category, merchant)
     }
 
     fun updateTransaction(
@@ -249,7 +256,8 @@ class TransactionResolver(
         val command = input.toUpdateCommand()
         val updated = service.update(txId, command, accountId)
         val category = service.findAccessibleCategory(updated.categoryId, accountId)
-        return updated.toDTO(category)
+        val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
+        return updated.toDTO(category, merchant)
     }
 
     fun deleteTransaction(
@@ -320,7 +328,10 @@ class TransactionResolver(
             percentage = percentage,
         )
 
-    private fun Transaction.toDTO(category: TransactionCategory?): TransactionDTO =
+    private fun Transaction.toDTO(
+        category: TransactionCategory?,
+        merchant: MerchantDTO?,
+    ): TransactionDTO =
         TransactionDTO(
             id = id!!,
             financialAccountId = financialAccountId,
@@ -340,6 +351,7 @@ class TransactionResolver(
             tags = tags,
             category = category?.toDTO(),
             categorySource = categorySource,
+            merchant = merchant,
             counterpartyName = counterpartyName,
             counterpartyDocument = counterpartyDocument,
             counterpartyBankCode = counterpartyBankCode,
@@ -355,6 +367,30 @@ class TransactionResolver(
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
+
+    private fun loadMerchantDTO(merchantId: UUID): MerchantDTO? {
+        val merchant = merchantRepository.findById(merchantId) ?: return null
+        val logoAssetId = merchant.domain?.let { merchantRepository.findLogoAssetIdByDomain(it) }
+        return MerchantDTO(
+            id = merchant.id!!,
+            name = merchant.name,
+            domain = merchant.domain,
+            sector = merchant.sector,
+            isSystem = merchant.isSystem,
+            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
+        )
+    }
+
+    /**
+     * Batch-loads [MerchantDTO]s for a set of merchant IDs, sharing one logo-cache lookup per domain.
+     */
+    private fun buildMerchantDTOMap(merchantIds: Set<UUID>): Map<UUID, MerchantDTO> {
+        if (merchantIds.isEmpty()) return emptyMap()
+        return merchantIds.mapNotNull { id ->
+            val dto = loadMerchantDTO(id) ?: return@mapNotNull null
+            id to dto
+        }.toMap()
+    }
 
     private fun getDate(
         map: Map<String, Any?>,
@@ -384,6 +420,7 @@ class TransactionResolver(
             notes = this["notes"] as? String,
             tags = (this["tags"] as? List<*>)?.map { it as String } ?: emptyList(),
             categoryId = (this["categoryId"] as? String)?.let { UUID.fromString(it) },
+            merchantId = (this["merchantId"] as? String)?.let { UUID.fromString(it) },
             belongsToUserId = (this["belongsToUserId"] as? String)?.let { UUID.fromString(it) },
             belongsToName = this["belongsToName"] as? String,
             counterpartyName = this["counterpartyName"] as? String,
@@ -410,6 +447,8 @@ class TransactionResolver(
             tags = (this["tags"] as? List<*>)?.map { it as String },
             tagsProvided = this.containsKey("tags"),
             categoryId = (this["categoryId"] as? String)?.let { UUID.fromString(it) },
+            merchantId = (this["merchantId"] as? String)?.let { UUID.fromString(it) },
+            merchantIdProvided = this.containsKey("merchantId"),
             belongsToUserId = (this["belongsToUserId"] as? String)?.let { UUID.fromString(it) },
             belongsToName = this["belongsToName"] as? String,
             belongsToProvided = this.containsKey("belongsToUserId") || this.containsKey("belongsToName"),

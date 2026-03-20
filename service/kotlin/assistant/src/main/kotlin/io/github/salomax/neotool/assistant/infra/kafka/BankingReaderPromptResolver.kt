@@ -146,10 +146,10 @@ class BankingReaderPromptResolver(
             - inline_transaction_date_pattern (regex with ONE capturing group for the date text) when layout_type = INLINE_ROWS; null otherwise
             - amount_pattern (regex with ONE capturing group for the amount text)
             - decimal_separator: comma or period
-            - credit_patterns (array of regex strings): line/block patterns that imply CREDIT
-            - debit_patterns (array of regex strings): line/block patterns that imply DEBIT
-            - skip_line_patterns (array of regex strings): totals, balances, section headers, and any non-transaction lines the parser must ignore
-            - default_credit_debit_type (DEBIT or CREDIT or null): fallback only when no pattern and no sign can infer it
+            - sign_rule: KEYWORD_BASED, NEGATIVE_IS_DEBIT, or DEFAULT_TYPE
+            - ignore_line_kinds (array of enums): choose from DAY_TOTAL, RUNNING_BALANCE, SECTION_HEADER, HEADER, FOOTER
+            - examples (array of 1-3 literal transaction lines or multiline transaction blocks copied from the document)
+            - default_credit_debit_type (DEBIT or CREDIT or null): fallback only when sign_rule cannot infer it
             Date rules:
             - statement_period.from and statement_period.to must be YYYY-MM-DD when known, or null when unknown.
             - If source dates are DD/MM/YYYY, normalize them to YYYY-MM-DD.
@@ -160,7 +160,9 @@ class BankingReaderPromptResolver(
               with bank, branch, account, or continuation lines below it.
             - Do not merge adjacent PIX/TED/transfer transactions that share the same day.
               Different amounts or counterparties on the same date are different transaction blocks.
-            - Summary lines such as "Total de saídas", "Total de entradas", saldo lines, or day totals are not transactions and must appear in skip_line_patterns.
+            - Use sign_rule semantically. Prefer KEYWORD_BASED for statements with words like "recebida", "enviada", "pagamento", "depósito", "saque".
+            - Summary lines such as "Total de saídas", "Total de entradas", saldo lines, or day totals should be represented in ignore_line_kinds, not as regex.
+            - examples must be copied literally from the document and should reflect real transaction rows or full multiline transaction blocks.
             Keep unknown values as null when needed, never omit required fields.
             """
     }

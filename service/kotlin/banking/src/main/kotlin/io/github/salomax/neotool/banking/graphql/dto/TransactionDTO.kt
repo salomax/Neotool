@@ -22,10 +22,12 @@ data class TransactionCategoryDTO(
     val sortOrder: Int,
 )
 
-data class CategoryRuleDTO(
+data class TransactionRuleDTO(
     val id: UUID,
-    val categoryId: UUID,
-    val category: TransactionCategoryDTO,
+    val categoryId: UUID?,
+    val category: TransactionCategoryDTO?,
+    val merchantId: UUID?,
+    val merchant: MerchantDTO?,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
@@ -64,6 +66,7 @@ data class TransactionDTO(
     val category: TransactionCategoryDTO?,
     /** How the category was assigned: MANUAL, RULE, IMPORTED, AI. Null when uncategorized. */
     val categorySource: CategorySource?,
+    val merchant: MerchantDTO?,
     // Counterparty
     val counterpartyName: String?,
     val counterpartyDocument: String?,

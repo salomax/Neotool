@@ -6,17 +6,17 @@ import java.util.UUID
 
 
 @Singleton
-class DefaultCategorizationService(
-    private val ruleRepository: CategoryRuleRepository,
+class DefaultTransactionRuleEngine(
+    private val ruleRepository: TransactionRuleRepository,
     private val categoryRepository: TransactionCategoryRepository,
-) : CategorizationService {
-    override fun preloadRules(accountId: UUID): List<CategoryRule> = ruleRepository.findRulesForAccount(accountId)
+) : TransactionRuleEngine {
+    override fun preloadRules(accountId: UUID): List<TransactionRule> = ruleRepository.findRulesForAccount(accountId)
 
     override fun suggest(
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
-    ): CategorySuggestion? {
+    ): RuleSuggestion? {
         if (description.isNullOrBlank()) return null
         val rules = ruleRepository.findRulesForAccount(accountId)
         return suggestInternal(
@@ -28,10 +28,10 @@ class DefaultCategorizationService(
     }
 
     override fun suggestFromRules(
-        rules: List<CategoryRule>,
+        rules: List<TransactionRule>,
         description: String?,
         creditDebitType: CreditDebitType,
-    ): CategorySuggestion? {
+    ): RuleSuggestion? {
         if (description.isNullOrBlank()) return null
         return suggestInternal(
             rules = rules,
@@ -41,12 +41,26 @@ class DefaultCategorizationService(
         )
     }
 
+    override fun suggestFromRulesRecordingMatch(
+        rules: List<TransactionRule>,
+        description: String?,
+        creditDebitType: CreditDebitType,
+    ): RuleSuggestion? {
+        if (description.isNullOrBlank()) return null
+        return suggestInternal(
+            rules = rules,
+            description = description,
+            creditDebitType = creditDebitType,
+            incrementMatchCount = true,
+        )
+    }
+
     private fun suggestInternal(
-        rules: List<CategoryRule>,
+        rules: List<TransactionRule>,
         description: String,
         creditDebitType: CreditDebitType,
         incrementMatchCount: Boolean,
-    ): CategorySuggestion? {
+    ): RuleSuggestion? {
         val normalized = normalize(description)
         val side =
             if (creditDebitType == CreditDebitType.CREDIT) {
@@ -58,35 +72,42 @@ class DefaultCategorizationService(
         for (rule in rules) {
             if (!isApplicable(rule.applicableTo, side)) continue
             if (matches(normalized, rule.pattern, rule.patternType)) {
-                // If the category was soft-deleted, the rule should not produce a suggestion.
-                // The rule remains stored for future category restores/reassignments,
-                // but evaluation should skip it silently (CAT-12 edge case).
-                val categoryExists = categoryRepository.findById(rule.categoryId) != null
-                if (!categoryExists) continue
+                // If the rule targets a category that was soft-deleted, skip it silently (CAT-12 edge case).
+                if (rule.categoryId != null) {
+                    val categoryExists = categoryRepository.findById(rule.categoryId) != null
+                    if (!categoryExists) continue
+                }
 
                 if (incrementMatchCount) {
                     ruleRepository.incrementMatchCount(rule.id!!)
                 }
-                return CategorySuggestion(rule.categoryId, rule.id!!)
+                return RuleSuggestion(
+                    ruleId = rule.id!!,
+                    categoryId = rule.categoryId,
+                    merchantId = rule.merchantId,
+                )
             }
         }
         return null
     }
 
-    override fun learnFromManualCategorization(
+    override fun learnFromManualAssignment(
         accountId: UUID,
         description: String?,
-        categoryId: UUID,
+        categoryId: UUID?,
+        merchantId: UUID?,
     ) {
         if (description.isNullOrBlank()) return
+        if (categoryId == null && merchantId == null) return
         val pattern = normalize(description)
         val existing = ruleRepository.findImplicitByPattern(accountId, pattern)
         val now = java.time.Instant.now()
         if (existing == null) {
             ruleRepository.save(
-                CategoryRule(
+                TransactionRule(
                     accountId = accountId,
                     categoryId = categoryId,
+                    merchantId = merchantId,
                     pattern = pattern,
                     patternType = PatternType.CONTAINS,
                     applicableTo = CategoryApplicableTo.ANY,
@@ -98,12 +119,23 @@ class DefaultCategorizationService(
                     updatedAt = now,
                 ),
             )
-        } else if (existing.categoryId != categoryId) {
-            ruleRepository.save(existing.copy(categoryId = categoryId, updatedAt = now))
+        } else {
+            val newCategoryId = if (categoryId != null) categoryId else existing.categoryId
+            val newMerchantId = if (merchantId != null) merchantId else existing.merchantId
+            val changed = newCategoryId != existing.categoryId || newMerchantId != existing.merchantId
+            if (changed) {
+                ruleRepository.save(
+                    existing.copy(
+                        categoryId = newCategoryId,
+                        merchantId = newMerchantId,
+                        updatedAt = now,
+                    ),
+                )
+            }
         }
     }
 
-    private fun normalize(s: String): String =
+    internal fun normalize(s: String): String =
         Normalizer.normalize(s, Normalizer.Form.NFD)
             .replace(Regex("[^\\p{ASCII}]"), "")
             // Keep '*' as it can be present in provider-generated descriptors (e.g. "NETFLIX.COM*BR").

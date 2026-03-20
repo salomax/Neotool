@@ -84,16 +84,22 @@ open class ImportReaderStatusConsumer(
                     documentType = event["document_type"]?.toString(),
                     llmOutput = llmOutput,
                 )
+            val dateRange = extractDateRange(event["document_type"]?.toString(), llmOutput, rowsResult.rows)
             if (rowsResult.rows.isEmpty()) {
                 return@handleEvent markFailed(
                     job = job,
                     errorMessage = "assistant_done_without_transactions",
+                    assistantResponse = event,
+                    documentType = event["document_type"]?.toString(),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                     details =
                         mapOf(
                             "topic" to "assistant.banking-pdf-reader.done",
                             "reason" to "no_transaction_rows",
                             "invalid_row_count" to rowsResult.invalidCount,
                             "document_type" to event["document_type"]?.toString(),
+                            "warnings" to rowsResult.warnings.take(20),
                         ),
                 )
             }
@@ -110,6 +116,10 @@ open class ImportReaderStatusConsumer(
                     job = job,
                     totalRows = rowsResult.rows.size,
                     decision = preDecision,
+                    assistantResponse = event,
+                    documentType = event["document_type"]?.toString(),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                 )
             }
 
@@ -166,7 +176,10 @@ open class ImportReaderStatusConsumer(
             val updated =
                 job.copy(
                     status = finalStatus,
+                    documentType = event["document_type"]?.toString() ?: job.documentType,
                     assistantResponse = objectMapper.writeValueAsString(event),
+                    dateFrom = dateRange.first,
+                    dateTo = dateRange.second,
                     totalRows = rowsResult.rows.size,
                     importedCount = importedCount,
                     skippedCount = skippedCount,
@@ -208,6 +221,7 @@ open class ImportReaderStatusConsumer(
                 job = job,
                 errorMessage = summary,
                 assistantResponse = event,
+                documentType = event["document_type"]?.toString(),
                 details =
                     mapOf(
                         "topic" to "assistant.banking-pdf-reader.failed",
@@ -259,14 +273,20 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         errorMessage: String,
         assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
         details: Map<String, Any?>,
     ): ImportJob {
         val now = Instant.now()
         val updated =
             job.copy(
                 status = ImportJobStatus.FAILED,
+                documentType = documentType ?: job.documentType,
                 assistantResponse =
                     assistantResponse?.let { objectMapper.writeValueAsString(it) } ?: job.assistantResponse,
+                dateFrom = dateFrom ?: job.dateFrom,
+                dateTo = dateTo ?: job.dateTo,
                 errorCount = (job.errorCount ?: 0) + 1,
                 errorDetails = objectMapper.writeValueAsString(details),
                 completedAt = now,
@@ -472,13 +492,30 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         totalRows: Int,
         decision: ImportValidationPreDecision,
+        assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
     ): ImportJob =
         when (decision.status) {
-            ImportJobStatus.REVIEW_REQUIRED -> markReviewRequired(job, totalRows, decision)
+            ImportJobStatus.REVIEW_REQUIRED ->
+                markReviewRequired(
+                    job = job,
+                    totalRows = totalRows,
+                    decision = decision,
+                    assistantResponse = assistantResponse,
+                    documentType = documentType,
+                    dateFrom = dateFrom,
+                    dateTo = dateTo,
+                )
             ImportJobStatus.FAILED ->
                 markFailed(
                     job = job,
                     errorMessage = "validation_gate_failed: ${decision.reason}",
+                    assistantResponse = assistantResponse,
+                    documentType = documentType,
+                    dateFrom = dateFrom,
+                    dateTo = dateTo,
                     details = decision.details,
                 )
             else -> job
@@ -488,11 +525,20 @@ open class ImportReaderStatusConsumer(
         job: ImportJob,
         totalRows: Int,
         decision: ImportValidationPreDecision,
+        assistantResponse: Any? = null,
+        documentType: String? = null,
+        dateFrom: LocalDate? = null,
+        dateTo: LocalDate? = null,
     ): ImportJob {
         val now = Instant.now()
         val updated =
             job.copy(
                 status = ImportJobStatus.REVIEW_REQUIRED,
+                documentType = documentType ?: job.documentType,
+                assistantResponse =
+                    assistantResponse?.let { objectMapper.writeValueAsString(it) } ?: job.assistantResponse,
+                dateFrom = dateFrom ?: job.dateFrom,
+                dateTo = dateTo ?: job.dateTo,
                 totalRows = totalRows,
                 importedCount = 0,
                 skippedCount = 0,
@@ -533,6 +579,24 @@ open class ImportReaderStatusConsumer(
             totalInstallments =
                 ((transaction["installment"] as? Map<*, *>)?.get("total") as? Number)?.toInt()
                     ?: (transaction["total_installments"] as? Number)?.toInt(),
+        )
+    }
+
+    private fun extractDateRange(
+        documentType: String?,
+        llmOutput: Map<*, *>,
+        rows: List<ParsedTransaction>,
+    ): Pair<LocalDate?, LocalDate?> {
+        if (rows.isNotEmpty()) {
+            return Pair(rows.minOf { it.date }, rows.maxOf { it.date })
+        }
+        if (documentType != "BANK_STATEMENT") {
+            return Pair(null, null)
+        }
+        val statementPeriod = llmOutput["statement_period"] as? Map<*, *> ?: return Pair(null, null)
+        return Pair(
+            parseDate(statementPeriod["from"]),
+            parseDate(statementPeriod["to"]),
         )
     }
 

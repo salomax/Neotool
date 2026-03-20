@@ -15,11 +15,11 @@ import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.UUID
 
-@DisplayName("DefaultCategorizationService")
+@DisplayName("DefaultTransactionRuleEngine")
 class DefaultCategorizationServiceTest {
-    private lateinit var ruleRepository: CategoryRuleRepository
+    private lateinit var ruleRepository: TransactionRuleRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
-    private lateinit var service: DefaultCategorizationService
+    private lateinit var service: DefaultTransactionRuleEngine
 
     private val accountId = UUID.randomUUID()
     private val categoryId = UUID.randomUUID()
@@ -28,7 +28,7 @@ class DefaultCategorizationServiceTest {
     fun setUp() {
         ruleRepository = mock()
         categoryRepository = mock()
-        service = DefaultCategorizationService(ruleRepository, categoryRepository)
+        service = DefaultTransactionRuleEngine(ruleRepository, categoryRepository)
     }
 
     @Nested
@@ -52,11 +52,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(category(matchedRule.categoryId))
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "  São Paulo - Supermercado!!!  ", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(matchedRule.categoryId, requireNotNull(matchedRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -69,11 +69,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(category(matchedRule.categoryId))
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "IFOOD*BR  LTDA", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(matchedRule.categoryId, requireNotNull(matchedRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -86,11 +86,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(category(matchedRule.categoryId))
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "Mercado Extra Vila Madalena", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(matchedRule.categoryId, requireNotNull(matchedRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -103,11 +103,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.INCOME,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(category(matchedRule.categoryId))
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "PIX Fulano", CreditDebitType.CREDIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(matchedRule.categoryId, requireNotNull(matchedRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -120,11 +120,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(category(matchedRule.categoryId))
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "UBER trip 1234", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(matchedRule.categoryId, requireNotNull(matchedRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -147,11 +147,11 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(invalidRegexRule, validRule))
-            whenever(categoryRepository.findById(validRule.categoryId)).thenReturn(category(validRule.categoryId))
+            whenever(categoryRepository.findById(validRule.categoryId!!)).thenReturn(category(validRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "iFood pedido", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(CategorySuggestion(validRule.categoryId, requireNotNull(validRule.id)))
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(validRule.id), validRule.categoryId, null))
             verify(ruleRepository, never()).incrementMatchCount(requireNotNull(invalidRegexRule.id))
             verify(ruleRepository).incrementMatchCount(requireNotNull(validRule.id))
         }
@@ -175,22 +175,24 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(incomeRule, expenseRule))
-            whenever(categoryRepository.findById(incomeRule.categoryId)).thenReturn(category(incomeRule.categoryId))
-            whenever(categoryRepository.findById(expenseRule.categoryId)).thenReturn(category(expenseRule.categoryId))
+            whenever(categoryRepository.findById(incomeRule.categoryId!!)).thenReturn(category(incomeRule.categoryId!!))
+            whenever(categoryRepository.findById(expenseRule.categoryId!!)).thenReturn(category(expenseRule.categoryId!!))
 
             val debitSuggestion = service.suggest(accountId, "Mercado Central", CreditDebitType.DEBIT)
             val creditSuggestion = service.suggest(accountId, "Salário empresa", CreditDebitType.CREDIT)
 
             assertThat(debitSuggestion).isEqualTo(
-                CategorySuggestion(
-                    expenseRule.categoryId,
+                RuleSuggestion(
                     requireNotNull(expenseRule.id),
+                    expenseRule.categoryId,
+                    null,
                 ),
             )
             assertThat(creditSuggestion).isEqualTo(
-                CategorySuggestion(
-                    incomeRule.categoryId,
+                RuleSuggestion(
                     requireNotNull(incomeRule.id),
+                    incomeRule.categoryId,
+                    null,
                 ),
             )
         }
@@ -204,7 +206,7 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId)).thenReturn(null)
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(null)
 
             val suggestion = service.suggest(accountId, "Mercado Central", CreditDebitType.DEBIT)
 
@@ -214,21 +216,59 @@ class DefaultCategorizationServiceTest {
     }
 
     @Nested
-    @DisplayName("learnFromManualCategorization")
-    inner class LearnFromManualCategorizationTests {
+    @DisplayName("suggestFromRulesRecordingMatch")
+    inner class SuggestFromRulesRecordingMatchTests {
+        @Test
+        fun `increments match count when rule matches preloaded rules`() {
+            val matchedRule =
+                rule(
+                    pattern = "pix",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            val rules = listOf(matchedRule)
+            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+
+            val suggestion =
+                service.suggestFromRulesRecordingMatch(rules, "Pagamento PIX loja", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
+        }
+
+        @Test
+        fun `does not hit rule repository when no match`() {
+            val rule =
+                rule(
+                    pattern = "nope",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+
+            val suggestion = service.suggestFromRulesRecordingMatch(listOf(rule), "Outro texto", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isNull()
+            verify(ruleRepository, never()).incrementMatchCount(any())
+        }
+    }
+
+    @Nested
+    @DisplayName("learnFromManualAssignment")
+    inner class LearnFromManualAssignmentTests {
         @Test
         fun `creates implicit rule when none exists`() {
             whenever(ruleRepository.findImplicitByPattern(accountId, "cafe pao")).thenReturn(null)
-            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
             val newCategoryId = UUID.randomUUID()
 
-            service.learnFromManualCategorization(accountId, "  Café & Pão  ", newCategoryId)
+            service.learnFromManualAssignment(accountId, "  Café & Pão  ", newCategoryId, null)
 
-            val ruleCaptor = argumentCaptor<CategoryRule>()
+            val ruleCaptor = argumentCaptor<TransactionRule>()
             verify(ruleRepository).save(ruleCaptor.capture())
             val saved = ruleCaptor.firstValue
             assertThat(saved.accountId).isEqualTo(accountId)
             assertThat(saved.categoryId).isEqualTo(newCategoryId)
+            assertThat(saved.merchantId).isNull()
             assertThat(saved.pattern).isEqualTo("cafe pao")
             assertThat(saved.patternType).isEqualTo(PatternType.CONTAINS)
             assertThat(saved.applicableTo).isEqualTo(CategoryApplicableTo.ANY)
@@ -252,11 +292,11 @@ class DefaultCategorizationServiceTest {
                 )
             val newCategoryId = UUID.randomUUID()
             whenever(ruleRepository.findImplicitByPattern(accountId, "ifood pedido")).thenReturn(existing)
-            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
 
-            service.learnFromManualCategorization(accountId, "iFood pedido", newCategoryId)
+            service.learnFromManualAssignment(accountId, "iFood pedido", newCategoryId, null)
 
-            val ruleCaptor = argumentCaptor<CategoryRule>()
+            val ruleCaptor = argumentCaptor<TransactionRule>()
             verify(ruleRepository).save(ruleCaptor.capture())
             val saved = ruleCaptor.firstValue
             assertThat(saved.id).isEqualTo(existing.id)
@@ -268,7 +308,14 @@ class DefaultCategorizationServiceTest {
 
         @Test
         fun `does nothing when description is blank`() {
-            service.learnFromManualCategorization(accountId, "   ", categoryId)
+            service.learnFromManualAssignment(accountId, "   ", categoryId, null)
+
+            verifyNoInteractions(ruleRepository)
+        }
+
+        @Test
+        fun `does nothing when both categoryId and merchantId are null`() {
+            service.learnFromManualAssignment(accountId, "some description", null, null)
 
             verifyNoInteractions(ruleRepository)
         }
@@ -282,10 +329,11 @@ class DefaultCategorizationServiceTest {
         applicableTo: CategoryApplicableTo,
         isImplicit: Boolean = false,
         updatedAt: Instant = Instant.now(),
-    ) = CategoryRule(
+    ) = TransactionRule(
         id = id,
         accountId = accountId,
         categoryId = categoryId,
+        merchantId = null,
         pattern = pattern,
         patternType = patternType,
         applicableTo = applicableTo,

@@ -15,10 +15,10 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * JPA entity for banking.category_rules.
+ * JPA entity for banking.transaction_rules.
  */
 @Entity
-@Table(name = "category_rules", schema = "banking")
+@Table(name = "transaction_rules", schema = "banking")
 open class CategoryRuleEntity(
     @Id
     @Generated(event = [EventType.INSERT])
@@ -26,8 +26,10 @@ open class CategoryRuleEntity(
     override val id: UUID? = null,
     @Column(name = "account_id")
     open var accountId: UUID? = null,
-    @Column(name = "category_id", nullable = false)
-    open var categoryId: UUID,
+    @Column(name = "category_id", nullable = true)
+    open var categoryId: UUID? = null,
+    @Column(name = "merchant_id", nullable = true)
+    open var merchantId: UUID? = null,
     @Column(nullable = false)
     open var pattern: String,
     @Enumerated(EnumType.STRING)

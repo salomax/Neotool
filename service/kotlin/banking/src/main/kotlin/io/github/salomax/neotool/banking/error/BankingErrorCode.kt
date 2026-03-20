@@ -63,6 +63,13 @@ enum class BankingErrorCode(
         422,
     ),
 
+    // Merchant errors
+    MERCHANT_NOT_FOUND(
+        "MERCHANT_NOT_FOUND",
+        "Merchant not found",
+        404,
+    ),
+
     // Import lifecycle errors
     IMPORT_FILE_ALREADY_EXISTS(
         "IMPORT_FILE_ALREADY_EXISTS",

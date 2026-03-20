@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory
 open class TransactionService(
     private val transactionRepository: TransactionRepository,
     private val categoryRepository: TransactionCategoryRepository,
-    private val categorizationService: CategorizationService,
+    private val transactionRuleEngine: TransactionRuleEngine,
+    private val merchantService: MerchantService,
     private val financialAccountRepository: FinancialAccountRepository,
     private val accountMembershipValidationPort: AccountMembershipValidationPort,
     private val snapshotComputationService: SnapshotComputationService,
@@ -282,25 +283,32 @@ open class TransactionService(
                     creditCardBillService.resolveBillForTransaction(it, command.date, command.type)
                 }
 
-        val (finalCategoryId, finalCategorySource) =
-            if (command.categoryId != null) {
-                command.categoryId to CategorySource.MANUAL
-            } else {
+        val ruleSuggestion =
+            if (command.categoryId == null || command.merchantId == null) {
                 try {
-                    categorizationService.suggest(accountId, command.description, command.creditDebitType)
-                        ?.let { it.categoryId to CategorySource.RULE }
-                        ?: (null to null)
+                    transactionRuleEngine.suggest(accountId, command.description, command.creditDebitType)
                 } catch (e: Exception) {
                     logger.warn(
-                        "Auto-categorization failed; continuing without rule suggestion (accountId={}, txType={}, descriptionLength={})",
+                        "Rule engine suggestion failed; continuing without suggestion (accountId={}, txType={}, descriptionLength={})",
                         accountId,
                         command.creditDebitType,
                         command.description?.length,
                         e,
                     )
-                    null to null
+                    null
                 }
+            } else {
+                null
             }
+
+        val finalCategoryId = command.categoryId ?: ruleSuggestion?.categoryId
+        val finalCategorySource =
+            when {
+                command.categoryId != null -> CategorySource.MANUAL
+                ruleSuggestion?.categoryId != null -> CategorySource.RULE
+                else -> null
+            }
+        val finalMerchantId = command.merchantId ?: ruleSuggestion?.merchantId
 
         val now = Instant.now()
         val transaction =
@@ -322,6 +330,7 @@ open class TransactionService(
                 tags = normalizedTags,
                 categoryId = finalCategoryId,
                 categorySource = finalCategorySource,
+                merchantId = finalMerchantId,
                 counterpartyName = command.counterpartyName,
                 counterpartyDocument = command.counterpartyDocument,
                 counterpartyBankCode = command.counterpartyBankCode,
@@ -390,14 +399,15 @@ open class TransactionService(
                 existing.billId
             }
 
-        val categoryChanged =
-            command.categoryId != null && command.categoryId != existing.categoryId
-        if (categoryChanged) {
+        val categoryChanged = command.categoryId != null && command.categoryId != existing.categoryId
+        val merchantChanged = command.merchantIdProvided && command.merchantId != existing.merchantId
+        if (categoryChanged || merchantChanged) {
             try {
-                categorizationService.learnFromManualCategorization(
-                    accountId,
-                    existing.description,
-                    command.categoryId!!,
+                transactionRuleEngine.learnFromManualAssignment(
+                    accountId = accountId,
+                    description = existing.description,
+                    categoryId = if (categoryChanged) command.categoryId else existing.categoryId,
+                    merchantId = if (merchantChanged) command.merchantId else existing.merchantId,
                 )
             } catch (e: Exception) {
                 // Learning failure must not fail the update
@@ -426,6 +436,7 @@ open class TransactionService(
                         command.categoryId != null -> CategorySource.MANUAL
                         else -> existing.categorySource
                     },
+                merchantId = if (command.merchantIdProvided) command.merchantId else existing.merchantId,
                 belongsToUserId = updatedBelongsToUserId,
                 belongsToName = updatedBelongsToName,
                 counterpartyName = command.counterpartyName ?: existing.counterpartyName,

@@ -11,6 +11,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -37,6 +38,7 @@ class TransactionResolverTest {
     private lateinit var service: TransactionService
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var merchantRepository: MerchantRepository
     private lateinit var resolver: TransactionResolver
 
     private val accountId = UUID.randomUUID()
@@ -60,10 +62,11 @@ class TransactionResolverTest {
         service = mock()
         monthSummaryQueryService = mock()
         creditCardBillService = mock()
+        merchantRepository = mock()
         whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
             .thenReturn(emptyMap())
         whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
-        resolver = TransactionResolver(service, monthSummaryQueryService, creditCardBillService)
+        resolver = TransactionResolver(service, monthSummaryQueryService, creditCardBillService, merchantRepository)
     }
 
     @Nested

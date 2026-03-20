@@ -37,21 +37,28 @@ class DuplicateCategoryNameException(name: String) :
         parameters = mapOf("name" to name),
     )
 
-// Category rule exceptions (CAT-13)
-class CategoryRuleNotFoundException(id: UUID) :
+class MerchantNotFoundException(id: UUID) :
+    DomainException(
+        errorCode = BankingErrorCode.MERCHANT_NOT_FOUND,
+        field = "merchantId",
+        parameters = mapOf("merchantId" to id.toString()),
+    )
+
+// Transaction rule exceptions
+class TransactionRuleNotFoundException(id: UUID) :
     DomainException(
         errorCode = BankingErrorCode.CATEGORY_RULE_NOT_FOUND,
         field = "ruleId",
         parameters = mapOf("ruleId" to id.toString()),
     )
 
-class SystemCategoryRuleNotDeletableException :
+class SystemTransactionRuleNotDeletableException :
     DomainException(errorCode = BankingErrorCode.CATEGORY_RULE_SYSTEM_NOT_DELETABLE)
 
-class SystemCategoryRuleNotEditableException :
+class SystemTransactionRuleNotEditableException :
     DomainException(errorCode = BankingErrorCode.CATEGORY_RULE_SYSTEM_NOT_EDITABLE)
 
-class DuplicateCategoryRuleException(pattern: String, patternType: PatternType) :
+class DuplicateTransactionRuleException(pattern: String, patternType: PatternType) :
     DomainException(
         errorCode = BankingErrorCode.CATEGORY_RULE_DUPLICATE,
         field = "pattern",

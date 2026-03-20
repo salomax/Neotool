@@ -1,17 +1,21 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
-import io.github.salomax.neotool.banking.domain.transaction.CategoryRule
-import io.github.salomax.neotool.banking.domain.transaction.CategoryRuleService
 import io.github.salomax.neotool.banking.domain.transaction.CreateCategoryInput
-import io.github.salomax.neotool.banking.domain.transaction.CreateCategoryRuleInput
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.domain.transaction.Merchant
+import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleService
 import io.github.salomax.neotool.banking.domain.transaction.UpdateCategoryInput
-import io.github.salomax.neotool.banking.domain.transaction.UpdateCategoryRuleInput
-import io.github.salomax.neotool.banking.graphql.dto.CategoryRuleDTO
+import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionRuleInput
+import io.github.salomax.neotool.banking.graphql.dto.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionCategoryDTO
+import io.github.salomax.neotool.banking.graphql.dto.TransactionRuleDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -19,8 +23,9 @@ import java.util.UUID
 @Singleton
 class TransactionCategoryResolver(
     private val service: TransactionCategoryService,
-    private val ruleService: CategoryRuleService,
+    private val ruleService: TransactionRuleService,
     private val categoryRepository: TransactionCategoryRepository,
+    private val merchantRepository: MerchantRepository,
 ) {
     fun createTransactionCategory(
         input: Map<String, Any?>,
@@ -103,39 +108,39 @@ class TransactionCategoryResolver(
         return service.delete(categoryId, accountId)
     }
 
-    // ─── Category rules (CAT-13) ─────────────────────────────────────────────
+    // ─── Transaction rules ────────────────────────────────────────────────────
 
-    fun categoryRules(principal: RequestPrincipal): List<CategoryRuleDTO> {
+    fun transactionRules(principal: RequestPrincipal): List<TransactionRuleDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val rules = ruleService.listUserRules(accountId)
-        val categoryIds = rules.map { it.categoryId }.toSet()
-        val categories = categoryIds.associateWith { categoryRepository.findById(it)!! }
-        return rules.map { rule -> rule.toDTO(categories[rule.categoryId]!!) }
+        val categoryIds = rules.mapNotNull { it.categoryId }.toSet()
+        val merchantIds = rules.mapNotNull { it.merchantId }.toSet()
+        val categories = categoryIds.associateWith { categoryRepository.findById(it) }
+        val merchants = merchantIds.associateWith { merchantRepository.findById(it) }
+        return rules.map { rule -> rule.toDTO(categories[rule.categoryId], merchants[rule.merchantId]) }
     }
 
-    fun createCategoryRule(
+    fun createTransactionRule(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
-    ): CategoryRuleDTO {
+    ): TransactionRuleDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val categoryId = UUID.fromString(input["categoryId"] as String)
+        val categoryId = (input["categoryId"] as? String)?.let { UUID.fromString(it) }
+        val merchantId = (input["merchantId"] as? String)?.let { UUID.fromString(it) }
         val pattern = input["pattern"] as? String ?: throw IllegalArgumentException("pattern is required")
         val patternTypeRaw =
-            input["patternType"] as? String ?: throw IllegalArgumentException(
-                "patternType is required",
-            )
-        val patternType = io.github.salomax.neotool.banking.domain.transaction.PatternType.valueOf(patternTypeRaw)
+            input["patternType"] as? String ?: throw IllegalArgumentException("patternType is required")
+        val patternType = PatternType.valueOf(patternTypeRaw)
         val applicableToRaw =
-            input["applicableTo"] as? String ?: throw IllegalArgumentException(
-                "applicableTo is required",
-            )
+            input["applicableTo"] as? String ?: throw IllegalArgumentException("applicableTo is required")
         val applicableTo = CategoryApplicableTo.valueOf(applicableToRaw)
         val priority = (input["priority"] as? Number)?.toInt()
 
         val created =
             ruleService.create(
-                CreateCategoryRuleInput(
+                CreateTransactionRuleInput(
                     categoryId = categoryId,
+                    merchantId = merchantId,
                     pattern = pattern,
                     patternType = patternType,
                     applicableTo = applicableTo,
@@ -143,33 +148,36 @@ class TransactionCategoryResolver(
                 ),
                 accountId,
             )
-        val category = categoryRepository.findById(created.categoryId)!!
-        return created.toDTO(category)
+        val category = created.categoryId?.let { categoryRepository.findById(it) }
+        val merchant = created.merchantId?.let { merchantRepository.findById(it) }
+        return created.toDTO(category, merchant)
     }
 
-    fun updateCategoryRule(
+    fun updateTransactionRule(
         id: String,
         input: Map<String, Any?>,
         principal: RequestPrincipal,
-    ): CategoryRuleDTO {
+    ): TransactionRuleDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val ruleId = UUID.fromString(id)
+        val merchantIdProvided = input.containsKey("merchantId")
         val updateInput =
-            UpdateCategoryRuleInput(
+            UpdateTransactionRuleInput(
                 categoryId = (input["categoryId"] as? String)?.let { UUID.fromString(it) },
+                merchantId = (input["merchantId"] as? String)?.let { UUID.fromString(it) },
+                merchantIdProvided = merchantIdProvided,
                 pattern = input["pattern"] as? String,
                 patternType =
-                    (input["patternType"] as? String)?.let {
-                        io.github.salomax.neotool.banking.domain.transaction.PatternType.valueOf(it)
-                    },
+                    (input["patternType"] as? String)?.let { PatternType.valueOf(it) },
                 priority = (input["priority"] as? Number)?.toInt(),
             )
         val updated = ruleService.update(ruleId, updateInput, accountId)
-        val category = categoryRepository.findById(updated.categoryId)!!
-        return updated.toDTO(category)
+        val category = updated.categoryId?.let { categoryRepository.findById(it) }
+        val merchant = updated.merchantId?.let { merchantRepository.findById(it) }
+        return updated.toDTO(category, merchant)
     }
 
-    fun deleteCategoryRule(
+    fun deleteTransactionRule(
         id: String,
         principal: RequestPrincipal,
     ): Boolean {
@@ -178,11 +186,16 @@ class TransactionCategoryResolver(
         return ruleService.delete(ruleId, accountId)
     }
 
-    private fun CategoryRule.toDTO(category: TransactionCategory): CategoryRuleDTO =
-        CategoryRuleDTO(
+    private fun TransactionRule.toDTO(
+        category: TransactionCategory?,
+        merchant: Merchant?,
+    ): TransactionRuleDTO =
+        TransactionRuleDTO(
             id = id!!,
             categoryId = categoryId,
-            category = category.toDTO(),
+            category = category?.toDTO(),
+            merchantId = merchantId,
+            merchant = merchant?.toMerchantDTO(),
             pattern = pattern,
             patternType = patternType,
             applicableTo = applicableTo,
@@ -204,4 +217,16 @@ class TransactionCategoryResolver(
             isSystem = isSystem,
             sortOrder = sortOrder,
         )
+
+    private fun Merchant.toMerchantDTO(): MerchantDTO {
+        val logoAssetId = domain?.let { merchantRepository.findLogoAssetIdByDomain(it) }
+        return MerchantDTO(
+            id = id!!,
+            name = name,
+            domain = domain,
+            sector = sector,
+            isSystem = isSystem,
+            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
+        )
+    }
 }

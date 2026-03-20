@@ -22,6 +22,14 @@ class StatementExtractionMetaValidator {
         if (parser.decimalSeparator.lowercase() !in listOf("comma", "period")) {
             errors += "parser_config.decimal_separator must be 'comma' or 'period'"
         }
+        if (
+            parser.signRule.isNullOrBlank() &&
+            parser.creditPatterns.isEmpty() &&
+            parser.debitPatterns.isEmpty() &&
+            parser.defaultCreditDebitType == null
+        ) {
+            errors += "parser_config.sign_rule must be provided unless legacy credit/debit patterns or default_credit_debit_type are present"
+        }
         if (parser.layoutType == LAYOUT_DATE_GROUPED_MULTILINE && parser.dateHeaderPattern.isNullOrBlank()) {
             errors += "parser_config.date_header_pattern must be provided for DATE_GROUPED_MULTILINE"
         }
@@ -31,6 +39,21 @@ class StatementExtractionMetaValidator {
         validateRegex(parser.amountPattern, "parser_config.amount_pattern", errors)
         parser.dateHeaderPattern?.let { validateRegex(it, "parser_config.date_header_pattern", errors) }
         parser.inlineTransactionDatePattern?.let { validateRegex(it, "parser_config.inline_transaction_date_pattern", errors) }
+        parser.signRule?.let {
+            if (it !in VALID_SIGN_RULES) {
+                errors += "parser_config.sign_rule must be one of $VALID_SIGN_RULES when present"
+            }
+        }
+        parser.ignoreLineKinds.forEachIndexed { index, kind ->
+            if (kind !in VALID_IGNORE_LINE_KINDS) {
+                errors += "parser_config.ignore_line_kinds[$index] must be one of $VALID_IGNORE_LINE_KINDS"
+            }
+        }
+        parser.examples.forEachIndexed { index, example ->
+            if (example.isBlank()) {
+                errors += "parser_config.examples[$index] must not be blank"
+            }
+        }
         parser.creditPatterns.forEachIndexed { index, pattern ->
             validateRegex(pattern, "parser_config.credit_patterns[$index]", errors)
         }
@@ -74,6 +97,8 @@ class StatementExtractionMetaValidator {
         const val LAYOUT_INLINE_ROWS = "INLINE_ROWS"
         val VALID_LAYOUT_TYPES = listOf(LAYOUT_DATE_GROUPED_MULTILINE, LAYOUT_INLINE_ROWS)
         val VALID_DATE_FORMATS = listOf("DD_MMM_YYYY", "DD_MM_YYYY", "DD_MM")
+        val VALID_SIGN_RULES = listOf("KEYWORD_BASED", "NEGATIVE_IS_DEBIT", "DEFAULT_TYPE")
+        val VALID_IGNORE_LINE_KINDS = listOf("DAY_TOTAL", "RUNNING_BALANCE", "SECTION_HEADER", "HEADER", "FOOTER")
         val VALID_CREDIT_DEBIT_TYPES = setOf("DEBIT", "CREDIT")
     }
 }

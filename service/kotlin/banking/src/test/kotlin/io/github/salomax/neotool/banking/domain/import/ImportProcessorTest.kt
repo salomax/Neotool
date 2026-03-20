@@ -3,6 +3,9 @@ package io.github.salomax.neotool.banking.domain.import
 import io.github.salomax.neotool.banking.domain.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.import.dedup.SameSourceDedupService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
@@ -15,6 +18,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -31,6 +35,7 @@ class ImportProcessorTest {
     private lateinit var importFingerprintService: ImportFingerprintService
     private lateinit var crossSourceDedupService: CrossSourceDedupService
     private lateinit var transactionRepository: TransactionRepository
+    private lateinit var categorizationService: TransactionRuleEngine
     private lateinit var processor: ImportProcessor
 
     private lateinit var jobId: UUID
@@ -47,12 +52,16 @@ class ImportProcessorTest {
         importFingerprintService = mock()
         crossSourceDedupService = mock()
         transactionRepository = mock()
+        categorizationService = mock()
+        whenever(categorizationService.preloadRules(any())).thenReturn(emptyList())
+        whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(null)
         processor =
             ImportProcessor(
                 sameSourceDedupService = sameSourceDedupService,
                 importFingerprintService = importFingerprintService,
                 crossSourceDedupService = crossSourceDedupService,
                 transactionRepository = transactionRepository,
+                categorizationService = categorizationService,
             )
         jobId = UUID.randomUUID()
         financialAccountId = UUID.randomUUID()
@@ -152,6 +161,30 @@ class ImportProcessorTest {
             assertThat(result.duplicateCandidates).isEmpty()
             assertThat(result.errors).isEmpty()
             verify(transactionRepository).save(any())
+            verify(categorizationService).preloadRules(accountId)
+        }
+
+        @Test
+        fun `applies RULE category from categorization when suggestion exists`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-cat")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            val categoryId = UUID.randomUUID()
+            val ruleId = UUID.randomUUID()
+            whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(
+                RuleSuggestion(ruleId = ruleId, categoryId = categoryId, merchantId = null),
+            )
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer { invocation ->
+                invocation.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = processor.process(job, listOf(parsedRow(description = "PIX recebido")))
+
+            assertThat(result.imported).hasSize(1)
+            assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
+            assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
         }
 
         @Test

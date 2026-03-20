@@ -846,6 +846,14 @@ input CreateInvestmentAssetInput
   currencyCode: String
 }
 
+input CreateMerchantInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  domain: String
+  sector: String
+}
+
 input CreatePromptInput
   @join__type(graph: ASSISTANT)
 {
@@ -882,6 +890,7 @@ input CreateTransactionInput
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
   counterpartyName: String
@@ -1723,6 +1732,25 @@ scalar Long
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+"""
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+
+  """
+  Logo asset via federation. Null until the hydration job has run for the domain.
+  """
+  logoAsset: Asset
+}
+
 input MessageInput
   @join__type(graph: ASSISTANT)
 {
@@ -1942,6 +1970,12 @@ type Mutation
   Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
   """
   deleteInvestmentTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant! @join__field(graph: BANKING)
 
   """
   Create a new custom transaction category for the authenticated account.
@@ -2205,6 +2239,16 @@ type Query
   When month/year are not provided, the current month/year are used.
   """
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary! @join__field(graph: BANKING)
+
+  """
+  All merchants (system + user-created) available to the authenticated account.
+  """
+  merchants: [Merchant!]! @join__field(graph: BANKING)
+
+  """
+  Top merchants by spend for the authenticated account. Defaults to top 10 for the current month.
+  """
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]! @join__field(graph: BANKING)
 
   """
   All categories (system + custom) available to the authenticated account.
@@ -2636,6 +2680,16 @@ enum TopInstitutionMetric
   MOBILIZATION_INDEX @join__enumValue(graph: FINANCIALDATA)
 }
 
+"""A top-merchant analytics row."""
+type TopMerchant
+  @join__type(graph: BANKING)
+{
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
 """Core ledger transaction row."""
 type Transaction
   @join__type(graph: BANKING)
@@ -2666,6 +2720,7 @@ type Transaction
 
   """How the category was assigned. Null when uncategorized."""
   categorySource: CategorySource
+  merchant: Merchant
   counterpartyName: String
   counterpartyDocument: String
   counterpartyBankCode: String
@@ -2852,6 +2907,7 @@ input UpdateTransactionInput
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
   counterpartyName: String

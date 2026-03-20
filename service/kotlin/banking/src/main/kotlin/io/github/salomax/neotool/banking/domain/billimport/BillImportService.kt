@@ -7,7 +7,7 @@ import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.CategorizationService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -44,7 +44,7 @@ open class BillImportService(
     private val financialAccountRepository: FinancialAccountRepository,
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
-    private val categorizationService: CategorizationService,
+    private val categorizationService: TransactionRuleEngine,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -452,10 +452,11 @@ open class BillImportService(
                                 }
 
                             if (shouldLearnImplicitRule && effectiveCategoryId != null) {
-                                categorizationService.learnFromManualCategorization(
+                                categorizationService.learnFromManualAssignment(
                                     accountId = accountId,
                                     description = tx.description,
                                     categoryId = effectiveCategoryId,
+                                    merchantId = null,
                                 )
                             }
 

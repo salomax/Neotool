@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, cleanup } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, Mock, afterEach } from 'vitest';
 import FinanceTransactionsPage from '../page';
 import { useAccountDisplayMode } from '../hooks/useAccountDisplayMode';
 import { useQuery } from '@apollo/client/react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
 
 // Mock dependencies
 vi.mock('@/shared/i18n', () => ({
@@ -78,7 +79,7 @@ describe.sequential('FinanceTransactionsPage', () => {
 
     // Default useQuery mock implementation
     (useQuery as unknown as Mock).mockReturnValue({
-      data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1' }] },
+      data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1', type: FinancialAccountType.Bank }] },
       loading: false,
       refetch: vi.fn(),
       fetchMore: vi.fn(),
@@ -146,7 +147,7 @@ describe.sequential('FinanceTransactionsPage', () => {
     // For now, let's just make the default mock return data that satisfies all.
     (useQuery as any).mockReturnValue({
       data: { 
-        financialAccounts: [{ id: 'acc-1', name: 'Bank Account' }],
+        financialAccounts: [{ id: 'acc-1', name: 'Bank Account', type: FinancialAccountType.Bank }],
         transactions: { edges: [] },
         monthSummary: {},
         transactionImports: []
@@ -179,7 +180,7 @@ describe.sequential('FinanceTransactionsPage', () => {
 
     (useQuery as any).mockReturnValue({
       data: { 
-        financialAccounts: [{ id: 'card-1', name: 'Credit Card' }],
+        financialAccounts: [{ id: 'card-1', name: 'Credit Card', type: FinancialAccountType.Credit }],
         transactions: { edges: [] },
         transactionImports: []
       },

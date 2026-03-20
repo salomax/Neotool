@@ -26,6 +26,7 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 @DisplayName("ImportReaderStatusConsumer")
@@ -216,13 +217,21 @@ class ImportReaderStatusConsumerTest {
     fun `done event extracts date-grouped multiline statement rows from parser config`() {
         val extractedText =
             """
-            04 JAN 2025 Total de saídas - 2.250,00
-            Transferência enviada pelo Pix LILIAN PRISCILLA ONISHI SALOMAO - •••.672.098- 2.000,00
+            Marcos Afonso Salomão Junior
+            CPF •••.885.958-•• Agência 0001 Conta
+            13560704-2
+            01 DE JANEIRO DE 2025 a 31 DE JANEIRO DE 2025 VALORES EM R$
+            07 JAN 2025 Total de saídas - 550,00
+            Transferência enviada pelo Pix Antonio Carlos Guidoni - •••.470.428-•• - BCO DO 550,00
+            BRASIL S.A. (0001) Agência: 7079 Conta: 35017-6
+            08 JAN 2025 Total de saídas - 7.000,00
+            Transferência enviada Marcos Afonso Salomao Junior - •••.885.958-•• - XP 1.000,00
+            Investimentos Corretora de Câmbio Títulos e
+            Valores Mobiliários S.A. (0102) Agência: 1 Conta:
+            679873-5
+            Transferência enviada pelo Pix LILIAN PRISCILLA ONISHI SALOMAO - •••.672.098- 6.000,00
             •• - BCO DO BRASIL S.A. (0001) Agência: 4851
             Conta: 6263735-5
-            Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00
-            SANTANDER (BRASIL) S.A. (0033) Agência: 3200
-            Conta: 2000051-7
             """.trimIndent()
         val job = processingJob(extractedText = extractedText)
         val jobId = requireNotNull(job.id)
@@ -230,7 +239,7 @@ class ImportReaderStatusConsumerTest {
         whenever(importProcessor.process(eq(job), any(), eq(false))).thenReturn(
             ImportProcessingResult(
                 imported = emptyList(),
-                skipped = 2,
+                skipped = 3,
                 duplicateCandidates = emptyList(),
                 errors = emptyList(),
             ),
@@ -241,13 +250,45 @@ class ImportReaderStatusConsumerTest {
 
         val rowsCaptor = argumentCaptor<List<ParsedTransaction>>()
         verify(importProcessor).process(eq(job), rowsCaptor.capture(), eq(false))
-        assertThat(rowsCaptor.firstValue).hasSize(2)
-        assertThat(rowsCaptor.firstValue.map { it.date.toString() }).containsOnly("2025-01-04")
-        assertThat(rowsCaptor.firstValue.map { it.amount }).containsExactlyInAnyOrder("2000.00".toBigDecimal(), "250.00".toBigDecimal())
+        assertThat(rowsCaptor.firstValue).hasSize(3)
+        assertThat(rowsCaptor.firstValue.map { it.date.toString() }).containsExactly("2025-01-07", "2025-01-08", "2025-01-08")
+        assertThat(rowsCaptor.firstValue.map { it.amount }).containsExactly(
+            "550.00".toBigDecimal(),
+            "1000.00".toBigDecimal(),
+            "6000.00".toBigDecimal(),
+        )
         assertThat(rowsCaptor.firstValue.map { it.creditDebitType }).containsOnly(CreditDebitType.DEBIT)
         assertThat(rowsCaptor.firstValue.map { it.description })
-            .anySatisfy { description -> assertThat(description).contains("Maria Jose da Silva", "SANTANDER (BRASIL) S.A.") }
+            .anySatisfy { description -> assertThat(description).contains("Antonio Carlos Guidoni", "BRASIL S.A.") }
+            .anySatisfy { description -> assertThat(description).contains("Marcos Afonso Salomao Junior", "XP Investimentos") }
             .anySatisfy { description -> assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.") }
+    }
+
+    @Test
+    fun `done event without parsed statement rows persists assistant response and statement period`() {
+        val extractedText =
+            """
+            01 DE JANEIRO DE 2025 a 31 DE JANEIRO DE 2025 VALORES EM R$
+            Conteudo sem linhas de transacao reconheciveis
+            """.trimIndent()
+        val job = processingJob(extractedText = extractedText)
+        val jobId = requireNotNull(job.id)
+        whenever(importJobRepository.findById(eq(jobId), eq(job.accountId))).thenReturn(job)
+        whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+        consumer.onBankingReaderDone(doneEventWithStatementParserConfig(jobId, job.accountId))
+
+        verify(importProcessor, never()).process(any(), any(), any())
+        val updateCaptor = argumentCaptor<ImportJob>()
+        verify(importJobRepository).update(updateCaptor.capture())
+        val updated = updateCaptor.firstValue
+        assertThat(updated.status).isEqualTo(ImportJobStatus.FAILED)
+        assertThat(updated.documentType).isEqualTo("BANK_STATEMENT")
+        assertThat(updated.dateFrom).isEqualTo(LocalDate.parse("2025-01-01"))
+        assertThat(updated.dateTo).isEqualTo(LocalDate.parse("2025-01-31"))
+        assertThat(updated.assistantResponse).contains("\"statement_period\"")
+        assertThat(updated.errorDetails).contains("no_transaction_rows")
+        verify(jobCompletedProducer).publish(any())
     }
 
     private fun processingJob(extractedText: String? = null): ImportJob {
@@ -258,6 +299,7 @@ class ImportReaderStatusConsumerTest {
             accountId = UUID.randomUUID(),
             createdByUserId = UUID.randomUUID(),
             source = ImportSource.AUTO,
+            documentType = "BANK_STATEMENT",
             fileName = "planilha.xlsx",
             fileHash = "hash",
             status = ImportJobStatus.PROCESSING,
@@ -432,13 +474,13 @@ class ImportReaderStatusConsumerTest {
                         mapOf(
                             "layout_type" to "DATE_GROUPED_MULTILINE",
                             "date_format" to "DD_MMM_YYYY",
-                            "date_header_pattern" to "^(\\d{2}\\s+[A-Z]{3}\\s+\\d{4})\\b",
+                            "date_header_pattern" to "^(\\d{2} DE [A-Z]+ DE \\d{4})$",
                             "inline_transaction_date_pattern" to null,
-                            "amount_pattern" to "([\\-−]?[\\d.]+,\\d{2})",
+                            "amount_pattern" to "([\\d.,]+)",
                             "decimal_separator" to "comma",
-                            "credit_patterns" to listOf("recebid"),
-                            "debit_patterns" to listOf("enviad"),
-                            "skip_line_patterns" to listOf("^.*Total de saídas.*$", "^Saldo.*$"),
+                            "sign_rule" to "KEYWORD_BASED",
+                            "ignore_line_kinds" to listOf("DAY_TOTAL", "RUNNING_BALANCE", "SECTION_HEADER", "HEADER", "FOOTER"),
+                            "examples" to listOf("Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00"),
                             "default_credit_debit_type" to "DEBIT",
                         ),
                     "warnings" to emptyList<String>(),

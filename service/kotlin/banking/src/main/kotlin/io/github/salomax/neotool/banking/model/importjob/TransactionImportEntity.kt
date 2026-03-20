@@ -39,6 +39,8 @@ open class TransactionImportEntity(
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     open var source: ImportSource,
+    @Column(name = "document_type", length = 64)
+    open var documentType: String? = null,
     @Column(name = "file_name", length = 255)
     open var fileName: String? = null,
     @Column(name = "file_hash", nullable = false, length = 64)

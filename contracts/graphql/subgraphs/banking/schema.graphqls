@@ -320,6 +320,34 @@ type FinancialAccount {
 # ============================================================================
 
 """
+A merchant (payee) associated with a transaction.
+System merchants are shared across all accounts; user merchants are account-scoped.
+"""
+type Merchant {
+  id: ID!
+  name: String!
+  domain: String
+  sector: String
+  isSystem: Boolean!
+  """Logo asset via federation. Null until the hydration job has run for the domain."""
+  logoAsset: Asset
+}
+
+"""A top-merchant analytics row."""
+type TopMerchant {
+  merchant: Merchant!
+  transactionCount: Int!
+  totalAmount: Float!
+  lastUsedAt: Date!
+}
+
+input CreateMerchantInput {
+  name: String!
+  domain: String
+  sector: String
+}
+
+"""
 Category for classifying transactions (system + user-defined).
 """
 type TransactionCategory {
@@ -416,6 +444,9 @@ type Transaction {
   category: TransactionCategory
   """How the category was assigned. Null when uncategorized."""
   categorySource: CategorySource
+
+  # Merchant
+  merchant: Merchant
 
   # Counterparty (bank account transactions / PIX / TED)
   counterpartyName: String
@@ -623,6 +654,7 @@ input CreateTransactionInput {
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
 
@@ -656,6 +688,7 @@ input UpdateTransactionInput {
   notes: String
   tags: [String!]
   categoryId: ID
+  merchantId: ID
   belongsToUserId: ID
   belongsToName: String
 
@@ -1178,6 +1211,10 @@ extend type Query {
   When month/year are not provided, the current month/year are used.
   """
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary!
+  """All merchants (system + user-created) available to the authenticated account."""
+  merchants: [Merchant!]!
+  """Top merchants by spend for the authenticated account. Defaults to top 10 for the current month."""
+  topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]!
   """
   All categories (system + custom) available to the authenticated account.
   """
@@ -1301,6 +1338,12 @@ extend type Mutation {
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
   """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
   deleteInvestmentTransaction(id: ID!): Boolean!
+
+  """
+  Create a custom merchant for the authenticated account.
+  System merchants cannot be created via this mutation.
+  """
+  createMerchant(input: CreateMerchantInput!): Merchant!
 
   """
   Create a new custom transaction category for the authenticated account.

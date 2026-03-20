@@ -30,7 +30,8 @@ class TransactionCategorizationEngineTest {
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categoryRepository: InMemoryTransactionCategoryRepository
     private lateinit var ruleRepository: InMemoryCategoryRuleRepository
-    private lateinit var categorizationService: DefaultCategorizationService
+    private lateinit var transactionRuleEngine: DefaultTransactionRuleEngine
+    private lateinit var merchantService: MerchantService
 
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
@@ -57,7 +58,8 @@ class TransactionCategorizationEngineTest {
         transactionRepository = mock()
         categoryRepository = InMemoryTransactionCategoryRepository()
         ruleRepository = InMemoryCategoryRuleRepository()
-        categorizationService = DefaultCategorizationService(ruleRepository, categoryRepository)
+        transactionRuleEngine = DefaultTransactionRuleEngine(ruleRepository, categoryRepository)
+        merchantService = mock()
 
         financialAccountRepository = mock()
         whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
@@ -70,7 +72,8 @@ class TransactionCategorizationEngineTest {
             TransactionService(
                 transactionRepository = transactionRepository,
                 categoryRepository = categoryRepository,
-                categorizationService = categorizationService,
+                transactionRuleEngine = transactionRuleEngine,
+                merchantService = merchantService,
                 financialAccountRepository = financialAccountRepository,
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
@@ -401,31 +404,31 @@ private class InMemoryTransactionCategoryRepository : TransactionCategoryReposit
     }
 }
 
-private class InMemoryCategoryRuleRepository : CategoryRuleRepository {
-    private val rules = mutableListOf<CategoryRule>()
+private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
+    private val rules = mutableListOf<TransactionRule>()
 
-    override fun findRulesForAccount(accountId: UUID): List<CategoryRule> =
+    override fun findRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules
             .filter { it.deletedAt == null && (it.accountId == null || it.accountId == accountId) }
             .sortedWith(
-                compareBy<CategoryRule> { it.priority }
+                compareBy<TransactionRule> { it.priority }
                     .thenByDescending { it.matchCount }
                     .thenByDescending { it.createdAt },
             )
 
-    override fun findUserRulesForAccount(accountId: UUID): List<CategoryRule> =
+    override fun findUserRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules
             .filter { it.deletedAt == null && it.accountId == accountId && !it.isSystem }
             .sortedWith(
-                compareBy<CategoryRule> { it.priority }
+                compareBy<TransactionRule> { it.priority }
                     .thenByDescending { it.matchCount }
                     .thenByDescending { it.createdAt },
             )
 
-    override fun findById(id: UUID): CategoryRule? =
+    override fun findById(id: UUID): TransactionRule? =
         rules.firstOrNull { it.deletedAt == null && it.id == id }
 
-    override fun save(rule: CategoryRule): CategoryRule {
+    override fun save(rule: TransactionRule): TransactionRule {
         val now = Instant.now()
         val id = rule.id ?: UUID.randomUUID()
         val upserted =
@@ -454,7 +457,7 @@ private class InMemoryCategoryRuleRepository : CategoryRuleRepository {
     override fun findImplicitByPattern(
         accountId: UUID,
         pattern: String,
-    ): CategoryRule? =
+    ): TransactionRule? =
         rules.firstOrNull { it.deletedAt == null && it.accountId == accountId && it.isImplicit && it.pattern == pattern }
 
     override fun incrementMatchCount(id: UUID) {
@@ -464,7 +467,7 @@ private class InMemoryCategoryRuleRepository : CategoryRuleRepository {
         }
     }
 
-    fun implicitRulesForAccount(accountId: UUID): List<CategoryRule> =
+    fun implicitRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules.filter { it.deletedAt == null && it.accountId == accountId && it.isImplicit }
 }
 

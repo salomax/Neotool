@@ -34,6 +34,7 @@ import java.util.UUID
 
 private const val DEFAULT_MIME = "application/octet-stream"
 private const val DUPLICATE_FILE_HASH_CONSTRAINT = "uq_document_import_jobs_transaction_account_hash"
+private const val DEFAULT_TRANSACTION_IMPORT_DOCUMENT_TYPE = "BANK_STATEMENT"
 
 @Singleton
 open class ImportJobService(
@@ -102,6 +103,7 @@ open class ImportJobService(
                 accountId = accountId,
                 createdByUserId = userId,
                 source = resolvedSource,
+                documentType = DEFAULT_TRANSACTION_IMPORT_DOCUMENT_TYPE,
                 fileName = fileName,
                 fileHash = fileHash,
                 status = ImportJobStatus.PENDING,

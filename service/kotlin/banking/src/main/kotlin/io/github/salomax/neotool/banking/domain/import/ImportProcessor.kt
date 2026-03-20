@@ -4,6 +4,8 @@ import io.github.salomax.neotool.banking.domain.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.import.dedup.SameSourceDedupService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
@@ -11,6 +13,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import jakarta.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
@@ -64,7 +67,9 @@ open class ImportProcessor(
     private val importFingerprintService: ImportFingerprintService,
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
+    private val categorizationService: TransactionRuleEngine,
 ) {
+    private val logger = LoggerFactory.getLogger(javaClass)
     /**
      * Processes each row: Level 1 (provider id) skip, Level 1b (fingerprint) skip,
      * Level 2 (cross-source) → duplicateCandidates without insert, else save.
@@ -99,6 +104,18 @@ open class ImportProcessor(
         val errors = mutableListOf<ImportRowError>()
         val sameSourceDuplicateCache = mutableMapOf<String, Boolean>()
         val fingerprintDuplicateCache = mutableMapOf<String, Boolean>()
+
+        val categorizationRules =
+            try {
+                categorizationService.preloadRules(accountId)
+            } catch (e: Exception) {
+                logger.warn(
+                    "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
+                    accountId,
+                    e,
+                )
+                emptyList()
+            }
 
         rows.forEachIndexed { index, parsed ->
             try {
@@ -184,6 +201,22 @@ open class ImportProcessor(
                         CreditDebitType.DEBIT -> TransactionType.OTHER_EXPENSE
                         CreditDebitType.CREDIT -> TransactionType.OTHER_INCOME
                     }
+                val categorySuggestion =
+                    try {
+                        categorizationService.suggestFromRulesRecordingMatch(
+                            categorizationRules,
+                            parsed.description,
+                            parsed.creditDebitType,
+                        )
+                    } catch (e: Exception) {
+                        logger.warn(
+                            "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
+                            accountId,
+                            index,
+                            e,
+                        )
+                        null
+                    }
                 val transaction =
                     Transaction(
                         financialAccountId = financialAccountId,
@@ -205,6 +238,8 @@ open class ImportProcessor(
                         totalInstallments = parsed.totalInstallments,
                         importFingerprint = fingerprint,
                         importJobId = importJobId,
+                        categoryId = categorySuggestion?.categoryId,
+                        categorySource = categorySuggestion?.let { CategorySource.RULE },
                         createdAt = now,
                         updatedAt = now,
                     )

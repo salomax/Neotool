@@ -8,7 +8,7 @@ import java.time.Instant
 import java.util.UUID
 
 /**
- * JPA repository for banking.category_rules (entity layer).
+ * JPA repository for banking.transaction_rules (entity layer).
  */
 @Repository
 interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID> {
@@ -41,7 +41,7 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
 
     @Query(
         """
-        UPDATE banking.category_rules
+        UPDATE banking.transaction_rules
         SET deleted_at = :now, updated_at = :now
         WHERE id = :id AND account_id = :accountId AND deleted_at IS NULL
         """,
@@ -55,7 +55,7 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
 
     @Query(
         """
-        UPDATE banking.category_rules
+        UPDATE banking.transaction_rules
         SET match_count = match_count + 1, updated_at = :now
         WHERE id = :id AND deleted_at IS NULL
         """,

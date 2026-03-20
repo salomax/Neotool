@@ -16,11 +16,12 @@ import org.mockito.kotlin.whenever
 import java.time.Instant
 import java.util.UUID
 
-@DisplayName("CategoryRuleService")
+@DisplayName("TransactionRuleService")
 class CategoryRuleServiceTest {
-    private lateinit var ruleRepository: CategoryRuleRepository
+    private lateinit var ruleRepository: TransactionRuleRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
-    private lateinit var service: CategoryRuleService
+    private lateinit var merchantRepository: MerchantRepository
+    private lateinit var service: TransactionRuleService
 
     private val accountId = UUID.randomUUID()
     private val otherAccountId = UUID.randomUUID()
@@ -30,7 +31,8 @@ class CategoryRuleServiceTest {
     fun setUp() {
         ruleRepository = mock()
         categoryRepository = mock()
-        service = CategoryRuleService(ruleRepository, categoryRepository)
+        merchantRepository = mock()
+        service = TransactionRuleService(ruleRepository, categoryRepository, merchantRepository)
     }
 
     @Nested
@@ -103,7 +105,7 @@ class CategoryRuleServiceTest {
                 listOf(rule(pattern = "ifood", patternType = PatternType.CONTAINS)),
             )
 
-            assertThrows<DuplicateCategoryRuleException> {
+            assertThrows<DuplicateTransactionRuleException> {
                 service.create(
                     createInput(
                         categoryId = categoryId,
@@ -121,7 +123,7 @@ class CategoryRuleServiceTest {
         fun `trims pattern and defaults priority to 40`() {
             whenever(categoryRepository.findById(categoryId)).thenReturn(category(id = categoryId))
             whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(emptyList())
-            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
 
             val result =
                 service.create(
@@ -134,7 +136,7 @@ class CategoryRuleServiceTest {
                     accountId,
                 )
 
-            val ruleCaptor = argumentCaptor<CategoryRule>()
+            val ruleCaptor = argumentCaptor<TransactionRule>()
             verify(ruleRepository).save(ruleCaptor.capture())
             val saved = ruleCaptor.firstValue
             assertThat(saved.pattern).isEqualTo("supermercado")
@@ -157,8 +159,8 @@ class CategoryRuleServiceTest {
         fun `throws when rule is not found`() {
             whenever(ruleRepository.findById(ruleId)).thenReturn(null)
 
-            assertThrows<CategoryRuleNotFoundException> {
-                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            assertThrows<TransactionRuleNotFoundException> {
+                service.update(ruleId, UpdateTransactionRuleInput(pattern = "novo"), accountId)
             }
 
             verify(ruleRepository, never()).save(any())
@@ -168,8 +170,8 @@ class CategoryRuleServiceTest {
         fun `throws when rule belongs to another account`() {
             whenever(ruleRepository.findById(ruleId)).thenReturn(rule(id = ruleId, accountId = otherAccountId))
 
-            assertThrows<CategoryRuleNotFoundException> {
-                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            assertThrows<TransactionRuleNotFoundException> {
+                service.update(ruleId, UpdateTransactionRuleInput(pattern = "novo"), accountId)
             }
 
             verify(ruleRepository, never()).save(any())
@@ -181,8 +183,8 @@ class CategoryRuleServiceTest {
                 rule(id = ruleId, accountId = accountId, isSystem = true),
             )
 
-            assertThrows<SystemCategoryRuleNotEditableException> {
-                service.update(ruleId, UpdateCategoryRuleInput(pattern = "novo"), accountId)
+            assertThrows<SystemTransactionRuleNotEditableException> {
+                service.update(ruleId, UpdateTransactionRuleInput(pattern = "novo"), accountId)
             }
 
             verify(ruleRepository, never()).save(any())
@@ -207,10 +209,10 @@ class CategoryRuleServiceTest {
             whenever(ruleRepository.findById(ruleId)).thenReturn(existing)
             whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existing, duplicate))
 
-            assertThrows<DuplicateCategoryRuleException> {
+            assertThrows<DuplicateTransactionRuleException> {
                 service.update(
                     id = ruleId,
-                    input = UpdateCategoryRuleInput(pattern = "uber", patternType = PatternType.EXACT),
+                    input = UpdateTransactionRuleInput(pattern = "uber", patternType = PatternType.EXACT),
                     accountId = accountId,
                 )
             }
@@ -234,13 +236,13 @@ class CategoryRuleServiceTest {
             whenever(ruleRepository.findById(ruleId)).thenReturn(existing)
             whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existing))
             whenever(categoryRepository.findById(newCategoryId)).thenReturn(category(id = newCategoryId))
-            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as CategoryRule }
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
 
             val result =
                 service.update(
                     id = ruleId,
                     input =
-                        UpdateCategoryRuleInput(
+                        UpdateTransactionRuleInput(
                             categoryId = newCategoryId,
                             pattern = "  uber ",
                             patternType = PatternType.STARTS_WITH,
@@ -249,7 +251,7 @@ class CategoryRuleServiceTest {
                     accountId = accountId,
                 )
 
-            val ruleCaptor = argumentCaptor<CategoryRule>()
+            val ruleCaptor = argumentCaptor<TransactionRule>()
             verify(ruleRepository).save(ruleCaptor.capture())
             val saved = ruleCaptor.firstValue
             assertThat(saved.id).isEqualTo(ruleId)
@@ -276,7 +278,7 @@ class CategoryRuleServiceTest {
         fun `throws when rule is not found`() {
             whenever(ruleRepository.findById(ruleId)).thenReturn(null)
 
-            assertThrows<CategoryRuleNotFoundException> {
+            assertThrows<TransactionRuleNotFoundException> {
                 service.delete(ruleId, accountId)
             }
 
@@ -287,7 +289,7 @@ class CategoryRuleServiceTest {
         fun `throws when rule belongs to another account`() {
             whenever(ruleRepository.findById(ruleId)).thenReturn(rule(id = ruleId, accountId = otherAccountId))
 
-            assertThrows<CategoryRuleNotFoundException> {
+            assertThrows<TransactionRuleNotFoundException> {
                 service.delete(ruleId, accountId)
             }
 
@@ -300,7 +302,7 @@ class CategoryRuleServiceTest {
                 rule(id = ruleId, accountId = accountId, isSystem = true),
             )
 
-            assertThrows<SystemCategoryRuleNotDeletableException> {
+            assertThrows<SystemTransactionRuleNotDeletableException> {
                 service.delete(ruleId, accountId)
             }
 
@@ -325,7 +327,7 @@ class CategoryRuleServiceTest {
         pattern: String = "ifood",
         patternType: PatternType = PatternType.CONTAINS,
         priority: Int? = 10,
-    ) = CreateCategoryRuleInput(
+    ) = CreateTransactionRuleInput(
         categoryId = categoryId,
         pattern = pattern,
         patternType = patternType,
@@ -363,10 +365,11 @@ class CategoryRuleServiceTest {
         isSystem: Boolean = false,
         isImplicit: Boolean = false,
         matchCount: Int = 0,
-    ) = CategoryRule(
+    ) = TransactionRule(
         id = id,
         accountId = accountId,
         categoryId = categoryId,
+        merchantId = null,
         pattern = pattern,
         patternType = patternType,
         applicableTo = applicableTo,

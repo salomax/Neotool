@@ -272,9 +272,9 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                             "inline_transaction_date_pattern":null,
                             "amount_pattern":"([\\-−]?[\\d.]+,\\d{2})",
                             "decimal_separator":"comma",
-                            "credit_patterns":["recebid"],
-                            "debit_patterns":["enviad"],
-                            "skip_line_patterns":["^Saldo.*$","^Total de entradas.*$","^Total de saídas.*$"],
+                            "sign_rule":"KEYWORD_BASED",
+                            "ignore_line_kinds":["DAY_TOTAL","RUNNING_BALANCE"],
+                            "examples":["Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00"],
                             "default_credit_debit_type":"DEBIT"
                           },
                           "warnings":[]
@@ -303,6 +303,9 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(doneCaptor.firstValue.llm_output).doesNotContainKeys("closing_date", "due_date")
         assertThat(doneCaptor.firstValue.llm_output["parser_config"]).isInstanceOf(Map::class.java)
         assertThat(doneCaptor.firstValue.llm_output).doesNotContainKey("transactions")
+        val parserConfig = doneCaptor.firstValue.llm_output["parser_config"] as Map<*, *>
+        assertThat(parserConfig["sign_rule"]).isEqualTo("KEYWORD_BASED")
+        assertThat(parserConfig["ignore_line_kinds"]).isEqualTo(listOf("DAY_TOTAL", "RUNNING_BALANCE"))
     }
 
     @Test
@@ -323,9 +326,9 @@ class LlmBankingReaderRequestedRoutingServiceTest {
                             "inline_transaction_date_pattern":null,
                             "amount_pattern":"([\\-−]?[\\d.]+,\\d{2})",
                             "decimal_separator":",",
-                            "credit_patterns":["recebid"],
-                            "debit_patterns":["enviad"],
-                            "skip_line_patterns":["^Saldo.*$"],
+                            "sign_rule":"keyword debit credit",
+                            "ignore_line_kinds":["balance","daily total"],
+                            "examples":["Transferência recebida via Pix Fulano 1.250,00"],
                             "default_credit_debit_type":"debit"
                           },
                           "warnings":[]
@@ -343,6 +346,8 @@ class LlmBankingReaderRequestedRoutingServiceTest {
         assertThat(parserConfig["layout_type"]).isEqualTo("DATE_GROUPED_MULTILINE")
         assertThat(parserConfig["date_format"]).isEqualTo("DD_MMM_YYYY")
         assertThat(parserConfig["decimal_separator"]).isEqualTo("comma")
+        assertThat(parserConfig["sign_rule"]).isEqualTo("KEYWORD_BASED")
+        assertThat(parserConfig["ignore_line_kinds"]).isEqualTo(listOf("RUNNING_BALANCE", "DAY_TOTAL"))
         assertThat(parserConfig["default_credit_debit_type"]).isEqualTo("DEBIT")
     }
 

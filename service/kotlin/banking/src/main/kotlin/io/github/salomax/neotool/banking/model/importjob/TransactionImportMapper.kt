@@ -17,6 +17,7 @@ object TransactionImportMapper {
             accountId = entity.accountId,
             createdByUserId = entity.createdByUserId,
             source = entity.source,
+            documentType = entity.documentType,
             fileName = entity.fileName,
             fileHash = entity.fileHash,
             status = entity.status,
@@ -46,6 +47,7 @@ object TransactionImportMapper {
             accountId = job.accountId,
             createdByUserId = job.createdByUserId,
             source = job.source,
+            documentType = job.documentType,
             fileName = job.fileName,
             fileHash = job.fileHash,
             status = job.status,
@@ -73,6 +75,7 @@ object TransactionImportMapper {
     ) {
         entity.jobKind = TransactionImportEntity.JOB_KIND
         entity.source = job.source
+        entity.documentType = job.documentType
         entity.status = job.status
         entity.extractedText = job.extractedText
         entity.extractionMetadata = job.extractionMetadata

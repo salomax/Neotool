@@ -15,7 +15,7 @@ import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
-import io.github.salomax.neotool.banking.domain.transaction.CategorizationService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
@@ -68,7 +68,7 @@ class BillImportServiceTest {
     private lateinit var billAssetStorage: BillImportAssetStorage
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
     private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
-    private lateinit var categorizationService: CategorizationService
+    private lateinit var categorizationService: TransactionRuleEngine
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -792,7 +792,7 @@ class BillImportServiceTest {
             assertThat(txCaptor.firstValue.categoryId).isEqualTo(categoryId)
             assertThat(txCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
 
-            verify(categorizationService).learnFromManualCategorization(eq(accountId), eq(tx.description), eq(categoryId))
+            verify(categorizationService).learnFromManualAssignment(eq(accountId), eq(tx.description), eq(categoryId), eq(null))
         }
 
         @Test

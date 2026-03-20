@@ -723,6 +723,12 @@ export type CreateInvestmentAssetInput = {
   ticker?: InputMaybe<Scalars['String']['input']>;
 };
 
+export type CreateMerchantInput = {
+  domain?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  sector?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type CreatePromptInput = {
   category: Scalars['String']['input'];
   createdBy: Scalars['ID']['input'];
@@ -757,6 +763,7 @@ export type CreateTransactionInput = {
   description: Scalars['String']['input'];
   financialAccountId: Scalars['ID']['input'];
   installmentNumber?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   payeeMcc?: InputMaybe<Scalars['Int']['input']>;
   paymentReason?: InputMaybe<Scalars['String']['input']>;
@@ -1466,6 +1473,21 @@ export enum IssuerCategory {
   Payment = 'PAYMENT'
 }
 
+/**
+ * A merchant (payee) associated with a transaction.
+ * System merchants are shared across all accounts; user merchants are account-scoped.
+ */
+export type Merchant = {
+  __typename: 'Merchant';
+  domain: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isSystem: Scalars['Boolean']['output'];
+  /** Logo asset via federation. Null until the hydration job has run for the domain. */
+  logoAsset: Maybe<Asset>;
+  name: Scalars['String']['output'];
+  sector: Maybe<Scalars['String']['output']>;
+};
+
 export type MessageInput = {
   content?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -1614,6 +1636,11 @@ export type Mutation = {
    * Creates the holding automatically on the first PURCHASE of an asset.
    */
   createInvestmentAsset: InvestmentAsset;
+  /**
+   * Create a custom merchant for the authenticated account.
+   * System merchants cannot be created via this mutation.
+   */
+  createMerchant: Merchant;
   createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
@@ -1752,6 +1779,11 @@ export type MutationCreateGroupArgs = {
 
 export type MutationCreateInvestmentAssetArgs = {
   input: CreateInvestmentAssetInput;
+};
+
+
+export type MutationCreateMerchantArgs = {
+  input: CreateMerchantInput;
 };
 
 
@@ -2170,6 +2202,8 @@ export type Query = {
    * When categories is omitted, returns all active issuers.
    */
   issuers: Array<Issuer>;
+  /** All merchants (system + user-created) available to the authenticated account. */
+  merchants: Array<Merchant>;
   /**
    * Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
    * When financialAccountId is omitted, returns the aggregate across all accounts.
@@ -2190,6 +2224,8 @@ export type Query = {
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
+  /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
+  topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
   transaction: Maybe<Transaction>;
   /** Distinct values used in transaction attribution ("belongs to"), across all account transactions. */
@@ -2418,6 +2454,14 @@ export type QuerySearchInvestmentFundsAutocompleteArgs = {
 export type QueryServiceUsageArgs = {
   period: UsagePeriod;
   serviceId: Scalars['String']['input'];
+};
+
+
+export type QueryTopMerchantsArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  month?: InputMaybe<Scalars['Int']['input']>;
+  year?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -2740,6 +2784,15 @@ export enum TopInstitutionMetric {
   Profit = 'PROFIT'
 }
 
+/** A top-merchant analytics row. */
+export type TopMerchant = {
+  __typename: 'TopMerchant';
+  lastUsedAt: Scalars['Date']['output'];
+  merchant: Merchant;
+  totalAmount: Scalars['Float']['output'];
+  transactionCount: Scalars['Int']['output'];
+};
+
 /** Core ledger transaction row. */
 export type Transaction = {
   __typename: 'Transaction';
@@ -2766,6 +2819,7 @@ export type Transaction = {
   financialAccountId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
   installmentNumber: Maybe<Scalars['Int']['output']>;
+  merchant: Maybe<Merchant>;
   notes: Maybe<Scalars['String']['output']>;
   payeeMcc: Maybe<Scalars['Int']['output']>;
   paymentReason: Maybe<Scalars['String']['output']>;
@@ -2929,6 +2983,7 @@ export type UpdateTransactionInput = {
   creditDebitType?: InputMaybe<CreditDebitType>;
   date?: InputMaybe<Scalars['Date']['input']>;
   description?: InputMaybe<Scalars['String']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
   notes?: InputMaybe<Scalars['String']['input']>;
   payeeMcc?: InputMaybe<Scalars['Int']['input']>;
   paymentReason?: InputMaybe<Scalars['String']['input']>;
