@@ -1,10 +1,14 @@
 "use client";
 
 import React from "react";
-import ApartmentIcon from "@mui/icons-material/Apartment";
 import CandlestickChartIcon from "@mui/icons-material/CandlestickChart";
+import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import CurrencyBitcoinIcon from "@mui/icons-material/CurrencyBitcoin";
+import ElderlyIcon from "@mui/icons-material/Elderly";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
+import LanIcon from "@mui/icons-material/Lan";
+import MobiledataOffIcon from "@mui/icons-material/MobiledataOff";
+import PaidIcon from "@mui/icons-material/Paid";
 import SavingsIcon from "@mui/icons-material/Savings";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
@@ -27,12 +31,12 @@ const ICON_BY_KIND: Record<AssetTypeIconKind, React.ComponentType<SvgIconProps>>
   FUND: TrendingUpIcon,
   STOCK: CandlestickChartIcon,
   CRYPTO: CurrencyBitcoinIcon,
-  REAL_ESTATE_FUND: ApartmentIcon,
-  OPTION: ShowChartIcon,
+  REAL_ESTATE_FUND: CorporateFareIcon,
+  OPTION: MobiledataOffIcon,
   DERIVATIVES: ShowChartIcon,
-  STRUCTURED: ShowChartIcon,
-  PENSION: SavingsIcon,
-  OTHER: HelpOutlineIcon,
+  STRUCTURED: LanIcon,
+  PENSION: ElderlyIcon,
+  OTHER: PaidIcon,
 };
 
 const FIXED_INCOME_ASSET_TYPES = new Set([
