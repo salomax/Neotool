@@ -168,16 +168,18 @@ class BankingWiringFactory(
                 "transactionsByCategory",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val financialAccountId = env.getArgument<String?>("financialAccountId")
-                        val year = env.getArgument<Int?>("year")
-                        val month = env.getArgument<Int?>("month")
-                        val applicableTo = env.getArgument<String?>("applicableTo")
                         transactionResolver.transactionsByCategory(
-                            financialAccountId,
-                            year,
-                            month,
-                            applicableTo,
-                            principal,
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            belongsToUserId = env.getArgument("belongsToUserId"),
+                            belongsToName = env.getArgument("belongsToName"),
+                            tags = env.getArgument("tags"),
+                            billId = env.getArgument("billId"),
+                            categoryId = env.getArgument("categoryId"),
+                            uncategorized = env.getArgument("uncategorized"),
+                            year = env.getArgument("year"),
+                            month = env.getArgument("month"),
+                            applicableTo = env.getArgument("applicableTo"),
+                            principal = principal,
                         )
                     }
                 },

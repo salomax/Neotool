@@ -1214,10 +1214,20 @@ extend type Query {
   """
   transactionRules: [TransactionRule!]!
   """
-  Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts.
+  Category totals for a period (expense/income breakdown). Accepts the same filters as the
+  transactions query — the result reflects the category breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
   """
   transactionsByCategory(
     financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    tags: [String!]
+    billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only transactions with no category (result will always be empty)."""
+    uncategorized: Boolean
     year: Int
     month: Int
     """Filter by INCOME or EXPENSE; omit for all categorized transactions."""

@@ -6,6 +6,7 @@ require (
 	github.com/caarlos0/env/v10 v10.0.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.5.5
+	github.com/salomax/invistus/workflow/golang/shared/auth v0.0.0
 	github.com/salomax/invistus/workflow/golang/shared/health v0.0.0
 	golang.org/x/text v0.22.0
 )
@@ -37,4 +38,7 @@ require (
 	golang.org/x/time v0.15.0 // indirect
 )
 
-replace github.com/salomax/invistus/workflow/golang/shared/health => ../../shared/health
+replace (
+	github.com/salomax/invistus/workflow/golang/shared/auth => ../../shared/auth
+	github.com/salomax/invistus/workflow/golang/shared/health => ../../shared/health
+)

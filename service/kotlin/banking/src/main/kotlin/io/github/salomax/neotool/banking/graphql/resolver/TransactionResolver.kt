@@ -188,24 +188,31 @@ class TransactionResolver(
 
     fun transactionsByCategory(
         financialAccountId: String?,
+        belongsToUserId: String?,
+        belongsToName: String?,
+        tags: List<String>?,
+        billId: String?,
+        categoryId: String?,
+        uncategorized: Boolean?,
         year: Int?,
         month: Int?,
         applicableTo: String?,
         principal: RequestPrincipal,
     ): List<CategoryTotalDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val today = LocalDate.now()
-        val targetYear = year ?: today.year
-        val targetMonth = month ?: today.monthValue
-        require(targetMonth in 1..12) { "month must be between 1 and 12, got: $targetMonth" }
-        val faId = financialAccountId?.let { UUID.fromString(it) }
         val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
         val breakdown =
-            monthSummaryQueryService.getCategoryBreakdown(
+            service.getCategoryBreakdown(
                 accountId = accountId,
-                financialAccountId = faId,
-                year = targetYear,
-                month = targetMonth,
+                financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+                belongsToUserId = belongsToUserId?.let { UUID.fromString(it) },
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billId?.let { UUID.fromString(it) },
+                categoryId = categoryId?.let { UUID.fromString(it) },
+                uncategorized = uncategorized,
+                month = month,
+                year = year,
                 applicableTo = applicableToEnum,
             )
         return breakdown.map { it.toCategoryTotalDTO() }

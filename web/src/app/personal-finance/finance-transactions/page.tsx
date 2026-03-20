@@ -374,6 +374,8 @@ export default function FinanceTransactionsPage() {
               refetchSummary();
             }}
             selectedAccountId={effectiveSelectedAccountId}
+            selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
+            selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
           />
         </Container>
       </Page>

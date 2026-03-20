@@ -131,7 +131,8 @@ FROM banking.transaction_categories,
              ('Uber / Taxi',        40),
              ('Transporte Público', 50),
              ('IPVA',               60),
-             ('Manutenção',         70)) AS sub(name, ord)
+             ('Revisão',            70),
+             ('Manutenção',         80)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Transporte'
   AND is_system = true AND account_id IS NULL;
 

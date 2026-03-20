@@ -56,6 +56,8 @@ interface TransactionTableProps {
   onCancelCreate?: () => void;
   onSuccessCreate?: () => void;
   selectedAccountId?: string | null;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
 type DateParts = {
@@ -87,6 +89,8 @@ export function TransactionTable({
   onCancelCreate,
   onSuccessCreate,
   selectedAccountId = null,
+  selectedMonth,
+  selectedYear,
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -296,6 +300,22 @@ export function TransactionTable({
     return groups;
   }, [transactions]);
 
+  const installmentSectionStartIndex = useMemo(() => {
+    if (typeof selectedMonth !== 'number' || typeof selectedYear !== 'number') return null;
+    if (selectedMonth < 1 || selectedMonth > 12) return null;
+
+    const selectedMonthKey = selectedYear * 100 + selectedMonth;
+    for (let i = 0; i < groupedTransactions.length; i++) {
+      const parts = parseDateParts(groupedTransactions[i]?.date ?? '');
+      if (!parts) continue;
+      const groupMonthKey = parts.year * 100 + parts.month;
+      if (groupMonthKey < selectedMonthKey) {
+        return i > 0 ? i : null;
+      }
+    }
+    return null;
+  }, [groupedTransactions, selectedMonth, selectedYear]);
+
   const formatDateHeader = (dateString: string) => {
     if (!dateString) return '';
     
@@ -496,8 +516,18 @@ export function TransactionTable({
               selectedAccountId={selectedAccountId}
             />
           )}
-          {groupedTransactions.map((group) => (
+          {groupedTransactions.map((group, groupIndex) => (
             <Fragment key={`day-group-${group.date}`}>
+              {installmentSectionStartIndex === groupIndex && (
+                <TableRow key={`installment-section-header-${selectedYear}-${selectedMonth}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
+                  <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
+                    <Stack spacing={1}>
+                      <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
+                      <Divider />
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              )}
               <TableRow key={`header-${group.date}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
                 <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
                   <Label>

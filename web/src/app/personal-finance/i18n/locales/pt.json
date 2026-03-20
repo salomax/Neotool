@@ -440,6 +440,7 @@
       "today": "Hoje, {{date}}",
       "tomorrow": "Amanhã, {{date}}"
     },
+    "installmentPurchasesDueThisMonthHeader": "Compras parceladas com vencimento neste mês",
     "billSummary": {
       "billValue": "Valor da Fatura",
       "closingDate": "Fechamento",

@@ -14,7 +14,7 @@ import java.util.UUID
 
 /**
  * JPA entity for banking.issuers.
- * logo_key is null until IssuerLogoHydrationJob runs.
+ * logo_key may be null until the issuer logo worker hydrates it.
  */
 @Entity
 @Table(name = "issuers", schema = "banking")

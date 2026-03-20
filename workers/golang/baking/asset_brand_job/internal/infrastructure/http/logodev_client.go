@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/url"
@@ -21,16 +22,18 @@ type searchCandidateDTO struct {
 }
 
 type Client struct {
-	baseURL    string
-	token      string
-	httpClient *http.Client
-	logger     *slog.Logger
+	baseURL      string
+	imageBaseURL string
+	token        string
+	httpClient   *http.Client
+	logger       *slog.Logger
 }
 
-func NewClient(baseURL string, token string, timeoutSeconds int, logger *slog.Logger) *Client {
+func NewClient(baseURL string, imageBaseURL string, token string, timeoutSeconds int, logger *slog.Logger) *Client {
 	return &Client{
-		baseURL: strings.TrimRight(baseURL, "/"),
-		token:   token,
+		baseURL:      strings.TrimRight(baseURL, "/"),
+		imageBaseURL: strings.TrimRight(imageBaseURL, "/"),
+		token:        token,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSeconds) * time.Second,
 		},
@@ -102,6 +105,59 @@ func (c *Client) Search(ctx context.Context, query string) (domain.SearchRespons
 	}
 
 	return response, nil
+}
+
+func (c *Client) FetchLogo(ctx context.Context, domainName string) ([]byte, error) {
+	var logoBytes []byte
+
+	err := shared.Retry(
+		ctx,
+		shared.DefaultRetryPolicy,
+		func(ctx context.Context) error {
+			req, err := http.NewRequestWithContext(
+				ctx,
+				http.MethodGet,
+				fmt.Sprintf("%s/%s?token=%s&size=128&format=png", c.imageBaseURL, domainName, c.token),
+				nil,
+			)
+			if err != nil {
+				return err
+			}
+
+			httpResp, err := c.httpClient.Do(req)
+			if err != nil {
+				return err
+			}
+			defer httpResp.Body.Close()
+
+			if httpResp.StatusCode < 200 || httpResp.StatusCode > 299 {
+				return &retryableHTTPError{StatusCode: httpResp.StatusCode}
+			}
+
+			logoBytes, err = io.ReadAll(httpResp.Body)
+			if err != nil {
+				return fmt.Errorf("read body: %w", err)
+			}
+			if len(logoBytes) == 0 {
+				return fmt.Errorf("logo.dev returned empty body for domain %q", domainName)
+			}
+
+			return nil
+		},
+		func(err error) bool {
+			var httpErr *retryableHTTPError
+			if ok := errorAs(err, &httpErr); ok {
+				return httpErr.StatusCode == http.StatusTooManyRequests || httpErr.StatusCode >= 500
+			}
+			return true
+		},
+		c.logger,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("logo.dev fetch failed for domain %q: %w", domainName, err)
+	}
+
+	return logoBytes, nil
 }
 
 type retryableHTTPError struct {

@@ -440,6 +440,7 @@
       "today": "Today, {{date}}",
       "tomorrow": "Tomorrow, {{date}}"
     },
+    "installmentPurchasesDueThisMonthHeader": "Installment purchases due this month",
     "billSummary": {
       "billValue": "Bill Amount",
       "closingDate": "Closing Date",

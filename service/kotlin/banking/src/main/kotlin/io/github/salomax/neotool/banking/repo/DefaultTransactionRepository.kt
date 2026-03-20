@@ -338,10 +338,21 @@ open class DefaultTransactionRepository(
               COUNT(t.id)       AS transaction_count
             FROM banking.transactions t
             JOIN banking.transaction_categories tc ON t.category_id = tc.id AND tc.deleted_at IS NULL
+            LEFT JOIN banking.credit_card_bills b ON b.id = t.bill_id AND b.deleted_at IS NULL
             WHERE t.account_id = CAST(:accountId AS uuid)
               AND (CAST(:financialAccountId AS uuid) IS NULL OR t.financial_account_id = CAST(:financialAccountId AS uuid))
-              AND t.date >= make_date(:year, :month, 1)
-              AND t.date < (make_date(:year, :month, 1) + INTERVAL '1 month')
+              AND (
+                  (
+                      t.installment_number > 1
+                      AND DATE_TRUNC('month', COALESCE(b.due_date, t.date)) = DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
+                  )
+                  OR
+                  (
+                      (t.installment_number IS NULL OR t.installment_number <= 1)
+                      AND t.date >= MAKE_DATE(:year, :month, 1)
+                      AND t.date < (MAKE_DATE(:year, :month, 1) + INTERVAL '1 month')
+                  )
+              )
               AND t.deleted_at IS NULL
               AND t.status IN ('POSTED', 'PENDING')
               AND (CAST(:applicableTo AS text) IS NULL

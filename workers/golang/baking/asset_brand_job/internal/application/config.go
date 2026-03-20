@@ -11,6 +11,8 @@ type Config struct {
 	Database    DatabaseConfig
 	Job         JobConfig
 	LogoDev     LogoDevConfig
+	Security    SecurityConfig
+	Assets      AssetsConfig
 	HealthCheck HealthCheckConfig
 	Logging     LoggingConfig
 }
@@ -40,9 +42,24 @@ type JobConfig struct {
 }
 
 type LogoDevConfig struct {
-	BaseURL        string `env:"LOGO_DEV_BASE_URL"         envDefault:"https://api.logo.dev"`
+	BaseURL        string `env:"LOGO_DEV_BASE_URL"        envDefault:"https://api.logo.dev"`
+	ImageBaseURL   string `env:"LOGO_DEV_IMAGE_BASE_URL"  envDefault:"https://img.logo.dev"`
 	Token          string `env:"LOGO_DEV_TOKEN,required"`
-	TimeoutSeconds int    `env:"LOGO_DEV_TIMEOUT_SECONDS"  envDefault:"15"`
+	TimeoutSeconds int    `env:"LOGO_DEV_TIMEOUT_SECONDS" envDefault:"15"`
+}
+
+type SecurityConfig struct {
+	ServiceURL     string `env:"SECURITY_SERVICE_URL"     envDefault:"http://localhost:8080"`
+	ServiceID      string `env:"SECURITY_SERVICE_ID"`
+	ServiceSecret  string `env:"SECURITY_SERVICE_SECRET"`
+	TimeoutSeconds int    `env:"SECURITY_TIMEOUT_SECONDS" envDefault:"10"`
+}
+
+type AssetsConfig struct {
+	ApolloRouterURL string `env:"ASSETS_APOLLO_ROUTER_URL"      envDefault:"http://localhost:4000/graphql"`
+	Namespace       string `env:"ASSETS_NAMESPACE"              envDefault:"institution-logos"`
+	GraphQLTimeout  int    `env:"ASSETS_GRAPHQL_TIMEOUT_SECONDS" envDefault:"30"`
+	UploadTimeout   int    `env:"ASSETS_UPLOAD_TIMEOUT_SECONDS"  envDefault:"60"`
 }
 
 type HealthCheckConfig struct {
@@ -80,11 +97,29 @@ func (c *Config) Validate() error {
 	if c.LogoDev.BaseURL == "" {
 		errs = append(errs, "LOGO_DEV_BASE_URL must not be empty")
 	}
+	if c.LogoDev.ImageBaseURL == "" {
+		errs = append(errs, "LOGO_DEV_IMAGE_BASE_URL must not be empty")
+	}
 	if c.LogoDev.Token == "" {
 		errs = append(errs, "LOGO_DEV_TOKEN is required")
 	}
 	if c.LogoDev.TimeoutSeconds < 5 {
 		errs = append(errs, "LOGO_DEV_TIMEOUT_SECONDS must be >= 5")
+	}
+	if c.Security.TimeoutSeconds < 1 {
+		errs = append(errs, "SECURITY_TIMEOUT_SECONDS must be >= 1")
+	}
+	if c.Assets.ApolloRouterURL == "" {
+		errs = append(errs, "ASSETS_APOLLO_ROUTER_URL must not be empty")
+	}
+	if c.Assets.Namespace == "" {
+		errs = append(errs, "ASSETS_NAMESPACE must not be empty")
+	}
+	if c.Assets.GraphQLTimeout < 1 {
+		errs = append(errs, "ASSETS_GRAPHQL_TIMEOUT_SECONDS must be >= 1")
+	}
+	if c.Assets.UploadTimeout < 1 {
+		errs = append(errs, "ASSETS_UPLOAD_TIMEOUT_SECONDS must be >= 1")
 	}
 
 	if len(errs) > 0 {

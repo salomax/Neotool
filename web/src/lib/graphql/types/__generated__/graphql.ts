@@ -2296,7 +2296,11 @@ export type Query = {
    * When billId is provided, it takes precedence over month/year and filters by bill only (used for card bill mode).
    */
   transactions: TransactionConnection;
-  /** Category totals for a period (expense/income breakdown). When financialAccountId is omitted, aggregates across all accounts. */
+  /**
+   * Category totals for a period (expense/income breakdown). Accepts the same filters as the
+   * transactions query — the result reflects the category breakdown of exactly those transactions.
+   * When financialAccountId is omitted, aggregates across all accounts.
+   */
   transactionsByCategory: Array<CategoryTotal>;
   user: Maybe<User>;
   users: UserConnection;
@@ -2570,8 +2574,14 @@ export type QueryTransactionsArgs = {
 
 export type QueryTransactionsByCategoryArgs = {
   applicableTo?: InputMaybe<CategoryApplicableTo>;
+  belongsToName?: InputMaybe<Scalars['String']['input']>;
+  belongsToUserId?: InputMaybe<Scalars['ID']['input']>;
+  billId?: InputMaybe<Scalars['ID']['input']>;
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
 };
 
