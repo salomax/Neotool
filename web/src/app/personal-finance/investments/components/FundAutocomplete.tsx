@@ -80,6 +80,8 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
           isOptionEqualToValue={(opt, val) => opt.id === val.id}
           loading={loading}
           disabled={disabled}
+          noOptionsText={trimmed.length === 0 ? t("search.placeholder") : t("cardGrid.noResultsFound")}
+          loadingText={t("actions.loading")}
           renderOption={(props, option) => (
             <Box
               component="li"
@@ -126,4 +128,3 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
     />
   );
 }
-

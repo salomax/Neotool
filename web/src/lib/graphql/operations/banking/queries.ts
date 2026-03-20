@@ -353,6 +353,24 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
   }
 `;
 
+export const INVESTMENT_TRANSACTIONS = gql`
+  query InvestmentTransactions($holdingId: ID!) {
+    investmentTransactions(holdingId: $holdingId) {
+      id
+      holdingId
+      financialAccountId
+      type
+      direction
+      quantity
+      unitPrice
+      grossValue
+      tradeDate
+      settlementDate
+      source
+    }
+  }
+`;
+
 /** Fetch a single PDF import job by ID — used for polling during extraction. */
 export const BILL_IMPORT_JOB = gql`
   query BillImportJob($jobId: ID!) {

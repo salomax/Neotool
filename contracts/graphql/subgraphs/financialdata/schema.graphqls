@@ -46,6 +46,11 @@ extend type Query {
   searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection!
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection!
   investmentFund(id: ID!): InvestmentFund
+
+  # B3 investment asset queries (equities, FIIs, options)
+  searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection!
+  investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection!
+  investmentAssetByTicker(ticker: String!): ListedAsset
 }
 
 # Enums
@@ -480,6 +485,59 @@ type InvestmentFundAutocompleteItem {
   id: ID!
   name: String!
   cnpj: String!
+  assetType: String!
+  isActive: Boolean!
+}
+
+# B3 investment assets (equities, FIIs, options)
+enum B3AssetType {
+  EQUITY       # Ações
+  FII          # Fundos de Investimento Imobiliário
+  OPTION_CALL  # Opções de Compra
+  OPTION_PUT   # Opções de Venda
+}
+
+type ListedAsset {
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  exchange: String
+  isActive: Boolean!
+  latestPrice: AssetDailyPrice
+  priceHistory(from: Date, to: Date, last: Int): [AssetDailyPrice!]!
+}
+
+type AssetDailyPrice {
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+}
+
+type ListedAssetConnection {
+  edges: [ListedAssetEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetEdge {
+  node: ListedAsset!
+  cursor: String!
+}
+
+type ListedAssetAutocompleteConnection {
+  suggestions: [ListedAssetAutocompleteItem!]!
+}
+
+type ListedAssetAutocompleteItem {
+  id: ID!
+  ticker: String!
+  name: String!
   assetType: String!
   isActive: Boolean!
 }

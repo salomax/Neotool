@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useMutation } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Avatar,
@@ -15,16 +15,16 @@ import {
   ListItemText,
   Paper,
   Stack,
-  TextField,
   Typography,
   alpha,
   useTheme,
 } from "@mui/material";
-import { Controller, FormProvider, useForm } from "react-hook-form";
+import { FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_FUND_NAV } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
@@ -33,11 +33,12 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import { FinancialAccount, InvestmentTransactionDirection, InvestmentTransactionType } from "@/lib/graphql/types/__generated__/graphql";
 import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
-import { DatePickerField, MoneyInput } from "@/shared/components/ui/forms/form";
+import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
+import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { personalFinanceTranslations } from "../../i18n";
 import { FundAutocomplete, FundAutocompleteValue } from "./FundAutocomplete";
 import { mapCvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
@@ -53,8 +54,9 @@ interface RecordFundHoldingDrawerProps {
 type RecordFundFormData = {
   fund: FundAutocompleteValue | null;
   quantity?: number | string;
-  unitPrice?: number;
   tradeDate?: Date;
+  unitPrice?: number;
+  grossValue?: number;
 };
 
 export function RecordFundHoldingDrawer({
@@ -74,6 +76,7 @@ export function RecordFundHoldingDrawer({
   );
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const needsAccountSelection = !resolvedFinancialAccountId;
+  const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_AMOUNT");
 
   const createSchema = React.useMemo(
     () =>
@@ -108,7 +111,7 @@ export function RecordFundHoldingDrawer({
           z
             .number({ required_error: t("investments.recordFund.validation.quantityRequired") })
             .positive(t("investments.recordFund.validation.quantityPositive")),
-        ),
+        ).optional(),
         unitPrice: z.preprocess(
           (value) => {
             if (value === "" || value === null || value === undefined) return undefined;
@@ -129,7 +132,7 @@ export function RecordFundHoldingDrawer({
           z
             .number({ required_error: t("investments.recordFund.validation.unitPriceRequired") })
             .positive(t("investments.recordFund.validation.unitPricePositive")),
-        ),
+        ).optional(),
         tradeDate: z.preprocess(
           (value) => (value === "" || value === null || value === undefined ? undefined : value),
           z.date({
@@ -137,6 +140,10 @@ export function RecordFundHoldingDrawer({
             invalid_type_error: t("investments.recordFund.validation.tradeDateRequired"),
           }),
         ),
+        grossValue: z
+          .number({ invalid_type_error: t("investments.recordFund.validation.grossValueRequired") })
+          .positive(t("investments.recordFund.validation.grossValuePositive"))
+          .optional(),
       }),
     [localeDecimal, localeGroup, t],
   );
@@ -146,16 +153,54 @@ export function RecordFundHoldingDrawer({
     defaultValues: {
       fund: null,
       quantity: undefined,
-      unitPrice: undefined,
       tradeDate: undefined,
+      unitPrice: undefined,
+      grossValue: undefined,
     },
   });
 
   const { reset } = methods;
+  const { dirtyFields } = methods.formState;
+  const selectedFund = methods.watch("fund");
+  const selectedTradeDate = methods.watch("tradeDate");
+  const unitPriceValue = methods.watch("unitPrice");
+  const grossValueValue = methods.watch("grossValue");
+  const quantityValue = methods.watch("quantity");
+  const tradeDateIso = React.useMemo(
+    () => (selectedTradeDate ? dayjs(selectedTradeDate).format("YYYY-MM-DD") : null),
+    [selectedTradeDate],
+  );
+
+  const fundNavQuery = useQuery<
+    {
+      investmentFund: {
+        id: string;
+        latestNav: { date: string; closePrice: number } | null;
+        priceHistory: Array<{ date: string; closePrice: number }>;
+      } | null;
+    },
+    { id: string; to: string }
+  >(INVESTMENT_FUND_NAV, {
+    variables: { id: selectedFund?.id ?? "", to: tradeDateIso ?? "" },
+    skip: !selectedFund?.id || !tradeDateIso,
+    fetchPolicy: "cache-and-network",
+    errorPolicy: "all",
+  });
+
+  const suggestedUnitPrice = fundNavQuery.data?.investmentFund?.priceHistory?.[0]?.closePrice ?? null;
+
+  useEffect(() => {
+    if (!open) return;
+    if (!suggestedUnitPrice) return;
+    if (dirtyFields.unitPrice) return;
+    if (typeof unitPriceValue === "number" && unitPriceValue > 0) return;
+    methods.setValue("unitPrice", suggestedUnitPrice, { shouldDirty: false, shouldTouch: true, shouldValidate: true });
+  }, [dirtyFields.unitPrice, methods, open, suggestedUnitPrice, unitPriceValue]);
 
   useEffect(() => {
     if (!open) {
       reset();
+      setValueFlow("BY_AMOUNT");
     }
   }, [open, reset]);
 
@@ -187,16 +232,65 @@ export function RecordFundHoldingDrawer({
   const isSubmitting = creatingAsset || recordingTx;
   const mutationError = createAssetError || recordTxError;
 
+  const currencyFormatter = React.useMemo(
+    () => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }),
+    [locale],
+  );
+
+  const computedQuantityByAmount = React.useMemo(() => {
+    const unitPrice = typeof unitPriceValue === "number" ? unitPriceValue : null;
+    const grossValue = typeof grossValueValue === "number" ? grossValueValue : null;
+    if (!unitPrice || !grossValue) return null;
+    if (unitPrice <= 0 || grossValue <= 0) return null;
+    return grossValue / unitPrice;
+  }, [grossValueValue, unitPriceValue]);
+
+  const computedTotalByQuantity = React.useMemo(() => {
+    const unitPrice = typeof unitPriceValue === "number" ? unitPriceValue : null;
+    const quantity = typeof quantityValue === "number" ? quantityValue : null;
+    if (!unitPrice || quantity == null) return null;
+    if (!Number.isFinite(quantity)) return null;
+    if (unitPrice <= 0 || quantity <= 0) return null;
+    return unitPrice * quantity;
+  }, [quantityValue, unitPriceValue]);
+
   const onSubmit = async (data: RecordFundFormData) => {
     if (!resolvedFinancialAccountId) return;
     if (!data.fund) return;
     if (!data.tradeDate) return;
-    if (!data.quantity || !data.unitPrice) return;
+    if (valueFlow === "BY_AMOUNT") {
+      if (!data.grossValue) {
+        methods.setError("grossValue", { type: "required", message: t("investments.recordFund.validation.grossValueRequired") });
+        return;
+      }
+      if (!data.unitPrice) {
+        methods.setError("unitPrice", { type: "required", message: t("investments.recordFund.validation.unitPriceRequired") });
+        return;
+      }
+    } else {
+      if (!data.quantity) {
+        methods.setError("quantity", { type: "required", message: t("investments.recordFund.validation.quantityRequired") });
+        return;
+      }
+      if (!data.unitPrice) {
+        methods.setError("unitPrice", { type: "required", message: t("investments.recordFund.validation.unitPriceRequired") });
+        return;
+      }
+    }
 
     const tradeDate = dayjs(data.tradeDate).format("YYYY-MM-DD");
-    const quantity = Number(data.quantity);
-    const unitPrice = data.unitPrice;
-    const grossValue = quantity * unitPrice;
+    const unitPrice = data.unitPrice ?? suggestedUnitPrice;
+    if (!unitPrice) return;
+    const quantity = valueFlow === "BY_AMOUNT" ? (data.grossValue ? data.grossValue / unitPrice : NaN) : Number(data.quantity);
+    const grossValue = valueFlow === "BY_AMOUNT" ? (data.grossValue ?? 0) : quantity * unitPrice;
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      methods.setError("quantity", { type: "required", message: t("investments.recordFund.validation.quantityPositive") });
+      return;
+    }
+    if (!Number.isFinite(grossValue) || grossValue <= 0) {
+      methods.setError("grossValue", { type: "required", message: t("investments.recordFund.validation.grossValuePositive") });
+      return;
+    }
 
     const createdAsset = await createAsset({
       variables: {
@@ -290,53 +384,137 @@ export function RecordFundHoldingDrawer({
         ) : (
           <FormProvider {...methods}>
             <form onSubmit={methods.handleSubmit(onSubmit)}>
-              <Stack spacing={3}>
+              <Stack spacing={2}>
                 {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-                <Typography variant="overline" color="text.secondary">
-                  {t("investments.recordFund.sections.fund")}
-                </Typography>
-
-                <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
-
-                <Divider />
-
-                <Typography variant="overline" color="text.secondary">
-                  {t("investments.recordFund.sections.applicationDetails")}
-                </Typography>
-
-                <Controller
-                  name="quantity"
-                  control={methods.control}
-                  render={({ field, fieldState }) => (
-                    <TextField
-                      {...field}
-                      type="text"
-                      inputMode="decimal"
-                      label={t("investments.recordFund.fields.quantity")}
-                      fullWidth
-                      error={!!fieldState.error}
-                      helperText={fieldState.error?.message}
-                      data-testid="record-fund-quantity"
-                      inputProps={{
-                        style: { textAlign: "right" },
-                      }}
-                    />
-                  )}
-                />
-
-                <MoneyInput
-                  name="unitPrice"
-                  label={t("investments.recordFund.fields.unitPrice")}
-                  currency="BRL"
-                  data-testid="record-fund-unit-price"
-                />
+                <Stack spacing={1}>
+                  <Typography variant="overline" color="text.secondary">
+                    {t("investments.recordFund.sections.applicationData")}
+                  </Typography>
+                  <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
+                </Stack>
 
                 <DatePickerField
                   name="tradeDate"
                   label={t("investments.recordFund.fields.tradeDate")}
                   data-testid="record-fund-trade-date"
                 />
+
+                <Divider />
+
+                <Stack spacing={1}>
+                  <Typography variant="overline" color="text.secondary">
+                    {t("investments.recordFund.sections.values")}
+                  </Typography>
+                  <SegmentedControl
+                    fullWidth
+                    value={valueFlow}
+                    onChange={(v) => setValueFlow(v as "BY_AMOUNT" | "BY_QUANTITY")}
+                    options={[
+                      { value: "BY_AMOUNT", label: t("investments.recordFund.flows.byAmount") },
+                      { value: "BY_QUANTITY", label: t("investments.recordFund.flows.byQuantity") },
+                    ]}
+                  />
+                </Stack>
+
+                {valueFlow === "BY_AMOUNT" ? (
+                  <Stack spacing={2}>
+                    <MoneyInput
+                      name="grossValue"
+                      label={t("investments.recordFund.fields.grossValue")}
+                      currency="BRL"
+                      data-testid="record-fund-gross-value"
+                    />
+
+                    {!suggestedUnitPrice ? (
+                      <MoneyInput
+                        name="unitPrice"
+                        label={t("investments.recordFund.fields.unitPrice")}
+                        currency="BRL"
+                        data-testid="record-fund-unit-price"
+                      />
+                    ) : null}
+
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        bgcolor: alpha(theme.palette.primary.main, 0.04),
+                        borderColor: alpha(theme.palette.primary.main, 0.12),
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 2,
+                      }}
+                    >
+                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
+                        <Typography variant="body2" color="text.secondary">
+                          {t("investments.recordFund.values.byAmount.navLabel")}
+                        </Typography>
+                        <Typography variant="body2" fontWeight={700}>
+                          {typeof unitPriceValue === "number" ? currencyFormatter.format(unitPriceValue) : "—"}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+                        {computedQuantityByAmount != null
+                          ? t("investments.recordFund.values.byAmount.estimatedShares", {
+                              shares: computedQuantityByAmount.toLocaleString(locale, {
+                                minimumFractionDigits: 2,
+                                maximumFractionDigits: 2,
+                              }),
+                            })
+                          : "—"}
+                      </Typography>
+                    </Paper>
+                  </Stack>
+                ) : (
+                  <Stack spacing={2}>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                        gap: 2,
+                      }}
+                    >
+                      <NumberField
+                        name="quantity"
+                        label={t("investments.recordFund.fields.quantity")}
+                        fullWidth
+                        locale={locale}
+                        fractionDigits={2}
+                        allowNegative={false}
+                        data-testid="record-fund-quantity"
+                      />
+
+                      <MoneyInput
+                        name="unitPrice"
+                        label={t("investments.recordFund.fields.unitPrice")}
+                        currency="BRL"
+                        data-testid="record-fund-unit-price"
+                      />
+                    </Box>
+
+                    <Paper
+                      variant="outlined"
+                      sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: 2,
+                      }}
+                    >
+                      <Typography variant="body2" color="text.secondary">
+                        {t("investments.recordFund.values.byQuantity.totalEstimatedLabel")}
+                      </Typography>
+                      <Typography variant="body2" fontWeight={800}>
+                        {computedTotalByQuantity != null ? currencyFormatter.format(computedTotalByQuantity) : "—"}
+                      </Typography>
+                    </Paper>
+                  </Stack>
+                )}
 
                 <Divider />
 

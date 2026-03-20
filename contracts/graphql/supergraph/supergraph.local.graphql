@@ -110,6 +110,19 @@ type Asset
   deletedAt: DateTime @join__field(graph: ASSETS)
 }
 
+type AssetDailyPrice
+  @join__type(graph: FINANCIALDATA)
+{
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+}
+
 """Asset upload lifecycle status."""
 enum AssetStatus
   @join__type(graph: ASSETS)
@@ -176,6 +189,15 @@ type AuthorizationResult
 {
   allowed: Boolean!
   reason: String!
+}
+
+enum B3AssetType
+  @join__type(graph: FINANCIALDATA)
+{
+  EQUITY @join__enumValue(graph: FINANCIALDATA)
+  FII @join__enumValue(graph: FINANCIALDATA)
+  OPTION_CALL @join__enumValue(graph: FINANCIALDATA)
+  OPTION_PUT @join__enumValue(graph: FINANCIALDATA)
 }
 
 enum BacenControlType
@@ -1762,6 +1784,50 @@ enum link__Purpose {
   EXECUTION
 }
 
+type ListedAsset
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  exchange: String
+  isActive: Boolean!
+  latestPrice: AssetDailyPrice
+  priceHistory(from: Date, to: Date, last: Int): [AssetDailyPrice!]!
+}
+
+type ListedAssetAutocompleteConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  suggestions: [ListedAssetAutocompleteItem!]!
+}
+
+type ListedAssetAutocompleteItem
+  @join__type(graph: FINANCIALDATA)
+{
+  id: ID!
+  ticker: String!
+  name: String!
+  assetType: String!
+  isActive: Boolean!
+}
+
+type ListedAssetConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [ListedAssetEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: ListedAsset!
+  cursor: String!
+}
+
 scalar Long
   @join__type(graph: ASSETS)
   @join__type(graph: ASSISTANT)
@@ -2362,6 +2428,9 @@ type Query
   searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
   investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
+  searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection! @join__field(graph: FINANCIALDATA)
+  investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection! @join__field(graph: FINANCIALDATA)
+  investmentAssetByTicker(ticker: String!): ListedAsset @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)

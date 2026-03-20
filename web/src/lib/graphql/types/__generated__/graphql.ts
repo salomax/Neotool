@@ -90,6 +90,18 @@ export type AssetDownloadUrlArgs = {
   ttlSeconds?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type AssetDailyPrice = {
+  __typename: 'AssetDailyPrice';
+  avgPrice: Maybe<Scalars['Float']['output']>;
+  closePrice: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  highPrice: Maybe<Scalars['Float']['output']>;
+  lowPrice: Maybe<Scalars['Float']['output']>;
+  openPrice: Maybe<Scalars['Float']['output']>;
+  trades: Maybe<Scalars['Int']['output']>;
+  volume: Maybe<Scalars['Float']['output']>;
+};
+
 /** Asset upload lifecycle status. */
 export enum AssetStatus {
   /** Asset deleted */
@@ -146,6 +158,13 @@ export type AuthorizationResult = {
   allowed: Scalars['Boolean']['output'];
   reason: Scalars['String']['output'];
 };
+
+export enum B3AssetType {
+  Equity = 'EQUITY',
+  Fii = 'FII',
+  OptionCall = 'OPTION_CALL',
+  OptionPut = 'OPTION_PUT'
+}
 
 export enum BacenControlType {
   PrivateDomestic = 'PRIVATE_DOMESTIC',
@@ -1462,6 +1481,52 @@ export enum IssuerCategory {
   Payment = 'PAYMENT'
 }
 
+export type ListedAsset = {
+  __typename: 'ListedAsset';
+  assetType: Scalars['String']['output'];
+  exchange: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  latestPrice: Maybe<AssetDailyPrice>;
+  name: Scalars['String']['output'];
+  priceHistory: Array<AssetDailyPrice>;
+  ticker: Scalars['String']['output'];
+};
+
+
+export type ListedAssetPriceHistoryArgs = {
+  from?: InputMaybe<Scalars['Date']['input']>;
+  last?: InputMaybe<Scalars['Int']['input']>;
+  to?: InputMaybe<Scalars['Date']['input']>;
+};
+
+export type ListedAssetAutocompleteConnection = {
+  __typename: 'ListedAssetAutocompleteConnection';
+  suggestions: Array<ListedAssetAutocompleteItem>;
+};
+
+export type ListedAssetAutocompleteItem = {
+  __typename: 'ListedAssetAutocompleteItem';
+  assetType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isActive: Scalars['Boolean']['output'];
+  name: Scalars['String']['output'];
+  ticker: Scalars['String']['output'];
+};
+
+export type ListedAssetConnection = {
+  __typename: 'ListedAssetConnection';
+  edges: Array<ListedAssetEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type ListedAssetEdge = {
+  __typename: 'ListedAssetEdge';
+  cursor: Scalars['String']['output'];
+  node: ListedAsset;
+};
+
 export type MessageInput = {
   content?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
@@ -2147,6 +2212,8 @@ export type Query = {
   indicatorsLatest: Array<EconomicIndicatorLatestItem>;
   /** Look up an asset from the global catalog. */
   investmentAsset: Maybe<InvestmentAsset>;
+  investmentAssetByTicker: Maybe<ListedAsset>;
+  investmentAssets: ListedAssetConnection;
   investmentFund: Maybe<InvestmentFund>;
   investmentFunds: InvestmentFundConnection;
   /** Single holding by id. */
@@ -2184,6 +2251,7 @@ export type Query = {
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
+  searchInvestmentAssetsAutocomplete: ListedAssetAutocompleteConnection;
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
   /** Single transaction by ID (scoped to the authenticated account). */
@@ -2297,6 +2365,20 @@ export type QueryInvestmentAssetArgs = {
 };
 
 
+export type QueryInvestmentAssetByTickerArgs = {
+  ticker: Scalars['String']['input'];
+};
+
+
+export type QueryInvestmentAssetsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  assetType?: InputMaybe<B3AssetType>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isActive?: InputMaybe<Scalars['Boolean']['input']>;
+  query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryInvestmentFundArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2402,6 +2484,12 @@ export type QueryRolesArgs = {
 
 export type QuerySearchBacenInstitutionsAutocompleteArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+  query: Scalars['String']['input'];
+};
+
+
+export type QuerySearchInvestmentAssetsAutocompleteArgs = {
+  assetType?: InputMaybe<B3AssetType>;
   query: Scalars['String']['input'];
 };
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useQuery } from '@apollo/client/react';
+import { useMutation, useQuery } from '@apollo/client/react';
 import i18n from 'i18next';
 import {
   alpha,
@@ -9,6 +9,11 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
   Paper,
   Table,
   TableBody,
@@ -16,32 +21,47 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  TextField,
   Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoIcon from '@mui/icons-material/Info';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import SavingsIcon from '@mui/icons-material/Savings';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { GrowthChip } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
-import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from '@/lib/graphql/operations/banking/queries';
+import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
+import { DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 import {
   AllInvestmentHoldingsQuery,
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import { Indexer, ValuationSource } from '@/lib/graphql/types/__generated__/graphql';
+import {
+  Indexer,
+  InvestmentSource,
+  InvestmentTransaction,
+  ValuationSource,
+} from '@/lib/graphql/types/__generated__/graphql';
 import { AssetGroupCard } from './AssetGroupCard';
 import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
+import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
+import { ConfirmationDialog } from '@/shared/components/ui/feedback';
+import { getApolloClient } from '@/lib/graphql/client';
 
 interface InvestmentTableProps {
   selectedAccountId: string | null;
   onRecordHolding?: () => void;
-  onRecordFund?: () => void;
 }
 
 type HoldingRow =
@@ -72,6 +92,24 @@ type AssetGroupKey =
   | 'pension'
   | 'structured'
   | 'others';
+
+const ICON_KIND_BY_GROUP: Record<AssetGroupKey, AssetTypeIconKind> = {
+  bankFixedIncome: 'FIXED_INCOME',
+  creditFixedIncome: 'FIXED_INCOME',
+  treasuryDirect: 'FIXED_INCOME',
+  variableIncomeB3: 'STOCK',
+  mutualFunds: 'FUND',
+  pension: 'FUND',
+  structured: 'STRUCTURED',
+  others: 'OTHER',
+};
+
+function AssetGroupIcon({
+  groupKey,
+  ...props
+}: { groupKey: AssetGroupKey } & Omit<React.ComponentProps<typeof AssetTypeIcon>, 'kind' | 'assetType'>) {
+  return <AssetTypeIcon kind={ICON_KIND_BY_GROUP[groupKey]} {...props} />;
+}
 
 const ASSET_GROUP_ORDER: readonly AssetGroupKey[] = [
   'bankFixedIncome',
@@ -158,12 +196,152 @@ function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string
   return `${label} ${(holding.indexerPercentage * 100).toFixed(0)}%`;
 }
 
-export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFund }: InvestmentTableProps) {
+export function InvestmentTable({ selectedAccountId, onRecordHolding }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const locale = getCurrentLocale();
-  const [expandedGroup, setExpandedGroup] = React.useState<AssetGroupKey | false>(false);
+  const apolloClient = React.useMemo(() => getApolloClient(), []);
+  const [expandedGroups, setExpandedGroups] = React.useState<Set<AssetGroupKey>>(() => new Set());
   const didInitExpansionRef = React.useRef(false);
+  const [actionMenuAnchorEl, setActionMenuAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [actionMenuHolding, setActionMenuHolding] = React.useState<HoldingRow | null>(null);
+  const [holdingToRemove, setHoldingToRemove] = React.useState<HoldingRow | null>(null);
+  const [holdingToEdit, setHoldingToEdit] = React.useState<HoldingRow | null>(null);
+  const [editingTx, setEditingTx] = React.useState<InvestmentTransaction | null>(null);
+  const [editDraft, setEditDraft] = React.useState<{ tradeDate: string; quantity: string; unitPrice: string; grossValue: string }>({
+    tradeDate: '',
+    quantity: '',
+    unitPrice: '',
+    grossValue: '',
+  });
+
+  const [deleteInvestmentTransaction, { loading: deleting }] = useMutation(DELETE_INVESTMENT_TRANSACTION);
+  const [recordInvestmentTransaction, { loading: recordingEdit }] = useMutation(RECORD_INVESTMENT_TRANSACTION);
+
+  const closeActionMenu = () => {
+    setActionMenuAnchorEl(null);
+    setActionMenuHolding(null);
+  };
+
+  const toDateInputValue = (value: unknown) => {
+    if (!value) return '';
+    const raw = String(value);
+    return raw.split('T')[0] ?? '';
+  };
+
+  const resolveLatestManualTransaction = async (holdingId: string) => {
+    const result = await apolloClient.query<{
+      investmentTransactions: InvestmentTransaction[];
+    }>({
+      query: INVESTMENT_TRANSACTIONS,
+      variables: { holdingId },
+      fetchPolicy: 'network-only',
+      errorPolicy: 'all',
+    });
+
+    const list = result.data?.investmentTransactions ?? [];
+    return list.find((tx) => tx.source === InvestmentSource.Manual) ?? null;
+  };
+
+  const resolveFinancialAccountId = (holding: HoldingRow) => {
+    if (selectedAccountId) return selectedAccountId;
+    const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
+    return consolidated.financialAccount?.id ?? null;
+  };
+
+  const handleConfirmRemove = async () => {
+    const holding = holdingToRemove;
+    if (!holding) return;
+
+    try {
+      const tx = await resolveLatestManualTransaction(holding.id);
+      if (!tx) return;
+      await deleteInvestmentTransaction({ variables: { id: tx.id } });
+      setHoldingToRemove(null);
+
+      if (selectedAccountId) await accountHoldingsQuery.refetch();
+      else await consolidatedHoldingsQuery.refetch();
+    } catch {
+      setHoldingToRemove(null);
+    }
+  };
+
+  const handleOpenEdit = async (holding: HoldingRow) => {
+    const tx = await resolveLatestManualTransaction(holding.id);
+    if (!tx) return;
+
+    setHoldingToEdit(holding);
+    setEditingTx(tx);
+    setEditDraft({
+      tradeDate: toDateInputValue(tx.tradeDate),
+      quantity: tx.quantity != null ? String(tx.quantity) : '',
+      unitPrice: tx.unitPrice != null ? String(tx.unitPrice) : '',
+      grossValue: String(tx.grossValue ?? ''),
+    });
+  };
+
+  const closeEditDialog = () => {
+    setHoldingToEdit(null);
+    setEditingTx(null);
+  };
+
+  const handleSaveEdit = async () => {
+    const holding = holdingToEdit;
+    const tx = editingTx;
+    if (!holding || !tx) return;
+
+    const financialAccountIdResolved = resolveFinancialAccountId(holding);
+    const assetId = holding.asset?.id ?? null;
+    if (!financialAccountIdResolved || !assetId) return;
+
+    const tradeDate = editDraft.tradeDate;
+    const grossValue = Number(editDraft.grossValue);
+    const quantity = tx.quantity != null ? Number(editDraft.quantity) : null;
+    const unitPrice = tx.unitPrice != null ? Number(editDraft.unitPrice) : null;
+
+    if (!tradeDate) return;
+    if (!Number.isFinite(grossValue) || grossValue <= 0) return;
+    if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) return;
+    if (unitPrice != null && (!Number.isFinite(unitPrice) || unitPrice <= 0)) return;
+
+    try {
+      await deleteInvestmentTransaction({ variables: { id: tx.id } });
+
+      const isFixedIncome =
+        holding.asset?.assetType &&
+        (getAssetGroupKey(holding.asset.assetType) === 'bankFixedIncome' ||
+          getAssetGroupKey(holding.asset.assetType) === 'creditFixedIncome' ||
+          getAssetGroupKey(holding.asset.assetType) === 'treasuryDirect');
+
+      await recordInvestmentTransaction({
+        variables: {
+          input: {
+            financialAccountId: financialAccountIdResolved,
+            assetId,
+            direction: tx.direction,
+            type: tx.type,
+            quantity: quantity ?? undefined,
+            unitPrice: unitPrice ?? undefined,
+            grossValue,
+            tradeDate,
+            settlementDate: tradeDate,
+            indexer: isFixedIncome ? holding.indexer ?? undefined : undefined,
+            indexerPercentage: isFixedIncome ? holding.indexerPercentage ?? undefined : undefined,
+            preFixedRate: isFixedIncome ? holding.preFixedRate ?? undefined : undefined,
+            issueDate: isFixedIncome ? toDateInputValue(holding.issueDate) || undefined : undefined,
+            maturityDate: isFixedIncome ? toDateInputValue(holding.maturityDate) || undefined : undefined,
+            isTaxExempt: isFixedIncome ? holding.isTaxExempt ?? undefined : undefined,
+          },
+        },
+      });
+
+      closeEditDialog();
+      if (selectedAccountId) await accountHoldingsQuery.refetch();
+      else await consolidatedHoldingsQuery.refetch();
+    } catch {
+      closeEditDialog();
+    }
+  };
 
   const EstimatedInfoBadge = React.forwardRef<HTMLSpanElement, { ml?: number }>(({ ml = 0 }, ref) => (
     <Box
@@ -264,26 +442,55 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
     if (loading || error) return;
 
     if (groups.length === 0) {
-      if (expandedGroup) setExpandedGroup(false);
+      if (expandedGroups.size > 0) setExpandedGroups(new Set());
       didInitExpansionRef.current = false;
       return;
     }
 
-    const firstNonEmpty = groups[0]?.key ?? false;
+    const firstNonEmpty = groups[0]?.key;
 
     if (!didInitExpansionRef.current) {
-      setExpandedGroup(firstNonEmpty);
+      if (firstNonEmpty) setExpandedGroups(new Set([firstNonEmpty]));
       didInitExpansionRef.current = true;
       return;
     }
 
-    if (expandedGroup && !groups.some((group) => group.key === expandedGroup)) setExpandedGroup(firstNonEmpty);
-  }, [expandedGroup, error, groups, loading]);
+    if (expandedGroups.size === 0) return;
+
+    const availableKeys = new Set(groups.map((group) => group.key));
+    const nextExpandedGroups = new Set(Array.from(expandedGroups).filter((key) => availableKeys.has(key)));
+
+    if (nextExpandedGroups.size !== expandedGroups.size) {
+      if (nextExpandedGroups.size === 0 && firstNonEmpty) {
+        setExpandedGroups(new Set([firstNonEmpty]));
+      } else {
+        setExpandedGroups(nextExpandedGroups);
+      }
+    }
+  }, [error, expandedGroups, groups, loading]);
 
   React.useEffect(() => {
-    setExpandedGroup(false);
+    setExpandedGroups(new Set());
     didInitExpansionRef.current = false;
   }, [selectedAccountId]);
+
+  const isEditOpen = Boolean(holdingToEdit && editingTx);
+  const isEditBusy = deleting || recordingEdit;
+  const canSaveEdit = (() => {
+    if (!isEditOpen) return false;
+    if (!editDraft.tradeDate) return false;
+    const grossValue = Number(editDraft.grossValue);
+    if (!Number.isFinite(grossValue) || grossValue <= 0) return false;
+    if (editingTx?.quantity != null) {
+      const q = Number(editDraft.quantity);
+      if (!Number.isFinite(q) || q <= 0) return false;
+    }
+    if (editingTx?.unitPrice != null) {
+      const u = Number(editDraft.unitPrice);
+      if (!Number.isFinite(u) || u <= 0) return false;
+    }
+    return true;
+  })();
 
   return (
     <TableContainer
@@ -332,8 +539,10 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
       {!loading && !error && holdings.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {groups.map((group) => {
-            const isExpanded = expandedGroup === group.key;
-            const leadingIcon = group.key === 'bankFixedIncome' ? <SavingsIcon sx={{ fontSize: 18 }} /> : null;
+            const isExpanded = expandedGroups.has(group.key);
+            const leadingIcon = (
+              <AssetGroupIcon groupKey={group.key} sx={{ fontSize: 18 }} />
+            );
             const divider = alpha(theme.palette.divider, 0.7);
             const isFundGroup = FUND_GROUP_KEYS.has(group.key);
             const colWidth = isFundGroup ? '20%' : '16.66%';
@@ -349,27 +558,18 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
               <AssetGroupCard
                 key={group.key}
                 expanded={isExpanded}
-                onToggle={(expanded) => setExpandedGroup(expanded ? group.key : false)}
+                onToggle={(expanded) =>
+                  setExpandedGroups((prev) => {
+                    const next = new Set(prev);
+                    if (expanded) next.add(group.key);
+                    else next.delete(group.key);
+                    return next;
+                  })
+                }
                 title={group.title}
                 summary={group.summary}
                 leadingIcon={leadingIcon}
                 summaryAdornment={summaryAdornment}
-                headerAction={
-                  group.key === 'mutualFunds' && onRecordFund ? (
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      startIcon={<AddIcon />}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRecordFund();
-                      }}
-                      data-testid="record-fund-group-btn"
-                    >
-                      {t('investments.actions.recordFund')}
-                    </Button>
-                  ) : null
-                }
               >
                 <Table
                   sx={{
@@ -404,17 +604,18 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                           <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                             <Label>{t('investments.table.columns.indexer')}</Label>
                           </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.grossValue')}</Label>
-                          </TableCell>
                           <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                             <Label>{t('investments.table.columns.maturityDate')}</Label>
+                          </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                            <Label>{t('investments.table.columns.grossValue')}</Label>
                           </TableCell>
                           <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                             <Label>{t('investments.table.columns.gain')}</Label>
                           </TableCell>
                         </>
                       )}
+                      <TableCell align="center" sx={{ width: 52, borderBottom: `1px solid ${divider}` }} />
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -457,6 +658,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                       const percent = absolute != null && principal > 0 ? (absolute / principal) * 100 : null;
                       const gainUnavailable = grossVal == null || source === ValuationSource.Unavailable;
                       const gainEstimated = source === ValuationSource.Estimated;
+                      const canMutate = holding.source === InvestmentSource.Manual;
 
                       return (
                         <TableRow
@@ -558,14 +760,6 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                               <TableCell sx={{ width: colWidth }}>
                                 <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
                               </TableCell>
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
-                                  <Typography variant="body2" component="span" fontWeight={700}>
-                                    {valueContent}
-                                  </Typography>
-                                  {valueIcon}
-                                </Box>
-                              </TableCell>
                               <TableCell sx={{ width: colWidth }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                                   <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
@@ -579,7 +773,16 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                                     />
                                   )}
                                 </Box>
+                              </TableCell>                              
+                              <TableCell align="right" sx={{ width: colWidth }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                  <Typography variant="body2" component="span" fontWeight={700}>
+                                    {valueContent}
+                                  </Typography>
+                                  {valueIcon}
+                                </Box>
                               </TableCell>
+
                               <TableCell align="right" sx={{ width: colWidth }}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
                                   {gainUnavailable ? (
@@ -609,6 +812,21 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
                               </TableCell>
                             </>
                           )}
+                          <TableCell align="center" sx={{ width: 52 }}>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!canMutate) return;
+                                setActionMenuAnchorEl(e.currentTarget);
+                                setActionMenuHolding(holding);
+                              }}
+                              aria-label={t('investments.table.rowActions.ariaLabel')}
+                              disabled={!canMutate}
+                            >
+                              <MoreVertIcon fontSize="small" />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
                       );
                     })}
@@ -619,6 +837,109 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, onRecordFu
           })}
         </Box>
       )}
+
+      <Menu
+        open={Boolean(actionMenuAnchorEl)}
+        anchorEl={actionMenuAnchorEl}
+        onClose={closeActionMenu}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <MenuItem
+          onClick={async () => {
+            const holding = actionMenuHolding;
+            closeActionMenu();
+            if (!holding) return;
+            await handleOpenEdit(holding);
+          }}
+          disabled={deleting || recordingEdit}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.edit')}</ListItemText>
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const holding = actionMenuHolding;
+            closeActionMenu();
+            if (!holding) return;
+            setHoldingToRemove(holding);
+          }}
+          sx={{ color: 'error.main' }}
+          disabled={deleting || recordingEdit}
+        >
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <DeleteOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.remove')}</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <ConfirmationDialog
+        open={Boolean(holdingToRemove)}
+        onClose={() => setHoldingToRemove(null)}
+        onConfirm={handleConfirmRemove}
+        title={t('investments.deleteConfirmation.title')}
+        message={t('investments.deleteConfirmation.message')}
+        cancelText={t('actions.cancel')}
+        confirmText={t('actions.delete')}
+        confirmColor="error"
+        loading={deleting}
+      />
+
+      <Dialog open={isEditOpen} onClose={closeEditDialog} fullWidth maxWidth="xs">
+        <DialogTitle>{t('investments.editDialog.title')}</DialogTitle>
+        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <TextField
+            label={t('investments.editDialog.fields.tradeDate')}
+            type="date"
+            value={editDraft.tradeDate}
+            onChange={(e) => setEditDraft((prev) => ({ ...prev, tradeDate: e.target.value }))}
+            fullWidth
+            InputLabelProps={{ shrink: true }}
+          />
+
+          {editingTx?.quantity != null && (
+            <TextField
+              label={t('investments.editDialog.fields.quantity')}
+              type="number"
+              value={editDraft.quantity}
+              onChange={(e) => setEditDraft((prev) => ({ ...prev, quantity: e.target.value }))}
+              fullWidth
+              inputProps={{ step: 'any', min: 0 }}
+            />
+          )}
+
+          {editingTx?.unitPrice != null && (
+            <TextField
+              label={t('investments.editDialog.fields.unitPrice')}
+              type="number"
+              value={editDraft.unitPrice}
+              onChange={(e) => setEditDraft((prev) => ({ ...prev, unitPrice: e.target.value }))}
+              fullWidth
+              inputProps={{ step: 'any', min: 0 }}
+            />
+          )}
+
+          <TextField
+            label={t('investments.editDialog.fields.grossValue')}
+            type="number"
+            value={editDraft.grossValue}
+            onChange={(e) => setEditDraft((prev) => ({ ...prev, grossValue: e.target.value }))}
+            fullWidth
+            inputProps={{ step: 'any', min: 0 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={closeEditDialog} disabled={isEditBusy}>
+            {t('actions.cancel')}
+          </Button>
+          <Button variant="contained" onClick={handleSaveEdit} disabled={!canSaveEdit || isEditBusy}>
+            {t('actions.save')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </TableContainer>
   );
 }

@@ -184,6 +184,14 @@ class InvestmentResolver(
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toRecordCommand(accountId: UUID): RecordInvestmentTransactionCommand {
         val brokerNoteMap = this["brokerNote"] as? Map<String, Any?>
+
+        fun Any?.toLocalDateOrNull(): LocalDate? = when (this) {
+            null -> null
+            is LocalDate -> this
+            is String -> LocalDate.parse(this)
+            else -> null
+        }
+
         return RecordInvestmentTransactionCommand(
             financialAccountId = UUID.fromString(this["financialAccountId"] as String),
             assetId = UUID.fromString(this["assetId"] as String),
@@ -199,15 +207,16 @@ class InvestmentResolver(
             indexerPercentage = (this["indexerPercentage"] as? Number)?.let { BigDecimal(it.toString()) },
             agreedRate = (this["agreedRate"] as? Number)?.let { BigDecimal(it.toString()) },
             priceFactor = (this["priceFactor"] as? Number)?.let { BigDecimal(it.toString()) },
-            tradeDate = LocalDate.parse(this["tradeDate"] as String),
-            settlementDate = (this["settlementDate"] as? String)?.let { LocalDate.parse(it) },
+            tradeDate = this["tradeDate"].toLocalDateOrNull()
+                ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
+            settlementDate = this["settlementDate"].toLocalDateOrNull(),
             source = InvestmentSource.MANUAL,
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
             indexer = (this["indexer"] as? String)?.let { Indexer.valueOf(it) },
             preFixedRate = (this["preFixedRate"] as? Number)?.let { BigDecimal(it.toString()) },
-            issueDate = (this["issueDate"] as? String)?.let { LocalDate.parse(it) },
-            maturityDate = (this["maturityDate"] as? String)?.let { LocalDate.parse(it) },
-            gracePeriodDate = (this["gracePeriodDate"] as? String)?.let { LocalDate.parse(it) },
+            issueDate = this["issueDate"].toLocalDateOrNull(),
+            maturityDate = this["maturityDate"].toLocalDateOrNull(),
+            gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = (this["isTaxExempt"] as? Boolean) ?: false,
             providerInvestmentId = this["providerInvestmentId"] as? String,
         )

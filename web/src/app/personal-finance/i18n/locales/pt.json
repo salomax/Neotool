@@ -57,7 +57,8 @@
     },
     "actions": {
       "recordHolding": "Registrar ativo",
-      "recordFund": "Registrar fundo"
+      "recordFund": "Registrar fundo",
+      "recordEquity": "Registrar ação / FII"
     },
     "createAccount": {
       "title": "Criar conta de investimento",
@@ -138,6 +139,11 @@
       "groupTotalEstimated": "Parte do total é valor estimado.",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
+      "rowActions": {
+        "ariaLabel": "Ações do ativo",
+        "edit": "Editar",
+        "remove": "Excluir"
+      },
       "groups": {
         "variableIncomeB3": "Renda Variável (B3)",
         "bankFixedIncome": "Renda Fixa",
@@ -151,6 +157,19 @@
       "emptyState": "Nenhum ativo registrado nesta conta",
       "recordFirstHolding": "Registrar primeiro ativo",
       "error": "Erro ao carregar investimentos"
+    },
+    "deleteConfirmation": {
+      "title": "Excluir ativo",
+      "message": "Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
+    },
+    "editDialog": {
+      "title": "Editar lançamento",
+      "fields": {
+        "tradeDate": "Data",
+        "quantity": "Quantidade",
+        "unitPrice": "Preço unitário",
+        "grossValue": "Valor bruto"
+      }
     },
     "recordHolding": {
       "title": "Registrar ativo de Renda Fixa",
@@ -234,13 +253,29 @@
       },
       "sections": {
         "fund": "Fundo",
+        "applicationData": "Dados da aplicação",
+        "values": "Valores",
         "applicationDetails": "Detalhes da aplicação"
+      },
+      "flows": {
+        "byAmount": "Por valor aplicado",
+        "byQuantity": "Por quantidade de cotas"
       },
       "fields": {
         "fund": "Fundo",
         "quantity": "Quantidade de cotas",
         "unitPrice": "Preço por cota (R$)",
-        "tradeDate": "Data da aplicação"
+        "tradeDate": "Data da aplicação",
+        "grossValue": "Valor a investir"
+      },
+      "values": {
+        "byAmount": {
+          "navLabel": "Preço da cota na data selecionada:",
+          "estimatedShares": "~ {{shares}} cotas"
+        },
+        "byQuantity": {
+          "totalEstimatedLabel": "Valor Total Estimado"
+        }
       },
       "validation": {
         "fundRequired": "Selecione um fundo",
@@ -248,13 +283,83 @@
         "quantityPositive": "Quantidade deve ser maior que zero",
         "unitPriceRequired": "Preço por cota é obrigatório",
         "unitPricePositive": "Preço por cota deve ser maior que zero",
-        "tradeDateRequired": "Data da aplicação é obrigatória"
+        "tradeDateRequired": "Data da aplicação é obrigatória",
+        "grossValueRequired": "Valor a investir é obrigatório",
+        "grossValuePositive": "Valor a investir deve ser maior que zero"
       },
       "actions": {
         "submit": "Salvar",
         "submitting": "Salvando..."
       },
       "success": "Fundo registrado com sucesso"
+    },
+    "recordEquity": {
+      "title": "Registrar ação / FII",
+      "selectAccount": {
+        "description": "Selecione uma conta de investimento para registrar o ativo.",
+        "emptyState": "Nenhuma conta de investimento disponível."
+      },
+      "sections": {
+        "assetData": "Ativo",
+        "values": "Valores",
+        "fees": "Taxas e custos"
+      },
+      "flows": {
+        "byQuantity": "Por quantidade",
+        "byAmount": "Por valor total"
+      },
+      "fields": {
+        "asset": "Ativo (ticker)",
+        "quantity": "Quantidade de ações",
+        "unitPrice": "Preço unitário (R$)",
+        "tradeDate": "Data da operação",
+        "grossValue": "Valor total"
+      },
+      "values": {
+        "byQuantity": {
+          "totalLabel": "Total da operação"
+        },
+        "byAmount": {
+          "estimatedShares": "~ Ações estimadas",
+          "sharesUnit": "ações"
+        }
+      },
+      "validation": {
+        "assetRequired": "Selecione um ativo",
+        "quantityRequired": "Quantidade é obrigatória",
+        "quantityPositive": "Quantidade deve ser maior que zero",
+        "unitPriceRequired": "Preço unitário é obrigatório",
+        "unitPricePositive": "Preço unitário deve ser maior que zero",
+        "tradeDateRequired": "Data da operação é obrigatória",
+        "grossValueRequired": "Valor total é obrigatório",
+        "grossValuePositive": "Valor total deve ser maior que zero"
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "fees": {
+        "modes": {
+          "summary": "Resumido",
+          "detailed": "Detalhado"
+        },
+        "totalFees": "Total de taxas",
+        "brokerage": "Corretagem",
+        "settlement": "Emolumentos/Liquidação",
+        "other": "Outros"
+      },
+      "footer": {
+        "grossValue": "Valor da operação",
+        "fees": "Custos e taxas",
+        "total": "Total"
+      },
+      "success": "Ativo registrado com sucesso"
+    },
+    "b3AssetTypes": {
+      "EQUITY": "Ação",
+      "FII": "FII",
+      "OPTION_CALL": "Opção de Compra",
+      "OPTION_PUT": "Opção de Venda"
     }
   },
   "categories": {
