@@ -103,7 +103,9 @@
         "BROKERAGE": "Brokerage",
         "FIXED_INCOME": "Fixed Income",
         "PENSION": "Pension",
-        "CRYPTO": "Crypto"
+        "CRYPTO": "Crypto",
+        "FGTS": "FGTS",
+        "INSS": "INSS"
       },
       "validation": {
         "subtypeRequired": "Account type is required",

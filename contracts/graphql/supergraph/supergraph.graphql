@@ -1206,6 +1206,8 @@ enum FinancialAccountSubtype
   PROPERTY @join__enumValue(graph: BANKING)
   VEHICLE @join__enumValue(graph: BANKING)
   OTHER_ASSET @join__enumValue(graph: BANKING)
+  FGTS @join__enumValue(graph: BANKING)
+  INSS @join__enumValue(graph: BANKING)
 }
 
 enum FinancialAccountType
@@ -1218,6 +1220,7 @@ enum FinancialAccountType
   INVESTMENT @join__enumValue(graph: BANKING)
   LOAN @join__enumValue(graph: BANKING)
   ASSET @join__enumValue(graph: BANKING)
+  BENEFIT @join__enumValue(graph: BANKING)
 }
 
 type FinancialDataPageInfo

@@ -8,7 +8,7 @@ CREATE TABLE banking.financial_accounts (
     created_by_user_id   UUID NOT NULL,
 
     type                 TEXT NOT NULL CHECK (type IN (
-                               'BANK', 'CREDIT', 'PAYMENT', 'CASH', 'INVESTMENT', 'LOAN', 'ASSET'
+                               'BANK', 'CREDIT', 'PAYMENT', 'CASH', 'INVESTMENT', 'LOAN', 'ASSET', 'BENEFIT'
                            )),
     subtype              TEXT NOT NULL CHECK (subtype IN (
                                'CONTA_CORRENTE', 'CONTA_POUPANCA', 'CONTA_SALARIO', 'CONTA_DIGITAL', 'CONTA_CONJUNTA',
@@ -17,7 +17,8 @@ CREATE TABLE banking.financial_accounts (
                                'WALLET',
                                'BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO',
                                'PERSONAL_LOAN', 'MORTGAGE', 'AUTO_LOAN',
-                               'PROPERTY', 'VEHICLE', 'OTHER_ASSET'
+                               'PROPERTY', 'VEHICLE', 'OTHER_ASSET',
+                               'FGTS', 'INSS'
                            )),
 
     name                 TEXT NOT NULL,

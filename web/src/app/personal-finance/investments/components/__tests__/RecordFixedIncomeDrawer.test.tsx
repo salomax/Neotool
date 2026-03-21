@@ -2,7 +2,7 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { RecordFixedIncomeDrawer } from './RecordFixedIncomeDrawer';
+import { RecordFixedIncomeDrawer } from '../RecordFixedIncomeDrawer';
 import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 
 const mockUseMutation = vi.fn();

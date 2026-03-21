@@ -40,6 +40,7 @@ import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawe
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const benefitAccountType = "BENEFIT" as unknown as FinancialAccountType;
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
   const [isRecordFixedIncomeOpen, setIsRecordFixedIncomeOpen] = React.useState(false);
   const [isRecordFundOpen, setIsRecordFundOpen] = React.useState(false);
@@ -74,9 +75,10 @@ export default function PersonalFinanceInvestmentsPage() {
   const investmentAccounts = React.useMemo<FinancialAccount[]>(
     () =>
       (accountsData?.financialAccounts ?? []).filter(
-        (account) => account.type === FinancialAccountType.Investment,
+        (account) =>
+          account.type === FinancialAccountType.Investment || account.type === benefitAccountType,
       ) as FinancialAccount[],
-    [accountsData?.financialAccounts],
+    [accountsData?.financialAccounts, benefitAccountType],
   );
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
@@ -88,7 +90,7 @@ export default function PersonalFinanceInvestmentsPage() {
           onNewAccount={() => setIsCreateAccountOpen(true)}
           selectedAccountId={selectedAccountId}
           onSelectAccount={setSelectedAccountId}
-          accountTypes={[FinancialAccountType.Investment]}
+          accountTypes={[FinancialAccountType.Investment, benefitAccountType]}
           allAccountsLabel={t("investments.sidebar.allBrokers")}
           consolidatedViewLabel={t("investments.sidebar.consolidatedView")}
           newAccountLabel={t("investments.emptyState.primaryAction")}
@@ -329,6 +331,7 @@ export default function PersonalFinanceInvestmentsPage() {
                   {t("investments.actions.recordHolding")}
                 </Button>
               </Box>
+              <Divider />
               <InvestmentTable
                 selectedAccountId={selectedAccountId}
                 onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}

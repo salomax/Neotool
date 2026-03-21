@@ -2,11 +2,13 @@ import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { CreateInvestmentAccountDrawer } from './CreateInvestmentAccountDrawer';
+import { CreateInvestmentAccountDrawer } from '../CreateInvestmentAccountDrawer';
 
 const mockCreateAccount = vi.fn();
 const mockUseQuery = vi.fn();
 const successMock = vi.fn();
+let mutationError: unknown = null;
+const extractErrorMessageMock = vi.fn((..._args: any[]) => 'translated error');
 
 vi.mock('@mui/material', async () => {
   const actual = await vi.importActual<typeof import('@mui/material')>('@mui/material');
@@ -26,7 +28,7 @@ vi.mock('@mui/material', async () => {
           id: 'issuer-autocomplete',
           inputProps: {},
           InputLabelProps: {},
-          InputProps: { endAdornment: null },
+          InputProps: { startAdornment: null, endAdornment: null },
         })}
         <select
           aria-label="issuer-autocomplete-options"
@@ -61,8 +63,12 @@ vi.mock('@apollo/client/react', () => ({
       options?.onCompleted?.({ createFinancialAccount: { id: 'acc-1', name: 'Conta XP' } });
       return Promise.resolve({ data: { createFinancialAccount: { id: 'acc-1', name: 'Conta XP' } } });
     },
-    { loading: false, error: null },
+    { loading: false, error: mutationError },
   ]),
+}));
+
+vi.mock('@/shared/utils/error', () => ({
+  extractErrorMessage: (...args: any[]) => extractErrorMessageMock(...args),
 }));
 
 vi.mock('@/shared/components/ui/forms/form', async () => {
@@ -70,6 +76,7 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
     '@/shared/components/ui/forms/form',
   );
   const { useFormContext } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
+  const { Controller } = await vi.importActual<any>('react-hook-form');
 
   return {
     ...actual,
@@ -83,6 +90,49 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
             </option>
           ))}
         </select>
+      );
+    },
+    MoneyInput: ({ name, label }: { name: string; label?: string }) => {
+      const { control } = useFormContext();
+      return (
+        <Controller
+          name={name}
+          control={control}
+          render={({ field }: { field: { value: unknown; onChange: (value: unknown) => void } }) => (
+            <input
+              aria-label={label}
+              type="number"
+              value={typeof field.value === 'number' ? field.value : ''}
+              onChange={(e) => field.onChange(e.target.value === '' ? undefined : Number(e.target.value))}
+            />
+          )}
+        />
+      );
+    },
+    DatePickerField: ({ name, label }: { name: string; label?: string; minDate?: Date }) => {
+      const { control } = useFormContext();
+      return (
+        <Controller
+          name={name}
+          control={control}
+          render={({
+            field,
+            fieldState,
+          }: {
+            field: { value: unknown; onChange: (value: unknown) => void };
+            fieldState: { error?: { message?: string } };
+          }) => (
+            <>
+              <input
+                aria-label={label}
+                type="date"
+                value={field.value instanceof Date ? field.value.toISOString().slice(0, 10) : ''}
+                onChange={(e) => field.onChange(e.target.value ? new Date(`${e.target.value}T00:00:00`) : null)}
+              />
+              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+            </>
+          )}
+        />
       );
     },
   };
@@ -101,6 +151,7 @@ vi.mock('@/shared/i18n', () => ({
   useTranslation: () => ({
     t: (key: string) => key,
   }),
+  i18n: { language: 'en-US' },
 }));
 
 vi.mock('@/shared/components/ui/layout/Drawer', () => {
@@ -170,12 +221,14 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mutationError = null;
 
     mockUseQuery.mockReturnValue({
       data: {
         issuers: [
           { id: 'issuer-xp', name: 'XP Investimentos', logoAsset: null, compeCode: null },
           { id: 'issuer-rico', name: 'Rico', logoAsset: null, compeCode: null },
+          { id: 'issuer-caixa', name: 'Caixa economica federal', logoAsset: null, compeCode: '104' },
         ],
       },
       loading: false,
@@ -207,16 +260,108 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     expect(mockCreateAccount).not.toHaveBeenCalled();
   });
 
-  it('never renders bank/card-only fields', () => {
+  it('shows translated error message when mutation fails with INTERNAL_ERROR', () => {
+    mutationError = {
+      graphQLErrors: [
+        {
+          message: 'Internal server error',
+          extensions: {
+            code: 'INTERNAL_ERROR',
+            service: 'banking',
+            classification: 'DataFetchingException',
+          },
+        },
+      ],
+    };
+
     renderDrawer();
 
-    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.branchCode')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.accountNumber')).not.toBeInTheDocument();
+    expect(screen.getByText('translated error')).toBeInTheDocument();
+    expect(extractErrorMessageMock).toHaveBeenCalledWith(mutationError, 'errors.default');
+  });
+
+  it('never renders card-only fields', () => {
+    renderDrawer();
+
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.network')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.creditLimit')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.closingDay')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.dueDay')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.initialBalance')).not.toBeInTheDocument();
+  });
+
+  it('submits initialBalance and initialBalanceDate when both are provided', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
+    await act(async () => {
+      await user.selectOptions(issuerSelect, 'issuer-xp');
+    });
+
+    const initialBalanceInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.initialBalance');
+    await act(async () => {
+      await user.type(initialBalanceInput, '250');
+    });
+
+    const initialBalanceDateInput = await screen.findByLabelText(
+      /financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i,
+    );
+    await act(async () => {
+      await user.type(initialBalanceDateInput, '2026-01-01');
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+    });
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            input: expect.objectContaining({
+              initialBalance: 250,
+              initialBalanceDate: '2026-01-01',
+            }),
+          },
+        }),
+      );
+    });
+  });
+
+  it('submits bankData when bank fields are provided', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
+    await act(async () => {
+      await user.selectOptions(issuerSelect, 'issuer-xp');
+    });
+
+    await act(async () => {
+      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.branchCode'), '0001');
+      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.accountNumber'), '123456');
+      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.checkDigit'), '7');
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+    });
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            input: expect.objectContaining({
+              bankData: {
+                branchCode: '0001',
+                number: '123456',
+                checkDigit: '7',
+              },
+            }),
+          },
+        }),
+      );
+    });
   });
 
   it('submits INVESTMENT account with selected issuerId and triggers callbacks', async () => {
@@ -249,6 +394,39 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     expect(successMock).toHaveBeenCalledWith('investments.createAccount.success');
     expect(onCreated).toHaveBeenCalledWith({ id: 'acc-1', name: 'Conta XP' });
     expect(onClose).toHaveBeenCalled();
+  });
+
+  it('submits BENEFIT account when subtype is FGTS for Caixa issuer', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
+    await act(async () => {
+      await user.selectOptions(issuerSelect, 'issuer-caixa');
+    });
+
+    const subtypeSelect = screen.getByLabelText('investments.createAccount.fields.subtypeLabel');
+    await act(async () => {
+      await user.selectOptions(subtypeSelect, 'FGTS');
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+    });
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: {
+            input: expect.objectContaining({
+              type: 'BENEFIT',
+              subtype: 'FGTS',
+              issuerId: 'issuer-caixa',
+            }),
+          },
+        }),
+      );
+    });
   });
 
   it('supports custom issuer flow and sends issuerName instead of issuerId', async () => {

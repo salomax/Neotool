@@ -182,8 +182,8 @@
         "emptyState": "Nenhuma conta de investimento disponível."
       },
       "sections": {
-        "assetInfo": "Sobre o ativo",
-        "applicationDetails": "Detalhes da aplicação"
+        "assetInfo": "Dados do ativo",
+        "applicationDetails": "Valores e datas"
       },
       "fields": {
         "assetName": "Nome do ativo",
@@ -192,7 +192,7 @@
         "indexer": "Indexador",
         "indexerPercentage": "% do indexador",
         "preFixedRate": "Taxa (% a.a.)",
-        "grossValue": "Valor aplicado (R$)",
+        "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
         "maturityDate": "Data de vencimento",
         "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"

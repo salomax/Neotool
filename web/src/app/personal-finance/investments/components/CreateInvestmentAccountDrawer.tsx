@@ -3,17 +3,10 @@
 import React, { useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { AccountBalance as BankIcon } from '@mui/icons-material';
-import {
-  Autocomplete,
-  Avatar,
-  Box,
-  CircularProgress,
-  Stack,
-  Typography,
-} from '@mui/material';
-import { FormProvider, useController, useForm, useWatch } from 'react-hook-form';
+import { Box, Divider, Stack } from '@mui/material';
+import { FormProvider, useController, useForm, useFormState, useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import dayjs from 'dayjs';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -22,13 +15,15 @@ import {
   Issuer,
   IssuerCategory,
 } from '@/lib/graphql/types/__generated__/graphql';
-import { useTranslation } from '@/shared/i18n';
+import { i18n, useTranslation } from '@/shared/i18n';
 import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
-import { FormTextField as TextField, SelectField } from '@/shared/components/ui/forms/form';
-import { TextField as ThemedTextField } from '@/shared/components/ui/forms/form/TextField';
+import { DatePickerField, FormTextField as TextField, MoneyInput, SelectField } from '@/shared/components/ui/forms/form';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../../i18n';
+import { IssuerSelect } from '../../finance-transactions/components/IssuerSelect';
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../../finance-transactions/constants/dateWindow';
 
 interface CreateInvestmentAccountDrawerProps {
   open: boolean;
@@ -36,7 +31,7 @@ interface CreateInvestmentAccountDrawerProps {
   onCreated?: (account: { id: string; name: string }) => void;
 }
 
-const InvestmentSubtypeValues = ['BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO'] as const;
+const InvestmentSubtypeValues = ['BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO', 'FGTS', 'INSS'] as const;
 type InvestmentSubtype = (typeof InvestmentSubtypeValues)[number];
 
 type CreateInvestmentAccountFormData = {
@@ -44,13 +39,11 @@ type CreateInvestmentAccountFormData = {
   issuerId?: string;
   issuerName?: string;
   name: string;
-};
-
-type IssuerOption = {
-  label: string;
-  value: string;
-  logo: string | null;
-  compeCode: string | null;
+  initialBalance?: number;
+  initialBalanceDate?: Date | null;
+  branchCode?: string;
+  accountNumber?: string;
+  checkDigit?: string;
 };
 
 export function CreateInvestmentAccountDrawer({
@@ -60,6 +53,7 @@ export function CreateInvestmentAccountDrawer({
 }: CreateInvestmentAccountDrawerProps) {
   const { success } = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
 
   const createAccountSchema = React.useMemo(
     () =>
@@ -71,6 +65,11 @@ export function CreateInvestmentAccountDrawer({
           issuerId: z.string().optional(),
           issuerName: z.string().optional(),
           name: z.string().default(''),
+          initialBalance: z.number().optional(),
+          initialBalanceDate: z.date().nullable().optional(),
+          branchCode: z.string().optional(),
+          accountNumber: z.string().optional(),
+          checkDigit: z.string().optional(),
         })
         .superRefine((data, ctx) => {
           const issuerName = data.issuerName?.trim();
@@ -91,8 +90,31 @@ export function CreateInvestmentAccountDrawer({
               path: ['issuerName'],
             });
           }
+
+          if (data.initialBalance !== undefined) {
+            if (data.initialBalance === 0) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.createAccount.step2.validation.initialBalanceNonZero'),
+                path: ['initialBalance'],
+              });
+            }
+            if (!data.initialBalanceDate) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
+                path: ['initialBalanceDate'],
+              });
+            } else if (dayjs(data.initialBalanceDate).isBefore(minAllowedDate, 'day')) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
+                path: ['initialBalanceDate'],
+              });
+            }
+          }
         }),
-    [t]
+    [minAllowedDate, t]
   );
 
   const methods = useForm<CreateInvestmentAccountFormData>({
@@ -102,10 +124,16 @@ export function CreateInvestmentAccountDrawer({
       name: '',
       issuerId: undefined,
       issuerName: '',
+      initialBalance: undefined,
+      initialBalanceDate: null,
+      branchCode: '',
+      accountNumber: '',
+      checkDigit: '',
     },
   });
 
-  const { setValue, reset, control, getValues, getFieldState } = methods;
+  const { setValue, reset, control, getValues } = methods;
+  const { dirtyFields } = useFormState({ control });
   const watchedSubtype = useWatch({ control, name: 'subtype' });
   const watchedIssuerId = useWatch({ control, name: 'issuerId' });
   const previousIssuerIdRef = React.useRef<string | undefined>(undefined);
@@ -122,46 +150,34 @@ export function CreateInvestmentAccountDrawer({
     }
   }, [open, reset]);
 
-  const issuerCategories = React.useMemo<IssuerCategory[]>(
-    () =>
-      watchedSubtype === 'CRYPTO'
-        ? [IssuerCategory.CryptoExchange]
-        : [IssuerCategory.Bank, IssuerCategory.Brokerage],
-    [watchedSubtype]
-  );
+  const issuerCategories = React.useMemo<IssuerCategory[]>(() => {
+    if (watchedSubtype === 'CRYPTO') return [IssuerCategory.CryptoExchange];
+    if (watchedSubtype === 'FGTS' || watchedSubtype === 'INSS') return [IssuerCategory.Bank];
+    return [IssuerCategory.Bank, IssuerCategory.Brokerage];
+  }, [watchedSubtype]);
 
   const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
     variables: { categories: issuerCategories },
     skip: !open,
   });
 
+  const selectedIssuer = React.useMemo(() => {
+    if (!watchedIssuerId || watchedIssuerId === 'custom') return undefined;
+    return issuersData?.issuers?.find((issuer) => issuer.id === watchedIssuerId);
+  }, [issuersData?.issuers, watchedIssuerId]);
+
   const investmentSubtypes = React.useMemo(
     () =>
-      InvestmentSubtypeValues.map((value) => ({
+      ((
+        selectedIssuer?.compeCode === '104' || watchedSubtype === 'FGTS' || watchedSubtype === 'INSS'
+          ? InvestmentSubtypeValues
+          : (['BROKERAGE', 'FIXED_INCOME', 'PENSION', 'CRYPTO'] as const)
+      ) satisfies readonly InvestmentSubtype[]).map((value) => ({
         value,
         label: t(`investments.createAccount.subtypes.${value}`),
       })),
-    [t]
+    [selectedIssuer?.compeCode, t, watchedSubtype]
   );
-
-  const allIssuerOptions = React.useMemo<IssuerOption[]>(() => {
-    const options = (issuersData?.issuers || []).map((issuer) => ({
-      label: issuer.name,
-      value: issuer.id,
-      logo: issuer.logoAsset?.publicUrl || null,
-      compeCode: issuer.compeCode || null,
-    }));
-
-    return [
-      ...options,
-      {
-        label: t('financeTransactions.createAccount.step2.fields.customIssuer'),
-        value: 'custom',
-        logo: null,
-        compeCode: null,
-      },
-    ];
-  }, [issuersData?.issuers, t]);
 
   useEffect(() => {
     if (!open) return;
@@ -173,7 +189,8 @@ export function CreateInvestmentAccountDrawer({
       if (previousIssuerId) {
         setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
         const currentName = getValues('name');
-        if (!getFieldState('name').isDirty && currentName === lastAutoNameRef.current) {
+        const nameIsDirty = !!dirtyFields.name;
+        if (!nameIsDirty && currentName === lastAutoNameRef.current) {
           setValue('name', '', { shouldDirty: false, shouldValidate: false });
           lastAutoNameRef.current = null;
         }
@@ -185,8 +202,9 @@ export function CreateInvestmentAccountDrawer({
       if (previousIssuerId !== 'custom') {
         setValue('issuerName', '', { shouldDirty: false, shouldValidate: true });
         const currentName = getValues('name');
+        const nameIsDirty = !!dirtyFields.name;
         if (
-          !getFieldState('name').isDirty &&
+          !nameIsDirty &&
           (currentName.trim() === '' || currentName === lastAutoNameRef.current)
         ) {
           setValue('name', '', { shouldDirty: false, shouldValidate: false });
@@ -198,13 +216,14 @@ export function CreateInvestmentAccountDrawer({
 
     if (!issuersData?.issuers) return;
 
-    const selectedIssuer = issuersData.issuers.find((issuer) => issuer.id === watchedIssuerId);
-    if (!selectedIssuer) {
+    const selectedIssuerFromList = issuersData.issuers.find((issuer) => issuer.id === watchedIssuerId);
+    if (!selectedIssuerFromList) {
       setValue('issuerId', undefined, { shouldDirty: false, shouldValidate: true });
       setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
       const currentName = getValues('name');
+      const nameIsDirty = !!dirtyFields.name;
       if (
-        !getFieldState('name').isDirty &&
+        !nameIsDirty &&
         (currentName.trim() === '' || currentName === lastAutoNameRef.current)
       ) {
         setValue('name', '', { shouldDirty: false, shouldValidate: false });
@@ -214,12 +233,12 @@ export function CreateInvestmentAccountDrawer({
     }
 
     const subtypeLabel = t(`investments.createAccount.subtypes.${watchedSubtype}`);
-    const autoName = `${subtypeLabel} - ${selectedIssuer.name}`;
+    const autoName = `${subtypeLabel} - ${selectedIssuerFromList.name}`;
 
-    setValue('issuerName', selectedIssuer.name, { shouldDirty: false, shouldValidate: false });
+    setValue('issuerName', selectedIssuerFromList.name, { shouldDirty: false, shouldValidate: false });
 
     const currentName = getValues('name');
-    const nameIsDirty = getFieldState('name').isDirty;
+    const nameIsDirty = !!dirtyFields.name;
     const shouldAutofillName =
       !nameIsDirty || currentName.trim() === '' || currentName === lastAutoNameRef.current;
 
@@ -227,7 +246,7 @@ export function CreateInvestmentAccountDrawer({
       setValue('name', autoName, { shouldDirty: false, shouldValidate: false });
       lastAutoNameRef.current = autoName;
     }
-  }, [getFieldState, getValues, issuersData?.issuers, open, setValue, t, watchedIssuerId, watchedSubtype]);
+  }, [dirtyFields.name, getValues, issuersData?.issuers, open, setValue, t, watchedIssuerId, watchedSubtype]);
 
   const [createAccount, { loading: creating, error: createError }] = useMutation<{
     createFinancialAccount: { id: string; name: string };
@@ -242,21 +261,50 @@ export function CreateInvestmentAccountDrawer({
       onClose();
     },
   });
+  const createErrorMessage = React.useMemo(
+    () => (createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : ''),
+    [createError, t]
+  );
 
   const onSubmit = (data: CreateInvestmentAccountFormData) => {
     const name = data.name.trim();
     const issuerName = data.issuerName?.trim();
+    const branchCode = data.branchCode?.trim() || undefined;
+    const accountNumber = data.accountNumber?.trim() || undefined;
+    const checkDigit = data.checkDigit?.trim() || undefined;
+    const hasBankData = !!(branchCode || accountNumber || checkDigit);
+    const initialBalanceDate =
+      data.initialBalanceDate instanceof Date ? dayjs(data.initialBalanceDate).format('YYYY-MM-DD') : undefined;
+    const type =
+      data.subtype === 'FGTS' || data.subtype === 'INSS'
+        ? ('BENEFIT' as unknown as FinancialAccountType)
+        : FinancialAccountType.Investment;
 
     createAccount({
       variables: {
         input: {
-          type: FinancialAccountType.Investment,
-          subtype: data.subtype as FinancialAccountSubtype,
+          type,
+          subtype: data.subtype as unknown as FinancialAccountSubtype,
           name: name || undefined,
           currencyCode: 'BRL',
           includeInNetWorth: true,
           includeInDashboard: true,
           ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
+          ...(data.initialBalance !== undefined
+            ? {
+                initialBalance: data.initialBalance,
+                initialBalanceDate,
+              }
+            : {}),
+          ...(hasBankData
+            ? {
+                bankData: {
+                  branchCode,
+                  number: accountNumber,
+                  checkDigit,
+                },
+              }
+            : {}),
         },
       },
     });
@@ -265,90 +313,25 @@ export function CreateInvestmentAccountDrawer({
   return (
     <Drawer open={open} onClose={onClose} anchor="right" size="md">
       <Drawer.Header
-        title={
-          watchedSubtype
-            ? t(`investments.createAccount.subtypes.${watchedSubtype}`)
-            : t('investments.createAccount.title')
-        }
+        title={t('investments.createAccount.title')}
       />
       <Drawer.Body>
         <FormProvider {...methods}>
           <form id="create-investment-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <Stack spacing={3}>
-              {createError && <FormErrorBanner message={createError.message} />}
+              {createError && <FormErrorBanner message={createErrorMessage} />}
 
-              <Box data-testid="investment-subtype-select">
-                <SelectField
-                  name="subtype"
-                  label={t('investments.createAccount.fields.subtypeLabel')}
-                  options={investmentSubtypes}
-                />
-              </Box>
-
-              <Autocomplete<IssuerOption, false, false, false>
-                options={allIssuerOptions}
+              <IssuerSelect
+                issuers={issuersData?.issuers}
                 loading={issuersLoading}
-                value={allIssuerOptions.find((option) => option.value === issuerIdValue) || null}
-                onChange={(_, newValue) => issuerIdField.onChange(newValue ? newValue.value : undefined)}
-                isOptionEqualToValue={(option, selectedValue) => option.value === selectedValue.value}
+                value={issuerIdValue}
+                onChange={issuerIdField.onChange}
+                label={t('investments.createAccount.fields.issuerLabel')}
+                placeholder={t('investments.createAccount.fields.issuerPlaceholder')}
                 noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
-                getOptionLabel={(option) => option.label || ''}
-                renderOption={(props, option) => {
-                  const { key, ...otherProps } = props;
-                  return (
-                    <Box
-                      component="li"
-                      key={key}
-                      {...otherProps}
-                      sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}
-                    >
-                      {option.logo ? (
-                        <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
-                      ) : (
-                        <Avatar
-                          sx={{
-                            width: 40,
-                            height: 40,
-                            borderRadius: 1.5,
-                            bgcolor: 'action.disabledBackground',
-                          }}
-                        >
-                          <BankIcon sx={{ fontSize: 24 }} />
-                        </Avatar>
-                      )}
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Typography variant="body1" fontWeight="600">
-                          {option.label}
-                        </Typography>
-                        {option.compeCode && (
-                          <Typography variant="body2" color="text.secondary">
-                            ({option.compeCode})
-                          </Typography>
-                        )}
-                      </Box>
-                    </Box>
-                  );
-                }}
-                renderInput={(params) => (
-                  <ThemedTextField
-                    {...params}
-                    label={t('investments.createAccount.fields.issuerLabel')}
-                    placeholder={t('investments.createAccount.fields.issuerPlaceholder')}
-                    fullWidth
-                    size="medium"
-                    error={!!issuerIdFieldState.error}
-                    helperText={issuerIdFieldState.error?.message}
-                    InputProps={{
-                      ...params.InputProps,
-                      endAdornment: (
-                        <React.Fragment>
-                          {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                          {params.InputProps.endAdornment}
-                        </React.Fragment>
-                      ),
-                    }}
-                  />
-                )}
+                customIssuerLabel={t('financeTransactions.createAccount.step2.fields.customIssuer')}
+                error={!!issuerIdFieldState.error}
+                helperText={issuerIdFieldState.error?.message}
               />
 
               {watchedIssuerId === 'custom' && (
@@ -359,28 +342,70 @@ export function CreateInvestmentAccountDrawer({
                 />
               )}
 
+              <Box data-testid="investment-subtype-select">
+                <SelectField
+                  name="subtype"
+                  label={t('investments.createAccount.fields.subtypeLabel')}
+                  options={investmentSubtypes}
+                />
+              </Box>
+
               <TextField
                 name="name"
                 label={t('investments.createAccount.fields.accountNameLabel')}
                 placeholder={t('investments.createAccount.fields.accountNamePlaceholder')}
                 inputProps={{ 'data-testid': 'investment-account-name-input' }}
               />
+
+              <Stack direction="row" spacing={2}>
+                <MoneyInput
+                  name="initialBalance"
+                  label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
+                  currency="BRL"
+                  locale={i18n.language}
+                />
+                <DatePickerField
+                  name="initialBalanceDate"
+                  label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
+                  minDate={minAllowedDate.toDate()}
+                />
+              </Stack>
+
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  name="branchCode"
+                  label={t('financeTransactions.createAccount.step2.fields.branchCode')}
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  name="accountNumber"
+                  label={t('financeTransactions.createAccount.step2.fields.accountNumber')}
+                  sx={{ flex: 2 }}
+                />
+                <TextField
+                  name="checkDigit"
+                  label={t('financeTransactions.createAccount.step2.fields.checkDigit')}
+                  sx={{ width: 80 }}
+                />
+              </Stack>
+
+              <Divider />
+
+              <Drawer.ActionButtons
+                cancelText={t('actions.cancel')}
+                submitText={t('investments.createAccount.actions.submit')}
+                submittingText={t('investments.createAccount.actions.submitting')}
+                onCancel={onClose}
+                submitForm="create-investment-account-form"
+                cancelDisabled={creating}
+                submitDisabled={creating}
+                submitting={creating}
+              />
+
             </Stack>
           </form>
         </FormProvider>
       </Drawer.Body>
-      <Drawer.Footer>
-        <Drawer.ActionButtons
-          cancelText={t('actions.cancel')}
-          submitText={t('investments.createAccount.actions.submit')}
-          submittingText={t('investments.createAccount.actions.submitting')}
-          onCancel={onClose}
-          submitForm="create-investment-account-form"
-          cancelDisabled={creating}
-          submitDisabled={creating}
-          submitting={creating}
-        />
-      </Drawer.Footer>
     </Drawer>
   );
 }

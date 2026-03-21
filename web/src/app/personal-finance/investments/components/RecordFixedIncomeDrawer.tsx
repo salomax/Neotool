@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Avatar, Box, Button, CircularProgress, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Typography, alpha, useTheme } from "@mui/material";
+import { Avatar, Box, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Typography, alpha, useTheme } from "@mui/material";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
@@ -382,12 +382,14 @@ export function RecordFixedIncomeDrawer({
                     >
                       <ListItemIcon sx={{ minWidth: 44 }}>
                         <Avatar
+                          variant="rounded"
                           src={account.issuer?.logoAsset?.publicUrl || undefined}
+                          slotProps={{ img: { style: { objectFit: "contain" } } }}
                           sx={{
                             bgcolor: account.issuer?.logoAsset?.publicUrl ? "transparent" : (account.themeColor || "primary.main"),
                             width: 32,
                             height: 32,
-                            borderRadius: 2,
+                            borderRadius: 1.5,
                           }}
                         >
                           {account.name?.slice(0, 1).toUpperCase()}
@@ -395,7 +397,7 @@ export function RecordFixedIncomeDrawer({
                       </ListItemIcon>
                       <ListItemText
                         primary={
-                          <Typography variant="body2" fontWeight={700} noWrap>
+                          <Typography variant="body2" fontWeight={600} noWrap>
                             {account.name}
                           </Typography>
                         }
@@ -414,18 +416,20 @@ export function RecordFixedIncomeDrawer({
         ) : (
           <FormProvider {...methods}>
             <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
-              <Stack spacing={3}>
+              <Stack spacing={2}>
                 {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-                <Typography variant="overline" color="text.secondary">
-                  {t("investments.recordHolding.sections.assetInfo")}
-                </Typography>
+                <Stack spacing={1}>
+                  <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
+                    {t("investments.recordHolding.sections.assetInfo")}
+                  </Typography>
 
-                <TextField
-                  name="assetName"
-                  label={t("investments.recordHolding.fields.assetName")}
-                  data-testid="record-asset-name"
-                />
+                  <TextField
+                    name="assetName"
+                    label={t("investments.recordHolding.fields.assetName")}
+                    data-testid="record-asset-name"
+                  />
+                </Stack>
 
                 <SelectField
                   name="assetType"
@@ -443,42 +447,9 @@ export function RecordFixedIncomeDrawer({
 
                 <Divider />
 
-                <Typography variant="overline" color="text.secondary">
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
                   {t("investments.recordHolding.sections.applicationDetails")}
                 </Typography>
-
-                <SelectField
-                  name="indexer"
-                  label={t("investments.recordHolding.fields.indexer")}
-                  options={indexerOptions}
-                  data-testid="record-indexer"
-                />
-
-                {!isPreFixed && (
-                  <PercentField
-                    name="indexerPercentage"
-                    label={t("investments.recordHolding.fields.indexerPercentage")}
-                    min={0}
-                    max={1000}
-                    step={0.01}
-                    fractionDigits={2}
-                    locale={locale}
-                    data-testid="record-indexer-percentage"
-                  />
-                )}
-
-                {isPreFixed && (
-                  <PercentField
-                    name="preFixedRate"
-                    label={t("investments.recordHolding.fields.preFixedRate")}
-                    min={0}
-                    max={1000}
-                    step={0.01}
-                    fractionDigits={2}
-                    locale={locale}
-                    data-testid="record-pre-fixed-rate"
-                  />
-                )}
 
                 <MoneyInput
                   name="grossValue"
@@ -487,43 +458,88 @@ export function RecordFixedIncomeDrawer({
                   data-testid="record-gross-value"
                 />
 
-                <DatePickerField
-                  name="tradeDate"
-                  label={t("investments.recordHolding.fields.tradeDate")}
-                  data-testid="record-trade-date"
-                />
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <SelectField
+                      name="indexer"
+                      label={t("investments.recordHolding.fields.indexer")}
+                      options={indexerOptions}
+                      data-testid="record-indexer"
+                    />
+                  </Box>
 
-                <DatePickerField
-                  name="maturityDate"
-                  label={t("investments.recordHolding.fields.maturityDate")}
-                  minDate={watchedTradeDate}
-                  data-testid="record-maturity-date"
-                />
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    {!isPreFixed ? (
+                      <PercentField
+                        name="indexerPercentage"
+                        label={t("investments.recordHolding.fields.indexerPercentage")}
+                        min={0}
+                        max={1000}
+                        step={0.01}
+                        fractionDigits={2}
+                        locale={locale}
+                        data-testid="record-indexer-percentage"
+                      />
+                    ) : (
+                      <PercentField
+                        name="preFixedRate"
+                        label={t("investments.recordHolding.fields.preFixedRate")}
+                        min={0}
+                        max={1000}
+                        step={0.01}
+                        fractionDigits={2}
+                        locale={locale}
+                        data-testid="record-pre-fixed-rate"
+                      />
+                    )}
+                  </Box>
+                </Stack>
+
+                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <DatePickerField
+                      name="tradeDate"
+                      label={t("investments.recordHolding.fields.tradeDate")}
+                      data-testid="record-trade-date"
+                    />
+                  </Box>
+
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <DatePickerField
+                      name="maturityDate"
+                      label={t("investments.recordHolding.fields.maturityDate")}
+                      minDate={watchedTradeDate}
+                      data-testid="record-maturity-date"
+                    />
+                  </Box>
+                </Stack>
 
                 <CheckboxField
                   name="isTaxExempt"
                   label={t("investments.recordHolding.fields.isTaxExempt")}
                   data-testid="record-tax-exempt-checkbox"
                 />
+
+                <Divider />
+
+                {!needsAccountSelection ? (
+                  <Drawer.ActionButtons
+                    cancelText={t("actions.cancel")}
+                    submitText={t("investments.recordHolding.actions.submit")}
+                    submittingText={t("investments.recordHolding.actions.submitting")}
+                    onCancel={onClose}
+                    submitForm="record-fixed-income-form"
+                    cancelDisabled={isSubmitting}
+                    submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+                    submitting={isSubmitting}
+                  />
+                ) : null}
+
               </Stack>
             </form>
           </FormProvider>
         )}
       </Drawer.Body>
-      {!needsAccountSelection ? (
-        <Drawer.Footer>
-          <Drawer.ActionButtons
-            cancelText={t("actions.cancel")}
-            submitText={t("investments.recordHolding.actions.submit")}
-            submittingText={t("investments.recordHolding.actions.submitting")}
-            onCancel={onClose}
-            submitForm="record-fixed-income-form"
-            cancelDisabled={isSubmitting}
-            submitDisabled={isSubmitting || !resolvedFinancialAccountId}
-            submitting={isSubmitting}
-          />
-        </Drawer.Footer>
-      ) : null}
     </Drawer>
   );
 }
