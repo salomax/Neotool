@@ -421,6 +421,21 @@
       }
     }
   },
+  "attachments": {
+    "label": "Attachments",
+    "defaultLabel": "Attachment",
+    "uploading": "Uploading…",
+    "attachFile": "Attach file",
+    "addFile": "Add file (max. {{max}})",
+    "download": "Download",
+    "remove": "Remove",
+    "errors": {
+      "tooLarge": "File too large. Max {{maxSize}}.",
+      "initFailed": "Couldn't start the upload.",
+      "uploadFailed": "Upload failed: {{status}}",
+      "generic": "Error uploading file."
+    }
+  },
   "financeTransactions": {
     "title": "Finance Transactions",
     "quickAdd": "New transaction",

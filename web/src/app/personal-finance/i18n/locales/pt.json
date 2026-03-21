@@ -423,6 +423,21 @@
       }
     }
   },
+  "attachments": {
+    "label": "Anexos",
+    "defaultLabel": "Anexo",
+    "uploading": "Enviando…",
+    "attachFile": "Anexar arquivo",
+    "addFile": "Adicionar arquivo (máx. {{max}})",
+    "download": "Download",
+    "remove": "Remover",
+    "errors": {
+      "tooLarge": "Arquivo muito grande. Máximo {{maxSize}}.",
+      "initFailed": "Não foi possível iniciar o upload.",
+      "uploadFailed": "Upload falhou: {{status}}",
+      "generic": "Erro ao enviar arquivo."
+    }
+  },
   "financeTransactions": {
     "title": "Movimentações Financeiras",
     "quickAdd": "Nova movimentação",

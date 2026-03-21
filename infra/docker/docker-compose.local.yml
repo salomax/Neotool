@@ -371,6 +371,113 @@ services:
       - feature-flags
 
   # -------------------------------------------------------------
+  # Security Service Stack
+  # Profile: services
+  # -------------------------------------------------------------
+  security:
+    build:
+      context: ../../service/kotlin
+      dockerfile: security/Dockerfile
+    container_name: neotool-security-service
+    restart: unless-stopped
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -Xmx512m
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      VAULT_ENABLED: ${VAULT_ENABLED}
+      VAULT_ADDRESS: ${VAULT_ADDRESS}
+      VAULT_TOKEN: ${VAULT_TOKEN}
+      JWT_KEY_ID: ${JWT_KEY_ID:-kid-1}
+      JWT_ALGORITHM: ${JWT_ALGORITHM:-RS256}
+      JWT_JWKS_ENABLED: ${JWT_JWKS_ENABLED}
+      JWT_PUBLIC_KEY: ${JWT_PUBLIC_KEY}
+      JWT_PUBLIC_KEY_PATH: ${JWT_PUBLIC_KEY_PATH}
+      JWT_ACCESS_TOKEN_EXPIRATION_SECONDS: ${JWT_ACCESS_TOKEN_EXPIRATION_SECONDS:-900}
+      JWT_REFRESH_TOKEN_EXPIRATION_SECONDS: ${JWT_REFRESH_TOKEN_EXPIRATION_SECONDS:-604800}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_ISSUER: ${GOOGLE_ISSUER}
+      FRONTEND_URL: ${FRONTEND_URL}
+      GRAPHQL_ROUTER_URL: ${GRAPHQL_ROUTER_URL}
+      SECURITY_SERVICE_URL: ${SECURITY_SERVICE_URL}
+      SECURITY_SERVICE_ID: ${SECURITY_SERVICE_ID}
+      SECURITY_SERVICE_SECRET: ${SECURITY_SERVICE_SECRET}
+    ports:
+      - "8080:8080"   
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assets:
+    build:
+      context: ../../service/kotlin
+      dockerfile: assets/Dockerfile
+    container_name: neotool-assets-service
+    restart: unless-stopped
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -Xmx512m
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      JWT_JWKS_URL: http://neotool-security-service:8080/.well-known/jwks.json
+      STORAGE_HOSTNAME: ${STORAGE_HOSTNAME:-minio}
+      STORAGE_PORT: ${STORAGE_PORT:-9000}
+      STORAGE_ACCESS_KEY: ${STORAGE_ACCESS_KEY:-minioadmin}
+      STORAGE_SECRET: ${STORAGE_SECRET:-minioadmin}
+      STORAGE_FORCE_PATH_STYLE: ${STORAGE_FORCE_PATH_STYLE:-true}
+      STORAGE_USE_HTTPS: ${STORAGE_USE_HTTPS:-false}
+      SECURITY_SERVICE_ID: ${ASSETS_SECURITY_SERVICE_ID}
+      SECURITY_SERVICE_SECRET: ${ASSETS_SECURITY_SERVICE_SECRET}
+    ports:
+      - "8083:8080"    
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  assistant:
+    build:
+      context: ../../service/kotlin
+      dockerfile: assistant/Dockerfile
+    container_name: neotool-assistant-service
+    restart: unless-stopped
+    environment:
+      MICRONAUT_ENVIRONMENTS: docker
+      MICRONAUT_SERVER_PORT: 8080
+      JAVA_TOOL_OPTIONS: -Xmx512m
+      POSTGRES_HOST: neotool-pgbouncer
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      JWT_JWKS_URL: ${ASSISTANT_JWT_JWKS_URL}
+      LLM_PROVIDER: ${ASSISTANT_LLM_PROVIDER}
+      GEMINI_MODEL: ${ASSISTANT_GEMINI_MODEL}
+      GEMINI_API_KEY: ${ASSISTANT_GEMINI_API_KEY}
+      KAFKA_ENABLED: ${ASSISTANT_KAFKA_ENABLED}
+      KAFKA_BROKERS: ${ASSISTANT_KAFKA_BROKERS}
+      ASSISTANT_BANKING_READER_CONSUMER_ENABLED: ${ASSISTANT_BANKING_READER_CONSUMER_ENABLED}
+    ports:
+      - "8082:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+
+  # -------------------------------------------------------------
   # Python Workers
   # Profile: workers
   # -------------------------------------------------------------

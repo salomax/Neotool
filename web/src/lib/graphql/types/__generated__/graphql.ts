@@ -1004,7 +1004,9 @@ export enum FinancialAccountSubtype {
   ContaSalario = 'CONTA_SALARIO',
   CreditCard = 'CREDIT_CARD',
   Crypto = 'CRYPTO',
+  Fgts = 'FGTS',
   FixedIncome = 'FIXED_INCOME',
+  Inss = 'INSS',
   Mortgage = 'MORTGAGE',
   OtherAsset = 'OTHER_ASSET',
   Pension = 'PENSION',
@@ -1019,6 +1021,7 @@ export enum FinancialAccountSubtype {
 export enum FinancialAccountType {
   Asset = 'ASSET',
   Bank = 'BANK',
+  Benefit = 'BENEFIT',
   Cash = 'CASH',
   Credit = 'CREDIT',
   Investment = 'INVESTMENT',

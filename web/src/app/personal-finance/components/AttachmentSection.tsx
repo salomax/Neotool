@@ -32,6 +32,9 @@ import type {
   CreateAssetUploadMutationVariables,
 } from '@/lib/graphql/operations/banking/mutations.generated';
 import { FilePreviewDialog, type PreviewAttachment } from './FilePreviewDialog';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '../i18n';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -90,6 +93,7 @@ export function AttachmentSection({
   compact = false,
 }: AttachmentSectionProps) {
   const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -114,7 +118,7 @@ export function AttachmentSection({
     if (!file) return;
 
     if (file.size > MAX_FILE_BYTES) {
-      setUploadError('Arquivo muito grande. Máximo 3 MB.');
+      setUploadError(t('attachments.errors.tooLarge', { maxSize: '3 MB' }));
       return;
     }
 
@@ -136,7 +140,7 @@ export function AttachmentSection({
 
       const assetId = uploadData?.createAssetUpload.id;
       const uploadUrl = uploadData?.createAssetUpload.uploadUrl;
-      if (!assetId || !uploadUrl) throw new Error('Não foi possível iniciar o upload.');
+      if (!assetId || !uploadUrl) throw new Error(t('attachments.errors.initFailed'));
 
       // Step 2 — PUT file directly to presigned URL
       const putResponse = await fetch(uploadUrl, {
@@ -146,7 +150,7 @@ export function AttachmentSection({
       });
 
       if (!putResponse.ok) {
-        throw new Error(`Upload falhou: ${putResponse.status}`);
+        throw new Error(t('attachments.errors.uploadFailed', { status: putResponse.status }));
       }
 
       // Step 3 — confirm upload
@@ -161,8 +165,7 @@ export function AttachmentSection({
 
       onChanged();
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Erro ao enviar arquivo.';
-      setUploadError(message);
+      setUploadError(extractErrorMessage(err, t('attachments.errors.generic')));
     } finally {
       setUploading(false);
     }
@@ -196,7 +199,7 @@ export function AttachmentSection({
             <Chip
               key={att.id}
               icon={<FileTypeIcon mimeType={att.mimeType} />}
-              label={att.filename ?? 'Anexo'}
+              label={att.filename ?? t('attachments.defaultLabel')}
               size="small"
               onClick={() => setPreview(att)}
               onDelete={removingId === att.id ? undefined : () => handleRemove(att)}
@@ -210,7 +213,7 @@ export function AttachmentSection({
           ))}
 
           {canUpload && (
-            <Tooltip title={uploading ? 'Enviando…' : 'Anexar arquivo'}>
+            <Tooltip title={uploading ? t('attachments.uploading') : t('attachments.attachFile')}>
               <span>
                 <IconButton
                   size="small"
@@ -250,10 +253,10 @@ export function AttachmentSection({
       {!compact && (
         <Stack direction="row" spacing={1} alignItems="center" mb={attachments.length ? 1 : 0}>
           <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-            Anexos
+            {t('attachments.label')}
           </Typography>
           {canUpload && (
-            <Tooltip title={uploading ? 'Enviando…' : `Adicionar arquivo (máx. ${MAX_ATTACHMENTS})`}>
+            <Tooltip title={uploading ? t('attachments.uploading') : t('attachments.addFile', { max: MAX_ATTACHMENTS })}>
               <span>
                 <IconButton
                   size="small"
@@ -300,7 +303,7 @@ export function AttachmentSection({
                     sx={{ display: 'block', cursor: att.downloadUrl ? 'pointer' : 'default', '&:hover': { textDecoration: att.downloadUrl ? 'underline' : 'none' } }}
                     onClick={() => att.downloadUrl && setPreview(att)}
                   >
-                    {att.filename ?? 'Anexo'}
+                    {att.filename ?? t('attachments.defaultLabel')}
                   </Typography>
                   {att.sizeBytes && (
                     <Typography variant="caption" color="text.disabled" sx={{ display: 'block', lineHeight: 1 }}>
@@ -315,7 +318,7 @@ export function AttachmentSection({
                   sx={{ opacity: 0, transition: 'opacity 0.15s', flexShrink: 0 }}
                 >
                   {att.downloadUrl && (
-                    <Tooltip title="Download">
+                    <Tooltip title={t('attachments.download')}>
                       <IconButton
                         size="small"
                         href={att.downloadUrl}
@@ -328,7 +331,7 @@ export function AttachmentSection({
                       </IconButton>
                     </Tooltip>
                   )}
-                  <Tooltip title="Remover">
+                  <Tooltip title={t('attachments.remove')}>
                     <IconButton
                       size="small"
                       onClick={() => handleRemove(att)}

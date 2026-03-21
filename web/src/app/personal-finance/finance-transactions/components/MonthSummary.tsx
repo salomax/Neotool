@@ -494,7 +494,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
       <Divider sx={{ mb: 3 }} />
 
-      <Stack spacing={3}>
+      <Stack spacing={1.2}>
         <SummaryMetricRow
           icon={<IncomeIcon />}
           color={theme.palette.success.main}
