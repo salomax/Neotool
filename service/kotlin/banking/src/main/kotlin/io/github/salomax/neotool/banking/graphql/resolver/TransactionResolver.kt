@@ -32,6 +32,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
+import org.slf4j.LoggerFactory
 
 /**
  * GraphQL resolver for [Transaction] and [TransactionCategory] queries and mutations.
@@ -43,6 +44,8 @@ class TransactionResolver(
     private val creditCardBillService: CreditCardBillService,
     private val merchantRepository: MerchantRepository,
 ) {
+    private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
+
     // ── Queries ──────────────────────────────────────────────────────────────
 
     fun transactionCategories(principal: RequestPrincipal): List<TransactionCategoryDTO> {
@@ -82,6 +85,7 @@ class TransactionResolver(
         after: String?,
         principal: RequestPrincipal,
     ): TransactionConnectionDTO {
+        val startedAt = System.nanoTime()
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val financialAccountId = financialAccountId?.let { UUID.fromString(it) }
         val belongsToUserUuid = belongsToUserId?.let { UUID.fromString(it) }
@@ -105,10 +109,13 @@ class TransactionResolver(
                 first = first,
                 after = after,
             )
+        val listFinishedAt = System.nanoTime()
 
         val categoryIds = connection.edges.mapNotNull { it.node.categoryId }.toSet()
         val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
+        val categoriesFinishedAt = System.nanoTime()
         val merchantDTOs = buildMerchantDTOMap(connection.edges.mapNotNull { it.node.merchantId }.toSet())
+        val merchantsFinishedAt = System.nanoTime()
 
         val edges =
             connection.edges.map { edge ->
@@ -121,6 +128,7 @@ class TransactionResolver(
                     cursor = edge.cursor,
                 )
             }
+        val mappingFinishedAt = System.nanoTime()
 
         val pageInfoDto =
             PageInfoDTO(
@@ -129,6 +137,21 @@ class TransactionResolver(
                 startCursor = connection.pageInfo.startCursor,
                 endCursor = connection.pageInfo.endCursor,
             )
+        val responseFinishedAt = System.nanoTime()
+        if (logger.isDebugEnabled) {
+            logger.debug(
+                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} dtoMapMs={} responseMs={} totalMs={}",
+                accountId,
+                connection.edges.size,
+                connection.totalCount,
+                nanosToMillis(listFinishedAt - startedAt),
+                nanosToMillis(categoriesFinishedAt - listFinishedAt),
+                nanosToMillis(merchantsFinishedAt - categoriesFinishedAt),
+                nanosToMillis(mappingFinishedAt - merchantsFinishedAt),
+                nanosToMillis(responseFinishedAt - mappingFinishedAt),
+                nanosToMillis(responseFinishedAt - startedAt),
+            )
+        }
 
         return TransactionConnectionDTO(
             edges = edges,
@@ -397,11 +420,25 @@ class TransactionResolver(
      */
     private fun buildMerchantDTOMap(merchantIds: Set<UUID>): Map<UUID, MerchantDTO> {
         if (merchantIds.isEmpty()) return emptyMap()
-        return merchantIds.mapNotNull { id ->
-            val dto = loadMerchantDTO(id) ?: return@mapNotNull null
-            id to dto
-        }.toMap()
+        val merchants = merchantRepository.findByIds(merchantIds)
+        val logoAssetIds =
+            merchantRepository.findLogoAssetIdsByDomains(
+                merchants.mapNotNull { it.domain }.toSet(),
+            )
+        return merchants.associate { merchant ->
+            merchant.id!! to
+                MerchantDTO(
+                    id = merchant.id,
+                    name = merchant.name,
+                    domain = merchant.domain,
+                    sector = merchant.sector,
+                    isSystem = merchant.isSystem,
+                    logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it) },
+                )
+        }
     }
+
+    private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
 
     private fun getDate(
         map: Map<String, Any?>,

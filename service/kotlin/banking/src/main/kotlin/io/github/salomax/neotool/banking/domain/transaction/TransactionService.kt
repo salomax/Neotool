@@ -56,15 +56,8 @@ open class TransactionService(
         accountId: UUID,
     ): Map<UUID, TransactionCategory> {
         if (categoryIds.isEmpty()) return emptyMap()
-        return categoryRepository.findAll(accountId)
-            .mapNotNull { category ->
-                val id = category.id
-                if (id != null && categoryIds.contains(id) && isCategoryAccessible(category, accountId)) {
-                    id to category
-                } else {
-                    null
-                }
-            }
+        return categoryRepository.findAccessibleByIds(categoryIds, accountId)
+            .mapNotNull { category -> category.id?.let { it to category } }
             .toMap()
     }
 
@@ -110,38 +103,88 @@ open class TransactionService(
         first: Int?,
         after: String?,
     ): Connection<Transaction> {
-        val filtered = fetchFilteredTransactions(
-            accountId = accountId,
-            financialAccountId = financialAccountId,
-            belongsToUserId = belongsToUserId,
-            belongsToName = belongsToName,
-            tags = tags,
-            billId = billId,
-            categoryId = categoryId,
-            uncategorized = uncategorized,
-            creditDebitType = creditDebitType,
-            types = types,
-            month = month,
-            year = year,
-        ) ?: return Connection(emptyList(), PageInfo(false, false, null, null), 0L)
-
+        val startedAt = System.nanoTime()
+        val normalizedBelongsToName = belongsToName?.trim()
+        require(normalizedBelongsToName?.isNotEmpty() != false) {
+            "belongsToName must not be blank"
+        }
+        require(!(belongsToUserId != null && normalizedBelongsToName != null)) {
+            "Only one of belongsToUserId or belongsToName can be provided"
+        }
+        val normalizedTagFilter = tags?.let(::normalizeTags)?.toSet()?.takeIf { it.isNotEmpty() }
+        val normalizedTypes = types?.takeIf { it.isNotEmpty() }
         val pageSize = PaginationConstants.validatePageSize(first)
-
         val startIndex =
             after?.let {
                 val decoded = CursorEncoder.decodeCursorToInt(it)
                 decoded + 1
             } ?: 0
+        val normalizationFinishedAt = System.nanoTime()
 
-        require(startIndex >= 0 && startIndex <= filtered.size) {
+        require(startIndex >= 0) {
+            "Invalid cursor for transactions pagination"
+        }
+        val effectiveFinancialAccountId =
+            if (billId == null) {
+                financialAccountId?.also { requireAccountOwnsFinancialAccount(it, accountId) }
+            } else {
+                null
+            }
+        if (billId != null) {
+            creditCardBillService.requireBillForAccount(billId, accountId)
+        }
+        val (startDate, endDateExclusive) =
+            if (billId == null) {
+                val today = LocalDate.now()
+                val targetYear = year ?: today.year
+                val targetMonth = month ?: today.monthValue
+                require(targetMonth in 1..12) {
+                    "month must be between 1 and 12, got: $targetMonth"
+                }
+                val periodStart = LocalDate.of(targetYear, targetMonth, 1)
+                periodStart to periodStart.plusMonths(1)
+            } else {
+                null to null
+            }
+        val filterSetupFinishedAt = System.nanoTime()
+        val categoryIds =
+            if (billId != null || uncategorized == true || categoryId == null) {
+                null
+            } else {
+                resolveCategoryFilterIds(categoryId, accountId) ?: return Connection(
+                    emptyList(),
+                    PageInfo(false, false, null, null),
+                    0L,
+                )
+            }
+        val categoryFilterFinishedAt = System.nanoTime()
+        val page =
+            transactionRepository.findPage(
+                TransactionListQuery(
+                    accountId = accountId,
+                    financialAccountId = effectiveFinancialAccountId,
+                    belongsToUserId = belongsToUserId,
+                    belongsToName = normalizedBelongsToName,
+                    tags = normalizedTagFilter,
+                    billId = billId,
+                    categoryIds = categoryIds,
+                    uncategorizedOnly = billId == null && uncategorized == true,
+                    creditDebitType = creditDebitType,
+                    types = normalizedTypes,
+                    startDate = startDate,
+                    endDateExclusive = endDateExclusive,
+                    limit = pageSize,
+                    offset = startIndex,
+                ),
+            )
+        val repositoryFinishedAt = System.nanoTime()
+
+        require(startIndex.toLong() <= page.totalCount) {
             "Invalid cursor for transactions pagination"
         }
 
-        val endExclusive = minOf(startIndex + pageSize, filtered.size)
-        val pageItems = filtered.subList(startIndex, endExclusive)
-
         val edges: List<Edge<Transaction>> =
-            pageItems.withIndex().map { (idx, tx) ->
+            page.items.withIndex().map { (idx, tx) ->
                 val globalIndex = startIndex + idx
                 Edge(
                     node = tx,
@@ -149,7 +192,8 @@ open class TransactionService(
                 )
             }
 
-        val hasNextPage = endExclusive < filtered.size
+        val endExclusive = startIndex + page.items.size
+        val hasNextPage = endExclusive.toLong() < page.totalCount
         val hasPreviousPage = startIndex > 0
 
         val pageInfo =
@@ -159,12 +203,43 @@ open class TransactionService(
                 startCursor = edges.firstOrNull()?.cursor,
                 endCursor = edges.lastOrNull()?.cursor,
             )
+        val paginationFinishedAt = System.nanoTime()
+        if (logger.isDebugEnabled) {
+            logger.debug(
+                "transactions.service timings accountId={} offset={} limit={} rows={} totalCount={} normalizeMs={} setupMs={} categoryFilterMs={} repoMs={} paginationMs={} totalMs={}",
+                accountId,
+                startIndex,
+                pageSize,
+                page.items.size,
+                page.totalCount,
+                nanosToMillis(normalizationFinishedAt - startedAt),
+                nanosToMillis(filterSetupFinishedAt - normalizationFinishedAt),
+                nanosToMillis(categoryFilterFinishedAt - filterSetupFinishedAt),
+                nanosToMillis(repositoryFinishedAt - categoryFilterFinishedAt),
+                nanosToMillis(paginationFinishedAt - repositoryFinishedAt),
+                nanosToMillis(paginationFinishedAt - startedAt),
+            )
+        }
 
         return Connection(
             edges = edges,
             pageInfo = pageInfo,
-            totalCount = filtered.size.toLong(),
+            totalCount = page.totalCount,
         )
+    }
+
+    private fun resolveCategoryFilterIds(
+        categoryId: UUID,
+        accountId: UUID,
+    ): List<UUID>? {
+        val category = categoryRepository.findById(categoryId) ?: return null
+        if (category.accountId != null && category.accountId != accountId) return null
+        return if (category.parentId == null) {
+            val allCats = categoryRepository.findAll(accountId)
+            listOf(categoryId) + allCats.filter { it.parentId == categoryId }.mapNotNull { it.id }
+        } else {
+            listOf(categoryId)
+        }
     }
 
     /**
@@ -813,6 +888,8 @@ open class TransactionService(
         category: TransactionCategory,
         accountId: UUID,
     ): Boolean = category.accountId == null || category.accountId == accountId
+
+    private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
 
     private fun validateDateWithinMovingWindow(date: LocalDate) {
         val minAllowedDate = DateWindowPolicy.minAllowedDate()

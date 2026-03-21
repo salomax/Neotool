@@ -24,6 +24,13 @@ open class DefaultMerchantRepository(
     override fun findById(id: UUID): Merchant? =
         merchantRepo.findById(id).orElse(null)?.let(MerchantMapper::toDomain)
 
+    override fun findByIds(ids: Collection<UUID>): List<Merchant> =
+        if (ids.isEmpty()) {
+            emptyList()
+        } else {
+            merchantRepo.findByIdIn(ids).map(MerchantMapper::toDomain)
+        }
+
     override fun save(merchant: Merchant): Merchant {
         val entity = MerchantMapper.toEntity(merchant)
         return MerchantMapper.toDomain(merchantRepo.save(entity))
@@ -31,6 +38,13 @@ open class DefaultMerchantRepository(
 
     override fun findLogoAssetIdByDomain(domain: String): String? =
         logoCacheRepo.findByDomain(domain)?.assetId
+
+    override fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String> =
+        if (domains.isEmpty()) {
+            emptyMap()
+        } else {
+            logoCacheRepo.findByDomainIn(domains).associate { it.domain to it.assetId }
+        }
 
     override fun findTopMerchants(
         accountId: UUID,

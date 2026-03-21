@@ -16,11 +16,17 @@ interface MerchantRepository {
     /** Finds a merchant accessible to [accountId] (system or owned). */
     fun findById(id: UUID): Merchant?
 
+    /** Batch-loads merchants by ID. */
+    fun findByIds(ids: Collection<UUID>): List<Merchant>
+
     /** Persists a new or updated merchant. */
     fun save(merchant: Merchant): Merchant
 
     /** Returns the asset_id for a cached domain logo, or null if not yet cached. */
     fun findLogoAssetIdByDomain(domain: String): String?
+
+    /** Batch-loads cached logo asset IDs keyed by domain. */
+    fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String>
 
     /**
      * Returns top-merchant rows for the given account, optionally filtered by

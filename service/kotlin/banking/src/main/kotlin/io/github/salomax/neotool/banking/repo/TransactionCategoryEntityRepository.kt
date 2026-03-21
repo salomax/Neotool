@@ -28,6 +28,22 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
     )
     fun findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId: UUID): List<TransactionCategoryEntity>
 
+    @Query(
+        """
+        SELECT *
+        FROM banking.transaction_categories
+        WHERE id IN (:ids)
+          AND (account_id IS NULL OR account_id = :accountId)
+          AND deleted_at IS NULL
+        ORDER BY sort_order ASC, created_at ASC
+        """,
+        nativeQuery = true,
+    )
+    fun findAccessibleByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<TransactionCategoryEntity>
+
     fun findByIdAndDeletedAtIsNull(id: UUID): TransactionCategoryEntity?
 
     @Query(

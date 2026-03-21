@@ -35,6 +35,8 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
     )
     fun findUserMerchantsForAccount(accountId: UUID): List<MerchantEntity>
 
+    fun findByIdIn(ids: Collection<UUID>): List<MerchantEntity>
+
     /**
      * Top merchants for an account, filtered by optional financial account and date range.
      * Delegates to the v_top_merchants view.

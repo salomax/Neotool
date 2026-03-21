@@ -4,7 +4,20 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
-import { Container, Box, CircularProgress, Stack, Button, Alert, Divider, alpha, useTheme, Chip } from '@mui/material';
+import {
+  Container,
+  Box,
+  CircularProgress,
+  Stack,
+  Button,
+  Alert,
+  Divider,
+  alpha,
+  useTheme,
+  Chip,
+  Collapse,
+  Fade,
+} from '@mui/material';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
@@ -209,6 +222,10 @@ export default function FinanceTransactionsPage() {
       : summaryCreditDebitTypeFilterEffective === CreditDebitType.Debit
         ? theme.palette.error.main
         : theme.palette.primary.main;
+
+  const summaryTableFiltersOpen =
+    displayMode.kind === 'calendar' &&
+    Boolean(summaryCategoryFilterId || summaryCreditDebitTypeFilterEffective);
 
   const refetchSummary = () => {
     if (displayMode.kind === 'calendar') {
@@ -499,95 +516,116 @@ export default function FinanceTransactionsPage() {
             </Button>
           </Stack>
 
-          {displayMode.kind === 'calendar' &&
-            (summaryCategoryFilterId || summaryCreditDebitTypeFilterEffective) && (
-              <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: '100%', mb: 2 }}>
-                {summaryCreditDebitTypeFilterEffective && (
-                  <Chip
-                    icon={
-                      summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit ? (
-                        <ArrowUpwardIcon sx={{ fontSize: 18 }} />
-                      ) : (
-                        <ArrowDownwardIcon sx={{ fontSize: 18 }} />
-                      )
-                    }
-                    label={
-                      summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit
-                        ? t('financeTransactions.monthSummary.filteringByCredit')
-                        : t('financeTransactions.monthSummary.filteringByDebit')
-                    }
-                    onDelete={clearCreditDebitTypeFilter}
-                    deleteIcon={
-                      <CloseIcon
-                        fontSize="small"
-                        aria-label={t('financeTransactions.monthSummary.clearCreditDebitTypeFilter')}
+          {displayMode.kind === 'calendar' && (
+            <Collapse
+              in={summaryTableFiltersOpen}
+              timeout={{ enter: 320, exit: 240 }}
+              unmountOnExit
+              easing={{
+                enter: theme.transitions.easing.easeOut,
+                exit: theme.transitions.easing.sharp,
+              }}
+              sx={{ width: '100%' }}
+            >
+              <Fade
+                in={summaryTableFiltersOpen}
+                timeout={{ enter: 260, exit: 180 }}
+                easing={{
+                  enter: theme.transitions.easing.easeOut,
+                  exit: theme.transitions.easing.sharp,
+                }}
+              >
+                <Box sx={{ width: '100%', mb: 2, pt: 0.25 }}>
+                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: '100%' }}>
+                    {summaryCreditDebitTypeFilterEffective && (
+                      <Chip
+                        icon={
+                          summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit ? (
+                            <ArrowUpwardIcon sx={{ fontSize: 18 }} />
+                          ) : (
+                            <ArrowDownwardIcon sx={{ fontSize: 18 }} />
+                          )
+                        }
+                        label={
+                          summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit
+                            ? t('financeTransactions.monthSummary.filteringByCredit')
+                            : t('financeTransactions.monthSummary.filteringByDebit')
+                        }
+                        onDelete={clearCreditDebitTypeFilter}
+                        deleteIcon={
+                          <CloseIcon
+                            fontSize="small"
+                            aria-label={t('financeTransactions.monthSummary.clearCreditDebitTypeFilter')}
+                          />
+                        }
+                        variant="outlined"
+                        sx={{
+                          pl: 1.5,
+                          pr: 1.25,
+                          py: 0.75,
+                          bgcolor: alpha(summaryTypeChipAccent, 0.12),
+                          borderColor: alpha(summaryTypeChipAccent, 0.4),
+                          color: summaryTypeChipAccent,
+                          fontWeight: 600,
+                          '& .MuiChip-icon': {
+                            color: summaryTypeChipAccent,
+                            ml: 0.25,
+                            mr: 0.5,
+                          },
+                          '& .MuiChip-label': { px: 1.25 },
+                          '& .MuiChip-deleteIcon': {
+                            color: alpha(summaryTypeChipAccent, 0.75),
+                            '&:hover': { color: summaryTypeChipAccent },
+                          },
+                        }}
                       />
-                    }
-                    variant="outlined"
-                    sx={{
-                      pl: 1.5,
-                      pr: 1.25,
-                      py: 0.75,
-                      bgcolor: alpha(summaryTypeChipAccent, 0.12),
-                      borderColor: alpha(summaryTypeChipAccent, 0.4),
-                      color: summaryTypeChipAccent,
-                      fontWeight: 600,
-                      '& .MuiChip-icon': {
-                        color: summaryTypeChipAccent,
-                        ml: 0.25,
-                        mr: 0.5,
-                      },
-                      '& .MuiChip-label': { px: 1.25 },
-                      '& .MuiChip-deleteIcon': {
-                        color: alpha(summaryTypeChipAccent, 0.75),
-                        '&:hover': { color: summaryTypeChipAccent },
-                      },
-                    }}
-                  />
-                )}
-                {summaryCategoryFilterId && (
-                  <Chip
-                    icon={
-                      <CategoryIcon
-                        iconName={summaryCategoryFilterMeta?.icon ?? null}
-                        color={summaryCategoryChipAccent}
-                        size={18}
+                    )}
+                    {summaryCategoryFilterId && (
+                      <Chip
+                        icon={
+                          <CategoryIcon
+                            iconName={summaryCategoryFilterMeta?.icon ?? null}
+                            color={summaryCategoryChipAccent}
+                            size={18}
+                          />
+                        }
+                        label={t('financeTransactions.monthSummary.filteringByCategory', {
+                          name: summaryCategoryFilterMeta?.name ?? summaryCategoryFilterId,
+                        })}
+                        onDelete={() => setSummaryCategoryFilterId(null)}
+                        deleteIcon={
+                          <CloseIcon
+                            fontSize="small"
+                            aria-label={t('financeTransactions.monthSummary.clearCategoryFilter')}
+                          />
+                        }
+                        variant="outlined"
+                        sx={{
+                          pl: 1.5,
+                          pr: 1.25,
+                          py: 0.75,
+                          bgcolor: alpha(summaryCategoryChipAccent, 0.12),
+                          borderColor: alpha(summaryCategoryChipAccent, 0.4),
+                          color: summaryCategoryChipAccent,
+                          fontWeight: 600,
+                          '& .MuiChip-icon': {
+                            color: summaryCategoryChipAccent,
+                            ml: 0.25,
+                            mr: 0.5,
+                          },
+                          '& .MuiChip-label': { px: 1.25 },
+                          '& .MuiChip-deleteIcon': {
+                            color: alpha(summaryCategoryChipAccent, 0.75),
+                            '&:hover': { color: summaryCategoryChipAccent },
+                          },
+                        }}
                       />
-                    }
-                    label={t('financeTransactions.monthSummary.filteringByCategory', {
-                      name: summaryCategoryFilterMeta?.name ?? summaryCategoryFilterId,
-                    })}
-                    onDelete={() => setSummaryCategoryFilterId(null)}
-                    deleteIcon={
-                      <CloseIcon
-                        fontSize="small"
-                        aria-label={t('financeTransactions.monthSummary.clearCategoryFilter')}
-                      />
-                    }
-                    variant="outlined"
-                    sx={{
-                      pl: 1.5,
-                      pr: 1.25,
-                      py: 0.75,
-                      bgcolor: alpha(summaryCategoryChipAccent, 0.12),
-                      borderColor: alpha(summaryCategoryChipAccent, 0.4),
-                      color: summaryCategoryChipAccent,
-                      fontWeight: 600,
-                      '& .MuiChip-icon': {
-                        color: summaryCategoryChipAccent,
-                        ml: 0.25,
-                        mr: 0.5,
-                      },
-                      '& .MuiChip-label': { px: 1.25 },
-                      '& .MuiChip-deleteIcon': {
-                        color: alpha(summaryCategoryChipAccent, 0.75),
-                        '&:hover': { color: summaryCategoryChipAccent },
-                      },
-                    }}
-                  />
-                )}
-              </Stack>
-            )}
+                    )}
+                  </Stack>
+                </Box>
+              </Fade>
+            </Collapse>
+          )}
 
           <TransactionTable 
             transactions={transactions} 

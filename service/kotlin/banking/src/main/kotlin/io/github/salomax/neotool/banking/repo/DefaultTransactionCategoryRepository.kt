@@ -17,6 +17,16 @@ class DefaultTransactionCategoryRepository(
             .findByAccountIdIsNullOrAccountIdAndDeletedAtIsNull(accountId)
             .map(TransactionMapper::toDomain)
 
+    override fun findAccessibleByIds(
+        ids: Set<UUID>,
+        accountId: UUID,
+    ): List<TransactionCategory> =
+        if (ids.isEmpty()) {
+            emptyList()
+        } else {
+            entityRepository.findAccessibleByIds(ids, accountId).map(TransactionMapper::toDomain)
+        }
+
     override fun findById(id: UUID): TransactionCategory? =
         entityRepository.findByIdAndDeletedAtIsNull(id)?.let(TransactionMapper::toDomain)
 

@@ -37,26 +37,21 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       'data-testid'?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <input
-                id={name}
-                aria-label={label}
-                type={type}
-                value={field.value ?? ''}
-                readOnly={InputProps?.readOnly}
-                onChange={(event) => field.onChange(event.target.value)}
-                data-testid={dataTestId}
-              />
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <input
+            id={name}
+            aria-label={label}
+            type={type}
+            value={field.value ?? ''}
+            readOnly={InputProps?.readOnly}
+            onChange={(event) => field.onChange(event.target.value)}
+            data-testid={dataTestId}
+          />
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     SelectField: ({
@@ -69,29 +64,24 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       options: Array<{ value: string; label: string }>;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <select
-                id={name}
-                aria-label={label}
-                value={field.value ?? ''}
-                onChange={(event) => field.onChange(event.target.value)}
-              >
-                {options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <select
+            id={name}
+            aria-label={label}
+            value={field.value ?? ''}
+            onChange={(event) => field.onChange(event.target.value)}
+          >
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     NumberField: ({
@@ -102,24 +92,19 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       label?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <input
-                id={name}
-                aria-label={label}
-                type="number"
-                value={field.value ?? ''}
-                onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
-              />
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <input
+            id={name}
+            aria-label={label}
+            type="number"
+            value={field.value ?? ''}
+            onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+          />
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     PercentField: ({
@@ -130,24 +115,19 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       label?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <input
-                id={name}
-                aria-label={label}
-                type="number"
-                value={field.value ?? ''}
-                onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
-              />
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <input
+            id={name}
+            aria-label={label}
+            type="number"
+            value={field.value ?? ''}
+            onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+          />
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     MoneyInput: ({
@@ -158,24 +138,19 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       label?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <input
-                id={name}
-                aria-label={label}
-                type="number"
-                value={field.value ?? ''}
-                onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
-              />
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <input
+            id={name}
+            aria-label={label}
+            type="number"
+            value={field.value ?? ''}
+            onChange={(event) => field.onChange(event.target.value === '' ? undefined : Number(event.target.value))}
+          />
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     DatePickerField: ({
@@ -186,26 +161,21 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       label?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field, fieldState } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field, fieldState }) => (
-            <div>
-              <label htmlFor={name}>{label}</label>
-              <input
-                id={name}
-                aria-label={label}
-                type="date"
-                value={field.value instanceof Date ? field.value.toISOString().slice(0, 10) : ''}
-                onChange={(event) =>
-                  field.onChange(event.target.value ? new Date(`${event.target.value}T00:00:00`) : undefined)
-                }
-              />
-              {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
-            </div>
-          )}
-        />
+        <div>
+          <label htmlFor={name}>{label}</label>
+          <input
+            id={name}
+            aria-label={label}
+            type="date"
+            value={field.value instanceof Date ? field.value.toISOString().slice(0, 10) : ''}
+            onChange={(event) =>
+              field.onChange(event.target.value ? new Date(`${event.target.value}T00:00:00`) : undefined)
+            }
+          />
+          {fieldState.error?.message ? <span>{fieldState.error.message}</span> : null}
+        </div>
       );
     },
     CheckboxField: ({
@@ -218,24 +188,19 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
       'data-testid'?: string;
     }) => {
       const { control } = rhf.useFormContext();
+      const { field } = rhf.useController({ name, control });
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field }) => (
-            <label htmlFor={name}>
-              <input
-                id={name}
-                aria-label={label}
-                type="checkbox"
-                checked={Boolean(field.value)}
-                onChange={(event) => field.onChange(event.target.checked)}
-                data-testid={dataTestId}
-              />
-              {label}
-            </label>
-          )}
-        />
+        <label htmlFor={name}>
+          <input
+            id={name}
+            aria-label={label}
+            type="checkbox"
+            checked={Boolean(field.value)}
+            onChange={(event) => field.onChange(event.target.checked)}
+            data-testid={dataTestId}
+          />
+          {label}
+        </label>
       );
     },
   };
