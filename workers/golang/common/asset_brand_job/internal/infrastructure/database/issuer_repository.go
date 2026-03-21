@@ -17,7 +17,7 @@ const (
 		WHERE logo_key IS NULL
 		  AND domain IS NOT NULL
 		ORDER BY name ASC
-		LIMIT $1
+		LIMIT CASE WHEN $1 = 0 THEN NULL ELSE $1 END
 	`
 
 	updateIssuerLogoKeySQL = `

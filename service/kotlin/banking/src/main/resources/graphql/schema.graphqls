@@ -41,6 +41,7 @@ enum FinancialAccountType {
   INVESTMENT
   LOAN
   ASSET
+  BENEFIT
 }
 
 enum FinancialAccountSubtype {
@@ -67,6 +68,9 @@ enum FinancialAccountSubtype {
   PROPERTY
   VEHICLE
   OTHER_ASSET
+  # Benefit subtypes (government-managed, institution: Caixa Econômica Federal)
+  FGTS
+  INSS
 }
 
 enum CreditCardNetwork {

@@ -11,6 +11,7 @@ enum class FinancialAccountType {
     INVESTMENT,
     LOAN,
     ASSET,
+    BENEFIT,
 }
 
 /**
@@ -37,6 +38,9 @@ enum class FinancialAccountSubtype {
     PROPERTY,
     VEHICLE,
     OTHER_ASSET,
+    // Benefit subtypes (government-managed, institution: Caixa Econômica Federal)
+    FGTS,
+    INSS,
 }
 
 /**

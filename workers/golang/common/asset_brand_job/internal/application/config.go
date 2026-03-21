@@ -36,15 +36,18 @@ func (c DatabaseConfig) ConnectionString() string {
 }
 
 type JobConfig struct {
-	BatchLimit           int     `env:"ASSET_BRAND_BATCH_LIMIT"            envDefault:"250"`
-	ThrottleMS           int     `env:"ASSET_BRAND_THROTTLE_MS"            envDefault:"250"`
-	AutoApproveThreshold float64 `env:"ASSET_BRAND_AUTO_APPROVE_THRESHOLD" envDefault:"0.93"`
+	BatchLimit              int     `env:"ASSET_BRAND_BATCH_LIMIT"              envDefault:"0"`
+	ThrottleMS              int     `env:"ASSET_BRAND_THROTTLE_MS"              envDefault:"250"`
+	AutoApproveThreshold    float64 `env:"ASSET_BRAND_AUTO_APPROVE_THRESHOLD"   envDefault:"0.93"`
+	RunAssetBrandHydrator   bool    `env:"RUN_ASSET_BRAND_HYDRATOR"             envDefault:"true"`
+	RunIssuerLogoHydrator   bool    `env:"RUN_ISSUER_LOGO_HYDRATOR"             envDefault:"true"`
 }
 
 type LogoDevConfig struct {
 	BaseURL        string `env:"LOGO_DEV_BASE_URL"        envDefault:"https://api.logo.dev"`
 	ImageBaseURL   string `env:"LOGO_DEV_IMAGE_BASE_URL"  envDefault:"https://img.logo.dev"`
 	Token          string `env:"LOGO_DEV_TOKEN,required"`
+	APIKey         string `env:"LOGO_DEV_API_KEY,required"`
 	TimeoutSeconds int    `env:"LOGO_DEV_TIMEOUT_SECONDS" envDefault:"15"`
 }
 
@@ -85,8 +88,8 @@ func (c *Config) Validate() error {
 	if c.Database.Password == "" {
 		errs = append(errs, "POSTGRES_PASSWORD is required")
 	}
-	if c.Job.BatchLimit < 1 || c.Job.BatchLimit > 5000 {
-		errs = append(errs, "ASSET_BRAND_BATCH_LIMIT must be between 1 and 5000")
+	if c.Job.BatchLimit < 0 {
+		errs = append(errs, "ASSET_BRAND_BATCH_LIMIT must be >= 0 (0 means unlimited)")
 	}
 	if c.Job.ThrottleMS < 0 || c.Job.ThrottleMS > 60000 {
 		errs = append(errs, "ASSET_BRAND_THROTTLE_MS must be between 0 and 60000")
@@ -102,6 +105,9 @@ func (c *Config) Validate() error {
 	}
 	if c.LogoDev.Token == "" {
 		errs = append(errs, "LOGO_DEV_TOKEN is required")
+	}
+	if c.LogoDev.APIKey == "" {
+		errs = append(errs, "LOGO_DEV_API_KEY is required")
 	}
 	if c.LogoDev.TimeoutSeconds < 5 {
 		errs = append(errs, "LOGO_DEV_TIMEOUT_SECONDS must be >= 5")

@@ -25,15 +25,17 @@ type Client struct {
 	baseURL      string
 	imageBaseURL string
 	token        string
+	apiKey       string
 	httpClient   *http.Client
 	logger       *slog.Logger
 }
 
-func NewClient(baseURL string, imageBaseURL string, token string, timeoutSeconds int, logger *slog.Logger) *Client {
+func NewClient(baseURL string, imageBaseURL string, token string, apiKey string, timeoutSeconds int, logger *slog.Logger) *Client {
 	return &Client{
 		baseURL:      strings.TrimRight(baseURL, "/"),
 		imageBaseURL: strings.TrimRight(imageBaseURL, "/"),
 		token:        token,
+		apiKey:       apiKey,
 		httpClient: &http.Client{
 			Timeout: time.Duration(timeoutSeconds) * time.Second,
 		},
@@ -117,7 +119,7 @@ func (c *Client) FetchLogo(ctx context.Context, domainName string) ([]byte, erro
 			req, err := http.NewRequestWithContext(
 				ctx,
 				http.MethodGet,
-				fmt.Sprintf("%s/%s?token=%s&size=128&format=png", c.imageBaseURL, domainName, c.token),
+				fmt.Sprintf("%s/%s?token=%s&size=128&format=png", c.imageBaseURL, domainName, c.apiKey),
 				nil,
 			)
 			if err != nil {

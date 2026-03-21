@@ -25,7 +25,7 @@ const findPendingAssetsSQL = `
 	    WHERE m.investment_asset_id = ia.id
 	  )
 	ORDER BY ia.ticker ASC
-	LIMIT $1
+	LIMIT CASE WHEN $1 = 0 THEN NULL ELSE $1 END
 `
 
 type AssetRepository struct {

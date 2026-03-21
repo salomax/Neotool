@@ -74,7 +74,9 @@
         "BROKERAGE": "Corretora de Valores",
         "FIXED_INCOME": "Renda Fixa",
         "PENSION": "Previdência Privada",
-        "CRYPTO": "Criptomoedas"
+        "CRYPTO": "Criptomoedas",
+        "FGTS": "FGTS",
+        "INSS": "INSS"
       },
       "validation": {
         "subtypeRequired": "Tipo de conta é obrigatório",
@@ -152,7 +154,7 @@
         "creditFixedIncome": "Renda Fixa Crédito",
         "treasuryDirect": "Tesouro Direto",
         "mutualFunds": "Fundos de Investimento",
-        "pension": "Previdência Complementar",
+        "pension": "Previdência Privada",
         "structured": "Estruturado",
         "others": "Outros"
       },
@@ -567,6 +569,10 @@
             "PLATINUM": "Platinum",
             "INFINITE": "Infinite",
             "BLACK": "Black"
+          },
+          "benefitSubtype": {
+            "FGTS": "FGTS",
+            "INSS": "INSS"
           }
         }
       }
