@@ -8,14 +8,11 @@ import {
   Autocomplete,
   Avatar,
   Box,
-  Button,
   CircularProgress,
-  Divider,
   Stack,
-  TextField as MuiTextField,
   Typography,
 } from '@mui/material';
-import { Controller, FormProvider, useForm, useWatch } from 'react-hook-form';
+import { FormProvider, useController, useForm, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
@@ -28,6 +25,7 @@ import {
 import { useTranslation } from '@/shared/i18n';
 import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
 import { FormTextField as TextField, SelectField } from '@/shared/components/ui/forms/form';
+import { TextField as ThemedTextField } from '@/shared/components/ui/forms/form/TextField';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
 import { personalFinanceTranslations } from '../../i18n';
@@ -52,7 +50,7 @@ type IssuerOption = {
   label: string;
   value: string;
   logo: string | null;
-  compe: string | null;
+  compeCode: string | null;
 };
 
 export function CreateInvestmentAccountDrawer({
@@ -107,9 +105,16 @@ export function CreateInvestmentAccountDrawer({
     },
   });
 
-  const { setValue, reset, control } = methods;
+  const { setValue, reset, control, getValues, getFieldState } = methods;
   const watchedSubtype = useWatch({ control, name: 'subtype' });
   const watchedIssuerId = useWatch({ control, name: 'issuerId' });
+  const previousIssuerIdRef = React.useRef<string | undefined>(undefined);
+  const lastAutoNameRef = React.useRef<string | null>(null);
+  const { field: issuerIdField, fieldState: issuerIdFieldState } = useController({
+    name: 'issuerId',
+    control,
+  });
+  const issuerIdValue = typeof issuerIdField.value === 'string' ? issuerIdField.value : undefined;
 
   useEffect(() => {
     if (!open) {
@@ -144,7 +149,7 @@ export function CreateInvestmentAccountDrawer({
       label: issuer.name,
       value: issuer.id,
       logo: issuer.logoAsset?.publicUrl || null,
-      compe: issuer.compeCode || null,
+      compeCode: issuer.compeCode || null,
     }));
 
     return [
@@ -153,31 +158,76 @@ export function CreateInvestmentAccountDrawer({
         label: t('financeTransactions.createAccount.step2.fields.customIssuer'),
         value: 'custom',
         logo: null,
-        compe: null,
+        compeCode: null,
       },
     ];
-  }, [issuersData, t]);
+  }, [issuersData?.issuers, t]);
 
   useEffect(() => {
-    if (!watchedIssuerId || !issuersData?.issuers) {
+    if (!open) return;
+
+    const previousIssuerId = previousIssuerIdRef.current;
+    previousIssuerIdRef.current = watchedIssuerId;
+
+    if (!watchedIssuerId) {
+      if (previousIssuerId) {
+        setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
+        const currentName = getValues('name');
+        if (!getFieldState('name').isDirty && currentName === lastAutoNameRef.current) {
+          setValue('name', '', { shouldDirty: false, shouldValidate: false });
+          lastAutoNameRef.current = null;
+        }
+      }
       return;
     }
 
     if (watchedIssuerId === 'custom') {
-      setValue('name', '');
-      setValue('issuerName', '');
+      if (previousIssuerId !== 'custom') {
+        setValue('issuerName', '', { shouldDirty: false, shouldValidate: true });
+        const currentName = getValues('name');
+        if (
+          !getFieldState('name').isDirty &&
+          (currentName.trim() === '' || currentName === lastAutoNameRef.current)
+        ) {
+          setValue('name', '', { shouldDirty: false, shouldValidate: false });
+          lastAutoNameRef.current = null;
+        }
+      }
       return;
     }
 
+    if (!issuersData?.issuers) return;
+
     const selectedIssuer = issuersData.issuers.find((issuer) => issuer.id === watchedIssuerId);
     if (!selectedIssuer) {
+      setValue('issuerId', undefined, { shouldDirty: false, shouldValidate: true });
+      setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
+      const currentName = getValues('name');
+      if (
+        !getFieldState('name').isDirty &&
+        (currentName.trim() === '' || currentName === lastAutoNameRef.current)
+      ) {
+        setValue('name', '', { shouldDirty: false, shouldValidate: false });
+        lastAutoNameRef.current = null;
+      }
       return;
     }
 
     const subtypeLabel = t(`investments.createAccount.subtypes.${watchedSubtype}`);
-    setValue('name', `${subtypeLabel} - ${selectedIssuer.name}`);
-    setValue('issuerName', selectedIssuer.name);
-  }, [issuersData, setValue, t, watchedIssuerId, watchedSubtype]);
+    const autoName = `${subtypeLabel} - ${selectedIssuer.name}`;
+
+    setValue('issuerName', selectedIssuer.name, { shouldDirty: false, shouldValidate: false });
+
+    const currentName = getValues('name');
+    const nameIsDirty = getFieldState('name').isDirty;
+    const shouldAutofillName =
+      !nameIsDirty || currentName.trim() === '' || currentName === lastAutoNameRef.current;
+
+    if (shouldAutofillName) {
+      setValue('name', autoName, { shouldDirty: false, shouldValidate: false });
+      lastAutoNameRef.current = autoName;
+    }
+  }, [getFieldState, getValues, issuersData?.issuers, open, setValue, t, watchedIssuerId, watchedSubtype]);
 
   const [createAccount, { loading: creating, error: createError }] = useMutation<{
     createFinancialAccount: { id: string; name: string };
@@ -223,7 +273,7 @@ export function CreateInvestmentAccountDrawer({
       />
       <Drawer.Body>
         <FormProvider {...methods}>
-          <form onSubmit={methods.handleSubmit(onSubmit)}>
+          <form id="create-investment-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <Stack spacing={3}>
               {createError && <FormErrorBanner message={createError.message} />}
 
@@ -235,72 +285,68 @@ export function CreateInvestmentAccountDrawer({
                 />
               </Box>
 
-              <Controller
-                name="issuerId"
-                control={control}
-                render={({ field: { onChange, value }, fieldState: { error } }) => (
-                  <Autocomplete<IssuerOption, false, false, false>
-                    options={allIssuerOptions}
-                    loading={issuersLoading}
-                    value={allIssuerOptions.find((option) => option.value === value) || null}
-                    onChange={(_, newValue) => onChange(newValue ? newValue.value : undefined)}
-                    isOptionEqualToValue={(option, selectedValue) => option.value === selectedValue.value}
-                    noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
-                    getOptionLabel={(option) => option.label || ''}
-                    renderOption={(props, option) => {
-                      const { key, ...otherProps } = props;
-                      return (
-                        <Box
-                          component="li"
-                          key={key}
-                          {...otherProps}
-                          sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}
+              <Autocomplete<IssuerOption, false, false, false>
+                options={allIssuerOptions}
+                loading={issuersLoading}
+                value={allIssuerOptions.find((option) => option.value === issuerIdValue) || null}
+                onChange={(_, newValue) => issuerIdField.onChange(newValue ? newValue.value : undefined)}
+                isOptionEqualToValue={(option, selectedValue) => option.value === selectedValue.value}
+                noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
+                getOptionLabel={(option) => option.label || ''}
+                renderOption={(props, option) => {
+                  const { key, ...otherProps } = props;
+                  return (
+                    <Box
+                      component="li"
+                      key={key}
+                      {...otherProps}
+                      sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}
+                    >
+                      {option.logo ? (
+                        <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
+                      ) : (
+                        <Avatar
+                          sx={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 1.5,
+                            bgcolor: 'action.disabledBackground',
+                          }}
                         >
-                          {option.logo ? (
-                            <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
-                          ) : (
-                            <Avatar
-                              sx={{
-                                width: 40,
-                                height: 40,
-                                borderRadius: 1.5,
-                                bgcolor: 'action.disabledBackground',
-                              }}
-                            >
-                              <BankIcon sx={{ fontSize: 24 }} />
-                            </Avatar>
-                          )}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body1" fontWeight="600">
-                              {option.label}
-                            </Typography>
-                            {option.compe && (
-                              <Typography variant="body2" color="text.secondary">
-                                ({option.compe})
-                              </Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      );
+                          <BankIcon sx={{ fontSize: 24 }} />
+                        </Avatar>
+                      )}
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="body1" fontWeight="600">
+                          {option.label}
+                        </Typography>
+                        {option.compeCode && (
+                          <Typography variant="body2" color="text.secondary">
+                            ({option.compeCode})
+                          </Typography>
+                        )}
+                      </Box>
+                    </Box>
+                  );
+                }}
+                renderInput={(params) => (
+                  <ThemedTextField
+                    {...params}
+                    label={t('investments.createAccount.fields.issuerLabel')}
+                    placeholder={t('investments.createAccount.fields.issuerPlaceholder')}
+                    fullWidth
+                    size="medium"
+                    error={!!issuerIdFieldState.error}
+                    helperText={issuerIdFieldState.error?.message}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <React.Fragment>
+                          {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </React.Fragment>
+                      ),
                     }}
-                    renderInput={(params) => (
-                      <MuiTextField
-                        {...params}
-                        label={t('investments.createAccount.fields.issuerLabel')}
-                        placeholder={t('investments.createAccount.fields.issuerPlaceholder')}
-                        error={!!error}
-                        helperText={error?.message}
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <React.Fragment>
-                              {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </React.Fragment>
-                          ),
-                        }}
-                      />
-                    )}
                   />
                 )}
               />
@@ -322,21 +368,19 @@ export function CreateInvestmentAccountDrawer({
             </Stack>
           </form>
         </FormProvider>
-
-        <Divider sx={{ marginY: 3 }} />
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Button
-            variant="contained"
-            onClick={methods.handleSubmit(onSubmit)}
-            disabled={creating}
-            startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
-          >
-            {creating
-              ? t('investments.createAccount.actions.submitting')
-              : t('investments.createAccount.actions.submit')}
-          </Button>
-        </Box>
       </Drawer.Body>
+      <Drawer.Footer>
+        <Drawer.ActionButtons
+          cancelText={t('actions.cancel')}
+          submitText={t('investments.createAccount.actions.submit')}
+          submittingText={t('investments.createAccount.actions.submitting')}
+          onCancel={onClose}
+          submitForm="create-investment-account-form"
+          cancelDisabled={creating}
+          submitDisabled={creating}
+          submitting={creating}
+        />
+      </Drawer.Footer>
     </Drawer>
   );
 }

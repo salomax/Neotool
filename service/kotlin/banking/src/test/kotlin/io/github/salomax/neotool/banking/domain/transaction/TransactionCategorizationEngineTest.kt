@@ -355,6 +355,12 @@ private class InMemoryTransactionCategoryRepository : TransactionCategoryReposit
     override fun findAll(accountId: UUID): List<TransactionCategory> =
         categories.values.filter { it.deletedAt == null && (it.accountId == null || it.accountId == accountId) }
 
+    override fun findAccessibleByIds(
+        ids: Set<UUID>,
+        accountId: UUID,
+    ): List<TransactionCategory> =
+        findAll(accountId).filter { category -> category.id in ids }
+
     override fun findById(id: UUID): TransactionCategory? {
         val category = categories[id] ?: return null
         return if (category.deletedAt == null) category else null
@@ -470,4 +476,3 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
     fun implicitRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules.filter { it.deletedAt == null && it.accountId == accountId && it.isImplicit }
 }
-

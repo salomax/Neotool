@@ -15,7 +15,5 @@ interface IssuerEntityRepository : JpaRepository<IssuerEntity, UUID> {
 
     fun findByIsActiveTrueAndCategoryIn(categories: Collection<IssuerCategory>): List<IssuerEntity>
 
-    fun findByLogoKeyIsNullAndDomainIsNotNull(): List<IssuerEntity>
-
     fun findByIdIn(ids: Collection<UUID>): List<IssuerEntity>
 }

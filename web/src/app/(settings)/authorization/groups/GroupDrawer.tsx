@@ -452,27 +452,22 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
       </Drawer.Body>
       <Drawer.Footer>
         <PermissionGate require="security:group:save">
-          <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
-            <Button
-              variant="outlined"
-              onClick={handleCancel}
-              disabled={saving || createLoading || updateLoading}
-            >
-              {t("common.cancel")}
-            </Button>
-            <Button
-              variant="contained"
-              onClick={methods.handleSubmit(handleSave)}
-              disabled={saving || createLoading || updateLoading || savingRoles || (!isCreateMode && !hasRoleOrUserChanges && !methods.formState.isDirty)}
-              color="primary"
-            >
-              {saving || createLoading || updateLoading || savingRoles
-                ? t("common.saving")
-                : isCreateMode
-                ? t("groupManagement.form.create")
-                : t("groupManagement.form.save")}
-            </Button>
-          </Box>
+          <Drawer.ActionButtons
+            cancelText={t("common.cancel")}
+            submitText={isCreateMode ? t("groupManagement.form.create") : t("groupManagement.form.save")}
+            submittingText={t("common.saving")}
+            onCancel={handleCancel}
+            onSubmit={methods.handleSubmit(handleSave)}
+            cancelDisabled={saving || createLoading || updateLoading}
+            submitDisabled={
+              saving ||
+              createLoading ||
+              updateLoading ||
+              savingRoles ||
+              (!isCreateMode && !hasRoleOrUserChanges && !methods.formState.isDirty)
+            }
+            submitting={saving || createLoading || updateLoading || savingRoles}
+          />
         </PermissionGate>
       </Drawer.Footer>
     </Drawer>

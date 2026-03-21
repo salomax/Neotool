@@ -9,11 +9,13 @@ import {
   Divider,
   Typography,
   TypographyProps,
+  alpha,
   useTheme,
   useMediaQuery,
 } from "@mui/material";
 import { CloseIcon, MenuIcon } from "../../../ui/mui-imports";
 import { RAIL_W } from "@/shared/ui/navigation/SidebarRail";
+import { Button, type ButtonProps } from "@/shared/components/ui/primitives/Button";
 
 // Context to pass onClose handler to Header subcomponent
 const DrawerContext = createContext<{ onClose: () => void } | null>(null);
@@ -84,6 +86,109 @@ export interface DrawerBodyProps {
 export interface DrawerFooterProps {
   children: React.ReactNode;
 }
+
+export interface DrawerActionButtonsProps {
+  cancelText: React.ReactNode;
+  submitText: React.ReactNode;
+  onCancel: () => void;
+  onSubmit?: () => void;
+  submitForm?: string;
+  submitDisabled?: boolean;
+  cancelDisabled?: boolean;
+  submitting?: boolean;
+  submittingText?: string;
+  "data-testid"?: string;
+  cancelTestId?: string;
+  submitTestId?: string;
+}
+
+export type DrawerCancelButtonProps = Omit<ButtonProps, "variant" | "type" | "loading" | "loadingText">;
+
+export const DrawerCancelButton: React.FC<DrawerCancelButtonProps> = (props) => {
+  return <Button variant="outlined" {...props} />;
+};
+
+export type DrawerSubmitButtonProps = Omit<ButtonProps, "variant"> & {
+  submitting?: boolean;
+  submittingText?: string;
+};
+
+export const DrawerSubmitButton: React.FC<DrawerSubmitButtonProps> = ({
+  submitting = false,
+  submittingText,
+  loading,
+  loadingText,
+  disabled,
+  sx,
+  ...props
+}) => {
+  const baseSx = (theme: any) => ({
+    boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
+    "&:hover": {
+      boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
+    },
+    "&:active": {
+      boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
+    },
+    "&.Mui-disabled": {
+      boxShadow: "none",
+    },
+  });
+
+  const mergedSx =
+    typeof sx === "function"
+      ? (theme: any) => ({ ...baseSx(theme), ...(sx as any)(theme) })
+      : sx
+        ? (theme: any) => ({ ...baseSx(theme), ...(sx as any) })
+        : baseSx;
+
+  return (
+    <Button
+      variant="contained"
+      loading={submitting || loading || false}
+      loadingText={submittingText ?? loadingText}
+      disabled={disabled}
+      sx={mergedSx}
+      {...props}
+    />
+  );
+};
+
+export const DrawerActionButtons: React.FC<DrawerActionButtonsProps> = ({
+  cancelText,
+  submitText,
+  onCancel,
+  onSubmit,
+  submitForm,
+  submitDisabled = false,
+  cancelDisabled = false,
+  submitting = false,
+  submittingText,
+  "data-testid": dataTestId,
+  cancelTestId,
+  submitTestId,
+}) => {
+  const submitType = submitForm ? "submit" : "button";
+
+  return (
+    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }} data-testid={dataTestId}>
+      <DrawerCancelButton onClick={onCancel} disabled={cancelDisabled} data-testid={cancelTestId}>
+        {cancelText}
+      </DrawerCancelButton>
+      <DrawerSubmitButton
+        type={submitType}
+        form={submitForm}
+        onClick={submitType === "button" ? onSubmit : undefined}
+        disabled={submitDisabled}
+        submitting={submitting}
+        submittingText={submittingText}
+        data-testid={submitTestId}
+      >
+        {submitText}
+      </DrawerSubmitButton>
+    </Box>
+  );
+};
 
 /**
  * Drawer component - A slide-out panel for navigation, forms, and supplementary content
@@ -345,6 +450,9 @@ export const Drawer = Object.assign(DrawerComponent, {
   Header,
   Body,
   Footer,
+  ActionButtons: DrawerActionButtons,
+  CancelButton: DrawerCancelButton,
+  SubmitButton: DrawerSubmitButton,
 });
 
 export default Drawer;

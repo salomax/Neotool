@@ -46,6 +46,11 @@ export interface GoogleOAuthConfig {
  */
 export function loadGoogleIdentityServices(): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') {
+      reject(new Error('Google Identity Services requires a browser environment'));
+      return;
+    }
+
     // Check if already loaded
     if (window.google?.accounts?.id) {
       resolve();
@@ -56,16 +61,24 @@ export function loadGoogleIdentityServices(): Promise<void> {
     const existingScript = document.querySelector('script[src*="accounts.google.com/gsi/client"]');
     if (existingScript) {
       // Wait for it to load
-      const checkInterval = setInterval(() => {
+      let done = false;
+      let timeoutId: number;
+      const checkInterval = window.setInterval(() => {
+        if (done) return;
+        if (typeof window === 'undefined') return;
         if (window.google?.accounts?.id) {
-          clearInterval(checkInterval);
+          done = true;
+          window.clearInterval(checkInterval);
+          window.clearTimeout(timeoutId);
           resolve();
         }
       }, 100);
 
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        if (window.google?.accounts?.id) {
+      timeoutId = window.setTimeout(() => {
+        if (done) return;
+        done = true;
+        window.clearInterval(checkInterval);
+        if (typeof window !== 'undefined' && window.google?.accounts?.id) {
           resolve();
         } else {
           reject(new Error('Timeout waiting for Google Identity Services to load'));

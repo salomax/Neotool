@@ -7,4 +7,6 @@ import io.micronaut.data.jpa.repository.JpaRepository
 @Repository
 interface MerchantLogoCacheEntityRepository : JpaRepository<MerchantLogoCacheEntity, String> {
     fun findByDomain(domain: String): MerchantLogoCacheEntity?
+
+    fun findByDomainIn(domains: Collection<String>): List<MerchantLogoCacheEntity>
 }

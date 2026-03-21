@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
@@ -11,7 +13,7 @@ const mockUseQuery = vi.fn();
 
 vi.mock('@/shared/components/ui/forms/form', async () => {
   const actual = await vi.importActual<typeof import('@/shared/components/ui/forms/form')>('@/shared/components/ui/forms/form');
-  const { Controller, useFormContext } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
+  const { Controller, useFormContext } = await vi.importActual<any>('react-hook-form');
 
   return {
     ...actual,
@@ -85,8 +87,35 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
   const DrawerBody = function DrawerBody({ children }: { children: React.ReactNode }) {
     return <div>{children}</div>;
   };
+  const DrawerActionButtons = function DrawerActionButtons({
+    cancelText,
+    submitText,
+    onCancel,
+    submitForm,
+    submitDisabled,
+    cancelDisabled,
+  }: {
+    cancelText: string;
+    submitText: string;
+    onCancel: () => void;
+    submitForm?: string;
+    submitDisabled?: boolean;
+    cancelDisabled?: boolean;
+  }) {
+    return (
+      <div>
+        <button type="button" onClick={onCancel} disabled={cancelDisabled}>
+          {cancelText}
+        </button>
+        <button type="submit" form={submitForm} disabled={submitDisabled}>
+          {submitText}
+        </button>
+      </div>
+    );
+  };
   Drawer.Header = DrawerHeader;
   Drawer.Body = DrawerBody;
+  Drawer.ActionButtons = DrawerActionButtons;
   return { Drawer };
 });
 
@@ -132,7 +161,9 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     await user.click(issuerInput);
     await user.click(screen.getByText('Banco Teste'));
 
-    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addCard' }));
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addCard' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
 
     await waitFor(() => {
       expect(mockCreateAccount).toHaveBeenCalledWith(
@@ -163,15 +194,12 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
     const initialBalanceInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.initialBalance');
     await user.type(initialBalanceInput, '100');
+    await user.tab();
 
-    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' }));
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' });
+    await waitFor(() => expect(submitButton).toBeDisabled());
 
-    await waitFor(() => {
-      expect(mockCreateAccount).not.toHaveBeenCalled();
-    });
-    expect(
-      screen.getByText('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
-    ).toBeInTheDocument();
+    expect(mockCreateAccount).not.toHaveBeenCalled();
   });
 
   it('submits initialBalance and initialBalanceDate when both are provided', async () => {
@@ -194,7 +222,9 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     const validDate = dayjs().subtract(1, 'day').format('YYYY-MM-DD');
     await user.type(initialBalanceDateInput, validDate);
 
-    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' }));
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
 
     await waitFor(() => {
       expect(mockCreateAccount).toHaveBeenCalledWith(
@@ -230,11 +260,12 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     const invalidDate = dayjs().subtract(5, 'year').subtract(1, 'day').format('YYYY-MM-DD');
     await user.type(initialBalanceDateInput, invalidDate);
 
-    await user.click(screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' }));
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' });
+    await waitFor(() => expect(submitButton).toBeDisabled());
 
+    expect(mockCreateAccount).not.toHaveBeenCalled();
     await waitFor(() => {
-      expect(mockCreateAccount).not.toHaveBeenCalled();
+      expect(screen.getByText('financeTransactions.validation.dateTooOld')).toBeInTheDocument();
     });
-    expect(screen.getByText('financeTransactions.validation.dateTooOld')).toBeInTheDocument();
   });
 });

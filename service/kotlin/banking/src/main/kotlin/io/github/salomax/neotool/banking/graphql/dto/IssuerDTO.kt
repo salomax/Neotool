@@ -8,7 +8,7 @@ import java.util.UUID
  *
  * [logoAsset] is a federation stub — when [logoKey] is non-null it holds
  * `{ __typename: "Asset", id: logoKey }` so Apollo Router resolves the full
- * Asset from the assets subgraph. Null until logo hydration runs.
+ * Asset from the assets subgraph. Null until an external logo job hydrates it.
  */
 data class IssuerDTO(
     val id: UUID,

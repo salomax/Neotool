@@ -73,6 +73,8 @@ export const TRANSACTIONS = gql`
     $billId: ID
     $month: Int
     $year: Int
+    $categoryId: ID
+    $creditDebitType: CreditDebitType
     $first: Int
     $after: String
   ) {
@@ -81,6 +83,8 @@ export const TRANSACTIONS = gql`
       billId: $billId
       month: $month
       year: $year
+      categoryId: $categoryId
+      creditDebitType: $creditDebitType
       first: $first
       after: $after
     ) {
@@ -128,6 +132,48 @@ export const TRANSACTIONS = gql`
         hasNextPage
         endCursor
       }
+    }
+  }
+`;
+
+/**
+ * Category breakdown with the same filter surface as TRANSACTIONS.
+ * Use this alongside TRANSACTIONS so both reflect the same set of transactions.
+ */
+export const TRANSACTIONS_BY_CATEGORY = gql`
+  query TransactionsByCategory(
+    $financialAccountId: ID
+    $belongsToUserId: ID
+    $belongsToName: String
+    $tags: [String!]
+    $billId: ID
+    $categoryId: ID
+    $uncategorized: Boolean
+    $month: Int
+    $year: Int
+    $applicableTo: CategoryApplicableTo
+  ) {
+    transactionsByCategory(
+      financialAccountId: $financialAccountId
+      belongsToUserId: $belongsToUserId
+      belongsToName: $belongsToName
+      tags: $tags
+      billId: $billId
+      categoryId: $categoryId
+      uncategorized: $uncategorized
+      month: $month
+      year: $year
+      applicableTo: $applicableTo
+    ) {
+      category {
+        id
+        name
+        icon
+        color
+      }
+      totalAmount
+      transactionCount
+      percentage
     }
   }
 `;

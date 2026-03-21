@@ -656,30 +656,16 @@ export function RecordEquityHoldingDrawer({
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-              <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>
-                {t("actions.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                form="record-equity-form"
-                variant="contained"
-                disabled={isSubmitting || !resolvedFinancialAccountId}
-                startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
-                sx={(theme) => ({
-                  boxShadow: theme.custom?.shadow?.(2, theme.palette.primary.main) ?? theme.shadows[2],
-                  "&:hover": {
-                    boxShadow: theme.custom?.shadow?.(3, theme.palette.primary.main) ?? theme.shadows[4],
-                  },
-                  "&:active": {
-                    boxShadow: theme.custom?.shadow?.(1, theme.palette.primary.main) ?? theme.shadows[1],
-                  },
-                  "&.Mui-disabled": { boxShadow: "none" },
-                })}
-              >
-                {isSubmitting ? t("investments.recordEquity.actions.submitting") : t("investments.recordEquity.actions.submit")}
-              </Button>
-            </Box>
+            <Drawer.ActionButtons
+              cancelText={t("actions.cancel")}
+              submitText={t("investments.recordEquity.actions.submit")}
+              submittingText={t("investments.recordEquity.actions.submitting")}
+              onCancel={onClose}
+              submitForm="record-equity-form"
+              cancelDisabled={isSubmitting}
+              submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+              submitting={isSubmitting}
+            />
           </Stack>
         </Drawer.Footer>
       ) : null}

@@ -39,10 +39,34 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
     <div data-testid="drawer-footer">{children}</div>
   );
 
+  const DrawerActionButtons = ({
+    cancelText,
+    submitText,
+    submittingText,
+    onCancel,
+    onSubmit,
+    cancelDisabled,
+    submitDisabled,
+    submitting,
+    cancelTestId,
+    submitTestId,
+    ...rest
+  }: any) => (
+    <div data-testid={rest['data-testid'] ?? 'drawer-action-buttons'}>
+      <button data-testid={cancelTestId} onClick={onCancel} disabled={cancelDisabled}>
+        {cancelText}
+      </button>
+      <button data-testid={submitTestId} onClick={onSubmit} disabled={submitDisabled}>
+        {submitting ? submittingText : submitText}
+      </button>
+    </div>
+  );
+
   const Drawer = Object.assign(DrawerComponent, {
     Header: DrawerHeader,
     Body: DrawerBody,
     Footer: DrawerFooter,
+    ActionButtons: DrawerActionButtons,
   });
 
   return {

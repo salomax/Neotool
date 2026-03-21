@@ -3,6 +3,8 @@ package io.github.salomax.neotool.banking.graphql
 import graphql.schema.idl.RuntimeWiring
 import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.dto.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
@@ -72,6 +74,10 @@ class BankingWiringFactory(
                         val billId = env.getArgument<String?>("billId")
                         val categoryId = env.getArgument<String?>("categoryId")
                         val uncategorized = env.getArgument<Boolean?>("uncategorized")
+                        val creditDebitType =
+                            env.getArgument<String?>("creditDebitType")?.let { CreditDebitType.valueOf(it) }
+                        val types =
+                            env.getArgument<List<String>?>("types")?.map { TransactionType.valueOf(it) }
                         val month = env.getArgument<Int?>("month")
                         val year = env.getArgument<Int?>("year")
                         val first = env.getArgument<Int?>("first")
@@ -84,6 +90,8 @@ class BankingWiringFactory(
                             billId = billId,
                             categoryId = categoryId,
                             uncategorized = uncategorized,
+                            creditDebitType = creditDebitType,
+                            types = types,
                             month = month,
                             year = year,
                             first = first,
@@ -171,16 +179,18 @@ class BankingWiringFactory(
                 "transactionsByCategory",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val financialAccountId = env.getArgument<String?>("financialAccountId")
-                        val year = env.getArgument<Int?>("year")
-                        val month = env.getArgument<Int?>("month")
-                        val applicableTo = env.getArgument<String?>("applicableTo")
                         transactionResolver.transactionsByCategory(
-                            financialAccountId,
-                            year,
-                            month,
-                            applicableTo,
-                            principal,
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            belongsToUserId = env.getArgument("belongsToUserId"),
+                            belongsToName = env.getArgument("belongsToName"),
+                            tags = env.getArgument("tags"),
+                            billId = env.getArgument("billId"),
+                            categoryId = env.getArgument("categoryId"),
+                            uncategorized = env.getArgument("uncategorized"),
+                            year = env.getArgument("year"),
+                            month = env.getArgument("month"),
+                            applicableTo = env.getArgument("applicableTo"),
+                            principal = principal,
                         )
                     }
                 },

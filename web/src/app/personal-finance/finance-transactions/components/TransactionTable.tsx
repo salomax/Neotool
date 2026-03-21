@@ -30,10 +30,11 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { AccountBalance as BankIcon, CreditCard as CardIcon } from '@mui/icons-material';
+import { AccountBalance as BankIcon } from '@mui/icons-material';
+import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountSubtype, FinancialAccountType, Merchant, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
-import { useEffect, useRef, useMemo, useState, Fragment, type MouseEvent } from 'react';
+import { useCallback, useEffect, useRef, useMemo, useState, Fragment, type MouseEvent } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
@@ -56,6 +57,8 @@ interface TransactionTableProps {
   onCancelCreate?: () => void;
   onSuccessCreate?: () => void;
   selectedAccountId?: string | null;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
 type DateParts = {
@@ -65,6 +68,36 @@ type DateParts = {
   dateKey: string;
   sortKey: number;
 };
+
+const TAG_COLORS = [
+  '#F44336',
+  '#E91E63',
+  '#9C27B0',
+  '#673AB7',
+  '#3F51B5',
+  '#2196F3',
+  '#03A9F4',
+  '#00BCD4',
+  '#009688',
+  '#4CAF50',
+  '#8BC34A',
+  '#CDDC39',
+  '#FFEB3B',
+  '#FFC107',
+  '#FF9800',
+  '#FF5722',
+  '#795548',
+  '#607D8B',
+];
+
+function stringToColor(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash % TAG_COLORS.length);
+  return TAG_COLORS[index]!;
+}
 
 function parseDateParts(value: string): DateParts | null {
   const dateKey = (value ?? '').split('T')[0] ?? '';
@@ -87,13 +120,17 @@ export function TransactionTable({
   onCancelCreate,
   onSuccessCreate,
   selectedAccountId = null,
+  selectedMonth,
+  selectedYear,
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const toast = useToast();
   const loaderRef = useRef<HTMLDivElement>(null);
   const transactionsRef = useRef<Transaction[]>(transactions);
+  const currencyFormattersRef = useRef<Map<string, Intl.NumberFormat>>(new Map());
   const borderRadius = '.3rem';
+  const tableBodyLabelFontSize = '0.875rem';
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
@@ -131,10 +168,16 @@ export function TransactionTable({
     });
   }, [transactions]);
 
-  const closeActionMenu = () => {
+  const closeActionMenu = useCallback(() => {
     setActionMenuAnchorEl(null);
     setActionMenuTransaction(null);
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!actionMenuTransaction) return;
+    if (transactions.some((t) => t.id === actionMenuTransaction.id)) return;
+    closeActionMenu();
+  }, [actionMenuTransaction, closeActionMenu, transactions]);
 
   const handleConfirmRemove = async () => {
     const tx = transactionToRemove;
@@ -156,6 +199,7 @@ export function TransactionTable({
       onSuccessCreate?.();
     } catch (error) {
       setTransactionToRemove(null);
+      toast.error(extractErrorMessage(error, 'Não foi possível remover a transação'));
     }
   };
 
@@ -183,10 +227,10 @@ export function TransactionTable({
     }
   };
 
-  const closeCategoryPicker = () => {
+  const closeCategoryPicker = useCallback(() => {
     setCategoryPickerAnchorEl(null);
     setCategoryPickerTransaction(null);
-  };
+  }, []);
 
   const handleOpenCategoryPicker = (event: MouseEvent<HTMLElement>, transaction: Transaction) => {
     setCategoryPickerAnchorEl(event.currentTarget);
@@ -260,46 +304,56 @@ export function TransactionTable({
       });
   };
 
-  const stringToColor = (string: string) => {
-    let hash = 0;
-    for (let i = 0; i < string.length; i++) {
-      hash = string.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    const colors = [
-      '#F44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', 
-      '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50', 
-      '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107', '#FF9800', 
-      '#FF5722', '#795548', '#607D8B'
-    ];
-    const index = Math.abs(hash % colors.length);
-    return colors[index];
-  };
-
   const groupedTransactions = useMemo(() => {
     const groups: { date: string; transactions: Transaction[] }[] = [];
-    [...transactions]
-      .sort((a, b) => {
-        const sortA = parseDateParts(a.date as string)?.sortKey ?? 0;
-        const sortB = parseDateParts(b.date as string)?.sortKey ?? 0;
-        return sortB - sortA;
+    const sorted = transactions
+      .map((transaction) => {
+        const parts = parseDateParts(transaction.date as string);
+        return {
+          transaction,
+          sortKey: parts?.sortKey ?? 0,
+          dateKey: parts?.dateKey ?? (transaction.date as string),
+        };
       })
-      .forEach((transaction) => {
-        const dateKey = parseDateParts(transaction.date as string)?.dateKey ?? (transaction.date as string);
-        const lastGroup = groups[groups.length - 1];
-        if (lastGroup && lastGroup.date === dateKey) {
-          lastGroup.transactions.push(transaction);
-        } else {
-          groups.push({ date: dateKey, transactions: [transaction] });
-        }
-      });
+      .sort((a, b) => b.sortKey - a.sortKey);
+
+    for (const item of sorted) {
+      const lastGroup = groups[groups.length - 1];
+      if (lastGroup && lastGroup.date === item.dateKey) {
+        lastGroup.transactions.push(item.transaction);
+        continue;
+      }
+      groups.push({ date: item.dateKey, transactions: [item.transaction] });
+    }
 
     return groups;
   }, [transactions]);
 
+  const installmentSectionStartIndex = useMemo(() => {
+    if (typeof selectedMonth !== 'number' || typeof selectedYear !== 'number') return null;
+    if (selectedMonth < 1 || selectedMonth > 12) return null;
+
+    const selectedMonthKey = selectedYear * 100 + selectedMonth;
+    for (let i = 0; i < groupedTransactions.length; i++) {
+      const parts = parseDateParts(groupedTransactions[i]?.date ?? '');
+      if (!parts) continue;
+      const groupMonthKey = parts.year * 100 + parts.month;
+      if (groupMonthKey < selectedMonthKey) {
+        return i > 0 ? i : null;
+      }
+    }
+    return null;
+  }, [groupedTransactions, selectedMonth, selectedYear]);
+
+  const dateHeaderFormatter = new Intl.DateTimeFormat(i18n.language, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+
   const formatDateHeader = (dateString: string) => {
     if (!dateString) return '';
     
-    // Create date object from YYYY-MM-DD string in local time to avoid timezone shifts
     const parts = dateString.split('-').map(Number);
     if (parts.length < 3) return dateString;
     
@@ -320,11 +374,7 @@ export function TransactionTable({
     const isToday = date.getTime() === today.getTime();
     const isTomorrow = date.getTime() === tomorrow.getTime();
     
-    const formattedDate = new Intl.DateTimeFormat(i18n.language, { 
-      weekday: 'long', 
-      day: 'numeric', 
-      month: 'long' 
-    }).format(date);
+    const formattedDate = dateHeaderFormatter.format(date);
 
     if (isToday) {
       return t('financeTransactions.dateGroup.today', { date: formattedDate });
@@ -357,10 +407,26 @@ export function TransactionTable({
   }, [hasMore, loading, onLoadMore]);
 
   const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat(i18n.language, {
-      style: 'currency',
-      currency: currencyCode,
-    }).format(amount);
+    const key = `${i18n.language}:${currencyCode}`;
+    let formatter = currencyFormattersRef.current.get(key);
+
+    if (!formatter) {
+      try {
+        formatter = new Intl.NumberFormat(i18n.language, {
+          style: 'currency',
+          currency: currencyCode,
+        });
+        currencyFormattersRef.current.set(key, formatter);
+      } catch {
+        return amount.toLocaleString(i18n.language);
+      }
+    }
+
+    try {
+      return formatter.format(amount);
+    } catch {
+      return amount.toLocaleString(i18n.language);
+    }
   };
 
   const getCardLastFourDigits = (account: FinancialAccount, transaction: Transaction) => {
@@ -423,7 +489,7 @@ export function TransactionTable({
                 width: 18,
                 height: 18,
                 border: 'none',
-                borderRadius: .2,
+                borderRadius: borderRadius,
                 display: 'flex',
                 bgcolor: `color-mix(in srgb, ${typeProps.color} 5%, ${theme.palette.background.paper})`,
                 alignItems: 'center',
@@ -459,6 +525,14 @@ export function TransactionTable({
     );
   };
 
+  const accountsById = useMemo(() => {
+    const map = new Map<string, FinancialAccount>();
+    for (const account of financialAccounts ?? []) {
+      map.set(account.id, account);
+    }
+    return map;
+  }, [financialAccounts]);
+
   const colSpan = selectedAccountId ? 6 : 7;
 
   return (
@@ -484,7 +558,13 @@ export function TransactionTable({
             <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
-            <TableCell align="center" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
+            <TableCell
+              sx={{
+                px: 4,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                bgcolor: 'transparent',
+              }}
+            />
           </TableRow>
         </TableHead>
         <TableBody>
@@ -496,8 +576,18 @@ export function TransactionTable({
               selectedAccountId={selectedAccountId}
             />
           )}
-          {groupedTransactions.map((group) => (
+          {groupedTransactions.map((group, groupIndex) => (
             <Fragment key={`day-group-${group.date}`}>
+              {installmentSectionStartIndex === groupIndex && (
+                <TableRow key={`installment-section-header-${selectedYear}-${selectedMonth}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
+                  <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
+                    <Stack spacing={1}>
+                      <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
+                      <Divider />
+                    </Stack>
+                  </TableCell>
+                </TableRow>
+              )}
               <TableRow key={`header-${group.date}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
                 <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
                   <Label>
@@ -510,6 +600,7 @@ export function TransactionTable({
                 const isDeleting = deletedTransactionId === transaction.id;
                 const isFirst = index === 0;
                 const isLast = index === group.transactions.length - 1;
+                const account = !selectedAccountId ? accountsById.get(transaction.financialAccountId) : null;
                 const installmentNumber = transaction.installmentNumber ?? null;
                 const totalInstallments = transaction.totalInstallments ?? null;
                 const showInstallments =
@@ -554,6 +645,7 @@ export function TransactionTable({
                             variant="body2"
                             title={transaction.description}
                             sx={{
+                              fontSize: tableBodyLabelFontSize,
                               display: '-webkit-box',
                               WebkitBoxOrient: 'vertical',
                               WebkitLineClamp: 2,
@@ -639,13 +731,14 @@ export function TransactionTable({
                                   <CategoryIcon
                                     iconName={displayedCategory.icon}
                                     color={displayedCategory.color ?? undefined}
-                                    size={20}
+                                    size={18}
                                     sx={{ flexShrink: 0 }}
                                   />
                                   <Typography
                                     variant="body2"
                                     title={displayedCategory.name}
                                     sx={{
+                                      fontSize: tableBodyLabelFontSize,
                                       overflow: 'hidden',
                                       textOverflow: 'ellipsis',
                                       whiteSpace: 'nowrap',
@@ -659,6 +752,7 @@ export function TransactionTable({
                               }
                               variant="filled"
                               sx={{
+                                height: 28,
                                 color: displayedCategory.color || 'text.primary',
                                 bgcolor: displayedCategory.color
                                   ? alpha(displayedCategory.color, 0.1)
@@ -688,12 +782,13 @@ export function TransactionTable({
                                   : undefined
                               }
                               label={
-                                <Typography variant="body2" sx={{ opacity: 0.65 }}>
+                                <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
                                   {t('financeTransactions.category')}
                                 </Typography>
                               }
                               variant="outlined"
                               sx={{
+                                height: 28,
                                 borderStyle: 'dashed',
                                 color: 'text.secondary',
                                 bgcolor: alpha(theme.palette.text.primary, 0.02),
@@ -711,17 +806,17 @@ export function TransactionTable({
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.5} alignItems="center">
-                          {transaction.tags?.slice(0, 2).map((tag: string) => {
+                          {transaction.tags?.slice(0, 2).map((tag: string, tagIndex) => {
                             if (!tag) return null;
-                            const color = stringToColor(tag || '');
+                            const color = stringToColor(tag);
                             return (
                               <Chip
-                                key={tag}
+                                key={`${tag}-${tagIndex}`}
                                 label={<Typography variant="body2">{tag}</Typography>}
                                 size="small"
                                 variant="filled"
                                 sx={{ 
-                                  bgcolor: alpha(color || '', 0.05),
+                                  bgcolor: alpha(color, 0.05),
                                   color: color,
                                   borderRadius: borderRadius,
                                 }}
@@ -732,11 +827,14 @@ export function TransactionTable({
                             <Tooltip 
                               title={
                                 <Stack spacing={0.5} sx={{ p: 0.5 }}>
-                                  {transaction.tags.map((tag: string) => (
-                                    <Typography key={tag} variant="caption" sx={{ color: 'inherit' }}>
-                                      • {tag}
-                                    </Typography>
-                                  ))}
+                                  {transaction.tags.map((tag: string, tagIndex) => {
+                                    if (!tag) return null;
+                                    return (
+                                      <Typography key={`${tag}-${tagIndex}`} variant="caption" sx={{ color: 'inherit' }}>
+                                        • {tag}
+                                      </Typography>
+                                    );
+                                  })}
                                 </Stack>
                               }
                               arrow
@@ -759,11 +857,7 @@ export function TransactionTable({
                       </TableCell>
                       {!selectedAccountId && (
                         <TableCell>
-                          {(() => {
-                            const account = financialAccounts?.find(a => a.id === transaction.financialAccountId);
-                            
-                            if (!account) return null;
-
+                          {account && (() => {
                             const issuer = account.issuer;
                             const logoUrl = issuer?.logoAsset?.publicUrl;
                             const last4 = isCardAccount(account) ? getCardLastFourDigits(account, transaction) : null;
@@ -773,27 +867,27 @@ export function TransactionTable({
                                 <Avatar 
                                   src={logoUrl || undefined}
                                   sx={{ 
-                                    width: 24, 
-                                    height: 24,
+                                    width: 26, 
+                                    height: 26,
                                     fontSize: '0.75rem',
                                     bgcolor: logoUrl ? 'transparent' : theme.palette.grey[300],
                                     borderRadius: borderRadius
                                   }}
                                 >
-                                  {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardIcon sx={{ fontSize: '1rem' }} />)}
+                                  {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardNetworkIcon network={account.cardData?.cardNetwork} size={16} />)}
                                 </Avatar>
                                 <Stack spacing={0} sx={{ minWidth: 0 }}>
-                                  <Typography variant="body2" sx={{ lineHeight: 1.25 }} noWrap>
+                                  <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }} noWrap>
                                     {account.name}
                                   </Typography>
-                                  {last4 && (
-                                    <Stack direction="row" spacing={0.5} alignItems="center">
-                                      <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                                  <Stack direction="row" spacing={0.5} alignItems="center">
+                                    <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
+                                    {last4 && (
                                       <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                                         •••• {last4}
                                       </Typography>
-                                    </Stack>
-                                  )}
+                                    )}
+                                  </Stack>
                                 </Stack>
                               </Stack>
                             );
@@ -822,9 +916,17 @@ export function TransactionTable({
                           )}
                         </Typography>
                       </TableCell>
-                      <TableCell align="center">
+                      <TableCell
+                        align="center"
+                        padding="none"
+                        sx={{
+                          width: 30,
+                          maxWidth: 30,
+                        }}
+                      >
                         <IconButton
                           size="small"
+                          sx={{ p: 0.5 }}
                           onClick={(e) => {
                             setActionMenuAnchorEl(e.currentTarget);
                             setActionMenuTransaction(transaction);
@@ -901,7 +1003,15 @@ export function TransactionTable({
             if (!tx) return;
             setTransactionToRemove(tx);
           }}
-          sx={{ color: 'error.main' }}
+          sx={{
+            color: 'error.main',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+            },
+            '&.Mui-focusVisible': {
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+            },
+          }}
           disabled={markingTransferTransactionId === actionMenuTransaction?.id}
         >
           <ListItemIcon sx={{ color: 'inherit' }}>
@@ -937,7 +1047,6 @@ export function TransactionTable({
         loading={removing}
       />
       
-      {/* Loading indicator / Sentinel for infinite scroll */}
       {(hasMore || loading) && (
         <Box 
           ref={loaderRef} 

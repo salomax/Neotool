@@ -442,6 +442,7 @@
       "today": "Today, {{date}}",
       "tomorrow": "Tomorrow, {{date}}"
     },
+    "installmentPurchasesDueThisMonthHeader": "Installment purchases due this month",
     "billSummary": {
       "billValue": "Bill Amount",
       "closingDate": "Closing Date",
@@ -783,6 +784,11 @@
       "noCategorizedExpenses": "No categorized expenses this month",
       "noCategorizedIncome": "No categorized income this month",
       "totalExpenses": "Total expenses",
+      "filteringByCategory": "Category: {{name}}",
+      "filteringByCredit": "Credit (income) only",
+      "filteringByDebit": "Debit (expenses) only",
+      "clearCategoryFilter": "Clear category filter",
+      "clearCreditDebitTypeFilter": "Clear credit/debit filter",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"

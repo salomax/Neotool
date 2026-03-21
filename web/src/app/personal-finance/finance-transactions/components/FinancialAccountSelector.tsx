@@ -19,9 +19,9 @@ import {
   TextField,
   InputAdornment,
 } from '@mui/material';
-import { 
-  KeyboardArrowDown as ExpandMoreIcon, 
-  KeyboardArrowUp as ExpandLessIcon, 
+import {
+  KeyboardArrowDown as ExpandMoreIcon,
+  KeyboardArrowUp as ExpandLessIcon,
   Add as AddIcon,
   AccountBalance as BankIcon,
   CreditCard as CardIcon,
@@ -29,6 +29,7 @@ import {
   TrendingUp as TrendingUpIcon,
   Search as SearchIcon,
 } from '@mui/icons-material';
+import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
@@ -223,7 +224,7 @@ export function FinancialAccountSelector({
             </Typography>
             {showCardDetails && (
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                <CardNetworkIcon network={singleAccount.cardData?.cardNetwork} size={14} />
                 {last4 && (
                   <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                     •••• {last4}
@@ -341,7 +342,7 @@ export function FinancialAccountSelector({
             </Typography>
             {showSelectedCardDetails && (
               <Stack direction="row" spacing={0.5} alignItems="center">
-                <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                <CardNetworkIcon network={selectedAccount?.cardData?.cardNetwork} size={14} />
                 {selectedLast4 && (
                   <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                     •••• {selectedLast4}
@@ -494,7 +495,7 @@ export function FinancialAccountSelector({
                                       secondary={
                                         showCardDetails ? (
                                             <Stack direction="row" spacing={0.5} alignItems="center">
-                                              <CardIcon sx={{ fontSize: '0.9rem', color: 'text.secondary' }} />
+                                              <CardNetworkIcon network={account.cardData?.cardNetwork} size={14} />
                                               {last4 && (
                                                 <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
                                                   •••• {last4}

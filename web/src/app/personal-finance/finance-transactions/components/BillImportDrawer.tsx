@@ -2326,19 +2326,14 @@ export function BillImportDrawer({
 
   const footer =
     step === 'card-matching' && isFlatAssignmentMode ? (
-      <Stack direction="row" spacing={2} justifyContent="flex-end">
-        <Button variant="outlined" onClick={handleClose}>
-          {t('financeTransactions.actions.cancel')}
-        </Button>
-        <Button
-          variant="contained"
-          disabled={!allCardsResolved || creatingTemplateCards}
-          startIcon={creatingTemplateCards ? <CircularProgress size={16} color="inherit" /> : null}
-          onClick={handleFlatContinue}
-        >
-          {t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
-        </Button>
-      </Stack>
+      <Drawer.ActionButtons
+        cancelText={t('financeTransactions.actions.cancel')}
+        submitText={t('financeTransactions.billImport.cardMatchingStep.reviewTransactions')}
+        onCancel={handleClose}
+        onSubmit={handleFlatContinue}
+        submitDisabled={!allCardsResolved || creatingTemplateCards}
+        submitting={creatingTemplateCards}
+      />
     ) : null;
 
   const createCardLastFour =

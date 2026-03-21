@@ -972,8 +972,8 @@ class TransactionServiceTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(categoryRepository.findAll(accountId))
-                .thenReturn(listOf(systemCategory, userCategory, nonRequestedCategory, foreignCategory))
+            whenever(categoryRepository.findAccessibleByIds(setOf(systemId, userId, foreignId), accountId))
+                .thenReturn(listOf(systemCategory, userCategory))
 
             val result =
                 service.findAccessibleCategoriesByIds(
@@ -985,7 +985,7 @@ class TransactionServiceTest {
             assertThat(result[systemId]).isEqualTo(systemCategory)
             assertThat(result[userId]).isEqualTo(userCategory)
             assertThat(result[foreignId]).isNull()
-            verify(categoryRepository).findAll(accountId)
+            verify(categoryRepository).findAccessibleByIds(setOf(systemId, userId, foreignId), accountId)
         }
     }
 
@@ -1192,13 +1192,25 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(
-                transactionRepository.findInDateRange(
-                    accountId = accountId,
-                    financialAccountId = null,
-                    year = today.year,
-                    month = today.monthValue,
+                transactionRepository.findPage(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = "Partner",
+                        tags = null,
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = null,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 20,
+                        offset = 0,
+                    ),
                 ),
-            ).thenReturn(listOf(tx1, tx2))
+            ).thenReturn(TransactionPageResult(items = listOf(tx1), totalCount = 1))
 
             val result =
                 service.listTransactions(
@@ -1210,6 +1222,8 @@ class TransactionServiceTest {
                     billId = null,
                     categoryId = null,
                     uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,
@@ -1254,13 +1268,25 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(
-                transactionRepository.findInDateRange(
-                    accountId = accountId,
-                    financialAccountId = null,
-                    year = today.year,
-                    month = today.monthValue,
+                transactionRepository.findPage(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        tags = setOf("Weekend", "Transport"),
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = null,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 20,
+                        offset = 0,
+                    ),
                 ),
-            ).thenReturn(listOf(tx1, tx2))
+            ).thenReturn(TransactionPageResult(items = listOf(tx1), totalCount = 1))
 
             val result =
                 service.listTransactions(
@@ -1272,6 +1298,8 @@ class TransactionServiceTest {
                     billId = null,
                     categoryId = null,
                     uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 20,

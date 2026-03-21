@@ -32,6 +32,7 @@ import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
+import org.slf4j.LoggerFactory
 
 /**
  * GraphQL resolver for [Transaction] and [TransactionCategory] queries and mutations.
@@ -43,6 +44,8 @@ class TransactionResolver(
     private val creditCardBillService: CreditCardBillService,
     private val merchantRepository: MerchantRepository,
 ) {
+    private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
+
     // ── Queries ──────────────────────────────────────────────────────────────
 
     fun transactionCategories(principal: RequestPrincipal): List<TransactionCategoryDTO> {
@@ -74,12 +77,15 @@ class TransactionResolver(
         billId: String?,
         categoryId: String?,
         uncategorized: Boolean?,
+        creditDebitType: CreditDebitType?,
+        types: List<TransactionType>?,
         month: Int?,
         year: Int?,
         first: Int?,
         after: String?,
         principal: RequestPrincipal,
     ): TransactionConnectionDTO {
+        val startedAt = System.nanoTime()
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val financialAccountId = financialAccountId?.let { UUID.fromString(it) }
         val belongsToUserUuid = belongsToUserId?.let { UUID.fromString(it) }
@@ -96,15 +102,20 @@ class TransactionResolver(
                 billId = billUuid,
                 categoryId = categoryUuid,
                 uncategorized = uncategorized,
+                creditDebitType = creditDebitType,
+                types = types,
                 month = month,
                 year = year,
                 first = first,
                 after = after,
             )
+        val listFinishedAt = System.nanoTime()
 
         val categoryIds = connection.edges.mapNotNull { it.node.categoryId }.toSet()
         val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
+        val categoriesFinishedAt = System.nanoTime()
         val merchantDTOs = buildMerchantDTOMap(connection.edges.mapNotNull { it.node.merchantId }.toSet())
+        val merchantsFinishedAt = System.nanoTime()
 
         val edges =
             connection.edges.map { edge ->
@@ -117,6 +128,7 @@ class TransactionResolver(
                     cursor = edge.cursor,
                 )
             }
+        val mappingFinishedAt = System.nanoTime()
 
         val pageInfoDto =
             PageInfoDTO(
@@ -125,6 +137,21 @@ class TransactionResolver(
                 startCursor = connection.pageInfo.startCursor,
                 endCursor = connection.pageInfo.endCursor,
             )
+        val responseFinishedAt = System.nanoTime()
+        if (logger.isDebugEnabled) {
+            logger.debug(
+                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} dtoMapMs={} responseMs={} totalMs={}",
+                accountId,
+                connection.edges.size,
+                connection.totalCount,
+                nanosToMillis(listFinishedAt - startedAt),
+                nanosToMillis(categoriesFinishedAt - listFinishedAt),
+                nanosToMillis(merchantsFinishedAt - categoriesFinishedAt),
+                nanosToMillis(mappingFinishedAt - merchantsFinishedAt),
+                nanosToMillis(responseFinishedAt - mappingFinishedAt),
+                nanosToMillis(responseFinishedAt - startedAt),
+            )
+        }
 
         return TransactionConnectionDTO(
             edges = edges,
@@ -188,24 +215,31 @@ class TransactionResolver(
 
     fun transactionsByCategory(
         financialAccountId: String?,
+        belongsToUserId: String?,
+        belongsToName: String?,
+        tags: List<String>?,
+        billId: String?,
+        categoryId: String?,
+        uncategorized: Boolean?,
         year: Int?,
         month: Int?,
         applicableTo: String?,
         principal: RequestPrincipal,
     ): List<CategoryTotalDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val today = LocalDate.now()
-        val targetYear = year ?: today.year
-        val targetMonth = month ?: today.monthValue
-        require(targetMonth in 1..12) { "month must be between 1 and 12, got: $targetMonth" }
-        val faId = financialAccountId?.let { UUID.fromString(it) }
         val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
         val breakdown =
-            monthSummaryQueryService.getCategoryBreakdown(
+            service.getCategoryBreakdown(
                 accountId = accountId,
-                financialAccountId = faId,
-                year = targetYear,
-                month = targetMonth,
+                financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+                belongsToUserId = belongsToUserId?.let { UUID.fromString(it) },
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billId?.let { UUID.fromString(it) },
+                categoryId = categoryId?.let { UUID.fromString(it) },
+                uncategorized = uncategorized,
+                month = month,
+                year = year,
                 applicableTo = applicableToEnum,
             )
         return breakdown.map { it.toCategoryTotalDTO() }
@@ -386,11 +420,25 @@ class TransactionResolver(
      */
     private fun buildMerchantDTOMap(merchantIds: Set<UUID>): Map<UUID, MerchantDTO> {
         if (merchantIds.isEmpty()) return emptyMap()
-        return merchantIds.mapNotNull { id ->
-            val dto = loadMerchantDTO(id) ?: return@mapNotNull null
-            id to dto
-        }.toMap()
+        val merchants = merchantRepository.findByIds(merchantIds)
+        val logoAssetIds =
+            merchantRepository.findLogoAssetIdsByDomains(
+                merchants.mapNotNull { it.domain }.toSet(),
+            )
+        return merchants.associate { merchant ->
+            merchant.id!! to
+                MerchantDTO(
+                    id = merchant.id,
+                    name = merchant.name,
+                    domain = merchant.domain,
+                    sector = merchant.sector,
+                    isSystem = merchant.isSystem,
+                    logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it) },
+                )
+        }
     }
+
+    private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
 
     private fun getDate(
         map: Map<String, Any?>,

@@ -9,7 +9,7 @@ import java.util.UUID
  *
  * [logoAsset] is a federation stub — when the domain has a cached logo it holds
  * `{ __typename: "Asset", id: assetId }` so Apollo Router resolves the full
- * Asset from the assets subgraph. Null until the MerchantLogoHydrationJob runs.
+ * Asset from the assets subgraph. Null until a logo cache entry exists for the domain.
  */
 data class MerchantDTO(
     val id: UUID,

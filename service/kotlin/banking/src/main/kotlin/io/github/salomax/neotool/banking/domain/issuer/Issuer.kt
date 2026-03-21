@@ -13,7 +13,7 @@ enum class IssuerCategory {
 /**
  * Domain model for a financial institution (banking.issuers).
  * Used as the institution picker in account creation.
- * logo_key is null until the IssuerLogoHydrationJob runs.
+ * logo_key may be null until the issuer logo worker hydrates it.
  */
 data class Issuer(
     val id: UUID? = null,

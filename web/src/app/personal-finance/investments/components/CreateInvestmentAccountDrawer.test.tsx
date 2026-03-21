@@ -69,30 +69,20 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
   const actual = await vi.importActual<typeof import('@/shared/components/ui/forms/form')>(
     '@/shared/components/ui/forms/form',
   );
-  const rhf = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
+  const { useFormContext } = await vi.importActual<typeof import('react-hook-form')>('react-hook-form');
 
   return {
     ...actual,
     SelectField: ({ name, label, options }: any) => {
-      const { control } = rhf.useFormContext();
+      const { register } = useFormContext();
       return (
-        <rhf.Controller
-          name={name}
-          control={control}
-          render={({ field }) => (
-            <select
-              aria-label={label}
-              value={field.value ?? ''}
-              onChange={(event) => field.onChange(event.target.value)}
-            >
-              {options.map((option: any) => (
-                <option key={String(option.value)} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          )}
-        />
+        <select aria-label={label} {...register(name)}>
+          {options.map((option: any) => (
+            <option key={String(option.value)} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
       );
     },
   };
@@ -125,8 +115,42 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
     return <div>{children}</div>;
   };
 
+  const DrawerFooter = function DrawerFooter({ children }: { children: React.ReactNode }) {
+    return <div>{children}</div>;
+  };
+
+  const DrawerActionButtons = function DrawerActionButtons({
+    cancelText,
+    submitText,
+    submittingText,
+    onCancel,
+    onSubmit,
+    submitForm,
+    cancelDisabled,
+    submitDisabled,
+    submitting,
+  }: any) {
+    return (
+      <div>
+        <button type="button" onClick={onCancel} disabled={cancelDisabled}>
+          {cancelText}
+        </button>
+        <button
+          type={submitForm ? 'submit' : 'button'}
+          form={submitForm}
+          onClick={submitForm ? undefined : onSubmit}
+          disabled={submitDisabled}
+        >
+          {submitting ? submittingText : submitText}
+        </button>
+      </div>
+    );
+  };
+
   Drawer.Header = DrawerHeader;
   Drawer.Body = DrawerBody;
+  Drawer.Footer = DrawerFooter;
+  Drawer.ActionButtons = DrawerActionButtons;
 
   return { Drawer };
 });
@@ -266,6 +290,46 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
 
     const submittedInput = mockCreateAccount.mock.calls.at(-1)?.[0]?.variables?.input;
     expect(submittedInput?.issuerId).toBeUndefined();
+  });
+
+  it('clears issuerId when the selected issuer is not in the refreshed issuer list', async () => {
+    const user = userEvent.setup();
+
+    mockUseQuery.mockImplementation((_query: unknown, options?: any) => {
+      const categories = options?.variables?.categories ?? [];
+      const isCrypto = Array.isArray(categories) && categories.includes('CRYPTO_EXCHANGE');
+
+      return {
+        data: {
+          issuers: isCrypto
+            ? [{ id: 'issuer-binance', name: 'Binance', logoAsset: null, compeCode: null }]
+            : [{ id: 'issuer-xp', name: 'XP Investimentos', logoAsset: null, compeCode: null }],
+        },
+        loading: false,
+        error: null,
+      };
+    });
+
+    renderDrawer();
+
+    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
+    await act(async () => {
+      await user.selectOptions(issuerSelect, 'issuer-xp');
+    });
+
+    const subtypeSelect = screen.getByLabelText('investments.createAccount.fields.subtypeLabel');
+    await act(async () => {
+      await user.selectOptions(subtypeSelect, 'CRYPTO');
+    });
+
+    await act(async () => {
+      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('investments.createAccount.validation.issuerRequired')).toBeInTheDocument();
+    });
+    expect(mockCreateAccount).not.toHaveBeenCalled();
   });
 
   it('fetches issuer list for investment categories and updates to crypto exchange when subtype changes', async () => {

@@ -2,11 +2,13 @@
 
 import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { TextField, MenuItem } from "@mui/material";
+import { TextField, MenuItem, Stack } from "@mui/material";
 
 export interface SelectOption<T = string> {
   label: string;
   value: T;
+  /** Optional leading icon rendered inside each MenuItem and the selected-value adornment. */
+  icon?: React.ReactNode;
 }
 
 export interface SelectFieldProps<T = string> {
@@ -44,7 +46,14 @@ export function SelectField<T = string>({
         >
           {options.map((o) => (
             <MenuItem key={String(o.value)} value={o.value as any}>
-              {o.label}
+              {o.icon ? (
+                <Stack direction="row" spacing={1} alignItems="center">
+                  {o.icon}
+                  <span>{o.label}</span>
+                </Stack>
+              ) : (
+                o.label
+              )}
             </MenuItem>
           ))}
         </TextField>

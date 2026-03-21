@@ -35,20 +35,7 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
     )
     fun findUserMerchantsForAccount(accountId: UUID): List<MerchantEntity>
 
-    /**
-     * Distinct domains from merchants that have no entry in merchant_logo_cache.
-     * Used by the hydration job to know which logos to fetch.
-     */
-    @Query(
-        nativeQuery = true,
-        value = """
-            SELECT DISTINCT m.domain
-            FROM banking.merchants m
-            WHERE m.domain IS NOT NULL
-              AND m.domain NOT IN (SELECT domain FROM banking.merchant_logo_cache)
-        """,
-    )
-    fun findDistinctDomainsWithoutLogoCache(): List<String>
+    fun findByIdIn(ids: Collection<UUID>): List<MerchantEntity>
 
     /**
      * Top merchants for an account, filtered by optional financial account and date range.

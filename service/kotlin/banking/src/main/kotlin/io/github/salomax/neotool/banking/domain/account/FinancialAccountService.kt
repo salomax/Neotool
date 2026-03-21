@@ -43,12 +43,6 @@ open class FinancialAccountService(
         require(command.issuerId != null || !command.issuerName.isNullOrBlank()) {
             "Either issuerId or issuerName must be provided"
         }
-        if (command.subtype == FinancialAccountSubtype.CREDIT_CARD ||
-            command.subtype == FinancialAccountSubtype.CHARGE_CARD
-        ) {
-            requireNotNull(command.cardData?.closingDay) { "cardData.closingDay is required for ${command.subtype}" }
-            requireNotNull(command.cardData?.dueDay) { "cardData.dueDay is required for ${command.subtype}" }
-        }
         val initialBalance = command.initialBalance
         val initialBalanceDate = command.initialBalanceDate
         if (initialBalance != null) {

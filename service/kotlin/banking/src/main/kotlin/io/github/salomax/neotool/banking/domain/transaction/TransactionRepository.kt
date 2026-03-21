@@ -115,6 +115,13 @@ interface TransactionRepository {
     ): List<Transaction>
 
     /**
+     * Returns one page of transactions plus total count for the same filtered set.
+     * The repository applies filtering and pagination in SQL so list latency scales
+     * with the requested page rather than the full period size.
+     */
+    fun findPage(query: TransactionListQuery): TransactionPageResult
+
+    /**
      * Batch-update category_id and category_source for the given transaction IDs.
      * Only updates rows where account_id = accountId and deleted_at IS NULL.
      * Returns the number of rows updated.
@@ -147,6 +154,12 @@ interface TransactionCategoryRepository {
     /** Returns all system categories + user-defined categories for the given account. */
     fun findAll(accountId: UUID): List<TransactionCategory>
 
+    /** Returns only the requested accessible categories for the given account. */
+    fun findAccessibleByIds(
+        ids: Set<UUID>,
+        accountId: UUID,
+    ): List<TransactionCategory>
+
     fun findById(id: UUID): TransactionCategory?
 
     fun save(category: TransactionCategory): TransactionCategory
@@ -172,3 +185,25 @@ interface TransactionCategoryRepository {
         accountId: UUID,
     )
 }
+
+data class TransactionListQuery(
+    val accountId: UUID,
+    val financialAccountId: UUID?,
+    val belongsToUserId: UUID?,
+    val belongsToName: String?,
+    val tags: Set<String>?,
+    val billId: UUID?,
+    val categoryIds: List<UUID>?,
+    val uncategorizedOnly: Boolean,
+    val creditDebitType: CreditDebitType?,
+    val types: List<TransactionType>?,
+    val startDate: LocalDate?,
+    val endDateExclusive: LocalDate?,
+    val limit: Int,
+    val offset: Int,
+)
+
+data class TransactionPageResult(
+    val items: List<Transaction>,
+    val totalCount: Long,
+)

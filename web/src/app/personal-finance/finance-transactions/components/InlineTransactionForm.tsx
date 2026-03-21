@@ -214,8 +214,8 @@ export function InlineTransactionForm({
   if (!shouldRender) return null;
 
   const gridTemplateColumns = selectedAccountId
-    ? '68px minmax(180px, 2fr) minmax(0, 1fr) minmax(auto, 1fr) minmax(auto, 0.8fr) 52px'
-    : '68px minmax(180px, 2fr) minmax(0, 1fr) minmax(auto, 1fr) minmax(auto, 1fr) minmax(140px, 0.8fr) 52px';
+    ? '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(auto, 0.8fr) 52px'
+    : '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(auto, 1.2fr) minmax(140px, 0.8fr) 52px';
 
   const amountGridColumn = selectedAccountId ? '5 / -1' : '6 / -1';
 
@@ -246,7 +246,7 @@ export function InlineTransactionForm({
                 sx={{
                   display: 'grid',
                   gridTemplateColumns,
-                  columnGap: 1,
+                  columnGap: 2,
                   alignItems: 'end',
                   px: 1,
                   pt: 2,

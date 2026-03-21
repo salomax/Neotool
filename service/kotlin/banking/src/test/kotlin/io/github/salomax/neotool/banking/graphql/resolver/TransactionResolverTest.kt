@@ -330,6 +330,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
             )
             whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId))
                 .thenReturn(mapOf(catId to category))
@@ -343,6 +345,8 @@ class TransactionResolverTest {
                     billId = null,
                     categoryId = null,
                     uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 10,
@@ -388,25 +392,31 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
             )
             resolver.transactions(
                 financialAccountId = financialAccountId.toString(),
                 belongsToUserId = null,
                 belongsToName = null,
                 tags = null,
-                billId = null,
-                categoryId = null,
-                uncategorized = null,
-                month = 1,
-                year = 2025,
-                first = 20,
-                after = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
+                    month = 1,
+                    year = 2025,
+                    first = 20,
+                    after = null,
                 principal = principal(),
             )
 
             verify(service).listTransactions(
                 eq(accountId),
                 eq(financialAccountId),
+                anyOrNull(),
+                anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
@@ -469,6 +479,8 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
             )
             whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId)).thenReturn(emptyMap())
 
@@ -481,6 +493,8 @@ class TransactionResolverTest {
                     billId = null,
                     categoryId = null,
                     uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
                     month = today.monthValue,
                     year = today.year,
                     first = 10,
@@ -538,6 +552,8 @@ class TransactionResolverTest {
                     billId = null,
                     categoryId = null,
                     uncategorized = null,
+                    creditDebitType = null,
+                    types = null,
                     month = null,
                     year = null,
                     first = null,

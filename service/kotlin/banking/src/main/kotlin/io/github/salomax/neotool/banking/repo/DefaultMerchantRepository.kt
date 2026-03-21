@@ -3,11 +3,9 @@ package io.github.salomax.neotool.banking.repo
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
 import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
-import io.github.salomax.neotool.banking.model.transaction.MerchantLogoCacheEntity
 import io.github.salomax.neotool.banking.model.transaction.MerchantMapper
 import jakarta.inject.Singleton
 import java.math.BigDecimal
-import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -26,29 +24,27 @@ open class DefaultMerchantRepository(
     override fun findById(id: UUID): Merchant? =
         merchantRepo.findById(id).orElse(null)?.let(MerchantMapper::toDomain)
 
+    override fun findByIds(ids: Collection<UUID>): List<Merchant> =
+        if (ids.isEmpty()) {
+            emptyList()
+        } else {
+            merchantRepo.findByIdIn(ids).map(MerchantMapper::toDomain)
+        }
+
     override fun save(merchant: Merchant): Merchant {
         val entity = MerchantMapper.toEntity(merchant)
         return MerchantMapper.toDomain(merchantRepo.save(entity))
     }
 
-    override fun findDistinctDomainsWithoutLogoCache(): List<String> =
-        merchantRepo.findDistinctDomainsWithoutLogoCache()
-
     override fun findLogoAssetIdByDomain(domain: String): String? =
         logoCacheRepo.findByDomain(domain)?.assetId
 
-    override fun saveLogoCache(
-        domain: String,
-        assetId: String,
-    ) {
-        logoCacheRepo.save(
-            MerchantLogoCacheEntity(
-                domain = domain,
-                assetId = assetId,
-                fetchedAt = Instant.now(),
-            ),
-        )
-    }
+    override fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String> =
+        if (domains.isEmpty()) {
+            emptyMap()
+        } else {
+            logoCacheRepo.findByDomainIn(domains).associate { it.domain to it.assetId }
+        }
 
     override fun findTopMerchants(
         accountId: UUID,
