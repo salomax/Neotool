@@ -187,5 +187,8 @@ object JwtKeyManager {
             .replace("-----END $keyType-----", "")
             .replace("-----BEGIN RSA $keyType-----", "")
             .replace("-----END RSA $keyType-----", "")
+            // Support dotenv-style escaped newlines (\n / \r\n) in single-line env values.
+            .replace("\\r\\n", "")
+            .replace("\\n", "")
             .replace(Regex("\\s"), "")
 }
