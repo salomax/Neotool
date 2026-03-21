@@ -2563,10 +2563,12 @@ export type QueryTransactionsArgs = {
   belongsToUserId?: InputMaybe<Scalars['ID']['input']>;
   billId?: InputMaybe<Scalars['ID']['input']>;
   categoryId?: InputMaybe<Scalars['ID']['input']>;
+  creditDebitType?: InputMaybe<CreditDebitType>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  types?: InputMaybe<Array<TransactionType>>;
   uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
 };

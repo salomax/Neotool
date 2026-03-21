@@ -22,8 +22,7 @@ const (
 
 	updateIssuerLogoKeySQL = `
 		UPDATE banking.issuers
-		SET logo_key = $2,
-		    updated_at = NOW()
+		SET logo_key = $2
 		WHERE id = $1
 	`
 )

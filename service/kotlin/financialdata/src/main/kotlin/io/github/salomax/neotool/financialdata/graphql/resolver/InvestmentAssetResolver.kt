@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.financialdata.graphql.resolver
 
 import io.github.salomax.neotool.financialdata.graphql.dto.AssetDailyPriceDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetAutocompleteConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetDTO
-import io.github.salomax.neotool.financialdata.graphql.mapper.InvestmentAssetMapper
-import io.github.salomax.neotool.financialdata.service.InvestmentAssetSearchService
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetDTO
+import io.github.salomax.neotool.financialdata.graphql.mapper.ListedAssetMapper
+import io.github.salomax.neotool.financialdata.service.ListedAssetSearchService
 import jakarta.inject.Singleton
 import java.time.LocalDate
 import java.util.UUID
@@ -15,14 +15,14 @@ import java.util.UUID
  */
 @Singleton
 class InvestmentAssetResolver(
-    private val assetSearchService: InvestmentAssetSearchService,
-    private val mapper: InvestmentAssetMapper,
+    private val assetSearchService: ListedAssetSearchService,
+    private val mapper: ListedAssetMapper,
 ) {
 
     fun searchInvestmentAssetsAutocomplete(
         query: String,
         assetType: String?,
-    ): InvestmentAssetAutocompleteConnectionDTO {
+    ): ListedAssetAutocompleteConnectionDTO {
         if (query.isBlank()) throw IllegalArgumentException("Query cannot be empty")
         val assets = assetSearchService.searchAssetsAutocomplete(query, assetType)
         return mapper.toAutocompleteConnectionDTO(assets)
@@ -34,12 +34,12 @@ class InvestmentAssetResolver(
         isActive: Boolean?,
         first: Int?,
         after: String?,
-    ): InvestmentAssetConnectionDTO {
+    ): ListedAssetConnectionDTO {
         val connection = assetSearchService.searchAssets(query, assetType, isActive, first, after)
         return mapper.toConnectionDTO(connection)
     }
 
-    fun investmentAsset(id: String): InvestmentAssetDTO? {
+    fun investmentAsset(id: String): ListedAssetDTO? {
         val uuid = try {
             UUID.fromString(id)
         } catch (e: IllegalArgumentException) {
@@ -48,7 +48,7 @@ class InvestmentAssetResolver(
         return assetSearchService.findAssetById(uuid)?.let { mapper.toAssetDTO(it) }
     }
 
-    fun investmentAssetByTicker(ticker: String): InvestmentAssetDTO? =
+    fun investmentAssetByTicker(ticker: String): ListedAssetDTO? =
         assetSearchService.findAssetByTicker(ticker)?.let { mapper.toAssetDTO(it) }
 
     fun priceHistory(

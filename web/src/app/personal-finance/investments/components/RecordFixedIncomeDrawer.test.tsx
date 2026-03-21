@@ -267,8 +267,36 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
   const Drawer = ({ open, children }: { open: boolean; children: React.ReactNode }) => (open ? <div>{children}</div> : null);
   const DrawerHeader = ({ title }: { title: React.ReactNode }) => <h2>{title}</h2>;
   const DrawerBody = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  const DrawerFooter = ({ children }: { children: React.ReactNode }) => <div>{children}</div>;
+  const DrawerActionButtons = ({
+    cancelText,
+    submitText,
+    submittingText,
+    onCancel,
+    onSubmit,
+    submitForm,
+    cancelDisabled,
+    submitDisabled,
+    submitting,
+  }: any) => (
+    <div>
+      <button type="button" onClick={onCancel} disabled={cancelDisabled}>
+        {cancelText}
+      </button>
+      <button
+        type={submitForm ? 'submit' : 'button'}
+        form={submitForm}
+        onClick={submitForm ? undefined : onSubmit}
+        disabled={submitDisabled}
+      >
+        {submitting ? submittingText : submitText}
+      </button>
+    </div>
+  );
   Drawer.Header = DrawerHeader;
   Drawer.Body = DrawerBody;
+  Drawer.Footer = DrawerFooter;
+  Drawer.ActionButtons = DrawerActionButtons;
   return { Drawer };
 });
 

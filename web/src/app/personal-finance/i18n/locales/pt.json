@@ -782,7 +782,11 @@
       "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
       "noCategorizedIncome": "Nenhuma receita categorizada neste mês",
       "totalExpenses": "Total despesas",
-      "consolidatedTooltip": "Inclui saldo de cartões como passivo.",
+      "filteringByCategory": "Categoria: {{name}}",
+      "filteringByCredit": "Somente crédito (receitas)",
+      "filteringByDebit": "Somente débito (despesas)",
+      "clearCategoryFilter": "Remover filtro de categoria",
+      "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
       "retry": "Tentar novamente"

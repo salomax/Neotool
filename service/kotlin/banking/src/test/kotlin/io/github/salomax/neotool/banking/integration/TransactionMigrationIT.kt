@@ -10,7 +10,7 @@ import java.sql.DriverManager
 import java.util.UUID
 
 /**
- * Verifies banking migrations V0_4, V0_5, V0_6, V0_7, V0_8 and seed/constraint behavior.
+ * Verifies the consolidated banking versioned migrations and seed/constraint behavior.
  */
 @MicronautTest(startApplication = true)
 @DisplayName("TransactionMigration IT")
@@ -40,7 +40,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @DisplayName("migrations")
     inner class MigrationsTests {
         @Test
-        fun `V0_4 V0_5 V0_6 V0_7 V0_8 apply cleanly on fresh schema`() {
+        fun `V0_1 through V0_8 apply cleanly on fresh schema`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
@@ -49,12 +49,14 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                 ).use { rs ->
                     val versions = mutableListOf<String>()
                     while (rs.next()) rs.getString("version")?.let { versions.add(it) }
-                    assertThat(versions).contains("0.4", "0.5", "0.6", "0.7", "0.8")
+                    assertThat(versions)
+                        .containsExactly("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8")
                 }
                 conn.createStatement().executeQuery(
                     "SELECT table_name FROM information_schema.tables " +
                         "WHERE table_schema = 'banking' AND table_name IN " +
-                        "('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags')",
+                        "('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags', " +
+                        "'document_import_jobs', 'transaction_rules', 'merchants')",
                 ).use { rs ->
                     val tables = mutableListOf<String>()
                     while (rs.next()) tables.add(rs.getString("table_name"))
@@ -65,6 +67,9 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "transaction_categories",
                         "credit_card_bills",
                         "transaction_tags",
+                        "document_import_jobs",
+                        "transaction_rules",
+                        "merchants",
                     )
                 }
             }
@@ -75,7 +80,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @DisplayName("transaction_categories seed")
     inner class TransactionCategoriesSeedTests {
         @Test
-        fun `exactly 22 root categories subcategory parent_ids resolve`() {
+        fun `exactly 23 root categories subcategory parent_ids resolve`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
@@ -84,7 +89,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "WHERE parent_id IS NULL AND deleted_at IS NULL",
                 ).use { rs ->
                     rs.next()
-                    assertThat(rs.getInt("cnt")).isEqualTo(22)
+                    assertThat(rs.getInt("cnt")).isEqualTo(23)
                 }
                 conn.createStatement().executeQuery(
                     """

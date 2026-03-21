@@ -2360,6 +2360,12 @@ type Query
 
     """If true, return only transactions with no category."""
     uncategorized: Boolean
+
+    """Filter by credit/debit direction (CREDIT = income, DEBIT = expense)."""
+    creditDebitType: CreditDebitType
+
+    """Filter to one or more transaction types (e.g. SALARY, TRANSFER)."""
+    types: [TransactionType!]
     month: Int
     year: Int
     first: Int

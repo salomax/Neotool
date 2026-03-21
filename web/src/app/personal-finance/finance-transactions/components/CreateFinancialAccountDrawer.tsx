@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation } from '@apollo/client/react';
-import { useForm, useWatch, FormProvider, Controller } from 'react-hook-form';
+import { useForm, FormProvider, useController, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import dayjs from 'dayjs';
@@ -10,29 +10,18 @@ import {
   Box,
   Typography,
   IconButton,
-  Card,
-  CardContent,
   Stack,
-  Button,
-  Avatar,
-  Slide,
-  useTheme,
   InputAdornment,
-  CircularProgress,
-  Autocomplete,
-  TextField as MuiTextField,
-  Divider
+  Divider,
 } from '@mui/material';
 import {
-  AccountBalance as BankIcon,
-  CreditCard as CardIcon,
   ArrowBack as BackIcon,
-  ReceiptLong as ReceiptIcon,
 } from '@mui/icons-material';
 import { FinancialAccountTypeSelection } from './FinancialAccountTypeSelection';
+import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
+import { IssuerSelect } from './IssuerSelect';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
-import { FormTextField as TextField, SelectField, ToggleField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
-import { ColorPicker } from '@/shared/components/ui/primitives/ColorPicker';
+import { FormTextField as TextField, SelectField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
@@ -42,13 +31,9 @@ import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 // --- Types & Schemas ---
-
-const FinancialAccountType = {
-  BANK: 'BANK',
-  CREDIT: 'CREDIT', // Mapping 'Card' to 'CREDIT' for now based on context, or could be others
-} as const;
 
 // Subtypes
 const BankSubtypeValues = [
@@ -91,17 +76,6 @@ const Currencies = [
   { value: 'EUR', label: 'EUR' },
 ];
 
-const ColorPresets = [
-  '#1976d2', // Blue
-  '#2e7d32', // Green
-  '#ed6c02', // Orange
-  '#9c27b0', // Purple
-  '#d32f2f', // Red
-  '#0288d1', // Light Blue
-  '#424242', // Grey
-  '#000000', // Black
-];
-
 type CreateAccountFormData = {
   type: 'BANK' | 'CARD';
   issuerId?: string;
@@ -134,7 +108,7 @@ function buildDefaultCardAccountName(
       ? t(CardSubtypeLabelKeyByValue[data.subtype as keyof typeof CardSubtypeLabelKeyByValue])
       : t('financeTransactions.createAccount.step2.defaults.creditCardType');
   const lastFourDigits = (data.maskedNumber ?? '').replace(/\D/g, '').slice(-4);
-  return `${subtypeLabel} • ${lastFourDigits || t('financeTransactions.createAccount.step2.defaults.noLastFour')}`;
+  return lastFourDigits ? `${subtypeLabel} • ${lastFourDigits}` : subtypeLabel;
 }
 
 const CardSubtypeLabelKeyByValue = {
@@ -187,104 +161,94 @@ export function CreateFinancialAccountDrawer({
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<'BANK' | 'CARD' | null>(null);
   const { success } = useToast();
-  const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
-  const pendingCreatedMetaRef = useRef<{
-    issuerId?: string;
-    issuerName?: string;
-    closingDay?: number;
-    dueDay?: number;
-  } | null>(null);
 
   // Zod Schema
-  const createAccountSchema = React.useMemo(() => z.object({
-    type: z.enum(['BANK', 'CARD']),
-    issuerId: z.string().optional(),
-    issuerName: z.string().optional(), // For custom
-    name: z.string().optional().default(''),
-    currencyCode: z.string().default('BRL'),
-    initialBalance: z.number().optional(),
-    initialBalanceDate: z.date().nullable().optional(),
-    themeColor: z.string().default('#1976d2'),
-    includeInNetWorth: z.boolean().default(true),
-    includeInDashboard: z.boolean().default(true),
-    // Bank specific
-    subtype: z.string().min(1, t('financeTransactions.createAccount.step2.validation.subtypeRequired')),
-    branchCode: z.string().optional(),
-    accountNumber: z.string().optional(),
-    checkDigit: z.string().optional(),
-    // Card specific
-    cardNetwork: z.string().optional(),
-    cardLevel: z.string().optional(),
-    maskedNumber: z.string().optional(), // Last 4 digits
-    creditLimit: z.number().optional(),
-    closingDay: z.preprocess(
-      (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-      z.number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.closingDayInvalid') })
-        .min(1, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
-        .max(31, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
-        .optional()
-    ),
-    dueDay: z.preprocess(
-      (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
-      z.number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.dueDayInvalid') })
-        .min(1, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
-        .max(31, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
-        .optional()
-    ),
-  }).superRefine((data, ctx) => {
-    if (!data.issuerId && !data.issuerName) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: t('financeTransactions.createAccount.step2.validation.issuerRequired'),
-        path: ["issuerId"]
-      });
-    }
-  
-    if (data.type === 'CARD') {
-       // Check if subtype is credit
-       if (data.subtype === 'CREDIT_CARD') {
-          if (!data.closingDay) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: t('financeTransactions.createAccount.step2.validation.closingDayRequired'),
-              path: ["closingDay"]
-            });
-          }
-          if (!data.dueDay) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              message: t('financeTransactions.createAccount.step2.validation.dueDayRequired'),
-              path: ["dueDay"]
-            });
-          }
-       }
-    }
+  const createAccountSchema = React.useMemo(
+    () =>
+      z
+        .object({
+          type: z.enum(['BANK', 'CARD']),
+          issuerId: z.string().optional(),
+          issuerName: z.string().optional(),
+          name: z.string().default(''),
+          currencyCode: z.string().default('BRL'),
+          initialBalance: z.number().optional(),
+          initialBalanceDate: z.date().nullable().optional(),
+          themeColor: z.string().default('#1976d2'),
+          includeInNetWorth: z.boolean().default(true),
+          includeInDashboard: z.boolean().default(true),
+          subtype: z.string().min(1, t('financeTransactions.createAccount.step2.validation.subtypeRequired')),
+          branchCode: z.string().optional(),
+          accountNumber: z.string().optional(),
+          checkDigit: z.string().optional(),
+          cardNetwork: z.string().optional(),
+          cardLevel: z.string().optional(),
+          maskedNumber: z.string().optional(),
+          creditLimit: z.number().optional(),
+          closingDay: z.preprocess(
+            (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+            z
+              .number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.closingDayInvalid') })
+              .min(1, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
+              .max(31, t('financeTransactions.createAccount.step2.validation.closingDayInvalid'))
+              .optional(),
+          ),
+          dueDay: z.preprocess(
+            (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
+            z
+              .number({ invalid_type_error: t('financeTransactions.createAccount.step2.validation.dueDayInvalid') })
+              .min(1, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
+              .max(31, t('financeTransactions.createAccount.step2.validation.dueDayInvalid'))
+              .optional(),
+          ),
+        })
+        .superRefine((data, ctx) => {
+          const issuerName = data.issuerName?.trim();
 
-    if (data.initialBalance !== undefined) {
-      if (data.initialBalance === 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t('financeTransactions.createAccount.step2.validation.initialBalanceNonZero'),
-          path: ['initialBalance'],
-        });
-      }
-      if (!data.initialBalanceDate) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
-          path: ['initialBalanceDate'],
-        });
-      } else if (dayjs(data.initialBalanceDate).isBefore(minAllowedDate, 'day')) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
-          path: ['initialBalanceDate'],
-        });
-      }
-    }
-  }), [t, minAllowedDate]);
+          if (!data.issuerId && !issuerName) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('financeTransactions.createAccount.step2.validation.issuerRequired'),
+              path: ['issuerId'],
+            });
+            return;
+          }
+
+          if (data.issuerId === 'custom' && !issuerName) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t('financeTransactions.createAccount.step2.validation.issuerRequired'),
+              path: ['issuerName'],
+            });
+          }
+
+          if (data.initialBalance !== undefined) {
+            if (data.initialBalance === 0) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.createAccount.step2.validation.initialBalanceNonZero'),
+                path: ['initialBalance'],
+              });
+            }
+            if (!data.initialBalanceDate) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
+                path: ['initialBalanceDate'],
+              });
+            } else if (dayjs(data.initialBalanceDate).isBefore(minAllowedDate, 'day')) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
+                path: ['initialBalanceDate'],
+              });
+            }
+          }
+        }),
+    [t, minAllowedDate],
+  );
 
   // Option lists with translations
   const bankSubtypes = React.useMemo(() => BankSubtypeValues.map(v => ({
@@ -299,7 +263,8 @@ export function CreateFinancialAccountDrawer({
 
   const cardNetworks = React.useMemo(() => CardNetworkValues.map(v => ({
     value: v,
-    label: t(`financeTransactions.createAccount.step2.enums.cardNetwork.${v}`)
+    label: t(`financeTransactions.createAccount.step2.enums.cardNetwork.${v}`),
+    icon: <CardNetworkIcon network={v} size={20} />,
   })), [t]);
 
   const cardLevels = React.useMemo(() => CardLevelValues.map(v => ({
@@ -308,7 +273,7 @@ export function CreateFinancialAccountDrawer({
   })), [t]);
 
   // Queries
-  const { data: issuersData, loading: issuersLoading, error: issuersError } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
+  const { data: issuersData, loading: issuersLoading } = useQuery<{ issuers: Issuer[] }>(ISSUERS, {
     skip: !open,
   });
 
@@ -316,23 +281,15 @@ export function CreateFinancialAccountDrawer({
     createFinancialAccount: { id: string; name: string };
   }>(CREATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
-    onCompleted: (data) => {
-      success(t('financeTransactions.createAccount.step2.success'));
-      const meta = pendingCreatedMetaRef.current;
-      onCreated?.({
-        id: data.createFinancialAccount.id,
-        name: data.createFinancialAccount.name,
-        issuerId: meta?.issuerId,
-        issuerName: meta?.issuerName,
-        closingDay: meta?.closingDay,
-        dueDay: meta?.dueDay,
-      });
-      pendingCreatedMetaRef.current = null;
-      handleClose();
-    },
   });
+  const createErrorMessage = React.useMemo(
+    () => (createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : ''),
+    [createError, t],
+  );
 
   const methods = useForm<CreateAccountFormData>({
+    mode: 'onChange',
+    reValidateMode: 'onChange',
     resolver: zodResolver(createAccountSchema),
     defaultValues: {
       name: '',
@@ -346,87 +303,105 @@ export function CreateFinancialAccountDrawer({
     },
   });
 
-  const { watch, setValue, reset, control } = methods;
-  const watchedIssuerId = watch('issuerId');
-  const watchedSubtype = watch('subtype');
-  const watchedCurrencyCode = watch('currencyCode');
-
-  // Memoize options to prevent unnecessary re-renders
-  const allIssuerOptions = React.useMemo(() => {
-    const options = (issuersData?.issuers || []).map((i) => ({
-      label: i.name,
-      value: i.id,
-      logo: i.logoAsset?.publicUrl,
-      compe: i.compeCode,
-    }));
-
-    return [
-      ...options,
-      { label: t('financeTransactions.createAccount.step2.fields.customIssuer'), value: 'custom', logo: null, compe: null }
-    ];
-  }, [issuersData, t]);
+  const { setValue, reset, control, formState } = methods;
+  const { isValid } = formState;
+  const watchedIssuerId = useWatch({ control, name: 'issuerId' });
+  const watchedSubtype = useWatch({ control, name: 'subtype' });
+  const watchedCurrencyCode = useWatch({ control, name: 'currencyCode' });
+  const previousIssuerIdRef = useRef<string | undefined>(undefined);
+  const { field: issuerIdField, fieldState: issuerIdFieldState } = useController({
+    name: 'issuerId',
+    control,
+  });
+  const issuerIdValue = typeof issuerIdField.value === 'string' ? issuerIdField.value : undefined;
 
   // Reset on close
+  const handleTypeSelect = React.useCallback(
+    (type: 'BANK' | 'CARD') => {
+      setSelectedType(type);
+      setValue('type', type, { shouldValidate: true });
+      if (type === 'BANK') setValue('subtype', 'CONTA_CORRENTE', { shouldValidate: true });
+      else setValue('subtype', 'CREDIT_CARD', { shouldValidate: true });
+
+      setStep(2);
+    },
+    [setValue],
+  );
+
   useEffect(() => {
     if (!open) {
-      setStep(1);
-      setSelectedType(null);
+      React.startTransition(() => {
+        setStep(1);
+        setSelectedType(null);
+      });
       reset();
-    } else if (initialType) {
-        // If opening with initialType
-        handleTypeSelect(initialType);
+      return;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- handleTypeSelect is stable, initialType triggers the call
-  }, [open, reset, initialType]);
+
+    if (initialType) {
+      React.startTransition(() => {
+        handleTypeSelect(initialType);
+      });
+    }
+  }, [handleTypeSelect, initialType, open, reset]);
 
   // Pre-fill inline-import defaults when opening card creation from bill association.
   useEffect(() => {
     if (!open) return;
 
     if (initialMaskedNumber) {
-      setValue('maskedNumber', initialMaskedNumber);
+      setValue('maskedNumber', initialMaskedNumber, { shouldValidate: true });
     }
     if (typeof initialClosingDay === 'number') {
-      setValue('closingDay', initialClosingDay);
+      setValue('closingDay', initialClosingDay, { shouldValidate: true });
     }
     if (typeof initialDueDay === 'number') {
-      setValue('dueDay', initialDueDay);
+      setValue('dueDay', initialDueDay, { shouldValidate: true });
     }
     if (initialIssuerId) {
-      setValue('issuerId', initialIssuerId);
+      setValue('issuerId', initialIssuerId, { shouldValidate: true });
       setValue('issuerName', '');
     } else if (initialIssuerName) {
-      setValue('issuerId', 'custom');
-      setValue('issuerName', initialIssuerName);
+      setValue('issuerId', 'custom', { shouldValidate: true });
+      setValue('issuerName', initialIssuerName, { shouldValidate: true });
     }
   }, [open, initialMaskedNumber, initialClosingDay, initialDueDay, initialIssuerId, initialIssuerName, setValue]);
 
   // Handle Issuer Selection
   useEffect(() => {
-    if (watchedIssuerId && issuersData?.issuers) {
-      if (watchedIssuerId === 'custom') {
-        setValue('issuerName', '');
-      } else {
-        const issuer = issuersData.issuers.find((i) => i.id === watchedIssuerId);
-        if (issuer) {
-          setValue('issuerName', issuer.name);
-        }
+    if (!open) return;
+
+    const previousIssuerId = previousIssuerIdRef.current;
+    previousIssuerIdRef.current = watchedIssuerId;
+
+    if (!watchedIssuerId) {
+      if (previousIssuerId) {
+        setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
       }
+      return;
     }
-  }, [watchedIssuerId, issuersData, setValue]);
+
+    if (watchedIssuerId === 'custom') {
+      if (previousIssuerId !== 'custom') {
+        setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
+      }
+      return;
+    }
+
+    if (!issuersData?.issuers) return;
+
+    const issuer = issuersData.issuers.find((i) => i.id === watchedIssuerId);
+    if (!issuer) {
+      setValue('issuerId', undefined, { shouldDirty: false, shouldValidate: true });
+      setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
+      return;
+    }
+
+    setValue('issuerName', issuer.name, { shouldDirty: false, shouldValidate: false });
+  }, [issuersData?.issuers, open, setValue, watchedIssuerId]);
 
   const handleClose = () => {
     onClose();
-  };
-
-  const handleTypeSelect = (type: 'BANK' | 'CARD') => {
-    setSelectedType(type);
-    setValue('type', type);
-    // Set default subtype based on type
-    if (type === 'BANK') setValue('subtype', 'CONTA_CORRENTE');
-    else setValue('subtype', 'CREDIT_CARD');
-    
-    setStep(2);
   };
 
   const handleBack = () => {
@@ -440,7 +415,8 @@ export function CreateFinancialAccountDrawer({
     reset();
   };
 
-  const onSubmit = (data: CreateAccountFormData) => {
+  const onSubmit = async (data: CreateAccountFormData) => {
+    const issuerName = data.issuerName?.trim();
     const accountType =
       data.type === 'BANK'
         ? 'BANK'
@@ -462,9 +438,7 @@ export function CreateFinancialAccountDrawer({
       includeInNetWorth: data.includeInNetWorth,
       includeInDashboard: data.includeInDashboard,
       // Handle issuer
-      ...(data.issuerId === 'custom' 
-          ? { issuerName: data.issuerName } 
-          : { issuerId: data.issuerId }),
+      ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
     };
 
     if (data.initialBalance !== undefined) {
@@ -489,20 +463,38 @@ export function CreateFinancialAccountDrawer({
       };
     }
 
-    pendingCreatedMetaRef.current = {
+    const meta = {
       issuerId: data.issuerId === 'custom' ? undefined : data.issuerId,
-      issuerName: data.issuerId === 'custom' ? data.issuerName : undefined,
+      issuerName: data.issuerId === 'custom' ? issuerName : undefined,
       closingDay: data.closingDay,
       dueDay: data.dueDay,
     };
-    createAccount({ variables: { input } });
+
+    try {
+      const result = await createAccount({ variables: { input } });
+      const created = result.data?.createFinancialAccount;
+      if (!created) return;
+
+      success(t('financeTransactions.createAccount.step2.success'));
+      onCreated?.({
+        id: created.id,
+        name: created.name,
+        issuerId: meta.issuerId,
+        issuerName: meta.issuerName,
+        closingDay: meta.closingDay,
+        dueDay: meta.dueDay,
+      });
+      handleClose();
+    } catch {
+      return;
+    }
   };
 
   const renderTypeSelection = () => (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
       {/* Title Section */}
       <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
-        <Typography variant="body1" color="text.secondary" sx={{ fontSize: '1.125rem' }}>
+        <Typography variant="subtitle2" color="text.secondary">
           {t('financeTransactions.createAccount.step1.title')}
         </Typography>
       </Box>
@@ -515,63 +507,22 @@ export function CreateFinancialAccountDrawer({
   const renderForm = () => (
     <Box sx={{ p: 0 }}>
       <FormProvider {...methods}>
-        <form onSubmit={methods.handleSubmit(onSubmit)}>
+        <form id="create-financial-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
           <Stack spacing={3}>
-            {createError && <FormErrorBanner message={createError.message} />}
+            {createError && <FormErrorBanner message={createErrorMessage} />}
 
             {/* Common Fields */}
-              <Controller
-                name="issuerId"
-                control={control}
-                render={({ field: { onChange, value }, fieldState: { error } }) => (
-                  <Autocomplete
-                    options={allIssuerOptions}
-                    loading={issuersLoading}
-                    value={allIssuerOptions.find(o => o.value === value) || null}
-                    onChange={(_, newValue) => onChange(newValue ? newValue.value : null)}
-                    isOptionEqualToValue={(option, value) => option.value === value.value}
-                    noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
-                    getOptionLabel={(option) => option.label || ''}
-                    renderOption={(props, option: any) => {
-                      const { key, ...otherProps } = props;
-                      return (
-                        <Box component="li" key={key} {...otherProps} sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 1.5 }}>
-                          {option.logo ? (
-                            <Avatar src={option.logo} sx={{ width: 40, height: 40, borderRadius: 1.5 }} />
-                          ) : (
-                            <Avatar sx={{ width: 40, height: 40, borderRadius: 1.5, bgcolor: 'action.disabledBackground' }}>
-                              <BankIcon sx={{ fontSize: 24 }} />
-                            </Avatar>
-                          )}
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body1" fontWeight="600">{option.label}</Typography>
-                            {option.compe && (
-                              <Typography variant="body2" color="text.secondary">({option.compe})</Typography>
-                            )}
-                          </Box>
-                        </Box>
-                      );
-                    }}
-                    renderInput={(params) => (
-                      <MuiTextField
-                        {...params}
-                        label={t('financeTransactions.createAccount.step2.fields.issuer')}
-                        error={!!error}
-                        helperText={error?.message}
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <React.Fragment>
-                              {issuersLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                              {params.InputProps.endAdornment}
-                            </React.Fragment>
-                          ),
-                        }}
-                      />
-                    )}
-                  />
-                )}
-              />
+            <IssuerSelect
+              issuers={issuersData?.issuers}
+              loading={issuersLoading}
+              value={issuerIdValue}
+              onChange={issuerIdField.onChange}
+              label={t('financeTransactions.createAccount.step2.fields.issuer')}
+              noOptionsText={t('financeTransactions.createAccount.step2.fields.noIssuersFound')}
+              customIssuerLabel={t('financeTransactions.createAccount.step2.fields.customIssuer')}
+              error={!!issuerIdFieldState.error}
+              helperText={issuerIdFieldState.error?.message}
+            />
 
             {watchedIssuerId === 'custom' && (
               <TextField name="issuerName" label={t('financeTransactions.createAccount.step2.fields.institutionName')} required />
@@ -589,11 +540,11 @@ export function CreateFinancialAccountDrawer({
               <SelectField name="currencyCode" label={t('financeTransactions.createAccount.step2.fields.currency')} options={Currencies} />
             )}
 
-            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} required />
+            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} />
 
             {/* Initial Balance — only for bank accounts */}
             {selectedType !== 'CARD' && (
-              <>
+              <Stack direction="row" spacing={2}>
                 <MoneyInput
                   name="initialBalance"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
@@ -605,7 +556,7 @@ export function CreateFinancialAccountDrawer({
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
                 />
-              </>
+              </Stack>
             )}
 
             {/* Bank Specific Fields (excluding subtype) */}
@@ -626,55 +577,67 @@ export function CreateFinancialAccountDrawer({
                   <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} />
                 )}
                 
-                <TextField 
-                  name="maskedNumber" 
-                  label={t('financeTransactions.createAccount.step2.fields.maskedNumber')} 
-                  placeholder="1234"
-                  InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
-                />
-
                 {watchedSubtype === 'CREDIT_CARD' && (
                   <>
-                    <MoneyInput 
-                      name="creditLimit" 
-                      label={t('financeTransactions.createAccount.step2.fields.creditLimit')} 
-                      currency={watchedCurrencyCode}
-                      locale={i18n.language}
-                    />
+                    <Stack direction="row" spacing={2}>
+                      <TextField
+                        name="maskedNumber"
+                        label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
+                        placeholder="1234"
+                        InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+                        sx={{ flex: 1 }}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <MoneyInput
+                          name="creditLimit"
+                          label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
+                          currency={watchedCurrencyCode}
+                          locale={i18n.language}
+                          fullWidth
+                        />
+                      </Box>
+                    </Stack>
                     <Stack direction="row" spacing={2}>
                       <TextField 
                         name="closingDay" 
                         label={t('financeTransactions.createAccount.step2.fields.closingDay')} 
                         type="number" 
                         inputProps={{ min: 1, max: 31 }}
-                        required
                       />
                       <TextField 
                         name="dueDay" 
                         label={t('financeTransactions.createAccount.step2.fields.dueDay')} 
                         type="number"
                         inputProps={{ min: 1, max: 31 }}
-                        required
                       />
                     </Stack>
                   </>
                 )}
+
+                {watchedSubtype !== 'CREDIT_CARD' && (
+                  <TextField
+                    name="maskedNumber"
+                    label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
+                    placeholder="1234"
+                    InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+                  />
+                )}
               </>
             )}
 
-            {/* <Stack direction="row" spacing={4}>
-              <ToggleField name="includeInNetWorth" label={t('financeTransactions.createAccount.step2.fields.includeInNetWorth')} />
-              <ToggleField name="includeInDashboard" label={t('financeTransactions.createAccount.step2.fields.includeInDashboard')} />
-            </Stack> */}
+            <Divider />  
 
-            {/* <Box>
-              <Typography variant="subtitle2" gutterBottom>{t('financeTransactions.createAccount.step2.fields.themeColor')}</Typography>
-              <ColorPicker 
-                value={watch('themeColor')} 
-                onChange={(c) => setValue('themeColor', c)} 
-                presets={ColorPresets}
-              />
-            </Box> */}
+            <Drawer.ActionButtons
+              cancelText={t('financeTransactions.actions.cancel')}
+              submitText={selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard')}
+              submittingText={t('financeTransactions.actions.saving')}
+              onCancel={handleClose}
+              submitForm="create-financial-account-form"
+              cancelDisabled={creating}
+              submitDisabled={creating || !isValid}
+              submitting={creating}
+            />
+
           </Stack>
         </form>
       </FormProvider>
@@ -694,29 +657,7 @@ export function CreateFinancialAccountDrawer({
       />
       <Drawer.Body>
         {step === 1 ? renderTypeSelection() : renderForm()}
-      {step === 2 && (
-          <>
-            <Divider sx={{ marginY: 3 }} />
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={handleClose}
-                disabled={creating}
-              >
-                {t('financeTransactions.actions.cancel')}
-              </Button>
-              <Button 
-                variant="contained" 
-                onClick={methods.handleSubmit(onSubmit)}
-                disabled={creating}
-                startIcon={creating ? <CircularProgress size={20} color="inherit" /> : null}
-              >
-                {selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard')}
-              </Button>
-            </Stack>
-          </>
-      )}
-          </Drawer.Body>
+      </Drawer.Body>
     </Drawer>
   );
 }

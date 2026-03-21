@@ -73,6 +73,8 @@ export const TRANSACTIONS = gql`
     $billId: ID
     $month: Int
     $year: Int
+    $categoryId: ID
+    $creditDebitType: CreditDebitType
     $first: Int
     $after: String
   ) {
@@ -81,6 +83,8 @@ export const TRANSACTIONS = gql`
       billId: $billId
       month: $month
       year: $year
+      categoryId: $categoryId
+      creditDebitType: $creditDebitType
       first: $first
       after: $after
     ) {

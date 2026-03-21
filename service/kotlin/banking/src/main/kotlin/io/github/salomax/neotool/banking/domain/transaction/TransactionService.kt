@@ -103,6 +103,8 @@ open class TransactionService(
         billId: UUID?,
         categoryId: UUID?,
         uncategorized: Boolean?,
+        creditDebitType: CreditDebitType?,
+        types: List<TransactionType>?,
         month: Int?,
         year: Int?,
         first: Int?,
@@ -117,6 +119,8 @@ open class TransactionService(
             billId = billId,
             categoryId = categoryId,
             uncategorized = uncategorized,
+            creditDebitType = creditDebitType,
+            types = types,
             month = month,
             year = year,
         ) ?: return Connection(emptyList(), PageInfo(false, false, null, null), 0L)
@@ -182,6 +186,13 @@ open class TransactionService(
         year: Int?,
         applicableTo: CategoryApplicableTo?,
     ): List<CategoryTotal> {
+        val creditDebitFilter =
+            when (applicableTo) {
+                CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
+                else -> null
+            }
+
         val transactions =
             fetchFilteredTransactions(
                 accountId = accountId,
@@ -192,16 +203,11 @@ open class TransactionService(
                 billId = billId,
                 categoryId = categoryId,
                 uncategorized = uncategorized,
+                creditDebitType = creditDebitFilter,
+                types = null,
                 month = month,
                 year = year,
             ) ?: return emptyList()
-
-        val creditDebitFilter =
-            when (applicableTo) {
-                CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
-                CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
-                else -> null
-            }
 
         val categorized =
             transactions.filter { tx ->
@@ -258,6 +264,8 @@ open class TransactionService(
         billId: UUID?,
         categoryId: UUID?,
         uncategorized: Boolean?,
+        creditDebitType: CreditDebitType?,
+        types: List<TransactionType>?,
         month: Int?,
         year: Int?,
     ): List<Transaction>? {
@@ -331,6 +339,8 @@ open class TransactionService(
                 }
             }
 
+        val normalizedTypes = types?.takeIf { it.isNotEmpty() }
+
         return base.filter { tx ->
             val belongsToUserMatches = belongsToUserId == null || tx.belongsToUserId == belongsToUserId
             val belongsToNameMatches = normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
@@ -338,7 +348,9 @@ open class TransactionService(
                 normalizedTagFilterSet == null ||
                     normalizedTagFilterSet.isEmpty() ||
                     tx.tags.any { normalizedTagFilterSet.contains(it) }
-            belongsToUserMatches && belongsToNameMatches && tagsMatch
+            val creditDebitTypeMatches = creditDebitType == null || tx.creditDebitType == creditDebitType
+            val typeMatches = normalizedTypes == null || tx.type in normalizedTypes
+            belongsToUserMatches && belongsToNameMatches && tagsMatch && creditDebitTypeMatches && typeMatches
         }
     }
 

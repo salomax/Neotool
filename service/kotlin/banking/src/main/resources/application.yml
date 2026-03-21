@@ -99,7 +99,7 @@ graphql:
     enabled: true
     path: /graphiql
   # Apollo Router URL for service-to-service calls (e.g. assets upload).
-  # Required when any outbound GraphQL call is used (logo hydration, etc).
+  # Required when outbound GraphQL calls are used.
   router:
     url: ${GRAPHQL_ROUTER_URL:http://localhost:4000/graphql}
 
@@ -111,13 +111,9 @@ security:
     id: ${SECURITY_SERVICE_ID:}
     secret: ${SECURITY_SERVICE_SECRET:}
 
-# logo.dev integration — fetches institution logos by domain.
-# Leave LOGO_DEV_TOKEN unset (or empty) to disable logo hydration entirely.
 # Assets service — for import file storage (presigned upload/download).
 # Set ASSETS_SERVICE_URL in deployment (e.g. http://assets-service or http://localhost:port).
 banking:
-  logodev:
-    token: ${LOGO_DEV_TOKEN:}
   assets-service:
     url: ${ASSETS_SERVICE_URL:}
     graphql-path: /graphql

@@ -3,11 +3,9 @@ package io.github.salomax.neotool.banking.repo
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
 import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
-import io.github.salomax.neotool.banking.model.transaction.MerchantLogoCacheEntity
 import io.github.salomax.neotool.banking.model.transaction.MerchantMapper
 import jakarta.inject.Singleton
 import java.math.BigDecimal
-import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -31,24 +29,8 @@ open class DefaultMerchantRepository(
         return MerchantMapper.toDomain(merchantRepo.save(entity))
     }
 
-    override fun findDistinctDomainsWithoutLogoCache(): List<String> =
-        merchantRepo.findDistinctDomainsWithoutLogoCache()
-
     override fun findLogoAssetIdByDomain(domain: String): String? =
         logoCacheRepo.findByDomain(domain)?.assetId
-
-    override fun saveLogoCache(
-        domain: String,
-        assetId: String,
-    ) {
-        logoCacheRepo.save(
-            MerchantLogoCacheEntity(
-                domain = domain,
-                assetId = assetId,
-                fetchedAt = Instant.now(),
-            ),
-        )
-    }
 
     override fun findTopMerchants(
         accountId: UUID,

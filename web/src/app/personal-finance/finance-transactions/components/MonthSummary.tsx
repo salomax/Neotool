@@ -11,6 +11,16 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { CategoryIcon } from './category/CategoryIcon';
+import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
+
+/** Locale/currency for month summary amounts until user prefs are wired. */
+const MONTH_SUMMARY_LOCALE = 'pt-BR';
+const MONTH_SUMMARY_CURRENCY = 'BRL';
+
+const CURRENCY_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
+  style: 'currency',
+  currency: MONTH_SUMMARY_CURRENCY,
+};
 
 export interface CategoryTotalItem {
   category: { id: string; name: string; icon: string | null; color: string | null };
@@ -45,91 +55,272 @@ interface MonthSummaryProps {
   incomeByCategory?: CategoryTotalItem[];
   /** Called when user clicks a category row to filter transactions by category. */
   onCategoryClick?: (categoryId: string) => void;
+  /** When set, rows for other categories render disabled (gray) across income and expenses. */
+  activeCategoryFilterId?: string | null;
+  /** Filter table by credit (income) or debit (expenses); the other summary row is dimmed. */
+  onCreditDebitTypeClick?: (type: CreditDebitType) => void;
+  activeCreditDebitTypeFilter?: CreditDebitType | null;
 }
+
+function splitVolumePercentages(absIncome: number, absExpenses: number, totalVolume: number) {
+  if (totalVolume <= 0) return { incomePct: 0, expensesPct: 0 };
+  const incomePct = Math.round((absIncome / totalVolume) * 100);
+  return { incomePct, expensesPct: 100 - incomePct };
+}
+
+interface SummaryMetricRowProps {
+  icon: React.ReactNode;
+  color: string;
+  label: string;
+  value: number | undefined;
+  percentage?: number;
+  isLoading?: boolean;
+  formatCurrency: (value: number) => string;
+  totalSuffix: string;
+  dimmed?: boolean;
+  onActivate?: () => void;
+}
+
+const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
+  icon,
+  color,
+  label,
+  value,
+  percentage,
+  isLoading = false,
+  formatCurrency,
+  totalSuffix,
+  dimmed = false,
+  onActivate,
+}) => {
+  const theme = useTheme();
+  const disabledFg = theme.palette.text.disabled;
+  const interactive = Boolean(onActivate) && !dimmed && !isLoading;
+
+  return (
+    <Box
+      onClick={interactive ? onActivate : undefined}
+      onKeyDown={
+        interactive
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onActivate!();
+              }
+            }
+          : undefined
+      }
+      role={interactive ? 'button' : dimmed ? 'presentation' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-disabled={dimmed || undefined}
+      sx={{
+        borderRadius: 1,
+        px: 1,
+        py: 0.75,
+        opacity: dimmed ? 0.55 : 1,
+        filter: dimmed ? 'grayscale(1)' : 'none',
+        transition: theme.transitions.create(['opacity', 'filter', 'background-color'], {
+          duration: theme.transitions.duration.shorter,
+        }),
+        cursor: interactive ? 'pointer' : 'default',
+        pointerEvents: dimmed ? 'none' : 'auto',
+        ...(interactive
+          ? {
+              '&:hover': { bgcolor: theme.palette.action.hover },
+              '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+            }
+          : {}),
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Avatar
+          variant="rounded"
+          sx={{
+            bgcolor: dimmed ? alpha(disabledFg, 0.12) : alpha(color, 0.1),
+            color: dimmed ? disabledFg : color,
+            mr: 1.5,
+            width: 40,
+            height: 40,
+          }}
+        >
+          {icon}
+        </Avatar>
+        <Box sx={{ flexGrow: 1 }}>
+          <Stack spacing={0.3}>
+            <Typography
+              variant="subtitle2"
+              sx={{
+                fontWeight: 600,
+                lineHeight: 1.2,
+                color: dimmed ? disabledFg : 'text.primary',
+              }}
+            >
+              {label}
+            </Typography>
+            {percentage !== undefined && (
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {isLoading ? <Skeleton width={60} /> : `${percentage}% ${totalSuffix}`}
+              </Typography>
+            )}
+          </Stack>
+        </Box>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: dimmed ? disabledFg : color }}>
+          {isLoading ? <Skeleton width={88} height={22} /> : formatCurrency(value || 0)}
+        </Typography>
+      </Box>
+    </Box>
+  );
+};
+
+interface CategoryProgressRowProps {
+  item: CategoryTotalItem;
+  onCategoryClick?: (categoryId: string) => void;
+  nameFontWeight: number;
+  percentFontWeight: number;
+  /** Muted styling and no interaction (another category is the active table filter). */
+  dimmed?: boolean;
+  /** Whether this row is under expenses or income (for credit/debit type filter dimming). */
+  categorySection?: 'expenses' | 'income';
+  activeCreditDebitTypeFilter?: CreditDebitType | null;
+}
+
+const CategoryProgressRow = React.memo(function CategoryProgressRow({
+  item,
+  onCategoryClick,
+  nameFontWeight,
+  percentFontWeight,
+  dimmed = false,
+  categorySection,
+  activeCreditDebitTypeFilter,
+}: CategoryProgressRowProps) {
+  const theme = useTheme();
+  const barColor = item.category.color ?? theme.palette.primary.main;
+  const trackBg = alpha(theme.palette.text.primary, 0.08);
+  const disabledFg = theme.palette.text.disabled;
+  const disabledBar = theme.palette.action.disabledBackground;
+  const disabledBarTrack = alpha(theme.palette.text.primary, 0.06);
+
+  const dimmedByType =
+    categorySection != null &&
+    activeCreditDebitTypeFilter != null &&
+    ((activeCreditDebitTypeFilter === CreditDebitType.Credit && categorySection === 'expenses') ||
+      (activeCreditDebitTypeFilter === CreditDebitType.Debit && categorySection === 'income'));
+
+  const rowDimmed = dimmed || dimmedByType;
+
+  const interactive = Boolean(onCategoryClick) && !rowDimmed;
+  const activateCategory = interactive ? () => onCategoryClick!(item.category.id) : undefined;
+
+  return (
+    <Box
+      onClick={activateCategory}
+      onKeyDown={
+        interactive
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onCategoryClick!(item.category.id);
+              }
+            }
+          : undefined
+      }
+      role={interactive ? 'button' : rowDimmed ? 'presentation' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-disabled={rowDimmed || undefined}
+      sx={{
+        borderRadius: 1,
+        px: 1,
+        py: 0.75,
+        opacity: rowDimmed ? 0.55 : 1,
+        filter: rowDimmed ? 'grayscale(1)' : 'none',
+        transition: theme.transitions.create(['opacity', 'filter', 'background-color'], {
+          duration: theme.transitions.duration.shorter,
+        }),
+        cursor: interactive ? 'pointer' : 'default',
+        pointerEvents: rowDimmed ? 'none' : 'auto',
+        ...(interactive
+          ? {
+              '&:hover': {
+                bgcolor: theme.palette.action.hover,
+              },
+              '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+            }
+          : {}),
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <CategoryIcon
+            iconName={item.category.icon}
+            color={rowDimmed ? disabledFg : item.category.color ?? undefined}
+            size={18}
+            sx={{ flexShrink: 0 }}
+          />
+          <Typography
+            variant="body2"
+            sx={{
+              fontWeight: nameFontWeight,
+              color: rowDimmed ? disabledFg : 'text.primary',
+            }}
+            noWrap
+          >
+            {item.category.name}
+          </Typography>
+        </Box>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: percentFontWeight,
+            whiteSpace: 'nowrap',
+            color: rowDimmed ? disabledFg : 'text.primary',
+          }}
+        >
+          {Math.round(item.percentage)}%
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={Math.min(item.percentage, 100)}
+        sx={{
+          mt: 1,
+          height: 6,
+          borderRadius: 2,
+          bgcolor: rowDimmed ? disabledBarTrack : trackBg,
+          '& .MuiLinearProgress-bar': {
+            bgcolor: rowDimmed ? disabledBar : barColor,
+            borderRadius: 2,
+          },
+        }}
+      />
+    </Box>
+  );
+});
 
 export const MonthSummary: React.FC<MonthSummaryProps> = ({
   summary,
   loading,
   error,
   onRetry,
+  isConsolidated = false,
   expensesByCategory,
   incomeByCategory,
   onCategoryClick,
+  activeCategoryFilterId = null,
+  onCreditDebitTypeClick,
+  activeCreditDebitTypeFilter = null,
 }) => {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const [drawerState, setDrawerState] = React.useState<{ open: boolean; kind: 'expenses' | 'income' | null }>({
-    open: false,
-    kind: null,
-  });
+  const [drawerKind, setDrawerKind] = React.useState<'expenses' | 'income' | null>(null);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL', // Assuming BRL for now, or could come from account/user prefs
-    }).format(value);
-  };
+  const canPickCreditDebitType = Boolean(onCreditDebitTypeClick) && !(loading && !summary);
 
-  const calculatePercentage = (value: number, total: number) => {
-    if (!total || total === 0) return 0;
-    return Math.round((value / total) * 100);
-  };
+  const currencyFormatter = React.useMemo(
+    () => new Intl.NumberFormat(MONTH_SUMMARY_LOCALE, CURRENCY_FORMAT_OPTIONS),
+    [],
+  );
 
-  const renderItem = ({
-    icon,
-    color,
-    label,
-    value,
-    percentage,
-    isLoading = false,
-  }: {
-    icon: React.ReactNode;
-    color: string;
-    label: string;
-    value: number | undefined;
-    percentage?: number;
-    isLoading?: boolean;
-  }) => {
-    return (
-      <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Avatar
-          variant="rounded"
-          sx={{
-            bgcolor: alpha(color, 0.1),
-            color: color,
-            mr: 2,
-            width: 48,
-            height: 48,
-          }}
-        >
-          {icon}
-        </Avatar>
-        <Box sx={{ flexGrow: 1 }}>
-          <Stack spacing={0.5}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-              {label}
-            </Typography>
-            {percentage !== undefined && (
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                {isLoading ? (
-                  <Skeleton width={60} />
-                ) : (
-                  `${percentage}% ${t('financeTransactions.monthSummary.total')}`
-                )}
-              </Typography>
-            )}
-          </Stack>
-        </Box>
-        <Typography variant="subtitle1" sx={{ fontWeight: 700, color: color }}>
-          {isLoading ? (
-            <Skeleton width={100} />
-          ) : (
-            formatCurrency(value || 0)
-          )}
-        </Typography>
-      </Box>
-    );
-  };
+  const formatCurrency = React.useCallback((value: number) => currencyFormatter.format(value), [currencyFormatter]);
 
   const income = summary?.totalIncome || 0;
   const expenses = summary?.totalExpenses || 0;
@@ -139,8 +330,13 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   const absExpenses = Math.abs(expenses);
   const totalVolume = absIncome + absExpenses;
 
-  const incomePercentage = totalVolume > 0 ? calculatePercentage(absIncome, totalVolume) : 0;
-  const expensesPercentage = totalVolume > 0 ? calculatePercentage(absExpenses, totalVolume) : 0;
+  const { incomePct: incomePercentage, expensesPct: expensesPercentage } = splitVolumePercentages(
+    absIncome,
+    absExpenses,
+    totalVolume,
+  );
+
+  const totalSuffix = t('financeTransactions.monthSummary.total');
 
   const renderCategorySummary = ({
     title,
@@ -158,7 +354,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
     return (
       <Box>
-        <Divider sx={{ mb: 3 }}/>
+        <Divider sx={{ mb: 3 }} />
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
             {title}
@@ -167,7 +363,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             <Button
               variant="text"
               size="small"
-              onClick={() => setDrawerState({ open: true, kind })}
+              onClick={() => setDrawerKind(kind)}
               sx={{
                 p: 0,
                 minWidth: 'auto',
@@ -189,44 +385,16 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         ) : (
           <Stack spacing={2}>
             {topItems.map((item) => (
-              <Box
+              <CategoryProgressRow
                 key={item.category.id}
-                onClick={() => onCategoryClick?.(item.category.id)}
-                sx={{
-                  cursor: onCategoryClick ? 'pointer' : 'default',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                    <CategoryIcon
-                      iconName={item.category.icon}
-                      color={item.category.color ?? undefined}
-                      size={18}
-                      sx={{ flexShrink: 0 }}
-                    />
-                    <Typography variant="body2" sx={{ fontWeight: 500 }} noWrap>
-                      {item.category.name}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}>
-                    {Math.round(item.percentage)}%
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(item.percentage, 100)}
-                  sx={{
-                    mt: 1,
-                    height: 6,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.text.primary, 0.08),
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: item.category.color ?? theme.palette.primary.main,
-                      borderRadius: 2,
-                    },
-                  }}
-                />
-              </Box>
+                item={item}
+                onCategoryClick={onCategoryClick}
+                nameFontWeight={500}
+                percentFontWeight={600}
+                dimmed={Boolean(activeCategoryFilterId && item.category.id !== activeCategoryFilterId)}
+                categorySection={kind}
+                activeCreditDebitTypeFilter={activeCreditDebitTypeFilter}
+              />
             ))}
           </Stack>
         )}
@@ -277,43 +445,49 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
     );
   }
 
+  const volumeBarTrackBg = alpha(theme.palette.divider, 0.28);
+
+  const drawerItems = drawerKind === 'expenses' ? expensesByCategory : drawerKind === 'income' ? incomeByCategory : undefined;
+  const drawerTitle =
+    drawerKind === 'expenses'
+      ? t('financeTransactions.monthSummary.expensesByCategory')
+      : drawerKind === 'income'
+        ? t('financeTransactions.monthSummary.incomeByCategory')
+        : '';
+
   return (
     <Box>
       <Box sx={{ mb: 2 }}>
-        <Label>
-          {t('financeTransactions.monthSummary.balance')}
-        </Label>
-        <Typography 
-          variant="h3" 
+        <Label>{t('financeTransactions.monthSummary.balance')}</Label>
+        <Typography
+          variant="h3"
           component="div"
-          sx={{ 
-            fontWeight: 700, 
+          sx={{
+            fontWeight: 700,
             mt: 0.5,
             fontSize: '2.3rem',
-            color: theme.palette.text.primary
+            color: theme.palette.text.primary,
           }}
         >
           {loading && !summary ? (
             <Skeleton width={200} />
           ) : (
-            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })
-              .formatToParts(balance)
-              .map((part, index) => {
-                const isMain = part.type === 'integer' || part.type === 'group';
-                return (
-                  <Box
-                    key={index}
-                    component="span"
-                    sx={{
-                      fontSize: isMain ? 'inherit' : '0.6em',
-                      opacity: isMain ? 1 : 0.7,
-                      mr: part.type === 'currency' ? 0.5 : 0,
-                    }}
-                  >
-                    {part.value}
-                  </Box>
-                );
-              })
+            currencyFormatter.formatToParts(balance).map((part, index) => {
+              const isMain = part.type === 'integer' || part.type === 'group';
+              return (
+                <Box
+                  key={`${part.type}-${index}`}
+                  component="span"
+                  sx={{
+                    fontSize: isMain ? 'inherit' : '0.6em',
+                    opacity: isMain ? 1 : 0.7,
+                    mr: part.type === 'currency' ? 0.5 : 0,
+                  }}
+                >
+                  {part.value}
+                </Box>
+              );
+            })
           )}
         </Typography>
       </Box>
@@ -321,23 +495,34 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
       <Divider sx={{ mb: 3 }} />
 
       <Stack spacing={3}>
-        {renderItem({ 
-          icon: <IncomeIcon />, 
-          color: theme.palette.success.main, 
-          label: t('financeTransactions.monthSummary.income'), 
-          value: income, 
-          percentage: incomePercentage,
-          isLoading: loading && !summary
-        })}
-        
-        {renderItem({ 
-          icon: <ExpenseIcon />, 
-          color: theme.palette.error.main, 
-          label: t('financeTransactions.monthSummary.expenses'), 
-          value: expenses, 
-          percentage: expensesPercentage,
-          isLoading: loading && !summary
-        })}
+        <SummaryMetricRow
+          icon={<IncomeIcon />}
+          color={theme.palette.success.main}
+          label={t('financeTransactions.monthSummary.income')}
+          value={income}
+          percentage={incomePercentage}
+          isLoading={loading && !summary}
+          formatCurrency={formatCurrency}
+          totalSuffix={totalSuffix}
+          dimmed={activeCreditDebitTypeFilter === CreditDebitType.Debit}
+          onActivate={
+            canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Credit) : undefined
+          }
+        />
+        <SummaryMetricRow
+          icon={<ExpenseIcon />}
+          color={theme.palette.error.main}
+          label={t('financeTransactions.monthSummary.expenses')}
+          value={expenses}
+          percentage={expensesPercentage}
+          isLoading={loading && !summary}
+          formatCurrency={formatCurrency}
+          totalSuffix={totalSuffix}
+          dimmed={activeCreditDebitTypeFilter === CreditDebitType.Credit}
+          onActivate={
+            canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Debit) : undefined
+          }
+        />
       </Stack>
 
       {(totalVolume > 0 || (loading && !summary)) && (
@@ -349,7 +534,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             display: 'flex',
             overflow: 'hidden',
             width: '100%',
-            bgcolor: theme.palette.grey[100],
+            bgcolor: volumeBarTrackBg,
           }}
         >
           {loading && !summary ? (
@@ -392,63 +577,25 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         </Stack>
       )}
 
-      <Drawer
-        open={drawerState.open}
-        onClose={() => setDrawerState({ open: false, kind: null })}
-        anchor="right"
-        size="sm"
-      >
-        <Drawer.Header
-          title={
-            drawerState.kind === 'expenses'
-              ? t('financeTransactions.monthSummary.expensesByCategory')
-              : t('financeTransactions.monthSummary.incomeByCategory')
-          }
-          showCloseButton
-        />
+      <Drawer open={drawerKind !== null} onClose={() => setDrawerKind(null)} anchor="right" size="sm">
+        <Drawer.Header title={drawerTitle} showCloseButton />
         <Drawer.Body>
-          <Stack spacing={2}>
-            {(drawerState.kind === 'expenses' ? expensesByCategory : incomeByCategory)?.map((item) => (
-              <Box
-                key={item.category.id}
-                onClick={() => onCategoryClick?.(item.category.id)}
-                sx={{
-                  cursor: onCategoryClick ? 'pointer' : 'default',
-                }}
-              >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-                    <CategoryIcon
-                      iconName={item.category.icon}
-                      color={item.category.color ?? undefined}
-                      size={18}
-                      sx={{ flexShrink: 0 }}
-                    />
-                    <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                      {item.category.name}
-                    </Typography>
-                  </Box>
-                  <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: 'nowrap' }}>
-                    {Math.round(item.percentage)}%
-                  </Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={Math.min(item.percentage, 100)}
-                  sx={{
-                    mt: 1,
-                    height: 6,
-                    borderRadius: 2,
-                    bgcolor: alpha(theme.palette.text.primary, 0.08),
-                    '& .MuiLinearProgress-bar': {
-                      bgcolor: item.category.color ?? theme.palette.primary.main,
-                      borderRadius: 2,
-                    },
-                  }}
+          {drawerKind !== null && drawerItems && (
+            <Stack spacing={2}>
+              {drawerItems.map((item) => (
+                <CategoryProgressRow
+                  key={item.category.id}
+                  item={item}
+                  onCategoryClick={onCategoryClick}
+                  nameFontWeight={600}
+                  percentFontWeight={700}
+                  dimmed={Boolean(activeCategoryFilterId && item.category.id !== activeCategoryFilterId)}
+                  categorySection={drawerKind}
+                  activeCreditDebitTypeFilter={activeCreditDebitTypeFilter}
                 />
-              </Box>
-            ))}
-          </Stack>
+              ))}
+            </Stack>
+          )}
         </Drawer.Body>
       </Drawer>
     </Box>

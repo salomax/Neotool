@@ -30,11 +30,11 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.AssetDailyPriceDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetAutocompleteConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetAutocompleteItemDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentAssetEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
@@ -1094,41 +1094,41 @@ class FinancialDataWiringFactory(
             }
             .type("ListedAssetAutocompleteConnection") { type ->
                 type.dataFetcher("suggestions", createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                    env.getSource<InvestmentAssetAutocompleteConnectionDTO>()?.suggestions ?: emptyList()
+                    env.getSource<ListedAssetAutocompleteConnectionDTO>()?.suggestions ?: emptyList()
                 })
             }
             .type("ListedAssetAutocompleteItem") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetAutocompleteItemDTO>()?.id })
-                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetAutocompleteItemDTO>()?.ticker })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetAutocompleteItemDTO>()?.name })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetAutocompleteItemDTO>()?.assetType })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetAutocompleteItemDTO>()?.isActive })
+                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.id })
+                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.ticker })
+                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.name })
+                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.assetType })
+                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.isActive })
             }
             .type("ListedAssetConnection") { type ->
                 type
-                    .dataFetcher("edges", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetConnectionDTO>()?.edges ?: emptyList() })
-                    .dataFetcher("pageInfo", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetConnectionDTO>()?.pageInfo })
-                    .dataFetcher("totalCount", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetConnectionDTO>()?.totalCount })
+                    .dataFetcher("edges", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.edges ?: emptyList() })
+                    .dataFetcher("pageInfo", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.pageInfo })
+                    .dataFetcher("totalCount", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.totalCount })
             }
             .type("ListedAssetEdge") { type ->
                 type
-                    .dataFetcher("node", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetEdgeDTO>()?.node })
-                    .dataFetcher("cursor", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetEdgeDTO>()?.cursor })
+                    .dataFetcher("node", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetEdgeDTO>()?.node })
+                    .dataFetcher("cursor", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetEdgeDTO>()?.cursor })
             }
             .type("ListedAsset") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.id })
-                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.ticker })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.name })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.assetType })
-                    .dataFetcher("exchange", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.exchange })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.isActive })
-                    .dataFetcher("latestPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentAssetDTO>()?.latestPrice })
+                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.id })
+                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.ticker })
+                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.name })
+                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.assetType })
+                    .dataFetcher("exchange", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.exchange })
+                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.isActive })
+                    .dataFetcher("latestPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.latestPrice })
                     .dataFetcher(
                         "priceHistory",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val asset = env.getSource<InvestmentAssetDTO>()
+                            val asset = env.getSource<ListedAssetDTO>()
                             if (asset == null) {
                                 emptyList<AssetDailyPriceDTO>()
                             } else {

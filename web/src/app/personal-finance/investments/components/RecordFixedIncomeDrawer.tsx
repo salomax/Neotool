@@ -413,7 +413,7 @@ export function RecordFixedIncomeDrawer({
           </Stack>
         ) : (
           <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSubmit)}>
+            <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
               <Stack spacing={3}>
                 {mutationError && <FormErrorBanner message={mutationError.message} />}
 
@@ -505,44 +505,25 @@ export function RecordFixedIncomeDrawer({
                   label={t("investments.recordHolding.fields.isTaxExempt")}
                   data-testid="record-tax-exempt-checkbox"
                 />
-
-                <Divider />
-
-                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                  <Button
-                    type="button"
-                    variant="outlined"
-                    onClick={onClose}
-                    disabled={isSubmitting}
-                  >
-                    {t("actions.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={isSubmitting || !resolvedFinancialAccountId}
-                    startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
-                    sx={(theme) => ({
-                      boxShadow: theme.custom?.shadow?.(2, theme.palette.primary.main) ?? theme.shadows[2],
-                      "&:hover": {
-                        boxShadow: theme.custom?.shadow?.(3, theme.palette.primary.main) ?? theme.shadows[4],
-                      },
-                      "&:active": {
-                        boxShadow: theme.custom?.shadow?.(1, theme.palette.primary.main) ?? theme.shadows[1],
-                      },
-                      "&.Mui-disabled": { boxShadow: "none" },
-                    })}
-                  >
-                    {isSubmitting
-                      ? t("investments.recordHolding.actions.submitting")
-                      : t("investments.recordHolding.actions.submit")}
-                  </Button>
-                </Box>
               </Stack>
             </form>
           </FormProvider>
         )}
       </Drawer.Body>
+      {!needsAccountSelection ? (
+        <Drawer.Footer>
+          <Drawer.ActionButtons
+            cancelText={t("actions.cancel")}
+            submitText={t("investments.recordHolding.actions.submit")}
+            submittingText={t("investments.recordHolding.actions.submitting")}
+            onCancel={onClose}
+            submitForm="record-fixed-income-form"
+            cancelDisabled={isSubmitting}
+            submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+            submitting={isSubmitting}
+          />
+        </Drawer.Footer>
+      ) : null}
     </Drawer>
   );
 }

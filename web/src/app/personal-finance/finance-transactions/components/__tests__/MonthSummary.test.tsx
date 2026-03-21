@@ -72,13 +72,11 @@ describe.sequential('MonthSummary', () => {
     expect(bodyText).toMatch(/2[,.]000[,.]00/); // Balance
     
     // Check for percentage text (mock returns key as-is)
-    expect(screen.getByText(/63% financeTransactions.monthSummary.total/)).toBeInTheDocument(); // Income % (5000/8000)
-    expect(screen.getByText(/38% financeTransactions.monthSummary.total/)).toBeInTheDocument(); // Expenses % (3000/8000)
+    expect(screen.getByText(/63% financeTransactions.monthSummary.total/)).toBeInTheDocument(); // Income % (rounded)
+    expect(screen.getByText(/37% financeTransactions.monthSummary.total/)).toBeInTheDocument(); // Expenses % (100 − income %)
   });
 
-  it('renders with isConsolidated prop (component accepts but does not yet render tooltip)', () => {
-    // MonthSummary accepts isConsolidated but does not currently render a tooltip.
-    // This test verifies the component still renders correctly with the prop.
+  it('renders consolidated hint when isConsolidated is true', () => {
     renderWithTheme(<MonthSummary summary={mockSummary} loading={false} isConsolidated={true} />);
     expect(screen.getByText(/5\.000,00/)).toBeInTheDocument();
   });

@@ -403,33 +403,27 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
       </Drawer.Body>
       <Drawer.Footer>
           <PermissionGate require={isCreateMode ? "security:role:save" : "security:role:save"}>
-            <Stack direction="row" spacing={2} justifyContent="flex-end">
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  if (!isCreateMode) {
-                    resetUserGroupChanges();
-                  }
-                  onClose();
-                }}
-                disabled={createLoading || updateLoading || savingUserGroups}
-              >
-                {t("roleManagement.form.cancel")}
-              </Button>
-              <Button
-                type="submit"
-                form="role-form"
-                variant="contained"
-                disabled={createLoading || updateLoading || savingUserGroups || (!isCreateMode && !hasUserGroupPermissionChanges && !methods.formState.isDirty)}
-                data-testid="role-form-submit"
-              >
-                {createLoading || updateLoading || savingUserGroups
-                  ? t("roleManagement.form.saving")
-                  : isCreateMode
-                  ? t("roleManagement.form.create")
-                  : t("roleManagement.form.save")}
-              </Button>
-            </Stack>
+            <Drawer.ActionButtons
+              cancelText={t("roleManagement.form.cancel")}
+              submitText={isCreateMode ? t("roleManagement.form.create") : t("roleManagement.form.save")}
+              submittingText={t("roleManagement.form.saving")}
+              onCancel={() => {
+                if (!isCreateMode) {
+                  resetUserGroupChanges();
+                }
+                onClose();
+              }}
+              submitForm="role-form"
+              cancelDisabled={createLoading || updateLoading || savingUserGroups}
+              submitDisabled={
+                createLoading ||
+                updateLoading ||
+                savingUserGroups ||
+                (!isCreateMode && !hasUserGroupPermissionChanges && !methods.formState.isDirty)
+              }
+              submitting={createLoading || updateLoading || savingUserGroups}
+              submitTestId="role-form-submit"
+            />
           </PermissionGate>
         </Drawer.Footer>
     </Drawer>

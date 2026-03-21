@@ -19,14 +19,8 @@ interface MerchantRepository {
     /** Persists a new or updated merchant. */
     fun save(merchant: Merchant): Merchant
 
-    /** Returns all distinct domains from merchants where no logo cache entry exists. */
-    fun findDistinctDomainsWithoutLogoCache(): List<String>
-
     /** Returns the asset_id for a cached domain logo, or null if not yet cached. */
     fun findLogoAssetIdByDomain(domain: String): String?
-
-    /** Persists a logo cache entry (domain → asset_id). */
-    fun saveLogoCache(domain: String, assetId: String)
 
     /**
      * Returns top-merchant rows for the given account, optionally filtered by

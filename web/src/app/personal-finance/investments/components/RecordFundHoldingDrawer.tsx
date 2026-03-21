@@ -383,7 +383,7 @@ export function RecordFundHoldingDrawer({
           </Stack>
         ) : (
           <FormProvider {...methods}>
-            <form onSubmit={methods.handleSubmit(onSubmit)}>
+            <form id="record-fund-form" onSubmit={methods.handleSubmit(onSubmit)}>
               <Stack spacing={2}>
                 {mutationError && <FormErrorBanner message={mutationError.message} />}
 
@@ -516,36 +516,25 @@ export function RecordFundHoldingDrawer({
                   </Stack>
                 )}
 
-                <Divider />
-
-                <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1 }}>
-                  <Button type="button" variant="outlined" onClick={onClose} disabled={isSubmitting}>
-                    {t("actions.cancel")}
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={isSubmitting || !resolvedFinancialAccountId}
-                    startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
-                    sx={(theme) => ({
-                      boxShadow: theme.custom?.shadow?.(2, theme.palette.primary.main) ?? theme.shadows[2],
-                      "&:hover": {
-                        boxShadow: theme.custom?.shadow?.(3, theme.palette.primary.main) ?? theme.shadows[4],
-                      },
-                      "&:active": {
-                        boxShadow: theme.custom?.shadow?.(1, theme.palette.primary.main) ?? theme.shadows[1],
-                      },
-                      "&.Mui-disabled": { boxShadow: "none" },
-                    })}
-                  >
-                    {isSubmitting ? t("investments.recordFund.actions.submitting") : t("investments.recordFund.actions.submit")}
-                  </Button>
-                </Box>
               </Stack>
             </form>
           </FormProvider>
         )}
       </Drawer.Body>
+      {!needsAccountSelection ? (
+        <Drawer.Footer>
+          <Drawer.ActionButtons
+            cancelText={t("actions.cancel")}
+            submitText={t("investments.recordFund.actions.submit")}
+            submittingText={t("investments.recordFund.actions.submitting")}
+            onCancel={onClose}
+            submitForm="record-fund-form"
+            cancelDisabled={isSubmitting}
+            submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+            submitting={isSubmitting}
+          />
+        </Drawer.Footer>
+      ) : null}
     </Drawer>
   );
 }

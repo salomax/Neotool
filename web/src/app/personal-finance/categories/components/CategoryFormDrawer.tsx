@@ -20,6 +20,7 @@ import { CategoryIcon } from '../../finance-transactions/components/category/Cat
 import { CATEGORY_ICON_NAMES, CATEGORY_COLOR_PALETTE } from '../constants';
 import type { TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
 import { CategoryApplicableTo } from '@/lib/graphql/types/__generated__/graphql';
+import { DrawerActionButtons } from '@/shared/components/ui/layout/Drawer';
 
 export interface CategoryFormValues {
   name: string;
@@ -104,7 +105,7 @@ export function CategoryFormDrawer({
           </IconButton>
         </Box>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
+        <form id="category-form" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
           <Stack spacing={2}>
             <TextField
               label={t('categories.form.name')}
@@ -223,18 +224,18 @@ export function CategoryFormDrawer({
             </Box>
           </Stack>
 
-          <Stack direction="row" spacing={1} sx={{ mt: 'auto', pt: 2 }} justifyContent="flex-end">
-            <Button onClick={onClose} disabled={submitting || loading}>
-              {t('actions.cancel')}
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              disabled={!values.name.trim() || submitting || loading}
-            >
-              {submitting || loading ? t('financeTransactions.actions.saving') : t('actions.save')}
-            </Button>
-          </Stack>
+          <Box sx={{ mt: 'auto', pt: 2 }}>
+            <DrawerActionButtons
+              cancelText={t('actions.cancel')}
+              submitText={t('actions.save')}
+              submittingText={t('financeTransactions.actions.saving')}
+              onCancel={onClose}
+              submitForm="category-form"
+              cancelDisabled={submitting || loading}
+              submitDisabled={!values.name.trim() || submitting || loading}
+              submitting={submitting || loading}
+            />
+          </Box>
         </form>
       </Box>
     </Drawer>
