@@ -120,6 +120,7 @@
       "columns": {
         "asset": "Asset",
         "type": "Type",
+        "financialAccount": "Financial account",
         "quantity": "Quantity",
         "averagePrice": "Average price",
         "currentValue": "Current value",
@@ -137,6 +138,7 @@
       "expiredBadge": "Expired",
       "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
       "groupTotalEstimated": "Part of this total is estimated value.",
+      "total": "Total",
       "groupSummary_one": "{{count}} asset · {{total}}",
       "groupSummary_other": "{{count}} assets · {{total}}",
       "rowActions": {
@@ -145,7 +147,7 @@
         "remove": "Delete"
       },
       "groups": {
-        "variableIncomeB3": "Variable income (B3)",
+        "variableIncome": "Variable income",
         "bankFixedIncome": "Fixed income",
         "creditFixedIncome": "Credit fixed income",
         "treasuryDirect": "Treasury Direct",

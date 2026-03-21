@@ -113,6 +113,15 @@ export const TRANSACTIONS = gql`
           billId
           installmentNumber
           totalInstallments
+          attachments {
+            id
+            assetId
+            filename
+            mimeType
+            sizeBytes
+            downloadUrl
+            createdAt
+          }
         }
       }
       pageInfo {
@@ -299,6 +308,15 @@ export const INVESTMENT_HOLDINGS = gql`
       maturityDate
       isTaxExempt
       source
+      attachments {
+        id
+        assetId
+        filename
+        mimeType
+        sizeBytes
+        downloadUrl
+        createdAt
+      }
       asset {
         id
         name

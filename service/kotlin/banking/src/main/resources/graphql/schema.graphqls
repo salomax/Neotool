@@ -458,6 +458,9 @@ type Transaction {
   payeeMcc: Int
   billPostDate: Date
 
+  # Attachments (receipts, contracts, guarantees, etc.)
+  attachments: [TransactionAttachment!]!
+
   # Audit
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1052,6 +1055,8 @@ type InvestmentHolding {
   "Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today."
   isExpired: Boolean!
   source: InvestmentSource!
+  """Attached files (corretagem, contracts, etc.). Max 3."""
+  attachments: [HoldingAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -1176,6 +1181,62 @@ input RecordInvestmentTransactionInput {
   gracePeriodDate: Date
   isTaxExempt: Boolean
   providerInvestmentId: String
+}
+
+# ============================================================================
+# Attachment Types
+# ============================================================================
+
+"""
+A file attached to a Transaction (receipt, contract, product guarantee, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per transaction. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type TransactionAttachment {
+  id: ID!
+  transactionId: ID!
+  assetId: ID!
+  """Original filename as uploaded by the user."""
+  filename: String
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+  """File size in bytes."""
+  sizeBytes: Int
+  """Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready."""
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+"""
+A file attached to an InvestmentHolding (nota de corretagem, contract, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per holding. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type HoldingAttachment {
+  id: ID!
+  holdingId: ID!
+  assetId: ID!
+  """Original filename as uploaded by the user."""
+  filename: String
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+  """File size in bytes."""
+  sizeBytes: Int
+  """Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready."""
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
+input AttachFileToTransactionInput {
+  transactionId: ID!
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
+input AttachFileToHoldingInput {
+  holdingId: ID!
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
 }
 
 # ============================================================================
@@ -1365,6 +1426,26 @@ extend type Mutation {
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+
+  """
+  Attach an already-uploaded asset to a transaction. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToTransaction.
+  Max 3 attachments per transaction.
+  """
+  attachFileToTransaction(input: AttachFileToTransactionInput!): TransactionAttachment!
+
+  """Remove an attachment from a transaction and delete the underlying asset."""
+  removeTransactionAttachment(attachmentId: ID!): Boolean!
+
+  """
+  Attach an already-uploaded asset to an investment holding. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToHolding.
+  Max 3 attachments per holding.
+  """
+  attachFileToHolding(input: AttachFileToHoldingInput!): HoldingAttachment!
+
+  """Remove an attachment from a holding and delete the underlying asset."""
+  removeHoldingAttachment(attachmentId: ID!): Boolean!
 }
 
 """Result of a bulk operation (e.g. bulkCategorize)."""

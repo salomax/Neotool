@@ -6,11 +6,15 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
+  Chip,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useTranslation } from '@/shared/i18n';
+import { Label } from '@/shared/components/ui/primitives/Label';
+import { personalFinanceTranslations } from '../../i18n';
 
 interface AssetGroupCardProps {
   title: string;
@@ -35,8 +39,26 @@ export function AssetGroupCard({
   headerAction,
   children,
 }: AssetGroupCardProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const cardRadius = theme.custom?.radius?.button ?? theme.shape.borderRadius;
+  const dividerColor = alpha(theme.palette.divider, 0.7);
+
+  const parsedSummary = React.useMemo(() => {
+    const normalized = summary.trim();
+    const delimiter = normalized.includes('·') ? '·' : normalized.includes('•') ? '•' : null;
+    if (!delimiter) return { countLabel: null as string | null, totalValue: normalized || null };
+
+    const parts = normalized
+      .split(delimiter)
+      .map((p) => p.trim())
+      .filter(Boolean);
+    if (parts.length < 2) return { countLabel: null as string | null, totalValue: normalized || null };
+    return {
+      countLabel: parts[0] ?? null,
+      totalValue: parts.slice(1).join(` ${delimiter} `) || null,
+    };
+  }, [summary]);
 
   return (
     <Accordion
@@ -44,16 +66,14 @@ export function AssetGroupCard({
       onChange={(_, isExpandedNext) => onToggle(isExpandedNext)}
       elevation={0}
       sx={{
-        mb: 2,
-        border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
-        borderRadius: `${cardRadius}px`,
+        mb: 0,
         overflow: 'hidden',
-        bgcolor: 'background.paper',
+        bgcolor: 'transparent',
+        borderRadius: `${cardRadius}px`,
         transition: 'none',
         '&:before': { display: 'none' },
         '&.Mui-expanded': {
           margin: 0,
-          mb: 2,
           borderRadius: `${cardRadius}px`,
         },
       }}
@@ -62,15 +82,26 @@ export function AssetGroupCard({
         expandIcon={<ExpandMoreIcon />}
         sx={{
           px: 2,
-          py: 1.5,
-          minHeight: 56,
-          bgcolor: alpha(theme.palette.primary.main, 0.04),
-          transition: 'background-color 0.18s ease',
+          py: 1.75,
+          minHeight: 64,
+          border: `1px solid ${dividerColor}`,
+          bgcolor: alpha(theme.palette.text.primary, 0.02),
+          borderRadius: `${cardRadius}px`,
+          overflow: 'hidden',
+          transition: 'none',
           '&.Mui-expanded': {
-            minHeight: 56,
+                      borderBottom: 'none',
+
+            minHeight: 64,
+            bgcolor: alpha(theme.palette.text.primary, 0.01),
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0,
           },
           '&:hover': {
-            bgcolor: alpha(theme.palette.primary.main, 0.06),
+            bgcolor: alpha(theme.palette.text.primary, 0.03),
+          },
+          '&.Mui-expanded:hover': {
+            bgcolor: alpha(theme.palette.text.primary, 0.02),
           },
           '& .MuiAccordionSummary-content': {
             margin: 0,
@@ -86,37 +117,92 @@ export function AssetGroupCard({
             {leadingIcon && (
               <Box
                 sx={{
-                  width: 36,
-                  height: 36,
+                  width: 40,
+                  height: 40,
                   borderRadius: `${cardRadius}px`,
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  bgcolor: alpha(theme.palette.primary.main, 0.08),
                   color: 'primary.main',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flex: '0 0 auto',
+                  '& .MuiSvgIcon-root': {
+                    fontSize: 22,
+                  },
                 }}
               >
                 {leadingIcon}
               </Box>
             )}
-            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <Typography variant="subtitle1" fontWeight={700} noWrap>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={800} noWrap sx={{ lineHeight: 1.1, fontSize: '1.2rem' }}>
                 {title}
               </Typography>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                <Typography variant="body2" color="text.secondary" noWrap>
-                  {summary}
-                </Typography>
-                {summaryAdornment}
-              </Box>
+              {parsedSummary.countLabel ? (
+                <Chip
+                  label={parsedSummary.countLabel}
+                  size="small"
+                  sx={{
+                    height: 18,
+                    fontSize: '.7rem',
+                    fontWeight: 400,
+                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                    color: 'text.primary',
+                    '& .MuiChip-label': { px: 1 },
+                  }}
+                />
+              ) : null}
             </Box>
           </Box>
 
-          {headerAction ? <Box sx={{ flex: '0 0 auto' }}>{headerAction}</Box> : null}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto', px: 5 }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
+              <Label sx={{ mb: 0, lineHeight: 1 }}>{t('investments.table.total')}</Label>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
+                {summaryAdornment}
+                <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 2 }}>
+                  {parsedSummary.totalValue ?? '—'}
+                </Typography>
+              </Box>
+            </Box>
+            {headerAction ? <Box sx={{ flex: '0 0 auto' }}>{headerAction}</Box> : null}
+          </Box>
         </Box>
       </AccordionSummary>
-      <AccordionDetails sx={{ pt: 0, px: 0 }}>{children}</AccordionDetails>
+      <AccordionDetails
+        sx={{
+          pt: 0,
+          px: 0,
+          pb: 0,
+          bgcolor: alpha(theme.palette.text.primary, 0.01),
+          borderBottomLeftRadius: `${cardRadius}px`,
+          borderBottomRightRadius: `${cardRadius}px`,
+          overflow: 'hidden',
+        }}
+      >
+        <Box
+          sx={{
+            border: `1px solid ${dividerColor}`,
+            borderRadius: `0 0 ${cardRadius}px ${cardRadius}px`,
+            overflow: 'hidden',
+            bgcolor: 'background.paper',
+            '& .MuiTableHead-root .MuiTableRow-root': {
+              bgcolor: alpha(theme.palette.primary.main, 0.04),
+            },
+            '& .MuiTableHead-root .MuiTableCell-root': {
+              bgcolor: 'transparent',
+            },
+            '& .MuiTableBody-root .MuiTableRow-root': {
+              bgcolor: 'background.paper',
+            },
+            '& .MuiTableCell-root': {
+              borderColor: dividerColor,
+            },
+          }}
+        >
+          {children}
+        </Box>
+      </AccordionDetails>
     </Accordion>
   );
 }

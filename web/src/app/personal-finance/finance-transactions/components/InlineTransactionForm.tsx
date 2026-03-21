@@ -37,6 +37,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
+import { AttachmentSection } from '../../components/AttachmentSection';
 
 interface InlineTransactionFormProps {
   isOpen: boolean;
@@ -518,9 +519,21 @@ export function InlineTransactionForm({
               />
             </Box>
 
+            {/* Attachments — only for existing transactions */}
+            {initialValues && (
+              <Box sx={{ flex: 1, mx: 2 }}>
+                <AttachmentSection
+                  transactionId={initialValues.id}
+                  attachments={initialValues.attachments ?? []}
+                  onChanged={onSuccess}
+                  compact
+                />
+              </Box>
+            )}
+
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Button 
-                onClick={onClose} 
+              <Button
+                onClick={onClose}
                 color="inherit"
                 size="small"
                 sx={{ 

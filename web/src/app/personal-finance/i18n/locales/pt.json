@@ -120,6 +120,7 @@
       "columns": {
         "asset": "Ativo",
         "type": "Tipo",
+        "financialAccount": "Conta financeira",
         "quantity": "Quantidade",
         "averagePrice": "Preço médio",
         "currentValue": "Valor atual",
@@ -137,6 +138,7 @@
       "expiredBadge": "Expirado",
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
       "groupTotalEstimated": "Parte do total é valor estimado.",
+      "total": "Total",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
       "rowActions": {
@@ -145,7 +147,7 @@
         "remove": "Excluir"
       },
       "groups": {
-        "variableIncomeB3": "Renda Variável (B3)",
+        "variableIncome": "Renda Variável",
         "bankFixedIncome": "Renda Fixa",
         "creditFixedIncome": "Renda Fixa Crédito",
         "treasuryDirect": "Tesouro Direto",

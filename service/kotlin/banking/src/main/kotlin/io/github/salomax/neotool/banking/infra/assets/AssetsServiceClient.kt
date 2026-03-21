@@ -137,7 +137,7 @@ open class AssetsServiceClient(
     }
 
     /**
-     * Fetches asset and returns downloadUrl with given TTL.
+     * Fetches asset metadata and a presigned download URL with the given TTL.
      */
     fun getAsset(
         assetId: UUID,
@@ -149,6 +149,9 @@ open class AssetsServiceClient(
             query GetAsset(${'$'}id: ID!) {
               asset(id: ${'$'}id) {
                 id
+                mimeType
+                sizeBytes
+                originalFilename
                 downloadUrl(ttlSeconds: $downloadTtlSeconds)
               }
             }
@@ -164,7 +167,6 @@ open class AssetsServiceClient(
                     operation = "asset",
                     field = "asset.id",
                 )
-        val downloadUrl = data["downloadUrl"] as? String
         val parsedId =
             runCatching { UUID.fromString(id) }.getOrElse {
                 throw AssetsServiceException.invalidResponse(
@@ -173,7 +175,13 @@ open class AssetsServiceClient(
                     details = "invalid UUID returned by assets service",
                 )
             }
-        return AssetResult(id = parsedId, downloadUrl = downloadUrl)
+        return AssetResult(
+            id = parsedId,
+            mimeType = data["mimeType"] as? String,
+            sizeBytes = (data["sizeBytes"] as? Number)?.toLong(),
+            originalFilename = data["originalFilename"] as? String,
+            downloadUrl = data["downloadUrl"] as? String,
+        )
     }
 
     fun deleteAsset(
@@ -259,7 +267,13 @@ data class CreateAssetUploadResult(val id: UUID, val uploadUrl: String)
 
 data class ConfirmAssetUploadResult(val id: UUID, val status: String)
 
-data class AssetResult(val id: UUID, val downloadUrl: String?)
+data class AssetResult(
+    val id: UUID,
+    val mimeType: String?,
+    val sizeBytes: Long?,
+    val originalFilename: String?,
+    val downloadUrl: String?,
+)
 
 class AssetsServiceException(
     errorCode: io.github.salomax.neotool.common.error.ErrorCode,

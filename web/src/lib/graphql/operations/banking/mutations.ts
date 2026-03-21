@@ -284,3 +284,75 @@ export const DELETE_TRANSACTION_CATEGORY = gql`
     deleteTransactionCategory(id: $id)
   }
 `;
+
+// ── Asset service upload flow ─────────────────────────────────────────────────
+
+/**
+ * Step 1 of 3: create an upload slot and obtain a presigned PUT URL.
+ * Use namespace "banking-attachments" for transaction/holding files.
+ */
+export const CREATE_ASSET_UPLOAD = gql`
+  mutation CreateAssetUpload($input: CreateAssetUploadInput!) {
+    createAssetUpload(input: $input) {
+      id
+      uploadUrl
+      status
+    }
+  }
+`;
+
+/** Step 3 of 3: mark the asset as READY after the client PUT the file to uploadUrl. */
+export const CONFIRM_ASSET_UPLOAD = gql`
+  mutation ConfirmAssetUpload($input: ConfirmAssetUploadInput!) {
+    confirmAssetUpload(input: $input) {
+      id
+      status
+    }
+  }
+`;
+
+// ── Banking attachments ───────────────────────────────────────────────────────
+
+/** Attach a confirmed asset to a transaction. Max 3 per transaction. */
+export const ATTACH_FILE_TO_TRANSACTION = gql`
+  mutation AttachFileToTransaction($input: AttachFileToTransactionInput!) {
+    attachFileToTransaction(input: $input) {
+      id
+      assetId
+      filename
+      mimeType
+      sizeBytes
+      downloadUrl
+      createdAt
+    }
+  }
+`;
+
+/** Remove an attachment from a transaction (also deletes the asset). */
+export const REMOVE_TRANSACTION_ATTACHMENT = gql`
+  mutation RemoveTransactionAttachment($attachmentId: ID!) {
+    removeTransactionAttachment(attachmentId: $attachmentId)
+  }
+`;
+
+/** Attach a confirmed asset to an investment holding. Max 3 per holding. */
+export const ATTACH_FILE_TO_HOLDING = gql`
+  mutation AttachFileToHolding($input: AttachFileToHoldingInput!) {
+    attachFileToHolding(input: $input) {
+      id
+      assetId
+      filename
+      mimeType
+      sizeBytes
+      downloadUrl
+      createdAt
+    }
+  }
+`;
+
+/** Remove an attachment from a holding (also deletes the asset). */
+export const REMOVE_HOLDING_ATTACHMENT = gql`
+  mutation RemoveHoldingAttachment($attachmentId: ID!) {
+    removeHoldingAttachment(attachmentId: $attachmentId)
+  }
+`;

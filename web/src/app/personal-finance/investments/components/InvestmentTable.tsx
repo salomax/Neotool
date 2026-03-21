@@ -5,6 +5,7 @@ import { useMutation, useQuery } from '@apollo/client/react';
 import i18n from 'i18next';
 import {
   alpha,
+  Avatar,
   Box,
   Button,
   Chip,
@@ -35,7 +36,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoIcon from '@mui/icons-material/Info';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { GrowthChip } from '@/shared/components/ui/data-display';
@@ -54,6 +56,7 @@ import {
   ValuationSource,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { AssetGroupCard } from './AssetGroupCard';
+import { AttachmentSection } from '../../components/AttachmentSection';
 import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
 import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
@@ -82,9 +85,11 @@ const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
 
 const EMPTY_HOLDINGS: HoldingRow[] = [];
 const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
+const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome', 'treasuryDirect']);
+const FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX = 70;
 
 type AssetGroupKey =
-  | 'variableIncomeB3'
+  | 'variableIncome'
   | 'bankFixedIncome'
   | 'creditFixedIncome'
   | 'treasuryDirect'
@@ -97,7 +102,7 @@ const ICON_KIND_BY_GROUP: Record<AssetGroupKey, AssetTypeIconKind> = {
   bankFixedIncome: 'FIXED_INCOME',
   creditFixedIncome: 'FIXED_INCOME',
   treasuryDirect: 'FIXED_INCOME',
-  variableIncomeB3: 'STOCK',
+  variableIncome: 'STOCK',
   mutualFunds: 'FUND',
   pension: 'FUND',
   structured: 'STRUCTURED',
@@ -115,7 +120,7 @@ const ASSET_GROUP_ORDER: readonly AssetGroupKey[] = [
   'bankFixedIncome',
   'creditFixedIncome',
   'treasuryDirect',
-  'variableIncomeB3',
+  'variableIncome',
   'mutualFunds',
   'pension',
   'structured',
@@ -123,7 +128,7 @@ const ASSET_GROUP_ORDER: readonly AssetGroupKey[] = [
 ] as const;
 
 const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
-  variableIncomeB3: [
+  variableIncome: [
     'STOCK',
     'STOCK_RIGHTS',
     'BDR',
@@ -194,6 +199,24 @@ function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string
   if (holding.indexerPercentage == null) return label;
 
   return `${label} ${(holding.indexerPercentage * 100).toFixed(0)}%`;
+}
+
+function formatFinancialAccountLabel(holding: HoldingRow): string {
+  const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
+  return consolidated.financialAccount?.name ?? '—';
+}
+
+function getFinancialAccountAvatarProps(holding: HoldingRow) {
+  const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
+  const financialAccount = consolidated.financialAccount;
+  const name = financialAccount?.name ?? '';
+
+  return {
+    src: financialAccount?.issuer?.logoAsset?.publicUrl ?? undefined,
+    alt: name || undefined,
+    label: name ? name.slice(0, 1).toUpperCase() : '—',
+    backgroundColor: financialAccount?.themeColor ?? 'grey.300',
+  };
 }
 
 export function InvestmentTable({ selectedAccountId, onRecordHolding }: InvestmentTableProps) {
@@ -343,26 +366,25 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     }
   };
 
-  const EstimatedInfoBadge = React.forwardRef<HTMLSpanElement, { ml?: number }>(({ ml = 0 }, ref) => (
+  const EstimatedInfoBadge = React.forwardRef<HTMLSpanElement, { ml?: number; mr?: number }>(({ ml = 0, mr = 0 }, ref) => (
     <Box
       ref={ref}
       component="span"
       sx={{
         width: 18,
         height: 18,
-        borderRadius: '50%',
         border: 'none',
-        bgcolor: alpha(theme.palette.info.main, 0.16),
         color: 'info.main',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
         ml,
+        mr,
         flex: '0 0 auto',
       }}
       aria-hidden
     >
-      <InfoIcon sx={{ fontSize: 14 }} />
+      <InfoIcon sx={{ fontSize: 18, color: alpha(theme.palette.primary.main, 0.56), }} />
     </Box>
   ));
   EstimatedInfoBadge.displayName = 'EstimatedInfoBadge';
@@ -537,15 +559,28 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
       )}
 
       {!loading && !error && holdings.length > 0 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.7 }}>
           {groups.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
             const leadingIcon = (
-              <AssetGroupIcon groupKey={group.key} sx={{ fontSize: 18 }} />
+              <AssetGroupIcon groupKey={group.key} sx={{ fontSize: 16 }} />
             );
             const divider = alpha(theme.palette.divider, 0.7);
             const isFundGroup = FUND_GROUP_KEYS.has(group.key);
-            const colWidth = isFundGroup ? '20%' : '16.66%';
+            const isFixedIncomeGroup = FIXED_INCOME_GROUP_KEYS.has(group.key);
+            const showFinancialAccountColumn = !selectedAccountId;
+            const dataColumnCount = isFundGroup
+              ? showFinancialAccountColumn
+                ? 6
+                : 5
+              : showFinancialAccountColumn
+                ? isFixedIncomeGroup
+                  ? 8
+                  : 7
+                : isFixedIncomeGroup
+                  ? 7
+                  : 6;
+            const colWidth = `calc((100% - 52px) / ${dataColumnCount})`;
 
             const summaryAdornment =
               group.hasEstimatedInGroup ? (
@@ -576,11 +611,19 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                     width: '100%',
                     tableLayout: 'fixed',
                     borderCollapse: 'collapse',
+                    '& .MuiTableCell-root': {
+                      px: 1.5,
+                    },
                   }}
                   aria-label="investments table"
                 >
                   <TableHead>
                     <TableRow>
+                      {showFinancialAccountColumn && (
+                        <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                          <Label>{t('investments.table.columns.financialAccount')}</Label>
+                        </TableCell>
+                      )}
                       <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                         <Label>{t('investments.table.columns.asset')}</Label>
                       </TableCell>
@@ -610,9 +653,19 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                           <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
                             <Label>{t('investments.table.columns.grossValue')}</Label>
                           </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.gain')}</Label>
-                          </TableCell>
+                          {isFixedIncomeGroup ? (
+                            <TableCell
+                              align="center"
+                              colSpan={2}
+                              sx={{ width: `calc(${colWidth} * 2)`, borderBottom: `1px solid ${divider}` }}
+                            >
+                              <Label>{t('investments.table.columns.gain')}</Label>
+                            </TableCell>
+                          ) : (
+                            <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                              <Label>{t('investments.table.columns.gain')}</Label>
+                            </TableCell>
+                          )}
                         </>
                       )}
                       <TableCell align="center" sx={{ width: 52, borderBottom: `1px solid ${divider}` }} />
@@ -633,29 +686,18 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                       ) : (
                         formatCurrency(holding.grossValue, currencyCode, locale)
                       );
-                      const valueTooltip =
-                        source === ValuationSource.Calculated
-                          ? t('investments.table.valuationTooltip.CALCULATED')
-                          : source === ValuationSource.Estimated
-                            ? t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })
-                            : source === ValuationSource.Unavailable
-                              ? t('investments.table.valuationTooltip.UNAVAILABLE')
-                              : null;
                       const valueIcon =
-                        source === ValuationSource.Calculated ? (
-                          <Tooltip title={valueTooltip ?? ''}>
-                            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary', ml: 0.25 }} aria-hidden />
-                          </Tooltip>
-                        ) : source === ValuationSource.Estimated ? (
-                          <Tooltip title={valueTooltip ?? ''}>
-                            <EstimatedInfoBadge ml={0.25} />
+                        source === ValuationSource.Estimated ? (
+                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                            <EstimatedInfoBadge mr={0.25} />
                           </Tooltip>
                         ) : null;
 
                       const principal = holding.averageCost * holding.quantity;
                       const grossVal = typeof holding.grossValue === 'number' ? holding.grossValue : null;
                       const absolute = principal > 0 && grossVal != null ? grossVal - principal : null;
-                      const percent = absolute != null && principal > 0 ? (absolute / principal) * 100 : null;
+                      const growthRatio = absolute != null && principal > 0 ? absolute / principal : null;
+                      const percent = growthRatio != null ? growthRatio * 100 : null;
                       const gainUnavailable = grossVal == null || source === ValuationSource.Unavailable;
                       const gainEstimated = source === ValuationSource.Estimated;
                       const canMutate = holding.source === InvestmentSource.Manual;
@@ -668,6 +710,34 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                             '&:last-of-type td': { borderBottom: 'none' },
                           }}
                         >
+                          {showFinancialAccountColumn && (
+                            <TableCell sx={{ width: colWidth }}>
+                              {(() => {
+                                const avatar = getFinancialAccountAvatarProps(holding);
+
+                                return (
+                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                                    <Avatar
+                                      src={avatar.src}
+                                      alt={avatar.alt}
+                                      sx={{
+                                        width: 28,
+                                        height: 28,
+                                        bgcolor: avatar.src ? 'transparent' : avatar.backgroundColor,
+                                        fontSize: '0.8rem',
+                                        flex: '0 0 auto',
+                                      }}
+                                    >
+                                      {!avatar.src && avatar.label}
+                                    </Avatar>
+                                    <Typography variant="body2" fontWeight={600} noWrap>
+                                      {formatFinancialAccountLabel(holding)}
+                                    </Typography>
+                                  </Box>
+                                );
+                              })()}
+                            </TableCell>
+                          )}
                           <TableCell sx={{ width: colWidth }}>
                             <Typography variant="body2" fontWeight={700}>
                               {holding.asset?.name ?? '—'}
@@ -706,11 +776,11 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                 </Typography>
                               </TableCell>
                               <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                  {valueIcon}
                                   <Typography variant="body2" component="span" fontWeight={700}>
                                     {valueContent}
                                   </Typography>
-                                  {valueIcon}
                                 </Box>
                               </TableCell>
                               <TableCell align="right" sx={{ width: colWidth }}>
@@ -728,6 +798,11 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                   ) : (
                                     <>
                                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                        {gainEstimated && (
+                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                            <EstimatedInfoBadge mr={0.25} />
+                                          </Tooltip>
+                                        )}
                                         <Typography
                                           variant="body2"
                                           fontWeight={700}
@@ -741,11 +816,6 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                         >
                                           {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
                                         </Typography>
-                                        {gainEstimated && (
-                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <EstimatedInfoBadge />
-                                          </Tooltip>
-                                        )}
                                       </Box>
                                       {percent != null && principal > 0 && absolute != null && (
                                         <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
@@ -775,21 +845,29 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                 </Box>
                               </TableCell>                              
                               <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                  {valueIcon}
                                   <Typography variant="body2" component="span" fontWeight={700}>
                                     {valueContent}
                                   </Typography>
-                                  {valueIcon}
                                 </Box>
                               </TableCell>
 
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
-                                  {gainUnavailable ? (
-                                    <Typography variant="body2">—</Typography>
-                                  ) : (
-                                    <>
+                              {isFixedIncomeGroup ? (
+                                <>
+                                  <TableCell
+                                    align="right"
+                                    sx={{ width: `calc(${colWidth} * 2 - ${FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX}px)` }}
+                                  >
+                                    {gainUnavailable ? (
+                                      <Typography variant="body2">—</Typography>
+                                    ) : (
                                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                        {gainEstimated && (
+                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                            <EstimatedInfoBadge mr={0.25} />
+                                          </Tooltip>
+                                        )}
                                         <Typography
                                           variant="body2"
                                           fontWeight={700}
@@ -797,19 +875,94 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                         >
                                           {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
                                         </Typography>
-                                        {gainEstimated && (
-                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <EstimatedInfoBadge />
-                                          </Tooltip>
-                                        )}
                                       </Box>
-                                      {percent != null && principal > 0 && absolute != null && (
-                                        <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
-                                      )}
-                                    </>
-                                  )}
-                                </Box>
-                              </TableCell>
+                                    )}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ width: `${FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX}px`, whiteSpace: 'nowrap' }}>
+                                    {gainUnavailable ? (
+                                      <Typography variant="body2">—</Typography>
+                                    ) : (
+                                      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        <Chip
+                                          size="small"
+                                          variant="outlined"
+                                          icon={
+                                            growthRatio != null && growthRatio !== 0 ? (
+                                              growthRatio > 0 ? (
+                                                <TrendingUpIcon sx={{ fontSize: 14, color: 'inherit' }} />
+                                              ) : (
+                                                <TrendingDownIcon sx={{ fontSize: 14, color: 'inherit' }} />
+                                              )
+                                            ) : undefined
+                                          }
+                                          label={
+                                            growthRatio != null
+                                              ? new Intl.NumberFormat(locale, {
+                                                  style: 'percent',
+                                                  minimumFractionDigits: 2,
+                                                  maximumFractionDigits: 2,
+                                                }).format(growthRatio)
+                                              : '—'
+                                          }
+                                          sx={{
+                                            height: 20,
+                                            fontSize: '.7rem',
+                                            fontWeight: 500,
+                                            border: 'none',
+                                            px: .7,
+                                            py: 1.5,
+                                            maxWidth: '100%',
+                                            bgcolor:
+                                              growthRatio != null
+                                                ? alpha(growthRatio >= 0 ? theme.palette.success.main : theme.palette.error.main, 0.08)
+                                                : 'transparent',
+                                            borderColor:
+                                              growthRatio != null
+                                                ? alpha(growthRatio >= 0 ? theme.palette.success.main : theme.palette.error.main, 0.35)
+                                                : alpha(theme.palette.divider, 0.7),
+                                            color:
+                                              growthRatio != null
+                                                ? growthRatio >= 0
+                                                  ? theme.palette.success.main
+                                                  : theme.palette.error.main
+                                                : theme.palette.text.secondary,
+                                            '& .MuiChip-icon': { ml: 0, mr: 0.25, color: 'inherit' },
+                                            '& .MuiChip-label': { px: 0.5 },
+                                          }}
+                                        />
+                                      </Box>
+                                    )}
+                                  </TableCell>
+                                </>
+                              ) : (
+                                <TableCell align="right" sx={{ width: colWidth }}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
+                                    {gainUnavailable ? (
+                                      <Typography variant="body2">—</Typography>
+                                    ) : (
+                                      <>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                          {gainEstimated && (
+                                            <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                              <EstimatedInfoBadge mr={0.25} />
+                                            </Tooltip>
+                                          )}
+                                          <Typography
+                                            variant="body2"
+                                            fontWeight={700}
+                                            color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
+                                          >
+                                            {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
+                                          </Typography>
+                                        </Box>
+                                        {percent != null && principal > 0 && absolute != null && (
+                                          <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                        )}
+                                      </>
+                                    )}
+                                  </Box>
+                                </TableCell>
+                              )}
                             </>
                           )}
                           <TableCell align="center" sx={{ width: 52 }}>
@@ -930,6 +1083,17 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
             fullWidth
             inputProps={{ step: 'any', min: 0 }}
           />
+
+          {holdingToEdit && (
+            <AttachmentSection
+              holdingId={holdingToEdit.id}
+              attachments={'attachments' in holdingToEdit ? holdingToEdit.attachments ?? [] : []}
+              onChanged={() => {
+                if (selectedAccountId) accountHoldingsQuery.refetch();
+                else consolidatedHoldingsQuery.refetch();
+              }}
+            />
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={closeEditDialog} disabled={isEditBusy}>

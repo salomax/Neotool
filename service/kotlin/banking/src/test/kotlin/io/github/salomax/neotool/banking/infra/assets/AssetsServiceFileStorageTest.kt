@@ -92,7 +92,7 @@ class AssetsServiceFileStorageTest {
         @Test
         fun `fetches asset gets downloadUrl and returns bytes from GET`() {
             whenever(assetsClient.getAsset(eq(assetId), eq(3600), eq(accountId.toString())))
-                .thenReturn(AssetResult(id = assetId, downloadUrl = downloadUrl))
+                .thenReturn(AssetResult(id = assetId, mimeType = null, sizeBytes = null, originalFilename = null, downloadUrl = downloadUrl))
             whenever(presignedUrlHttpClient.get(eq(downloadUrl))).thenReturn(bytes)
 
             val result = storage.read(accountId, assetId)
@@ -103,7 +103,7 @@ class AssetsServiceFileStorageTest {
         @Test
         fun `throws when asset has no downloadUrl`() {
             whenever(assetsClient.getAsset(eq(assetId), any(), any()))
-                .thenReturn(AssetResult(id = assetId, downloadUrl = null))
+                .thenReturn(AssetResult(id = assetId, mimeType = null, sizeBytes = null, originalFilename = null, downloadUrl = null))
 
             val exception = assertThrows<ConflictException> { storage.read(accountId, assetId) }
             assertThat(exception.errorCode).isEqualTo(BankingErrorCode.IMPORT_ASSET_DOWNLOAD_URL_MISSING)
@@ -116,7 +116,7 @@ class AssetsServiceFileStorageTest {
         @Test
         fun `returns presigned url from assets service`() {
             whenever(assetsClient.getAsset(eq(assetId), eq(1800), eq(accountId.toString())))
-                .thenReturn(AssetResult(id = assetId, downloadUrl = downloadUrl))
+                .thenReturn(AssetResult(id = assetId, mimeType = null, sizeBytes = null, originalFilename = null, downloadUrl = downloadUrl))
 
             val result = storage.resolveDownloadUrl(accountId, assetId, ttlSeconds = 1800)
 
@@ -126,7 +126,7 @@ class AssetsServiceFileStorageTest {
         @Test
         fun `throws when resolved asset has no downloadUrl`() {
             whenever(assetsClient.getAsset(eq(assetId), any(), any()))
-                .thenReturn(AssetResult(id = assetId, downloadUrl = null))
+                .thenReturn(AssetResult(id = assetId, mimeType = null, sizeBytes = null, originalFilename = null, downloadUrl = null))
 
             val exception =
                 assertThrows<ConflictException> {

@@ -141,4 +141,21 @@ enum class BankingErrorCode(
         "Transaction date is before the account's initial balance date",
         422,
     ),
+
+    // Attachment errors
+    ATTACHMENT_LIMIT_REACHED(
+        "ATTACHMENT_LIMIT_REACHED",
+        "Maximum of 3 attachments per record reached",
+        422,
+    ),
+    ATTACHMENT_NOT_FOUND(
+        "ATTACHMENT_NOT_FOUND",
+        "Attachment not found",
+        404,
+    ),
+    ATTACHMENT_ASSET_NOT_READY(
+        "ATTACHMENT_ASSET_NOT_READY",
+        "Asset is not ready for attachment — confirm the upload first",
+        422,
+    ),
 }

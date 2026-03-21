@@ -153,6 +153,18 @@ export enum AssetVisibility {
   Public = 'PUBLIC'
 }
 
+export type AttachFileToHoldingInput = {
+  /** Asset ID returned by confirmAssetUpload (must be READY status). */
+  assetId: Scalars['ID']['input'];
+  holdingId: Scalars['ID']['input'];
+};
+
+export type AttachFileToTransactionInput = {
+  /** Asset ID returned by confirmAssetUpload (must be READY status). */
+  assetId: Scalars['ID']['input'];
+  transactionId: Scalars['ID']['input'];
+};
+
 export type AuthorizationResult = {
   __typename: 'AuthorizationResult';
   allowed: Scalars['Boolean']['output'];
@@ -1170,6 +1182,27 @@ export enum GroupOrderField {
   Name = 'NAME'
 }
 
+/**
+ * A file attached to an InvestmentHolding (nota de corretagem, contract, etc.).
+ * The file is stored privately in the assets service.
+ * Max 3 attachments per holding. Supported formats: image, plain text, Excel, CSV, PDF.
+ */
+export type HoldingAttachment = {
+  __typename: 'HoldingAttachment';
+  assetId: Scalars['ID']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  /** Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready. */
+  downloadUrl: Maybe<Scalars['String']['output']>;
+  /** Original filename as uploaded by the user. */
+  filename: Maybe<Scalars['String']['output']>;
+  holdingId: Scalars['ID']['output'];
+  id: Scalars['ID']['output'];
+  /** MIME type of the file (e.g. application/pdf, image/png). */
+  mimeType: Maybe<Scalars['String']['output']>;
+  /** File size in bytes. */
+  sizeBytes: Maybe<Scalars['Int']['output']>;
+};
+
 export type ImportDuplicateCandidate = {
   __typename: 'ImportDuplicateCandidate';
   candidates: Array<Transaction>;
@@ -1350,6 +1383,8 @@ export type InvestmentFundEdge = {
 export type InvestmentHolding = {
   __typename: 'InvestmentHolding';
   asset: InvestmentAsset;
+  /** Attached files (corretagem, contracts, etc.). Max 3. */
+  attachments: Array<HoldingAttachment>;
   /** Weighted average purchase price per unit (custo médio ponderado). */
   averageCost: Scalars['Float']['output'];
   createdAt: Scalars['DateTime']['output'];
@@ -1607,6 +1642,18 @@ export type Mutation = {
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
+  /**
+   * Attach an already-uploaded asset to an investment holding. The asset must be in READY status.
+   * Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToHolding.
+   * Max 3 attachments per holding.
+   */
+  attachFileToHolding: HoldingAttachment;
+  /**
+   * Attach an already-uploaded asset to a transaction. The asset must be in READY status.
+   * Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToTransaction.
+   * Max 3 attachments per transaction.
+   */
+  attachFileToTransaction: TransactionAttachment;
   /** Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL. */
   bulkCategorize: BulkOperationResult;
   cancelImportReview: Scalars['Boolean']['output'];
@@ -1733,8 +1780,12 @@ export type Mutation = {
   refreshAccessToken: SignInPayload;
   registerTool: Tool;
   removeGroupFromUser: User;
+  /** Remove an attachment from a holding and delete the underlying asset. */
+  removeHoldingAttachment: Scalars['Boolean']['output'];
   removePermissionFromRole: Role;
   removeRoleFromGroup: Group;
+  /** Remove an attachment from a transaction and delete the underlying asset. */
+  removeTransactionAttachment: Scalars['Boolean']['output'];
   requestEmailSend: EmailSendResult;
   requestPasswordReset: RequestPasswordResetPayload;
   resendVerificationEmail: ResendVerificationEmailPayload;
@@ -1773,6 +1824,16 @@ export type MutationAssignPermissionToRoleArgs = {
 export type MutationAssignRoleToGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationAttachFileToHoldingArgs = {
+  input: AttachFileToHoldingInput;
+};
+
+
+export type MutationAttachFileToTransactionArgs = {
+  input: AttachFileToTransactionInput;
 };
 
 
@@ -1952,6 +2013,11 @@ export type MutationRemoveGroupFromUserArgs = {
 };
 
 
+export type MutationRemoveHoldingAttachmentArgs = {
+  attachmentId: Scalars['ID']['input'];
+};
+
+
 export type MutationRemovePermissionFromRoleArgs = {
   permissionId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
@@ -1961,6 +2027,11 @@ export type MutationRemovePermissionFromRoleArgs = {
 export type MutationRemoveRoleFromGroupArgs = {
   groupId: Scalars['ID']['input'];
   roleId: Scalars['ID']['input'];
+};
+
+
+export type MutationRemoveTransactionAttachmentArgs = {
+  attachmentId: Scalars['ID']['input'];
 };
 
 
@@ -2872,6 +2943,7 @@ export type Transaction = {
   amount: Scalars['Float']['output'];
   /** BRL equivalent for FX transactions (null for BRL). */
   amountBrl: Maybe<Scalars['Float']['output']>;
+  attachments: Array<TransactionAttachment>;
   belongsToName: Maybe<Scalars['String']['output']>;
   belongsToUserId: Maybe<Scalars['ID']['output']>;
   billId: Maybe<Scalars['ID']['output']>;
@@ -2905,6 +2977,27 @@ export type Transaction = {
   transferPeerTransactionId: Maybe<Scalars['ID']['output']>;
   type: TransactionType;
   updatedAt: Scalars['DateTime']['output'];
+};
+
+/**
+ * A file attached to a Transaction (receipt, contract, product guarantee, etc.).
+ * The file is stored privately in the assets service.
+ * Max 3 attachments per transaction. Supported formats: image, plain text, Excel, CSV, PDF.
+ */
+export type TransactionAttachment = {
+  __typename: 'TransactionAttachment';
+  assetId: Scalars['ID']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  /** Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready. */
+  downloadUrl: Maybe<Scalars['String']['output']>;
+  /** Original filename as uploaded by the user. */
+  filename: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  /** MIME type of the file (e.g. application/pdf, image/png). */
+  mimeType: Maybe<Scalars['String']['output']>;
+  /** File size in bytes. */
+  sizeBytes: Maybe<Scalars['Int']['output']>;
+  transactionId: Scalars['ID']['output'];
 };
 
 /**

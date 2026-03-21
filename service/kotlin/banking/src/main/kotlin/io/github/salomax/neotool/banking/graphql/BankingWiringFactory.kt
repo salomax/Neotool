@@ -9,6 +9,8 @@ import io.github.salomax.neotool.banking.graphql.dto.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.dto.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.dto.IssuerDTO
 import io.github.salomax.neotool.banking.graphql.dto.MerchantDTO
+import io.github.salomax.neotool.banking.graphql.dto.TransactionDTO
+import io.github.salomax.neotool.banking.graphql.resolver.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
@@ -36,6 +38,7 @@ class BankingWiringFactory(
     private val investmentResolver: InvestmentResolver,
     private val importResolver: ImportResolver,
     private val billImportResolver: BillImportResolver,
+    private val attachmentResolver: AttachmentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -588,6 +591,50 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "attachFileToTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        attachmentResolver.attachFileToTransaction(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "removeTransactionAttachment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val attachmentId =
+                            env.getArgument<String>("attachmentId")
+                                ?: throw IllegalArgumentException("attachmentId is required")
+                        attachmentResolver.removeTransactionAttachment(attachmentId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "attachFileToHolding",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        attachmentResolver.attachFileToHolding(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "removeHoldingAttachment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                        val attachmentId =
+                            env.getArgument<String>("attachmentId")
+                                ?: throw IllegalArgumentException("attachmentId is required")
+                        attachmentResolver.removeHoldingAttachment(attachmentId, principal)
+                    }
+                },
+            )
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
@@ -619,13 +666,25 @@ class BankingWiringFactory(
                 )
             }
             .type("InvestmentHolding") { type ->
-                type.dataFetcher(
-                    "asset",
-                    createValidatedDataFetcher { env ->
-                        val holding = env.getSource<InvestmentHoldingDTO>()
-                        holding?.asset
-                    },
-                )
+                type
+                    .dataFetcher(
+                        "asset",
+                        createValidatedDataFetcher { env ->
+                            val holding = env.getSource<InvestmentHoldingDTO>()
+                            holding?.asset
+                        },
+                    )
+                    .dataFetcher(
+                        "attachments",
+                        createValidatedDataFetcher { env ->
+                            env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                                val holding = env.getSource<InvestmentHoldingDTO>()
+                                holding?.id?.let {
+                                    attachmentResolver.holdingAttachments(it.toString(), principal)
+                                } ?: emptyList<Any>()
+                            }
+                        },
+                    )
             }
             .type("InvestmentTransaction") { type ->
                 type.dataFetcher(
@@ -633,6 +692,19 @@ class BankingWiringFactory(
                     createValidatedDataFetcher { env ->
                         val transaction = env.getSource<InvestmentTransactionDTO>()
                         transaction?.brokerNote
+                    },
+                )
+            }
+            .type("Transaction") { type ->
+                type.dataFetcher(
+                    "attachments",
+                    createValidatedDataFetcher { env ->
+                        env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                            val transaction = env.getSource<TransactionDTO>()
+                            transaction?.id?.let {
+                                attachmentResolver.transactionAttachments(it.toString(), principal)
+                            } ?: emptyList<Any>()
+                        }
                     },
                 )
             }

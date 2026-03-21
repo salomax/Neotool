@@ -184,6 +184,24 @@ enum AssetVisibility
   PRIVATE @join__enumValue(graph: ASSETS)
 }
 
+input AttachFileToHoldingInput
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
+input AttachFileToTransactionInput
+  @join__type(graph: BANKING)
+{
+  transactionId: ID!
+
+  """Asset ID returned by confirmAssetUpload (must be READY status)."""
+  assetId: ID!
+}
+
 type AuthorizationResult
   @join__type(graph: SECURITY)
 {
@@ -1336,6 +1354,34 @@ enum GroupOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
+"""
+A file attached to an InvestmentHolding (nota de corretagem, contract, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per holding. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type HoldingAttachment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  holdingId: ID!
+  assetId: ID!
+
+  """Original filename as uploaded by the user."""
+  filename: String
+
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+
+  """File size in bytes."""
+  sizeBytes: Int
+
+  """
+  Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready.
+  """
+  downloadUrl: String
+  createdAt: DateTime!
+}
+
 type ImportDuplicateCandidate
   @join__type(graph: BANKING)
 {
@@ -1582,6 +1628,9 @@ type InvestmentHolding
   """
   isExpired: Boolean!
   source: InvestmentSource!
+
+  """Attached files (corretagem, contracts, etc.). Max 3."""
+  attachments: [HoldingAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2055,6 +2104,28 @@ type Mutation
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
+
+  """
+  Attach an already-uploaded asset to a transaction. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToTransaction.
+  Max 3 attachments per transaction.
+  """
+  attachFileToTransaction(input: AttachFileToTransactionInput!): TransactionAttachment! @join__field(graph: BANKING)
+
+  """
+  Remove an attachment from a transaction and delete the underlying asset.
+  """
+  removeTransactionAttachment(attachmentId: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Attach an already-uploaded asset to an investment holding. The asset must be in READY status.
+  Call createAssetUpload → upload to presigned URL → confirmAssetUpload → attachFileToHolding.
+  Max 3 attachments per holding.
+  """
+  attachFileToHolding(input: AttachFileToHoldingInput!): HoldingAttachment! @join__field(graph: BANKING)
+
+  """Remove an attachment from a holding and delete the underlying asset."""
+  removeHoldingAttachment(attachmentId: ID!): Boolean! @join__field(graph: BANKING)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
   signUp(input: SignUpInput!): SignUpPayload! @join__field(graph: SECURITY)
@@ -2784,8 +2855,37 @@ type Transaction
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
+  attachments: [TransactionAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+"""
+A file attached to a Transaction (receipt, contract, product guarantee, etc.).
+The file is stored privately in the assets service.
+Max 3 attachments per transaction. Supported formats: image, plain text, Excel, CSV, PDF.
+"""
+type TransactionAttachment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  assetId: ID!
+
+  """Original filename as uploaded by the user."""
+  filename: String
+
+  """MIME type of the file (e.g. application/pdf, image/png)."""
+  mimeType: String
+
+  """File size in bytes."""
+  sizeBytes: Int
+
+  """
+  Pre-signed download URL (valid for 1 hour). Null if the asset is not yet ready.
+  """
+  downloadUrl: String
+  createdAt: DateTime!
 }
 
 """
