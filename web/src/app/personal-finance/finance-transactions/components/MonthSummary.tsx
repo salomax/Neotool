@@ -513,7 +513,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             {emptyText}
           </Typography>
         ) : (
-          <Stack spacing={2}>
+          <Stack spacing={1.5}>
             {topItems.map((item) => (
               <CategoryProgressRow
                 key={item.category.id}
@@ -577,7 +577,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             {emptyText}
           </Typography>
         ) : (
-          <Stack spacing={2}>
+          <Stack spacing={1.25}>
             {topItems.map((item) => (
               <TagProgressRow
                 key={item.tag}
@@ -786,7 +786,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         <Drawer.Header title={drawerTitle} showCloseButton />
         <Drawer.Body>
           {drawerKind !== null && drawerCategoryItems && (
-            <Stack spacing={2}>
+            <Stack spacing={1.25}>
               {drawerCategoryItems.map((item) => (
                 <CategoryProgressRow
                   key={item.category.id}
@@ -802,7 +802,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             </Stack>
           )}
           {drawerKind !== null && drawerTagItems && (
-            <Stack spacing={2}>
+            <Stack spacing={1.25}>
               {drawerTagItems.map((item) => (
                 <TagProgressRow
                   key={item.tag}
