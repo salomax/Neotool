@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.model.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Indexer
+import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.common.entity.BaseEntity
 import jakarta.persistence.Column
@@ -77,6 +78,16 @@ open class HoldingEntity(
 
     @Column(name = "last_valued_at")
     open var lastValuedAt: Instant? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pricing_mode", length = 20)
+    open var pricingMode: HoldingPricingMode? = null,
+
+    @Column(name = "manual_gross_value", precision = 18, scale = 4)
+    open var manualGrossValue: BigDecimal? = null,
+
+    @Column(name = "manual_valued_at")
+    open var manualValuedAt: LocalDate? = null,
 
     // ── Provenance ────────────────────────────────────────────────────────────
     @Enumerated(EnumType.STRING)

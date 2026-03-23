@@ -3,6 +3,7 @@ package io.github.salomax.neotool.financialdata.repo
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.FundDailyNav
 import io.github.salomax.neotool.financialdata.domain.InvestmentFund
+import io.github.salomax.neotool.financialdata.domain.InvestmentFundMarketSnapshot
 import java.time.LocalDate
 import java.util.UUID
 
@@ -53,4 +54,6 @@ interface InvestmentFundRepositoryCustom {
         to: LocalDate?,
         last: Int?,
     ): List<FundDailyNav>
+
+    fun findMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot>
 }

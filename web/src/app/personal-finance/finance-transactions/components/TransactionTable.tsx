@@ -46,6 +46,7 @@ import { useMutation } from '@apollo/client/react';
 import { DELETE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -130,7 +131,7 @@ export function TransactionTable({
   const transactionsRef = useRef<Transaction[]>(transactions);
   const currencyFormattersRef = useRef<Map<string, Intl.NumberFormat>>(new Map());
   const borderRadius = '.3rem';
-  const tableBodyLabelFontSize = '0.875rem';
+  const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
@@ -537,7 +538,7 @@ export function TransactionTable({
 
   return (
     <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none', overflow: 'visible' }}>
-      <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="transactions table">
+      <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }} aria-label="transactions table">
         <TableHead>
           <TableRow>
             <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>

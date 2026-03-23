@@ -42,6 +42,7 @@ import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl
 import { personalFinanceTranslations } from "../../i18n";
 import { EquityAutocomplete, EquityAutocompleteValue } from "./EquityAutocomplete";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
+import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 
 interface RecordEquityHoldingDrawerProps {
   open: boolean;
@@ -79,7 +80,6 @@ export function RecordEquityHoldingDrawer({
     [locale],
   );
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
-  const needsAccountSelection = !resolvedFinancialAccountId;
   const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_QUANTITY");
   const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
 
@@ -99,6 +99,7 @@ export function RecordEquityHoldingDrawer({
         quantity: z.preprocess(
           (value) => {
             if (value === "" || value === null || value === undefined) return undefined;
+            if (typeof value === "number") return Number.isNaN(value) ? undefined : value;
             const raw = String(value);
             let normalized: string;
             if (localeGroup) {
@@ -120,6 +121,7 @@ export function RecordEquityHoldingDrawer({
         unitPrice: z.preprocess(
           (value) => {
             if (value === "" || value === null || value === undefined) return undefined;
+            if (typeof value === "number") return Number.isNaN(value) ? undefined : value;
             const raw = String(value);
             let normalized: string;
             if (localeGroup) {
@@ -223,10 +225,7 @@ export function RecordEquityHoldingDrawer({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!open) return;
-    setResolvedFinancialAccountId(financialAccountId || null);
-  }, [financialAccountId, open]);
+  // resolvedFinancialAccountId is managed via InvestmentRecordDrawer onResolvedChange
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
     CreateInvestmentAssetMutation,
@@ -367,68 +366,67 @@ export function RecordEquityHoldingDrawer({
   };
 
   return (
-    <Drawer open={open} onClose={onClose} anchor="right" size="md">
-      <Drawer.Header title={t("investments.recordEquity.title")} />
-      <Drawer.Body>
-        {needsAccountSelection ? (
+    <InvestmentRecordDrawer
+      open={open}
+      onClose={onClose}
+      title={t("investments.recordEquity.title")}
+      initialFinancialAccountId={financialAccountId || null}
+      financialAccounts={financialAccounts}
+      issuerSelection={{
+        description: t("investments.recordEquity.selectAccount.description"),
+        emptyState: t("investments.recordEquity.selectAccount.emptyState"),
+        dataTestIdPrefix: "record-equity-select-account-",
+      }}
+      onResolvedChange={setResolvedFinancialAccountId}
+      footer={
+        ({ resolvedFinancialAccountId }) => (
           <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
-              {t("investments.recordEquity.selectAccount.description")}
-            </Typography>
-
-            {financialAccounts.length === 0 ? (
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
               <Typography variant="body2" color="text.secondary">
-                {t("investments.recordEquity.selectAccount.emptyState")}
+                {t("investments.recordEquity.footer.grossValue")}
               </Typography>
-            ) : (
-              <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
-                <List disablePadding>
-                  {financialAccounts.map((account) => (
-                    <ListItemButton
-                      key={account.id}
-                      onClick={() => setResolvedFinancialAccountId(account.id)}
-                      sx={{
-                        py: 1.5,
-                        "&:not(:last-of-type)": { borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}` },
-                      }}
-                      data-testid={`record-equity-select-account-${account.id}`}
-                    >
-                      <ListItemIcon sx={{ minWidth: 44 }}>
-                        <Avatar
-                          src={account.issuer?.logoAsset?.publicUrl || undefined}
-                          sx={{
-                            bgcolor: account.issuer?.logoAsset?.publicUrl ? "transparent" : (account.themeColor || "primary.main"),
-                            width: 32,
-                            height: 32,
-                            borderRadius: 2,
-                          }}
-                        >
-                          {account.name?.slice(0, 1).toUpperCase()}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" fontWeight={700} noWrap>
-                            {account.name}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {account.issuer?.name || account.issuerName}
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Paper>
-            )}
+              <Typography variant="body2" fontWeight={700}>
+                {computedGrossValue != null ? currencyFormatter.format(computedGrossValue) : "—"}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                {t("investments.recordEquity.footer.fees")}
+              </Typography>
+              <Typography variant="body2" fontWeight={700}>
+                {currencyFormatter.format(computedTotalFees)}
+              </Typography>
+            </Box>
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+              <Typography variant="subtitle2" color="text.secondary">
+                {t("investments.recordEquity.footer.total")}
+              </Typography>
+              <Typography variant="h6" fontWeight={900}>
+                {computedTransactionTotal != null ? currencyFormatter.format(computedTransactionTotal) : "—"}
+              </Typography>
+            </Box>
+
+            <Drawer.ActionButtons
+              cancelText={t("actions.cancel")}
+              submitText={t("investments.recordEquity.actions.submit")}
+              submittingText={t("investments.recordEquity.actions.submitting")}
+              onCancel={onClose}
+              submitForm="record-equity-form"
+              cancelDisabled={isSubmitting}
+              submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+              submitting={isSubmitting}
+            />
           </Stack>
-        ) : (
-          <FormProvider {...methods}>
-            <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
-              <Stack spacing={2}>
-                {mutationError && <FormErrorBanner message={mutationError.message} />}
+        )
+      }
+    >
+      {({ resolvedFinancialAccountId }) => (
+        <FormProvider {...methods}>
+          <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
+            <Stack spacing={2}>
+              {mutationError && <FormErrorBanner message={mutationError.message} />}
 
                 <Stack spacing={1}>
                   <Typography variant="overline" color="text.secondary">
@@ -621,54 +619,9 @@ export function RecordEquityHoldingDrawer({
                   </Stack>
                 )}
               </Stack>
-            </form>
-          </FormProvider>
-        )}
-      </Drawer.Body>
-
-      {!needsAccountSelection ? (
-        <Drawer.Footer>
-          <Stack spacing={2}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t("investments.recordEquity.footer.grossValue")}
-              </Typography>
-              <Typography variant="body2" fontWeight={700}>
-                {computedGrossValue != null ? currencyFormatter.format(computedGrossValue) : "—"}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t("investments.recordEquity.footer.fees")}
-              </Typography>
-              <Typography variant="body2" fontWeight={700}>
-                {currencyFormatter.format(computedTotalFees)}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
-                {t("investments.recordEquity.footer.total")}
-              </Typography>
-              <Typography variant="h6" fontWeight={900}>
-                {computedTransactionTotal != null ? currencyFormatter.format(computedTransactionTotal) : "—"}
-              </Typography>
-            </Box>
-
-            <Drawer.ActionButtons
-              cancelText={t("actions.cancel")}
-              submitText={t("investments.recordEquity.actions.submit")}
-              submittingText={t("investments.recordEquity.actions.submitting")}
-              onCancel={onClose}
-              submitForm="record-equity-form"
-              cancelDisabled={isSubmitting}
-              submitDisabled={isSubmitting || !resolvedFinancialAccountId}
-              submitting={isSubmitting}
-            />
-          </Stack>
-        </Drawer.Footer>
-      ) : null}
-    </Drawer>
+          </form>
+        </FormProvider>
+      )}
+    </InvestmentRecordDrawer>
   );
 }

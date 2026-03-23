@@ -4,11 +4,18 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetRepository
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.FixedIncomeValuationService
+import io.github.salomax.neotool.banking.domain.investment.FundMarketDataProvider
+import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
+import io.github.salomax.neotool.banking.domain.investment.FundValuationService
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.HoldingRepository
+import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.Indexer
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.ValuationSource
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
@@ -38,6 +45,9 @@ class InvestmentQueryService(
     private val financialAccountRepository: FinancialAccountRepository,
     private val issuerRepository: IssuerRepository,
     private val fixedIncomeValuationService: FixedIncomeValuationService,
+    private val fundValuationService: FundValuationService,
+    private val fundMarketDataProvider: FundMarketDataProvider,
+    private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
@@ -72,11 +82,34 @@ class InvestmentQueryService(
         val assetsById = assetRepository
             .findByIds(holdings.map { it.assetId }.toSet())
             .associateBy { it.id!! }
+        val marketDataCnpjs = holdings
+            .mapNotNull { holding ->
+                val asset = assetsById[holding.assetId]
+                if (holding.pricingMode == HoldingPricingMode.MARKET_DATA && asset?.assetType.isFundAsset()) {
+                    asset?.fundCnpj?.normalizedFundCnpj()
+                } else {
+                    null
+                }
+            }
+            .toSet()
+        val marketSnapshotsByCnpj = safeGetFundMarketSnapshots(marketDataCnpjs)
+        val holdingTransactionsById = loadHoldingTransactionsById(holdings, assetsById, marketSnapshotsByCnpj, accountId)
         val rateMap = safeGetIndicatorRates()
         val refDate = indicatorRateProvider.getReferenceDate()
         val today = clock()
 
-        return holdings.map { it.toDTO(accountsById, assetsById, issuersById, rateMap, refDate, today) }
+        return holdings.map {
+            it.toDTO(
+                accountsById = accountsById,
+                assetsById = assetsById,
+                issuersById = issuersById,
+                rateMap = rateMap,
+                fixedIncomeRefDate = refDate,
+                today = today,
+                marketSnapshotsByCnpj = marketSnapshotsByCnpj,
+                holdingTransactionsById = holdingTransactionsById,
+            )
+        }
     }
 
     private fun safeGetIndicatorRates(): Map<Indexer, BigDecimal> =
@@ -87,35 +120,66 @@ class InvestmentQueryService(
             emptyMap()
         }
 
+    private fun safeGetFundMarketSnapshots(cnpjs: Set<String>): Map<String, FundMarketSnapshot> =
+        try {
+            fundMarketDataProvider.getSnapshotsByCnpj(cnpjs)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to fetch fund market snapshots; fund valuations will fall back" }
+            emptyMap()
+        }
+
+    private fun loadHoldingTransactionsById(
+        holdings: List<Holding>,
+        assetsById: Map<UUID, Asset>,
+        marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
+        accountId: UUID,
+    ): Map<UUID, List<InvestmentTransaction>> {
+        val marketDataHoldingIds = holdings
+            .mapNotNull { holding ->
+                val asset = assetsById[holding.assetId] ?: return@mapNotNull null
+                val normalizedCnpj = asset.fundCnpj?.normalizedFundCnpj() ?: return@mapNotNull null
+                if (
+                    holding.pricingMode == HoldingPricingMode.MARKET_DATA &&
+                    asset.assetType.isFundAsset() &&
+                    marketSnapshotsByCnpj.containsKey(normalizedCnpj)
+                ) {
+                    holding.id
+                } else {
+                    null
+                }
+            }
+        if (marketDataHoldingIds.isEmpty()) return emptyMap()
+        return investmentTransactionRepository.findByHoldingIds(marketDataHoldingIds, accountId)
+            .groupBy { it.holdingId }
+    }
+
     private fun Holding.toDTO(
         accountsById: Map<UUID, FinancialAccount>,
         assetsById: Map<UUID, Asset>,
         issuersById: Map<UUID, Issuer>,
         rateMap: Map<Indexer, BigDecimal>,
-        refDate: LocalDate?,
+        fixedIncomeRefDate: LocalDate?,
         today: LocalDate,
+        marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
+        holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
     ): InvestmentHoldingDTO {
         val financialAccount = accountsById[financialAccountId]
+        val asset = assetsById[assetId]
         val isExpired = maturityDate != null && maturityDate!!.isBefore(today)
 
-        val valuation = if (grossValue != null) {
-            Valuation(grossValue?.toDouble(), netValue?.toDouble(), incomeTax?.toDouble(), iof?.toDouble(), ValuationSource.PROVIDER, null)
-        } else {
-            try {
-                val result = fixedIncomeValuationService.estimate(this, rateMap, refDate)
-                Valuation(result.grossValue?.toDouble(), result.netValue?.toDouble(), result.incomeTax?.toDouble(), result.iof?.toDouble(), result.valuationSource, result.valuationReferenceDate)
-            } catch (e: Exception) {
-                logger.warn(e) { "Failed to estimate valuation for holding $id" }
-                Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
-            }
-        }
+        val valuation =
+            manualValuation()
+                ?: marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
+                ?: providerValuation()
+                ?: estimatedFixedIncomeValuation(rateMap, fixedIncomeRefDate)
+                ?: Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
 
         return InvestmentHoldingDTO(
             id = id!!,
             financialAccountId = financialAccountId,
             accountId = accountId,
             assetId = assetId,
-            asset = assetsById[assetId]?.toDTO(),
+            asset = asset?.toDTO(),
             financialAccount = financialAccount?.toDTO(issuersById[financialAccount.issuerId]),
             quantity = quantity.toDouble(),
             averageCost = averageCost.toDouble(),
@@ -131,6 +195,7 @@ class InvestmentQueryService(
             incomeTax = valuation.incomeTax,
             iof = valuation.iof,
             lastValuedAt = lastValuedAt,
+            pricingMode = pricingMode,
             valuationSource = valuation.source,
             valuationReferenceDate = valuation.refDate,
             isExpired = isExpired,
@@ -139,6 +204,75 @@ class InvestmentQueryService(
             updatedAt = updatedAt,
         )
     }
+
+    private fun Holding.manualValuation(): Valuation? {
+        if (pricingMode != HoldingPricingMode.MANUAL || manualGrossValue == null) return null
+        return Valuation(
+            grossValue = manualGrossValue.toDouble(),
+            netValue = null,
+            incomeTax = null,
+            iof = null,
+            source = ValuationSource.MANUAL,
+            refDate = manualValuedAt,
+        )
+    }
+
+    private fun Holding.marketDataValuation(
+        asset: Asset?,
+        marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
+        holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
+    ): Valuation? {
+        if (pricingMode != HoldingPricingMode.MARKET_DATA) return null
+        if (asset == null || !asset.assetType.isFundAsset()) return null
+        val fundCnpj = asset.fundCnpj?.normalizedFundCnpj() ?: return null
+        val snapshot = marketSnapshotsByCnpj[fundCnpj] ?: return null
+        val holdingId = id ?: return null
+        return try {
+            val result = fundValuationService.estimate(this, snapshot, holdingTransactionsById[holdingId].orEmpty())
+            Valuation(
+                grossValue = result.grossValue?.toDouble(),
+                netValue = result.netValue?.toDouble(),
+                incomeTax = result.incomeTax?.toDouble(),
+                iof = result.iof?.toDouble(),
+                source = result.valuationSource,
+                refDate = result.valuationReferenceDate,
+            )
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to estimate fund valuation for holding $holdingId" }
+            null
+        }
+    }
+
+    private fun Holding.providerValuation(): Valuation? {
+        if (grossValue == null) return null
+        return Valuation(
+            grossValue = grossValue.toDouble(),
+            netValue = netValue?.toDouble(),
+            incomeTax = incomeTax?.toDouble(),
+            iof = iof?.toDouble(),
+            source = ValuationSource.PROVIDER,
+            refDate = null,
+        )
+    }
+
+    private fun Holding.estimatedFixedIncomeValuation(
+        rateMap: Map<Indexer, BigDecimal>,
+        refDate: LocalDate?,
+    ): Valuation? =
+        try {
+            val result = fixedIncomeValuationService.estimate(this, rateMap, refDate)
+            Valuation(
+                result.grossValue?.toDouble(),
+                result.netValue?.toDouble(),
+                result.incomeTax?.toDouble(),
+                result.iof?.toDouble(),
+                result.valuationSource,
+                result.valuationReferenceDate,
+            )
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to estimate valuation for holding $id" }
+            null
+        }
 
     private data class Valuation(
         val grossValue: Double?,
@@ -167,6 +301,11 @@ class InvestmentQueryService(
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
+
+    private fun AssetType?.isFundAsset(): Boolean =
+        this == AssetType.MUTUAL_FUND || this == AssetType.PGBL || this == AssetType.VGBL
+
+    private fun String.normalizedFundCnpj(): String = filter(Char::isDigit)
 
     private fun FinancialAccount.toDTO(issuer: Issuer?) = FinancialAccountDTO(
         id = id!!,

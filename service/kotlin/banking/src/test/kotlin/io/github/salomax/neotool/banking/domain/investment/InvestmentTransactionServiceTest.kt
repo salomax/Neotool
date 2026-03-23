@@ -63,6 +63,18 @@ class InvestmentTransactionServiceTest {
             updatedAt = now,
         )
 
+    private fun fundAsset(
+        type: AssetType = AssetType.MUTUAL_FUND,
+        fundCnpj: String? = "12345678000199",
+    ) = Asset(
+        id = assetId,
+        name = "Fundo XP",
+        assetType = type,
+        fundCnpj = fundCnpj,
+        createdAt = now,
+        updatedAt = now,
+    )
+
     /** An empty holding (quantity = 0, no existing position) */
     private fun emptyHolding() =
         Holding(
@@ -122,6 +134,154 @@ class InvestmentTransactionServiceTest {
             .thenReturn(listOf(custodyAccount))
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
+    }
+
+    @Nested
+    @DisplayName("DELETE")
+    inner class Delete {
+        @Test
+        fun `recomputes holding from remaining manual transactions`() {
+            val deletedTxId = UUID.randomUUID()
+            val remainingTxId = UUID.randomUUID()
+            val currentHolding = holdingWith(quantity = "150", averageCost = "29.00")
+            val deletedTx =
+                InvestmentTransaction(
+                    id = deletedTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("50"),
+                    unitPrice = BigDecimal("30.00"),
+                    grossValue = BigDecimal("1500.00"),
+                    tradeDate = today.plusDays(1),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.plusSeconds(60),
+                    updatedAt = now.plusSeconds(60),
+                )
+            val remainingTx =
+                InvestmentTransaction(
+                    id = remainingTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("28.50"),
+                    grossValue = BigDecimal("2850.00"),
+                    tradeDate = today,
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
+            whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(remainingTx))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val deleted = service.delete(deletedTxId, accountId)
+
+            assertThat(deleted).isTrue()
+            val holdingCaptor = argumentCaptor<Holding>()
+            verify(holdingRepository).update(holdingCaptor.capture())
+            assertThat(holdingCaptor.firstValue.quantity).isEqualByComparingTo("100")
+            assertThat(holdingCaptor.firstValue.averageCost).isEqualByComparingTo("28.50")
+            verify(holdingRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `soft deletes holding when the deleted transaction was the last one`() {
+            val deletedTxId = UUID.randomUUID()
+            val currentHolding = holdingWith(quantity = "100", averageCost = "28.50")
+            val deletedTx =
+                InvestmentTransaction(
+                    id = deletedTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("28.50"),
+                    grossValue = BigDecimal("2850.00"),
+                    tradeDate = today,
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
+            whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(emptyList())
+
+            val deleted = service.delete(deletedTxId, accountId)
+
+            assertThat(deleted).isTrue()
+            verify(holdingRepository).softDelete(holdingId, accountId)
+            verify(holdingRepository, never()).update(any())
+        }
+
+        @Test
+        fun `deleteHolding soft deletes all manual transactions and the holding`() {
+            val txOneId = UUID.randomUUID()
+            val txTwoId = UUID.randomUUID()
+            val currentHolding = holdingWith(quantity = "100", averageCost = "28.50")
+            val txOne =
+                InvestmentTransaction(
+                    id = txOneId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("80"),
+                    unitPrice = BigDecimal("28.00"),
+                    grossValue = BigDecimal("2240.00"),
+                    tradeDate = today.minusDays(1),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.minusSeconds(60),
+                    updatedAt = now.minusSeconds(60),
+                )
+            val txTwo =
+                InvestmentTransaction(
+                    id = txTwoId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("20"),
+                    unitPrice = BigDecimal("30.50"),
+                    grossValue = BigDecimal("610.00"),
+                    tradeDate = today,
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(txTwo, txOne))
+            whenever(investmentTransactionRepository.softDelete(txOneId, accountId)).thenReturn(true)
+            whenever(investmentTransactionRepository.softDelete(txTwoId, accountId)).thenReturn(true)
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+
+            val deleted = service.deleteHolding(holdingId, accountId)
+
+            assertThat(deleted).isTrue()
+            verify(investmentTransactionRepository).softDelete(txOneId, accountId)
+            verify(investmentTransactionRepository).softDelete(txTwoId, accountId)
+            verify(holdingRepository).softDelete(holdingId, accountId)
+        }
     }
 
     // ── PURCHASE — custo médio ponderado ─────────────────────────────────────
@@ -210,7 +370,7 @@ class InvestmentTransactionServiceTest {
             // (100×10 + 50×12) / 150 = (1000+600)/150 = 1600/150 ≈ 10.6667
             val updated = captor.firstValue
             assertThat(updated.quantity).isEqualByComparingTo("150")
-            assertThat(updated.averageCost.setScale(4)).isEqualByComparingTo("10.6667")
+            assertThat(updated.averageCost.setScale(4, java.math.RoundingMode.HALF_UP)).isEqualByComparingTo("10.6667")
         }
     }
 
@@ -413,7 +573,7 @@ class InvestmentTransactionServiceTest {
             val updated = captor.firstValue
             assertThat(updated.quantity).isEqualByComparingTo("110")
             // R$5,000 / 110 ≈ 45.4545
-            assertThat(updated.averageCost.setScale(4))
+            assertThat(updated.averageCost.setScale(4, java.math.RoundingMode.HALF_UP))
                 .isEqualByComparingTo(BigDecimal("5000").divide(BigDecimal("110"), 4, java.math.RoundingMode.HALF_UP))
         }
 
@@ -564,6 +724,80 @@ class InvestmentTransactionServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("Manual fund valuation")
+    inner class ManualFundValuationTests {
+
+        @Test
+        fun `first manual fund purchase persists pricing mode and manual valuation`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command =
+                buyCommand("100", "1.00").copy(
+                    pricingMode = HoldingPricingMode.MANUAL,
+                    manualValuation =
+                        ManualFundValuation(
+                            grossValue = BigDecimal("123.45"),
+                            valuedAt = today,
+                        ),
+                )
+
+            service.record(command, accountId, userId)
+
+            val captor = argumentCaptor<Holding>()
+            verify(holdingRepository).save(captor.capture())
+            val saved = captor.firstValue
+            assertThat(saved.pricingMode).isEqualTo(HoldingPricingMode.MANUAL)
+            assertThat(saved.manualGrossValue).isEqualByComparingTo("123.45")
+            assertThat(saved.manualValuedAt).isEqualTo(today)
+        }
+
+        @Test
+        fun `manual valuation is rejected for market-data fund holdings`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+
+            val command =
+                buyCommand("10", "1.00").copy(
+                    pricingMode = HoldingPricingMode.MARKET_DATA,
+                    manualValuation =
+                        ManualFundValuation(
+                            grossValue = BigDecimal("10.50"),
+                            valuedAt = today,
+                        ),
+                )
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+
+        @Test
+        fun `manual valuation is rejected for non-fund assets`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(asset)
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+
+            val command =
+                buyCommand("10", "20.00").copy(
+                    pricingMode = HoldingPricingMode.MANUAL,
+                    manualValuation =
+                        ManualFundValuation(
+                            grossValue = BigDecimal("220.00"),
+                            valuedAt = today,
+                        ),
+                )
+
+            assertThrows<IllegalArgumentException> {
+                service.record(command, accountId, userId)
+            }
+        }
+    }
+
     // ── CUSTODY TRANSFER ─────────────────────────────────────────────────────
 
     @Nested
@@ -595,7 +829,7 @@ class InvestmentTransactionServiceTest {
             val updated = captor.firstValue
             assertThat(updated.quantity).isEqualByComparingTo("150")
             // (100×28 + 50×30) / 150 = (2800+1500)/150 = 4300/150 ≈ 28.6667
-            assertThat(updated.averageCost.setScale(4))
+            assertThat(updated.averageCost.setScale(4, java.math.RoundingMode.HALF_UP))
                 .isEqualByComparingTo(BigDecimal("4300").divide(BigDecimal("150"), 4, java.math.RoundingMode.HALF_UP))
         }
 

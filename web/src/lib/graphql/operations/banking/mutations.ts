@@ -84,6 +84,12 @@ export const DELETE_INVESTMENT_TRANSACTION = gql`
   }
 `;
 
+export const DELETE_INVESTMENT_HOLDING = gql`
+  mutation DeleteInvestmentHolding($id: ID!) {
+    deleteInvestmentHolding(id: $id)
+  }
+`;
+
 /** Delete a transaction. */
 export const DELETE_TRANSACTION = gql`
   mutation DeleteTransaction($id: ID!) {

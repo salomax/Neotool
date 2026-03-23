@@ -38,6 +38,16 @@ open class DefaultInvestmentTransactionRepository(
             )
             .map(InvestmentTransactionMapper::toDomain)
 
+    override fun findByHoldingIds(
+        holdingIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<InvestmentTransaction> {
+        if (holdingIds.isEmpty()) return emptyList()
+        return entityRepository
+            .findByHoldingIdInAndAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(holdingIds, accountId)
+            .map(InvestmentTransactionMapper::toDomain)
+    }
+
     override fun findByTypeAndDateRange(
         accountId: UUID,
         type: InvestmentTransactionType,

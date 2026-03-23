@@ -3,12 +3,14 @@ package io.github.salomax.neotool.financialdata.graphql.mapper
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.financialdata.domain.FundDailyNav
 import io.github.salomax.neotool.financialdata.domain.InvestmentFund
+import io.github.salomax.neotool.financialdata.domain.InvestmentFundMarketSnapshot
 import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteItemDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import jakarta.inject.Singleton
 
@@ -65,4 +67,12 @@ class InvestmentFundMapper {
 
     fun toNavListDTO(navList: List<FundDailyNav>): List<FundDailyNavDTO> =
         navList.map { toNavDTO(it) }
+
+    fun toMarketSnapshotDTO(snapshot: InvestmentFundMarketSnapshot): InvestmentFundMarketSnapshotDTO =
+        InvestmentFundMarketSnapshotDTO(
+            cnpj = snapshot.cnpj,
+            assetType = snapshot.assetType,
+            taxProfile = snapshot.taxProfile.name,
+            latestNav = snapshot.latestNav?.let { toNavDTO(it) },
+        )
 }

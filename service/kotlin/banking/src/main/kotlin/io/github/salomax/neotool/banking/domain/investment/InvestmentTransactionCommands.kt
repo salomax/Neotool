@@ -60,4 +60,11 @@ data class RecordInvestmentTransactionCommand(
     val gracePeriodDate: LocalDate? = null,
     val isTaxExempt: Boolean = false,
     val providerInvestmentId: String? = null,
+    val pricingMode: HoldingPricingMode? = null,
+    val manualValuation: ManualFundValuation? = null,
+)
+
+data class ManualFundValuation(
+    val grossValue: BigDecimal,
+    val valuedAt: LocalDate,
 )

@@ -340,6 +340,7 @@ export const INVESTMENT_HOLDINGS = gql`
       id
       quantity
       averageCost
+      pricingMode
       grossValue
       netValue
       incomeTax
@@ -382,6 +383,7 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
       id
       quantity
       averageCost
+      pricingMode
       grossValue
       netValue
       incomeTax

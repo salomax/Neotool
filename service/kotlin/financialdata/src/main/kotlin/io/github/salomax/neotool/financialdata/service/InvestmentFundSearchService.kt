@@ -7,6 +7,7 @@ import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.github.salomax.neotool.common.tracing.TraceExecution
 import io.github.salomax.neotool.financialdata.domain.FundDailyNav
 import io.github.salomax.neotool.financialdata.domain.InvestmentFund
+import io.github.salomax.neotool.financialdata.domain.InvestmentFundMarketSnapshot
 import io.github.salomax.neotool.financialdata.repo.InvestmentFundRepositoryCustom
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -105,4 +106,7 @@ open class InvestmentFundSearchService(
         to: LocalDate?,
         last: Int?,
     ): List<FundDailyNav> = fundRepository.getPriceHistory(assetId, from, to, last)
+
+    fun getMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot> =
+        fundRepository.findMarketSnapshotsByCnpj(cnpjs)
 }

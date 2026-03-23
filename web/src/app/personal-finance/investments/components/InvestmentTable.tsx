@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useMutation, useQuery } from '@apollo/client/react';
+import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
 import i18n from 'i18next';
 import {
   alpha,
@@ -14,6 +14,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   Paper,
   Table,
@@ -26,6 +27,7 @@ import {
   ListItemText,
   Menu,
   MenuItem,
+  Stack,
   TextField,
   Tooltip,
   Typography,
@@ -36,20 +38,24 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import InfoIcon from '@mui/icons-material/Info';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import TrendingDownIcon from '@mui/icons-material/TrendingDown';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { GrowthChip } from '@/shared/components/ui/data-display';
+import { GainPercent } from '@/shared/components/ui/data-display';
+import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_BODY_LINE_HEIGHT, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
 import { personalFinanceTranslations } from '../../i18n';
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
-import { DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import {
+  DELETE_INVESTMENT_HOLDING,
+  DELETE_INVESTMENT_TRANSACTION,
+  RECORD_INVESTMENT_TRANSACTION,
+} from '@/lib/graphql/operations/banking/mutations';
 import {
   AllInvestmentHoldingsQuery,
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
 import {
+  HoldingPricingMode,
   Indexer,
   InvestmentSource,
   InvestmentTransaction,
@@ -60,11 +66,11 @@ import { AttachmentSection } from '../../components/AttachmentSection';
 import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
 import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
-import { getApolloClient } from '@/lib/graphql/client';
 
 interface InvestmentTableProps {
   selectedAccountId: string | null;
   onRecordHolding?: () => void;
+  searchQuery?: string;
 }
 
 type HoldingRow =
@@ -74,7 +80,7 @@ type HoldingRow =
 const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
   [Indexer.Cdi]: 'CDI',
   [Indexer.Di]: 'DI',
-  [Indexer.Ipca]: 'IPCA',
+  [Indexer.Ipca]: 'IPCA+',
   [Indexer.IgpM]: 'IGP-M',
   [Indexer.IgpDi]: 'IGP-DI',
   [Indexer.Inpc]: 'INPC',
@@ -86,7 +92,6 @@ const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
 const EMPTY_HOLDINGS: HoldingRow[] = [];
 const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome', 'treasuryDirect']);
-const FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX = 70;
 
 type AssetGroupKey =
   | 'variableIncome'
@@ -219,11 +224,11 @@ function getFinancialAccountAvatarProps(holding: HoldingRow) {
   };
 }
 
-export function InvestmentTable({ selectedAccountId, onRecordHolding }: InvestmentTableProps) {
+export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuery }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const locale = getCurrentLocale();
-  const apolloClient = React.useMemo(() => getApolloClient(), []);
+  const apolloClient = useApolloClient();
   const [expandedGroups, setExpandedGroups] = React.useState<Set<AssetGroupKey>>(() => new Set());
   const didInitExpansionRef = React.useRef(false);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = React.useState<HTMLElement | null>(null);
@@ -238,8 +243,10 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     grossValue: '',
   });
 
-  const [deleteInvestmentTransaction, { loading: deleting }] = useMutation(DELETE_INVESTMENT_TRANSACTION);
+  const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
+  const [deleteInvestmentTransaction, { loading: deletingTransaction }] = useMutation(DELETE_INVESTMENT_TRANSACTION);
   const [recordInvestmentTransaction, { loading: recordingEdit }] = useMutation(RECORD_INVESTMENT_TRANSACTION);
+  const deleting = deletingHolding || deletingTransaction;
 
   const closeActionMenu = () => {
     setActionMenuAnchorEl(null);
@@ -252,7 +259,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     return raw.split('T')[0] ?? '';
   };
 
-  const resolveLatestManualTransaction = async (holdingId: string) => {
+  const resolveManualTransactions = async (holdingId: string) => {
     const result = await apolloClient.query<{
       investmentTransactions: InvestmentTransaction[];
     }>({
@@ -263,7 +270,12 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     });
 
     const list = result.data?.investmentTransactions ?? [];
-    return list.find((tx) => tx.source === InvestmentSource.Manual) ?? null;
+    return list.filter((tx) => tx.source === InvestmentSource.Manual);
+  };
+
+  const resolveLatestManualTransaction = async (holdingId: string) => {
+    const list = await resolveManualTransactions(holdingId);
+    return list[0] ?? null;
   };
 
   const resolveFinancialAccountId = (holding: HoldingRow) => {
@@ -277,9 +289,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     if (!holding) return;
 
     try {
-      const tx = await resolveLatestManualTransaction(holding.id);
-      if (!tx) return;
-      await deleteInvestmentTransaction({ variables: { id: tx.id } });
+      await deleteInvestmentHolding({ variables: { id: holding.id } });
       setHoldingToRemove(null);
 
       if (selectedAccountId) await accountHoldingsQuery.refetch();
@@ -405,6 +415,24 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     return consolidatedHoldingsQuery.data?.allInvestmentHoldings ?? EMPTY_HOLDINGS;
   }, [accountHoldingsQuery.data?.investmentHoldings, consolidatedHoldingsQuery.data?.allInvestmentHoldings, selectedAccountId]);
 
+  const normalizedSearchQuery = React.useMemo(() => (searchQuery ?? '').trim().toLowerCase(), [searchQuery]);
+  const hasSearchQuery = Boolean(normalizedSearchQuery);
+
+  const displayedHoldings = React.useMemo(() => {
+    if (!hasSearchQuery) return holdings;
+
+    return holdings.filter((holding) => {
+      const assetName = holding.asset?.name ?? '';
+      const ticker = holding.asset?.ticker ?? '';
+      const issuerName = holding.asset?.issuerName ?? '';
+      const assetType = holding.asset?.assetType ?? '';
+      const financialAccountName = (holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number]).financialAccount?.name ?? '';
+
+      const haystack = `${assetName} ${ticker} ${issuerName} ${assetType} ${financialAccountName}`.toLowerCase();
+      return haystack.includes(normalizedSearchQuery);
+    });
+  }, [hasSearchQuery, holdings, normalizedSearchQuery]);
+
   const loading = selectedAccountId ? accountHoldingsQuery.loading : consolidatedHoldingsQuery.loading;
   const error = selectedAccountId ? accountHoldingsQuery.error : consolidatedHoldingsQuery.error;
 
@@ -416,20 +444,26 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
 
     base.others = [];
 
-    holdings.forEach((holding) => {
+    displayedHoldings.forEach((holding) => {
       const groupKey = getAssetGroupKey(holding.asset?.assetType);
       base[groupKey].push(holding);
     });
 
     return base;
-  }, [holdings]);
+  }, [displayedHoldings]);
 
   const groups = React.useMemo(() => {
+    let portfolioTotal = 0;
+    displayedHoldings.forEach((holding) => {
+      if (typeof holding.grossValue === 'number') portfolioTotal += holding.grossValue;
+    });
+
     const computed = ASSET_GROUP_ORDER.map((groupKey) => {
       const groupHoldings = groupedHoldings[groupKey] || [];
       const currencyCodes = new Set(groupHoldings.map((holding) => holding.asset?.currencyCode).filter(Boolean));
 
       let sum = 0;
+      let principalSum = 0;
       let hasValue = false;
       let hasEstimated = false;
 
@@ -438,11 +472,17 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
           sum += holding.grossValue;
           hasValue = true;
         }
-        if (holding.valuationSource === ValuationSource.Estimated) hasEstimated = true;
+        if (typeof holding.averageCost === 'number' && typeof holding.quantity === 'number') {
+          principalSum += holding.averageCost * holding.quantity;
+        }
+        if (holding.valuationSource === ValuationSource.Estimated || holding.valuationSource === ValuationSource.MarketData) {
+          hasEstimated = true;
+        }
       });
 
       const currencyCode = currencyCodes.size === 1 ? Array.from(currencyCodes)[0] : null;
       const total = hasValue && currencyCode ? formatCurrency(sum, currencyCode, locale) : '—';
+      const allocationPercent = portfolioTotal > 0 && hasValue ? sum / portfolioTotal : null;
 
       return {
         key: groupKey,
@@ -450,6 +490,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
         count: groupHoldings.length,
         total,
         hasEstimatedInGroup: hasEstimated,
+        gainPercent: principalSum > 0 && hasValue ? (sum - principalSum) / principalSum : null,
+        allocationPercent,
         summary: t('investments.table.groupSummary', {
           count: groupHoldings.length,
           total,
@@ -458,7 +500,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
       };
     });
     return computed.filter((group) => group.count > 0);
-  }, [groupedHoldings, locale, t]);
+  }, [displayedHoldings, groupedHoldings, locale, t]);
 
   React.useEffect(() => {
     if (loading || error) return;
@@ -466,6 +508,17 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     if (groups.length === 0) {
       if (expandedGroups.size > 0) setExpandedGroups(new Set());
       didInitExpansionRef.current = false;
+      return;
+    }
+
+    if (hasSearchQuery) {
+      const nextExpandedGroups = new Set(groups.map((group) => group.key));
+      const isSame =
+        nextExpandedGroups.size === expandedGroups.size &&
+        Array.from(nextExpandedGroups).every((key) => expandedGroups.has(key));
+
+      if (!isSame) setExpandedGroups(nextExpandedGroups);
+      didInitExpansionRef.current = true;
       return;
     }
 
@@ -489,12 +542,18 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
         setExpandedGroups(nextExpandedGroups);
       }
     }
-  }, [error, expandedGroups, groups, loading]);
+  }, [error, expandedGroups, groups, hasSearchQuery, loading]);
 
   React.useEffect(() => {
     setExpandedGroups(new Set());
     didInitExpansionRef.current = false;
   }, [selectedAccountId]);
+
+  React.useEffect(() => {
+    if (hasSearchQuery) return;
+    setExpandedGroups(new Set());
+    didInitExpansionRef.current = false;
+  }, [hasSearchQuery]);
 
   const isEditOpen = Boolean(holdingToEdit && editingTx);
   const isEditBusy = deleting || recordingEdit;
@@ -513,6 +572,12 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
     }
     return true;
   })();
+
+  const isActionMenuFixedIncome = actionMenuHolding?.asset?.assetType
+    ? FIXED_INCOME_GROUP_KEYS.has(getAssetGroupKey(actionMenuHolding.asset.assetType))
+    : false;
+
+  const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
 
   return (
     <TableContainer
@@ -539,10 +604,10 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
         </Box>
       )}
 
-      {!loading && !error && holdings.length === 0 && (
+      {!loading && !error && displayedHoldings.length === 0 && (
         <Box sx={{ py: 6, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {t('investments.table.emptyState')}
+            {emptyStateMessage}
           </Typography>
           {onRecordHolding && (
             <Button
@@ -558,28 +623,19 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
         </Box>
       )}
 
-      {!loading && !error && holdings.length > 0 && (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.7 }}>
+      {!loading && !error && displayedHoldings.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
           {groups.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
             const leadingIcon = (
               <AssetGroupIcon groupKey={group.key} sx={{ fontSize: 16 }} />
             );
             const divider = alpha(theme.palette.divider, 0.7);
+            const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
             const isFundGroup = FUND_GROUP_KEYS.has(group.key);
             const isFixedIncomeGroup = FIXED_INCOME_GROUP_KEYS.has(group.key);
             const showFinancialAccountColumn = !selectedAccountId;
-            const dataColumnCount = isFundGroup
-              ? showFinancialAccountColumn
-                ? 6
-                : 5
-              : showFinancialAccountColumn
-                ? isFixedIncomeGroup
-                  ? 8
-                  : 7
-                : isFixedIncomeGroup
-                  ? 7
-                  : 6;
+            const dataColumnCount = isFundGroup ? 4 : isFixedIncomeGroup ? 4 : 5;
             const colWidth = `calc((100% - 52px) / ${dataColumnCount})`;
 
             const summaryAdornment =
@@ -605,90 +661,117 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                 summary={group.summary}
                 leadingIcon={leadingIcon}
                 summaryAdornment={summaryAdornment}
+                gainPercent={group.gainPercent}
+                allocationPercent={group.allocationPercent}
               >
-                <Table
-                  sx={{
-                    width: '100%',
-                    tableLayout: 'fixed',
-                    borderCollapse: 'collapse',
-                    '& .MuiTableCell-root': {
-                      px: 1.5,
-                    },
-                  }}
-                  aria-label="investments table"
-                >
-                  <TableHead>
-                    <TableRow>
-                      {showFinancialAccountColumn && (
-                        <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                          <Label>{t('investments.table.columns.financialAccount')}</Label>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+                  <Table
+                    sx={{
+                      width: '100%',
+                      tableLayout: 'fixed',
+                      borderCollapse: 'collapse',
+                      ...FINANCE_TABLE_TYPOGRAPHY_SX,
+                      '& .MuiTableCell-root': {
+                        px: 1.5,
+                        pb: 0.75,
+                        borderBottom: 'none',
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                    aria-label="investments table header"
+                  >
+                    <TableHead>
+                      <TableRow>
+                        <TableCell sx={{ width: colWidth }}>
+                          <Label>{t('investments.table.columns.asset')}</Label>
                         </TableCell>
-                      )}
-                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.asset')}</Label>
-                      </TableCell>
-                      <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                        <Label>{t('investments.table.columns.type')}</Label>
-                      </TableCell>
-                      {isFundGroup ? (
-                        <>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.fundQuantity')}</Label>
+                        {!isFixedIncomeGroup && (
+                          <TableCell sx={{ width: colWidth }}>
+                            <Label>{t('investments.table.columns.type')}</Label>
                           </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.grossValue')}</Label>
-                          </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
+                        )}
+                        {isFundGroup ? (
+                          <>
+                            <TableCell align="right" sx={{ width: colWidth }}>
+                              <Label>{t('investments.table.columns.grossValue')}</Label>
+                            </TableCell>
+                            <TableCell align="right" sx={{ width: colWidth }}>
+                              <Label>{t('investments.table.columns.gain')}</Label>
+                            </TableCell>
+                          </>
+                        ) : (
+                          <>
+                            <TableCell sx={{ width: colWidth }}>
+                              <Label>{t('investments.table.columns.maturityDate')}</Label>
+                            </TableCell>
+                            <TableCell align="right" sx={{ width: colWidth }}>
+                              <Label>{t('investments.table.columns.grossValue')}</Label>
+                            </TableCell>
+                          <TableCell align="right" sx={{ width: colWidth }}>
                             <Label>{t('investments.table.columns.gain')}</Label>
                           </TableCell>
-                        </>
-                      ) : (
-                        <>
-                          <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.indexer')}</Label>
-                          </TableCell>
-                          <TableCell sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.maturityDate')}</Label>
-                          </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                            <Label>{t('investments.table.columns.grossValue')}</Label>
-                          </TableCell>
-                          {isFixedIncomeGroup ? (
-                            <TableCell
-                              align="center"
-                              colSpan={2}
-                              sx={{ width: `calc(${colWidth} * 2)`, borderBottom: `1px solid ${divider}` }}
-                            >
-                              <Label>{t('investments.table.columns.gain')}</Label>
-                            </TableCell>
-                          ) : (
-                            <TableCell align="right" sx={{ width: colWidth, borderBottom: `1px solid ${divider}` }}>
-                              <Label>{t('investments.table.columns.gain')}</Label>
-                            </TableCell>
-                          )}
-                        </>
-                      )}
-                      <TableCell align="center" sx={{ width: 52, borderBottom: `1px solid ${divider}` }} />
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
+                          </>
+                        )}
+                        <TableCell align="center" sx={{ width: 52 }} />
+                      </TableRow>
+                    </TableHead>
+                  </Table>
+
+                  <Box
+                    sx={{
+                      borderRadius: `${tableRadius}px`,
+                      overflow: 'hidden',
+                      bgcolor: 'background.paper',
+                    }}
+                  >
+                    <Table
+                      sx={{
+                        width: '100%',
+                        tableLayout: 'fixed',
+                        borderCollapse: 'collapse',
+                        ...FINANCE_TABLE_TYPOGRAPHY_SX,
+                        '& .MuiTableCell-root': {
+                          px: 1.5,
+                        },
+                      }}
+                      aria-label="investments table"
+                    >
+                      <TableBody>
                     {group.holdings.map((holding) => {
                       const source = holding.valuationSource;
                       const isExpired = holding.isExpired;
                       const refDate = typeof holding.valuationReferenceDate === 'string' ? holding.valuationReferenceDate : null;
                       const refDateFormatted = refDate ? formatDate(refDate, locale) : '';
                       const currencyCode = holding.asset?.currencyCode ?? 'BRL';
+                      const manualPricing = holding.pricingMode === HoldingPricingMode.Manual;
+                      const marketDataPricing = holding.pricingMode === HoldingPricingMode.MarketData;
 
-                      const valueUnavailable =
-                        source === ValuationSource.Unavailable || (source !== ValuationSource.Provider && typeof holding.grossValue !== 'number');
+                      const valueUnavailable = source === ValuationSource.Unavailable || typeof holding.grossValue !== 'number';
                       const valueContent = valueUnavailable ? (
                         '—'
                       ) : (
                         formatCurrency(holding.grossValue, currencyCode, locale)
                       );
+                      const valueSourceKey =
+                        source === ValuationSource.Manual || source === ValuationSource.MarketData || source === ValuationSource.Provider
+                          ? source
+                          : manualPricing
+                            ? ValuationSource.Manual
+                            : marketDataPricing
+                              ? ValuationSource.MarketData
+                          : null;
+                      const valueSourceLabel = valueSourceKey
+                        ? t(`investments.table.valueSource.${valueSourceKey}`)
+                        : null;
                       const valueIcon =
-                        source === ValuationSource.Estimated ? (
-                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                        source === ValuationSource.Estimated ||
+                        source === ValuationSource.Manual ||
+                        source === ValuationSource.MarketData ? (
+                          <Tooltip
+                            title={t(`investments.table.valuationTooltip.${source}`, {
+                              date: refDateFormatted || '—',
+                            })}
+                          >
                             <EstimatedInfoBadge mr={0.25} />
                           </Tooltip>
                         ) : null;
@@ -697,9 +780,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                       const grossVal = typeof holding.grossValue === 'number' ? holding.grossValue : null;
                       const absolute = principal > 0 && grossVal != null ? grossVal - principal : null;
                       const growthRatio = absolute != null && principal > 0 ? absolute / principal : null;
-                      const percent = growthRatio != null ? growthRatio * 100 : null;
                       const gainUnavailable = grossVal == null || source === ValuationSource.Unavailable;
-                      const gainEstimated = source === ValuationSource.Estimated;
+                      const gainEstimated = source === ValuationSource.Estimated || source === ValuationSource.MarketData;
                       const canMutate = holding.source === InvestmentSource.Manual;
 
                       return (
@@ -710,38 +792,44 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                             '&:last-of-type td': { borderBottom: 'none' },
                           }}
                         >
-                          {showFinancialAccountColumn && (
-                            <TableCell sx={{ width: colWidth }}>
+                          <TableCell sx={{ width: colWidth }}>
+                            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                               {(() => {
                                 const avatar = getFinancialAccountAvatarProps(holding);
-
                                 return (
-                                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-                                    <Avatar
-                                      src={avatar.src}
-                                      alt={avatar.alt}
-                                      sx={{
-                                        width: 28,
-                                        height: 28,
-                                        bgcolor: avatar.src ? 'transparent' : avatar.backgroundColor,
-                                        fontSize: '0.8rem',
-                                        flex: '0 0 auto',
-                                      }}
-                                    >
-                                      {!avatar.src && avatar.label}
-                                    </Avatar>
-                                    <Typography variant="body2" fontWeight={600} noWrap>
-                                      {formatFinancialAccountLabel(holding)}
-                                    </Typography>
-                                  </Box>
+                                  <Avatar
+                                    src={avatar.src}
+                                    alt={avatar.alt}
+                                    variant="rounded"
+                                    sx={{
+                                      width: 32,
+                                      height: 32,
+                                      bgcolor: avatar.src ? 'transparent' : avatar.backgroundColor,
+                                      borderRadius: '.3rem',
+                                      fontSize: '0.75rem',
+                                      flex: '0 0 auto',
+                                      '& img': { objectFit: 'contain' },
+                                    }}
+                                  >
+                                    {!avatar.src && avatar.label}
+                                  </Avatar>
                                 );
                               })()}
-                            </TableCell>
-                          )}
-                          <TableCell sx={{ width: colWidth }}>
-                            <Typography variant="body2" fontWeight={700}>
-                              {holding.asset?.name ?? '—'}
-                            </Typography>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <Typography variant="body2" noWrap>
+                                  {(() => {
+                                    const name = holding.asset?.name ?? '—';
+                                    if (!isFixedIncomeGroup) return name;
+                                    const typeLabel = holding.asset ? formatAssetType(holding.asset.assetType, t) : '—';
+                                    const idx = formatIndexer(holding, locale);
+                                    return idx ? `${name} • ${typeLabel} ${idx}` : `${name} • ${typeLabel}`;
+                                  })()}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
+                                  {formatFinancialAccountLabel(holding)}
+                                </Typography>
+                              </Box>
+                            </Stack>
                             {isExpired && source !== 'PROVIDER' && (() => {
                               const maturityDateStr = holding.maturityDate ? formatDate(holding.maturityDate, locale) : '';
                               return maturityDateStr ? (
@@ -751,36 +839,41 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                               ) : null;
                             })()}
                           </TableCell>
-                          <TableCell sx={{ width: colWidth }}>
-                            {isFundGroup ? (
-                              <Chip
-                                size="small"
-                                variant="outlined"
-                                label={
-                                  holding.asset
-                                    ? formatFundAssetType(holding.asset.assetType, t)
-                                    : '—'
-                                }
-                              />
-                            ) : (
-                              <Typography variant="body2">
-                                {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
-                              </Typography>
-                            )}
-                          </TableCell>
+                          {isFundGroup ? (
+                            <TableCell sx={{ width: colWidth }}>
+                              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <Typography variant="body2" noWrap>
+                                  {holding.asset ? formatFundAssetType(holding.asset.assetType, t) : '—'}
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary" noWrap sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                                  {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
+                                </Typography>
+                              </Box>
+                            </TableCell>
+                          ) : (
+                            !isFixedIncomeGroup && (
+                              <TableCell sx={{ width: colWidth }}>
+                                <Typography variant="body2">
+                                  {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
+                                </Typography>
+                              </TableCell>
+                            )
+                          )}
                           {isFundGroup ? (
                             <>
                               <TableCell align="right" sx={{ width: colWidth }}>
-                                <Typography variant="body2" fontWeight={700}>
-                                  {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
-                                </Typography>
-                              </TableCell>
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                  {valueIcon}
-                                  <Typography variant="body2" component="span" fontWeight={700}>
-                                    {valueContent}
-                                  </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                    {valueIcon}
+                                    <Typography variant="body2" component="span" fontWeight="medium">
+                                      {valueContent}
+                                    </Typography>
+                                  </Box>
+                                  {valueSourceLabel ? (
+                                    <Typography variant="caption" color="text.secondary">
+                                      {valueSourceLabel}
+                                    </Typography>
+                                  ) : null}
                                 </Box>
                               </TableCell>
                               <TableCell align="right" sx={{ width: colWidth }}>
@@ -805,7 +898,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                         )}
                                         <Typography
                                           variant="body2"
-                                          fontWeight={700}
+                                          fontWeight="medium"
                                           color={
                                             absolute != null && absolute >= 0
                                               ? 'success.main'
@@ -817,8 +910,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                           {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
                                         </Typography>
                                       </Box>
-                                      {percent != null && principal > 0 && absolute != null && (
-                                        <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                      {growthRatio != null && principal > 0 && absolute != null && (
+                                        <GainPercent value={growthRatio} locale={locale} />
                                       )}
                                     </>
                                   )}
@@ -828,16 +921,25 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                           ) : (
                             <>
                               <TableCell sx={{ width: colWidth }}>
-                                <Typography variant="body2">{formatIndexer(holding, locale)}</Typography>
-                              </TableCell>
-                              <TableCell sx={{ width: colWidth }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
                                   <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
                                   {isExpired && (
                                     <Chip
                                       size="small"
-                                      label={t('investments.table.expiredBadge')}
-                                      sx={{ height: 20, fontSize: '0.7rem' }}
+                                      label={
+                                        <Typography
+                                          variant="body2"
+                                          sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, lineHeight: FINANCE_TABLE_BODY_LINE_HEIGHT, opacity: 0.7 }}
+                                        >
+                                          {t('investments.table.expiredBadge')}
+                                        </Typography>
+                                      }
+                                      sx={{
+                                        height: 28,
+                                        bgcolor: 'action.selected',
+                                        borderColor: 'divider',
+                                        '& .MuiChip-label': { px: 1 },
+                                      }}
                                       color="default"
                                       variant="outlined"
                                     />
@@ -845,95 +947,49 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                 </Box>
                               </TableCell>                              
                               <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                  {valueIcon}
-                                  <Typography variant="body2" component="span" fontWeight={700}>
-                                    {valueContent}
-                                  </Typography>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                    {valueIcon}
+                                    <Typography variant="body2" component="span" fontWeight="medium">
+                                      {valueContent}
+                                    </Typography>
+                                  </Box>
+                                  {isFundGroup && valueSourceLabel ? (
+                                    <Typography variant="caption" color="text.secondary">
+                                      {valueSourceLabel}
+                                    </Typography>
+                                  ) : null}
                                 </Box>
                               </TableCell>
 
                               {isFixedIncomeGroup ? (
-                                <>
-                                  <TableCell
-                                    align="right"
-                                    sx={{ width: `calc(${colWidth} * 2 - ${FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX}px)` }}
-                                  >
+                                <TableCell align="right" sx={{ width: colWidth }}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
                                     {gainUnavailable ? (
                                       <Typography variant="body2">—</Typography>
                                     ) : (
-                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                        {gainEstimated && (
-                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <EstimatedInfoBadge mr={0.25} />
-                                          </Tooltip>
+                                      <>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                          {gainEstimated && (
+                                            <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
+                                              <EstimatedInfoBadge mr={0.25} />
+                                            </Tooltip>
+                                          )}
+                                          <Typography
+                                            variant="body2"
+                                            fontWeight="medium"
+                                            color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
+                                          >
+                                            {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
+                                          </Typography>
+                                        </Box>
+                                        {growthRatio != null && principal > 0 && absolute != null && (
+                                          <GainPercent value={growthRatio} locale={locale} />
                                         )}
-                                        <Typography
-                                          variant="body2"
-                                          fontWeight={700}
-                                          color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
-                                        >
-                                          {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
-                                        </Typography>
-                                      </Box>
+                                      </>
                                     )}
-                                  </TableCell>
-                                  <TableCell align="right" sx={{ width: `${FIXED_INCOME_GAIN_PERCENT_COL_WIDTH_PX}px`, whiteSpace: 'nowrap' }}>
-                                    {gainUnavailable ? (
-                                      <Typography variant="body2">—</Typography>
-                                    ) : (
-                                      <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                                        <Chip
-                                          size="small"
-                                          variant="outlined"
-                                          icon={
-                                            growthRatio != null && growthRatio !== 0 ? (
-                                              growthRatio > 0 ? (
-                                                <TrendingUpIcon sx={{ fontSize: 14, color: 'inherit' }} />
-                                              ) : (
-                                                <TrendingDownIcon sx={{ fontSize: 14, color: 'inherit' }} />
-                                              )
-                                            ) : undefined
-                                          }
-                                          label={
-                                            growthRatio != null
-                                              ? new Intl.NumberFormat(locale, {
-                                                  style: 'percent',
-                                                  minimumFractionDigits: 2,
-                                                  maximumFractionDigits: 2,
-                                                }).format(growthRatio)
-                                              : '—'
-                                          }
-                                          sx={{
-                                            height: 20,
-                                            fontSize: '.7rem',
-                                            fontWeight: 500,
-                                            border: 'none',
-                                            px: .7,
-                                            py: 1.5,
-                                            maxWidth: '100%',
-                                            bgcolor:
-                                              growthRatio != null
-                                                ? alpha(growthRatio >= 0 ? theme.palette.success.main : theme.palette.error.main, 0.08)
-                                                : 'transparent',
-                                            borderColor:
-                                              growthRatio != null
-                                                ? alpha(growthRatio >= 0 ? theme.palette.success.main : theme.palette.error.main, 0.35)
-                                                : alpha(theme.palette.divider, 0.7),
-                                            color:
-                                              growthRatio != null
-                                                ? growthRatio >= 0
-                                                  ? theme.palette.success.main
-                                                  : theme.palette.error.main
-                                                : theme.palette.text.secondary,
-                                            '& .MuiChip-icon': { ml: 0, mr: 0.25, color: 'inherit' },
-                                            '& .MuiChip-label': { px: 0.5 },
-                                          }}
-                                        />
-                                      </Box>
-                                    )}
-                                  </TableCell>
-                                </>
+                                  </Box>
+                                </TableCell>
                               ) : (
                                 <TableCell align="right" sx={{ width: colWidth }}>
                                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
@@ -949,14 +1005,14 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                                           )}
                                           <Typography
                                             variant="body2"
-                                            fontWeight={700}
+                                            fontWeight="medium"
                                             color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
                                           >
                                             {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
                                           </Typography>
                                         </Box>
-                                        {percent != null && principal > 0 && absolute != null && (
-                                          <GrowthChip growthPercentage={absolute / principal} locale={locale} size="small" />
+                                        {growthRatio != null && principal > 0 && absolute != null && (
+                                          <GainPercent value={growthRatio} locale={locale} />
                                         )}
                                       </>
                                     )}
@@ -983,8 +1039,10 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
                         </TableRow>
                       );
                     })}
-                  </TableBody>
-                </Table>
+                      </TableBody>
+                    </Table>
+                  </Box>
+                </Box>
               </AssetGroupCard>
             );
           })}
@@ -1012,6 +1070,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
           </ListItemIcon>
           <ListItemText>{t('investments.table.rowActions.edit')}</ListItemText>
         </MenuItem>
+        {isActionMenuFixedIncome && <Divider />}
         <MenuItem
           onClick={() => {
             const holding = actionMenuHolding;
@@ -1019,7 +1078,15 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding }: Investme
             if (!holding) return;
             setHoldingToRemove(holding);
           }}
-          sx={{ color: 'error.main' }}
+          sx={{
+            color: 'error.main',
+            ...(isActionMenuFixedIncome
+              ? {
+                  '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08) },
+                  '&.Mui-focusVisible': { bgcolor: alpha(theme.palette.error.main, 0.12) },
+                }
+              : {}),
+          }}
           disabled={deleting || recordingEdit}
         >
           <ListItemIcon sx={{ color: 'inherit' }}>

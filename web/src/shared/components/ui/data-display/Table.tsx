@@ -3,6 +3,18 @@ import { Table as MuiTable, TableProps as MuiTableProps } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { getTestIdProps } from '@/shared/utils/testid';
 
+export const FINANCE_TABLE_BODY_FONT_SIZE = '0.875rem';
+export const FINANCE_TABLE_BODY_LINE_HEIGHT = 1.25;
+export const FINANCE_TABLE_TYPOGRAPHY_SX = {
+  '& .MuiTypography-body2': {
+    fontSize: FINANCE_TABLE_BODY_FONT_SIZE,
+    lineHeight: FINANCE_TABLE_BODY_LINE_HEIGHT,
+  },
+  '& .MuiTableCell-alignRight .MuiTypography-root': {
+    fontVariantNumeric: 'tabular-nums',
+  },
+} as const;
+
 export interface TableProps extends MuiTableProps {
   /** Custom styles to apply to the Table component. */
   sx?: MuiTableProps['sx'];
@@ -71,4 +83,3 @@ export function Table({
 }
 
 export default Table;
-

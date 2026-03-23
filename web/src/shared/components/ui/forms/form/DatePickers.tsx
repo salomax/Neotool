@@ -34,6 +34,79 @@ export interface DatePickerFieldProps {
   'data-testid'?: string;
 }
 
+type DatePickerFieldInnerProps = {
+  field: any;
+  fieldState: any;
+  dateFormat: string;
+  effectiveLabel: string;
+  fullWidth: boolean;
+  minDate?: Date;
+  maxDate?: Date;
+  helperText?: React.ReactNode;
+  dataTestId?: string;
+  pickerError: string | null;
+  pickerErrorText?: React.ReactNode;
+  formatHint: string;
+  setPickerError: (reason: any) => void;
+};
+
+const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
+  field,
+  fieldState,
+  dateFormat,
+  effectiveLabel,
+  fullWidth,
+  minDate,
+  maxDate,
+  helperText,
+  dataTestId,
+  pickerError,
+  pickerErrorText,
+  formatHint,
+  setPickerError,
+}) => {
+  const [draftValue, setDraftValue] = React.useState<Dayjs | null>(field.value ? dayjs(field.value) : null);
+
+  React.useEffect(() => {
+    setDraftValue(field.value ? dayjs(field.value) : null);
+  }, [field.value]);
+
+  return (
+    <DatePicker
+      format={dateFormat}
+      value={draftValue}
+      onChange={(v, context) => {
+        setDraftValue(v);
+
+        if (!v) {
+          field.onChange(null);
+          return;
+        }
+
+        if (!context.validationError) {
+          field.onChange((v as Dayjs).toDate());
+        }
+      }}
+      onError={setPickerError}
+      minDate={minDate ? dayjs(minDate) : undefined}
+      maxDate={maxDate ? dayjs(maxDate) : undefined}
+      slotProps={{
+        textField: {
+          label: effectiveLabel,
+          placeholder: formatHint,
+          fullWidth,
+          error: !!fieldState.error || !!pickerError,
+          helperText: fieldState.error?.message ?? pickerErrorText ?? helperText,
+          'data-testid': dataTestId,
+          inputProps: {
+            'data-testid': dataTestId,
+          },
+        } as any,
+      }}
+    />
+  );
+};
+
 export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   name,
   label,
@@ -91,26 +164,20 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
         name={name}
         control={control}
         render={({ field, fieldState }) => (
-          <DatePicker
-            format={dateFormat}
-            value={field.value ? dayjs(field.value) : null}
-            onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
-            onError={(reason) => setPickerError(reason as any)}
-            minDate={minDate ? dayjs(minDate) : undefined}
-            maxDate={maxDate ? dayjs(maxDate) : undefined}
-            slotProps={{
-              textField: {
-                label: effectiveLabel,
-                placeholder: t("datePicker.formatHint"),
-                fullWidth,
-                error: !!fieldState.error || !!pickerError,
-                helperText: fieldState.error?.message ?? pickerErrorText ?? helperText,
-                'data-testid': dataTestId,
-                inputProps: {
-                  'data-testid': dataTestId,
-                },
-              } as any,
-            }}
+          <DatePickerFieldInner
+            field={field}
+            fieldState={fieldState}
+            dateFormat={dateFormat}
+            effectiveLabel={effectiveLabel}
+            fullWidth={fullWidth}
+            minDate={minDate}
+            maxDate={maxDate}
+            helperText={helperText}
+            dataTestId={dataTestId}
+            pickerError={pickerError}
+            pickerErrorText={pickerErrorText}
+            formatHint={t("datePicker.formatHint")}
+            setPickerError={(reason) => setPickerError(reason as any)}
           />
         )}
       />

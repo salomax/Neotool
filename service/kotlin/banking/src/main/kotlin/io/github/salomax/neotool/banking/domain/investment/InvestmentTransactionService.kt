@@ -125,7 +125,7 @@ open class InvestmentTransactionService(
             )
 
         val now = Instant.now()
-        val holding = existingHolding ?: createHolding(command, accountId, now)
+        val holding = existingHolding ?: createHolding(command, asset, accountId, now)
 
         // Apply the transaction effect: update quantity and average cost
         val updatedHolding = applyEffect(holding, command, now)
@@ -181,7 +181,40 @@ open class InvestmentTransactionService(
         check(tx.source == InvestmentSource.MANUAL) {
             "Only MANUAL transactions can be deleted; synced transactions must be managed via the provider"
         }
-        return investmentTransactionRepository.softDelete(id, accountId)
+        val holding =
+            holdingRepository.findById(tx.holdingId, accountId)
+                ?: throw NoSuchElementException("Holding ${tx.holdingId} not found")
+
+        val deleted = investmentTransactionRepository.softDelete(id, accountId)
+        if (!deleted) return false
+
+        recomputeHoldingAfterDelete(holding, accountId)
+        return true
+    }
+
+    fun deleteHolding(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val holding =
+            holdingRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Holding $id not found")
+        check(holding.source == InvestmentSource.MANUAL) {
+            "Only MANUAL holdings can be deleted; synced holdings must be managed via the provider"
+        }
+
+        val transactions = investmentTransactionRepository.findByHolding(id, accountId)
+        check(transactions.all { it.source == InvestmentSource.MANUAL }) {
+            "Only holdings with MANUAL transactions can be deleted as a whole"
+        }
+
+        transactions.forEach { transaction ->
+            val transactionId = requireNotNull(transaction.id) { "Investment transaction id must not be null" }
+            val deleted = investmentTransactionRepository.softDelete(transactionId, accountId)
+            check(deleted) { "Failed to delete investment transaction $transactionId for holding $id" }
+        }
+
+        return holdingRepository.softDelete(id, accountId)
     }
 
     // ── Custo médio ponderado ─────────────────────────────────────────────────
@@ -312,10 +345,12 @@ open class InvestmentTransactionService(
 
     private fun createHolding(
         command: RecordInvestmentTransactionCommand,
+        asset: Asset,
         accountId: UUID,
         now: Instant,
-    ): Holding =
-        Holding(
+    ): Holding {
+        validateManualFundValuation(command, asset)
+        return Holding(
             financialAccountId = command.financialAccountId,
             accountId = accountId,
             assetId = command.assetId,
@@ -328,11 +363,15 @@ open class InvestmentTransactionService(
             maturityDate = command.maturityDate,
             gracePeriodDate = command.gracePeriodDate,
             isTaxExempt = command.isTaxExempt,
+            pricingMode = command.pricingMode,
+            manualGrossValue = command.manualValuation?.grossValue,
+            manualValuedAt = command.manualValuation?.valuedAt,
             source = command.source,
             providerInvestmentId = command.providerInvestmentId,
             createdAt = now,
             updatedAt = now,
         )
+    }
 
     private fun requireAccountOwnsFinancialAccount(
         financialAccountId: UUID,
@@ -353,8 +392,98 @@ open class InvestmentTransactionService(
         }
     }
 
+    private fun recomputeHoldingAfterDelete(
+        existingHolding: Holding,
+        accountId: UUID,
+    ) {
+        val holdingId = requireNotNull(existingHolding.id) { "Holding id must not be null for delete recomputation" }
+        val now = Instant.now()
+        val remainingTransactions =
+            investmentTransactionRepository.findByHolding(holdingId, accountId)
+                .sortedWith(compareBy<InvestmentTransaction>({ it.tradeDate }, { it.createdAt }))
+
+        if (remainingTransactions.isEmpty()) {
+            holdingRepository.softDelete(holdingId, accountId)
+            return
+        }
+
+        val replayBase =
+            existingHolding.copy(
+                quantity = BigDecimal.ZERO,
+                averageCost = BigDecimal.ZERO,
+                updatedAt = now,
+            )
+
+        val rebuiltHolding =
+            remainingTransactions.fold(replayBase) { holding, transaction ->
+                applyEffect(
+                    holding = holding,
+                    command = transaction.toReplayCommand(existingHolding),
+                    now = now,
+                )
+            }
+
+        holdingRepository.update(rebuiltHolding.copy(updatedAt = now))
+    }
+
+    private fun InvestmentTransaction.toReplayCommand(existingHolding: Holding) =
+        RecordInvestmentTransactionCommand(
+            financialAccountId = financialAccountId,
+            assetId = existingHolding.assetId,
+            direction = direction,
+            type = type,
+            typeAdditionalInfo = typeAdditionalInfo,
+            quantity = quantity,
+            unitPrice = unitPrice,
+            grossValue = grossValue,
+            netValue = netValue,
+            incomeTax = incomeTax,
+            iof = iof,
+            indexerPercentage = indexerPercentage,
+            agreedRate = agreedRate,
+            priceFactor = priceFactor,
+            tradeDate = tradeDate,
+            settlementDate = settlementDate,
+            source = source,
+            providerTransactionId = providerTransactionId,
+            providerInvestmentId = existingHolding.providerInvestmentId,
+            brokerNote = brokerNote,
+            pricingMode = existingHolding.pricingMode,
+            manualValuation =
+                existingHolding.manualGrossValue?.let { gross ->
+                    existingHolding.manualValuedAt?.let { valuedAt ->
+                        ManualFundValuation(
+                            grossValue = gross,
+                            valuedAt = valuedAt,
+                        )
+                    }
+                },
+        )
+
+    private fun validateManualFundValuation(
+        command: RecordInvestmentTransactionCommand,
+        asset: Asset,
+    ) {
+        val isFund = asset.assetType.isFundAsset()
+        if (!isFund) {
+            require(command.pricingMode == null) { "pricingMode is only supported for fund holdings" }
+            require(command.manualValuation == null) { "manualValuation is only supported for fund holdings" }
+            return
+        }
+
+        if (command.manualValuation != null) {
+            require(command.type == PURCHASE) { "manualValuation is only supported on the first PURCHASE transaction" }
+            require(command.pricingMode == HoldingPricingMode.MANUAL) {
+                "manualValuation requires pricingMode = MANUAL"
+            }
+        }
+    }
+
     companion object {
         /** Scale for averageCost arithmetic — 8 decimal places to handle crypto and fractional shares. */
         private const val COST_SCALE = 8
     }
 }
+
+private fun AssetType.isFundAsset(): Boolean =
+    this == AssetType.MUTUAL_FUND || this == AssetType.PGBL || this == AssetType.VGBL

@@ -17,16 +17,21 @@ class InvestmentAssetService(
         name: String,
         assetType: AssetType,
         issuerName: String?,
+        fundCnpj: String?,
         ticker: String?,
         isinCode: String?,
         currencyCode: String,
     ): Asset {
         require(name.isNotBlank()) { "name is required" }
+        if (!fundCnpj.isNullOrBlank()) {
+            assetRepository.findByFundCnpj(fundCnpj)?.let { return it }
+        }
         return assetRepository.save(
             Asset(
                 name = name,
                 assetType = assetType,
                 issuerName = issuerName,
+                fundCnpj = fundCnpj,
                 ticker = ticker,
                 isinCode = isinCode,
                 currencyCode = currencyCode,

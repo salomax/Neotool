@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.ValuationSource
 import java.time.Instant
 import java.time.LocalDate
@@ -57,6 +58,7 @@ data class InvestmentHoldingDTO(
     val incomeTax: Double?,
     val iof: Double?,
     val lastValuedAt: Instant?,
+    val pricingMode: HoldingPricingMode?,
     val valuationSource: ValuationSource,
     val valuationReferenceDate: LocalDate?,
     val isExpired: Boolean,

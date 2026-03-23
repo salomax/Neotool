@@ -59,3 +59,12 @@ data class FundDailyNavDTO(
     val closePrice: Double,
     val totalNetAssets: Double?,
 )
+
+@Introspected
+@Serdeable
+data class InvestmentFundMarketSnapshotDTO(
+    val cnpj: String,
+    val assetType: String,
+    val taxProfile: String,
+    val latestNav: FundDailyNavDTO?,
+)
