@@ -56,7 +56,7 @@
       "funds": "Fundos"
     },
     "actions": {
-      "recordHolding": "Registrar ativo",
+      "recordHolding": "Registrar posição",
       "recordFund": "Registrar fundo",
       "recordEquity": "Registrar ação / FII"
     },
@@ -122,6 +122,7 @@
       "columns": {
         "asset": "Ativo",
         "type": "Tipo",
+        "index": "Index",
         "financialAccount": "Conta financeira",
         "quantity": "Quantidade",
         "averagePrice": "Preço médio",
@@ -132,14 +133,23 @@
         "maturityDate": "Vencimento",
         "gain": "Rentabilidade"
       },
+      "searchPlaceholder": "Buscar ativos...",
+      "noMatches": "Nenhum ativo corresponde à sua busca.",
       "valuationTooltip": {
         "CALCULATED": "Valor calculado com base em indicadores e regras de renda fixa.",
         "ESTIMATED": "Valor estimado. Referência: {{date}}.",
+        "MANUAL": "Valor atual informado manualmente. Referência: {{date}}.",
+        "MARKET_DATA": "Valor precificado por cota CVM. IR, IOF e come-cotas são estimados. Referência: {{date}}.",
         "UNAVAILABLE": "Valor indisponível."
+      },
+      "valueSource": {
+        "MANUAL": "Valor manual",
+        "MARKET_DATA": "Cota CVM",
+        "PROVIDER": "Integração"
       },
       "expiredBadge": "Expirado",
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
-      "groupTotalEstimated": "Parte do total é valor estimado.",
+      "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
       "total": "Total",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
@@ -257,9 +267,15 @@
       },
       "sections": {
         "fund": "Fundo",
+        "manualFund": "Fundo manual",
         "applicationData": "Dados da aplicação",
         "values": "Valores",
+        "currentValue": "Valor atual",
         "applicationDetails": "Detalhes da aplicação"
+      },
+      "modes": {
+        "cvmListed": "Listado na CVM",
+        "notListed": "Ainda não listado"
       },
       "flows": {
         "byAmount": "Por valor aplicado",
@@ -267,14 +283,26 @@
       },
       "fields": {
         "fund": "Fundo",
+        "manualFundName": "Nome do fundo",
+        "manualFundCnpj": "CNPJ do fundo (opcional)",
+        "manualFundCnpjHelper": "Se informado, deve ser um CNPJ válido para permitir vinculação manual futura.",
+        "manualAssetType": "Tipo do fundo",
         "quantity": "Quantidade de cotas",
         "unitPrice": "Preço por cota (R$)",
         "tradeDate": "Data da aplicação",
-        "grossValue": "Valor a investir"
+        "grossValue": "Valor a investir",
+        "manualCurrentGrossValue": "Valor atual",
+        "manualValuedAt": "Data do valor atual"
+      },
+      "assetTypes": {
+        "MUTUAL_FUND": "Fundo",
+        "PGBL": "PGBL",
+        "VGBL": "VGBL"
       },
       "values": {
         "byAmount": {
           "navLabel": "Preço da cota na data selecionada:",
+          "unitPriceLabel": "Preço por cota utilizado:",
           "estimatedShares": "~ {{shares}} cotas"
         },
         "byQuantity": {
@@ -283,13 +311,16 @@
       },
       "validation": {
         "fundRequired": "Selecione um fundo",
+        "manualFundNameRequired": "Nome do fundo é obrigatório",
         "quantityRequired": "Quantidade é obrigatória",
         "quantityPositive": "Quantidade deve ser maior que zero",
         "unitPriceRequired": "Preço por cota é obrigatório",
         "unitPricePositive": "Preço por cota deve ser maior que zero",
         "tradeDateRequired": "Data da aplicação é obrigatória",
         "grossValueRequired": "Valor a investir é obrigatório",
-        "grossValuePositive": "Valor a investir deve ser maior que zero"
+        "grossValuePositive": "Valor a investir deve ser maior que zero",
+        "manualCurrentGrossValueRequired": "Valor atual é obrigatório para fundos manuais",
+        "manualValuedAtRequired": "Data do valor atual é obrigatória para fundos manuais"
       },
       "actions": {
         "submit": "Salvar",

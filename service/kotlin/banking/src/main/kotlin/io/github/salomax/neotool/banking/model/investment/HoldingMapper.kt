@@ -26,6 +26,9 @@ object HoldingMapper {
             incomeTax = entity.incomeTax,
             iof = entity.iof,
             lastValuedAt = entity.lastValuedAt,
+            pricingMode = entity.pricingMode,
+            manualGrossValue = entity.manualGrossValue,
+            manualValuedAt = entity.manualValuedAt,
             source = entity.source,
             providerInvestmentId = entity.providerInvestmentId,
             deletedAt = entity.deletedAt,
@@ -53,6 +56,9 @@ object HoldingMapper {
             incomeTax = domain.incomeTax,
             iof = domain.iof,
             lastValuedAt = domain.lastValuedAt,
+            pricingMode = domain.pricingMode,
+            manualGrossValue = domain.manualGrossValue,
+            manualValuedAt = domain.manualValuedAt,
             source = domain.source,
             providerInvestmentId = domain.providerInvestmentId,
             deletedAt = domain.deletedAt,
@@ -78,6 +84,9 @@ object HoldingMapper {
         entity.incomeTax = domain.incomeTax
         entity.iof = domain.iof
         entity.lastValuedAt = domain.lastValuedAt
+        entity.pricingMode = domain.pricingMode
+        entity.manualGrossValue = domain.manualGrossValue
+        entity.manualValuedAt = domain.manualValuedAt
         entity.providerInvestmentId = domain.providerInvestmentId
         entity.deletedAt = domain.deletedAt
         entity.updatedAt = domain.updatedAt

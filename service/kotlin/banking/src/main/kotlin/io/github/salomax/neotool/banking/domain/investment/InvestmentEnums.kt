@@ -141,3 +141,12 @@ enum class AnbimaCategory { RENDA_FIXA, ACOES, MULTIMERCADO, CAMBIAL }
  * Mirrors TransactionSource for banking transactions.
  */
 enum class InvestmentSource { MANUAL, OPEN_FINANCE, FILE_IMPORT }
+
+/**
+ * How a fund holding should derive its current valuation.
+ * Null / absent for non-fund holdings.
+ */
+enum class HoldingPricingMode {
+    MANUAL,
+    MARKET_DATA,
+}

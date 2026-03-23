@@ -1005,12 +1005,21 @@ enum InvestmentSource {
   FILE_IMPORT
 }
 
+enum HoldingPricingMode {
+  MANUAL
+  MARKET_DATA
+}
+
 """
 Indicates the origin and reliability of a holding's current value.
 """
 enum ValuationSource {
   "Value provided by the data provider (Open Finance / file import). Authoritative."
   PROVIDER
+  "Value provided by the app's internal market-data services (e.g. CVM NAV)."
+  MARKET_DATA
+  "Value entered by the user for a manual fund holding."
+  MANUAL
   "Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact."
   CALCULATED
   "Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate."
@@ -1080,6 +1089,7 @@ type InvestmentHolding {
   incomeTax: Float
   iof: Float
   lastValuedAt: DateTime
+  pricingMode: HoldingPricingMode
   valuationSource: ValuationSource!
   "Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE)."
   valuationReferenceDate: Date
@@ -1174,10 +1184,16 @@ input CreateInvestmentAssetInput {
   name: String!
   assetType: AssetType!
   issuerName: String
+  fundCnpj: String
   ticker: String
   isinCode: String
   """Defaults to BRL when omitted."""
   currencyCode: String
+}
+
+input ManualFundValuationInput {
+  grossValue: Float!
+  valuedAt: Date!
 }
 
 """
@@ -1212,6 +1228,8 @@ input RecordInvestmentTransactionInput {
   gracePeriodDate: Date
   isTaxExempt: Boolean
   providerInvestmentId: String
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
 }
 
 # ============================================================================
@@ -1453,6 +1471,8 @@ extend type Mutation {
   createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
   """Records an investment transaction and updates the holding's quantity and averageCost."""
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Soft-deletes a MANUAL investment holding and all of its MANUAL transactions."""
+  deleteInvestmentHolding(id: ID!): Boolean!
   """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
   deleteInvestmentTransaction(id: ID!): Boolean!
 
@@ -1523,6 +1543,8 @@ type BulkOperationResult {
   Creates the holding automatically on the first PURCHASE of an asset.
   """
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Soft-deletes a MANUAL investment holding and all of its MANUAL transactions."""
+  deleteInvestmentHolding(id: ID!): Boolean!
   """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
   deleteInvestmentTransaction(id: ID!): Boolean!
 }

@@ -40,6 +40,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocom
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FixedIncomeComparisonResolver
@@ -186,6 +187,14 @@ class FinancialDataWiringFactory(
                     val id: String = env.getArgument<String?>("id")
                         ?: throw IllegalArgumentException("id is required")
                     investmentFundResolver.investmentFund(id)
+                },
+            )
+            .dataFetcher(
+                "investmentFundMarketSnapshots",
+                createValidatedDataFetcher { env ->
+                    val cnpjs = env.getArgument<List<String>?>("cnpjs")
+                        ?: throw IllegalArgumentException("cnpjs is required")
+                    investmentFundResolver.investmentFundMarketSnapshots(cnpjs)
                 },
             )
             .dataFetcher(
@@ -1085,6 +1094,13 @@ class FinancialDataWiringFactory(
                             }
                         },
                     )
+            }
+            .type("InvestmentFundMarketSnapshot") { type ->
+                type
+                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.cnpj })
+                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.assetType })
+                    .dataFetcher("taxProfile", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.taxProfile })
+                    .dataFetcher("latestNav", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.latestNav })
             }
             .type("FundDailyNav") { type ->
                 type

@@ -4,6 +4,8 @@ import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
+import io.github.salomax.neotool.banking.domain.investment.CnpjValidator
+import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
@@ -11,6 +13,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.graphql.InvestmentQueryService
 import io.github.salomax.neotool.banking.graphql.dto.BrokerNoteDTO
@@ -87,6 +90,8 @@ class InvestmentResolver(
         val name = input["name"] as String
         val assetType = AssetType.valueOf(input["assetType"] as String)
         val issuerName = input["issuerName"] as? String
+        val fundCnpj = (input["fundCnpj"] as? String)?.takeIf { it.isNotBlank() }?.let(CnpjValidator::normalize)
+        require(fundCnpj == null || CnpjValidator.isValid(fundCnpj)) { "fundCnpj must be a valid CNPJ" }
         val ticker = input["ticker"] as? String
         val isinCode = input["isinCode"] as? String
         val currencyCode = (input["currencyCode"] as? String) ?: "BRL"
@@ -94,6 +99,7 @@ class InvestmentResolver(
             name = name,
             assetType = assetType,
             issuerName = issuerName,
+            fundCnpj = fundCnpj,
             ticker = ticker,
             isinCode = isinCode,
             currencyCode = currencyCode,
@@ -116,6 +122,14 @@ class InvestmentResolver(
     ): Boolean {
         val accountId = requireAccountId(principal)
         return investmentTransactionService.delete(UUID.fromString(id), accountId)
+    }
+
+    fun deleteInvestmentHolding(
+        id: String,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = requireAccountId(principal)
+        return investmentTransactionService.deleteHolding(UUID.fromString(id), accountId)
     }
 
     // ── Mapping helpers ───────────────────────────────────────────────────────
@@ -184,6 +198,7 @@ class InvestmentResolver(
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toRecordCommand(accountId: UUID): RecordInvestmentTransactionCommand {
         val brokerNoteMap = this["brokerNote"] as? Map<String, Any?>
+        val manualValuationMap = this["manualValuation"] as? Map<String, Any?>
 
         fun Any?.toLocalDateOrNull(): LocalDate? = when (this) {
             null -> null
@@ -219,8 +234,20 @@ class InvestmentResolver(
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = (this["isTaxExempt"] as? Boolean) ?: false,
             providerInvestmentId = this["providerInvestmentId"] as? String,
+            pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
+            manualValuation = manualValuationMap?.toManualFundValuation(),
         )
     }
+
+    private fun Map<String, Any?>.toManualFundValuation(): ManualFundValuation =
+        ManualFundValuation(
+            grossValue = BigDecimal((this["grossValue"] as Number).toString()),
+            valuedAt = when (val raw = this["valuedAt"]) {
+                is LocalDate -> raw
+                is String -> LocalDate.parse(raw)
+                else -> error("manualValuation.valuedAt must be a LocalDate or ISO-8601 string")
+            },
+        )
 
     @Suppress("UNCHECKED_CAST")
     private fun Map<String, Any?>.toBrokerNote(accountId: UUID): BrokerNote =

@@ -31,6 +31,7 @@ extend type Query {
   searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection!
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection!
   investmentFund(id: ID!): InvestmentFund
+  investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]!
 
   # B3 investment asset queries (equities, FIIs, options)
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection!
@@ -449,6 +450,21 @@ type FundDailyNav {
   date: Date!
   closePrice: Float!
   totalNetAssets: Float
+}
+
+enum FundTaxProfile {
+  COME_COTAS_LONG
+  COME_COTAS_SHORT
+  VARIABLE_INCOME_15
+  PENSION
+  UNKNOWN
+}
+
+type InvestmentFundMarketSnapshot {
+  cnpj: String!
+  assetType: String!
+  taxProfile: FundTaxProfile!
+  latestNav: FundDailyNav
 }
 
 type InvestmentFundConnection {

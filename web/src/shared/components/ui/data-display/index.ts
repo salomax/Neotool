@@ -17,6 +17,8 @@ export { MetricFilledAreaChart } from './MetricFilledAreaChart';
 export { AreaChart } from './AreaChart';
 export { MetricHistoryTable } from './MetricHistoryTable';
 export { GrowthChip } from './GrowthChip';
+export { GainPercent } from './GainPercent';
+export { AllocationInline } from './AllocationInline';
 export { TrendIndicator } from './TrendIndicator';
 export { StatusIndicator } from './StatusIndicator';
 export { FinancialMetricItem } from './FinancialMetricItem';

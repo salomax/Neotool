@@ -19,6 +19,8 @@ data class HoldingValuationResult(
 
 enum class ValuationSource {
     PROVIDER,
+    MARKET_DATA,
+    MANUAL,
     CALCULATED,
     ESTIMATED,
     UNAVAILABLE,
@@ -227,4 +229,3 @@ class FixedIncomeValuationService(
         )
 
 }
-

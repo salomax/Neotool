@@ -4,6 +4,7 @@ import React from "react";
 import { useQuery } from "@apollo/client/react";
 import {
   alpha,
+  Autocomplete,
   Box,
   Button,
   CircularProgress,
@@ -13,6 +14,7 @@ import {
   Menu,
   MenuItem,
   Stack,
+  TextField,
   Typography,
   useTheme,
 } from "@mui/material";
@@ -27,8 +29,13 @@ import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { QueryErrorState } from "@/shared/components/ui/feedback";
 import { FinancialAccountSelector } from "../finance-transactions/components/FinancialAccountSelector";
-import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
-import { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
+import { ALL_INVESTMENT_HOLDINGS, FINANCIAL_ACCOUNTS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import {
+  AllInvestmentHoldingsQuery,
+  FinancialAccountsQuery,
+  InvestmentHoldingsQuery,
+  InvestmentHoldingsQueryVariables,
+} from "@/lib/graphql/operations/banking/queries.generated";
 import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { InvestmentTable } from "./components/InvestmentTable";
@@ -48,6 +55,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
   const [holdingMenuAnchor, setHoldingMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isHoldingMenuOpen = Boolean(holdingMenuAnchor);
+  const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
 
   const openHoldingMenu = (event: React.MouseEvent<HTMLElement>) => setHoldingMenuAnchor(event.currentTarget);
   const closeHoldingMenu = () => setHoldingMenuAnchor(null);
@@ -82,6 +90,47 @@ export default function PersonalFinanceInvestmentsPage() {
   );
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
+
+  const accountHoldingsSearchQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
+    variables: { financialAccountId: selectedAccountId || "" },
+    skip: !selectedAccountId,
+    errorPolicy: "all",
+  });
+
+  const consolidatedHoldingsSearchQuery = useQuery<AllInvestmentHoldingsQuery>(ALL_INVESTMENT_HOLDINGS, {
+    skip: Boolean(selectedAccountId),
+    errorPolicy: "all",
+  });
+
+  const holdingsForSearch = React.useMemo(() => {
+    if (selectedAccountId) return accountHoldingsSearchQuery.data?.investmentHoldings ?? [];
+    return consolidatedHoldingsSearchQuery.data?.allInvestmentHoldings ?? [];
+  }, [
+    accountHoldingsSearchQuery.data?.investmentHoldings,
+    consolidatedHoldingsSearchQuery.data?.allInvestmentHoldings,
+    selectedAccountId,
+  ]);
+
+  const holdingSearchOptions = React.useMemo(() => {
+    const map = new Map<string, { key: string; label: string }>();
+
+    holdingsForSearch.forEach((holding) => {
+      const assetId = holding.asset?.id ?? holding.id;
+      const name = holding.asset?.name ?? "";
+      const ticker = holding.asset?.ticker ?? "";
+      const accountName = (holding as AllInvestmentHoldingsQuery["allInvestmentHoldings"][number]).financialAccount?.name ?? "";
+
+      const base = ticker ? `${name} (${ticker})` : name;
+      const label = accountName ? `${base} — ${accountName}` : base;
+
+      if (!label.trim()) return;
+      map.set(assetId, { key: assetId, label });
+    });
+
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+  }, [holdingsForSearch]);
+
+  const holdingSearchLoading = selectedAccountId ? accountHoldingsSearchQuery.loading : consolidatedHoldingsSearchQuery.loading;
 
   const sidebar = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -246,9 +295,22 @@ export default function PersonalFinanceInvestmentsPage() {
                   size="large"
                   startIcon={<AddIcon />}
                   endIcon={<ArrowDropDownIcon />}
-                  sx={{ height: 48, minWidth: { xs: "100%", sm: 260 } }}
                   onClick={openHoldingMenu}
                   data-testid="record-holding-empty-btn"
+                  sx={{
+                    height: 48,
+                    minWidth: { xs: "100%", sm: 260 },
+                    boxShadow: (theme) => `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    "&:hover": {
+                      boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
+                    },
+                    "&:active": {
+                      boxShadow: (theme) => `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
+                    },
+                    "&.Mui-disabled": {
+                      boxShadow: "none",
+                    },
+                  }}
                 >
                   {t("investments.emptyState.secondaryAction")}
                 </Button>
@@ -320,22 +382,79 @@ export default function PersonalFinanceInvestmentsPage() {
         <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
-              <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-end",
+                  gap: 2,
+                  flexWrap: { xs: "wrap", sm: "nowrap" },
+                  mb: 2,
+                }}
+              >
+                <Autocomplete
+                  freeSolo
+                  options={holdingSearchOptions}
+                  inputValue={holdingSearchQuery}
+                  onInputChange={(_, value) => setHoldingSearchQuery(value)}
+                  onChange={(_, value) => {
+                    if (typeof value === "string") setHoldingSearchQuery(value);
+                    else setHoldingSearchQuery(value?.label ?? "");
+                  }}
+                  getOptionLabel={(option) => (typeof option === "string" ? option : option.label)}
+                  isOptionEqualToValue={(option, value) => option.key === value.key}
+                  loading={holdingSearchLoading}
+                  sx={{ width: { xs: "100%", sm: 420 }, maxWidth: 560 }}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      placeholder={t("investments.table.searchPlaceholder")}
+                      size="small"
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {holdingSearchLoading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                      inputProps={{
+                        ...params.inputProps,
+                        "aria-label": t("investments.table.searchPlaceholder"),
+                      }}
+                    />
+                  )}
+                />
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}
                   endIcon={<ArrowDropDownIcon />}
                   onClick={openHoldingMenu}
                   data-testid="record-holding-top-btn"
+                  sx={{
+                    boxShadow: (theme) => `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    "&:hover": {
+                      boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
+                    },
+                    "&:active": {
+                      boxShadow: (theme) => `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
+                    },
+                    "&.Mui-disabled": {
+                      boxShadow: "none",
+                    },
+                  }}
                 >
                   {t("investments.actions.recordHolding")}
                 </Button>
               </Box>
-              <Divider />
-              <InvestmentTable
-                selectedAccountId={selectedAccountId}
-                onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
-              />
+              <Box sx={{ mt: 2 }}>
+                <InvestmentTable
+                  selectedAccountId={selectedAccountId}
+                  onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
+                  searchQuery={holdingSearchQuery}
+                />
+              </Box>
             </Container>
           </Page>
         </SidebarLayout>

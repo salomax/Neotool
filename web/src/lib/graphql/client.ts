@@ -170,6 +170,24 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
     return;
   }
 
+  const AUTH_CODES_REQUIRING_REAUTH = new Set([
+    'UNAUTHENTICATED',
+    'AUTH_AUTHENTICATION_REQUIRED',
+    'AUTH_SESSION_EXPIRED',
+    'AUTH_TOKEN_EXPIRED',
+    'AUTH_TOKEN_INVALID',
+    'AUTH_ACCESS_TOKEN_REQUIRED',
+    'AUTH_INVALID_OR_EXPIRED_ACCESS_TOKEN',
+  ]);
+
+  const AUTH_CODES_NOT_REAUTH = new Set([
+    'AUTH_INVALID_CREDENTIALS',
+    'AUTH_AUTHORIZATION_DENIED',
+    'AUTH_INSUFFICIENT_PERMISSIONS',
+    'AUTH_RESOURCE_ACCESS_DENIED',
+    'UNAUTHORIZED',
+  ]);
+
   // Extract errors based on type (Apollo Client 4.0 API)
   let graphQLErrors: Array<{ message: string; extensions?: any }> = [];
   let protocolErrors: Array<{ message: string; extensions?: any }> = [];
@@ -199,9 +217,8 @@ const errorLink = new ErrorLink(({ error, operation, forward }) => {
   const isAuthError = 
     // Check GraphQL/protocol errors with message matching and error extensions
     allErrors.some(({ message, extensions }) => 
-      isAuthenticationError(null, message) ||
-      extensions?.code === 'UNAUTHENTICATED' ||
-      extensions?.code === 'UNAUTHORIZED'
+      (typeof extensions?.code === 'string' && AUTH_CODES_REQUIRING_REAUTH.has(extensions.code)) ||
+      (isAuthenticationError(null, message) && !(typeof extensions?.code === 'string' && AUTH_CODES_NOT_REAUTH.has(extensions.code)))
     ) ||
     // Check network errors (401 status, auth-related messages)
     (networkError && isAuthenticationError(networkError));

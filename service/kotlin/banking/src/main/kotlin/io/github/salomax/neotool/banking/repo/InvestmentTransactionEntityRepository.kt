@@ -19,6 +19,11 @@ interface InvestmentTransactionEntityRepository : JpaRepository<InvestmentTransa
         accountId: UUID,
     ): List<InvestmentTransactionEntity>
 
+    fun findByHoldingIdInAndAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(
+        holdingIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<InvestmentTransactionEntity>
+
     fun findByAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(
         accountId: UUID,
     ): List<InvestmentTransactionEntity>

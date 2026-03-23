@@ -54,6 +54,11 @@ data class Holding(
     val iof: BigDecimal? = null,                 // IOF provisionado (redemptions < 30 days)
     val lastValuedAt: Instant? = null,
 
+    // ── Manual fund valuation ────────────────────────────────────────────────
+    val pricingMode: HoldingPricingMode? = null,
+    val manualGrossValue: BigDecimal? = null,
+    val manualValuedAt: LocalDate? = null,
+
     // ── Provenance ────────────────────────────────────────────────────────────
     val source: InvestmentSource = InvestmentSource.MANUAL,
     val providerInvestmentId: String? = null,   // OFB investmentId / Pluggy id / Belvo id

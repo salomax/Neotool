@@ -533,6 +533,11 @@ type BulkOperationResult
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
 
   """
+  Soft-deletes a MANUAL investment holding and all of its MANUAL transactions.
+  """
+  deleteInvestmentHolding(id: ID!): Boolean!
+
+  """
   Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
   """
   deleteInvestmentTransaction(id: ID!): Boolean!
@@ -850,6 +855,7 @@ input CreateInvestmentAssetInput
   name: String!
   assetType: AssetType!
   issuerName: String
+  fundCnpj: String
   ticker: String
   isinCode: String
 
@@ -1317,6 +1323,16 @@ type FundDailyNav
   totalNetAssets: Float
 }
 
+enum FundTaxProfile
+  @join__type(graph: FINANCIALDATA)
+{
+  COME_COTAS_LONG @join__enumValue(graph: FINANCIALDATA)
+  COME_COTAS_SHORT @join__enumValue(graph: FINANCIALDATA)
+  VARIABLE_INCOME_15 @join__enumValue(graph: FINANCIALDATA)
+  PENSION @join__enumValue(graph: FINANCIALDATA)
+  UNKNOWN @join__enumValue(graph: FINANCIALDATA)
+}
+
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -1383,6 +1399,13 @@ type HoldingAttachment
   """
   downloadUrl: String
   createdAt: DateTime!
+}
+
+enum HoldingPricingMode
+  @join__type(graph: BANKING)
+{
+  MANUAL @join__enumValue(graph: BANKING)
+  MARKET_DATA @join__enumValue(graph: BANKING)
 }
 
 type ImportDuplicateCandidate
@@ -1579,6 +1602,15 @@ type InvestmentFundEdge
   cursor: String!
 }
 
+type InvestmentFundMarketSnapshot
+  @join__type(graph: FINANCIALDATA)
+{
+  cnpj: String!
+  assetType: String!
+  taxProfile: FundTaxProfile!
+  latestNav: FundDailyNav
+}
+
 """
 User's current position in an asset within a custodian account.
 One holding per (financialAccountId, asset). Quantity aggregates all lots.
@@ -1619,6 +1651,7 @@ type InvestmentHolding
   incomeTax: Float
   iof: Float
   lastValuedAt: DateTime
+  pricingMode: HoldingPricingMode
   valuationSource: ValuationSource!
 
   """
@@ -1831,6 +1864,13 @@ scalar Long
   @join__type(graph: BANKING)
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
+
+input ManualFundValuationInput
+  @join__type(graph: BANKING)
+{
+  grossValue: Float!
+  valuedAt: Date!
+}
 
 """
 A merchant (payee) associated with a transaction.
@@ -2068,6 +2108,11 @@ type Mutation
   Records an investment transaction and updates the holding's quantity and averageCost.
   """
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a MANUAL investment holding and all of its MANUAL transactions.
+  """
+  deleteInvestmentHolding(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """
   Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
@@ -2524,6 +2569,7 @@ type Query
   searchInvestmentFundsAutocomplete(query: String!): InvestmentFundAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
   investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
+  investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]! @join__field(graph: FINANCIALDATA)
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection! @join__field(graph: FINANCIALDATA)
   investmentAssetByTicker(ticker: String!): ListedAsset @join__field(graph: FINANCIALDATA)
@@ -2596,6 +2642,8 @@ input RecordInvestmentTransactionInput
   gracePeriodDate: Date
   isTaxExempt: Boolean
   providerInvestmentId: String
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
 }
 
 input RefreshAccessTokenInput
@@ -3259,6 +3307,14 @@ enum ValuationSource
   Value provided by the data provider (Open Finance / file import). Authoritative.
   """
   PROVIDER @join__enumValue(graph: BANKING)
+
+  """
+  Value provided by the app's internal market-data services (e.g. CVM NAV).
+  """
+  MARKET_DATA @join__enumValue(graph: BANKING)
+
+  """Value entered by the user for a manual fund holding."""
+  MANUAL @join__enumValue(graph: BANKING)
 
   """
   Value computed from the contracted rate with no external variables (PRE_FIXADO only). Exact.

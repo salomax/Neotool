@@ -6,15 +6,13 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
-  Chip,
   Typography,
   alpha,
   useTheme,
 } from '@mui/material';
+import i18n from 'i18next';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useTranslation } from '@/shared/i18n';
-import { Label } from '@/shared/components/ui/primitives/Label';
-import { personalFinanceTranslations } from '../../i18n';
+import { AllocationInline, GainPercent } from '@/shared/components/ui/data-display';
 
 interface AssetGroupCardProps {
   title: string;
@@ -25,6 +23,9 @@ interface AssetGroupCardProps {
   /** Rendered after the summary (e.g. warning icon when group has estimated values). */
   summaryAdornment?: React.ReactNode;
   /** Optional header action rendered on the right side (e.g. "Record fund"). */
+  /** Percentage gain to show below total amount. */
+  gainPercent?: number | null;
+  allocationPercent?: number | null;
   headerAction?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -34,14 +35,13 @@ export function AssetGroupCard({
   summary,
   expanded,
   onToggle,
-  leadingIcon,
   summaryAdornment,
+  gainPercent,
+  allocationPercent,
   headerAction,
   children,
 }: AssetGroupCardProps) {
-  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const cardRadius = theme.custom?.radius?.button ?? theme.shape.borderRadius;
   const dividerColor = alpha(theme.palette.divider, 0.7);
 
   const parsedSummary = React.useMemo(() => {
@@ -60,48 +60,53 @@ export function AssetGroupCard({
     };
   }, [summary]);
 
+  const allocationLabel =
+    typeof allocationPercent === 'number' && Number.isFinite(allocationPercent)
+      ? new Intl.NumberFormat(i18n.language, { style: 'percent', maximumFractionDigits: 0 }).format(allocationPercent)
+      : null;
+
   return (
     <Accordion
       expanded={expanded}
       onChange={(_, isExpandedNext) => onToggle(isExpandedNext)}
       elevation={0}
       sx={{
-        mb: 0,
-        overflow: 'hidden',
+        overflow: 'visible',
         bgcolor: 'transparent',
-        borderRadius: `${cardRadius}px`,
+        borderRadius: 0,
         transition: 'none',
         '&:before': { display: 'none' },
         '&.Mui-expanded': {
           margin: 0,
-          borderRadius: `${cardRadius}px`,
+          marginBottom: 5,
+          borderRadius: 0,
         },
       }}
     >
       <AccordionSummary
         expandIcon={<ExpandMoreIcon />}
         sx={{
+          flexDirection: 'row-reverse',
           px: 2,
-          py: 1.75,
+          pt: 1.75,
+          pb: 0.75,
           minHeight: 64,
-          border: `1px solid ${dividerColor}`,
-          bgcolor: alpha(theme.palette.text.primary, 0.02),
-          borderRadius: `${cardRadius}px`,
-          overflow: 'hidden',
+          border: 'none',
+          borderBottom: `1px solid ${dividerColor}`,
+          bgcolor: 'transparent',
+          borderRadius: 0,
+          overflow: 'visible',
           transition: 'none',
           '&.Mui-expanded': {
-                      borderBottom: 'none',
-
             minHeight: 64,
-            bgcolor: alpha(theme.palette.text.primary, 0.01),
-            borderBottomLeftRadius: 0,
-            borderBottomRightRadius: 0,
+            bgcolor: 'transparent',
+            borderRadius: 0,
           },
           '&:hover': {
-            bgcolor: alpha(theme.palette.text.primary, 0.03),
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
           },
           '&.Mui-expanded:hover': {
-            bgcolor: alpha(theme.palette.text.primary, 0.02),
+            bgcolor: alpha(theme.palette.primary.main, 0.05),
           },
           '& .MuiAccordionSummary-content': {
             margin: 0,
@@ -110,60 +115,52 @@ export function AssetGroupCard({
           '& .MuiAccordionSummary-content.Mui-expanded': {
             margin: 0,
           },
+          '& .MuiAccordionSummary-expandIconWrapper': {
+            mr: 2,
+            ml: 0,
+            color: 'text.secondary',
+            '&.Mui-expanded': {
+              color: 'text.secondary',
+            },
+          },
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: '1 1 auto' }}>
-            {leadingIcon && (
-              <Box
-                sx={{
-                  width: 40,
-                  height: 40,
-                  borderRadius: `${cardRadius}px`,
-                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                  color: 'primary.main',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flex: '0 0 auto',
-                  '& .MuiSvgIcon-root': {
-                    fontSize: 22,
-                  },
-                }}
-              >
-                {leadingIcon}
-              </Box>
-            )}
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
-              <Typography variant="h6" fontWeight={800} noWrap sx={{ lineHeight: 1.1, fontSize: '1.2rem' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+              <Typography variant="h6" fontWeight={600} noWrap sx={{ lineHeight: 1.1, fontSize: '1.2rem' }}>
                 {title}
               </Typography>
               {parsedSummary.countLabel ? (
-                <Chip
-                  label={parsedSummary.countLabel}
-                  size="small"
-                  sx={{
-                    height: 18,
-                    fontSize: '.7rem',
-                    fontWeight: 400,
-                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                    color: 'text.primary',
-                    '& .MuiChip-label': { px: 1 },
-                  }}
-                />
+                allocationLabel ? (
+                  <Box sx={{ mt: 0.25, minWidth: 0 }}>
+                    <AllocationInline
+                      value={allocationPercent}
+                      label={`${parsedSummary.countLabel} · ${allocationLabel}`}
+                      sx={{ minWidth: 0 }}
+                      textSx={{ lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    />
+                  </Box>
+                ) : (
+                  <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2, mt: 0.25 }}>
+                    {parsedSummary.countLabel}
+                  </Typography>
+                )
               ) : null}
             </Box>
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto', px: 5 }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
-              <Label sx={{ mb: 0, lineHeight: 1 }}>{t('investments.table.total')}</Label>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
                 {summaryAdornment}
                 <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 2 }}>
                   {parsedSummary.totalValue ?? '—'}
                 </Typography>
               </Box>
+              {typeof gainPercent === 'number' && Number.isFinite(gainPercent) ? (
+                <GainPercent value={gainPercent} locale={i18n.language} sx={{ mt: 0.25 }} />
+              ) : null}
             </Box>
             {headerAction ? <Box sx={{ flex: '0 0 auto' }}>{headerAction}</Box> : null}
           </Box>
@@ -174,34 +171,11 @@ export function AssetGroupCard({
           pt: 0,
           px: 0,
           pb: 0,
-          bgcolor: alpha(theme.palette.text.primary, 0.01),
-          borderBottomLeftRadius: `${cardRadius}px`,
-          borderBottomRightRadius: `${cardRadius}px`,
-          overflow: 'hidden',
+          bgcolor: 'transparent',
+          overflow: 'visible',
         }}
       >
-        <Box
-          sx={{
-            border: `1px solid ${dividerColor}`,
-            borderRadius: `0 0 ${cardRadius}px ${cardRadius}px`,
-            overflow: 'hidden',
-            bgcolor: 'background.paper',
-            '& .MuiTableHead-root .MuiTableRow-root': {
-              bgcolor: alpha(theme.palette.primary.main, 0.04),
-            },
-            '& .MuiTableHead-root .MuiTableCell-root': {
-              bgcolor: 'transparent',
-            },
-            '& .MuiTableBody-root .MuiTableRow-root': {
-              bgcolor: 'background.paper',
-            },
-            '& .MuiTableCell-root': {
-              borderColor: dividerColor,
-            },
-          }}
-        >
-          {children}
-        </Box>
+        {children}
       </AccordionDetails>
     </Accordion>
   );

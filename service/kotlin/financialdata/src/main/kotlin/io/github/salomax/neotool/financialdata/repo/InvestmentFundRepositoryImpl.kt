@@ -2,7 +2,9 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.FundDailyNav
+import io.github.salomax.neotool.financialdata.domain.FundTaxProfile
 import io.github.salomax.neotool.financialdata.domain.InvestmentFund
+import io.github.salomax.neotool.financialdata.domain.InvestmentFundMarketSnapshot
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -257,6 +259,56 @@ open class InvestmentFundRepositoryImpl(
         }
     }
 
+    @ReadOnly
+    override fun findMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot> {
+        val normalized = cnpjs.map { it.trim() }.filter { it.isNotBlank() }.distinct()
+        if (normalized.isEmpty()) return emptyList()
+
+        val placeholders = normalized.indices.joinToString(", ") { "?" }
+        val sql = """
+            SELECT
+                ia.fund_cnpj,
+                ia.asset_type,
+                nav.price_date,
+                nav.close_price,
+                nav.volume
+            FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT price_date, close_price, volume
+                FROM financial_data.asset_daily_price
+                WHERE asset_id = ia.id
+                ORDER BY price_date DESC
+                LIMIT 1
+            ) nav ON true
+            WHERE ia.source = 'CVM'
+              AND ia.fund_cnpj IN ($placeholders)
+        """.trimIndent()
+
+        val q = entityManager.createNativeQuery(sql)
+        normalized.forEachIndexed { index, cnpj -> q.setParameter(index + 1, cnpj) }
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = q.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            val navDate = row[2] as? java.sql.Date
+            val navClose = row[3] as? BigDecimal
+            InvestmentFundMarketSnapshot(
+                cnpj = row[0] as String,
+                assetType = row[1] as String,
+                taxProfile = taxProfileFor(row[1] as String),
+                latestNav = if (navDate != null && navClose != null) {
+                    FundDailyNav(
+                        date = navDate.toLocalDate(),
+                        closePrice = navClose,
+                        totalNetAssets = row[4] as? BigDecimal,
+                    )
+                } else {
+                    null
+                },
+            )
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Mapping
     // -------------------------------------------------------------------------
@@ -294,4 +346,12 @@ open class InvestmentFundRepositoryImpl(
             simScore = simScore,
         )
     }
+
+    private fun taxProfileFor(assetType: String): FundTaxProfile =
+        when (assetType) {
+            "FIXED_INCOME_FUND", "MULTI_MARKET_FUND" -> FundTaxProfile.COME_COTAS_LONG
+            "EQUITY_FUND" -> FundTaxProfile.VARIABLE_INCOME_15
+            "PGBL", "VGBL" -> FundTaxProfile.PENSION
+            else -> FundTaxProfile.UNKNOWN
+        }
 }

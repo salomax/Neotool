@@ -460,6 +460,8 @@ export enum BudgetScope {
 export type BulkOperationResult = {
   __typename: 'BulkOperationResult';
   affectedCount: Scalars['Int']['output'];
+  /** Soft-deletes a MANUAL investment holding and all of its MANUAL transactions. */
+  deleteInvestmentHolding: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
   deleteInvestmentTransaction: Scalars['Boolean']['output'];
   errors: Array<Scalars['String']['output']>;
@@ -468,6 +470,12 @@ export type BulkOperationResult = {
    * Creates the holding automatically on the first PURCHASE of an asset.
    */
   recordInvestmentTransaction: InvestmentTransaction;
+};
+
+
+/** Result of a bulk operation (e.g. bulkCategorize). */
+export type BulkOperationResultDeleteInvestmentHoldingArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -724,6 +732,7 @@ export type CreateInvestmentAssetInput = {
   assetType: AssetType;
   /** Defaults to BRL when omitted. */
   currencyCode?: InputMaybe<Scalars['String']['input']>;
+  fundCnpj?: InputMaybe<Scalars['String']['input']>;
   isinCode?: InputMaybe<Scalars['String']['input']>;
   issuerName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
@@ -1152,6 +1161,14 @@ export type FundDailyNav = {
   totalNetAssets: Maybe<Scalars['Float']['output']>;
 };
 
+export enum FundTaxProfile {
+  ComeCotasLong = 'COME_COTAS_LONG',
+  ComeCotasShort = 'COME_COTAS_SHORT',
+  Pension = 'PENSION',
+  Unknown = 'UNKNOWN',
+  VariableIncome_15 = 'VARIABLE_INCOME_15'
+}
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -1205,6 +1222,11 @@ export type HoldingAttachment = {
   /** File size in bytes. */
   sizeBytes: Maybe<Scalars['Int']['output']>;
 };
+
+export enum HoldingPricingMode {
+  Manual = 'MANUAL',
+  MarketData = 'MARKET_DATA'
+}
 
 export type ImportDuplicateCandidate = {
   __typename: 'ImportDuplicateCandidate';
@@ -1378,6 +1400,14 @@ export type InvestmentFundEdge = {
   node: InvestmentFund;
 };
 
+export type InvestmentFundMarketSnapshot = {
+  __typename: 'InvestmentFundMarketSnapshot';
+  assetType: Scalars['String']['output'];
+  cnpj: Scalars['String']['output'];
+  latestNav: Maybe<FundDailyNav>;
+  taxProfile: FundTaxProfile;
+};
+
 /**
  * User's current position in an asset within a custodian account.
  * One holding per (financialAccountId, asset). Quantity aggregates all lots.
@@ -1412,6 +1442,7 @@ export type InvestmentHolding = {
   netValue: Maybe<Scalars['Float']['output']>;
   /** Annual pre-fixed rate (e.g. 0.12 = 12% a.a.). */
   preFixedRate: Maybe<Scalars['Float']['output']>;
+  pricingMode: Maybe<HoldingPricingMode>;
   /** Current number of units/shares/cotas held. Zero means position is closed. */
   quantity: Scalars['Float']['output'];
   source: InvestmentSource;
@@ -1559,6 +1590,11 @@ export type ListedAssetEdge = {
   __typename: 'ListedAssetEdge';
   cursor: Scalars['String']['output'];
   node: ListedAsset;
+};
+
+export type ManualFundValuationInput = {
+  grossValue: Scalars['Float']['input'];
+  valuedAt: Scalars['Date']['input'];
 };
 
 /**
@@ -1760,6 +1796,8 @@ export type Mutation = {
    */
   deleteAsset: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
+  /** Soft-deletes a MANUAL investment holding and all of its MANUAL transactions. */
+  deleteInvestmentHolding: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
   deleteInvestmentTransaction: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
@@ -1930,6 +1968,11 @@ export type MutationDeleteAssetArgs = {
 
 export type MutationDeleteGroupArgs = {
   groupId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteInvestmentHoldingArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2310,6 +2353,7 @@ export type Query = {
   investmentAssetByTicker: Maybe<ListedAsset>;
   investmentAssets: ListedAssetConnection;
   investmentFund: Maybe<InvestmentFund>;
+  investmentFundMarketSnapshots: Array<InvestmentFundMarketSnapshot>;
   investmentFunds: InvestmentFundConnection;
   /** Single holding by id. */
   investmentHolding: Maybe<InvestmentHolding>;
@@ -2492,6 +2536,11 @@ export type QueryInvestmentAssetsArgs = {
 
 export type QueryInvestmentFundArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QueryInvestmentFundMarketSnapshotsArgs = {
+  cnpjs: Array<Scalars['String']['input']>;
 };
 
 
@@ -2735,10 +2784,12 @@ export type RecordInvestmentTransactionInput = {
   iof?: InputMaybe<Scalars['Float']['input']>;
   isTaxExempt?: InputMaybe<Scalars['Boolean']['input']>;
   issueDate?: InputMaybe<Scalars['Date']['input']>;
+  manualValuation?: InputMaybe<ManualFundValuationInput>;
   maturityDate?: InputMaybe<Scalars['Date']['input']>;
   netValue?: InputMaybe<Scalars['Float']['input']>;
   preFixedRate?: InputMaybe<Scalars['Float']['input']>;
   priceFactor?: InputMaybe<Scalars['Float']['input']>;
+  pricingMode?: InputMaybe<HoldingPricingMode>;
   providerInvestmentId?: InputMaybe<Scalars['String']['input']>;
   quantity?: InputMaybe<Scalars['Float']['input']>;
   settlementDate?: InputMaybe<Scalars['Date']['input']>;
@@ -3309,6 +3360,10 @@ export enum ValuationSource {
   Calculated = 'CALCULATED',
   /** Value projected using latest economic indicators (CDI, IPCA, etc.). Approximate. */
   Estimated = 'ESTIMATED',
+  /** Value entered by the user for a manual fund holding. */
+  Manual = 'MANUAL',
+  /** Value provided by the app's internal market-data services (e.g. CVM NAV). */
+  MarketData = 'MARKET_DATA',
   /** Value provided by the data provider (Open Finance / file import). Authoritative. */
   Provider = 'PROVIDER',
   /** Value cannot be determined (unsupported indexer, missing data, or no issueDate). */

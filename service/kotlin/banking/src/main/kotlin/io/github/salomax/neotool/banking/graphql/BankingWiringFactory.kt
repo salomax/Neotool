@@ -575,6 +575,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "deleteInvestmentHolding",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        investmentResolver.deleteInvestmentHolding(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "updateTransactionCategory",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->

@@ -29,6 +29,7 @@ import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { personalFinanceTranslations } from "../../i18n";
+import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 
 interface RecordFixedIncomeDrawerProps {
   open: boolean;
@@ -93,7 +94,6 @@ export function RecordFixedIncomeDrawer({
     [locale],
   );
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
-  const needsAccountSelection = !resolvedFinancialAccountId;
 
   const createSchema = React.useMemo(
     () =>
@@ -255,10 +255,7 @@ export function RecordFixedIncomeDrawer({
     }
   }, [open, reset]);
 
-  useEffect(() => {
-    if (!open) return;
-    setResolvedFinancialAccountId(financialAccountId || null);
-  }, [financialAccountId, open]);
+  // resolvedFinancialAccountId will be controlled by InvestmentRecordDrawer via onResolvedChange
 
   useEffect(() => {
     if (watchedAssetType === AssetType.Treasury) {
@@ -354,192 +351,142 @@ export function RecordFixedIncomeDrawer({
   };
 
   return (
-    <Drawer open={open} onClose={onClose} anchor="right" size="md">
-      <Drawer.Header title={t("investments.recordHolding.title")} />
-      <Drawer.Body>
-        {needsAccountSelection ? (
-          <Stack spacing={2}>
-            <Typography variant="body2" color="text.secondary">
-              {t("investments.recordHolding.selectAccount.description")}
-            </Typography>
+    <InvestmentRecordDrawer
+      open={open}
+      onClose={onClose}
+      title={t("investments.recordHolding.title")}
+      initialFinancialAccountId={financialAccountId || null}
+      financialAccounts={financialAccounts}
+      issuerSelection={{
+        description: t("investments.recordHolding.selectAccount.description"),
+        emptyState: t("investments.recordHolding.selectAccount.emptyState"),
+        dataTestIdPrefix: "record-select-account-",
+      }}
+      onResolvedChange={setResolvedFinancialAccountId}
+    >
+      {({ resolvedFinancialAccountId }) => (
+        <FormProvider {...methods}>
+          <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
+            <Stack spacing={2}>
+              {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-            {financialAccounts.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                {t("investments.recordHolding.selectAccount.emptyState")}
-              </Typography>
-            ) : (
-              <Paper variant="outlined" sx={{ borderRadius: 2, overflow: "hidden" }}>
-                <List disablePadding>
-                  {financialAccounts.map((account) => (
-                    <ListItemButton
-                      key={account.id}
-                      onClick={() => setResolvedFinancialAccountId(account.id)}
-                      sx={{
-                        py: 1.5,
-                        "&:not(:last-of-type)": { borderBottom: `1px solid ${alpha(theme.palette.divider, 0.6)}` },
-                      }}
-                      data-testid={`record-select-account-${account.id}`}
-                    >
-                      <ListItemIcon sx={{ minWidth: 44 }}>
-                        <Avatar
-                          variant="rounded"
-                          src={account.issuer?.logoAsset?.publicUrl || undefined}
-                          slotProps={{ img: { style: { objectFit: "contain" } } }}
-                          sx={{
-                            bgcolor: account.issuer?.logoAsset?.publicUrl ? "transparent" : (account.themeColor || "primary.main"),
-                            width: 32,
-                            height: 32,
-                            borderRadius: 1.5,
-                          }}
-                        >
-                          {account.name?.slice(0, 1).toUpperCase()}
-                        </Avatar>
-                      </ListItemIcon>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body2" fontWeight={600} noWrap>
-                            {account.name}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {account.issuer?.name || account.issuerName}
-                          </Typography>
-                        }
-                      />
-                    </ListItemButton>
-                  ))}
-                </List>
-              </Paper>
-            )}
-          </Stack>
-        ) : (
-          <FormProvider {...methods}>
-            <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
-              <Stack spacing={2}>
-                {mutationError && <FormErrorBanner message={mutationError.message} />}
-
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-                    {t("investments.recordHolding.sections.assetInfo")}
-                  </Typography>
-
-                  <TextField
-                    name="assetName"
-                    label={t("investments.recordHolding.fields.assetName")}
-                    data-testid="record-asset-name"
-                  />
-                </Stack>
-
-                <SelectField
-                  name="assetType"
-                  label={t("investments.recordHolding.fields.assetType")}
-                  options={assetTypeOptions}
-                  data-testid="record-asset-type"
-                />
-
-                <TextField
-                  name="issuerName"
-                  label={t("investments.recordHolding.fields.issuerName")}
-                  InputProps={isTreasury ? { readOnly: true } : undefined}
-                  data-testid="record-issuer-name"
-                />
-
-                <Divider />
-
+              <Stack spacing={1}>
                 <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-                  {t("investments.recordHolding.sections.applicationDetails")}
+                  {t("investments.recordHolding.sections.assetInfo")}
                 </Typography>
 
-                <MoneyInput
-                  name="grossValue"
-                  label={t("investments.recordHolding.fields.grossValue")}
-                  currency="BRL"
-                  data-testid="record-gross-value"
+                <TextField
+                  name="assetName"
+                  label={t("investments.recordHolding.fields.assetName")}
+                  data-testid="record-asset-name"
                 />
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <SelectField
-                      name="indexer"
-                      label={t("investments.recordHolding.fields.indexer")}
-                      options={indexerOptions}
-                      data-testid="record-indexer"
-                    />
-                  </Box>
-
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    {!isPreFixed ? (
-                      <PercentField
-                        name="indexerPercentage"
-                        label={t("investments.recordHolding.fields.indexerPercentage")}
-                        min={0}
-                        max={1000}
-                        step={0.01}
-                        fractionDigits={2}
-                        locale={locale}
-                        data-testid="record-indexer-percentage"
-                      />
-                    ) : (
-                      <PercentField
-                        name="preFixedRate"
-                        label={t("investments.recordHolding.fields.preFixedRate")}
-                        min={0}
-                        max={1000}
-                        step={0.01}
-                        fractionDigits={2}
-                        locale={locale}
-                        data-testid="record-pre-fixed-rate"
-                      />
-                    )}
-                  </Box>
-                </Stack>
-
-                <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <DatePickerField
-                      name="tradeDate"
-                      label={t("investments.recordHolding.fields.tradeDate")}
-                      data-testid="record-trade-date"
-                    />
-                  </Box>
-
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <DatePickerField
-                      name="maturityDate"
-                      label={t("investments.recordHolding.fields.maturityDate")}
-                      minDate={watchedTradeDate}
-                      data-testid="record-maturity-date"
-                    />
-                  </Box>
-                </Stack>
-
-                <CheckboxField
-                  name="isTaxExempt"
-                  label={t("investments.recordHolding.fields.isTaxExempt")}
-                  data-testid="record-tax-exempt-checkbox"
-                />
-
-                <Divider />
-
-                {!needsAccountSelection ? (
-                  <Drawer.ActionButtons
-                    cancelText={t("actions.cancel")}
-                    submitText={t("investments.recordHolding.actions.submit")}
-                    submittingText={t("investments.recordHolding.actions.submitting")}
-                    onCancel={onClose}
-                    submitForm="record-fixed-income-form"
-                    cancelDisabled={isSubmitting}
-                    submitDisabled={isSubmitting || !resolvedFinancialAccountId}
-                    submitting={isSubmitting}
-                  />
-                ) : null}
-
               </Stack>
-            </form>
-          </FormProvider>
-        )}
-      </Drawer.Body>
-    </Drawer>
+
+              <SelectField
+                name="assetType"
+                label={t("investments.recordHolding.fields.assetType")}
+                options={assetTypeOptions}
+                data-testid="record-asset-type"
+              />
+
+              <TextField
+                name="issuerName"
+                label={t("investments.recordHolding.fields.issuerName")}
+                InputProps={isTreasury ? { readOnly: true } : undefined}
+                data-testid="record-issuer-name"
+              />
+
+              <Divider />
+
+              <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
+                {t("investments.recordHolding.sections.applicationDetails")}
+              </Typography>
+
+              <MoneyInput
+                name="grossValue"
+                label={t("investments.recordHolding.fields.grossValue")}
+                currency="BRL"
+                data-testid="record-gross-value"
+              />
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <SelectField
+                    name="indexer"
+                    label={t("investments.recordHolding.fields.indexer")}
+                    options={indexerOptions}
+                    data-testid="record-indexer"
+                  />
+                </Box>
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  {!isPreFixed ? (
+                    <PercentField
+                      name="indexerPercentage"
+                      label={t("investments.recordHolding.fields.indexerPercentage")}
+                      min={0}
+                      max={1000}
+                      step={0.01}
+                      fractionDigits={2}
+                      locale={locale}
+                      data-testid="record-indexer-percentage"
+                    />
+                  ) : (
+                    <PercentField
+                      name="preFixedRate"
+                      label={t("investments.recordHolding.fields.preFixedRate")}
+                      min={0}
+                      max={1000}
+                      step={0.01}
+                      fractionDigits={2}
+                      locale={locale}
+                      data-testid="record-pre-fixed-rate"
+                    />
+                  )}
+                </Box>
+              </Stack>
+
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <DatePickerField
+                    name="tradeDate"
+                    label={t("investments.recordHolding.fields.tradeDate")}
+                    data-testid="record-trade-date"
+                  />
+                </Box>
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <DatePickerField
+                    name="maturityDate"
+                    label={t("investments.recordHolding.fields.maturityDate")}
+                    minDate={watchedTradeDate}
+                    data-testid="record-maturity-date"
+                  />
+                </Box>
+              </Stack>
+
+              <CheckboxField
+                name="isTaxExempt"
+                label={t("investments.recordHolding.fields.isTaxExempt")}
+                data-testid="record-tax-exempt-checkbox"
+              />
+
+              <Divider />
+
+              <Drawer.ActionButtons
+                cancelText={t("actions.cancel")}
+                submitText={t("investments.recordHolding.actions.submit")}
+                submittingText={t("investments.recordHolding.actions.submitting")}
+                onCancel={onClose}
+                submitForm="record-fixed-income-form"
+                cancelDisabled={isSubmitting}
+                submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+                submitting={isSubmitting}
+              />
+            </Stack>
+          </form>
+        </FormProvider>
+      )}
+    </InvestmentRecordDrawer>
   );
 }

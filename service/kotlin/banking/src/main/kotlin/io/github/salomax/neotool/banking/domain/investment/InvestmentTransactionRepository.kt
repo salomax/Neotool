@@ -24,6 +24,12 @@ interface InvestmentTransactionRepository {
         accountId: UUID,
     ): List<InvestmentTransaction>
 
+    /** Transaction history for multiple holdings, grouped client-side by holdingId. */
+    fun findByHoldingIds(
+        holdingIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<InvestmentTransaction>
+
     /**
      * Transactions by type and date range — used by the IR engine.
      * E.g. all SALE events in a calendar year for DARF calculation.

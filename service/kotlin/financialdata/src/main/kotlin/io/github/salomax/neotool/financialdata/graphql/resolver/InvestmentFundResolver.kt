@@ -5,6 +5,7 @@ import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
 import io.github.salomax.neotool.financialdata.graphql.mapper.InvestmentFundMapper
 import io.github.salomax.neotool.financialdata.service.InvestmentFundSearchService
 import jakarta.inject.Singleton
@@ -60,4 +61,7 @@ class InvestmentFundResolver(
         val history = fundSearchService.getPriceHistory(uuid, from, to, last)
         return mapper.toNavListDTO(history)
     }
+
+    fun investmentFundMarketSnapshots(cnpjs: List<String>): List<InvestmentFundMarketSnapshotDTO> =
+        fundSearchService.getMarketSnapshotsByCnpj(cnpjs).map(mapper::toMarketSnapshotDTO)
 }
