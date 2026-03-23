@@ -1311,4 +1311,79 @@ class TransactionServiceTest {
             assertThat(result.edges.first().node.id).isEqualTo(tx1.id)
         }
     }
+
+    @Nested
+    @DisplayName("breakdowns")
+    inner class BreakdownTests {
+        @Test
+        fun `getCategoryBreakdown delegates to filtered repository query`() {
+            whenever(
+                transactionRepository.getFilteredCategoryBreakdown(
+                    any(),
+                    eq(CategoryApplicableTo.EXPENSE),
+                ),
+            ).thenReturn(emptyList())
+
+            val result =
+                service.getCategoryBreakdown(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    tags = listOf("Weekend"),
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    month = today.monthValue,
+                    year = today.year,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+
+            assertThat(result).isEmpty()
+            val queryCaptor = argumentCaptor<TransactionListQuery>()
+            verify(transactionRepository).getFilteredCategoryBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.EXPENSE))
+            assertThat(queryCaptor.firstValue.tags).containsExactly("Weekend")
+            assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+        }
+
+        @Test
+        fun `getTagBreakdown delegates to filtered repository query`() {
+            whenever(
+                transactionRepository.getFilteredTagBreakdown(
+                    any(),
+                    eq(CategoryApplicableTo.INCOME),
+                ),
+            ).thenReturn(
+                listOf(
+                    TagBreakdownRow(
+                        tag = "Salary",
+                        totalAmount = BigDecimal("100.00"),
+                        transactionCount = 1,
+                    ),
+                ),
+            )
+
+            val result =
+                service.getTagBreakdown(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    month = today.monthValue,
+                    year = today.year,
+                    applicableTo = CategoryApplicableTo.INCOME,
+                )
+
+            assertThat(result).hasSize(1)
+            assertThat(result.first().tag).isEqualTo("Salary")
+            assertThat(result.first().percentage).isEqualTo(100.0)
+            val queryCaptor = argumentCaptor<TransactionListQuery>()
+            verify(transactionRepository).getFilteredTagBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.INCOME))
+            assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+        }
+    }
 }

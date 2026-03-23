@@ -59,6 +59,15 @@ data class CategoryBreakdownRow(
 )
 
 /**
+ * Raw row from tag breakdown query. Service layer adds percentage.
+ */
+data class TagBreakdownRow(
+    val tag: String,
+    val totalAmount: BigDecimal,
+    val transactionCount: Long,
+)
+
+/**
  * Category total for a period (expense/income breakdown). Percentage computed in service.
  */
 data class CategoryTotal(
@@ -88,6 +97,29 @@ data class CategoryTotal(
                         createdAt = Instant.EPOCH,
                         updatedAt = Instant.EPOCH,
                     ),
+                totalAmount = row.totalAmount,
+                transactionCount = row.transactionCount.toInt(),
+                percentage = percentage,
+            )
+    }
+}
+
+/**
+ * Tag total for a period (expense/income breakdown). Percentage computed in service.
+ */
+data class TagTotal(
+    val tag: String,
+    val totalAmount: BigDecimal,
+    val transactionCount: Int,
+    val percentage: Double,
+) {
+    companion object {
+        fun fromRow(
+            row: TagBreakdownRow,
+            percentage: Double,
+        ): TagTotal =
+            TagTotal(
+                tag = row.tag,
                 totalAmount = row.totalAmount,
                 transactionCount = row.transactionCount.toInt(),
                 percentage = percentage,

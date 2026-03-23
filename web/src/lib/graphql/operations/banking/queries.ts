@@ -73,6 +73,7 @@ export const TRANSACTIONS = gql`
     $billId: ID
     $month: Int
     $year: Int
+    $tags: [String!]
     $categoryId: ID
     $creditDebitType: CreditDebitType
     $first: Int
@@ -83,6 +84,7 @@ export const TRANSACTIONS = gql`
       billId: $billId
       month: $month
       year: $year
+      tags: $tags
       categoryId: $categoryId
       creditDebitType: $creditDebitType
       first: $first
@@ -171,6 +173,43 @@ export const TRANSACTIONS_BY_CATEGORY = gql`
         icon
         color
       }
+      totalAmount
+      transactionCount
+      percentage
+    }
+  }
+`;
+
+/**
+ * Tag breakdown with the same filter surface as TRANSACTIONS.
+ * Use this alongside TRANSACTIONS so both reflect the same set of transactions.
+ */
+export const TRANSACTIONS_BY_TAG = gql`
+  query TransactionsByTag(
+    $financialAccountId: ID
+    $belongsToUserId: ID
+    $belongsToName: String
+    $tags: [String!]
+    $billId: ID
+    $categoryId: ID
+    $uncategorized: Boolean
+    $month: Int
+    $year: Int
+    $applicableTo: CategoryApplicableTo
+  ) {
+    transactionsByTag(
+      financialAccountId: $financialAccountId
+      belongsToUserId: $belongsToUserId
+      belongsToName: $belongsToName
+      tags: $tags
+      billId: $billId
+      categoryId: $categoryId
+      uncategorized: $uncategorized
+      month: $month
+      year: $year
+      applicableTo: $applicableTo
+    ) {
+      tag
       totalAmount
       transactionCount
       percentage
@@ -291,6 +330,12 @@ export const MONTH_SUMMARY = gql`
           icon
           color
         }
+        totalAmount
+        transactionCount
+        percentage
+      }
+      tagsSummary {
+        tag
         totalAmount
         transactionCount
         percentage

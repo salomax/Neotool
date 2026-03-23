@@ -43,18 +43,24 @@ interface InlineTransactionFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
+  onRefresh?: () => void;
   selectedAccountId: string | null;
   initialValues?: Transaction;
   onExited?: () => void;
+  onBusyStart?: () => void;
+  onBusyEnd?: () => void;
 }
 
 export function InlineTransactionForm({ 
   isOpen, 
   onClose, 
   onSuccess, 
+  onRefresh,
   selectedAccountId, 
   initialValues, 
-  onExited
+  onExited,
+  onBusyStart,
+  onBusyEnd
 }: InlineTransactionFormProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -129,6 +135,7 @@ export function InlineTransactionForm({
     const formattedAmount = Math.abs(amount);
 
     try {
+      onBusyStart?.();
       if (initialValues) {
         await updateTransaction({
           variables: {
@@ -173,6 +180,8 @@ export function InlineTransactionForm({
       onClose();
     } catch (error) {
       console.error('Failed to save transaction:', error);
+    } finally {
+      onBusyEnd?.();
     }
   };
 
@@ -246,7 +255,7 @@ export function InlineTransactionForm({
                 sx={{
                   display: 'grid',
                   gridTemplateColumns,
-                  columnGap: 2,
+                  columnGap: 2.5,
                   alignItems: 'end',
                   px: 1,
                   pt: 2,
@@ -375,6 +384,7 @@ export function InlineTransactionForm({
                   alignItems: 'flex-end',
                   width: '100%',
                   minWidth: 0,
+                  overflow: 'hidden',
                   '& .MuiChip-root': {
                     maxWidth: '100%',
                   },
@@ -525,7 +535,7 @@ export function InlineTransactionForm({
                 <AttachmentSection
                   transactionId={initialValues.id}
                   attachments={initialValues.attachments ?? []}
-                  onChanged={onSuccess}
+                  onChanged={onRefresh ?? onSuccess}
                   compact
                 />
               </Box>

@@ -5,14 +5,18 @@ import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.graphql.dto.HoldingAttachmentDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionAttachmentDTO
+import io.github.salomax.neotool.banking.infra.assets.AssetResult
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.util.UUID
 
 @Singleton
 class AttachmentResolver(
     private val attachmentService: AttachmentService,
 ) {
+    private val log = LoggerFactory.getLogger(AttachmentResolver::class.java)
+
     // ── Transaction attachments ───────────────────────────────────────────────
 
     fun transactionAttachments(transactionId: String, principal: RequestPrincipal): List<TransactionAttachmentDTO> {
@@ -62,9 +66,7 @@ class AttachmentResolver(
     // ── Mapping helpers ───────────────────────────────────────────────────────
 
     private fun TransactionAttachment.toDTO(accountId: UUID): TransactionAttachmentDTO {
-        val asset = runCatching {
-            attachmentService.resolveAssetMetadata(assetId, accountId)
-        }.getOrNull()
+        val asset = resolveAsset(assetId, accountId, id)
         return TransactionAttachmentDTO(
             id = id!!,
             transactionId = transactionId,
@@ -78,9 +80,7 @@ class AttachmentResolver(
     }
 
     private fun HoldingAttachment.toDTO(accountId: UUID): HoldingAttachmentDTO {
-        val asset = runCatching {
-            attachmentService.resolveAssetMetadata(assetId, accountId)
-        }.getOrNull()
+        val asset = resolveAsset(assetId, accountId, id)
         return HoldingAttachmentDTO(
             id = id!!,
             holdingId = holdingId,
@@ -92,6 +92,13 @@ class AttachmentResolver(
             createdAt = createdAt,
         )
     }
+
+    private fun resolveAsset(assetId: UUID, accountId: UUID, attachmentId: UUID?): AssetResult? =
+        runCatching {
+            attachmentService.resolveAssetMetadata(assetId, accountId)
+        }.onFailure { e ->
+            log.warn("Failed to resolve asset metadata for assetId={} attachmentId={}: {}", assetId, attachmentId, e.message)
+        }.getOrNull()
 
     private fun requireAccountId(principal: RequestPrincipal): UUID =
         requireNotNull(principal.currentAccountId) { "No active account in token" }

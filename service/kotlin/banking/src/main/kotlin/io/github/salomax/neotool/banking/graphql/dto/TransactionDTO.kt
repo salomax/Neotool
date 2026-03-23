@@ -45,6 +45,13 @@ data class CategoryTotalDTO(
     val percentage: Double,
 )
 
+data class TagTotalDTO(
+    val tag: String,
+    val totalAmount: Double,
+    val transactionCount: Int,
+    val percentage: Double,
+)
+
 data class TransactionDTO(
     val id: UUID,
     val financialAccountId: UUID,

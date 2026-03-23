@@ -54,7 +54,16 @@ export function CategorySelect({
 
   return (
     <>
-      <Box onClick={handleClick} sx={{ cursor: 'pointer', display: 'inline-block' }}>
+      <Box
+        onClick={handleClick}
+        sx={{
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          width: '100%',
+          minWidth: 0,
+        }}
+      >
         {selectedCategory ? (
           <Chip
             label={
@@ -80,6 +89,8 @@ export function CategorySelect({
               </Stack>
             }
             sx={{
+              maxWidth: '100%',
+              minWidth: 0,
               bgcolor: selectedCategory.color
                 ? alpha(selectedCategory.color, 0.1)
                 : 'action.selected',
@@ -89,6 +100,11 @@ export function CategorySelect({
                 : 'divider',
               borderWidth: 1,
               borderStyle: 'solid',
+              '& .MuiChip-label': {
+                minWidth: 0,
+                maxWidth: '100%',
+                overflow: 'hidden',
+              },
               '&:hover': {
                 bgcolor: selectedCategory.color
                   ? alpha(selectedCategory.color, 0.2)
@@ -103,8 +119,16 @@ export function CategorySelect({
             label={placeholder}
             variant="outlined"
             sx={{
+              maxWidth: '100%',
+              minWidth: 0,
               borderStyle: 'dashed',
               color: 'text.secondary',
+              '& .MuiChip-label': {
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              },
               '&:hover': {
                 borderColor: 'primary.main',
                 color: 'primary.main',

@@ -49,6 +49,54 @@ export const CREATE_FINANCIAL_ACCOUNT = gql`
   }
 `;
 
+export const UPDATE_FINANCIAL_ACCOUNT = gql`
+  mutation UpdateFinancialAccount($id: ID!, $input: UpdateFinancialAccountInput!) {
+    updateFinancialAccount(id: $id, input: $input) {
+      id
+      type
+      subtype
+      name
+      currencyCode
+      includeInNetWorth
+      includeInDashboard
+      themeColor
+      issuerName
+      issuer {
+        id
+        name
+        domain
+        countryCode
+        logoKey
+        logoAsset {
+          id
+        }
+      }
+      bankData {
+        branchCode
+        number
+        checkDigit
+        maskedNumber
+      }
+      cardData {
+        maskedNumber
+        bin
+        cardNetwork
+        cardLevel
+        creditLimit
+        availableCreditLimit
+        minimumPaymentPercentage
+        closingDay
+        dueDay
+      }
+      connectionStatus
+      consentExpiresAt
+      lastSyncAt
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
 /** Create an investment asset in the global catalog. */
 export const CREATE_INVESTMENT_ASSET = gql`
   mutation CreateInvestmentAsset($input: CreateInvestmentAssetInput!) {

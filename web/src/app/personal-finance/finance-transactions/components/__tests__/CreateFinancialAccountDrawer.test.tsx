@@ -268,4 +268,21 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
       expect(screen.getByText('financeTransactions.validation.dateTooOld')).toBeInTheDocument();
     });
   });
+
+  it('renders billing cycle fields for charge cards', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer open onClose={vi.fn()} initialType="CARD" />
+      </ThemeProvider>,
+    );
+
+    const subtypeInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.subtype');
+    await user.click(subtypeInput);
+    await user.click(screen.getByText('financeTransactions.createAccount.step2.enums.cardSubtype.CHARGE_CARD'));
+
+    expect(screen.getByLabelText('financeTransactions.createAccount.step2.fields.closingDay')).toBeInTheDocument();
+    expect(screen.getByLabelText('financeTransactions.createAccount.step2.fields.dueDay')).toBeInTheDocument();
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.creditLimit')).not.toBeInTheDocument();
+  });
 });

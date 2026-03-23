@@ -8,6 +8,7 @@ import {
   Link, 
   Avatar, 
   Stack,
+  IconButton,
   List, 
   ListItemButton, 
   ListItemText, 
@@ -23,6 +24,7 @@ import {
   KeyboardArrowDown as ExpandMoreIcon,
   KeyboardArrowUp as ExpandLessIcon,
   Add as AddIcon,
+  Edit as EditIcon,
   AccountBalance as BankIcon,
   CreditCard as CardIcon,
   AccountBalanceWallet as WalletIcon,
@@ -38,6 +40,7 @@ import { FinancialAccount, FinancialAccountType } from '@/lib/graphql/types/__ge
 // Types
 interface FinancialAccountSelectorProps {
   onNewAccount: () => void;
+  onEditAccount?: (account: FinancialAccount) => void;
   selectedAccountId?: string | null;
   onSelectAccount: (accountId: string | null) => void;
   accountTypes?: FinancialAccountType[];
@@ -72,6 +75,7 @@ const isCardAccount = (account: FinancialAccount) => {
 
 export function FinancialAccountSelector({ 
   onNewAccount, 
+  onEditAccount,
   selectedAccountId, 
   onSelectAccount,
   accountTypes,
@@ -205,34 +209,46 @@ export function FinancialAccountSelector({
             bgcolor: 'background.paper',
           }}
         >
-          <Avatar 
-            src={singleAccount.issuer?.logoAsset?.publicUrl || undefined}
-            alt={singleAccount.name}
-            sx={{ 
-                bgcolor: singleAccount.issuer?.logoAsset?.publicUrl ? 'transparent' : (singleAccount.themeColor || 'primary.main'),
-                borderRadius: borderRadius
-            }}
-          >
-            {!singleAccount.issuer?.logoAsset?.publicUrl && renderAccountTypeIcon(singleAccount.type)}
-          </Avatar>
-          <Box>
-            <Typography variant="subtitle1" fontWeight="bold">
-              {singleAccount.name}
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {singleAccount.issuer?.name || singleAccount.issuerName}
-            </Typography>
-            {showCardDetails && (
-              <Stack direction="row" spacing={0.5} alignItems="center">
-                <CardNetworkIcon network={singleAccount.cardData?.cardNetwork} size={14} />
-                {last4 && (
-                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                    •••• {last4}
-                  </Typography>
-                )}
-              </Stack>
-            )}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, minWidth: 0 }}>
+            <Avatar 
+              src={singleAccount.issuer?.logoAsset?.publicUrl || undefined}
+              alt={singleAccount.name}
+              sx={{ 
+                  bgcolor: singleAccount.issuer?.logoAsset?.publicUrl ? 'transparent' : (singleAccount.themeColor || 'primary.main'),
+                  borderRadius: borderRadius
+              }}
+            >
+              {!singleAccount.issuer?.logoAsset?.publicUrl && renderAccountTypeIcon(singleAccount.type)}
+            </Avatar>
+            <Box sx={{ minWidth: 0 }}>
+              <Typography variant="subtitle1" fontWeight="bold" noWrap>
+                {singleAccount.name}
+              </Typography>
+              <Typography variant="body2" color="text.secondary" noWrap>
+                {singleAccount.issuer?.name || singleAccount.issuerName}
+              </Typography>
+              {showCardDetails && (
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <CardNetworkIcon network={singleAccount.cardData?.cardNetwork} size={14} />
+                  {last4 && (
+                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                      •••• {last4}
+                    </Typography>
+                  )}
+                </Stack>
+              )}
+            </Box>
           </Box>
+          {onEditAccount && (
+            <IconButton
+              aria-label={t('financeTransactions.actions.edit')}
+              onClick={() => onEditAccount(singleAccount)}
+              size="small"
+              sx={{ ml: 1 }}
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
         </Paper>
         
         <Link
@@ -352,7 +368,21 @@ export function FinancialAccountSelector({
             )}
           </Box>
         </Box>
-        {open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />}
+        <Stack direction="row" spacing={0.5} alignItems="center">
+          {selectedAccountId && selectedAccount && onEditAccount && (
+            <IconButton
+              aria-label={t('financeTransactions.actions.edit')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEditAccount(selectedAccount);
+              }}
+              size="small"
+            >
+              <EditIcon fontSize="small" />
+            </IconButton>
+          )}
+          {open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />}
+        </Stack>
       </Paper>
       
       <Link

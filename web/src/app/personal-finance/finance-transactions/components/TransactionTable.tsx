@@ -12,6 +12,7 @@ import {
   Typography, 
   Box, 
   CircularProgress,
+  LinearProgress,
   useTheme,
   IconButton,
   Stack,
@@ -38,12 +39,14 @@ import { useCallback, useEffect, useRef, useMemo, useState, Fragment, type Mouse
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
+import { FilePreviewDialog, type PreviewAttachment } from '../../components/FilePreviewDialog';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { CategoryIcon } from './category/CategoryIcon';
 import { CategoryPicker } from './category/CategoryPicker';
 import { useMutation } from '@apollo/client/react';
-import { DELETE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 
@@ -134,6 +137,9 @@ export function TransactionTable({
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
+  const [busyCount, setBusyCount] = useState(0);
+  const beginBusy = useCallback(() => setBusyCount((c) => c + 1), []);
+  const endBusy = useCallback(() => setBusyCount((c) => (c > 0 ? c - 1 : 0)), []);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
   const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
@@ -142,13 +148,34 @@ export function TransactionTable({
   const [categoryPickerTransaction, setCategoryPickerTransaction] = useState<Transaction | null>(null);
   const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
   const [forceNoCategoryByTransactionId, setForceNoCategoryByTransactionId] = useState<Record<string, true>>({});
+  const [previewAttachments, setPreviewAttachments] = useState<PreviewAttachment[] | null>(null);
+  const [previewIndex, setPreviewIndex] = useState<number>(0);
+  const [previewTransactionId, setPreviewTransactionId] = useState<string | null>(null);
+  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
+  const [progressTop, setProgressTop] = useState<number>(0);
 
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
+  const [removeTransactionAttachment] = useMutation(REMOVE_TRANSACTION_ATTACHMENT);
 
   useEffect(() => {
     transactionsRef.current = transactions;
   }, [transactions]);
+
+  useEffect(() => {
+    const updateTop = () => {
+      const c = containerRef.current;
+      const h = tableHeadRef.current;
+      if (!c || !h) return;
+      const top = (h.offsetTop ?? 0) + (h.offsetHeight ?? 0) - 1;
+      setProgressTop(top);
+    };
+    updateTop();
+    window.addEventListener('resize', updateTop);
+    return () => window.removeEventListener('resize', updateTop);
+  }, []);
 
   useEffect(() => {
     setForceNoCategoryByTransactionId((prev) => {
@@ -184,12 +211,11 @@ export function TransactionTable({
     if (!tx) return;
 
     try {
+      beginBusy();
       await deleteTransaction({ variables: { id: tx.id } });
 
       setTransactionToRemove(null);
       setDeletedTransactionId(tx.id);
-      await new Promise((resolve) => setTimeout(resolve, 300));
-      setDeletedTransactionId(null);
 
       if (editedTransaction?.id === tx.id) {
         setIsEditFormOpen(false);
@@ -200,6 +226,8 @@ export function TransactionTable({
     } catch (error) {
       setTransactionToRemove(null);
       toast.error(extractErrorMessage(error, 'Não foi possível remover a transação'));
+    } finally {
+      endBusy();
     }
   };
 
@@ -210,6 +238,7 @@ export function TransactionTable({
 
     setMarkingTransferTransactionId(tx.id);
     try {
+      beginBusy();
       await updateTransaction({
         variables: {
           id: tx.id,
@@ -224,6 +253,7 @@ export function TransactionTable({
       toast.error(extractErrorMessage(err, 'Não foi possível marcar como transferência interna'));
     } finally {
       setMarkingTransferTransactionId(null);
+      endBusy();
     }
   };
 
@@ -263,6 +293,7 @@ export function TransactionTable({
     }
 
     setUpdatingCategoryTransactionId(tx.id);
+    beginBusy();
     updateTransaction({
       variables: {
         id: tx.id,
@@ -301,6 +332,7 @@ export function TransactionTable({
       })
       .finally(() => {
         setUpdatingCategoryTransactionId(null);
+        endBusy();
       });
   };
 
@@ -405,6 +437,14 @@ export function TransactionTable({
       observer.disconnect();
     };
   }, [hasMore, loading, onLoadMore]);
+
+  useEffect(() => {
+    if (!deletedTransactionId) return;
+    const stillPresent = transactions.some((t) => t.id === deletedTransactionId);
+    if (!stillPresent) {
+      setDeletedTransactionId(null);
+    }
+  }, [transactions, deletedTransactionId]);
 
   const formatCurrency = (amount: number, currencyCode: string) => {
     const key = `${i18n.language}:${currencyCode}`;
@@ -533,12 +573,17 @@ export function TransactionTable({
     return map;
   }, [financialAccounts]);
 
-  const colSpan = selectedAccountId ? 6 : 7;
+  const colSpan = selectedAccountId ? 7 : 8;
 
   return (
-    <TableContainer component={Paper} elevation={0} sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none', overflow: 'visible' }}>
+    <TableContainer
+      component={Paper}
+      elevation={0}
+      sx={{ bgcolor: 'transparent', background: 'transparent !important', border: 'none', overflow: 'visible', position: 'relative' }}
+      ref={containerRef}
+    >
       <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0' }} aria-label="transactions table">
-        <TableHead>
+        <TableHead ref={tableHeadRef}>
           <TableRow>
             <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
             <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
@@ -555,6 +600,14 @@ export function TransactionTable({
                 <Label>{t('financeTransactions.financialAccount')}</Label>
               </TableCell>
             )}
+            <TableCell
+              padding="none"
+              sx={{
+                width: 32,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                bgcolor: 'transparent',
+              }}
+            />
             <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
@@ -567,13 +620,30 @@ export function TransactionTable({
             />
           </TableRow>
         </TableHead>
+        {busyCount > 0 && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              top: `${progressTop}px`,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          >
+            <LinearProgress />
+          </Box>
+        )}
         <TableBody>
           {onCancelCreate && onSuccessCreate && (
             <InlineTransactionForm 
               isOpen={isCreating} 
               onClose={onCancelCreate} 
               onSuccess={onSuccessCreate}
+              onRefresh={onSuccessCreate}
               selectedAccountId={selectedAccountId}
+              onBusyStart={beginBusy}
+              onBusyEnd={endBusy}
             />
           )}
           {groupedTransactions.map((group, groupIndex) => (
@@ -621,7 +691,14 @@ export function TransactionTable({
                         opacity: isDeleting ? 0 : (isEditing && isEditFormOpen ? 0.5 : 1),
                         pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
                         filter: isDeleting ? 'none' : (isEditing && isEditFormOpen ? 'grayscale(0.5)' : 'none'),
-                        transition: 'opacity 0.3s ease, filter 0.2s',
+                        transition: 'opacity 0.25s ease, filter 0.2s',
+                        ...(isDeleting && {
+                          '& .MuiTableCell-root': {
+                            py: 0,
+                            height: 0,
+                            border: 'none',
+                          },
+                        }),
                         '& .MuiTableCell-root': {
                           bgcolor: 'background.paper',
                           borderColor: 'transparent',
@@ -894,6 +971,40 @@ export function TransactionTable({
                           })()}
                         </TableCell>
                       )}
+                      <TableCell align="center" padding="none" sx={{ width: 32, maxWidth: 32 }}>
+                        {!!transaction.attachments?.length && (
+                          <IconButton
+                            size="small"
+                            sx={{
+                              p: 0.25,
+                              color: 'text.secondary',
+                              '&:hover': {
+                                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                color: 'primary.main',
+                              },
+                            }}
+                            onClick={() => {
+                              const list = (transaction.attachments ?? []).map((att) => ({
+                                id: att.id,
+                                assetId: att.assetId,
+                                filename: (att as any).originalFilename ?? att.filename ?? null,
+                                mimeType: att.mimeType ?? null,
+                                downloadUrl: att.downloadUrl ?? null,
+                              }));
+                              if (list.length > 0) {
+                                const firstWithUrlIndex = list.findIndex((a) => !!a.downloadUrl);
+                                setRemovingAttachmentId(null);
+                                setPreviewTransactionId(transaction.id);
+                                setPreviewAttachments(list);
+                                setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
+                              }
+                            }}
+                            aria-label="Ver anexo"
+                          >
+                            <AttachFileIcon sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        )}
+                      </TableCell>
                       <TableCell align="right">
                         <Typography 
                           variant="body2" 
@@ -945,9 +1056,14 @@ export function TransactionTable({
                             setIsEditFormOpen(false);
                             if (onSuccessCreate) onSuccessCreate();
                           }}
+                          onRefresh={() => {
+                            if (onSuccessCreate) onSuccessCreate();
+                          }}
                           selectedAccountId={selectedAccountId}
                           initialValues={transaction}
                           onExited={() => setEditedTransaction(null)}
+                          onBusyStart={beginBusy}
+                          onBusyEnd={endBusy}
                         />
                       )}
                   </Fragment>
@@ -1063,6 +1179,36 @@ export function TransactionTable({
           </Typography>
         </Box>
       )}
+      
+      <FilePreviewDialog
+        attachments={previewAttachments}
+        initialIndex={previewIndex}
+        removingAttachmentId={removingAttachmentId}
+        onRemove={async (att) => {
+          if (!previewTransactionId) return;
+          setRemovingAttachmentId(att.id);
+          try {
+            beginBusy();
+            await removeTransactionAttachment({ variables: { attachmentId: att.id } });
+            setPreviewAttachments((prev) => {
+              if (!prev) return prev;
+              const next = prev.filter((a) => a.id !== att.id);
+              return next.length > 0 ? next : null;
+            });
+            onSuccessCreate?.();
+          } catch (err) {
+            toast.error(extractErrorMessage(err, 'Não foi possível remover o anexo'));
+          } finally {
+            setRemovingAttachmentId(null);
+            endBusy();
+          }
+        }}
+        onClose={() => {
+          setPreviewAttachments(null);
+          setPreviewTransactionId(null);
+          setRemovingAttachmentId(null);
+        }}
+      />
     </TableContainer>
   );
 }

@@ -5,7 +5,7 @@ import java.util.UUID
 interface TransactionAttachmentRepository {
     fun findByTransactionId(transactionId: UUID, accountId: UUID): List<TransactionAttachment>
     fun findById(id: UUID, accountId: UUID): TransactionAttachment?
-    fun countByTransactionId(transactionId: UUID): Int
+    fun countByTransactionId(transactionId: UUID, accountId: UUID): Int
     fun save(attachment: TransactionAttachment): TransactionAttachment
     fun delete(id: UUID, accountId: UUID): Boolean
 }
@@ -13,7 +13,7 @@ interface TransactionAttachmentRepository {
 interface HoldingAttachmentRepository {
     fun findByHoldingId(holdingId: UUID, accountId: UUID): List<HoldingAttachment>
     fun findById(id: UUID, accountId: UUID): HoldingAttachment?
-    fun countByHoldingId(holdingId: UUID): Int
+    fun countByHoldingId(holdingId: UUID, accountId: UUID): Int
     fun save(attachment: HoldingAttachment): HoldingAttachment
     fun delete(id: UUID, accountId: UUID): Boolean
 }

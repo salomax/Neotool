@@ -481,6 +481,7 @@
       "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
+      "edit": "Editar",
       "save": "Salvar",
       "saving": "Salvando...",
       "cancel": "Cancelar",
@@ -591,6 +592,10 @@
           }
         }
       }
+    },
+    "editAccount": {
+      "title": "Editar conta financeira",
+      "success": "Conta atualizada com sucesso"
     },
     "import": {
       "title": "Importar Movimentações",
@@ -801,14 +806,18 @@
       "total": "do total",
       "expensesByCategory": "Despesas por Categoria",
       "incomeByCategory": "Receitas por Categoria",
+      "tagsSummary": "Tags",
       "seeAll": "Ver todos",
       "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
       "noCategorizedIncome": "Nenhuma receita categorizada neste mês",
+      "noTaggedTransactions": "Nenhuma transação com tag neste mês",
       "totalExpenses": "Total despesas",
       "filteringByCategory": "Categoria: {{name}}",
+      "filteringByTag": "Tag: #{{name}}",
       "filteringByCredit": "Somente crédito (receitas)",
       "filteringByDebit": "Somente débito (despesas)",
       "clearCategoryFilter": "Remover filtro de categoria",
+      "clearTagFilter": "Remover filtro de tag",
       "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",

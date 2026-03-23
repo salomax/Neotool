@@ -51,6 +51,7 @@ export interface Attachment {
   id: string;
   assetId: string;
   filename?: string | null;
+  originalFilename?: string | null;
   mimeType?: string | null;
   sizeBytes?: number | null;
   downloadUrl?: string | null;
@@ -77,10 +78,22 @@ function humanSize(bytes: number): string {
   return `${(kb / 1024).toFixed(1)} MB`;
 }
 
+function filenameFromUrl(url?: string | null): string | null {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    const path = u.pathname;
+    const last = path.split('/').filter(Boolean).pop();
+    return last ? decodeURIComponent(last) : null;
+  } catch {
+    return null;
+  }
+}
+
 function FileTypeIcon({ mimeType }: { mimeType?: string | null }) {
-  if (mimeType?.startsWith('image/')) return <ImageIcon fontSize="small" />;
-  if (mimeType === 'application/pdf') return <PictureAsPdfIcon fontSize="small" />;
-  return <InsertDriveFileIcon fontSize="small" />;
+  if (mimeType?.startsWith('image/')) return <ImageIcon sx={{ fontSize: 16 }} />;
+  if (mimeType === 'application/pdf') return <PictureAsPdfIcon sx={{ fontSize: 16 }} />;
+  return <InsertDriveFileIcon sx={{ fontSize: 16 }} />;
 }
 
 // ── Component ──────────────────────────────────────────────────────────────────
@@ -192,25 +205,40 @@ export function AttachmentSection({
   // ── Render ───────────────────────────────────────────────────────────────────
 
   if (compact) {
+    const attachmentCount = attachments.length;
+    const compactLabel =
+      attachmentCount <= 1
+        ? t('attachments.defaultLabel')
+        : `${attachmentCount} ${t('attachments.label').toLowerCase()}`;
+
     return (
       <>
         <Stack direction="row" spacing={0.5} flexWrap="wrap" alignItems="center">
-          {attachments.map((att) => (
+          {attachmentCount > 0 && (
             <Chip
-              key={att.id}
-              icon={<FileTypeIcon mimeType={att.mimeType} />}
-              label={att.filename ?? t('attachments.defaultLabel')}
+              icon={<InsertDriveFileIcon sx={{ fontSize: 16 }} />}
+              label={compactLabel}
               size="small"
-              onClick={() => setPreview(att)}
-              onDelete={removingId === att.id ? undefined : () => handleRemove(att)}
-              deleteIcon={
-                removingId === att.id
-                  ? <CircularProgress size={12} />
-                  : <CloseIcon fontSize="small" />
-              }
-              sx={{ maxWidth: 160 }}
+              clickable
+              onClick={() => setPreview(attachments[0] ?? null)}
+              sx={{ 
+                '&& .MuiChip-icon': {
+                  ml: 1.25,
+                  mr: 0.125,
+                },
+                '& .MuiChip-label': {
+                  pl: 1,
+                  pr: 1.25,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                },
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' },
+                transition: 'background-color 0.15s ease',
+              }}
             />
-          ))}
+          )}
 
           {canUpload && (
             <Tooltip title={uploading ? t('attachments.uploading') : t('attachments.attachFile')}>
@@ -242,7 +270,34 @@ export function AttachmentSection({
           onChange={handleFileSelected}
         />
 
-        <FilePreviewDialog attachment={preview} onClose={() => setPreview(null)} />
+        <FilePreviewDialog
+          attachments={
+            preview
+              ? attachments.map((att) => ({
+                  id: att.id,
+                  assetId: att.assetId,
+                  filename: att.originalFilename ?? att.filename ?? null,
+                  mimeType: att.mimeType ?? null,
+                  downloadUrl: att.downloadUrl ?? null,
+                }))
+              : null
+          }
+          initialIndex={
+            preview
+              ? Math.max(
+                  0,
+                  attachments.findIndex((a) => a.id === preview.id)
+                )
+              : 0
+          }
+          onRemove={(att) => {
+            const original = attachments.find((a) => a.id === att.id);
+            if (!original) return;
+            return handleRemove(original);
+          }}
+          removingAttachmentId={removingId}
+          onClose={() => setPreview(null)}
+        />
       </>
     );
   }
@@ -303,7 +358,7 @@ export function AttachmentSection({
                     sx={{ display: 'block', cursor: att.downloadUrl ? 'pointer' : 'default', '&:hover': { textDecoration: att.downloadUrl ? 'underline' : 'none' } }}
                     onClick={() => att.downloadUrl && setPreview(att)}
                   >
-                    {att.filename ?? t('attachments.defaultLabel')}
+                    {att.originalFilename ?? att.filename ?? filenameFromUrl(att.downloadUrl) ?? t('attachments.defaultLabel')}
                   </Typography>
                   {att.sizeBytes && (
                     <Typography variant="caption" color="text.disabled" sx={{ display: 'block', lineHeight: 1 }}>
@@ -362,7 +417,34 @@ export function AttachmentSection({
         onChange={handleFileSelected}
       />
 
-      <FilePreviewDialog attachment={preview} onClose={() => setPreview(null)} />
+      <FilePreviewDialog
+        attachments={
+          preview
+            ? attachments.map((att) => ({
+                id: att.id,
+                assetId: att.assetId,
+                filename: att.originalFilename ?? att.filename ?? null,
+                mimeType: att.mimeType ?? null,
+                downloadUrl: att.downloadUrl ?? null,
+              }))
+            : null
+        }
+        initialIndex={
+          preview
+            ? Math.max(
+                0,
+                attachments.findIndex((a) => a.id === preview.id)
+              )
+            : 0
+        }
+        onRemove={(att) => {
+          const original = attachments.find((a) => a.id === att.id);
+          if (!original) return;
+          return handleRemove(original);
+        }}
+        removingAttachmentId={removingId}
+        onClose={() => setPreview(null)}
+      />
     </Box>
   );
 }

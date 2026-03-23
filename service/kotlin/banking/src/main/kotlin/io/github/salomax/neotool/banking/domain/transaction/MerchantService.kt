@@ -14,6 +14,7 @@ import java.util.UUID
 open class MerchantService(
     private val merchantRepository: MerchantRepository,
     private val ruleService: TransactionRuleService,
+    private val ruleRepository: TransactionRuleRepository,
 ) {
     /**
      * Returns all merchants visible to [accountId] (system + user-scoped),
@@ -41,6 +42,7 @@ open class MerchantService(
         require(name.isNotBlank()) { "Merchant name must not be blank" }
         val normalizedDomain = domain?.trim()?.lowercase()?.ifBlank { null }
         val now = Instant.now()
+        val normalizedName = normalize(name)
         val merchant =
             merchantRepository.save(
                 Merchant(
@@ -60,7 +62,7 @@ open class MerchantService(
             ruleService.create(
                 input = CreateTransactionRuleInput(
                     merchantId = merchant.id,
-                    pattern = normalize(merchant.name),
+                    pattern = normalizedName,
                     patternType = PatternType.CONTAINS,
                     applicableTo = CategoryApplicableTo.ANY,
                     priority = 40,
@@ -68,7 +70,7 @@ open class MerchantService(
                 accountId = accountId,
             )
         } catch (_: DuplicateTransactionRuleException) {
-            // A rule with this pattern already exists — merchant is already covered.
+            enrichExistingRuleWithMerchant(accountId, normalizedName, requireNotNull(merchant.id))
         }
 
         return merchant
@@ -99,4 +101,25 @@ open class MerchantService(
             .lowercase()
             .trim()
             .replace(Regex("\\s+"), " ")
+
+    private fun enrichExistingRuleWithMerchant(
+        accountId: UUID,
+        pattern: String,
+        merchantId: UUID,
+    ) {
+        val existing =
+            ruleRepository.findUserRulesForAccount(accountId)
+                .firstOrNull {
+                    it.pattern == pattern &&
+                        it.patternType == PatternType.CONTAINS &&
+                        it.merchantId == null
+                } ?: return
+
+        ruleRepository.save(
+            existing.copy(
+                merchantId = merchantId,
+                updatedAt = Instant.now(),
+            ),
+        )
+    }
 }

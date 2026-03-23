@@ -13,6 +13,11 @@ import java.util.UUID
 interface FinancialAccountEntityRepository : JpaRepository<FinancialAccountEntity, UUID> {
     fun findByAccountIdAndDeletedAtIsNull(accountId: UUID): List<FinancialAccountEntity>
 
+    fun findByIdAndAccountIdAndDeletedAtIsNull(
+        id: UUID,
+        accountId: UUID,
+    ): FinancialAccountEntity?
+
     fun findByAccountIdAndSubtypeInAndCardLastFourDigitsAndDeletedAtIsNull(
         accountId: UUID,
         subtypes: Collection<FinancialAccountSubtype>,

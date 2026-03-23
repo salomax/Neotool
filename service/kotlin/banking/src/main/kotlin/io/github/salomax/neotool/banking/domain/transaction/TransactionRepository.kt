@@ -145,6 +145,37 @@ interface TransactionRepository {
         month: Int,
         applicableTo: CategoryApplicableTo?,
     ): List<CategoryBreakdownRow>
+
+    /**
+     * Returns category totals for the exact filtered transaction set described by [query].
+     * Used by transactions summary/filter UX so breakdown semantics stay aligned with
+     * the paginated transactions query.
+     */
+    fun getFilteredCategoryBreakdown(
+        query: TransactionListQuery,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow>
+
+    /**
+     * Returns tag totals for one period. Only POSTED/PENDING tagged transactions are included.
+     * Ordered by totalAmount DESC.
+     */
+    fun getTagBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow>
+
+    /**
+     * Returns tag totals for the exact filtered transaction set described by [query].
+     * Percentages are computed in the service layer.
+     */
+    fun getFilteredTagBreakdown(
+        query: TransactionListQuery,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow>
 }
 
 /**

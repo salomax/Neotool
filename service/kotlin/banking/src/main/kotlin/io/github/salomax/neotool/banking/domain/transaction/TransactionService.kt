@@ -104,78 +104,42 @@ open class TransactionService(
         after: String?,
     ): Connection<Transaction> {
         val startedAt = System.nanoTime()
-        val normalizedBelongsToName = belongsToName?.trim()
-        require(normalizedBelongsToName?.isNotEmpty() != false) {
-            "belongsToName must not be blank"
-        }
-        require(!(belongsToUserId != null && normalizedBelongsToName != null)) {
-            "Only one of belongsToUserId or belongsToName can be provided"
-        }
-        val normalizedTagFilter = tags?.let(::normalizeTags)?.toSet()?.takeIf { it.isNotEmpty() }
-        val normalizedTypes = types?.takeIf { it.isNotEmpty() }
         val pageSize = PaginationConstants.validatePageSize(first)
         val startIndex =
             after?.let {
                 val decoded = CursorEncoder.decodeCursorToInt(it)
                 decoded + 1
             } ?: 0
-        val normalizationFinishedAt = System.nanoTime()
 
         require(startIndex >= 0) {
             "Invalid cursor for transactions pagination"
         }
-        val effectiveFinancialAccountId =
-            if (billId == null) {
-                financialAccountId?.also { requireAccountOwnsFinancialAccount(it, accountId) }
-            } else {
-                null
-            }
-        if (billId != null) {
-            creditCardBillService.requireBillForAccount(billId, accountId)
-        }
-        val (startDate, endDateExclusive) =
-            if (billId == null) {
-                val today = LocalDate.now()
-                val targetYear = year ?: today.year
-                val targetMonth = month ?: today.monthValue
-                require(targetMonth in 1..12) {
-                    "month must be between 1 and 12, got: $targetMonth"
-                }
-                val periodStart = LocalDate.of(targetYear, targetMonth, 1)
-                periodStart to periodStart.plusMonths(1)
-            } else {
-                null to null
-            }
+        val cursorFinishedAt = System.nanoTime()
+        val query =
+            buildTransactionListQuery(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                belongsToUserId = belongsToUserId,
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billId,
+                categoryId = categoryId,
+                uncategorized = uncategorized,
+                creditDebitType = creditDebitType,
+                types = types,
+                month = month,
+                year = year,
+                limit = pageSize,
+                offset = startIndex,
+            ) ?: return Connection(
+                emptyList(),
+                PageInfo(false, false, null, null),
+                0L,
+            )
         val filterSetupFinishedAt = System.nanoTime()
-        val categoryIds =
-            if (billId != null || uncategorized == true || categoryId == null) {
-                null
-            } else {
-                resolveCategoryFilterIds(categoryId, accountId) ?: return Connection(
-                    emptyList(),
-                    PageInfo(false, false, null, null),
-                    0L,
-                )
-            }
-        val categoryFilterFinishedAt = System.nanoTime()
         val page =
             transactionRepository.findPage(
-                TransactionListQuery(
-                    accountId = accountId,
-                    financialAccountId = effectiveFinancialAccountId,
-                    belongsToUserId = belongsToUserId,
-                    belongsToName = normalizedBelongsToName,
-                    tags = normalizedTagFilter,
-                    billId = billId,
-                    categoryIds = categoryIds,
-                    uncategorizedOnly = billId == null && uncategorized == true,
-                    creditDebitType = creditDebitType,
-                    types = normalizedTypes,
-                    startDate = startDate,
-                    endDateExclusive = endDateExclusive,
-                    limit = pageSize,
-                    offset = startIndex,
-                ),
+                query,
             )
         val repositoryFinishedAt = System.nanoTime()
 
@@ -212,10 +176,10 @@ open class TransactionService(
                 pageSize,
                 page.items.size,
                 page.totalCount,
-                nanosToMillis(normalizationFinishedAt - startedAt),
-                nanosToMillis(filterSetupFinishedAt - normalizationFinishedAt),
-                nanosToMillis(categoryFilterFinishedAt - filterSetupFinishedAt),
-                nanosToMillis(repositoryFinishedAt - categoryFilterFinishedAt),
+                nanosToMillis(cursorFinishedAt - startedAt),
+                nanosToMillis(filterSetupFinishedAt - cursorFinishedAt),
+                0.0,
+                nanosToMillis(repositoryFinishedAt - filterSetupFinishedAt),
                 nanosToMillis(paginationFinishedAt - repositoryFinishedAt),
                 nanosToMillis(paginationFinishedAt - startedAt),
             )
@@ -267,9 +231,8 @@ open class TransactionService(
                 CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                 else -> null
             }
-
-        val transactions =
-            fetchFilteredTransactions(
+        val query =
+            buildTransactionListQuery(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserId,
@@ -282,55 +245,94 @@ open class TransactionService(
                 types = null,
                 month = month,
                 year = year,
+                limit = 1,
+                offset = 0,
             ) ?: return emptyList()
 
-        val categorized =
-            transactions.filter { tx ->
-                tx.categoryId != null &&
-                    (creditDebitFilter == null || tx.creditDebitType == creditDebitFilter)
-            }
+        val rows = transactionRepository.getFilteredCategoryBreakdown(query, applicableTo)
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalAmount }
 
-        val allCategories = categoryRepository.findAll(accountId).associateBy { it.id }
-
-        val byCategory = categorized.groupBy { it.categoryId!! }
-        val grandTotal = categorized.fold(BigDecimal.ZERO) { acc, tx -> acc + tx.amount }
-
-        return byCategory
-            .mapNotNull { (catId, txs) ->
-                val cat = allCategories[catId] ?: return@mapNotNull null
-                // Skip categories that don't match the applicableTo filter at the category level.
-                if (applicableTo != null &&
-                    cat.applicableTo != CategoryApplicableTo.ANY &&
-                    cat.applicableTo != applicableTo
-                ) {
-                    return@mapNotNull null
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal()
+                        .setScale(2, java.math.RoundingMode.HALF_UP)
+                        .toDouble()
+                } else {
+                    0.0
                 }
-                val total = txs.fold(BigDecimal.ZERO) { acc, tx -> acc + tx.amount }
-                val pct =
-                    if (grandTotal > BigDecimal.ZERO) {
-                        (total.toDouble() / grandTotal.toDouble() * 100.0)
-                            .toBigDecimal()
-                            .setScale(2, java.math.RoundingMode.HALF_UP)
-                            .toDouble()
-                    } else {
-                        0.0
-                    }
-                CategoryTotal(
-                    category = cat,
-                    totalAmount = total,
-                    transactionCount = txs.size,
-                    percentage = pct,
-                )
-            }
-            .sortedByDescending { it.totalAmount }
+            CategoryTotal.fromRow(row, pct)
+        }
     }
 
     /**
-     * Returns all transactions matching the given filters, without pagination.
-     * Returns null when a categoryId filter references an unknown / inaccessible category
-     * (callers should treat null as an empty result).
+     * Returns tag totals for the given filter, mirroring the same filter semantics as
+     * [listTransactions]. Transactions without tags are excluded from the breakdown.
+     *
+     * [applicableTo] narrows to INCOME (CREDIT) or EXPENSE (DEBIT) transactions only.
      */
-    private fun fetchFilteredTransactions(
+    fun getTagBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        belongsToUserId: UUID?,
+        belongsToName: String?,
+        tags: List<String>?,
+        billId: UUID?,
+        categoryId: UUID?,
+        uncategorized: Boolean?,
+        month: Int?,
+        year: Int?,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagTotal> {
+        val creditDebitFilter =
+            when (applicableTo) {
+                CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
+                else -> null
+            }
+
+        val query =
+            buildTransactionListQuery(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                belongsToUserId = belongsToUserId,
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billId,
+                categoryId = categoryId,
+                uncategorized = uncategorized,
+                creditDebitType = creditDebitFilter,
+                types = null,
+                month = month,
+                year = year,
+                limit = 1,
+                offset = 0,
+            ) ?: return emptyList()
+
+        val rows = transactionRepository.getFilteredTagBreakdown(query, applicableTo)
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalAmount }
+
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal()
+                        .setScale(2, java.math.RoundingMode.HALF_UP)
+                        .toDouble()
+                } else {
+                    0.0
+                }
+            TagTotal.fromRow(row, pct)
+        }
+    }
+
+    /**
+     * Resolves the exact SQL-backed transaction filter used by [listTransactions] and
+     * breakdown queries. Returns null when a category filter references an inaccessible
+     * category so callers can treat the result as empty without hitting the repository.
+     */
+    private fun buildTransactionListQuery(
         accountId: UUID,
         financialAccountId: UUID?,
         belongsToUserId: UUID?,
@@ -343,7 +345,9 @@ open class TransactionService(
         types: List<TransactionType>?,
         month: Int?,
         year: Int?,
-    ): List<Transaction>? {
+        limit: Int,
+        offset: Int,
+    ): TransactionListQuery? {
         val normalizedBelongsToName = belongsToName?.trim()
         require(normalizedBelongsToName?.isNotEmpty() != false) {
             "belongsToName must not be blank"
@@ -351,82 +355,55 @@ open class TransactionService(
         require(!(belongsToUserId != null && normalizedBelongsToName != null)) {
             "Only one of belongsToUserId or belongsToName can be provided"
         }
-        val normalizedTagFilter = tags?.let(::normalizeTags)
-        val normalizedTagFilterSet = normalizedTagFilter?.toSet()
+        val normalizedTagFilter = tags?.let(::normalizeTags)?.toSet()?.takeIf { it.isNotEmpty() }
+        val normalizedTypes = types?.takeIf { it.isNotEmpty() }
 
-        val base: List<Transaction> =
-            if (billId != null) {
-                creditCardBillService.requireBillForAccount(billId, accountId)
-                transactionRepository.findByBillId(billId, accountId)
+        val effectiveFinancialAccountId =
+            if (billId == null) {
+                financialAccountId?.also { requireAccountOwnsFinancialAccount(it, accountId) }
             } else {
+                null
+            }
+        if (billId != null) {
+            creditCardBillService.requireBillForAccount(billId, accountId)
+        }
+        val (startDate, endDateExclusive) =
+            if (billId == null) {
                 val today = LocalDate.now()
                 val targetYear = year ?: today.year
                 val targetMonth = month ?: today.monthValue
                 require(targetMonth in 1..12) {
                     "month must be between 1 and 12, got: $targetMonth"
                 }
-
-                when {
-                    uncategorized == true -> {
-                        if (financialAccountId != null) {
-                            requireAccountOwnsFinancialAccount(financialAccountId, accountId)
-                        }
-                        transactionRepository.findInDateRangeUncategorized(
-                            accountId = accountId,
-                            financialAccountId = financialAccountId,
-                            year = targetYear,
-                            month = targetMonth,
-                        )
-                    }
-                    categoryId != null -> {
-                        val category = categoryRepository.findById(categoryId) ?: return null
-                        if (category.accountId != null && category.accountId != accountId) return null
-                        val categoryIds: List<UUID> =
-                            if (category.parentId == null) {
-                                val allCats = categoryRepository.findAll(accountId)
-                                listOf(categoryId) +
-                                    allCats.filter { it.parentId == categoryId }.mapNotNull { it.id }
-                            } else {
-                                listOf(categoryId)
-                            }
-                        if (financialAccountId != null) {
-                            requireAccountOwnsFinancialAccount(financialAccountId, accountId)
-                        }
-                        transactionRepository.findInDateRangeByCategoryIds(
-                            accountId = accountId,
-                            financialAccountId = financialAccountId,
-                            year = targetYear,
-                            month = targetMonth,
-                            categoryIds = categoryIds,
-                        )
-                    }
-                    else -> {
-                        if (financialAccountId != null) {
-                            requireAccountOwnsFinancialAccount(financialAccountId, accountId)
-                        }
-                        transactionRepository.findInDateRange(
-                            accountId = accountId,
-                            financialAccountId = financialAccountId,
-                            year = targetYear,
-                            month = targetMonth,
-                        )
-                    }
-                }
+                val periodStart = LocalDate.of(targetYear, targetMonth, 1)
+                periodStart to periodStart.plusMonths(1)
+            } else {
+                null to null
             }
 
-        val normalizedTypes = types?.takeIf { it.isNotEmpty() }
+        val categoryIds =
+            if (billId != null || uncategorized == true || categoryId == null) {
+                null
+            } else {
+                resolveCategoryFilterIds(categoryId, accountId) ?: return null
+            }
 
-        return base.filter { tx ->
-            val belongsToUserMatches = belongsToUserId == null || tx.belongsToUserId == belongsToUserId
-            val belongsToNameMatches = normalizedBelongsToName == null || tx.belongsToName == normalizedBelongsToName
-            val tagsMatch =
-                normalizedTagFilterSet == null ||
-                    normalizedTagFilterSet.isEmpty() ||
-                    tx.tags.any { normalizedTagFilterSet.contains(it) }
-            val creditDebitTypeMatches = creditDebitType == null || tx.creditDebitType == creditDebitType
-            val typeMatches = normalizedTypes == null || tx.type in normalizedTypes
-            belongsToUserMatches && belongsToNameMatches && tagsMatch && creditDebitTypeMatches && typeMatches
-        }
+        return TransactionListQuery(
+            accountId = accountId,
+            financialAccountId = effectiveFinancialAccountId,
+            belongsToUserId = belongsToUserId,
+            belongsToName = normalizedBelongsToName,
+            tags = normalizedTagFilter,
+            billId = billId,
+            categoryIds = categoryIds,
+            uncategorizedOnly = billId == null && uncategorized == true,
+            creditDebitType = creditDebitType,
+            types = normalizedTypes,
+            startDate = startDate,
+            endDateExclusive = endDateExclusive,
+            limit = limit,
+            offset = offset,
+        )
     }
 
     fun findById(

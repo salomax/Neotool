@@ -70,6 +70,7 @@ export default function FinanceTransactionsPage() {
   const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
+  const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
 
@@ -122,7 +123,35 @@ export default function FinanceTransactionsPage() {
     summaryCategoryFilter.scopeKey === summaryCategoryFilterScopeKey ? summaryCategoryFilter.categoryId : null;
 
   const setSummaryCategoryFilterId = useCallback((categoryId: string | null) => {
-    setSummaryCategoryFilter({ scopeKey: summaryCategoryFilterScopeKey, categoryId });
+    setSummaryCategoryFilter((prev) => {
+      const scopeKey = summaryCategoryFilterScopeKey;
+      const current = prev.scopeKey === scopeKey ? prev.categoryId : null;
+
+      return {
+        scopeKey,
+        categoryId: categoryId && current === categoryId ? null : categoryId,
+      };
+    });
+  }, [summaryCategoryFilterScopeKey]);
+
+  const [summaryTagFilter, setSummaryTagFilter] = useState<{ scopeKey: string; tag: string | null }>(() => ({
+    scopeKey: summaryCategoryFilterScopeKey,
+    tag: null,
+  }));
+
+  const summaryTagFilterValue =
+    summaryTagFilter.scopeKey === summaryCategoryFilterScopeKey ? summaryTagFilter.tag : null;
+
+  const setSummaryTagFilterValue = useCallback((tag: string | null) => {
+    setSummaryTagFilter((prev) => {
+      const scopeKey = summaryCategoryFilterScopeKey;
+      const current = prev.scopeKey === scopeKey ? prev.tag : null;
+
+      return {
+        scopeKey,
+        tag: tag && current === tag ? null : tag,
+      };
+    });
   }, [summaryCategoryFilterScopeKey]);
 
   const [summaryCreditDebitFilter, setSummaryCreditDebitFilter] = useState<{
@@ -164,6 +193,7 @@ export default function FinanceTransactionsPage() {
       billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
+      tags: displayMode.kind === 'calendar' && summaryTagFilterValue ? [summaryTagFilterValue] : undefined,
       categoryId: displayMode.kind === 'calendar' && summaryCategoryFilterId ? summaryCategoryFilterId : undefined,
       creditDebitType:
         displayMode.kind === 'calendar' && summaryCreditDebitTypeFilterEffective
@@ -198,6 +228,7 @@ export default function FinanceTransactionsPage() {
 
   const summaryExpensesByCategory = monthSummaryData?.monthSummary?.expensesByCategory ?? null;
   const summaryIncomeByCategory = monthSummaryData?.monthSummary?.incomeByCategory ?? null;
+  const summaryTags = monthSummaryData?.monthSummary?.tagsSummary ?? null;
 
   const summaryCategoryFilterMeta = useMemo(() => {
     if (!summaryCategoryFilterId || (!summaryExpensesByCategory && !summaryIncomeByCategory)) return null;
@@ -216,6 +247,13 @@ export default function FinanceTransactionsPage() {
 
   const summaryCategoryChipAccent = summaryCategoryFilterMeta?.color ?? theme.palette.primary.main;
 
+  const summaryTagFilterMeta = useMemo(() => {
+    if (!summaryTagFilterValue || !summaryTags) return null;
+    return summaryTags.find((item) => item.tag === summaryTagFilterValue) ?? null;
+  }, [summaryTagFilterValue, summaryTags]);
+
+  const summaryTagChipAccent = theme.palette.info.main;
+
   const summaryTypeChipAccent =
     summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit
       ? theme.palette.success.main
@@ -225,7 +263,7 @@ export default function FinanceTransactionsPage() {
 
   const summaryTableFiltersOpen =
     displayMode.kind === 'calendar' &&
-    Boolean(summaryCategoryFilterId || summaryCreditDebitTypeFilterEffective);
+    Boolean(summaryCategoryFilterId || summaryTagFilterValue || summaryCreditDebitTypeFilterEffective);
 
   const refetchSummary = () => {
     if (displayMode.kind === 'calendar') {
@@ -314,6 +352,7 @@ export default function FinanceTransactionsPage() {
   };
 
   const handleOpenDrawer = (type?: 'BANK' | 'CARD') => {
+    setEditingAccount(null);
     if (type) {
       setInitialType(type);
     } else {
@@ -322,9 +361,17 @@ export default function FinanceTransactionsPage() {
     setIsDrawerOpen(true);
   };
 
+  const handleEditAccount = (account: FinancialAccount) => {
+    setInitialType(null);
+    setIsCreateDrawerFromImport(false);
+    setEditingAccount(account);
+    setIsDrawerOpen(true);
+  };
+
   const handleCloseDrawer = () => {
     setIsDrawerOpen(false);
     setIsCreateDrawerFromImport(false);
+    setEditingAccount(null);
     if (initialTypeResetTimeoutRef.current) {
       window.clearTimeout(initialTypeResetTimeoutRef.current);
     }
@@ -364,6 +411,7 @@ export default function FinanceTransactionsPage() {
           open={isDrawerOpen} 
           onClose={handleCloseDrawer}
           initialType={initialType}
+          accountToEdit={editingAccount}
           onCreated={handleAccountCreated}
         />
       </>
@@ -380,6 +428,7 @@ export default function FinanceTransactionsPage() {
           <Box sx={{ p: 3, pb: 2 }}>
             <FinancialAccountSelector 
               onNewAccount={() => handleOpenDrawer()}
+              onEditAccount={handleEditAccount}
               selectedAccountId={effectiveSelectedAccountId}
               onSelectAccount={setSelectedAccountId}
               accountTypes={ACCOUNT_SELECTOR_TYPES}
@@ -394,8 +443,11 @@ export default function FinanceTransactionsPage() {
                   isConsolidated={!effectiveSelectedAccountId}
                   expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
                   incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
+                  tagsSummary={monthSummaryData?.monthSummary?.tagsSummary ?? []}
                   onCategoryClick={(categoryId) => setSummaryCategoryFilterId(categoryId)}
                   activeCategoryFilterId={summaryCategoryFilterId}
+                  onTagClick={(tag) => setSummaryTagFilterValue(tag)}
+                  activeTagFilter={summaryTagFilterValue}
                   onCreditDebitTypeClick={handleCreditDebitTypeFilter}
                   activeCreditDebitTypeFilter={summaryCreditDebitTypeFilterEffective}
                 />
@@ -621,6 +673,35 @@ export default function FinanceTransactionsPage() {
                         }}
                       />
                     )}
+                    {summaryTagFilterValue && (
+                      <Chip
+                        label={t('financeTransactions.monthSummary.filteringByTag', {
+                          name: summaryTagFilterMeta?.tag ?? summaryTagFilterValue,
+                        })}
+                        onDelete={() => setSummaryTagFilterValue(null)}
+                        deleteIcon={
+                          <CloseIcon
+                            fontSize="small"
+                            aria-label={t('financeTransactions.monthSummary.clearTagFilter')}
+                          />
+                        }
+                        variant="outlined"
+                        sx={{
+                          pl: 1.5,
+                          pr: 1.25,
+                          py: 0.75,
+                          bgcolor: alpha(summaryTagChipAccent, 0.12),
+                          borderColor: alpha(summaryTagChipAccent, 0.4),
+                          color: summaryTagChipAccent,
+                          fontWeight: 600,
+                          '& .MuiChip-label': { px: 1.25 },
+                          '& .MuiChip-deleteIcon': {
+                            color: alpha(summaryTagChipAccent, 0.75),
+                            '&:hover': { color: summaryTagChipAccent },
+                          },
+                        }}
+                      />
+                    )}
                   </Stack>
                 </Box>
               </Fade>
@@ -650,6 +731,7 @@ export default function FinanceTransactionsPage() {
         open={isDrawerOpen} 
         onClose={handleCloseDrawer}
         initialType={initialType}
+        accountToEdit={editingAccount}
         onBackFromPrefilledType={
           isCreateDrawerFromImport
             ? () => {

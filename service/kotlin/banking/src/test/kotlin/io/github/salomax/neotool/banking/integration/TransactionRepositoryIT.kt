@@ -1,7 +1,9 @@
 package io.github.salomax.neotool.banking.integration
 
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionListQuery
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
@@ -368,6 +370,140 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
 
             assertThat(loaded).isNotNull
             assertThat(loaded!!.tags).containsExactlyInAnyOrder("A", "B")
+        }
+    }
+
+    @Nested
+    @DisplayName("tag breakdown")
+    inner class TagBreakdownTests {
+        @Test
+        fun `groups tags by applicable credit debit type`() {
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Lunch",
+                    tags = listOf("Food", "Weekend"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("20.00"),
+                    date = today,
+                    description = "Groceries",
+                    tags = listOf("Food"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.SALARY,
+                    amount = BigDecimal("100.00"),
+                    date = today,
+                    description = "Salary",
+                    tags = listOf("Salary"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val expenses =
+                transactionRepository.getTagBreakdown(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = today.year,
+                    month = today.monthValue,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            val income =
+                transactionRepository.getTagBreakdown(
+                    accountId = accountId,
+                    financialAccountId = null,
+                    year = today.year,
+                    month = today.monthValue,
+                    applicableTo = CategoryApplicableTo.INCOME,
+                )
+
+            assertThat(expenses.map { it.tag }).containsExactly("Food", "Weekend")
+            assertThat(expenses.first().totalAmount).isEqualByComparingTo("30.00")
+            assertThat(expenses.first().transactionCount).isEqualTo(2)
+            assertThat(income).hasSize(1)
+            assertThat(income.first().tag).isEqualTo("Salary")
+            assertThat(income.first().totalAmount).isEqualByComparingTo("100.00")
+        }
+
+        @Test
+        fun `filtered tag breakdown reflects all tags attached to matching transactions`() {
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("25.00"),
+                    date = today,
+                    description = "Brunch",
+                    tags = listOf("Food", "Weekend"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "Utilities",
+                    tags = listOf("Bills"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val rows =
+                transactionRepository.getFilteredTagBreakdown(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        tags = setOf("Weekend"),
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 1,
+                        offset = 0,
+                    ),
+                    CategoryApplicableTo.EXPENSE,
+                )
+
+            assertThat(rows.map { it.tag }).containsExactly("Food", "Weekend")
         }
     }
 

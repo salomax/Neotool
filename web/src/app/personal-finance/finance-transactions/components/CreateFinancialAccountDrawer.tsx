@@ -23,13 +23,13 @@ import { IssuerSelect } from './IssuerSelect';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { FormTextField as TextField, SelectField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
-import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
+import { CREATE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
-import { Issuer } from '@/lib/graphql/types/__generated__/graphql';
+import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 import { extractErrorMessage } from '@/shared/utils/error';
 
@@ -124,6 +124,7 @@ interface CreateFinancialAccountDrawerProps {
   open: boolean;
   onClose: () => void;
   initialType?: 'BANK' | 'CARD' | null;
+  accountToEdit?: FinancialAccount | null;
   onBackFromPrefilledType?: () => void;
   /** Pre-fills the last 4 digits field when creating a card inline from import. */
   initialMaskedNumber?: string;
@@ -150,6 +151,7 @@ export function CreateFinancialAccountDrawer({
   open,
   onClose,
   initialType,
+  accountToEdit,
   onBackFromPrefilledType,
   initialMaskedNumber,
   initialClosingDay,
@@ -163,6 +165,7 @@ export function CreateFinancialAccountDrawer({
   const { success } = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
+  const isEditing = Boolean(accountToEdit?.id);
 
   // Zod Schema
   const createAccountSchema = React.useMemo(
@@ -287,6 +290,16 @@ export function CreateFinancialAccountDrawer({
     [createError, t],
   );
 
+  const [updateAccount, { loading: updating, error: updateError }] = useMutation<{
+    updateFinancialAccount: { id: string; name: string };
+  }>(UPDATE_FINANCIAL_ACCOUNT, {
+    refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
+  });
+  const updateErrorMessage = React.useMemo(
+    () => (updateError ? extractErrorMessage(updateError, t('errors.default', { ns: 'common' })) : ''),
+    [updateError, t],
+  );
+
   const methods = useForm<CreateAccountFormData>({
     mode: 'onChange',
     reValidateMode: 'onChange',
@@ -308,6 +321,7 @@ export function CreateFinancialAccountDrawer({
   const watchedIssuerId = useWatch({ control, name: 'issuerId' });
   const watchedSubtype = useWatch({ control, name: 'subtype' });
   const watchedCurrencyCode = useWatch({ control, name: 'currencyCode' });
+  const isBillingCycleCard = watchedSubtype === 'CREDIT_CARD' || watchedSubtype === 'CHARGE_CARD';
   const previousIssuerIdRef = useRef<string | undefined>(undefined);
   const { field: issuerIdField, fieldState: issuerIdFieldState } = useController({
     name: 'issuerId',
@@ -338,12 +352,51 @@ export function CreateFinancialAccountDrawer({
       return;
     }
 
+    if (accountToEdit?.id) {
+      const resolvedType: 'BANK' | 'CARD' = accountToEdit.type === 'BANK' ? 'BANK' : 'CARD';
+      React.startTransition(() => {
+        setStep(2);
+        setSelectedType(resolvedType);
+      });
+
+      const issuerId = accountToEdit.issuer?.id ?? undefined;
+      const issuerName = (accountToEdit.issuer?.name ?? accountToEdit.issuerName ?? '').trim();
+      const maskedNumberDigits = (accountToEdit.cardData?.maskedNumber ?? '').replace(/\D/g, '').slice(-4) || undefined;
+
+      reset(
+        {
+          type: resolvedType,
+          subtype: accountToEdit.subtype,
+          issuerId: issuerId ? issuerId : 'custom',
+          issuerName,
+          name: accountToEdit.name ?? '',
+          currencyCode: accountToEdit.currencyCode ?? 'BRL',
+          themeColor: accountToEdit.themeColor ?? '#1976d2',
+          includeInNetWorth: Boolean(accountToEdit.includeInNetWorth),
+          includeInDashboard: Boolean(accountToEdit.includeInDashboard),
+          branchCode: accountToEdit.bankData?.branchCode ?? undefined,
+          accountNumber: accountToEdit.bankData?.number ?? undefined,
+          checkDigit: accountToEdit.bankData?.checkDigit ?? undefined,
+          cardNetwork: accountToEdit.cardData?.cardNetwork ?? undefined,
+          cardLevel: accountToEdit.cardData?.cardLevel ?? undefined,
+          maskedNumber: maskedNumberDigits,
+          creditLimit: accountToEdit.cardData?.creditLimit ?? undefined,
+          closingDay: accountToEdit.cardData?.closingDay ?? undefined,
+          dueDay: accountToEdit.cardData?.dueDay ?? undefined,
+          initialBalance: undefined,
+          initialBalanceDate: null,
+        },
+        { keepDefaultValues: false },
+      );
+      return;
+    }
+
     if (initialType) {
       React.startTransition(() => {
         handleTypeSelect(initialType);
       });
     }
-  }, [handleTypeSelect, initialType, open, reset]);
+  }, [accountToEdit, handleTypeSelect, initialType, open, reset]);
 
   // Pre-fill inline-import defaults when opening card creation from bill association.
   useEffect(() => {
@@ -406,6 +459,10 @@ export function CreateFinancialAccountDrawer({
 
   const handleBack = () => {
     // When opened with a pre-selected type (e.g. inline from import), back = close drawer
+    if (accountToEdit?.id) {
+      handleClose();
+      return;
+    }
     if (initialType) {
       onBackFromPrefilledType?.() ?? handleClose();
       return;
@@ -471,6 +528,24 @@ export function CreateFinancialAccountDrawer({
     };
 
     try {
+      if (accountToEdit?.id) {
+        const result = await updateAccount({ variables: { id: accountToEdit.id, input } });
+        const updated = result.data?.updateFinancialAccount;
+        if (!updated) return;
+
+        success(t('financeTransactions.editAccount.success'));
+        onCreated?.({
+          id: updated.id,
+          name: updated.name,
+          issuerId: meta.issuerId,
+          issuerName: meta.issuerName,
+          closingDay: meta.closingDay,
+          dueDay: meta.dueDay,
+        });
+        handleClose();
+        return;
+      }
+
       const result = await createAccount({ variables: { input } });
       const created = result.data?.createFinancialAccount;
       if (!created) return;
@@ -509,7 +584,9 @@ export function CreateFinancialAccountDrawer({
       <FormProvider {...methods}>
         <form id="create-financial-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
           <Stack spacing={3}>
-            {createError && <FormErrorBanner message={createErrorMessage} />}
+            {isEditing
+              ? (updateError && <FormErrorBanner message={updateErrorMessage} />)
+              : (createError && <FormErrorBanner message={createErrorMessage} />)}
 
             {/* Common Fields */}
             <IssuerSelect
@@ -543,7 +620,7 @@ export function CreateFinancialAccountDrawer({
             <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} />
 
             {/* Initial Balance — only for bank accounts */}
-            {selectedType !== 'CARD' && (
+            {selectedType !== 'CARD' && !isEditing && (
               <Stack direction="row" spacing={2}>
                 <MoneyInput
                   name="initialBalance"
@@ -577,7 +654,7 @@ export function CreateFinancialAccountDrawer({
                   <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} />
                 )}
                 
-                {watchedSubtype === 'CREDIT_CARD' && (
+                {isBillingCycleCard && (
                   <>
                     <Stack direction="row" spacing={2}>
                       <TextField
@@ -587,15 +664,17 @@ export function CreateFinancialAccountDrawer({
                         InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
                         sx={{ flex: 1 }}
                       />
-                      <Box sx={{ flex: 1, minWidth: 0 }}>
-                        <MoneyInput
-                          name="creditLimit"
-                          label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
-                          currency={watchedCurrencyCode}
-                          locale={i18n.language}
-                          fullWidth
-                        />
-                      </Box>
+                      {watchedSubtype === 'CREDIT_CARD' && (
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <MoneyInput
+                            name="creditLimit"
+                            label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
+                            currency={watchedCurrencyCode}
+                            locale={i18n.language}
+                            fullWidth
+                          />
+                        </Box>
+                      )}
                     </Stack>
                     <Stack direction="row" spacing={2}>
                       <TextField 
@@ -614,7 +693,7 @@ export function CreateFinancialAccountDrawer({
                   </>
                 )}
 
-                {watchedSubtype !== 'CREDIT_CARD' && (
+                {!isBillingCycleCard && (
                   <TextField
                     name="maskedNumber"
                     label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
@@ -629,13 +708,17 @@ export function CreateFinancialAccountDrawer({
 
             <Drawer.ActionButtons
               cancelText={t('financeTransactions.actions.cancel')}
-              submitText={selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard')}
+              submitText={
+                isEditing
+                  ? t('financeTransactions.actions.save')
+                  : (selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard'))
+              }
               submittingText={t('financeTransactions.actions.saving')}
               onCancel={handleClose}
               submitForm="create-financial-account-form"
-              cancelDisabled={creating}
-              submitDisabled={creating || !isValid}
-              submitting={creating}
+              cancelDisabled={creating || updating}
+              submitDisabled={creating || updating || !isValid}
+              submitting={creating || updating}
             />
 
           </Stack>
@@ -652,7 +735,15 @@ export function CreateFinancialAccountDrawer({
       size="md"
     >
       <Drawer.Header
-        title={step === 1 ? t('financeTransactions.createAccount.title') : (selectedType === 'BANK' ? t('financeTransactions.createAccount.step1.bankAccount.label') : t('financeTransactions.createAccount.step1.card.label'))}
+        title={
+          isEditing
+            ? t('financeTransactions.editAccount.title')
+            : (step === 1
+                ? t('financeTransactions.createAccount.title')
+                : (selectedType === 'BANK'
+                    ? t('financeTransactions.createAccount.step1.bankAccount.label')
+                    : t('financeTransactions.createAccount.step1.card.label')))
+        }
         icon={step === 2 ? <IconButton onClick={handleBack} edge="start"><BackIcon /></IconButton> : null}
       />
       <Drawer.Body>

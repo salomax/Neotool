@@ -9,6 +9,7 @@ import {
   Divider,
   Typography,
   TypographyProps,
+  BoxProps,
   alpha,
   useTheme,
   useMediaQuery,
@@ -81,6 +82,7 @@ export interface DrawerHeaderProps {
 
 export interface DrawerBodyProps {
   children: React.ReactNode;
+  sx?: BoxProps['sx'];
 }
 
 export interface DrawerFooterProps {
@@ -417,9 +419,9 @@ const Header: React.FC<DrawerHeaderProps> = ({
  * Body subcomponent - Scrollable content area with padding
  */
 const Body = React.forwardRef<HTMLDivElement, DrawerBodyProps>(
-  ({ children }, ref) => {
+  ({ children, sx }, ref) => {
     return (
-      <Box ref={ref} sx={{ flex: 1, overflow: 'auto', p: 3 }}>
+      <Box ref={ref} sx={[{ flex: 1, overflow: 'auto', p: 3 }, ...(Array.isArray(sx) ? sx : sx ? [sx] : [])]}>
         {children}
       </Box>
     );

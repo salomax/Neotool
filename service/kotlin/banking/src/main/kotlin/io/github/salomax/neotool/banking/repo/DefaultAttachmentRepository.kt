@@ -23,8 +23,8 @@ open class DefaultTransactionAttachmentRepository(
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(TransactionAttachmentMapper::toDomain)
 
-    override fun countByTransactionId(transactionId: UUID): Int =
-        entityRepository.countByTransactionId(transactionId)
+    override fun countByTransactionId(transactionId: UUID, accountId: UUID): Int =
+        entityRepository.countByTransactionIdAndAccountId(transactionId, accountId)
 
     @Transactional
     override fun save(attachment: TransactionAttachment): TransactionAttachment {
@@ -50,8 +50,8 @@ open class DefaultHoldingAttachmentRepository(
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(HoldingAttachmentMapper::toDomain)
 
-    override fun countByHoldingId(holdingId: UUID): Int =
-        entityRepository.countByHoldingId(holdingId)
+    override fun countByHoldingId(holdingId: UUID, accountId: UUID): Int =
+        entityRepository.countByHoldingIdAndAccountId(holdingId, accountId)
 
     @Transactional
     override fun save(attachment: HoldingAttachment): HoldingAttachment {

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillServic
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummary
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
@@ -631,7 +632,8 @@ class TransactionResolverTest {
             year: Int = 2024,
             month: Int = 1,
         ) = MonthSummary(
-            year = year, month = month,
+            year = year,
+            month = month,
             totalIncome = BigDecimal("500.00"),
             totalExpenses = BigDecimal("200.00"),
             closingBalance = BigDecimal("3000.00"),
@@ -640,6 +642,15 @@ class TransactionResolverTest {
             transfersOut = BigDecimal.ZERO,
             projectedClosingBalance = null,
             isCurrentMonth = false,
+            tagsSummary =
+                listOf(
+                    TagTotal(
+                        tag = "Food",
+                        totalAmount = BigDecimal("200.00"),
+                        transactionCount = 2,
+                        percentage = 100.0,
+                    ),
+                ),
         )
 
         @Test
@@ -652,6 +663,8 @@ class TransactionResolverTest {
 
             assertThat(result.closingBalance).isEqualTo(3000.0)
             assertThat(result.totalIncome).isEqualTo(500.0)
+            assertThat(result.tagsSummary).hasSize(1)
+            assertThat(result.tagsSummary.first().tag).isEqualTo("Food")
             verify(monthSummaryQueryService).getMonthSummary(financialAccountId, accountId, 2024, 1)
         }
 
@@ -665,6 +678,57 @@ class TransactionResolverTest {
 
             assertThat(result.closingBalance).isEqualTo(3000.0)
             verify(monthSummaryQueryService).getAggregateMonthlySummary(accountId, 2024, 1)
+        }
+    }
+
+    @Nested
+    @DisplayName("transactionsByTag")
+    inner class TransactionsByTagTests {
+        @Test
+        fun `returns tag totals from service`() {
+            whenever(
+                service.getTagBreakdown(
+                    accountId = eq(accountId),
+                    financialAccountId = anyOrNull(),
+                    belongsToUserId = anyOrNull(),
+                    belongsToName = anyOrNull(),
+                    tags = anyOrNull(),
+                    billId = anyOrNull(),
+                    categoryId = anyOrNull(),
+                    uncategorized = anyOrNull(),
+                    month = eq(3),
+                    year = eq(2024),
+                    applicableTo = eq(io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.EXPENSE),
+                ),
+            ).thenReturn(
+                listOf(
+                    TagTotal(
+                        tag = "Weekend",
+                        totalAmount = BigDecimal("42.00"),
+                        transactionCount = 2,
+                        percentage = 100.0,
+                    ),
+                ),
+            )
+
+            val result =
+                resolver.transactionsByTag(
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    tags = listOf("Weekend"),
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    year = 2024,
+                    month = 3,
+                    applicableTo = "EXPENSE",
+                    principal = principal(),
+                )
+
+            assertThat(result).hasSize(1)
+            assertThat(result.first().tag).isEqualTo("Weekend")
+            assertThat(result.first().totalAmount).isEqualTo(42.0)
         }
     }
 }

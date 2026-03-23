@@ -28,3 +28,21 @@ data class CreateFinancialAccountCommand(
     /** Required when [initialBalance] is provided. */
     val initialBalanceDate: LocalDate? = null,
 )
+
+/**
+ * Command to update an existing [FinancialAccount].
+ * Either [issuerId] (from the issuers list) or [issuerName] (custom) must be provided.
+ */
+data class UpdateFinancialAccountCommand(
+    val type: FinancialAccountType,
+    val subtype: FinancialAccountSubtype,
+    val name: String? = null,
+    val issuerId: UUID? = null,
+    val issuerName: String? = null,
+    val themeColor: String? = null,
+    val currencyCode: String? = null,
+    val includeInNetWorth: Boolean? = null,
+    val includeInDashboard: Boolean? = null,
+    val bankData: BankData? = null,
+    val cardData: CardData? = null,
+)

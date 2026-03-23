@@ -1990,6 +1990,9 @@ type MonthSummary
 
   """Top income categories for the month (ordered by totalAmount DESC)."""
   incomeByCategory: [CategoryTotal!]!
+
+  """Top tags for the month (ordered by totalAmount DESC)."""
+  tagsSummary: [TagTotal!]!
 }
 
 type Mutation
@@ -2463,6 +2466,30 @@ type Query
   ): [CategoryTotal!]! @join__field(graph: BANKING)
 
   """
+  Tag totals for a period. Accepts the same filters as the
+  transactions query — the result reflects the tag breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByTag(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    tags: [String!]
+    billId: ID
+
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+
+    """If true, return only uncategorized transactions before grouping tags."""
+    uncategorized: Boolean
+    year: Int
+    month: Int
+
+    """Filter by INCOME or EXPENSE; omit for all tagged transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [TagTotal!]! @join__field(graph: BANKING)
+
+  """
   Distinct values used in transaction attribution ("belongs to"), across all account transactions.
   """
   transactionBelongsToOptions: [TransactionBelongsToOption!]! @join__field(graph: BANKING)
@@ -2828,6 +2855,18 @@ type Subscription
   @join__type(graph: ASSISTANT)
 {
   messageStream(conversationId: ID!, input: MessageInput!): CompletionChunk!
+}
+
+"""Tag total for a period. Percentage of grouped tag total."""
+type TagTotal
+  @join__type(graph: BANKING)
+{
+  tag: String!
+  totalAmount: Float!
+  transactionCount: Int!
+
+  """Percentage of the grouped tag total (0–100)."""
+  percentage: Float!
 }
 
 type TokenUsage

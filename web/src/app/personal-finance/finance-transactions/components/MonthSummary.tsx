@@ -29,6 +29,13 @@ export interface CategoryTotalItem {
   percentage: number;
 }
 
+export interface TagTotalItem {
+  tag: string;
+  totalAmount: number;
+  transactionCount: number;
+  percentage: number;
+}
+
 export interface MonthSummaryData {
   year: number;
   month: number;
@@ -43,6 +50,7 @@ export interface MonthSummaryData {
   isFutureMonth?: boolean;
   expensesByCategory?: CategoryTotalItem[];
   incomeByCategory?: CategoryTotalItem[];
+  tagsSummary?: TagTotalItem[];
 }
 
 interface MonthSummaryProps {
@@ -53,10 +61,15 @@ interface MonthSummaryProps {
   isConsolidated?: boolean;
   expensesByCategory?: CategoryTotalItem[];
   incomeByCategory?: CategoryTotalItem[];
+  tagsSummary?: TagTotalItem[];
   /** Called when user clicks a category row to filter transactions by category. */
   onCategoryClick?: (categoryId: string) => void;
   /** When set, rows for other categories render disabled (gray) across income and expenses. */
   activeCategoryFilterId?: string | null;
+  /** Called when user clicks a tag row to filter transactions by tag. */
+  onTagClick?: (tag: string) => void;
+  /** When set, rows for other tags render disabled (gray) across income and expenses. */
+  activeTagFilter?: string | null;
   /** Filter table by credit (income) or debit (expenses); the other summary row is dimmed. */
   onCreditDebitTypeClick?: (type: CreditDebitType) => void;
   activeCreditDebitTypeFilter?: CreditDebitType | null;
@@ -296,6 +309,120 @@ const CategoryProgressRow = React.memo(function CategoryProgressRow({
   );
 });
 
+interface TagProgressRowProps {
+  item: TagTotalItem;
+  onTagClick?: (tag: string) => void;
+  nameFontWeight: number;
+  percentFontWeight: number;
+  dimmed?: boolean;
+  categorySection?: 'expenses' | 'income';
+  activeCreditDebitTypeFilter?: CreditDebitType | null;
+}
+
+const TagProgressRow = React.memo(function TagProgressRow({
+  item,
+  onTagClick,
+  nameFontWeight,
+  percentFontWeight,
+  dimmed = false,
+  categorySection,
+  activeCreditDebitTypeFilter,
+}: TagProgressRowProps) {
+  const theme = useTheme();
+  const barColor = theme.palette.info.main;
+  const trackBg = alpha(theme.palette.text.primary, 0.08);
+  const disabledFg = theme.palette.text.disabled;
+  const disabledBar = theme.palette.action.disabledBackground;
+  const disabledBarTrack = alpha(theme.palette.text.primary, 0.06);
+
+  const dimmedByType =
+    categorySection != null &&
+    activeCreditDebitTypeFilter != null &&
+    ((activeCreditDebitTypeFilter === CreditDebitType.Credit && categorySection === 'expenses') ||
+      (activeCreditDebitTypeFilter === CreditDebitType.Debit && categorySection === 'income'));
+
+  const rowDimmed = dimmed || dimmedByType;
+  const interactive = Boolean(onTagClick) && !rowDimmed;
+  const activateTag = interactive ? () => onTagClick!(item.tag) : undefined;
+
+  return (
+    <Box
+      onClick={activateTag}
+      onKeyDown={
+        interactive
+          ? (e: React.KeyboardEvent) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onTagClick!(item.tag);
+              }
+            }
+          : undefined
+      }
+      role={interactive ? 'button' : rowDimmed ? 'presentation' : undefined}
+      tabIndex={interactive ? 0 : undefined}
+      aria-disabled={rowDimmed || undefined}
+      sx={{
+        borderRadius: 1,
+        px: 1,
+        py: 0.75,
+        opacity: rowDimmed ? 0.55 : 1,
+        filter: rowDimmed ? 'grayscale(1)' : 'none',
+        transition: theme.transitions.create(['opacity', 'filter', 'background-color'], {
+          duration: theme.transitions.duration.shorter,
+        }),
+        cursor: interactive ? 'pointer' : 'default',
+        pointerEvents: rowDimmed ? 'none' : 'auto',
+        ...(interactive
+          ? {
+              '&:hover': {
+                bgcolor: theme.palette.action.hover,
+              },
+              '&:focus-visible': { outline: `2px solid ${theme.palette.primary.main}`, outlineOffset: 2 },
+            }
+          : {}),
+      }}
+    >
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: nameFontWeight,
+            color: rowDimmed ? disabledFg : 'text.primary',
+            minWidth: 0,
+          }}
+          noWrap
+        >
+          #{item.tag}
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{
+            fontWeight: percentFontWeight,
+            whiteSpace: 'nowrap',
+            color: rowDimmed ? disabledFg : 'text.primary',
+          }}
+        >
+          {Math.round(item.percentage)}%
+        </Typography>
+      </Box>
+      <LinearProgress
+        variant="determinate"
+        value={Math.min(item.percentage, 100)}
+        sx={{
+          mt: 1,
+          height: 6,
+          borderRadius: 2,
+          bgcolor: rowDimmed ? disabledBarTrack : trackBg,
+          '& .MuiLinearProgress-bar': {
+            bgcolor: rowDimmed ? disabledBar : barColor,
+            borderRadius: 2,
+          },
+        }}
+      />
+    </Box>
+  );
+});
+
 export const MonthSummary: React.FC<MonthSummaryProps> = ({
   summary,
   loading,
@@ -304,14 +431,17 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   isConsolidated = false,
   expensesByCategory,
   incomeByCategory,
+  tagsSummary,
   onCategoryClick,
   activeCategoryFilterId = null,
+  onTagClick,
+  activeTagFilter = null,
   onCreditDebitTypeClick,
   activeCreditDebitTypeFilter = null,
 }) => {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const [drawerKind, setDrawerKind] = React.useState<'expenses' | 'income' | null>(null);
+  const [drawerKind, setDrawerKind] = React.useState<'expenses' | 'income' | 'tags' | null>(null);
 
   const canPickCreditDebitType = Boolean(onCreditDebitTypeClick) && !(loading && !summary);
 
@@ -402,6 +532,68 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
     );
   };
 
+  const renderTagSummary = ({
+    title,
+    emptyText,
+    items,
+    kind = 'tags',
+  }: {
+    title: string;
+    emptyText: string;
+    items: TagTotalItem[];
+    kind?: 'tags';
+  }) => {
+    const topItems = items.slice(0, 5);
+    const canSeeAll = items.length > 5;
+
+    return (
+      <Box>
+        <Divider sx={{ mb: 3 }} />
+        <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+            {title}
+          </Typography>
+          {canSeeAll && (
+            <Button
+              variant="text"
+              size="small"
+              onClick={() => setDrawerKind(kind)}
+              sx={{
+                p: 0,
+                minWidth: 'auto',
+                textTransform: 'uppercase',
+                fontWeight: 500,
+                letterSpacing: 0.6,
+                fontSize: '0.75rem',
+              }}
+            >
+              {t('financeTransactions.monthSummary.seeAll')}
+            </Button>
+          )}
+        </Box>
+
+        {items.length === 0 ? (
+          <Typography variant="body2" color="text.secondary">
+            {emptyText}
+          </Typography>
+        ) : (
+          <Stack spacing={2}>
+            {topItems.map((item) => (
+              <TagProgressRow
+                key={item.tag}
+                item={item}
+                onTagClick={onTagClick}
+                nameFontWeight={500}
+                percentFontWeight={600}
+                dimmed={Boolean(activeTagFilter && item.tag !== activeTagFilter)}
+              />
+            ))}
+          </Stack>
+        )}
+      </Box>
+    );
+  };
+
   if (error && !loading && !summary) {
     const defaultErrorMessage = tCommon('errors.default');
     const extracted = extractErrorMessage(error, defaultErrorMessage);
@@ -447,12 +639,16 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
   const volumeBarTrackBg = alpha(theme.palette.divider, 0.28);
 
-  const drawerItems = drawerKind === 'expenses' ? expensesByCategory : drawerKind === 'income' ? incomeByCategory : undefined;
+  const drawerCategoryItems =
+    drawerKind === 'expenses' ? expensesByCategory : drawerKind === 'income' ? incomeByCategory : undefined;
+  const drawerTagItems = drawerKind === 'tags' ? tagsSummary : undefined;
   const drawerTitle =
     drawerKind === 'expenses'
       ? t('financeTransactions.monthSummary.expensesByCategory')
       : drawerKind === 'income'
         ? t('financeTransactions.monthSummary.incomeByCategory')
+        : drawerKind === 'tags'
+          ? t('financeTransactions.monthSummary.tagsSummary')
         : '';
 
   return (
@@ -560,7 +756,11 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         </Box>
       )}
 
-      {summary && !loading && expensesByCategory !== undefined && incomeByCategory !== undefined && (
+      {summary &&
+        !loading &&
+        expensesByCategory !== undefined &&
+        incomeByCategory !== undefined &&
+        tagsSummary !== undefined && (
         <Stack spacing={3} sx={{ mt: 3 }}>
           {renderCategorySummary({
             title: t('financeTransactions.monthSummary.expensesByCategory'),
@@ -574,15 +774,20 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             items: incomeByCategory,
             kind: 'income',
           })}
+          {renderTagSummary({
+            title: t('financeTransactions.monthSummary.tagsSummary'),
+            emptyText: t('financeTransactions.monthSummary.noTaggedTransactions'),
+            items: tagsSummary,
+          })}
         </Stack>
       )}
 
       <Drawer open={drawerKind !== null} onClose={() => setDrawerKind(null)} anchor="right" size="sm">
         <Drawer.Header title={drawerTitle} showCloseButton />
         <Drawer.Body>
-          {drawerKind !== null && drawerItems && (
+          {drawerKind !== null && drawerCategoryItems && (
             <Stack spacing={2}>
-              {drawerItems.map((item) => (
+              {drawerCategoryItems.map((item) => (
                 <CategoryProgressRow
                   key={item.category.id}
                   item={item}
@@ -590,8 +795,22 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
                   nameFontWeight={600}
                   percentFontWeight={700}
                   dimmed={Boolean(activeCategoryFilterId && item.category.id !== activeCategoryFilterId)}
-                  categorySection={drawerKind}
+                  categorySection={drawerKind === 'expenses' ? 'expenses' : 'income'}
                   activeCreditDebitTypeFilter={activeCreditDebitTypeFilter}
+                />
+              ))}
+            </Stack>
+          )}
+          {drawerKind !== null && drawerTagItems && (
+            <Stack spacing={2}>
+              {drawerTagItems.map((item) => (
+                <TagProgressRow
+                  key={item.tag}
+                  item={item}
+                  onTagClick={onTagClick}
+                  nameFontWeight={600}
+                  percentFontWeight={700}
+                  dimmed={Boolean(activeTagFilter && item.tag !== activeTagFilter)}
                 />
               ))}
             </Stack>

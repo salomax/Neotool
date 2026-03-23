@@ -499,6 +499,8 @@ type MonthSummary {
   expensesByCategory: [CategoryTotal!]!
   """Top income categories for the month (ordered by totalAmount DESC)."""
   incomeByCategory: [CategoryTotal!]!
+  """Top tags for the month (ordered by totalAmount DESC)."""
+  tagsSummary: [TagTotal!]!
 }
 
 """
@@ -509,6 +511,17 @@ type CategoryTotal {
   totalAmount: Float!
   transactionCount: Int!
   """Percentage of the period total (0–100)."""
+  percentage: Float!
+}
+
+"""
+Tag total for a period. Percentage of grouped tag total.
+"""
+type TagTotal {
+  tag: String!
+  totalAmount: Float!
+  transactionCount: Int!
+  """Percentage of the grouped tag total (0–100)."""
   percentage: Float!
 }
 
@@ -634,6 +647,20 @@ input CreateFinancialAccountInput {
   initialBalance: Float
   """Reference date for the initial balance. Required when initialBalance is provided."""
   initialBalanceDate: Date
+}
+
+input UpdateFinancialAccountInput {
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String
+  issuerId: ID
+  issuerName: String
+  themeColor: String
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  bankData: BankAccountDataInput
+  cardData: CardDataInput
 }
 
 """
@@ -1299,6 +1326,26 @@ extend type Query {
     applicableTo: CategoryApplicableTo
   ): [CategoryTotal!]!
   """
+  Tag totals for a period. Accepts the same filters as the
+  transactions query — the result reflects the tag breakdown of exactly those transactions.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  transactionsByTag(
+    financialAccountId: ID
+    belongsToUserId: ID
+    belongsToName: String
+    tags: [String!]
+    billId: ID
+    """Return only transactions in this category or its subcategories."""
+    categoryId: ID
+    """If true, return only uncategorized transactions before grouping tags."""
+    uncategorized: Boolean
+    year: Int
+    month: Int
+    """Filter by INCOME or EXPENSE; omit for all tagged transactions."""
+    applicableTo: CategoryApplicableTo
+  ): [TagTotal!]!
+  """
   Distinct values used in transaction attribution ("belongs to"), across all account transactions.
   """
   transactionBelongsToOptions: [TransactionBelongsToOption!]!
@@ -1375,6 +1422,7 @@ extend type Mutation {
   For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
+  updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount!
   """
   Create a new manual transaction.
   """

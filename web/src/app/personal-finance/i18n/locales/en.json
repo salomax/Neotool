@@ -481,6 +481,7 @@
       "newAccountOrCard": "New account or card",
       "addAccount": "Add account",
       "addCard": "Add card",
+      "edit": "Edit",
       "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel",
@@ -587,6 +588,10 @@
           }
         }
       }
+    },
+    "editAccount": {
+      "title": "Edit financial account",
+      "success": "Account updated successfully"
     },
     "import": {
       "title": "Import Transactions",
@@ -797,14 +802,18 @@
       "total": "of total",
       "expensesByCategory": "Expenses by Category",
       "incomeByCategory": "Income by Category",
+      "tagsSummary": "Tags",
       "seeAll": "See all",
       "noCategorizedExpenses": "No categorized expenses this month",
       "noCategorizedIncome": "No categorized income this month",
+      "noTaggedTransactions": "No tagged transactions this month",
       "totalExpenses": "Total expenses",
       "filteringByCategory": "Category: {{name}}",
+      "filteringByTag": "Tag: #{{name}}",
       "filteringByCredit": "Credit (income) only",
       "filteringByDebit": "Debit (expenses) only",
       "clearCategoryFilter": "Clear category filter",
+      "clearTagFilter": "Clear tag filter",
       "clearCreditDebitTypeFilter": "Clear credit/debit filter",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",

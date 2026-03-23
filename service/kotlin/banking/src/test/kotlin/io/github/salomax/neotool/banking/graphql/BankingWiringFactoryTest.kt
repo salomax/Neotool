@@ -11,6 +11,7 @@ import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.resolver.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.resolver.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.resolver.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -39,6 +40,7 @@ class BankingWiringFactoryTest {
     private lateinit var merchantResolver: MerchantResolver
     private lateinit var importResolver: ImportResolver
     private lateinit var pdfImportResolver: BillImportResolver
+    private lateinit var attachmentResolver: AttachmentResolver
     private lateinit var investmentResolver: InvestmentResolver
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
@@ -55,6 +57,7 @@ class BankingWiringFactoryTest {
         merchantResolver = mock()
         importResolver = mock()
         pdfImportResolver = mock()
+        attachmentResolver = mock()
         investmentResolver = mock()
         authorizationChecker = mock()
         whenever(issuerResolver.listIssuers(anyOrNull())).thenReturn(emptyList())
@@ -81,6 +84,7 @@ class BankingWiringFactoryTest {
                 investmentResolver,
                 importResolver,
                 pdfImportResolver,
+                attachmentResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )

@@ -9,6 +9,6 @@ import java.util.UUID
 interface TransactionAttachmentEntityRepository : JpaRepository<TransactionAttachmentEntity, UUID> {
     fun findByTransactionIdAndAccountId(transactionId: UUID, accountId: UUID): List<TransactionAttachmentEntity>
     fun findByIdAndAccountId(id: UUID, accountId: UUID): TransactionAttachmentEntity?
-    fun countByTransactionId(transactionId: UUID): Int
+    fun countByTransactionIdAndAccountId(transactionId: UUID, accountId: UUID): Int
     fun deleteByIdAndAccountId(id: UUID, accountId: UUID): Int
 }

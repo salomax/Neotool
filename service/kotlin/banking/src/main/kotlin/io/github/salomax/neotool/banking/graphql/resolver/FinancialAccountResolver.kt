@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.dto.BankAccountDataDTO
@@ -51,6 +52,21 @@ class FinancialAccountResolver(
 
         val command = input.toCommand()
         val saved = service.create(command, accountId, userId)
+        val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
+        return saved.toDTO(issuer)
+    }
+
+    fun update(
+        id: String,
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): FinancialAccountDTO {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+        val financialAccountId = UUID.fromString(id)
+
+        val command = input.toUpdateCommand()
+        val saved = service.update(financialAccountId, command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
         return saved.toDTO(issuer)
     }
@@ -163,6 +179,45 @@ class FinancialAccountResolver(
                 },
             initialBalance = (this["initialBalance"] as? Number)?.let { BigDecimal(it.toString()) },
             initialBalanceDate = getDate(this, "initialBalanceDate"),
+        )
+    }
+
+    @Suppress("UNCHECKED_CAST")
+    private fun Map<String, Any?>.toUpdateCommand(): UpdateFinancialAccountCommand {
+        val bankDataInput = this["bankData"] as? Map<String, Any?>
+        val cardDataInput = this["cardData"] as? Map<String, Any?>
+        return UpdateFinancialAccountCommand(
+            type = FinancialAccountType.valueOf(this["type"] as String),
+            subtype = FinancialAccountSubtype.valueOf(this["subtype"] as String),
+            name = this["name"] as? String,
+            issuerId = (this["issuerId"] as? String)?.let { UUID.fromString(it) },
+            issuerName = this["issuerName"] as? String,
+            themeColor = this["themeColor"] as? String,
+            currencyCode = this["currencyCode"] as? String,
+            includeInNetWorth = this["includeInNetWorth"] as? Boolean,
+            includeInDashboard = this["includeInDashboard"] as? Boolean,
+            bankData =
+                bankDataInput?.let {
+                    BankData(
+                        branchCode = it["branchCode"] as? String,
+                        number = it["number"] as? String,
+                        checkDigit = it["checkDigit"] as? String,
+                        maskedNumber = it["maskedNumber"] as? String,
+                    )
+                },
+            cardData =
+                cardDataInput?.let {
+                    CardData(
+                        maskedNumber = it["maskedNumber"] as? String,
+                        bin = it["bin"] as? String,
+                        cardNetwork = (it["cardNetwork"] as? String)?.let { v -> CreditCardNetwork.valueOf(v) },
+                        cardLevel = (it["cardLevel"] as? String)?.let { v -> CreditCardLevel.valueOf(v) },
+                        creditLimit = (it["creditLimit"] as? Number)?.let { v -> BigDecimal(v.toString()) },
+                        closingDay = it["closingDay"] as? Int,
+                        dueDay = it["dueDay"] as? Int,
+                        linkedBankAccountId = (it["linkedBankAccountId"] as? String)?.let { v -> UUID.fromString(v) },
+                    )
+                },
         )
     }
 }

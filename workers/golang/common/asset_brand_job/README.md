@@ -4,6 +4,7 @@ Go worker that runs two one-off `logo.dev` hydration flows:
 
 - investment asset brand matching into `financial_data.asset_brand` and `financial_data.investment_asset_brand_match`
 - banking issuer logo hydration into `banking.issuers.logo_key`
+- banking merchant logo hydration into `banking.merchant_logo_cache.asset_id`
 
 This job is intentionally separate from the `financialdata` service startup path. It is meant to run on demand or as a controlled batch so service replicas do not compete over the same external API calls.
 
@@ -31,6 +32,14 @@ Issuer logo hydrator
   ├── fetches PNG bytes from img.logo.dev/{domain}
   ├── uploads them through assets-service create/upload/confirm
   ├── writes the returned asset id back to banking.issuers.logo_key
+  └── marks the job SUCCESS or FAILED
+
+Merchant logo hydrator
+  ├── marks import_job_control(job_name = 'banking_merchant_logo_dev') as RUNNING
+  ├── loads distinct banking.merchants.domain with no row in banking.merchant_logo_cache
+  ├── fetches PNG bytes from img.logo.dev/{domain}
+  ├── uploads them through assets-service create/upload/confirm
+  ├── upserts banking.merchant_logo_cache(domain, asset_id, fetched_at)
   └── marks the job SUCCESS or FAILED
 ```
 
@@ -89,6 +98,7 @@ Uploaded assets use namespace `institution-logos` by default and filenames like 
 | `ASSET_BRAND_BATCH_LIMIT` | `250` | Max assets processed per run |
 | `ASSET_BRAND_THROTTLE_MS` | `250` | Delay between requests |
 | `ASSET_BRAND_AUTO_APPROVE_THRESHOLD` | `0.93` | Confidence threshold for `AUTO_APPROVED` |
+| `RUN_MERCHANT_LOGO_HYDRATOR` | `true` | Enables merchant logo cache hydration flow |
 | `HEALTH_CHECK_ENABLED` | `true` | Expose `/health`, `/live`, `/ready` |
 | `HEALTH_CHECK_PORT` | `8080` | Health check port |
 | `ASSET_BRAND_LOG_CONFIG` | `false` | Log config values at startup |
@@ -147,6 +157,12 @@ SELECT id, name, domain, logo_key
 FROM banking.issuers
 WHERE logo_key IS NOT NULL
 ORDER BY updated_at DESC
+LIMIT 20;
+
+-- Merchant logo cache rows
+SELECT domain, asset_id, fetched_at
+FROM banking.merchant_logo_cache
+ORDER BY fetched_at DESC
 LIMIT 20;
 ```
 

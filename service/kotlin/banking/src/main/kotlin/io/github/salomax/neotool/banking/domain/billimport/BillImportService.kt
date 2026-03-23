@@ -277,6 +277,7 @@ open class BillImportService(
                 .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
         val reviewPayload = parsePdfReviewPayload(job.reviewPayload, accountId)
         val preparedCommit = billImportCommitPreparer.prepare(command, tenantAccountsById, reviewPayload)
+        val categorizationRules = categorizationService.preloadRules(accountId)
 
         val importingJob =
             repository.update(
@@ -414,6 +415,21 @@ open class BillImportService(
                             }
                             if (duplicate) return@forEach
 
+                            val suggestion =
+                                when {
+                                    tx.categoryId == null ->
+                                        categorizationService.suggestFromRulesRecordingMatch(
+                                            categorizationRules,
+                                            tx.description,
+                                            tx.creditDebitType,
+                                        )
+                                    else ->
+                                        categorizationService.suggestFromRules(
+                                            categorizationRules,
+                                            tx.description,
+                                            tx.creditDebitType,
+                                        )
+                                }
                             val (effectiveCategoryId, effectiveCategorySource, shouldLearnImplicitRule) =
                                 when {
                                     tx.categorySource == CategorySource.MANUAL && tx.categoryId != null -> Triple(
@@ -428,12 +444,6 @@ open class BillImportService(
                                     )
                                     tx.categoryId == null -> {
                                         // Empty category => re-run rules on confirm (CAT-11 idempotency).
-                                        val suggestion =
-                                            categorizationService.suggest(
-                                                accountId = accountId,
-                                                description = tx.description,
-                                                creditDebitType = tx.creditDebitType,
-                                            )
                                         Triple(
                                             suggestion?.categoryId,
                                             suggestion?.let { CategorySource.RULE },
@@ -456,7 +466,7 @@ open class BillImportService(
                                     accountId = accountId,
                                     description = tx.description,
                                     categoryId = effectiveCategoryId,
-                                    merchantId = null,
+                                    merchantId = suggestion?.merchantId,
                                 )
                             }
 
@@ -483,6 +493,7 @@ open class BillImportService(
                                         importJobId = command.jobId,
                                         categoryId = effectiveCategoryId,
                                         categorySource = effectiveCategorySource,
+                                        merchantId = suggestion?.merchantId,
                                         createdAt = now,
                                         updatedAt = now,
                                     ),

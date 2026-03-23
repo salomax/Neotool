@@ -14,4 +14,5 @@ data class MonthSummaryDTO(
     val isFutureMonth: Boolean,
     val expensesByCategory: List<CategoryTotalDTO>,
     val incomeByCategory: List<CategoryTotalDTO>,
+    val tagsSummary: List<TagTotalDTO>,
 )

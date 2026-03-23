@@ -1628,6 +1628,8 @@ export type MonthSummary = {
   openingBalance: Scalars['Float']['output'];
   /** closingBalance + FUTURE transactions. Null when no FUTURE transactions exist. */
   projectedClosingBalance: Maybe<Scalars['Float']['output']>;
+  /** Top tags for the month (ordered by totalAmount DESC). */
+  tagsSummary: Array<TagTotal>;
   /** Saídas: total DEBIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only). */
   totalExpenses: Scalars['Float']['output'];
   /** Entradas: total CREDIT excluding TRANSFER and BALANCE_ADJUSTMENT (POSTED/PENDING only). */
@@ -2376,6 +2378,12 @@ export type Query = {
    * When financialAccountId is omitted, aggregates across all accounts.
    */
   transactionsByCategory: Array<CategoryTotal>;
+  /**
+   * Tag totals for a period. Accepts the same filters as the
+   * transactions query — the result reflects the tag breakdown of exactly those transactions.
+   * When financialAccountId is omitted, aggregates across all accounts.
+   */
+  transactionsByTag: Array<TagTotal>;
   user: Maybe<User>;
   users: UserConnection;
 };
@@ -2662,6 +2670,20 @@ export type QueryTransactionsByCategoryArgs = {
 };
 
 
+export type QueryTransactionsByTagArgs = {
+  applicableTo?: InputMaybe<CategoryApplicableTo>;
+  belongsToName?: InputMaybe<Scalars['String']['input']>;
+  belongsToUserId?: InputMaybe<Scalars['ID']['input']>;
+  billId?: InputMaybe<Scalars['ID']['input']>;
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  month?: InputMaybe<Scalars['Int']['input']>;
+  tags?: InputMaybe<Array<Scalars['String']['input']>>;
+  uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
+  year?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QueryUserArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2898,6 +2920,16 @@ export type Subscription = {
 export type SubscriptionMessageStreamArgs = {
   conversationId: Scalars['ID']['input'];
   input: MessageInput;
+};
+
+/** Tag total for a period. Percentage of grouped tag total. */
+export type TagTotal = {
+  __typename: 'TagTotal';
+  /** Percentage of the grouped tag total (0–100). */
+  percentage: Scalars['Float']['output'];
+  tag: Scalars['String']['output'];
+  totalAmount: Scalars['Float']['output'];
+  transactionCount: Scalars['Int']['output'];
 };
 
 export type TokenUsage = {

@@ -6,7 +6,9 @@ import java.math.BigDecimal
  * Monthly summary for the selected (year, month) and optional financial account.
  *
  * Served from [MonthlyBalanceSnapshot] (closingBalance, openingBalance, totalIncome, totalExpenses).
- * On-demand fields (transfersIn, transfersOut, projectedClosingBalance, expensesByCategory, incomeByCategory) are computed at query time.
+ * On-demand fields
+ * (transfersIn, transfersOut, projectedClosingBalance, expensesByCategory, incomeByCategory,
+ * tagsSummary) are computed at query time.
  */
 data class MonthSummary(
     val year: Int,
@@ -33,4 +35,6 @@ data class MonthSummary(
     val expensesByCategory: List<CategoryTotal> = emptyList(),
     /** Top income categories for the month (CAT-15). Empty for future months. */
     val incomeByCategory: List<CategoryTotal> = emptyList(),
+    /** Top tags for the month across all posted/pending transactions. Empty for future months. */
+    val tagsSummary: List<TagTotal> = emptyList(),
 )

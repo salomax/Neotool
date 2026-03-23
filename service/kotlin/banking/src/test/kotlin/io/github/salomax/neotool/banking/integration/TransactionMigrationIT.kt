@@ -40,7 +40,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @DisplayName("migrations")
     inner class MigrationsTests {
         @Test
-        fun `V0_1 through V0_8 apply cleanly on fresh schema`() {
+        fun `V0_1 through V0_10 apply cleanly on fresh schema`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
@@ -50,7 +50,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     val versions = mutableListOf<String>()
                     while (rs.next()) rs.getString("version")?.let { versions.add(it) }
                     assertThat(versions)
-                        .containsExactly("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8")
+                        .containsExactly("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10")
                 }
                 conn.createStatement().executeQuery(
                     "SELECT table_name FROM information_schema.tables " +
@@ -130,6 +130,31 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                 ).use { rs ->
                     rs.next()
                     assertThat(rs.getInt("cnt")).isEqualTo(2)
+                }
+            }
+        }
+
+        @Test
+        fun `system merchant patterns link seeded rules to merchants`() {
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeQuery(
+                    """
+                    SELECT tr.merchant_id, m.id AS expected_merchant_id
+                    FROM banking.transaction_rules tr
+                    JOIN banking.merchants m
+                      ON m.name = 'netflix'
+                     AND m.account_id IS NULL
+                     AND m.is_system = true
+                    WHERE tr.pattern = 'netflix'
+                      AND tr.account_id IS NULL
+                      AND tr.is_system = true
+                      AND tr.deleted_at IS NULL
+                    """.trimIndent(),
+                ).use { rs ->
+                    assertThat(rs.next()).isTrue()
+                    assertThat(rs.getObject("merchant_id")).isEqualTo(rs.getObject("expected_merchant_id"))
                 }
             }
         }

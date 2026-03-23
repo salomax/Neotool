@@ -106,4 +106,27 @@ describe.sequential('MonthSummary', () => {
     const bodyText = document.body.textContent ?? '';
     expect(bodyText).toMatch(/0[,.]00/);
   });
+
+  it('renders tag summaries and forwards tag clicks', () => {
+    const onTagClick = vi.fn();
+    renderWithTheme(
+      <MonthSummary
+        summary={{
+          ...mockSummary,
+          tagsSummary: [{ tag: 'Weekend', totalAmount: 300, transactionCount: 2, percentage: 75 }],
+        }}
+        loading={false}
+        expensesByCategory={[]}
+        incomeByCategory={[]}
+        tagsSummary={[{ tag: 'Weekend', totalAmount: 300, transactionCount: 2, percentage: 75 }]}
+        onTagClick={onTagClick}
+      />,
+    );
+
+    expect(screen.getByText('financeTransactions.monthSummary.tagsSummary')).toBeInTheDocument();
+    expect(screen.getByText('#Weekend')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('#Weekend'));
+    expect(onTagClick).toHaveBeenCalledWith('Weekend');
+  });
 });

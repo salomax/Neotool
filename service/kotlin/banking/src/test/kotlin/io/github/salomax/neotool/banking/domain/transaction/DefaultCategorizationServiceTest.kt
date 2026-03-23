@@ -307,6 +307,33 @@ class DefaultCategorizationServiceTest {
         }
 
         @Test
+        fun `updates existing implicit rule when merchant is provided later`() {
+            val merchantId = UUID.randomUUID()
+            val existing =
+                rule(
+                    id = UUID.randomUUID(),
+                    categoryId = categoryId,
+                    pattern = "netflix",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.ANY,
+                    isImplicit = true,
+                    updatedAt = Instant.now().minusSeconds(60),
+                )
+            whenever(ruleRepository.findImplicitByPattern(accountId, "netflix")).thenReturn(existing)
+            whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
+
+            service.learnFromManualAssignment(accountId, "NETFLIX", null, merchantId)
+
+            val ruleCaptor = argumentCaptor<TransactionRule>()
+            verify(ruleRepository).save(ruleCaptor.capture())
+            val saved = ruleCaptor.firstValue
+            assertThat(saved.id).isEqualTo(existing.id)
+            assertThat(saved.categoryId).isEqualTo(existing.categoryId)
+            assertThat(saved.merchantId).isEqualTo(merchantId)
+            assertThat(saved.updatedAt).isAfter(existing.updatedAt)
+        }
+
+        @Test
         fun `does nothing when description is blank`() {
             service.learnFromManualAssignment(accountId, "   ", categoryId, null)
 

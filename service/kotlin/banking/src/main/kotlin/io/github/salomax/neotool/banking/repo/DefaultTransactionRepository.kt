@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
+import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionListQuery
@@ -241,6 +242,127 @@ open class DefaultTransactionRepository(
                 sortOrder = (row[7] as Number).toInt(),
                 totalAmount = row[8] as BigDecimal,
                 transactionCount = (row[9] as Number).toLong(),
+            )
+        }
+    }
+
+    @Transactional(readOnly = true)
+    override fun getFilteredCategoryBreakdown(
+        query: TransactionListQuery,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow> {
+        val base = buildTransactionsBaseSql(query)
+        val params = LinkedHashMap(base.params)
+        params["applicableTo"] = applicableTo?.name
+        @Suppress("UNCHECKED_CAST")
+        val rows =
+            applyParameters(
+                entityManager.createNativeQuery(
+                    """
+                    WITH filtered_transactions AS (
+                    ${base.sql}
+                    )
+                    SELECT
+                      tc.id             AS category_id,
+                      tc.name           AS category_name,
+                      tc.icon           AS category_icon,
+                      tc.color          AS category_color,
+                      tc.parent_id      AS parent_id,
+                      tc.applicable_to  AS applicable_to,
+                      tc.is_system      AS is_system,
+                      tc.sort_order     AS sort_order,
+                      SUM(ft.amount)    AS total_amount,
+                      COUNT(ft.id)      AS transaction_count
+                    FROM filtered_transactions ft
+                    JOIN banking.transaction_categories tc ON ft.category_id = tc.id AND tc.deleted_at IS NULL
+                    WHERE ft.status IN ('POSTED', 'PENDING')
+                      AND (CAST(:applicableTo AS text) IS NULL
+                           OR tc.applicable_to = :applicableTo
+                           OR tc.applicable_to = 'ANY')
+                    GROUP BY tc.id, tc.name, tc.icon, tc.color, tc.parent_id, tc.applicable_to, tc.is_system, tc.sort_order
+                    ORDER BY total_amount DESC
+                    """.trimIndent(),
+                ),
+                params,
+            ).resultList as List<Array<Any?>>
+        return rows.map(::mapCategoryBreakdownRow)
+    }
+
+    @Transactional(readOnly = true)
+    override fun getTagBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow> {
+        val query =
+            TransactionListQuery(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                belongsToUserId = null,
+                belongsToName = null,
+                tags = null,
+                billId = null,
+                categoryIds = null,
+                uncategorizedOnly = false,
+                creditDebitType =
+                    when (applicableTo) {
+                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        else -> null
+                    },
+                types = null,
+                startDate = LocalDate.of(year, month, 1),
+                endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
+                limit = 1,
+                offset = 0,
+            )
+        return getFilteredTagBreakdown(query, applicableTo)
+    }
+
+    @Transactional(readOnly = true)
+    override fun getFilteredTagBreakdown(
+        query: TransactionListQuery,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow> {
+        val base = buildTransactionsBaseSql(query)
+        val params = LinkedHashMap(base.params)
+        params["applicableTo"] = applicableTo?.name
+        @Suppress("UNCHECKED_CAST")
+        val rows =
+            applyParameters(
+                entityManager.createNativeQuery(
+                    """
+                    WITH filtered_transactions AS (
+                    ${base.sql}
+                    )
+                    SELECT
+                      tt.tag            AS tag,
+                      SUM(ft.amount)    AS total_amount,
+                      COUNT(ft.id)      AS transaction_count
+                    FROM filtered_transactions ft
+                    JOIN banking.transaction_tags tt
+                      ON tt.transaction_id = ft.id
+                     AND tt.account_id = ft.account_id
+                    WHERE ft.status IN ('POSTED', 'PENDING')
+                      AND (CAST(:applicableTo AS text) IS NULL
+                           OR ft.credit_debit_type = CASE :applicableTo
+                               WHEN 'INCOME' THEN 'CREDIT'
+                               WHEN 'EXPENSE' THEN 'DEBIT'
+                               ELSE ft.credit_debit_type END)
+                    GROUP BY tt.tag
+                    ORDER BY total_amount DESC, tt.tag ASC
+                    """.trimIndent(),
+                ),
+                params,
+            ).resultList as List<Array<Any?>>
+
+        return rows.map { row ->
+            TagBreakdownRow(
+                tag = row[0] as String,
+                totalAmount = row[1] as BigDecimal,
+                transactionCount = (row[2] as Number).toLong(),
             )
         }
     }
@@ -631,6 +753,20 @@ open class DefaultTransactionRepository(
         params.forEach { (name, value) -> query.setParameter(name, value) }
         return query
     }
+
+    private fun mapCategoryBreakdownRow(row: Array<Any?>): CategoryBreakdownRow =
+        CategoryBreakdownRow(
+            categoryId = row[0] as UUID,
+            categoryName = row[1] as String,
+            categoryIcon = row[2] as? String,
+            categoryColor = row[3] as? String,
+            parentId = row[4] as? UUID,
+            applicableTo = CategoryApplicableTo.valueOf(row[5] as String),
+            isSystem = row[6] as Boolean,
+            sortOrder = (row[7] as Number).toInt(),
+            totalAmount = row[8] as BigDecimal,
+            transactionCount = (row[9] as Number).toLong(),
+        )
 
     private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
 

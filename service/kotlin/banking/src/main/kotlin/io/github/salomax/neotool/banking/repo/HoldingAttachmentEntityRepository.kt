@@ -9,6 +9,6 @@ import java.util.UUID
 interface HoldingAttachmentEntityRepository : JpaRepository<HoldingAttachmentEntity, UUID> {
     fun findByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): List<HoldingAttachmentEntity>
     fun findByIdAndAccountId(id: UUID, accountId: UUID): HoldingAttachmentEntity?
-    fun countByHoldingId(holdingId: UUID): Int
+    fun countByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): Int
     fun deleteByIdAndAccountId(id: UUID, accountId: UUID): Int
 }

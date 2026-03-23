@@ -8,6 +8,8 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -125,6 +127,141 @@ open class FinancialAccountService(
         }
 
         return saved
+    }
+
+    @Transactional
+    open fun update(
+        financialAccountId: UUID,
+        command: UpdateFinancialAccountCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): FinancialAccount {
+        val existing =
+            financialAccountRepository.findById(financialAccountId, accountId)
+                ?: throw NotFoundException(
+                    errorCode = CommonErrorCode.NOT_FOUND,
+                    field = "id",
+                    parameters = mapOf("financialAccountId" to financialAccountId.toString()),
+                )
+
+        require(command.issuerId != null || !command.issuerName.isNullOrBlank()) {
+            "Either issuerId or issuerName must be provided"
+        }
+
+        val isExistingBank = existing.type == FinancialAccountType.BANK
+        if (isExistingBank) {
+            require(command.type == FinancialAccountType.BANK) {
+                "Cannot change account type from BANK"
+            }
+        } else {
+            require(command.type != FinancialAccountType.BANK) {
+                "Cannot change account type to BANK"
+            }
+        }
+
+        val issuer = command.issuerId?.let { issuerRepository.findById(it) }
+        val isCustomIssuerUpdate = command.issuerId == null && !command.issuerName.isNullOrBlank()
+        val resolvedName = command.name?.takeIf { it.isNotBlank() } ?: existing.name
+        val resolvedCurrency = command.currencyCode?.takeIf { it.isNotBlank() } ?: existing.currencyCode
+        val resolvedBankData =
+            if (isExistingBank) {
+                mergeBankData(existing.bankData, command.bankData)
+            } else {
+                null
+            }
+        val resolvedCardData =
+            if (!isExistingBank) {
+                mergeCardData(existing.cardData, command.cardData)
+            } else {
+                null
+            }
+        val now = Instant.now()
+
+        val updated =
+            existing.copy(
+                createdByUserId = existing.createdByUserId,
+                type = command.type,
+                subtype = command.subtype,
+                name = resolvedName,
+                currencyCode = resolvedCurrency,
+                includeInNetWorth = command.includeInNetWorth ?: existing.includeInNetWorth,
+                includeInDashboard = command.includeInDashboard ?: existing.includeInDashboard,
+                issuerId =
+                    when {
+                        issuer != null -> issuer.id
+                        isCustomIssuerUpdate -> null
+                        else -> existing.issuerId
+                    },
+                themeColor = command.themeColor ?: existing.themeColor,
+                issuerName =
+                    when {
+                        issuer != null -> issuer.name
+                        isCustomIssuerUpdate -> command.issuerName?.trim()
+                        else -> existing.issuerName
+                    },
+                issuerCountry =
+                    when {
+                        issuer != null -> issuer.countryCode
+                        isCustomIssuerUpdate -> null
+                        else -> existing.issuerCountry
+                    },
+                issuerCompeCode =
+                    when {
+                        issuer != null -> issuer.compeCode
+                        isCustomIssuerUpdate -> null
+                        else -> existing.issuerCompeCode
+                    },
+                issuerIspb =
+                    when {
+                        issuer != null -> issuer.ispb
+                        isCustomIssuerUpdate -> null
+                        else -> existing.issuerIspb
+                    },
+                cardLastFourDigits =
+                    extractLastFourDigits(resolvedCardData?.maskedNumber)
+                        ?: existing.cardLastFourDigits,
+                bankData = resolvedBankData,
+                cardData = resolvedCardData,
+                updatedAt = now,
+            )
+
+        return financialAccountRepository.update(updated)
+    }
+
+    private fun mergeBankData(
+        existing: BankData?,
+        patch: BankData?,
+    ): BankData? {
+        if (existing == null) return patch
+        if (patch == null) return existing
+
+        return existing.copy(
+            branchCode = patch.branchCode ?: existing.branchCode,
+            number = patch.number ?: existing.number,
+            checkDigit = patch.checkDigit ?: existing.checkDigit,
+            maskedNumber = patch.maskedNumber ?: existing.maskedNumber,
+        )
+    }
+
+    private fun mergeCardData(
+        existing: CardData?,
+        patch: CardData?,
+    ): CardData? {
+        if (existing == null) return patch
+        if (patch == null) return existing
+
+        return existing.copy(
+            maskedNumber = patch.maskedNumber ?: existing.maskedNumber,
+            bin = patch.bin ?: existing.bin,
+            cardNetwork = patch.cardNetwork ?: existing.cardNetwork,
+            cardLevel = patch.cardLevel ?: existing.cardLevel,
+            creditLimit = patch.creditLimit ?: existing.creditLimit,
+            availableCreditLimit = patch.availableCreditLimit ?: existing.availableCreditLimit,
+            minimumPaymentPercentage = patch.minimumPaymentPercentage ?: existing.minimumPaymentPercentage,
+            closingDay = patch.closingDay ?: existing.closingDay,
+            dueDay = patch.dueDay ?: existing.dueDay,
+            linkedBankAccountId = patch.linkedBankAccountId ?: existing.linkedBankAccountId,
+        )
     }
 
     private fun extractLastFourDigits(maskedNumber: String?): String? {

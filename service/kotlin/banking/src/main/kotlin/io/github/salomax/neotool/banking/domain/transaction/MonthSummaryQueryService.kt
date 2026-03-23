@@ -96,6 +96,38 @@ open class MonthSummaryQueryService(
     }
 
     /**
+     * Returns tag totals for the given period. Percentage is computed from sum of grouped tag amounts.
+     * Used by MonthSummary tag breakdown.
+     */
+    fun getTagBreakdown(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagTotal> {
+        val rows =
+            transactionRepository.getTagBreakdown(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                year = year,
+                month = month,
+                applicableTo = applicableTo,
+            )
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                } else {
+                    0.0
+                }
+            TagTotal.fromRow(row, pct)
+        }
+    }
+
+    /**
      * Returns the aggregated [MonthSummary] across **all** financial accounts for [accountId].
      *
      * Each account's summary is computed independently via [getMonthSummary] and the
@@ -127,6 +159,7 @@ open class MonthSummaryQueryService(
                 isFutureMonth = isFuture,
                 expensesByCategory = emptyList(),
                 incomeByCategory = emptyList(),
+                tagsSummary = emptyList(),
             )
         }
 
@@ -135,6 +168,7 @@ open class MonthSummaryQueryService(
         val projectedClosingBalances = summaries.mapNotNull { it.projectedClosingBalance }
         val expensesByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.EXPENSE)
         val incomeByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.INCOME)
+        val tagsSummary = getTagBreakdown(accountId, null, year, month, null)
 
         return MonthSummary(
             year = year,
@@ -155,6 +189,7 @@ open class MonthSummaryQueryService(
             isFutureMonth = isFuture,
             expensesByCategory = expensesByCategory,
             incomeByCategory = incomeByCategory,
+            tagsSummary = tagsSummary,
         )
     }
 
@@ -182,6 +217,7 @@ open class MonthSummaryQueryService(
             getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.EXPENSE)
         val incomeByCategory =
             getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.INCOME)
+        val tagsSummary = getTagBreakdown(accountId, financialAccountId, year, month, null)
 
         return MonthSummary(
             year = year,
@@ -197,6 +233,7 @@ open class MonthSummaryQueryService(
             isFutureMonth = false,
             expensesByCategory = expensesByCategory,
             incomeByCategory = incomeByCategory,
+            tagsSummary = tagsSummary,
         )
     }
 
@@ -267,6 +304,7 @@ open class MonthSummaryQueryService(
             isFutureMonth = true,
             expensesByCategory = emptyList(),
             incomeByCategory = emptyList(),
+            tagsSummary = emptyList(),
         )
     }
 

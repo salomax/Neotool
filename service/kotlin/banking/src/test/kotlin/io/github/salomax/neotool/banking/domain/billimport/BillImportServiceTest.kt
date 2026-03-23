@@ -12,14 +12,18 @@ import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.infra.assets.BillImportAssetStorage
@@ -45,6 +49,7 @@ import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
+import org.mockito.kotlin.same
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
@@ -743,6 +748,21 @@ class BillImportServiceTest {
             val cardA = UUID.randomUUID()
             val billA = UUID.randomUUID()
             val categoryId = UUID.randomUUID()
+            val merchantId = UUID.randomUUID()
+            val preloadedRules =
+                listOf(
+                    TransactionRule(
+                        id = UUID.randomUUID(),
+                        accountId = accountId,
+                        merchantId = merchantId,
+                        pattern = "netflix",
+                        patternType = PatternType.CONTAINS,
+                        applicableTo = CategoryApplicableTo.ANY,
+                        priority = 40,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
 
             val job = awaitingReviewJob(jobId)
             val tx =
@@ -772,6 +792,20 @@ class BillImportServiceTest {
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(categorizationService.preloadRules(accountId)).thenReturn(preloadedRules)
+            whenever(
+                categorizationService.suggestFromRules(
+                    same(preloadedRules),
+                    eq(tx.description),
+                    eq(tx.creditDebitType),
+                ),
+            ).thenReturn(
+                RuleSuggestion(
+                    ruleId = preloadedRules.first().id!!,
+                    categoryId = null,
+                    merchantId = merchantId,
+                ),
+            )
 
             whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
             whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
@@ -791,8 +825,9 @@ class BillImportServiceTest {
             verify(transactionRepository, times(1)).save(txCaptor.capture())
             assertThat(txCaptor.firstValue.categoryId).isEqualTo(categoryId)
             assertThat(txCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
+            assertThat(txCaptor.firstValue.merchantId).isEqualTo(merchantId)
 
-            verify(categorizationService).learnFromManualAssignment(eq(accountId), eq(tx.description), eq(categoryId), eq(null))
+            verify(categorizationService).learnFromManualAssignment(eq(accountId), eq(tx.description), eq(categoryId), eq(merchantId))
         }
 
         @Test

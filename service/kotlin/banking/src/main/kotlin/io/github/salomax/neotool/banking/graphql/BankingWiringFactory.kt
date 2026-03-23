@@ -196,6 +196,26 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "transactionsByTag",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.transactionsByTag(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            belongsToUserId = env.getArgument("belongsToUserId"),
+                            belongsToName = env.getArgument("belongsToName"),
+                            tags = env.getArgument("tags"),
+                            billId = env.getArgument("billId"),
+                            categoryId = env.getArgument("categoryId"),
+                            uncategorized = env.getArgument("uncategorized"),
+                            year = env.getArgument("year"),
+                            month = env.getArgument("month"),
+                            applicableTo = env.getArgument("applicableTo"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
                 "transactionImports",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
@@ -341,6 +361,20 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
                         financialAccountResolver.create(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateFinancialAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_CREATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        financialAccountResolver.update(id, input, principal)
                     }
                 },
             )

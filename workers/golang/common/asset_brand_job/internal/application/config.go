@@ -41,6 +41,7 @@ type JobConfig struct {
 	AutoApproveThreshold    float64 `env:"ASSET_BRAND_AUTO_APPROVE_THRESHOLD"   envDefault:"0.93"`
 	RunAssetBrandHydrator   bool    `env:"RUN_ASSET_BRAND_HYDRATOR"             envDefault:"true"`
 	RunIssuerLogoHydrator   bool    `env:"RUN_ISSUER_LOGO_HYDRATOR"             envDefault:"true"`
+	RunMerchantLogoHydrator bool    `env:"RUN_MERCHANT_LOGO_HYDRATOR"           envDefault:"true"`
 }
 
 type LogoDevConfig struct {

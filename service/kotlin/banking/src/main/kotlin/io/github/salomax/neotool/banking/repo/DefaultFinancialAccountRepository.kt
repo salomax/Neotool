@@ -32,6 +32,14 @@ open class DefaultFinancialAccountRepository(
         entityRepository.findByAccountIdAndDeletedAtIsNull(accountId)
             .map(FinancialAccountMapper::toDomain)
 
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): FinancialAccount? =
+        entityRepository
+            .findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
+            ?.let(FinancialAccountMapper::toDomain)
+
     override fun findCardAccountsByLastFourDigits(
         accountId: UUID,
         lastFourDigits: String,
@@ -59,5 +67,55 @@ open class DefaultFinancialAccountRepository(
         }
 
         return FinancialAccountMapper.toDomain(saved)
+    }
+
+    @Transactional
+    override fun update(account: FinancialAccount): FinancialAccount {
+        val id = requireNotNull(account.id) { "Account id is required for update" }
+        val existing =
+            requireNotNull(entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, account.accountId)) {
+                "FinancialAccount not found: $id"
+            }
+
+        FinancialAccountMapper.updateEntity(existing, account)
+
+        account.bankData?.let { data ->
+            val current = existing.bankData
+            if (current == null) {
+                val bankDataEntity = FinancialAccountMapper.toBankDataEntity(data, existing)
+                val savedBankData = bankDataRepository.save(bankDataEntity)
+                existing.bankData = savedBankData
+            } else {
+                current.branchCode = data.branchCode
+                current.number = data.number
+                current.checkDigit = data.checkDigit
+                current.maskedNumber = data.maskedNumber
+                bankDataRepository.update(current)
+            }
+        }
+
+        account.cardData?.let { data ->
+            val current = existing.cardData
+            if (current == null) {
+                val cardDataEntity = FinancialAccountMapper.toCardDataEntity(data, existing)
+                val savedCardData = cardDataRepository.save(cardDataEntity)
+                existing.cardData = savedCardData
+            } else {
+                current.maskedNumber = data.maskedNumber
+                current.bin = data.bin
+                current.cardNetwork = data.cardNetwork
+                current.cardLevel = data.cardLevel
+                current.creditLimit = data.creditLimit
+                current.availableCreditLimit = data.availableCreditLimit
+                current.minPaymentPercentage = data.minimumPaymentPercentage
+                current.closingDay = data.closingDay
+                current.dueDay = data.dueDay
+                current.linkedBankAccountId = data.linkedBankAccountId
+                cardDataRepository.update(current)
+            }
+        }
+
+        entityRepository.update(existing)
+        return FinancialAccountMapper.toDomain(existing)
     }
 }

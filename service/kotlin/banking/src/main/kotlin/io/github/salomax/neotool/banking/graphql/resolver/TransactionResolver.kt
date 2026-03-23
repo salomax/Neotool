@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillServic
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
 import io.github.salomax.neotool.banking.domain.transaction.TransactionService
@@ -25,6 +26,7 @@ import io.github.salomax.neotool.banking.graphql.dto.TransactionCategoryDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionConnectionDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionEdgeDTO
+import io.github.salomax.neotool.banking.graphql.dto.TagTotalDTO
 import io.github.salomax.neotool.banking.graphql.dto.TransactionTagOptionDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
@@ -210,6 +212,7 @@ class TransactionResolver(
             isFutureMonth = summary.isFutureMonth,
             expensesByCategory = summary.expensesByCategory.map { it.toCategoryTotalDTO() },
             incomeByCategory = summary.incomeByCategory.map { it.toCategoryTotalDTO() },
+            tagsSummary = summary.tagsSummary.map { it.toTagTotalDTO() },
         )
     }
 
@@ -243,6 +246,38 @@ class TransactionResolver(
                 applicableTo = applicableToEnum,
             )
         return breakdown.map { it.toCategoryTotalDTO() }
+    }
+
+    fun transactionsByTag(
+        financialAccountId: String?,
+        belongsToUserId: String?,
+        belongsToName: String?,
+        tags: List<String>?,
+        billId: String?,
+        categoryId: String?,
+        uncategorized: Boolean?,
+        year: Int?,
+        month: Int?,
+        applicableTo: String?,
+        principal: RequestPrincipal,
+    ): List<TagTotalDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
+        val breakdown =
+            service.getTagBreakdown(
+                accountId = accountId,
+                financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+                belongsToUserId = belongsToUserId?.let { UUID.fromString(it) },
+                belongsToName = belongsToName,
+                tags = tags,
+                billId = billId?.let { UUID.fromString(it) },
+                categoryId = categoryId?.let { UUID.fromString(it) },
+                uncategorized = uncategorized,
+                month = month,
+                year = year,
+                applicableTo = applicableToEnum,
+            )
+        return breakdown.map { it.toTagTotalDTO() }
     }
 
     fun creditCardBills(
@@ -357,6 +392,14 @@ class TransactionResolver(
     private fun CategoryTotal.toCategoryTotalDTO(): CategoryTotalDTO =
         CategoryTotalDTO(
             category = category.toDTO(),
+            totalAmount = totalAmount.toDouble(),
+            transactionCount = transactionCount,
+            percentage = percentage,
+        )
+
+    private fun TagTotal.toTagTotalDTO(): TagTotalDTO =
+        TagTotalDTO(
+            tag = tag,
             totalAmount = totalAmount.toDouble(),
             transactionCount = transactionCount,
             percentage = percentage,
