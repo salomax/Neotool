@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.client.import.nfce
 
-import io.github.salomax.neotool.banking.domain.import.nfce.*
 import jakarta.inject.Singleton
 import java.net.URI
 import java.net.http.HttpClient

@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.nfce
 
-import io.github.salomax.neotool.banking.domain.import.nfce.*
+import io.github.salomax.neotool.banking.client.import.nfce.*
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
 import io.github.salomax.neotool.banking.domain.import.*
 import jakarta.inject.Singleton
 import org.w3c.dom.Node

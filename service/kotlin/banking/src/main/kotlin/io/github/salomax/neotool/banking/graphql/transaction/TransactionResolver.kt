@@ -7,7 +7,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCom
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction

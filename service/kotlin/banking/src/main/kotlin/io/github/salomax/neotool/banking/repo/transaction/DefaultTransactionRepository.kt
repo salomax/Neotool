@@ -9,9 +9,9 @@ import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
-import io.github.salomax.neotool.banking.domain.transaction.TransactionListQuery
-import io.github.salomax.neotool.banking.domain.transaction.TransactionPageResult
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
+import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import io.github.salomax.neotool.banking.model.transaction.TransactionTagEntity

@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.graphql.issuer
 
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
-import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import jakarta.inject.Singleton
 

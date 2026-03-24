@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.job.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapshotRepository
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.micronaut.context.annotation.Requires
 import io.micronaut.scheduling.annotation.Scheduled

@@ -5,7 +5,7 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO

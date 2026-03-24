@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.investment.InvestmentTransactionMapper
 import io.micronaut.transaction.annotation.Transactional

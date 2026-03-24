@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.graphql.attachment
 
-import io.github.salomax.neotool.banking.domain.attachment.AttachmentService
+import io.github.salomax.neotool.banking.service.attachment.AttachmentService
 import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.graphql.attachment.HoldingAttachmentDTO

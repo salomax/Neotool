@@ -5,11 +5,11 @@ import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType

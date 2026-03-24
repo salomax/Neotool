@@ -1,6 +1,9 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import jakarta.inject.Singleton
 import java.time.Instant
 import java.util.UUID

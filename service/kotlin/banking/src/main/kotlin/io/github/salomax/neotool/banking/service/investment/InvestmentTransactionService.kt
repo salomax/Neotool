@@ -1,7 +1,10 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.*
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.INFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.OUTFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.AMORTIZATION

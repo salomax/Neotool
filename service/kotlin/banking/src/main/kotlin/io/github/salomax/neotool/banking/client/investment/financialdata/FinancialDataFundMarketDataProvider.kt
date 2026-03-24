@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.client.investment.financialdata
 
-import io.github.salomax.neotool.banking.domain.investment.FundMarketDataProvider
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile

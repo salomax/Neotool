@@ -1,12 +1,14 @@
 
 import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { vi, describe, it, expect, beforeEach, Mock, afterEach } from 'vitest';
 import FinanceTransactionsPage from '../page';
 import { useAccountDisplayMode } from '../account/useAccountDisplayMode';
 import { useQuery } from '@apollo/client/react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import { FINANCIAL_ACCOUNTS, MONTH_SUMMARY, TRANSACTIONS, TRANSACTION_IMPORTS } from '@/lib/graphql/operations/banking/queries';
 
 // Mock dependencies
 vi.mock('@/shared/i18n', () => ({
@@ -19,52 +21,76 @@ vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
   usePageTitle: vi.fn(),
 }));
 
+vi.mock('@/shared/components/ui/layout', () => ({
+  Page: ({ children }: { children: React.ReactNode }) => <div data-testid="page">{children}</div>,
+}));
+
 vi.mock('@/shared/components/ui/layout/SidebarLayout', () => ({
-  SidebarLayout: ({ sidebar }: { sidebar: React.ReactNode }) => (
+  SidebarLayout: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => (
     <div data-testid="sidebar-layout">
       <div data-testid="sidebar-content">{sidebar}</div>
+      <div data-testid="main-content">{children}</div>
     </div>
   ),
 }));
 
-vi.mock('../components/FinancialAccountSelector', () => ({
+vi.mock('@/shared/components/ui/feedback', () => ({
+  QueryErrorState: ({ error, onRetry }: { error: any; onRetry?: () => void }) => (
+    <div data-testid="query-error">
+      <div>{String(error?.message ?? error)}</div>
+      {onRetry && <button onClick={onRetry}>retry</button>}
+    </div>
+  ),
+}));
+
+vi.mock('../account/FinancialAccountSelector', () => ({
   FinancialAccountSelector: () => <div data-testid="financial-account-selector" />,
 }));
 
-vi.mock('../components/MonthYearCarousel', () => ({
+vi.mock('../summary/MonthYearCarousel', () => ({
   MonthYearCarousel: () => <div data-testid="month-year-carousel" />,
 }));
 
-vi.mock('../components/BillCarousel', () => ({
+vi.mock('../bill/BillCarousel', () => ({
   BillCarousel: () => <div data-testid="bill-carousel" />,
 }));
 
-vi.mock('../components/BillSummaryHeader', () => ({
+vi.mock('../bill/BillSummaryHeader', () => ({
   BillSummaryHeader: () => <div data-testid="bill-summary-header" />,
 }));
 
-vi.mock('../components/MonthSummary', () => ({
+vi.mock('../summary/MonthSummary', () => ({
   MonthSummary: () => <div data-testid="month-summary" />,
 }));
 
-vi.mock('../components/TransactionTable', () => ({
+vi.mock('../transaction/TransactionTable', () => ({
   TransactionTable: () => <div data-testid="transaction-table" />,
 }));
 
-vi.mock('../components/CreateFinancialAccountDrawer', () => ({
+vi.mock('../account/CreateFinancialAccountDrawer', () => ({
   CreateFinancialAccountDrawer: () => <div data-testid="create-account-drawer" />,
 }));
 
-vi.mock('../components/ImportTransactionsDrawer', () => ({
+vi.mock('../transaction/ImportTransactionsDrawer', () => ({
   ImportTransactionsDrawer: () => <div data-testid="import-transactions-drawer" />,
 }));
 
-vi.mock('../components/EmptyFinancialAccountsState', () => ({
+vi.mock('../bill/BillImportDrawer', () => ({
+  BillImportDrawer: () => <div data-testid="import-bill-drawer" />,
+}));
+
+vi.mock('../bill/PayBillDialog', () => ({
+  PayBillDialog: () => <div data-testid="pay-bill-dialog" />,
+}));
+
+vi.mock('../account/EmptyFinancialAccountsState', () => ({
   EmptyFinancialAccountsState: () => <div data-testid="empty-state" />,
 }));
 
 // Mock useAccountDisplayMode
-vi.mock('../hooks/useAccountDisplayMode');
+vi.mock('../account/useAccountDisplayMode', () => ({
+  useAccountDisplayMode: vi.fn(),
+}));
 
 // Mock Apollo useQuery
 vi.mock('@apollo/client/react', () => ({
@@ -74,18 +100,61 @@ vi.mock('@apollo/client/react', () => ({
 describe.sequential('FinanceTransactionsPage', () => {
   const theme = createTheme();
 
+  const mockRefetchFinancialAccounts = vi.fn();
+  const mockRefetchTransactions = vi.fn();
+  const mockRefetchMonthSummary = vi.fn();
+  const mockRefetchImports = vi.fn();
+
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Default useQuery mock implementation
-    (useQuery as unknown as Mock).mockReturnValue({
-      data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1', type: FinancialAccountType.Bank }] },
-      loading: false,
-      refetch: vi.fn(),
-      fetchMore: vi.fn(),
+    (useQuery as unknown as Mock).mockImplementation((query: any) => {
+      if (query === FINANCIAL_ACCOUNTS) {
+        return {
+          data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1', type: FinancialAccountType.Bank }] },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchFinancialAccounts,
+        };
+      }
+
+      if (query === TRANSACTIONS) {
+        return {
+          data: { transactions: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } } },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchTransactions,
+          fetchMore: vi.fn(),
+        };
+      }
+
+      if (query === MONTH_SUMMARY) {
+        return {
+          data: { monthSummary: {} },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchMonthSummary,
+        };
+      }
+
+      if (query === TRANSACTION_IMPORTS) {
+        return {
+          data: { transactionImports: [] },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchImports,
+        };
+      }
+
+      return {
+        data: undefined,
+        loading: false,
+        error: undefined,
+        refetch: vi.fn(),
+      };
     });
 
-    // Default useAccountDisplayMode mock implementation (calendar)
+    // Default useAccountDisplayMode mock implementation
     (useAccountDisplayMode as unknown as Mock).mockReturnValue({
       kind: 'bill',
       bills: [],
@@ -109,9 +178,17 @@ describe.sequential('FinanceTransactionsPage', () => {
   };
 
   it('renders loading state initially', () => {
-    (useQuery as any).mockReturnValue({
-      data: undefined,
-      loading: true,
+    (useQuery as unknown as Mock).mockImplementation((query: any) => {
+      if (query === FINANCIAL_ACCOUNTS) {
+        return { data: undefined, loading: true, error: undefined, refetch: mockRefetchFinancialAccounts };
+      }
+      return {
+        data: undefined,
+        loading: false,
+        error: undefined,
+        refetch: vi.fn(),
+        fetchMore: vi.fn(),
+      };
     });
 
     renderPage();
@@ -119,9 +196,35 @@ describe.sequential('FinanceTransactionsPage', () => {
   });
 
   it('renders empty state when no accounts exist', () => {
-    (useQuery as any).mockReturnValue({
-      data: { financialAccounts: [] },
-      loading: false,
+    (useQuery as unknown as Mock).mockImplementation((query: any) => {
+      if (query === FINANCIAL_ACCOUNTS) {
+        return {
+          data: { financialAccounts: [] },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchFinancialAccounts,
+        };
+      }
+
+      if (query === TRANSACTIONS) {
+        return {
+          data: { transactions: { edges: [], pageInfo: { hasNextPage: false, endCursor: null } } },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchTransactions,
+          fetchMore: vi.fn(),
+        };
+      }
+
+      if (query === MONTH_SUMMARY) {
+        return { data: { monthSummary: {} }, loading: false, error: undefined, refetch: mockRefetchMonthSummary };
+      }
+
+      if (query === TRANSACTION_IMPORTS) {
+        return { data: { transactionImports: [] }, loading: false, error: undefined, refetch: mockRefetchImports };
+      }
+
+      return { data: undefined, loading: false, error: undefined, refetch: vi.fn() };
     });
 
     renderPage();
@@ -138,34 +241,12 @@ describe.sequential('FinanceTransactionsPage', () => {
       setYear: vi.fn(),
     });
 
-    // Mock useQuery for FINANCIAL_ACCOUNTS to return some accounts
-    // We need to handle multiple useQuery calls.
-    // The first one is FINANCIAL_ACCOUNTS.
-    // The others are TRANSACTIONS, MONTH_SUMMARY, etc.
-    // simpler way: mockReturnValueOnce for sequential calls if order is deterministic, 
-    // or use a smarter mock that checks arguments. 
-    // For now, let's just make the default mock return data that satisfies all.
-    (useQuery as any).mockReturnValue({
-      data: { 
-        financialAccounts: [{ id: 'acc-1', name: 'Bank Account', type: FinancialAccountType.Bank }],
-        transactions: { edges: [] },
-        monthSummary: {},
-        transactionImports: []
-      },
-      loading: false,
-      refetch: vi.fn(),
-    });
-
     renderPage();
 
     expect(screen.getByTestId('sidebar-layout')).toBeInTheDocument();
     expect(screen.getByTestId('month-summary')).toBeInTheDocument();
     expect(screen.queryByTestId('bill-summary-header')).not.toBeInTheDocument();
-    // MonthYearCarousel is likely inside SidebarLayout or Page, let's check where it is in page.tsx
-    // It's not in the sidebar prop in the snippet I read. Let's assume it's in the main content.
-    // Wait, in page.tsx I saw SidebarLayout sidebar={...}.
-    // I didn't see where MonthYearCarousel is used in the snippet I read (lines 101-200).
-    // Let me check lines 1-100 or 200+ to find MonthYearCarousel usage.
+    expect(screen.getByTestId('month-year-carousel')).toBeInTheDocument();
   });
 
   it('renders bill mode components (BillSummaryHeader) when in bill mode', () => {
@@ -178,19 +259,61 @@ describe.sequential('FinanceTransactionsPage', () => {
       refetchBills: vi.fn(),
     });
 
-    (useQuery as any).mockReturnValue({
-      data: { 
-        financialAccounts: [{ id: 'card-1', name: 'Credit Card', type: FinancialAccountType.Credit }],
-        transactions: { edges: [] },
-        transactionImports: []
-      },
-      loading: false,
-      refetch: vi.fn(),
+    renderPage();
+
+    expect(screen.getByTestId('bill-summary-header')).toBeInTheDocument();
+    expect(screen.getByTestId('bill-carousel')).toBeInTheDocument();
+    expect(screen.queryByTestId('month-summary')).not.toBeInTheDocument();
+  });
+
+  it('shows a retryable error state when transactions query fails with no data', async () => {
+    const user = userEvent.setup();
+
+    (useAccountDisplayMode as any).mockReturnValue({
+      kind: 'calendar',
+      month: 3,
+      year: 2024,
+      setMonth: vi.fn(),
+      setYear: vi.fn(),
+    });
+
+    (useQuery as unknown as Mock).mockImplementation((query: any) => {
+      if (query === FINANCIAL_ACCOUNTS) {
+        return {
+          data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1', type: FinancialAccountType.Bank }] },
+          loading: false,
+          error: undefined,
+          refetch: mockRefetchFinancialAccounts,
+        };
+      }
+
+      if (query === TRANSACTIONS) {
+        return {
+          data: undefined,
+          loading: false,
+          error: new Error('Failed to load transactions'),
+          refetch: mockRefetchTransactions,
+          fetchMore: vi.fn(),
+        };
+      }
+
+      if (query === MONTH_SUMMARY) {
+        return { data: { monthSummary: {} }, loading: false, error: undefined, refetch: mockRefetchMonthSummary };
+      }
+
+      if (query === TRANSACTION_IMPORTS) {
+        return { data: { transactionImports: [] }, loading: false, error: undefined, refetch: mockRefetchImports };
+      }
+
+      return { data: undefined, loading: false, error: undefined, refetch: vi.fn() };
     });
 
     renderPage();
 
-    expect(screen.getByTestId('bill-summary-header')).toBeInTheDocument();
-    expect(screen.queryByTestId('month-summary')).not.toBeInTheDocument();
+    expect(screen.getByTestId('query-error')).toBeInTheDocument();
+    expect(screen.getByText('Failed to load transactions')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'retry' }));
+    expect(mockRefetchTransactions).toHaveBeenCalled();
   });
 });

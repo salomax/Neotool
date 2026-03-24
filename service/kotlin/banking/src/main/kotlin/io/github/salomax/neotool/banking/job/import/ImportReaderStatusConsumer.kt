@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.job.import
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.domain.import.ImportJobRepository
+import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.service.import.ImportProcessor
 import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
@@ -15,8 +15,8 @@ import io.github.salomax.neotool.banking.service.import.ImportValidationQuality
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementExtractionMeta
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
-import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
-import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
+import io.github.salomax.neotool.banking.service.import.ImportEventBus
+import io.github.salomax.neotool.banking.service.import.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedEvent
 import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedProducer

@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo.account
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
 import io.micronaut.transaction.annotation.Transactional

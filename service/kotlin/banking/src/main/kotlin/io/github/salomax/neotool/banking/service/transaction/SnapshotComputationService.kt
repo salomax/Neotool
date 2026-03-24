@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate

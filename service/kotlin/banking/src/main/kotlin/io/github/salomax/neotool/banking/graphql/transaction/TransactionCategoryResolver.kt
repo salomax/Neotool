@@ -4,10 +4,10 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.service.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.service.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
-import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService

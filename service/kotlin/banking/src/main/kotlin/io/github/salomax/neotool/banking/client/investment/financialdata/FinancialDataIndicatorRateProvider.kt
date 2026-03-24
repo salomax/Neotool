@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.client.investment.financialdata
 
 import io.github.salomax.neotool.banking.domain.investment.Indexer
-import io.github.salomax.neotool.banking.domain.investment.IndicatorRateProvider
+import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import jakarta.inject.Singleton

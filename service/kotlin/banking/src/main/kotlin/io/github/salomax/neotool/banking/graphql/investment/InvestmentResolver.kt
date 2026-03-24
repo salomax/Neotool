@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.graphql.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.domain.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
-import io.github.salomax.neotool.banking.domain.investment.CnpjValidator
+import io.github.salomax.neotool.banking.service.investment.CnpjValidator
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService

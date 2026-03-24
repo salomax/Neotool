@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.domain.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.model.investment.AssetMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton

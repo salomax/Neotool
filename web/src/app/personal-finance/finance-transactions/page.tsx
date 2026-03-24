@@ -22,6 +22,7 @@ import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
+import { extractErrorMessage } from '@/shared/utils/error';
 import AddIcon from '@mui/icons-material/Add';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
@@ -195,15 +196,19 @@ export default function FinanceTransactionsPage() {
     setSummaryCreditDebitFilter({ scopeKey: summaryCategoryFilterScopeKey, creditDebitType: null });
   }, [summaryCategoryFilterScopeKey]);
 
+  const selectedBillId = displayMode.kind === 'bill' ? displayMode.selectedBill?.id ?? null : null;
+  const canQueryTransactions = displayMode.kind === 'calendar' || Boolean(selectedBillId);
+
   const { 
     data: transactionsData, 
     loading: transactionsLoading, 
+    error: transactionsError,
     fetchMore, 
     refetch: refetchTransactions 
   } = useQuery<TransactionsQuery>(TRANSACTIONS, {
     variables: {
       financialAccountId: displayMode.kind === 'calendar' ? effectiveSelectedAccountId : undefined,
-      billId: displayMode.kind === 'bill' ? displayMode.selectedBill?.id : undefined,
+      billId: displayMode.kind === 'bill' ? selectedBillId : undefined,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
       tags: displayMode.kind === 'calendar' && summaryTagFilterValue ? [summaryTagFilterValue] : undefined,
@@ -221,8 +226,9 @@ export default function FinanceTransactionsPage() {
           : undefined,
       first: 20,
     },
-    skip: displayMode.kind === 'bill' && !displayMode.selectedBill?.id,
+    skip: !canQueryTransactions,
     notifyOnNetworkStatusChange: true,
+    errorPolicy: 'all',
   });
 
   const {
@@ -240,9 +246,10 @@ export default function FinanceTransactionsPage() {
     skip: displayMode.kind !== 'calendar',
   });
 
-  const { data: importsData, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
+  const { data: importsData, error: importsError, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
     variables: { financialAccountId: effectiveSelectedAccountId },
     skip: !effectiveSelectedAccountId,
+    errorPolicy: 'all',
   });
   const reviewRequiredJob = importsData?.transactionImports?.find((j) => j.status === 'REVIEW_REQUIRED');
 
@@ -292,35 +299,35 @@ export default function FinanceTransactionsPage() {
     displayMode.kind === 'calendar' &&
     Boolean(summaryCategoryFilterSelection || summaryTagFilterValue || summaryCreditDebitTypeFilterEffective);
 
-  const refetchSummary = () => {
+  const refetchBills = displayMode.kind === 'bill' ? displayMode.refetchBills : null;
+
+  const refetchSummary = useCallback(() => {
     if (displayMode.kind === 'calendar') {
       refetchMonthSummary();
-    } else {
-      displayMode.refetchBills();
+      return;
     }
-  };
+    refetchBills?.();
+  }, [displayMode.kind, refetchBills, refetchMonthSummary]);
 
-  useOnTransactionsImported(() => {
-    const canRefetchTransactions = !(displayMode.kind === 'bill' && !displayMode.selectedBill?.id);
-    if (canRefetchTransactions) {
+  const refreshAfterImport = useCallback(() => {
+    if (canQueryTransactions) {
       refetchTransactions();
     }
     if (effectiveSelectedAccountId) {
       refetchImports();
     }
     refetchSummary();
-  });
+  }, [canQueryTransactions, effectiveSelectedAccountId, refetchImports, refetchSummary, refetchTransactions]);
 
-  const handleImportCompleted = () => {
-    const canRefetchTransactions = !(displayMode.kind === 'bill' && !displayMode.selectedBill?.id);
-    if (canRefetchTransactions) {
-      refetchTransactions();
-    }
-    if (effectiveSelectedAccountId) {
-      refetchImports();
-    }
-    refetchSummary();
-  };
+  const handleTransactionsImported = useCallback(() => {
+    refreshAfterImport();
+  }, [refreshAfterImport]);
+
+  useOnTransactionsImported(handleTransactionsImported);
+
+  const handleImportCompleted = useCallback(() => {
+    refreshAfterImport();
+  }, [refreshAfterImport]);
 
   const handleAccountCreated = () => {
     refetchFinancialAccounts();
@@ -509,6 +516,19 @@ export default function FinanceTransactionsPage() {
     >
       <Page>
         <Container maxWidth="xl" sx={{ py: 4 }}>
+          {importsError && effectiveSelectedAccountId && (
+            <Alert
+              severity="warning"
+              sx={{ width: '100%', mb: 2 }}
+              action={
+                <Button size="small" onClick={() => refetchImports()}>
+                  {t('cardGrid.retry')}
+                </Button>
+              }
+            >
+              {extractErrorMessage(importsError, t('errors.default'))}
+            </Alert>
+          )}
           {reviewRequiredJob && (
             <Alert
               severity="info"
@@ -748,22 +768,43 @@ export default function FinanceTransactionsPage() {
             </Collapse>
           )}
 
-          <TransactionTable 
-            transactions={transactions} 
-            financialAccounts={transactionAccounts}
-            loading={transactionsLoading || isFetchingMore} 
-            hasMore={hasMore} 
-            onLoadMore={handleLoadMore} 
-            isCreating={isCreatingTransaction}
-            onCancelCreate={() => setIsCreatingTransaction(false)}
-            onSuccessCreate={() => {
-              refetchTransactions();
-              refetchSummary();
-            }}
-            selectedAccountId={effectiveSelectedAccountId}
-            selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
-            selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
-          />
+          {transactionsError && !transactionsLoading && transactions.length === 0 ? (
+            <Box sx={{ width: '100%' }}>
+              <QueryErrorState error={transactionsError} onRetry={() => refetchTransactions()} />
+            </Box>
+          ) : (
+            <>
+              {transactionsError && (
+                <Alert
+                  severity="warning"
+                  sx={{ width: '100%', mb: 2 }}
+                  action={
+                    <Button size="small" onClick={() => refetchTransactions()}>
+                      {t('cardGrid.retry')}
+                    </Button>
+                  }
+                >
+                  {extractErrorMessage(transactionsError, t('errors.default'))}
+                </Alert>
+              )}
+              <TransactionTable 
+                transactions={transactions} 
+                financialAccounts={transactionAccounts}
+                loading={transactionsLoading || isFetchingMore} 
+                hasMore={hasMore} 
+                onLoadMore={handleLoadMore} 
+                isCreating={isCreatingTransaction}
+                onCancelCreate={() => setIsCreatingTransaction(false)}
+                onSuccessCreate={() => {
+                  refetchTransactions();
+                  refetchSummary();
+                }}
+                selectedAccountId={effectiveSelectedAccountId}
+                selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
+                selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
+              />
+            </>
+          )}
         </Container>
       </Page>
       
