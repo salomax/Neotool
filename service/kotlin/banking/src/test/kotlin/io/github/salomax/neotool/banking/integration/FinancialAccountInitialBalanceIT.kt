@@ -2,7 +2,7 @@ package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountService
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType

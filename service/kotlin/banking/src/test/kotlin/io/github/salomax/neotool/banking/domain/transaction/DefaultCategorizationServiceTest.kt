@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.banking.service.transaction.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -61,7 +62,7 @@ class DefaultCategorizationServiceTest {
         }
 
         @Test
-        fun `keeps '*' in normalized descriptor for matching`() {
+        fun `keeps asterisk in normalized descriptor for matching`() {
             val matchedRule =
                 rule(
                     pattern = "ifood*br",

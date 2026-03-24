@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
+import io.github.salomax.neotool.banking.client.import.messaging.*
+import io.github.salomax.neotool.banking.job.import.*
+import io.github.salomax.neotool.banking.service.import.parser.*
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.common.test.integration.BaseIntegrationTest
 import io.github.salomax.neotool.common.test.integration.KafkaIntegrationTest

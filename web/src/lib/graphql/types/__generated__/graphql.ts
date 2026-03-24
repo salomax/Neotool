@@ -1839,6 +1839,7 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
   updateRole: Role;
   /** Update an existing manual transaction. */
@@ -2125,6 +2126,12 @@ export type MutationSignUpArgs = {
 
 export type MutationSubmitBillImportArgs = {
   input: SubmitBillImportInput;
+};
+
+
+export type MutationUpdateFinancialAccountArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateFinancialAccountInput;
 };
 
 
@@ -3232,6 +3239,20 @@ export type UpdateCategoryInput = {
   icon?: InputMaybe<Scalars['String']['input']>;
   name?: InputMaybe<Scalars['String']['input']>;
   sortOrder?: InputMaybe<Scalars['Int']['input']>;
+};
+
+export type UpdateFinancialAccountInput = {
+  bankData?: InputMaybe<BankAccountDataInput>;
+  cardData?: InputMaybe<CardDataInput>;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
+  includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
+  issuerId?: InputMaybe<Scalars['ID']['input']>;
+  issuerName?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  subtype: FinancialAccountSubtype;
+  themeColor?: InputMaybe<Scalars['String']['input']>;
+  type: FinancialAccountType;
 };
 
 export type UpdateGroupInput = {

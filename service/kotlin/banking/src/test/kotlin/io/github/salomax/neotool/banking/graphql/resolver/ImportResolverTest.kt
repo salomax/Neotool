@@ -2,16 +2,17 @@ package io.github.salomax.neotool.banking.graphql.resolver
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.banking.domain.import.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.domain.import.ImportJobService
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
-import io.github.salomax.neotool.banking.domain.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.graphql.dto.ImportResultDTO
-import io.github.salomax.neotool.banking.graphql.dto.TransactionImportDTO
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.import.ImportResultDTO
+import io.github.salomax.neotool.banking.graphql.import.TransactionImportDTO
+import io.github.salomax.neotool.banking.service.import.ImportDuplicateCandidate
+import io.github.salomax.neotool.banking.service.import.ImportJobService
+import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal

@@ -4,10 +4,10 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountReposito
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
-import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionService
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand

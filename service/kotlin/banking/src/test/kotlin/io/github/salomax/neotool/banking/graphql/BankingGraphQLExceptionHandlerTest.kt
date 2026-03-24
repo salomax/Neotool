@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.graphql
 
+import io.github.salomax.neotool.banking.graphql.config.*
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath

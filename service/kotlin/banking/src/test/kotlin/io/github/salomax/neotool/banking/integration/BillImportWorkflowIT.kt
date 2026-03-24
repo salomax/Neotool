@@ -16,12 +16,12 @@ import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
-import io.github.salomax.neotool.banking.domain.billimport.BillImportService
-import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.billimport.BillImportService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
-import io.github.salomax.neotool.banking.infra.kafka.BillImportStatusConsumer
+import io.github.salomax.neotool.banking.job.import.BillImportStatusConsumer
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat

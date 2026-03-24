@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.domain.attachment
 import io.github.salomax.neotool.banking.domain.investment.HoldingRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.infra.assets.AssetsServiceClient
+import io.github.salomax.neotool.banking.client.assets.AssetsServiceClient
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional

@@ -1,12 +1,14 @@
-package io.github.salomax.neotool.banking.domain.import.dedup
+package io.github.salomax.neotool.banking.service.import.dedup
 
+import io.github.salomax.neotool.banking.service.import.dedup.*
+import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
-import io.github.salomax.neotool.banking.repo.TransactionEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

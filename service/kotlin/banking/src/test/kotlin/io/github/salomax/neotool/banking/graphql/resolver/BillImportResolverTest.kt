@@ -1,11 +1,19 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import io.github.salomax.neotool.banking.graphql.account.*
+import io.github.salomax.neotool.banking.graphql.billimport.*
+import io.github.salomax.neotool.banking.graphql.import.*
+import io.github.salomax.neotool.banking.graphql.investment.*
+import io.github.salomax.neotool.banking.graphql.issuer.*
+import io.github.salomax.neotool.banking.graphql.merchant.*
+import io.github.salomax.neotool.banking.graphql.transaction.*
+import io.github.salomax.neotool.banking.graphql.config.*
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode
-import io.github.salomax.neotool.banking.domain.billimport.BillImportService
+import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType

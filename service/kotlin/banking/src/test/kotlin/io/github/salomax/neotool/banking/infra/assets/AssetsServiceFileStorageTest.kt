@@ -1,5 +1,6 @@
-package io.github.salomax.neotool.banking.infra.assets
+package io.github.salomax.neotool.banking.client.assets
 
+import io.github.salomax.neotool.banking.client.assets.*
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.ConflictException

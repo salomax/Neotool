@@ -1,5 +1,6 @@
-package io.github.salomax.neotool.banking.infra.assets
+package io.github.salomax.neotool.banking.client.assets
 
+import io.github.salomax.neotool.banking.client.assets.*
 import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject

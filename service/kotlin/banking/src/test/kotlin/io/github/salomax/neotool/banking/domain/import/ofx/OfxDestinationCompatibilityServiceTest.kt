@@ -1,10 +1,12 @@
-package io.github.salomax.neotool.banking.domain.import.ofx
+package io.github.salomax.neotool.banking.service.import.ofx
 
+import io.github.salomax.neotool.banking.service.import.ofx.*
+import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.import.parser.OfxStatementIntent
+import io.github.salomax.neotool.banking.service.import.parser.OfxStatementIntent
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import org.assertj.core.api.Assertions.assertThat

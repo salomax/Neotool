@@ -1,10 +1,11 @@
 package io.github.salomax.neotool.banking.rest
 
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.domain.import.ImportJobService
+import io.github.salomax.neotool.banking.service.import.ImportJobService
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
 import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
+import io.github.salomax.neotool.banking.rest.import.ImportSseController
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal

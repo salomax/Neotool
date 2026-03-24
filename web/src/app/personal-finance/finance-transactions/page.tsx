@@ -32,21 +32,21 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
-import { CreateFinancialAccountDrawer } from './components/CreateFinancialAccountDrawer';
-import { ImportTransactionsDrawer } from './components/ImportTransactionsDrawer';
-import { BillImportDrawer } from './components/BillImportDrawer';
-import { FinancialAccountSelector } from './components/FinancialAccountSelector';
-import { EmptyFinancialAccountsState } from './components/EmptyFinancialAccountsState';
+import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
+import { ImportTransactionsDrawer } from './transaction/ImportTransactionsDrawer';
+import { BillImportDrawer } from './bill/BillImportDrawer';
+import { FinancialAccountSelector } from './account/FinancialAccountSelector';
+import { EmptyFinancialAccountsState } from './account/EmptyFinancialAccountsState';
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
 import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { CreditDebitType, FinancialAccount, FinancialAccountType, Transaction } from '@/lib/graphql/types/__generated__/graphql';
-import { MonthYearCarousel } from './components/MonthYearCarousel';
-import { TransactionTable } from './components/TransactionTable';
-import { MonthSummary, MonthSummaryData } from './components/MonthSummary';
-import { CategoryIcon } from './components/category/CategoryIcon';
-import { useAccountDisplayMode } from './hooks/useAccountDisplayMode';
-import { BillCarousel } from './components/BillCarousel';
-import { BillSummaryHeader } from './components/BillSummaryHeader';
+import { MonthYearCarousel } from './summary/MonthYearCarousel';
+import { TransactionTable } from './transaction/TransactionTable';
+import { MonthSummary, MonthSummaryData } from './summary/MonthSummary';
+import { CategoryIcon } from './category/CategoryIcon';
+import { useAccountDisplayMode } from './account/useAccountDisplayMode';
+import { BillCarousel } from './bill/BillCarousel';
+import { BillSummaryHeader } from './bill/BillSummaryHeader';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,

@@ -22,7 +22,7 @@ import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../../i18n';
-import { IssuerSelect } from '../../finance-transactions/components/IssuerSelect';
+import { IssuerSelect } from '../../finance-transactions/account/IssuerSelect';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../../finance-transactions/constants/dateWindow';
 
 interface CreateInvestmentAccountDrawerProps {

@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.account.CreateFinancialAccountCommand
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountService
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapshotRepository
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject

@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
+import io.github.salomax.neotool.banking.service.billimport.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import org.assertj.core.api.Assertions.assertThat

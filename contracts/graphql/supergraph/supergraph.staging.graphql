@@ -2076,6 +2076,7 @@ type Mutation
   For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
+  updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
 
   """Create a new manual transaction."""
   createTransaction(input: CreateTransactionInput!): Transaction! @join__field(graph: BANKING)
@@ -3149,6 +3150,22 @@ input UpdateCategoryInput
   icon: String
   color: String
   sortOrder: Int
+}
+
+input UpdateFinancialAccountInput
+  @join__type(graph: BANKING)
+{
+  type: FinancialAccountType!
+  subtype: FinancialAccountSubtype!
+  name: String
+  issuerId: ID
+  issuerName: String
+  themeColor: String
+  currencyCode: String
+  includeInNetWorth: Boolean
+  includeInDashboard: Boolean
+  bankData: BankAccountDataInput
+  cardData: CardDataInput
 }
 
 input UpdateGroupInput

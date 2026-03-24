@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
+import io.github.salomax.neotool.banking.service.billimport.*
 import io.github.salomax.neotool.banking.domain.billimport.AssistantBillExtractionMeta
-import io.github.salomax.neotool.banking.domain.billimport.AssistantBillTransactionExtractor
+import io.github.salomax.neotool.banking.service.billimport.AssistantBillTransactionExtractor
 import io.github.salomax.neotool.banking.domain.billimport.AssistantBillCardBlock
 import io.github.salomax.neotool.banking.domain.billimport.AssistantBillTransactionPattern
 import org.assertj.core.api.Assertions.assertThat

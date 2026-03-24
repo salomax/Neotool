@@ -5,11 +5,11 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.TRANSFER
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableToMismatchException
 import io.github.salomax.neotool.banking.domain.transaction.CategoryDepthExceededException
-import io.github.salomax.neotool.banking.domain.transaction.CreateCategoryInput
+import io.github.salomax.neotool.banking.service.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateCategoryNameException
 import io.github.salomax.neotool.banking.domain.transaction.SystemCategoryNotEditableException
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryService
+import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
@@ -187,7 +187,7 @@ class TransactionCategoryServiceIT : BankingPostgresIntegrationTest() {
                 service.update(
                     id = requireNotNull(systemCategory.id),
                     input =
-                        io.github.salomax.neotool.banking.domain.transaction.UpdateCategoryInput(
+                        io.github.salomax.neotool.banking.service.transaction.UpdateCategoryInput(
                             name = "Alimentação Editada",
                             icon = null,
                             color = null,

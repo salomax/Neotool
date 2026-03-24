@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.domain.import.nfce
 
+import io.github.salomax.neotool.banking.service.import.nfce.*
+import io.github.salomax.neotool.banking.client.import.nfce.*
+import io.github.salomax.neotool.banking.service.import.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

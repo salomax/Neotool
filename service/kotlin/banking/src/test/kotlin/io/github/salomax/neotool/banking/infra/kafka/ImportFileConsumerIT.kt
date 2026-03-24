@@ -1,9 +1,12 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
+import io.github.salomax.neotool.banking.client.import.messaging.*
+import io.github.salomax.neotool.banking.job.import.*
+import io.github.salomax.neotool.banking.service.import.parser.*
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportSource
-import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedEvent
-import io.github.salomax.neotool.banking.infra.extractor.pdf.PdfExtractorSubmittedProducerKafkaClient
+import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedEvent
+import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedProducerKafkaClient
 import io.github.salomax.neotool.banking.integration.BankingPostgresIntegrationTest
 import io.github.salomax.neotool.common.test.integration.KafkaIntegrationTest
 import io.micronaut.context.annotation.Replaces

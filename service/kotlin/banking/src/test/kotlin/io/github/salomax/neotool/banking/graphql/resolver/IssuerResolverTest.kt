@@ -1,5 +1,13 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
+import io.github.salomax.neotool.banking.graphql.account.*
+import io.github.salomax.neotool.banking.graphql.billimport.*
+import io.github.salomax.neotool.banking.graphql.import.*
+import io.github.salomax.neotool.banking.graphql.investment.*
+import io.github.salomax.neotool.banking.graphql.issuer.*
+import io.github.salomax.neotool.banking.graphql.merchant.*
+import io.github.salomax.neotool.banking.graphql.transaction.*
+import io.github.salomax.neotool.banking.graphql.config.*
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository

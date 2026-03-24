@@ -1,8 +1,10 @@
-package io.github.salomax.neotool.banking.domain.billimport.pdf
+package io.github.salomax.neotool.banking.service.billimport.pdf
 
+import io.github.salomax.neotool.banking.service.billimport.pdf.*
+import io.github.salomax.neotool.banking.service.billimport.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

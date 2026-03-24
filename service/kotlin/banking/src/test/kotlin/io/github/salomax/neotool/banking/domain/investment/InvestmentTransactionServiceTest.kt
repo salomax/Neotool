@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.investment
 
+import io.github.salomax.neotool.banking.service.investment.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype

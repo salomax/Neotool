@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain
 
+import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

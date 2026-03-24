@@ -1,7 +1,10 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
-import io.github.salomax.neotool.banking.domain.billimport.ExtractionRoutingService
-import io.github.salomax.neotool.banking.domain.billimport.BillImportService
+import io.github.salomax.neotool.banking.client.import.messaging.*
+import io.github.salomax.neotool.banking.job.import.*
+import io.github.salomax.neotool.banking.service.import.parser.*
+import io.github.salomax.neotool.banking.service.billimport.ExtractionRoutingService
+import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

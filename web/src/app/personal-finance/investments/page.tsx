@@ -28,7 +28,7 @@ import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { QueryErrorState } from "@/shared/components/ui/feedback";
-import { FinancialAccountSelector } from "../finance-transactions/components/FinancialAccountSelector";
+import { FinancialAccountSelector } from "../finance-transactions/account/FinancialAccountSelector";
 import { ALL_INVESTMENT_HOLDINGS, FINANCIAL_ACCOUNTS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import {
   AllInvestmentHoldingsQuery,

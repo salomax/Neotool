@@ -16,7 +16,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
-import { CategoryIcon } from '../../finance-transactions/components/category/CategoryIcon';
+import { CategoryIcon } from '../../finance-transactions/category/CategoryIcon';
 import { CATEGORY_ICON_NAMES, CATEGORY_COLOR_PALETTE } from '../constants';
 import type { TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
 import { CategoryApplicableTo } from '@/lib/graphql/types/__generated__/graphql';

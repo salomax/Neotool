@@ -1,20 +1,20 @@
 package io.github.salomax.neotool.banking.graphql
 
+import io.github.salomax.neotool.banking.graphql.config.*
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
-import io.github.salomax.neotool.banking.graphql.resolver.FinancialAccountResolver
-import io.github.salomax.neotool.banking.graphql.resolver.ImportResolver
-import io.github.salomax.neotool.banking.graphql.resolver.InvestmentResolver
-import io.github.salomax.neotool.banking.graphql.resolver.IssuerResolver
-import io.github.salomax.neotool.banking.graphql.resolver.AttachmentResolver
-import io.github.salomax.neotool.banking.graphql.resolver.BillImportResolver
-import io.github.salomax.neotool.banking.graphql.resolver.MerchantResolver
-import io.github.salomax.neotool.banking.graphql.resolver.AttachmentResolver
-import io.github.salomax.neotool.banking.graphql.resolver.TransactionCategoryResolver
-import io.github.salomax.neotool.banking.graphql.resolver.TransactionResolver
+import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
+import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
+import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -43,7 +43,6 @@ class BankingWiringFactoryTest {
     private lateinit var pdfImportResolver: BillImportResolver
     private lateinit var attachmentResolver: AttachmentResolver
     private lateinit var investmentResolver: InvestmentResolver
-    private lateinit var attachmentResolver: AttachmentResolver
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
     private lateinit var wiringFactory: BankingWiringFactory
@@ -61,7 +60,6 @@ class BankingWiringFactoryTest {
         pdfImportResolver = mock()
         attachmentResolver = mock()
         investmentResolver = mock()
-        attachmentResolver = mock()
         authorizationChecker = mock()
         whenever(issuerResolver.listIssuers(anyOrNull())).thenReturn(emptyList())
 

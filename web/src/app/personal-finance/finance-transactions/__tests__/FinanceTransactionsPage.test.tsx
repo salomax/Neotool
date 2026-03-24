@@ -3,7 +3,7 @@ import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach, Mock, afterEach } from 'vitest';
 import FinanceTransactionsPage from '../page';
-import { useAccountDisplayMode } from '../hooks/useAccountDisplayMode';
+import { useAccountDisplayMode } from '../account/useAccountDisplayMode';
 import { useQuery } from '@apollo/client/react';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';

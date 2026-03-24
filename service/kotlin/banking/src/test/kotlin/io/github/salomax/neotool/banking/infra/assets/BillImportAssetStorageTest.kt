@@ -1,5 +1,6 @@
-package io.github.salomax.neotool.banking.infra.assets
+package io.github.salomax.neotool.banking.client.assets
 
+import io.github.salomax.neotool.banking.client.assets.*
 import io.micronaut.context.env.Environment
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
