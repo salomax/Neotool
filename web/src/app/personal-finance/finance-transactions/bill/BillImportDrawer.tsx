@@ -52,6 +52,7 @@ import { NumericFormat } from 'react-number-format';
 import dayjs from 'dayjs';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
 import { CategorySelect } from '../category/CategorySelect';
+import { publishTransactionsImported } from '../events';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -1250,6 +1251,7 @@ export function BillImportDrawer({
       const status = result.data?.confirmBillImport?.status;
       if (status === 'DONE' || status === 'COMPLETED') {
         setStep('result');
+        publishTransactionsImported({ source: 'bill' });
         onImportCompleted?.();
       } else {
         setErrorMessage(

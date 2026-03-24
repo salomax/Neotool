@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.service.transaction.*
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -195,6 +196,8 @@ class MonthSummaryQueryServiceTest {
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth))
                 .thenReturn(dirty) // first call: dirty
                 .thenReturn(healed) // second call after healing
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, pastYear, pastMonth))
+                .thenReturn(null)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
 
@@ -218,6 +221,9 @@ class MonthSummaryQueryServiceTest {
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth))
                 .thenReturn(null) // first call: missing
                 .thenReturn(computed) // second call after computation
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, pastYear, pastMonth))
+                .thenReturn(null)
+            whenever(transactionRepository.findEarliestTransactionDate(financialAccountId)).thenReturn(null)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
 
@@ -228,17 +234,61 @@ class MonthSummaryQueryServiceTest {
         }
 
         @Test
-        fun `returns zero-balance summary when snapshot computation yields nothing`() {
+        fun `throws when snapshot computation yields nothing`() {
             whenever(snapshotRepository.findByYearMonth(financialAccountId, pastYear, pastMonth))
                 .thenReturn(null)
                 .thenReturn(null) // still null after recompute (edge case: empty account)
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, pastYear, pastMonth))
+                .thenReturn(null)
+            whenever(transactionRepository.findEarliestTransactionDate(financialAccountId)).thenReturn(null)
             whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
             whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
 
-            val result = service.getMonthSummary(financialAccountId, accountId, pastYear, pastMonth)
+            assertThatThrownBy {
+                service.getMonthSummary(financialAccountId, accountId, pastYear, pastMonth)
+            }
+                .isInstanceOf(IllegalStateException::class.java)
+                .hasMessageContaining("Snapshot recompute completed without materializing row")
+        }
 
-            assertThat(result.closingBalance).isEqualByComparingTo(BigDecimal.ZERO)
-            assertThat(result.openingBalance).isEqualByComparingTo(BigDecimal.ZERO)
+        @Test
+        fun `missing snapshot recomputes from earliest transaction month when no clean snapshot exists`() {
+            val requested = YearMonth.of(2026, 1)
+            val computed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("123.45"))
+
+            whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(null)
+                .thenReturn(computed)
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(null)
+            whenever(transactionRepository.findEarliestTransactionDate(financialAccountId))
+                .thenReturn(LocalDate.of(2025, 1, 15))
+            whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
+
+            service.getMonthSummary(financialAccountId, accountId, requested.year, requested.monthValue)
+
+            verify(snapshotComputationService).recomputeChain(financialAccountId, accountId, 2025, 1)
+        }
+
+        @Test
+        fun `dirty snapshot recomputes from month after latest clean snapshot`() {
+            val requested = YearMonth.of(2026, 1)
+            val dirty = snapshot(year = requested.year, month = requested.monthValue, isDirty = true)
+            val healed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("88.00"))
+            val priorClean = snapshot(year = 2025, month = 10, closingBalance = BigDecimal("77.00"))
+
+            whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(dirty)
+                .thenReturn(healed)
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(priorClean)
+            whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
+
+            service.getMonthSummary(financialAccountId, accountId, requested.year, requested.monthValue)
+
+            verify(snapshotComputationService).recomputeChain(financialAccountId, accountId, 2025, 11)
         }
     }
 

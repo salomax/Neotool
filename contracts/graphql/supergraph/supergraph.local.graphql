@@ -615,7 +615,11 @@ Category total for a period (expense/income breakdown). Percentage of period tot
 type CategoryTotal
   @join__type(graph: BANKING)
 {
-  category: TransactionCategory!
+  """Null when this row represents the special uncategorized bucket."""
+  category: TransactionCategory
+
+  """True when the row aggregates transactions with no category assigned."""
+  uncategorized: Boolean!
   totalAmount: Float!
   transactionCount: Int!
 
@@ -2208,6 +2212,7 @@ type Mutation
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
+  applyTransactionEditToSimilar(id: ID!, matchDescription: String!, input: UpdateTransactionInput!, applyToFuture: Boolean = true, applyToExisting: Boolean = true): SimilarTransactionEditResult! @join__field(graph: BANKING)
 
   """
   Attach an already-uploaded asset to a transaction. The asset must be in READY status.
@@ -2484,6 +2489,7 @@ type Query
   All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
   transactionRules: [TransactionRule!]! @join__field(graph: BANKING)
+  similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview! @join__field(graph: BANKING)
 
   """
   Category totals for a period (expense/income breakdown). Accepts the same filters as the
@@ -2890,6 +2896,21 @@ type SignUpPayload
   requiresVerification: Boolean!
 }
 
+type SimilarTransactionEditPreview
+  @join__type(graph: BANKING)
+{
+  similarCount: Int!
+  matchDescription: String!
+  supportsFuturePropagation: Boolean!
+}
+
+type SimilarTransactionEditResult
+  @join__type(graph: BANKING)
+{
+  affectedCount: Int!
+  futureRuleCreated: Boolean!
+}
+
 input SubmitBillImportInput
   @join__type(graph: BANKING)
 {
@@ -3146,6 +3167,13 @@ enum TransactionSource
 {
   MANUAL @join__enumValue(graph: BANKING)
   OPEN_FINANCE @join__enumValue(graph: BANKING)
+  OFX @join__enumValue(graph: BANKING)
+  CSV @join__enumValue(graph: BANKING)
+  PDF @join__enumValue(graph: BANKING)
+  NFC_E @join__enumValue(graph: BANKING)
+  RECEIPT_OCR @join__enumValue(graph: BANKING)
+
+  """ @deprecated — legacy values kept for backward compatibility """
   PLUGGY @join__enumValue(graph: BANKING)
   PDF_BILL @join__enumValue(graph: BANKING)
 }

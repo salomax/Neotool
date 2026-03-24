@@ -135,6 +135,84 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     }
 
     @Nested
+    @DisplayName("category breakdown")
+    inner class CategoryBreakdownTests {
+        @Test
+        fun `returns uncategorized as an explicit row ordered after real categories`() {
+            val groceriesId = UUID.randomUUID()
+            val transportId = UUID.randomUUID()
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeUpdate(
+                    """
+                    INSERT INTO banking.transaction_categories (
+                        id, account_id, name, applicable_to, icon, color, is_system, sort_order, created_at, updated_at
+                    ) VALUES
+                        ('$groceriesId', '$accountId', 'Mercado', 'EXPENSE', 'shopping_cart', '#2E7D32', false, 0, NOW(), NOW()),
+                        ('$transportId', '$accountId', 'Transporte', 'EXPENSE', 'directions_car', '#1565C0', false, 1, NOW(), NOW())
+                    """.trimIndent(),
+                )
+            }
+
+            val baseTransaction =
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("1.00"),
+                    date = today,
+                    description = "breakdown",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                )
+
+            transactionRepository.save(
+                baseTransaction.copy(
+                    amount = BigDecimal("100.00"),
+                    description = "mercado",
+                    categoryId = groceriesId,
+                ),
+            )
+            transactionRepository.save(
+                baseTransaction.copy(
+                    amount = BigDecimal("200.00"),
+                    description = "transporte",
+                    categoryId = transportId,
+                ),
+            )
+            transactionRepository.save(
+                baseTransaction.copy(
+                    amount = BigDecimal("300.00"),
+                    description = "sem categoria",
+                    categoryId = null,
+                ),
+            )
+
+            val result =
+                transactionRepository.getCategoryBreakdown(
+                    accountId = accountId,
+                    financialAccountId = financialAccountId,
+                    year = today.year,
+                    month = today.monthValue,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+
+            assertThat(result).hasSize(3)
+            assertThat(result.map { it.categoryName ?: "Uncategorized" }).containsExactly("Transporte", "Mercado", "Uncategorized")
+            assertThat(result.last().uncategorized).isTrue()
+            assertThat(result.last().categoryId).isNull()
+            assertThat(result.last().categoryName).isNull()
+            assertThat(result.last().categoryIcon).isNull()
+            assertThat(result.last().categoryColor).isNull()
+            assertThat(result.last().totalAmount).isEqualByComparingTo("300.00")
+        }
+    }
+
+    @Nested
     @DisplayName("softDelete")
     inner class SoftDeleteTests {
         @Test

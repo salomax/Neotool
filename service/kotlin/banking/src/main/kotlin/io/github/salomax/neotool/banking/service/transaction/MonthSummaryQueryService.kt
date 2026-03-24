@@ -66,7 +66,8 @@ open class MonthSummaryQueryService(
 
     /**
      * Returns category totals for the given period (CAT-14). Percentage is computed from sum of amounts.
-     * Used by `transactionsByCategory` query and by MonthSummary category breakdown (CAT-15).
+     * Uncategorized transactions are exposed as an explicit row with category = null,
+     * uncategorized = true, ordered after real categories.
      */
     fun getCategoryBreakdown(
         accountId: UUID,
@@ -315,29 +316,54 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
     ): MonthlyBalanceSnapshot {
+        val requestedYearMonth = YearMonth.of(year, month)
         val existing = snapshotRepository.findByYearMonth(financialAccountId, year, month)
         return when {
             existing == null -> {
-                // No snapshot yet — compute the chain from this month forward.
-                snapshotComputationService.recomputeChain(financialAccountId, accountId, year, month)
+                val recomputeFrom = resolveRecomputeStart(financialAccountId, requestedYearMonth)
+                snapshotComputationService.recomputeChain(
+                    financialAccountId,
+                    accountId,
+                    recomputeFrom.year,
+                    recomputeFrom.monthValue,
+                )
                 snapshotRepository.findByYearMonth(financialAccountId, year, month)
-                    ?: MonthlyBalanceSnapshot(
-                        financialAccountId = financialAccountId,
-                        accountId = accountId,
-                        year = year,
-                        month = month,
-                        openingBalance = BigDecimal.ZERO,
-                        closingBalance = BigDecimal.ZERO,
-                        totalIncome = BigDecimal.ZERO,
-                        totalExpenses = BigDecimal.ZERO,
+                    ?: error(
+                        "Snapshot recompute completed without materializing row for " +
+                            "financialAccountId=$financialAccountId year=$year month=$month",
                     )
             }
             existing.isDirty -> {
-                // Snapshot exists but is dirty — heal it synchronously.
-                snapshotComputationService.recomputeChain(financialAccountId, accountId, year, month)
+                val recomputeFrom = resolveRecomputeStart(financialAccountId, requestedYearMonth)
+                snapshotComputationService.recomputeChain(
+                    financialAccountId,
+                    accountId,
+                    recomputeFrom.year,
+                    recomputeFrom.monthValue,
+                )
                 snapshotRepository.findByYearMonth(financialAccountId, year, month) ?: existing
             }
             else -> existing
         }
+    }
+
+    private fun resolveRecomputeStart(
+        financialAccountId: UUID,
+        requestedYearMonth: YearMonth,
+    ): YearMonth {
+        val priorClean =
+            snapshotRepository.findLatestCleanBefore(
+                financialAccountId,
+                requestedYearMonth.year,
+                requestedYearMonth.monthValue,
+            )
+        if (priorClean != null) {
+            return YearMonth.of(priorClean.year, priorClean.month).plusMonths(1)
+        }
+
+        val earliestTransactionDate = transactionRepository.findEarliestTransactionDate(financialAccountId)
+        return earliestTransactionDate
+            ?.let { YearMonth.of(it.year, it.monthValue) }
+            ?: requestedYearMonth
     }
 }

@@ -209,7 +209,8 @@ open class TransactionService(
 
     /**
      * Returns category totals for the given filter, mirroring the same filter semantics as
-     * [listTransactions]. Transactions without a category are excluded from the breakdown.
+     * [listTransactions]. Uncategorized transactions are surfaced as an explicit row with
+     * category = null and uncategorized = true.
      *
      * [applicableTo] narrows to INCOME (CREDIT) or EXPENSE (DEBIT) transactions only.
      */
@@ -554,9 +555,9 @@ open class TransactionService(
                 existing.billId
             }
 
-        val categoryChanged = command.categoryId != null && command.categoryId != existing.categoryId
+        val categoryChanged = command.categoryIdProvided && command.categoryId != existing.categoryId
         val merchantChanged = command.merchantIdProvided && command.merchantId != existing.merchantId
-        if (categoryChanged || merchantChanged) {
+        if ((categoryChanged || merchantChanged) && existing.source == TransactionSource.MANUAL) {
             try {
                 transactionRuleEngine.learnFromManualAssignment(
                     accountId = accountId,
@@ -585,10 +586,11 @@ open class TransactionService(
                 status = command.status ?: existing.status,
                 notes = command.notes ?: existing.notes,
                 tags = updatedTags,
-                categoryId = command.categoryId ?: existing.categoryId,
+                categoryId = if (command.categoryIdProvided) command.categoryId else existing.categoryId,
                 categorySource =
                     when {
-                        command.categoryId != null -> CategorySource.MANUAL
+                        command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
+                        command.categoryIdProvided -> null
                         else -> existing.categorySource
                     },
                 merchantId = if (command.merchantIdProvided) command.merchantId else existing.merchantId,
@@ -640,6 +642,109 @@ open class TransactionService(
             fromMonth = fromDate.monthValue,
         )
         return saved
+    }
+
+    fun previewSimilarTransactionEdit(
+        id: UUID,
+        accountId: UUID,
+    ): SimilarTransactionEditPreview {
+        val existing =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
+        val baseDescription = existing.baseDescription()
+        if (existing.source == TransactionSource.MANUAL) {
+            return SimilarTransactionEditPreview(
+                similarCount = 0,
+                matchDescription = baseDescription,
+                supportsFuturePropagation = false,
+            )
+        }
+        val count =
+            transactionRepository.countSimilarNonManualTransactions(
+                accountId = accountId,
+                excludeTransactionId = id,
+                baseDescription = baseDescription,
+                creditDebitType = existing.creditDebitType,
+            )
+        return SimilarTransactionEditPreview(
+            similarCount = count,
+            matchDescription = baseDescription,
+            supportsFuturePropagation = true,
+        )
+    }
+
+    @Transactional
+    open fun applyEditToSimilarTransactions(
+        id: UUID,
+        matchDescription: String,
+        command: UpdateTransactionCommand,
+        applyToFuture: Boolean,
+        applyToExisting: Boolean = true,
+        accountId: UUID,
+    ): SimilarTransactionEditResult {
+        val current =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
+        if (current.source == TransactionSource.MANUAL) {
+            return SimilarTransactionEditResult(affectedCount = 0, futureRuleCreated = false)
+        }
+
+        val baseDescription = current.baseDescription()
+
+        val similar =
+            if (applyToExisting) {
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId = accountId,
+                    excludeTransactionId = id,
+                    baseDescription = baseDescription,
+                    creditDebitType = current.creditDebitType,
+                )
+            } else {
+                emptyList()
+            }
+
+        similar.forEach { tx ->
+            transactionRepository.update(
+                tx.copy(
+                    description = if (command.description != null) current.description else tx.description,
+                    tags = if (command.tagsProvided) current.tags else tx.tags,
+                    categoryId = if (command.categoryIdProvided) current.categoryId else tx.categoryId,
+                    categorySource =
+                        when {
+                            command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
+                            command.categoryIdProvided -> null
+                            else -> tx.categorySource
+                        },
+                    updatedAt = Instant.now(),
+                ),
+            )
+        }
+
+        val futureRuleCreated =
+            if (applyToFuture && shouldCreateFuturePropagationRule(command)) {
+                transactionRuleEngine.learnFromManualAssignment(
+                    accountId = accountId,
+                    description = baseDescription,
+                    categoryId =
+                        if (command.categoryIdProvided && command.categoryId != null) {
+                            current.categoryId
+                        } else {
+                            null
+                        },
+                    merchantId = null,
+                    descriptionOverride = command.description?.let { current.description },
+                    tagsOverride = if (command.tagsProvided) current.tags else null,
+                    tagsOverrideProvided = command.tagsProvided,
+                )
+                true
+            } else {
+                false
+            }
+
+        return SimilarTransactionEditResult(
+            affectedCount = similar.size,
+            futureRuleCreated = futureRuleCreated,
+        )
     }
 
     @Transactional
@@ -862,6 +967,14 @@ open class TransactionService(
         return normalized.distinct()
     }
 
+    private fun Transaction.baseDescription(): String =
+        descriptionRaw?.trim()?.takeIf { it.isNotEmpty() } ?: description
+
+    private fun shouldCreateFuturePropagationRule(command: UpdateTransactionCommand): Boolean =
+        (command.categoryIdProvided && command.categoryId != null) ||
+            command.description != null ||
+            command.tagsProvided
+
     private fun isCategoryAccessible(
         category: TransactionCategory,
         accountId: UUID,
@@ -889,4 +1002,15 @@ open class TransactionService(
 data class BulkCategorizeResult(
     val affectedCount: Int,
     val errors: List<String>,
+)
+
+data class SimilarTransactionEditPreview(
+    val similarCount: Int,
+    val matchDescription: String,
+    val supportsFuturePropagation: Boolean,
+)
+
+data class SimilarTransactionEditResult(
+    val affectedCount: Int,
+    val futureRuleCreated: Boolean,
 )

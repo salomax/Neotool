@@ -43,10 +43,12 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { FilePreviewDialog, type PreviewAttachment } from '../../components/FilePreviewDialog';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
+import { SimilarEditDialog } from './SimilarEditDialog';
 import { CategoryIcon } from '../category/CategoryIcon';
 import { CategoryPicker } from '../category/CategoryPicker';
-import { useMutation } from '@apollo/client/react';
-import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { useLazyQuery, useMutation } from '@apollo/client/react';
+import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION, APPLY_TRANSACTION_EDIT_TO_SIMILAR } from '@/lib/graphql/operations/banking/mutations';
+import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
@@ -71,6 +73,28 @@ type DateParts = {
   day: number;
   dateKey: string;
   sortKey: number;
+};
+
+type SimilarEditPreview = {
+  similarCount: number;
+  matchDescription: string;
+  supportsFuturePropagation: boolean;
+};
+
+type PendingSimilarEditPrompt = {
+  transactionId: string;
+  similarCount: number;
+  matchDescription: string;
+  input: {
+    categoryId?: string;
+  };
+};
+
+type ApplySimilarEditResult = {
+  applyTransactionEditToSimilar: {
+    affectedCount: number;
+    futureRuleCreated: boolean;
+  };
 };
 
 const TAG_COLORS = [
@@ -114,6 +138,11 @@ function parseDateParts(value: string): DateParts | null {
   return { year, month, day, dateKey, sortKey: year * 10000 + month * 100 + day };
 }
 
+function shouldPromptForImportedCategoryEdit(transaction: Transaction | null, categoryId: string | null): boolean {
+  if (!transaction) return false;
+  return (transaction.category?.id ?? null) !== categoryId && categoryId !== null;
+}
+
 export function TransactionTable({ 
   transactions,
   financialAccounts,
@@ -153,6 +182,7 @@ export function TransactionTable({
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [previewTransactionId, setPreviewTransactionId] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
@@ -161,6 +191,12 @@ export function TransactionTable({
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
   const [removeTransactionAttachment] = useMutation(REMOVE_TRANSACTION_ATTACHMENT);
+  const [loadSimilarEditPreview] = useLazyQuery<{ similarTransactionEditPreview: SimilarEditPreview }>(
+    SIMILAR_TRANSACTION_EDIT_PREVIEW,
+    { fetchPolicy: 'no-cache' },
+  );
+  const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
+    useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
 
   useEffect(() => {
     transactionsRef.current = transactions;
@@ -305,7 +341,7 @@ export function TransactionTable({
     });
   };
 
-  const handleSelectCategory = (categoryId: string | null) => {
+  const handleSelectCategory = async (categoryId: string | null) => {
     const tx = categoryPickerTransaction;
     closeCategoryPicker();
     if (!tx) return;
@@ -322,47 +358,97 @@ export function TransactionTable({
     }
 
     setUpdatingCategoryTransactionId(tx.id);
-    beginBusy();
-    updateTransaction({
-      variables: {
-        id: tx.id,
-        input: { categoryId },
-      },
-    })
-      .then(() => {
-        toast.success('Categoria atualizada');
-        onSuccessCreate?.();
+    try {
+      beginBusy();
+      const shouldPrompt = shouldPromptForImportedCategoryEdit(tx, categoryId);
+      const previewResult =
+        shouldPrompt
+          ? await loadSimilarEditPreview({
+              variables: { id: tx.id },
+            })
+          : undefined;
 
-        if (categoryId === null) {
-          window.setTimeout(() => {
-            setForceNoCategoryByTransactionId((prev) => {
-              if (!prev[tx.id]) return prev;
-              const latest = transactionsRef.current.find((t) => t.id === tx.id);
-              if (latest?.category) {
-                const next = { ...prev };
-                delete next[tx.id];
-                return next;
-              }
-              return prev;
-            });
-          }, 2500);
-        }
-      })
-      .catch((err) => {
-        if (categoryId === null) {
+      await updateTransaction({
+        variables: {
+          id: tx.id,
+          input: { categoryId },
+        },
+      });
+
+      toast.success('Categoria atualizada');
+      onSuccessCreate?.();
+
+      const preview = previewResult?.data?.similarTransactionEditPreview;
+      if (preview && preview.supportsFuturePropagation && categoryId) {
+        setPendingSimilarEditPrompt({
+          transactionId: tx.id,
+          similarCount: preview.similarCount,
+          matchDescription: preview.matchDescription,
+          input: { categoryId },
+        });
+      }
+
+      if (categoryId === null) {
+        window.setTimeout(() => {
           setForceNoCategoryByTransactionId((prev) => {
             if (!prev[tx.id]) return prev;
-            const next = { ...prev };
-            delete next[tx.id];
-            return next;
+            const latest = transactionsRef.current.find((t) => t.id === tx.id);
+            if (latest?.category) {
+              const next = { ...prev };
+              delete next[tx.id];
+              return next;
+            }
+            return prev;
           });
-        }
-        toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
-      })
-      .finally(() => {
-        setUpdatingCategoryTransactionId(null);
-        endBusy();
+        }, 2500);
+      }
+    } catch (err) {
+      if (categoryId === null) {
+        setForceNoCategoryByTransactionId((prev) => {
+          if (!prev[tx.id]) return prev;
+          const next = { ...prev };
+          delete next[tx.id];
+          return next;
+        });
+      }
+      toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
+    } finally {
+      setUpdatingCategoryTransactionId(null);
+      endBusy();
+    }
+  };
+
+  const handleConfirmSimilarEdit = async (applyToExisting: boolean, applyToFuture: boolean) => {
+    if (!pendingSimilarEditPrompt) return;
+
+    try {
+      beginBusy();
+      const result = await applyTransactionEditToSimilar({
+        variables: {
+          id: pendingSimilarEditPrompt.transactionId,
+          matchDescription: pendingSimilarEditPrompt.matchDescription,
+          input: pendingSimilarEditPrompt.input,
+          applyToFuture,
+          applyToExisting,
+        },
       });
+      const affectedCount = result.data?.applyTransactionEditToSimilar?.affectedCount ?? pendingSimilarEditPrompt.similarCount;
+      toast.success(
+        t('financeTransactions.similarEditPrompt.success', {
+          count: affectedCount,
+        }),
+      );
+      setPendingSimilarEditPrompt(null);
+      onSuccessCreate?.();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível aplicar a alteração às transações semelhantes'));
+    } finally {
+      endBusy();
+    }
+  };
+
+  const handleDismissSimilarEditPrompt = () => {
+    setPendingSimilarEditPrompt(null);
   };
 
   const groupedTransactions = useMemo(() => {
@@ -506,6 +592,7 @@ export function TransactionTable({
   };
 
   const isCardAccount = (account: FinancialAccount) => {
+    if (account.type === FinancialAccountType.Bank) return false;
     if (account.cardData) return true;
     return (
       account.subtype === FinancialAccountSubtype.CreditCard ||
@@ -977,7 +1064,8 @@ export function TransactionTable({
                           {account && (() => {
                             const issuer = account.issuer;
                             const logoUrl = issuer?.logoAsset?.publicUrl;
-                            const last4 = isCardAccount(account) ? getCardLastFourDigits(account, transaction) : null;
+                            const showCardDetails = isCardAccount(account);
+                            const last4 = showCardDetails ? getCardLastFourDigits(account, transaction) : null;
 
                             return (
                               <Stack direction="row" spacing={1} alignItems="center">
@@ -997,14 +1085,16 @@ export function TransactionTable({
                                   <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }} noWrap>
                                     {account.name}
                                   </Typography>
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
-                                    <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
-                                    {last4 && (
-                                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                        •••• {last4}
-                                      </Typography>
-                                    )}
-                                  </Stack>
+                                  {showCardDetails && (
+                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                      <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
+                                      {last4 && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                          •••• {last4}
+                                        </Typography>
+                                      )}
+                                    </Stack>
+                                  )}
                                 </Stack>
                               </Stack>
                             );
@@ -1201,6 +1291,14 @@ export function TransactionTable({
         confirmText={t('actions.delete')}
         confirmColor="error"
         loading={removing}
+      />
+
+      <SimilarEditDialog
+        open={Boolean(pendingSimilarEditPrompt)}
+        onClose={handleDismissSimilarEditPrompt}
+        onConfirm={handleConfirmSimilarEdit}
+        similarCount={pendingSimilarEditPrompt?.similarCount ?? 0}
+        loading={applyingSimilarEdit}
       />
       
       {hasMore && (

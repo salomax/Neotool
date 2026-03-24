@@ -506,6 +506,13 @@
         "OVERDUE": "Overdue"
       }
     },
+    "payBillDialog": {
+      "title": "Pay Bill",
+      "amount": "Payment Amount",
+      "sourceAccount": "Debit Account (optional)",
+      "noSourceAccount": "None",
+      "invalidAmount": "Enter a valid amount greater than zero."
+    },
     "description": "Description",
     "backToCurrentMonth": "Back to current month",
     "actions": {
@@ -517,6 +524,21 @@
       "saving": "Saving...",
       "cancel": "Cancel",
       "delete": "Delete"
+    },
+    "similarEditPrompt": {
+      "title": "Apply to similar transactions?",
+      "titleFutureOnly": "Create a rule for future imports?",
+      "description": "We found similar items. Choose how you want to proceed.",
+      "applyToExistingTitle_one": "Update {{count}} transaction",
+      "applyToExistingTitle_other": "Update {{count}} transactions",
+      "applyToExistingDescription": "Apply the changes to items with the same original description.",
+      "applyToFutureTitle": "Create automation rule",
+      "applyToFutureDescription": "Always apply this description for similar future imports.",
+      "confirmFull": "Apply Changes",
+      "confirm": "Apply",
+      "cancel": "No thanks",
+      "success_one": "Applied the change to {{count}} similar transaction.",
+      "success_other": "Applied the change to {{count}} similar transactions."
     },
     "selector": {
       "allAccounts": "All accounts",
@@ -835,6 +857,7 @@
       "incomeByCategory": "Income by Category",
       "tagsSummary": "Tags",
       "seeAll": "See all",
+      "uncategorized": "Uncategorized",
       "noCategorizedExpenses": "No categorized expenses this month",
       "noCategorizedIncome": "No categorized income this month",
       "noTaggedTransactions": "No tagged transactions this month",

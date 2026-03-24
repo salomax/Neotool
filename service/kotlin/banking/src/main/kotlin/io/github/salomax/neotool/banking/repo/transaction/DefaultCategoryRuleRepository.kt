@@ -21,15 +21,18 @@ class DefaultCategoryRuleRepository(
         entityRepository.findByIdAndDeletedAtIsNull(id)?.let(CategoryRuleMapper::toDomain)
 
     override fun save(rule: TransactionRule): TransactionRule {
+        val mappedRule = CategoryRuleMapper.toEntity(rule)
         val entity =
             if (rule.id == null) {
-                CategoryRuleMapper.toEntity(rule)
+                mappedRule
             } else {
                 entityRepository.findByIdAndDeletedAtIsNull(rule.id)
                     ?.apply {
                         accountId = rule.accountId
                         categoryId = rule.categoryId
                         merchantId = rule.merchantId
+                        descriptionOverride = rule.descriptionOverride
+                        tagsOverrideJson = mappedRule.tagsOverrideJson
                         pattern = rule.pattern
                         patternType = rule.patternType
                         applicableTo = rule.applicableTo
@@ -41,7 +44,7 @@ class DefaultCategoryRuleRepository(
                         createdAt = rule.createdAt
                         updatedAt = rule.updatedAt
                     }
-                    ?: CategoryRuleMapper.toEntity(rule)
+                    ?: mappedRule
             }
         return CategoryRuleMapper.toDomain(entityRepository.save(entity))
     }

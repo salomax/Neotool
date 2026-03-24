@@ -75,6 +75,7 @@ export const TRANSACTIONS = gql`
     $year: Int
     $tags: [String!]
     $categoryId: ID
+    $uncategorized: Boolean
     $creditDebitType: CreditDebitType
     $first: Int
     $after: String
@@ -86,6 +87,7 @@ export const TRANSACTIONS = gql`
       year: $year
       tags: $tags
       categoryId: $categoryId
+      uncategorized: $uncategorized
       creditDebitType: $creditDebitType
       first: $first
       after: $after
@@ -94,6 +96,7 @@ export const TRANSACTIONS = gql`
         node {
           id
           description
+          source
           category {
             id
             name
@@ -167,6 +170,7 @@ export const TRANSACTIONS_BY_CATEGORY = gql`
       year: $year
       applicableTo: $applicableTo
     ) {
+      uncategorized
       category {
         id
         name
@@ -242,6 +246,16 @@ export const TRANSACTION_TAGS = gql`
   }
 `;
 
+export const SIMILAR_TRANSACTION_EDIT_PREVIEW = gql`
+  query SimilarTransactionEditPreview($id: ID!) {
+    similarTransactionEditPreview(id: $id) {
+      similarCount
+      matchDescription
+      supportsFuturePropagation
+    }
+  }
+`;
+
 /** Single transaction import job by ID (includes duplicate candidates for review). */
 export const TRANSACTION_IMPORT = gql`
   query TransactionImport($id: ID!) {
@@ -313,6 +327,7 @@ export const MONTH_SUMMARY = gql`
       isCurrentMonth
       isFutureMonth
       expensesByCategory {
+        uncategorized
         category {
           id
           name
@@ -324,6 +339,7 @@ export const MONTH_SUMMARY = gql`
         percentage
       }
       incomeByCategory {
+        uncategorized
         category {
           id
           name

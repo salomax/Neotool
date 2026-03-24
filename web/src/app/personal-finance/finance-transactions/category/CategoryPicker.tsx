@@ -176,24 +176,31 @@ export function CategoryPicker({
   }, [value, data?.transactionCategories, creditDebitType, onChange]);
 
   const searchLower = searchQuery.trim().toLowerCase();
-  const filteredRoots = useMemo(() => {
-    if (!searchLower) return roots;
-    return roots.filter((r) => r.name.toLowerCase().includes(searchLower));
-  }, [roots, searchLower]);
-
   const filteredChildren = useMemo(() => {
     if (!searchLower) return byParent;
     const out: Record<string, TransactionCategory[]> = {};
     roots.forEach((r) => {
       const id = r.id;
       if (!id) return;
-      const children = (byParent[id] ?? []).filter((c) =>
-        c.name.toLowerCase().includes(searchLower)
-      );
+      const rootMatches = r.name.toLowerCase().includes(searchLower);
+      const allChildren = byParent[id] ?? [];
+      const children = rootMatches
+        ? allChildren
+        : allChildren.filter((c) => c.name.toLowerCase().includes(searchLower));
       if (children.length > 0) out[id] = [...children].sort(compareCategoryForPicker);
     });
     return out;
   }, [roots, byParent, searchLower]);
+
+  const filteredRoots = useMemo(() => {
+    if (!searchLower) return roots;
+    return roots.filter((r) => {
+      if (r.name.toLowerCase().includes(searchLower)) return true;
+      const id = r.id;
+      if (!id) return false;
+      return (filteredChildren[id]?.length ?? 0) > 0;
+    });
+  }, [roots, filteredChildren, searchLower]);
 
 
   const handleSelect = useCallback(

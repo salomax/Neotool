@@ -2,7 +2,6 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
 import jakarta.inject.Singleton
-import java.text.Normalizer
 import java.util.UUID
 
 
@@ -70,26 +69,65 @@ class DefaultTransactionRuleEngine(
                 CategoryApplicableTo.EXPENSE
             }
 
+        var ruleId: UUID? = null
+        var categoryId: UUID? = null
+        var merchantId: UUID? = null
+        var descriptionOverride: String? = null
+        var tagsOverride: List<String>? = null
+        val matchedRuleIds = linkedSetOf<UUID>()
+
         for (rule in rules) {
             if (!isApplicable(rule.applicableTo, side)) continue
-            if (matches(normalized, rule.pattern, rule.patternType)) {
-                // If the rule targets a category that was soft-deleted, skip it silently (CAT-12 edge case).
+            if (!matches(normalized, rule.pattern, rule.patternType)) continue
+
+            val resolvedCategoryId =
                 if (rule.categoryId != null) {
                     val categoryExists = categoryRepository.findById(rule.categoryId) != null
-                    if (!categoryExists) continue
+                    if (categoryExists) rule.categoryId else null
+                } else {
+                    null
                 }
 
-                if (incrementMatchCount) {
-                    ruleRepository.incrementMatchCount(rule.id!!)
-                }
-                return RuleSuggestion(
-                    ruleId = rule.id!!,
-                    categoryId = rule.categoryId,
-                    merchantId = rule.merchantId,
-                )
+            val contributed =
+                (categoryId == null && resolvedCategoryId != null) ||
+                    (merchantId == null && rule.merchantId != null) ||
+                    (descriptionOverride == null && rule.descriptionOverride != null) ||
+                    (tagsOverride == null && rule.tagsOverride != null)
+            if (!contributed) continue
+
+            if (ruleId == null) {
+                ruleId = rule.id
+            }
+            if (resolvedCategoryId != null && categoryId == null) {
+                categoryId = resolvedCategoryId
+            }
+            if (rule.merchantId != null && merchantId == null) {
+                merchantId = rule.merchantId
+            }
+            if (rule.descriptionOverride != null && descriptionOverride == null) {
+                descriptionOverride = rule.descriptionOverride
+            }
+            if (rule.tagsOverride != null && tagsOverride == null) {
+                tagsOverride = rule.tagsOverride
+            }
+            rule.id?.let(matchedRuleIds::add)
+
+            if (categoryId != null && merchantId != null && descriptionOverride != null && tagsOverride != null) {
+                break
             }
         }
-        return null
+
+        if (matchedRuleIds.isEmpty() || ruleId == null) return null
+        if (incrementMatchCount) {
+            matchedRuleIds.forEach(ruleRepository::incrementMatchCount)
+        }
+        return RuleSuggestion(
+            ruleId = ruleId,
+            categoryId = categoryId,
+            merchantId = merchantId,
+            descriptionOverride = descriptionOverride,
+            tagsOverride = tagsOverride,
+        )
     }
 
     override fun learnFromManualAssignment(
@@ -97,10 +135,13 @@ class DefaultTransactionRuleEngine(
         description: String?,
         categoryId: UUID?,
         merchantId: UUID?,
+        descriptionOverride: String?,
+        tagsOverride: List<String>?,
+        tagsOverrideProvided: Boolean,
     ) {
         if (description.isNullOrBlank()) return
-        if (categoryId == null && merchantId == null) return
-        val pattern = normalize(description)
+        if (categoryId == null && merchantId == null && descriptionOverride == null && !tagsOverrideProvided) return
+        val pattern = TransactionDescriptionNormalizer.normalize(description)
         val existing = ruleRepository.findImplicitByPattern(accountId, pattern)
         val now = java.time.Instant.now()
         if (existing == null) {
@@ -109,6 +150,8 @@ class DefaultTransactionRuleEngine(
                     accountId = accountId,
                     categoryId = categoryId,
                     merchantId = merchantId,
+                    descriptionOverride = descriptionOverride,
+                    tagsOverride = if (tagsOverrideProvided) tagsOverride.orEmpty() else null,
                     pattern = pattern,
                     patternType = PatternType.CONTAINS,
                     applicableTo = CategoryApplicableTo.ANY,
@@ -123,12 +166,20 @@ class DefaultTransactionRuleEngine(
         } else {
             val newCategoryId = if (categoryId != null) categoryId else existing.categoryId
             val newMerchantId = if (merchantId != null) merchantId else existing.merchantId
-            val changed = newCategoryId != existing.categoryId || newMerchantId != existing.merchantId
+            val newDescriptionOverride = descriptionOverride ?: existing.descriptionOverride
+            val newTagsOverride = if (tagsOverrideProvided) tagsOverride.orEmpty() else existing.tagsOverride
+            val changed =
+                newCategoryId != existing.categoryId ||
+                    newMerchantId != existing.merchantId ||
+                    newDescriptionOverride != existing.descriptionOverride ||
+                    newTagsOverride != existing.tagsOverride
             if (changed) {
                 ruleRepository.save(
                     existing.copy(
                         categoryId = newCategoryId,
                         merchantId = newMerchantId,
+                        descriptionOverride = newDescriptionOverride,
+                        tagsOverride = newTagsOverride,
                         updatedAt = now,
                     ),
                 )
@@ -137,14 +188,7 @@ class DefaultTransactionRuleEngine(
     }
 
     internal fun normalize(s: String): String =
-        Normalizer.normalize(s, Normalizer.Form.NFD)
-            .replace(Regex("[^\\p{ASCII}]"), "")
-            // Keep '*' as it can be present in provider-generated descriptors (e.g. "NETFLIX.COM*BR").
-            // Strip other punctuation to keep CONTAINS matching robust.
-            .replace(Regex("[^a-zA-Z0-9\\s*]"), " ")
-            .lowercase()
-            .trim()
-            .replace(Regex("\\s+"), " ")
+        TransactionDescriptionNormalizer.normalize(s)
 
     private fun matches(
         normalized: String,

@@ -40,7 +40,8 @@ data class TransactionRuleDTO(
 )
 
 data class CategoryTotalDTO(
-    val category: TransactionCategoryDTO,
+    val category: TransactionCategoryDTO?,
+    val uncategorized: Boolean,
     val totalAmount: Double,
     val transactionCount: Int,
     val percentage: Double,
@@ -124,4 +125,15 @@ data class TransactionConnectionDTO(
     val edges: List<TransactionEdgeDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int?,
+)
+
+data class SimilarTransactionEditPreviewDTO(
+    val similarCount: Int,
+    val matchDescription: String,
+    val supportsFuturePropagation: Boolean,
+)
+
+data class SimilarTransactionEditResultDTO(
+    val affectedCount: Int,
+    val futureRuleCreated: Boolean,
 )

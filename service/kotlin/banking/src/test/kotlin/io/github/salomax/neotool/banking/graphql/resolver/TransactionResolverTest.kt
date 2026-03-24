@@ -690,6 +690,59 @@ class TransactionResolverTest {
     }
 
     @Nested
+    @DisplayName("transactionsByCategory")
+    inner class TransactionsByCategoryTests {
+        @Test
+        fun `returns uncategorized bucket with nullable category`() {
+            whenever(
+                service.getCategoryBreakdown(
+                    accountId = eq(accountId),
+                    financialAccountId = anyOrNull(),
+                    belongsToUserId = anyOrNull(),
+                    belongsToName = anyOrNull(),
+                    tags = anyOrNull(),
+                    billId = anyOrNull(),
+                    categoryId = anyOrNull(),
+                    uncategorized = anyOrNull(),
+                    month = eq(3),
+                    year = eq(2024),
+                    applicableTo = eq(io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.EXPENSE),
+                ),
+            ).thenReturn(
+                listOf(
+                    io.github.salomax.neotool.banking.domain.transaction.CategoryTotal(
+                        category = null,
+                        uncategorized = true,
+                        totalAmount = BigDecimal("42.00"),
+                        transactionCount = 2,
+                        percentage = 100.0,
+                    ),
+                ),
+            )
+
+            val result =
+                resolver.transactionsByCategory(
+                    financialAccountId = null,
+                    belongsToUserId = null,
+                    belongsToName = null,
+                    tags = null,
+                    billId = null,
+                    categoryId = null,
+                    uncategorized = null,
+                    year = 2024,
+                    month = 3,
+                    applicableTo = "EXPENSE",
+                    principal = principal(),
+                )
+
+            assertThat(result).hasSize(1)
+            assertThat(result.first().uncategorized).isTrue()
+            assertThat(result.first().category).isNull()
+            assertThat(result.first().totalAmount).isEqualTo(42.0)
+        }
+    }
+
+    @Nested
     @DisplayName("transactionsByTag")
     inner class TransactionsByTagTests {
         @Test

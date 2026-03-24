@@ -61,6 +61,8 @@ data class UpdateTransactionCommand(
     val tags: List<String>? = null,
     val tagsProvided: Boolean = false,
     val categoryId: UUID? = null,
+    /** True when the caller explicitly set categoryId (even to null = clear category). */
+    val categoryIdProvided: Boolean = false,
     val merchantId: UUID? = null,
     /** True when the caller explicitly set merchantId (even to null = clear merchant). */
     val merchantIdProvided: Boolean = false,

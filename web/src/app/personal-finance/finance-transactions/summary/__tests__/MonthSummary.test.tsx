@@ -129,4 +129,38 @@ describe.sequential('MonthSummary', () => {
     fireEvent.click(screen.getByText('#Weekend'));
     expect(onTagClick).toHaveBeenCalledWith('Weekend');
   });
+
+  it('renders uncategorized as a separate category block and forwards the explicit uncategorized filter', () => {
+    const onCategoryClick = vi.fn();
+    renderWithTheme(
+      <MonthSummary
+        summary={mockSummary}
+        loading={false}
+        expensesByCategory={[
+          {
+            category: { id: 'cat-1', name: 'Mercado', icon: 'shopping_cart', color: '#2E7D32' },
+            uncategorized: false,
+            totalAmount: 200,
+            transactionCount: 3,
+            percentage: 40,
+          },
+          {
+            category: null,
+            uncategorized: true,
+            totalAmount: 300,
+            transactionCount: 2,
+            percentage: 60,
+          },
+        ]}
+        incomeByCategory={[]}
+        tagsSummary={[]}
+        onCategoryClick={onCategoryClick}
+      />,
+    );
+
+    expect(screen.getByText('financeTransactions.monthSummary.uncategorized')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('financeTransactions.monthSummary.uncategorized'));
+    expect(onCategoryClick).toHaveBeenCalledWith({ categoryId: null, uncategorized: true });
+  });
 });

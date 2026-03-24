@@ -254,6 +254,27 @@ export const UPDATE_TRANSACTION = gql`
   }
 `;
 
+export const APPLY_TRANSACTION_EDIT_TO_SIMILAR = gql`
+  mutation ApplyTransactionEditToSimilar(
+    $id: ID!
+    $matchDescription: String!
+    $input: UpdateTransactionInput!
+    $applyToFuture: Boolean
+    $applyToExisting: Boolean
+  ) {
+    applyTransactionEditToSimilar(
+      id: $id
+      matchDescription: $matchDescription
+      input: $input
+      applyToFuture: $applyToFuture
+      applyToExisting: $applyToExisting
+    ) {
+      affectedCount
+      futureRuleCreated
+    }
+  }
+`;
+
 /** Submit a PDF or CSV file for credit card bill extraction (async). Returns a BillImportJob in EXTRACTING status. */
 export const SUBMIT_BILL_IMPORT = gql`
   mutation SubmitBillImport($input: SubmitBillImportInput!) {

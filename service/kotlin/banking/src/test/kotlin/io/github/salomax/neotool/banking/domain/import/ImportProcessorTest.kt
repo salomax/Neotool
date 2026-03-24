@@ -86,6 +86,7 @@ class ImportProcessorTest {
         providerId: String? = "fitid-1",
         amount: BigDecimal = BigDecimal("25.50"),
         description: String = "Coffee",
+        descriptionRaw: String? = null,
         date: LocalDate = today,
     ) = ParsedTransaction(
         providerTransactionId = providerId,
@@ -93,6 +94,7 @@ class ImportProcessorTest {
         amount = amount,
         date = date,
         description = description,
+        descriptionRaw = descriptionRaw,
         currencyCode = "BRL",
     )
 
@@ -186,6 +188,52 @@ class ImportProcessorTest {
             assertThat(result.imported).hasSize(1)
             assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
             assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+        }
+
+        @Test
+        fun `applies description override from categorization when suggestion exists`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-desc")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            val ruleId = UUID.randomUUID()
+            whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(
+                RuleSuggestion(
+                    ruleId = ruleId,
+                    categoryId = null,
+                    merchantId = null,
+                    descriptionOverride = "iFood",
+                ),
+            )
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer { invocation ->
+                invocation.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = processor.process(job, listOf(parsedRow(description = "IFOOD*123")))
+
+            assertThat(result.imported).hasSize(1)
+            assertThat(savedCaptor.firstValue.description).isEqualTo("iFood")
+        }
+
+        @Test
+        fun `matches rules using original description when descriptionRaw is present`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-raw")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            processor.process(
+                job,
+                listOf(parsedRow(description = "iFood", descriptionRaw = "IFOOD*123")),
+            )
+
+            verify(categorizationService).suggestFromRulesRecordingMatch(
+                any(),
+                eq("IFOOD*123"),
+                eq(CreditDebitType.DEBIT),
+            )
         }
 
         @Test

@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.repo.transaction
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
 import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
@@ -97,6 +98,8 @@ open class DefaultTransactionRepository(
     override fun save(transaction: Transaction): Transaction {
         val entity = TransactionMapper.toEntity(transaction)
         val saved = entityRepository.save(entity)
+        // Ensure newly inserted rows are visible to subsequent native recomputes in the same transaction.
+        entityManager.flush()
         val savedId = requireNotNull(saved.id) { "Saved transaction id is required" }
         syncTags(savedId, transaction.accountId, transaction.tags)
         return withTags(listOf(TransactionMapper.toDomain(saved)), transaction.accountId).first()
@@ -174,6 +177,9 @@ open class DefaultTransactionRepository(
     override fun findInitialBalanceDate(financialAccountId: UUID): LocalDate? =
         entityRepository.findEarliestBalanceAdjustmentDate(financialAccountId.toString())
 
+    override fun findEarliestTransactionDate(financialAccountId: UUID): LocalDate? =
+        entityRepository.findEarliestTransactionDate(financialAccountId.toString())
+
     override fun findInDateRangeByCategoryIds(
         accountId: UUID,
         financialAccountId: UUID?,
@@ -221,29 +227,29 @@ open class DefaultTransactionRepository(
         applicableTo: CategoryApplicableTo?,
     ): List<CategoryBreakdownRow> {
         val query =
-            entityManager.createNativeQuery(CATEGORY_BREAKDOWN_SQL)
-                .setParameter("accountId", accountId)
-                .setParameter("financialAccountId", financialAccountId)
-                .setParameter("year", year)
-                .setParameter("month", month)
-                .setParameter("applicableTo", applicableTo?.name)
-
-        @Suppress("UNCHECKED_CAST")
-        val rows = query.resultList as List<Array<Any?>>
-        return rows.map { row ->
-            CategoryBreakdownRow(
-                categoryId = row[0] as UUID,
-                categoryName = row[1] as String,
-                categoryIcon = row[2] as? String,
-                categoryColor = row[3] as? String,
-                parentId = row[4] as? UUID,
-                applicableTo = CategoryApplicableTo.valueOf(row[5] as String),
-                isSystem = (row[6] as Boolean),
-                sortOrder = (row[7] as Number).toInt(),
-                totalAmount = row[8] as BigDecimal,
-                transactionCount = (row[9] as Number).toLong(),
+            TransactionListQuery(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                belongsToUserId = null,
+                belongsToName = null,
+                tags = null,
+                billId = null,
+                categoryIds = null,
+                uncategorizedOnly = false,
+                creditDebitType =
+                    when (applicableTo) {
+                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        else -> null
+                    },
+                types = null,
+                startDate = LocalDate.of(year, month, 1),
+                endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
+                limit = 1,
+                offset = 0,
             )
-        }
+
+        return getFilteredCategoryBreakdown(query, applicableTo)
     }
 
     @Transactional(readOnly = true)
@@ -261,29 +267,69 @@ open class DefaultTransactionRepository(
                     """
                     WITH filtered_transactions AS (
                     ${base.sql}
+                    ),
+                    breakdown_source AS (
+                      SELECT
+                        ft.*,
+                        ft.category_id IS NULL AS is_uncategorized
+                      FROM filtered_transactions ft
                     )
                     SELECT
-                      tc.id             AS category_id,
-                      tc.name           AS category_name,
-                      tc.icon           AS category_icon,
-                      tc.color          AS category_color,
-                      tc.parent_id      AS parent_id,
-                      tc.applicable_to  AS applicable_to,
-                      tc.is_system      AS is_system,
-                      tc.sort_order     AS sort_order,
-                      SUM(ft.amount)    AS total_amount,
-                      COUNT(ft.id)      AS transaction_count
-                    FROM filtered_transactions ft
-                    JOIN banking.transaction_categories tc ON ft.category_id = tc.id AND tc.deleted_at IS NULL
-                    WHERE ft.status IN ('POSTED', 'PENDING')
-                      AND (CAST(:applicableTo AS text) IS NULL
+                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.id END   AS category_id,
+                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.name END AS category_name,
+                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.icon END AS category_icon,
+                      CASE
+                        WHEN bs.is_uncategorized THEN NULL
+                        ELSE tc.color
+                      END               AS category_color,
+                      CASE
+                        WHEN bs.is_uncategorized THEN NULL
+                        ELSE tc.parent_id
+                      END               AS parent_id,
+                      CASE
+                        WHEN bs.is_uncategorized THEN COALESCE(CAST(:applicableTo AS text), 'ANY')
+                        ELSE tc.applicable_to
+                      END               AS applicable_to,
+                      CASE
+                        WHEN bs.is_uncategorized THEN TRUE
+                        ELSE tc.is_system
+                      END               AS is_system,
+                      CASE
+                        WHEN bs.is_uncategorized THEN :uncategorizedSortOrder
+                        ELSE tc.sort_order
+                      END               AS sort_order,
+                      bs.is_uncategorized AS is_uncategorized,
+                      SUM(bs.amount)    AS total_amount,
+                      COUNT(bs.id)      AS transaction_count
+                    FROM breakdown_source bs
+                    LEFT JOIN banking.transaction_categories tc ON bs.category_id = tc.id AND tc.deleted_at IS NULL
+                    WHERE bs.status IN ('POSTED', 'PENDING')
+                      AND (bs.is_uncategorized OR tc.id IS NOT NULL)
+                      AND (
+                           bs.is_uncategorized
+                           OR CAST(:applicableTo AS text) IS NULL
                            OR tc.applicable_to = :applicableTo
-                           OR tc.applicable_to = 'ANY')
-                    GROUP BY tc.id, tc.name, tc.icon, tc.color, tc.parent_id, tc.applicable_to, tc.is_system, tc.sort_order
-                    ORDER BY total_amount DESC
+                           OR tc.applicable_to = 'ANY'
+                      )
+                    GROUP BY
+                      bs.is_uncategorized,
+                      tc.id,
+                      tc.name,
+                      tc.icon,
+                      tc.color,
+                      tc.parent_id,
+                      tc.applicable_to,
+                      tc.is_system,
+                      tc.sort_order
+                    ORDER BY
+                      bs.is_uncategorized ASC,
+                      total_amount DESC
                     """.trimIndent(),
                 ),
-                params,
+                params +
+                    mapOf(
+                        "uncategorizedSortOrder" to UNCATEGORIZED_CATEGORY_SORT_ORDER,
+                    ),
             ).resultList as List<Array<Any?>>
         return rows.map(::mapCategoryBreakdownRow)
     }
@@ -454,6 +500,39 @@ open class DefaultTransactionRepository(
         return query.executeUpdate()
     }
 
+    @Transactional(readOnly = true)
+    override fun countSimilarNonManualTransactions(
+        accountId: UUID,
+        excludeTransactionId: UUID,
+        baseDescription: String,
+        creditDebitType: CreditDebitType,
+    ): Int =
+        (entityManager.createNativeQuery(SIMILAR_NON_MANUAL_COUNT_SQL)
+            .setParameter("accountId", accountId)
+            .setParameter("excludeTransactionId", excludeTransactionId)
+            .setParameter("baseDescription", baseDescription)
+            .setParameter("creditDebitType", creditDebitType.name)
+            .singleResult as Number)
+            .toInt()
+
+    @Transactional(readOnly = true)
+    override fun findSimilarNonManualTransactions(
+        accountId: UUID,
+        excludeTransactionId: UUID,
+        baseDescription: String,
+        creditDebitType: CreditDebitType,
+    ): List<Transaction> {
+        @Suppress("UNCHECKED_CAST")
+        val entities =
+            entityManager.createNativeQuery(SIMILAR_NON_MANUAL_SELECT_SQL, TransactionEntity::class.java)
+                .setParameter("accountId", accountId)
+                .setParameter("excludeTransactionId", excludeTransactionId)
+                .setParameter("baseDescription", baseDescription)
+                .setParameter("creditDebitType", creditDebitType.name)
+                .resultList as List<TransactionEntity>
+        return withTags(entities.map(TransactionMapper::toDomain), accountId)
+    }
+
     companion object {
         private val MONTH_TOTALS_SQL =
             """
@@ -491,49 +570,32 @@ open class DefaultTransactionRepository(
               AND deleted_at IS NULL
             """.trimIndent()
 
-        private val CATEGORY_BREAKDOWN_SQL =
+        private val SIMILAR_NON_MANUAL_COUNT_SQL =
             """
-            SELECT
-              tc.id             AS category_id,
-              tc.name           AS category_name,
-              tc.icon           AS category_icon,
-              tc.color          AS category_color,
-              tc.parent_id      AS parent_id,
-              tc.applicable_to  AS applicable_to,
-              tc.is_system      AS is_system,
-              tc.sort_order     AS sort_order,
-              SUM(t.amount)     AS total_amount,
-              COUNT(t.id)       AS transaction_count
+            SELECT COUNT(*)
             FROM banking.transactions t
-            JOIN banking.transaction_categories tc ON t.category_id = tc.id AND tc.deleted_at IS NULL
-            LEFT JOIN banking.credit_card_bills b ON b.id = t.bill_id AND b.deleted_at IS NULL
             WHERE t.account_id = CAST(:accountId AS uuid)
-              AND (CAST(:financialAccountId AS uuid) IS NULL OR t.financial_account_id = CAST(:financialAccountId AS uuid))
-              AND (
-                  (
-                      t.installment_number > 1
-                      AND DATE_TRUNC('month', COALESCE(b.due_date, t.date)) = DATE_TRUNC('month', MAKE_DATE(:year, :month, 1))
-                  )
-                  OR
-                  (
-                      (t.installment_number IS NULL OR t.installment_number <= 1)
-                      AND t.date >= MAKE_DATE(:year, :month, 1)
-                      AND t.date < (MAKE_DATE(:year, :month, 1) + INTERVAL '1 month')
-                  )
-              )
+              AND t.id <> CAST(:excludeTransactionId AS uuid)
               AND t.deleted_at IS NULL
-              AND t.status IN ('POSTED', 'PENDING')
-              AND (CAST(:applicableTo AS text) IS NULL
-                   OR tc.applicable_to = :applicableTo
-                   OR tc.applicable_to = 'ANY')
-              AND (CAST(:applicableTo AS text) IS NULL
-                   OR t.credit_debit_type = CASE :applicableTo
-                       WHEN 'INCOME' THEN 'CREDIT'
-                       WHEN 'EXPENSE' THEN 'DEBIT'
-                       ELSE t.credit_debit_type END)
-            GROUP BY tc.id, tc.name, tc.icon, tc.color, tc.parent_id, tc.applicable_to, tc.is_system, tc.sort_order
-            ORDER BY total_amount DESC
+              AND t.source <> 'MANUAL'
+              AND t.credit_debit_type = :creditDebitType
+              AND COALESCE(NULLIF(TRIM(t.description_raw), ''), t.description) = :baseDescription
             """.trimIndent()
+
+        private val SIMILAR_NON_MANUAL_SELECT_SQL =
+            """
+            SELECT t.*
+            FROM banking.transactions t
+            WHERE t.account_id = CAST(:accountId AS uuid)
+              AND t.id <> CAST(:excludeTransactionId AS uuid)
+              AND t.deleted_at IS NULL
+              AND t.source <> 'MANUAL'
+              AND t.credit_debit_type = :creditDebitType
+              AND COALESCE(NULLIF(TRIM(t.description_raw), ''), t.description) = :baseDescription
+            ORDER BY t.date DESC, t.created_at DESC
+            """.trimIndent()
+
+        private const val UNCATEGORIZED_CATEGORY_SORT_ORDER = Int.MAX_VALUE
     }
 
     private fun withTags(
@@ -756,16 +818,17 @@ open class DefaultTransactionRepository(
 
     private fun mapCategoryBreakdownRow(row: Array<Any?>): CategoryBreakdownRow =
         CategoryBreakdownRow(
-            categoryId = row[0] as UUID,
-            categoryName = row[1] as String,
+            categoryId = row[0] as? UUID,
+            categoryName = row[1] as? String,
             categoryIcon = row[2] as? String,
             categoryColor = row[3] as? String,
             parentId = row[4] as? UUID,
             applicableTo = CategoryApplicableTo.valueOf(row[5] as String),
             isSystem = row[6] as Boolean,
             sortOrder = (row[7] as Number).toInt(),
-            totalAmount = row[8] as BigDecimal,
-            transactionCount = (row[9] as Number).toLong(),
+            uncategorized = row[8] as Boolean,
+            totalAmount = row[9] as BigDecimal,
+            transactionCount = (row[10] as Number).toLong(),
         )
 
     private fun nanosToMillis(nanos: Long): Double = nanos / 1_000_000.0
@@ -774,4 +837,5 @@ open class DefaultTransactionRepository(
         val sql: String,
         val params: Map<String, Any?>,
     )
+
 }

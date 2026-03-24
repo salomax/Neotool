@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -680,6 +681,278 @@ class TransactionServiceTest {
             )
 
             assertThat(updateCaptor.firstValue.tags).containsExactly("New", "Weekend")
+        }
+
+        @Test
+        fun `clears category when categoryId is explicitly provided as null`() {
+            val txId = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "X",
+                    categoryId = categoryId,
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
+                accountId,
+            )
+
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+            assertThat(updateCaptor.firstValue.categorySource).isNull()
+        }
+
+        @Test
+        fun `does not learn implicit rule when updating non-manual transaction`() {
+            val txId = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Imported",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = categoryId),
+                accountId,
+            )
+
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
+        }
+    }
+
+    @Nested
+    @DisplayName("similar transaction edit propagation")
+    inner class SimilarTransactionEditPropagationTests {
+        @Test
+        fun `preview returns count for similar non-manual transactions`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("15.00"),
+                    date = today,
+                    description = "Renamed",
+                    descriptionRaw = "IFOOD*123",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(
+                transactionRepository.countSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(2)
+
+            val result = service.previewSimilarTransactionEdit(txId, accountId)
+
+            assertThat(result.similarCount).isEqualTo(2)
+            assertThat(result.matchDescription).isEqualTo("IFOOD*123")
+            assertThat(result.supportsFuturePropagation).isTrue()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions updates similar rows and creates future rule`() {
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "iFood",
+                    descriptionRaw = "IFOOD*123",
+                    tags = listOf("Delivery"),
+                    categoryId = UUID.randomUUID(),
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val similar =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("12.00"),
+                    date = today.minusDays(1),
+                    description = "IFOOD*123",
+                    tags = emptyList(),
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+            whenever(
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(listOf(similar))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result =
+                service.applyEditToSimilarTransactions(
+                    id = txId,
+                    matchDescription = "IFOOD*123",
+                    command =
+                        UpdateTransactionCommand(
+                            description = "iFood",
+                            categoryId = current.categoryId,
+                            categoryIdProvided = true,
+                            tags = listOf("Delivery"),
+                            tagsProvided = true,
+                        ),
+                    applyToFuture = true,
+                    accountId = accountId,
+                )
+
+            val updateCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository).update(updateCaptor.capture())
+            assertThat(updateCaptor.firstValue.description).isEqualTo("iFood")
+            assertThat(updateCaptor.firstValue.tags).containsExactly("Delivery")
+            assertThat(updateCaptor.firstValue.categoryId).isEqualTo(current.categoryId)
+            assertThat(updateCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
+            verify(transactionRuleEngine).learnFromManualAssignment(
+                eq(accountId),
+                eq("IFOOD*123"),
+                eq(current.categoryId),
+                eq(null),
+                eq("iFood"),
+                eq(listOf("Delivery")),
+                eq(true),
+            )
+            assertThat(result.affectedCount).isEqualTo(1)
+            assertThat(result.futureRuleCreated).isTrue()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions can clear category without creating future rule`() {
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "iFood",
+                    descriptionRaw = "IFOOD*123",
+                    categoryId = null,
+                    categorySource = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val similar =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("12.00"),
+                    date = today.minusDays(1),
+                    description = "IFOOD*123",
+                    categoryId = UUID.randomUUID(),
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+            whenever(
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(listOf(similar))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result =
+                service.applyEditToSimilarTransactions(
+                    id = txId,
+                    matchDescription = "IFOOD*123",
+                    command = UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
+                    applyToFuture = true,
+                    accountId = accountId,
+                )
+
+            val updateCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository).update(updateCaptor.capture())
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+            assertThat(updateCaptor.firstValue.categorySource).isNull()
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
+            assertThat(result.affectedCount).isEqualTo(1)
+            assertThat(result.futureRuleCreated).isFalse()
         }
     }
 

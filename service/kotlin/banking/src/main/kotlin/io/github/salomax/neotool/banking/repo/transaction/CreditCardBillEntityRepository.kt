@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.model.transaction.CreditCardBillEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -76,6 +77,22 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         status: String,
         updatedAt: Instant,
     )
+
+    /**
+     * Returns the current net spend for a bill: SUM(DEBIT) - SUM(CREDIT) from non-deleted transactions.
+     * Used to determine whether a PAID bill should revert status when a payment is deleted.
+     */
+    @Query(
+        """
+        SELECT COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'), 0) -
+               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT'), 0)
+          FROM banking.transactions t
+         WHERE t.bill_id = :billId
+           AND t.deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun computeCurrentTotal(billId: UUID): BigDecimal
 
     /**
      * Updates only status and updated_at (used when marking bill as PAID after full payment).

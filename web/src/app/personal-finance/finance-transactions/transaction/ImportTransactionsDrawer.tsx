@@ -29,6 +29,7 @@ import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import Link from '@/shared/components/ui/navigation/Link';
 import { cleanErrorMessage, extractErrorCode, extractErrorParameters, extractErrorMessage } from '@/shared/utils/error';
+import { publishTransactionsImported } from '../events';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -217,6 +218,7 @@ export function ImportTransactionsDrawer({
     onEvent: setLastEvent,
     onCompleted: () => {
       setStep('result');
+      publishTransactionsImported({ source: 'file', financialAccountId: targetAccountId });
       onImportCompleted?.();
     },
     onReviewRequired: () => {
@@ -396,6 +398,12 @@ export function ImportTransactionsDrawer({
               {t('financeTransactions.import.accountStep.createAccount')}
           </Link>
         </Box>
+        <Divider sx={{ my: 2 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Drawer.CancelButton onClick={handleClose}>
+            {t('financeTransactions.actions.cancel')}
+          </Drawer.CancelButton>
+        </Box>
       </Box>
     );
   };
@@ -405,6 +413,17 @@ export function ImportTransactionsDrawer({
       return (
         <Box sx={{ p: 1 }}>
           <Alert severity="info">{t('financeTransactions.import.uploadStep.selectAccount')}</Alert>
+          <Divider sx={{ my: 2 }} />
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.import.button')}
+            submittingText={t('financeTransactions.actions.saving')}
+            onCancel={handleCancelFromUpload}
+            onSubmit={handleSubmit}
+            submitDisabled
+            submitting={mutating}
+            submitTestId="import-transactions-submit-button"
+          />
         </Box>
       );
     }
@@ -486,6 +505,17 @@ export function ImportTransactionsDrawer({
         {fileError && (
           <Alert severity="error" sx={{ mt: 2 }}>{fileError}</Alert>
         )}
+        <Divider sx={{ my: 2 }} />
+        <Drawer.ActionButtons
+          cancelText={t('financeTransactions.actions.cancel')}
+          submitText={t('financeTransactions.import.button')}
+          submittingText={t('financeTransactions.actions.saving')}
+          onCancel={handleCancelFromUpload}
+          onSubmit={handleSubmit}
+          submitDisabled={!file || mutating || !targetAccountId}
+          submitting={mutating}
+          submitTestId="import-transactions-submit-button"
+        />
       </Box>
     );
   };
@@ -526,7 +556,10 @@ export function ImportTransactionsDrawer({
     jobId ? (
       <ImportDuplicateReview
         jobId={jobId}
-        onComplete={onImportCompleted}
+        onComplete={() => {
+          publishTransactionsImported({ source: 'file', financialAccountId: targetAccountId });
+          onImportCompleted?.();
+        }}
         onClose={handleClose}
       />
     ) : null;
@@ -555,30 +588,6 @@ export function ImportTransactionsDrawer({
     step === 'review' ? renderReviewStep() :
     renderErrorStep();
 
-  const footer =
-    step === "account" ? (
-      <Drawer.Footer>
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Drawer.CancelButton onClick={handleClose}>
-            {t("financeTransactions.actions.cancel")}
-          </Drawer.CancelButton>
-        </Box>
-      </Drawer.Footer>
-    ) : step === "upload" ? (
-      <Drawer.Footer>
-        <Drawer.ActionButtons
-          cancelText={t("financeTransactions.actions.cancel")}
-          submitText={t("financeTransactions.import.button")}
-          submittingText={t("financeTransactions.actions.saving")}
-          onCancel={handleCancelFromUpload}
-          onSubmit={handleSubmit}
-          submitDisabled={!file || mutating}
-          submitting={mutating}
-          submitTestId="import-transactions-submit-button"
-        />
-      </Drawer.Footer>
-    ) : null;
-
   return (
     <Drawer open={open} onClose={handleClose} anchor="right" size="md">
       <Drawer.Header
@@ -586,7 +595,6 @@ export function ImportTransactionsDrawer({
         showCloseButton
       />
       <Drawer.Body>{body}</Drawer.Body>
-      {footer}
     </Drawer>
   );
 }

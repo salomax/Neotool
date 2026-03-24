@@ -46,14 +46,15 @@ data class MonthTransferTotals(
  * Raw row from category breakdown query (CAT-14). Service layer adds percentage.
  */
 data class CategoryBreakdownRow(
-    val categoryId: UUID,
-    val categoryName: String,
+    val categoryId: UUID?,
+    val categoryName: String?,
     val categoryIcon: String?,
     val categoryColor: String?,
     val parentId: UUID?,
     val applicableTo: CategoryApplicableTo,
     val isSystem: Boolean,
     val sortOrder: Int,
+    val uncategorized: Boolean,
     val totalAmount: BigDecimal,
     val transactionCount: Long,
 )
@@ -71,7 +72,8 @@ data class TagBreakdownRow(
  * Category total for a period (expense/income breakdown). Percentage computed in service.
  */
 data class CategoryTotal(
-    val category: TransactionCategory,
+    val category: TransactionCategory?,
+    val uncategorized: Boolean,
     val totalAmount: BigDecimal,
     val transactionCount: Int,
     val percentage: Double,
@@ -83,20 +85,25 @@ data class CategoryTotal(
         ): CategoryTotal =
             CategoryTotal(
                 category =
-                    TransactionCategory(
-                        id = row.categoryId,
-                        accountId = null,
-                        parentId = row.parentId,
-                        name = row.categoryName,
-                        applicableTo = row.applicableTo,
-                        icon = row.categoryIcon,
-                        color = row.categoryColor,
-                        isSystem = row.isSystem,
-                        sortOrder = row.sortOrder,
-                        deletedAt = null,
-                        createdAt = Instant.EPOCH,
-                        updatedAt = Instant.EPOCH,
-                    ),
+                    if (row.uncategorized) {
+                        null
+                    } else {
+                        TransactionCategory(
+                            id = requireNotNull(row.categoryId) { "categoryId is required for categorized rows" },
+                            accountId = null,
+                            parentId = row.parentId,
+                            name = requireNotNull(row.categoryName) { "categoryName is required for categorized rows" },
+                            applicableTo = row.applicableTo,
+                            icon = row.categoryIcon,
+                            color = row.categoryColor,
+                            isSystem = row.isSystem,
+                            sortOrder = row.sortOrder,
+                            deletedAt = null,
+                            createdAt = Instant.EPOCH,
+                            updatedAt = Instant.EPOCH,
+                        )
+                    },
+                uncategorized = row.uncategorized,
                 totalAmount = row.totalAmount,
                 transactionCount = row.transactionCount.toInt(),
                 percentage = percentage,

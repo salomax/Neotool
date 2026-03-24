@@ -543,11 +543,14 @@ export enum CategorySource {
 /** Category total for a period (expense/income breakdown). Percentage of period total. */
 export type CategoryTotal = {
   __typename: 'CategoryTotal';
-  category: TransactionCategory;
+  /** Null when this row represents the special uncategorized bucket. */
+  category: Maybe<TransactionCategory>;
   /** Percentage of the period total (0–100). */
   percentage: Scalars['Float']['output'];
   totalAmount: Scalars['Float']['output'];
   transactionCount: Scalars['Int']['output'];
+  /** True when the row aggregates transactions with no category assigned. */
+  uncategorized: Scalars['Boolean']['output'];
 };
 
 export type ChatInput = {
@@ -1680,6 +1683,7 @@ export type MonthSummary = {
 export type Mutation = {
   __typename: 'Mutation';
   _bankingService: Maybe<Scalars['String']['output']>;
+  applyTransactionEditToSimilar: SimilarTransactionEditResult;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -1850,6 +1854,15 @@ export type Mutation = {
   updateTransactionRule: TransactionRule;
   updateUser: User;
   verifyEmailWithToken: VerifyEmailPayload;
+};
+
+
+export type MutationApplyTransactionEditToSimilarArgs = {
+  applyToExisting?: InputMaybe<Scalars['Boolean']['input']>;
+  applyToFuture?: InputMaybe<Scalars['Boolean']['input']>;
+  id: Scalars['ID']['input'];
+  input: UpdateTransactionInput;
+  matchDescription: Scalars['String']['input'];
 };
 
 
@@ -2402,6 +2415,7 @@ export type Query = {
   searchInvestmentAssetsAutocomplete: ListedAssetAutocompleteConnection;
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
+  similarTransactionEditPreview: SimilarTransactionEditPreview;
   /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
   topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
@@ -2669,6 +2683,11 @@ export type QuerySearchInvestmentFundsAutocompleteArgs = {
 export type QueryServiceUsageArgs = {
   period: UsagePeriod;
   serviceId: Scalars['String']['input'];
+};
+
+
+export type QuerySimilarTransactionEditPreviewArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2961,6 +2980,19 @@ export type SignUpPayload = {
   user: User;
 };
 
+export type SimilarTransactionEditPreview = {
+  __typename: 'SimilarTransactionEditPreview';
+  matchDescription: Scalars['String']['output'];
+  similarCount: Scalars['Int']['output'];
+  supportsFuturePropagation: Scalars['Boolean']['output'];
+};
+
+export type SimilarTransactionEditResult = {
+  __typename: 'SimilarTransactionEditResult';
+  affectedCount: Scalars['Int']['output'];
+  futureRuleCreated: Scalars['Boolean']['output'];
+};
+
 export type SubmitBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
@@ -3187,10 +3219,16 @@ export type TransactionRule = {
 
 /** How the transaction entered the system. */
 export enum TransactionSource {
+  Csv = 'CSV',
   Manual = 'MANUAL',
+  NfcE = 'NFC_E',
+  Ofx = 'OFX',
   OpenFinance = 'OPEN_FINANCE',
+  Pdf = 'PDF',
   PdfBill = 'PDF_BILL',
-  Pluggy = 'PLUGGY'
+  /**  @deprecated — legacy values kept for backward compatibility  */
+  Pluggy = 'PLUGGY',
+  ReceiptOcr = 'RECEIPT_OCR'
 }
 
 /**

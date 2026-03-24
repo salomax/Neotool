@@ -53,6 +53,9 @@ interface TransactionRuleEngine {
         description: String?,
         categoryId: UUID?,
         merchantId: UUID?,
+        descriptionOverride: String? = null,
+        tagsOverride: List<String>? = null,
+        tagsOverrideProvided: Boolean = false,
     )
 }
 
@@ -60,4 +63,6 @@ data class RuleSuggestion(
     val ruleId: UUID,
     val categoryId: UUID?,
     val merchantId: UUID?,
+    val descriptionOverride: String? = null,
+    val tagsOverride: List<String>? = null,
 )

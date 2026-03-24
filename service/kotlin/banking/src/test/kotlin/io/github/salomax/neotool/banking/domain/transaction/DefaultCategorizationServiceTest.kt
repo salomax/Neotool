@@ -214,6 +214,44 @@ class DefaultCategorizationServiceTest {
             assertThat(suggestion).isNull()
             verify(ruleRepository, never()).incrementMatchCount(requireNotNull(matchedRule.id))
         }
+
+        @Test
+        fun `merges enrichment fields from multiple matching rules`() {
+            val systemRule =
+                rule(
+                    id = UUID.randomUUID(),
+                    categoryId = categoryId,
+                    pattern = "ifood*123",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                )
+            val implicitRule =
+                rule(
+                    id = UUID.randomUUID(),
+                    categoryId = null,
+                    descriptionOverride = "iFood",
+                    pattern = "ifood*123",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    isImplicit = true,
+                )
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(systemRule, implicitRule))
+            whenever(categoryRepository.findById(systemRule.categoryId!!)).thenReturn(category(systemRule.categoryId!!))
+
+            val suggestion = service.suggest(accountId, "IFOOD*123", CreditDebitType.DEBIT)
+
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(systemRule.id),
+                    categoryId = systemRule.categoryId,
+                    merchantId = null,
+                    descriptionOverride = "iFood",
+                    tagsOverride = null,
+                ),
+            )
+            verify(ruleRepository).incrementMatchCount(requireNotNull(systemRule.id))
+            verify(ruleRepository).incrementMatchCount(requireNotNull(implicitRule.id))
+        }
     }
 
     @Nested
@@ -351,7 +389,9 @@ class DefaultCategorizationServiceTest {
 
     private fun rule(
         id: UUID = UUID.randomUUID(),
-        categoryId: UUID = this.categoryId,
+        categoryId: UUID? = this.categoryId,
+        descriptionOverride: String? = null,
+        tagsOverride: List<String>? = null,
         pattern: String,
         patternType: PatternType,
         applicableTo: CategoryApplicableTo,
@@ -362,6 +402,8 @@ class DefaultCategorizationServiceTest {
         accountId = accountId,
         categoryId = categoryId,
         merchantId = null,
+        descriptionOverride = descriptionOverride,
+        tagsOverride = tagsOverride,
         pattern = pattern,
         patternType = patternType,
         applicableTo = applicableTo,

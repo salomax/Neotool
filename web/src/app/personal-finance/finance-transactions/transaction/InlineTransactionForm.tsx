@@ -14,20 +14,21 @@ import {
   Collapse,
 } from '@mui/material';
 import { Button } from '@/shared/components/ui/primitives/Button';
+import { SimilarEditDialog } from './SimilarEditDialog';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import dayjs from 'dayjs';
-import { useQuery, useMutation } from '@apollo/client/react';
-import { FINANCIAL_ACCOUNTS, TRANSACTION_CATEGORIES, TRANSACTION_TAGS } from '@/lib/graphql/operations/banking/queries';
-import { CREATE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { useLazyQuery, useQuery, useMutation } from '@apollo/client/react';
+import { FINANCIAL_ACCOUNTS, SIMILAR_TRANSACTION_EDIT_PREVIEW, TRANSACTION_CATEGORIES, TRANSACTION_TAGS } from '@/lib/graphql/operations/banking/queries';
+import { APPLY_TRANSACTION_EDIT_TO_SIMILAR, CREATE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
 import { 
   FinancialAccount, 
   TransactionCategory, 
-  CreditDebitType, 
+  CreditDebitType,
   TransactionType,
   CategoryApplicableTo,
-  Transaction
+  Transaction,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { BaseMoneyInput } from '@/shared/components/ui/forms/form/MoneyInput';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
@@ -49,6 +50,70 @@ interface InlineTransactionFormProps {
   onExited?: () => void;
   onBusyStart?: () => void;
   onBusyEnd?: () => void;
+}
+
+type SimilarEditPreview = {
+  similarCount: number;
+  matchDescription: string;
+  supportsFuturePropagation: boolean;
+};
+
+type PendingSimilarEditPrompt = {
+  transactionId: string;
+  similarCount: number;
+  matchDescription: string;
+  input: {
+    description?: string;
+    categoryId?: string | null;
+    tags?: string[];
+  };
+};
+
+type ApplySimilarEditResult = {
+  applyTransactionEditToSimilar: {
+    affectedCount: number;
+    futureRuleCreated: boolean;
+  };
+};
+
+function normalizeTags(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+}
+
+function shouldPromptForSimilarEdit(
+  transaction: Transaction | undefined,
+  nextDescription: string,
+  nextCategoryId: string | null,
+  nextTags: string[],
+): boolean {
+  if (!transaction) return false;
+  const descriptionChanged = transaction.description !== nextDescription;
+  const categoryChanged =
+    (transaction.category?.id ?? null) !== nextCategoryId && nextCategoryId !== null;
+  const tagsChanged =
+    JSON.stringify(normalizeTags(transaction.tags ?? [])) !== JSON.stringify(normalizeTags(nextTags));
+  return descriptionChanged || categoryChanged || tagsChanged;
+}
+
+function buildSimilarEditInput(
+  transaction: Transaction,
+  nextDescription: string,
+  nextCategoryId: string | null,
+  nextTags: string[],
+): PendingSimilarEditPrompt['input'] {
+  const input: PendingSimilarEditPrompt['input'] = {};
+  if (transaction.description !== nextDescription) {
+    input.description = nextDescription;
+  }
+  if ((transaction.category?.id ?? null) !== nextCategoryId && nextCategoryId !== null) {
+    input.categoryId = nextCategoryId;
+  }
+  if (
+    JSON.stringify(normalizeTags(transaction.tags ?? [])) !== JSON.stringify(normalizeTags(nextTags))
+  ) {
+    input.tags = nextTags;
+  }
+  return input;
 }
 
 export function InlineTransactionForm({ 
@@ -80,6 +145,13 @@ export function InlineTransactionForm({
   
   const [createTransaction, { loading: creating }] = useMutation(CREATE_TRANSACTION);
   const [updateTransaction, { loading: updating }] = useMutation(UPDATE_TRANSACTION);
+  const [loadSimilarEditPreview] = useLazyQuery<{ similarTransactionEditPreview: SimilarEditPreview }>(
+    SIMILAR_TRANSACTION_EDIT_PREVIEW,
+    { fetchPolicy: 'no-cache' },
+  );
+  const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
+    useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
+  const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
 
   const isDateOutsideWindow = Boolean(date && date.isBefore(minAllowedDate, 'day'));
 
@@ -133,23 +205,44 @@ export function InlineTransactionForm({
     if (isDateOutsideWindow) return;
 
     const formattedAmount = Math.abs(amount);
+    const updateInput = {
+      date: date.format('YYYY-MM-DD'),
+      amount: formattedAmount,
+      description,
+      categoryId,
+      creditDebitType,
+      tags,
+    };
 
     try {
       onBusyStart?.();
       if (initialValues) {
+        const shouldPrompt = shouldPromptForSimilarEdit(initialValues, description, categoryId, tags);
+        const previewResult =
+          shouldPrompt
+            ? await loadSimilarEditPreview({
+                variables: { id: initialValues.id },
+              })
+            : undefined;
+
         await updateTransaction({
           variables: {
             id: initialValues.id,
-            input: {
-              date: date.format('YYYY-MM-DD'),
-              amount: formattedAmount,
-              description,
-              categoryId: categoryId || undefined,
-              creditDebitType,
-              tags: tags.length > 0 ? tags : undefined,
-            }
+            input: updateInput,
           }
         });
+
+        const preview = previewResult?.data?.similarTransactionEditPreview;
+        if (preview && preview.supportsFuturePropagation) {
+          onRefresh?.();
+          setPendingSimilarEditPrompt({
+            transactionId: initialValues.id,
+            similarCount: preview.similarCount,
+            matchDescription: preview.matchDescription,
+            input: buildSimilarEditInput(initialValues, description, categoryId, tags),
+          });
+          return;
+        }
       } else {
         await createTransaction({
           variables: {
@@ -183,6 +276,36 @@ export function InlineTransactionForm({
     } finally {
       onBusyEnd?.();
     }
+  };
+
+  const handleConfirmSimilarEdit = async (applyToExisting: boolean, applyToFuture: boolean) => {
+    if (!pendingSimilarEditPrompt) return;
+
+    try {
+      onBusyStart?.();
+      await applyTransactionEditToSimilar({
+        variables: {
+          id: pendingSimilarEditPrompt.transactionId,
+          matchDescription: pendingSimilarEditPrompt.matchDescription,
+          input: pendingSimilarEditPrompt.input,
+          applyToFuture,
+          applyToExisting,
+        },
+      });
+      setPendingSimilarEditPrompt(null);
+      onSuccess();
+      onClose();
+    } catch (error) {
+      console.error('Failed to apply transaction edit to similar transactions:', error);
+    } finally {
+      onBusyEnd?.();
+    }
+  };
+
+  const handleDismissSimilarEditPrompt = () => {
+    setPendingSimilarEditPrompt(null);
+    onSuccess();
+    onClose();
   };
 
   const categories = categoriesData?.transactionCategories || [];
@@ -560,9 +683,9 @@ export function InlineTransactionForm({
               <Button 
                 variant="contained" 
                 onClick={handleSave}
-                loading={creating || updating}
+                loading={creating || updating || applyingSimilarEdit}
                 size="small"
-                disabled={creating || updating || !amount || !description || !date || !accountId || isDateOutsideWindow}
+                disabled={creating || updating || applyingSimilarEdit || !amount || !description || !date || !accountId || isDateOutsideWindow}
                 sx={{ boxShadow: theme.shadows[4], borderRadius: 1 }}
               >
                 {t('actions.save')}
@@ -573,6 +696,13 @@ export function InlineTransactionForm({
           </Collapse>
         </TableCell>
       </TableRow>
+      <SimilarEditDialog
+        open={Boolean(pendingSimilarEditPrompt)}
+        onClose={handleDismissSimilarEditPrompt}
+        onConfirm={handleConfirmSimilarEdit}
+        similarCount={pendingSimilarEditPrompt?.similarCount ?? 0}
+        loading={applyingSimilarEdit}
+      />
     </>
   );
 }

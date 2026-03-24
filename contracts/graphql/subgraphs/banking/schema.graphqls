@@ -182,6 +182,12 @@ How the transaction entered the system.
 enum TransactionSource {
   MANUAL
   OPEN_FINANCE
+  OFX
+  CSV
+  PDF
+  NFC_E
+  RECEIPT_OCR
+  """ @deprecated — legacy values kept for backward compatibility """
   PLUGGY
   PDF_BILL
 }
@@ -522,7 +528,10 @@ type MonthSummary {
 Category total for a period (expense/income breakdown). Percentage of period total.
 """
 type CategoryTotal {
-  category: TransactionCategory!
+  """Null when this row represents the special uncategorized bucket."""
+  category: TransactionCategory
+  """True when the row aggregates transactions with no category assigned."""
+  uncategorized: Boolean!
   totalAmount: Float!
   transactionCount: Int!
   """Percentage of the period total (0–100)."""
@@ -612,6 +621,17 @@ Distinct tag already used in transactions for the authenticated account.
 """
 type TransactionTagOption {
   tag: String!
+}
+
+type SimilarTransactionEditPreview {
+  similarCount: Int!
+  matchDescription: String!
+  supportsFuturePropagation: Boolean!
+}
+
+type SimilarTransactionEditResult {
+  affectedCount: Int!
+  futureRuleCreated: Boolean!
 }
 
 # ============================================================================
@@ -1338,6 +1358,7 @@ extend type Query {
   All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
   transactionRules: [TransactionRule!]!
+  similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview!
   """
   Category totals for a period (expense/income breakdown). Accepts the same filters as the
   transactions query — the result reflects the category breakdown of exactly those transactions.
@@ -1527,6 +1548,13 @@ extend type Mutation {
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult!
+  applyTransactionEditToSimilar(
+    id: ID!
+    matchDescription: String!
+    input: UpdateTransactionInput!
+    applyToFuture: Boolean = true
+    applyToExisting: Boolean = true
+  ): SimilarTransactionEditResult!
 
   """
   Attach an already-uploaded asset to a transaction. The asset must be in READY status.

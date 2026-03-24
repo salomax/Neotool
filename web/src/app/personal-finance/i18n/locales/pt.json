@@ -506,6 +506,13 @@
         "OVERDUE": "Em atraso"
       }
     },
+    "payBillDialog": {
+      "title": "Pagar Fatura",
+      "amount": "Valor do Pagamento",
+      "sourceAccount": "Conta de Débito (opcional)",
+      "noSourceAccount": "Nenhuma",
+      "invalidAmount": "Informe um valor válido maior que zero."
+    },
     "description": "Descrição",
     "backToCurrentMonth": "Voltar para o mês atual",
     "actions": {
@@ -517,6 +524,21 @@
       "saving": "Salvando...",
       "cancel": "Cancelar",
       "delete": "Excluir"
+    },
+    "similarEditPrompt": {
+      "title": "Aplicar às movimentações semelhantes?",
+      "titleFutureOnly": "Criar regra para importações futuras?",
+      "description": "Identificamos itens similares. Escolha como deseja prosseguir.",
+      "applyToExistingTitle_one": "Atualizar {{count}} movimentação",
+      "applyToExistingTitle_other": "Atualizar {{count}} movimentações",
+      "applyToExistingDescription": "Aplica as alterações em itens com a mesma descrição original.",
+      "applyToFutureTitle": "Criar regra de automação",
+      "applyToFutureDescription": "Sempre aplicar esta descrição para futuras importações similares.",
+      "confirmFull": "Aplicar Alterações",
+      "confirm": "Aplicar",
+      "cancel": "Não, obrigado",
+      "success_one": "Alteração aplicada a {{count}} transação semelhante.",
+      "success_other": "Alteração aplicada a {{count}} transações semelhantes."
     },
     "selector": {
       "allAccounts": "Todas as contas",
@@ -839,6 +861,7 @@
       "incomeByCategory": "Receitas por Categoria",
       "tagsSummary": "Tags",
       "seeAll": "Ver todos",
+      "uncategorized": "Sem categoria",
       "noCategorizedExpenses": "Nenhuma despesa categorizada neste mês",
       "noCategorizedIncome": "Nenhuma receita categorizada neste mês",
       "noTaggedTransactions": "Nenhuma transação com tag neste mês",

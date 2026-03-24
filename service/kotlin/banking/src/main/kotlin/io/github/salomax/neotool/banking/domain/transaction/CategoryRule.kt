@@ -5,14 +5,16 @@ import java.util.UUID
 
 /**
  * Domain model for banking.transaction_rules.
- * Maps a text pattern to a category and/or merchant for auto-assignment on transactions.
- * At least one of [categoryId] or [merchantId] must be non-null.
+ * Maps a text pattern to enrich imported/provider transactions with category, merchant,
+ * description override, and/or tags override.
  */
 data class TransactionRule(
     val id: UUID? = null,
     val accountId: UUID? = null,
     val categoryId: UUID? = null,
     val merchantId: UUID? = null,
+    val descriptionOverride: String? = null,
+    val tagsOverride: List<String>? = null,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
@@ -25,8 +27,13 @@ data class TransactionRule(
     val updatedAt: Instant = Instant.now(),
 ) {
     init {
-        require(categoryId != null || merchantId != null) {
-            "TransactionRule must target at least one of categoryId or merchantId"
+        require(
+            categoryId != null ||
+                merchantId != null ||
+                descriptionOverride != null ||
+                tagsOverride != null,
+        ) {
+            "TransactionRule must target at least one enrichment field"
         }
     }
 }

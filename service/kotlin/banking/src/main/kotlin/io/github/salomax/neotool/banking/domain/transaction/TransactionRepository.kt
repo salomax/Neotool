@@ -80,6 +80,12 @@ interface TransactionRepository {
     fun findInitialBalanceDate(financialAccountId: UUID): LocalDate?
 
     /**
+     * Returns the date of the earliest non-deleted transaction for the financial account,
+     * or null when the account has no transactions.
+     */
+    fun findEarliestTransactionDate(financialAccountId: UUID): LocalDate?
+
+    /**
      * Returns transactions in the given month/year for the account (optionally scoped to one financial account)
      * whose category_id is in [categoryIds]. Used for categoryId filter on transactions query.
      */
@@ -135,8 +141,8 @@ interface TransactionRepository {
 
     /**
      * Returns category totals for the given period (CAT-14). Only POSTED/PENDING transactions
-     * with a category; optional filter by financialAccountId and applicableTo (INCOME/EXPENSE).
-     * Ordered by totalAmount DESC.
+     * are included; uncategorized transactions are exposed as a special row with
+     * category = null and uncategorized = true, ordered last.
      */
     fun getCategoryBreakdown(
         accountId: UUID,
@@ -149,7 +155,7 @@ interface TransactionRepository {
     /**
      * Returns category totals for the exact filtered transaction set described by [query].
      * Used by transactions summary/filter UX so breakdown semantics stay aligned with
-     * the paginated transactions query.
+     * the paginated transactions query, including the explicit uncategorized row.
      */
     fun getFilteredCategoryBreakdown(
         query: TransactionListQuery,
@@ -176,6 +182,28 @@ interface TransactionRepository {
         query: TransactionListQuery,
         applicableTo: CategoryApplicableTo?,
     ): List<TagBreakdownRow>
+
+    /**
+     * Counts non-manual transactions for the account that share the same original/base description
+     * and direction, excluding [excludeTransactionId].
+     */
+    fun countSimilarNonManualTransactions(
+        accountId: UUID,
+        excludeTransactionId: UUID,
+        baseDescription: String,
+        creditDebitType: CreditDebitType,
+    ): Int
+
+    /**
+     * Loads non-manual transactions for the account that share the same original/base description
+     * and direction, excluding [excludeTransactionId].
+     */
+    fun findSimilarNonManualTransactions(
+        accountId: UUID,
+        excludeTransactionId: UUID,
+        baseDescription: String,
+        creditDebitType: CreditDebitType,
+    ): List<Transaction>
 }
 
 /**

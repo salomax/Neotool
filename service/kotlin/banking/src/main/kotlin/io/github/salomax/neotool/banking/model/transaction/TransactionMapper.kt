@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.banking.model.transaction
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
@@ -8,6 +10,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
  * Maps between domain models and JPA entities for transactions and categories.
  */
 object TransactionMapper {
+    private val objectMapper = ObjectMapper()
     // ── TransactionCategory ──────────────────────────────────────────────────
 
     fun toDomain(entity: TransactionCategoryEntity): TransactionCategory =
@@ -83,6 +86,7 @@ object TransactionMapper {
             providerAccountId = entity.providerAccountId,
             importFingerprint = entity.importFingerprint,
             importJobId = entity.importJobId,
+            sourceData = entity.sourceData?.let { objectMapper.readValue<Map<String, Any?>>(it) },
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -127,6 +131,7 @@ object TransactionMapper {
             providerAccountId = domain.providerAccountId,
             importFingerprint = domain.importFingerprint,
             importJobId = domain.importJobId,
+            sourceData = domain.sourceData?.let { objectMapper.writeValueAsString(it) },
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,

@@ -176,6 +176,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "similarTransactionEditPreview",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        transactionResolver.similarTransactionEditPreview(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "transactionsByCategory",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
@@ -427,6 +438,32 @@ class BankingWiringFactory(
                             env.getArgument<String>("categoryId")
                                 ?: throw IllegalArgumentException("categoryId is required")
                         transactionResolver.bulkCategorize(transactionIds, categoryId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "applyTransactionEditToSimilar",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val matchDescription =
+                            env.getArgument<String>("matchDescription")
+                                ?: throw IllegalArgumentException("matchDescription is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val applyToFuture = env.getArgument<Boolean?>("applyToFuture") ?: true
+                        val applyToExisting = env.getArgument<Boolean?>("applyToExisting") ?: true
+                        transactionResolver.applyTransactionEditToSimilar(
+                            id = id,
+                            matchDescription = matchDescription,
+                            input = input,
+                            applyToFuture = applyToFuture,
+                            applyToExisting = applyToExisting,
+                            principal = principal,
+                        )
                     }
                 },
             )

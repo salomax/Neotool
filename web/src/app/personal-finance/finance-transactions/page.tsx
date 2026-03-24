@@ -42,11 +42,13 @@ import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.gene
 import { CreditDebitType, FinancialAccount, FinancialAccountType, Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { MonthYearCarousel } from './summary/MonthYearCarousel';
 import { TransactionTable } from './transaction/TransactionTable';
-import { MonthSummary, MonthSummaryData } from './summary/MonthSummary';
+import { CategoryFilterSelection, MonthSummary, MonthSummaryData } from './summary/MonthSummary';
 import { CategoryIcon } from './category/CategoryIcon';
 import { useAccountDisplayMode } from './account/useAccountDisplayMode';
 import { BillCarousel } from './bill/BillCarousel';
 import { BillSummaryHeader } from './bill/BillSummaryHeader';
+import { PayBillDialog } from './bill/PayBillDialog';
+import { useOnTransactionsImported } from './events';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,
@@ -73,6 +75,7 @@ export default function FinanceTransactionsPage() {
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
   const [isCreatingTransaction, setIsCreatingTransaction] = useState(false);
+  const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
 
   const theme = useTheme();
   const mountedRef = useRef(true);
@@ -97,6 +100,11 @@ export default function FinanceTransactionsPage() {
     [data?.financialAccounts],
   );
 
+  const bankAccounts = useMemo(
+    () => (data?.financialAccounts ?? []).filter((account) => account.type === FinancialAccountType.Bank),
+    [data?.financialAccounts],
+  );
+
   const effectiveSelectedAccountId = useMemo(() => {
     return selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : null;
   }, [selectedAccountId, transactionAccounts]);
@@ -114,22 +122,27 @@ export default function FinanceTransactionsPage() {
     return `${displayMode.kind}:${effectiveSelectedAccountId ?? ''}:${calendarYear ?? ''}:${calendarMonth ?? ''}`;
   }, [calendarMonth, calendarYear, displayMode.kind, effectiveSelectedAccountId]);
 
-  const [summaryCategoryFilter, setSummaryCategoryFilter] = useState<{ scopeKey: string; categoryId: string | null }>(() => ({
+  const [summaryCategoryFilter, setSummaryCategoryFilter] = useState<{ scopeKey: string; selection: CategoryFilterSelection | null }>(() => ({
     scopeKey: summaryCategoryFilterScopeKey,
-    categoryId: null,
+    selection: null,
   }));
 
-  const summaryCategoryFilterId =
-    summaryCategoryFilter.scopeKey === summaryCategoryFilterScopeKey ? summaryCategoryFilter.categoryId : null;
+  const summaryCategoryFilterSelection =
+    summaryCategoryFilter.scopeKey === summaryCategoryFilterScopeKey ? summaryCategoryFilter.selection : null;
+  const summaryCategoryFilterId = summaryCategoryFilterSelection?.categoryId ?? null;
+  const summaryUncategorizedFilterActive = summaryCategoryFilterSelection?.uncategorized === true;
 
-  const setSummaryCategoryFilterId = useCallback((categoryId: string | null) => {
+  const setSummaryCategoryFilterSelection = useCallback((selection: CategoryFilterSelection | null) => {
     setSummaryCategoryFilter((prev) => {
       const scopeKey = summaryCategoryFilterScopeKey;
-      const current = prev.scopeKey === scopeKey ? prev.categoryId : null;
+      const current = prev.scopeKey === scopeKey ? prev.selection : null;
+      const isSameSelection =
+        current?.categoryId === selection?.categoryId &&
+        current?.uncategorized === selection?.uncategorized;
 
       return {
         scopeKey,
-        categoryId: categoryId && current === categoryId ? null : categoryId,
+        selection: selection && !isSameSelection ? selection : null,
       };
     });
   }, [summaryCategoryFilterScopeKey]);
@@ -194,7 +207,14 @@ export default function FinanceTransactionsPage() {
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
       tags: displayMode.kind === 'calendar' && summaryTagFilterValue ? [summaryTagFilterValue] : undefined,
-      categoryId: displayMode.kind === 'calendar' && summaryCategoryFilterId ? summaryCategoryFilterId : undefined,
+      categoryId:
+        displayMode.kind === 'calendar' && summaryCategoryFilterId && !summaryUncategorizedFilterActive
+          ? summaryCategoryFilterId
+          : undefined,
+      uncategorized:
+        displayMode.kind === 'calendar' && summaryUncategorizedFilterActive
+          ? true
+          : undefined,
       creditDebitType:
         displayMode.kind === 'calendar' && summaryCreditDebitTypeFilterEffective
           ? summaryCreditDebitTypeFilterEffective
@@ -231,21 +251,28 @@ export default function FinanceTransactionsPage() {
   const summaryTags = monthSummaryData?.monthSummary?.tagsSummary ?? null;
 
   const summaryCategoryFilterMeta = useMemo(() => {
-    if (!summaryCategoryFilterId || (!summaryExpensesByCategory && !summaryIncomeByCategory)) return null;
+    if (!summaryCategoryFilterSelection || (!summaryExpensesByCategory && !summaryIncomeByCategory)) return null;
     const lists = [
       ...(summaryExpensesByCategory ?? []),
       ...(summaryIncomeByCategory ?? []),
     ];
-    const hit = lists.find((c) => c.category.id === summaryCategoryFilterId);
+    const hit = lists.find((c) =>
+      summaryCategoryFilterSelection.uncategorized
+        ? c.uncategorized
+        : c.category?.id === summaryCategoryFilterSelection.categoryId,
+    );
     if (!hit) return null;
     return {
-      name: hit.category.name,
-      icon: hit.category.icon,
-      color: hit.category.color,
+      name: hit.uncategorized ? t('financeTransactions.monthSummary.uncategorized') : hit.category?.name,
+      icon: hit.uncategorized ? null : hit.category?.icon,
+      color: hit.uncategorized ? theme.palette.grey[600] : hit.category?.color,
     };
-  }, [summaryCategoryFilterId, summaryExpensesByCategory, summaryIncomeByCategory]);
+  }, [summaryCategoryFilterSelection, summaryExpensesByCategory, summaryIncomeByCategory, t, theme]);
 
-  const summaryCategoryChipAccent = summaryCategoryFilterMeta?.color ?? theme.palette.primary.main;
+  const summaryCategoryChipAccent =
+    summaryUncategorizedFilterActive
+      ? theme.palette.grey[600]
+      : summaryCategoryFilterMeta?.color ?? theme.palette.primary.main;
 
   const summaryTagFilterMeta = useMemo(() => {
     if (!summaryTagFilterValue || !summaryTags) return null;
@@ -263,7 +290,7 @@ export default function FinanceTransactionsPage() {
 
   const summaryTableFiltersOpen =
     displayMode.kind === 'calendar' &&
-    Boolean(summaryCategoryFilterId || summaryTagFilterValue || summaryCreditDebitTypeFilterEffective);
+    Boolean(summaryCategoryFilterSelection || summaryTagFilterValue || summaryCreditDebitTypeFilterEffective);
 
   const refetchSummary = () => {
     if (displayMode.kind === 'calendar') {
@@ -272,6 +299,17 @@ export default function FinanceTransactionsPage() {
       displayMode.refetchBills();
     }
   };
+
+  useOnTransactionsImported(() => {
+    const canRefetchTransactions = !(displayMode.kind === 'bill' && !displayMode.selectedBill?.id);
+    if (canRefetchTransactions) {
+      refetchTransactions();
+    }
+    if (effectiveSelectedAccountId) {
+      refetchImports();
+    }
+    refetchSummary();
+  });
 
   const handleImportCompleted = () => {
     const canRefetchTransactions = !(displayMode.kind === 'bill' && !displayMode.selectedBill?.id);
@@ -444,8 +482,8 @@ export default function FinanceTransactionsPage() {
                   expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
                   incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
                   tagsSummary={monthSummaryData?.monthSummary?.tagsSummary ?? []}
-                  onCategoryClick={(categoryId) => setSummaryCategoryFilterId(categoryId)}
-                  activeCategoryFilterId={summaryCategoryFilterId}
+                  onCategoryClick={(selection) => setSummaryCategoryFilterSelection(selection)}
+                  activeCategoryFilter={summaryCategoryFilterSelection}
                   onTagClick={(tag) => setSummaryTagFilterValue(tag)}
                   activeTagFilter={summaryTagFilterValue}
                   onCreditDebitTypeClick={handleCreditDebitTypeFilter}
@@ -461,9 +499,7 @@ export default function FinanceTransactionsPage() {
                   creditLimit: selectedAccount?.cardData?.creditLimit
                 } : undefined}
                 loading={displayMode.loading}
-                onPayClick={() => {
-                  // TODO: Implement pay bill
-                }}
+                onPayClick={() => setIsPayBillDialogOpen(true)}
               />
             )}
             <Divider sx={{ my: 3 }} />           
@@ -632,7 +668,7 @@ export default function FinanceTransactionsPage() {
                         }}
                       />
                     )}
-                    {summaryCategoryFilterId && (
+                    {summaryCategoryFilterSelection && (
                       <Chip
                         icon={
                           <CategoryIcon
@@ -642,9 +678,13 @@ export default function FinanceTransactionsPage() {
                           />
                         }
                         label={t('financeTransactions.monthSummary.filteringByCategory', {
-                          name: summaryCategoryFilterMeta?.name ?? summaryCategoryFilterId,
+                          name:
+                            summaryCategoryFilterMeta?.name ??
+                            (summaryUncategorizedFilterActive
+                              ? t('financeTransactions.monthSummary.uncategorized')
+                              : summaryCategoryFilterId),
                         })}
-                        onDelete={() => setSummaryCategoryFilterId(null)}
+                        onDelete={() => setSummaryCategoryFilterSelection(null)}
                         deleteIcon={
                           <CloseIcon
                             fontSize="small"
@@ -765,6 +805,16 @@ export default function FinanceTransactionsPage() {
         open={isImportBillDrawerOpen}
         onClose={() => setIsImportBillDrawerOpen(false)}
         onImportCompleted={handleImportCompleted}
+      />
+      <PayBillDialog
+        open={isPayBillDialogOpen}
+        bill={displayMode.kind === 'bill' ? displayMode.selectedBill : null}
+        bankAccounts={bankAccounts}
+        onClose={() => setIsPayBillDialogOpen(false)}
+        onSuccess={() => {
+          if (displayMode.kind === 'bill') displayMode.refetchBills();
+          refetchTransactions();
+        }}
       />
     </SidebarLayout>
   );

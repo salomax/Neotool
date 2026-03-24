@@ -55,7 +55,15 @@ private fun ImportSource.toTransactionSource(): TransactionSource =
     when (this) {
         ImportSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
         ImportSource.PLUGGY -> TransactionSource.OPEN_FINANCE
-        else -> TransactionSource.MANUAL
+        ImportSource.OFX -> TransactionSource.OFX
+        ImportSource.CSV_AUTO,
+        ImportSource.CSV_NUBANK,
+        ImportSource.CSV_ITAU,
+        ImportSource.CSV_BRADESCO,
+        ImportSource.CSV_SANTANDER -> TransactionSource.CSV
+        ImportSource.NFC_E -> TransactionSource.NFC_E
+        ImportSource.RECEIPT_OCR -> TransactionSource.RECEIPT_OCR
+        else -> TransactionSource.MANUAL // AUTO: format not yet determined
     }
 
 /**
@@ -202,11 +210,12 @@ open class ImportProcessor(
                         CreditDebitType.DEBIT -> TransactionType.OTHER_EXPENSE
                         CreditDebitType.CREDIT -> TransactionType.OTHER_INCOME
                     }
+                val ruleLookupDescription = parsed.descriptionRaw?.takeIf { it.isNotBlank() } ?: parsed.description
                 val categorySuggestion =
                     try {
                         categorizationService.suggestFromRulesRecordingMatch(
                             categorizationRules,
-                            parsed.description,
+                            ruleLookupDescription,
                             parsed.creditDebitType,
                         )
                     } catch (e: Exception) {
@@ -231,14 +240,16 @@ open class ImportProcessor(
                         currencyCode = parsed.currencyCode,
                         date = parsed.date,
                         transactionDatetime = parsed.transactionDatetime,
-                        description = parsed.description,
+                        description = categorySuggestion?.descriptionOverride ?: parsed.description,
                         descriptionRaw = parsed.descriptionRaw,
+                        tags = categorySuggestion?.tagsOverride ?: emptyList(),
                         counterpartyName = parsed.counterpartyName,
                         counterpartyDocument = parsed.counterpartyDocument,
                         providerTransactionId = parsed.providerTransactionId,
                         totalInstallments = parsed.totalInstallments,
                         importFingerprint = fingerprint,
                         importJobId = importJobId,
+                        sourceData = buildSourceData(parsed),
                         categoryId = categorySuggestion?.categoryId,
                         categorySource = categorySuggestion?.let { CategorySource.RULE },
                         createdAt = now,
@@ -258,4 +269,16 @@ open class ImportProcessor(
             errors = errors,
         )
     }
+
+    private fun buildSourceData(parsed: ParsedTransaction): Map<String, Any?> =
+        buildMap {
+            put("description", parsed.description)
+            parsed.descriptionRaw?.let { put("descriptionRaw", it) }
+            put("amount", parsed.amount)
+            put("currencyCode", parsed.currencyCode)
+            parsed.counterpartyName?.let { put("counterpartyName", it) }
+            parsed.counterpartyDocument?.let { put("counterpartyDocument", it) }
+            parsed.providerTransactionId?.let { put("providerTransactionId", it) }
+            parsed.totalInstallments?.let { put("totalInstallments", it) }
+        }
 }
