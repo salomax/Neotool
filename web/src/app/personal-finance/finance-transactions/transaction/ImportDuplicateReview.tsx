@@ -10,6 +10,7 @@ import {
   CardContent,
   Chip,
   Collapse,
+  Alert,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useQuery, useMutation } from '@apollo/client/react';
@@ -17,6 +18,8 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { TRANSACTION_IMPORT } from '@/lib/graphql/operations/banking/queries';
 import { RESOLVE_IMPORT_DUPLICATE } from '@/lib/graphql/operations/banking/mutations';
+import { useToast } from '@/shared/providers';
+import { extractErrorMessage } from '@/shared/utils/error';
 
 type DuplicateResolution = 'KEEP_BOTH' | 'USE_INCOMING' | 'KEEP_EXISTING';
 
@@ -39,9 +42,11 @@ export interface ImportDuplicateReviewProps {
 
 export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDuplicateReviewProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const toast = useToast();
   const [resolutions, setResolutions] = useState<Record<number, DuplicateResolution>>({});
   const [resolvedRows, setResolvedRows] = useState<Set<number>>(new Set());
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const { data, loading, error } = useQuery<{
     transactionImport: {
@@ -84,11 +89,13 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
   const setResolution = useCallback((rowIndex: number, resolution: DuplicateResolution) => {
     setResolutions((prev) => ({ ...prev, [rowIndex]: resolution }));
     setResolvedRows((prev) => new Set(prev).add(rowIndex));
+    setSubmitError(null);
   }, []);
 
   const handleFinish = useCallback(async () => {
     if (!canFinish || !jobId) return;
     setSubmitting(true);
+    setSubmitError(null);
     try {
       for (const c of candidates) {
         const resolution = resolutions[c.rowIndex];
@@ -102,10 +109,14 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
       }
       onComplete?.();
       onClose?.();
+    } catch (err) {
+      const message = extractErrorMessage(err, t('financeTransactions.import.errorStep.message'));
+      setSubmitError(message);
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
-  }, [canFinish, jobId, candidates, resolutions, resolveDuplicate, onComplete, onClose]);
+  }, [canFinish, jobId, candidates, resolutions, resolveDuplicate, onComplete, onClose, t, toast]);
 
   if (loading) {
     return (
@@ -234,6 +245,11 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
           );
         })}
       </Stack>
+      {submitError && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {submitError}
+        </Alert>
+      )}
       <Stack direction="row" spacing={2} sx={{ mt: 3 }} justifyContent="flex-end">
         {onClose && (
           <Button onClick={onClose}>{t('financeTransactions.actions.cancel')}</Button>

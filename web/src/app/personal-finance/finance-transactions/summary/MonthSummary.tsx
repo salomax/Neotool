@@ -112,6 +112,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
   dimmed = false,
   onActivate,
 }) => {
+  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const disabledFg = theme.palette.text.disabled;
   const interactive = Boolean(onActivate) && !dimmed && !isLoading;
@@ -132,6 +133,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
       role={interactive ? 'button' : dimmed ? 'presentation' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-disabled={dimmed || undefined}
+      aria-label={interactive ? `${t('financeTransactions.monthSummary.a11y.filterByMetric')} ${label}` : undefined}
       sx={{
         borderRadius: 1,
         px: 1,
@@ -246,6 +248,7 @@ const CategoryProgressRow = React.memo(function CategoryProgressRow({
     uncategorized: isUncategorized,
   };
   const activateCategory = interactive ? () => onCategoryClick!(categorySelection) : undefined;
+  const categoryName = isUncategorized ? t('financeTransactions.monthSummary.uncategorized') : item.category?.name;
 
   return (
     <Box
@@ -263,6 +266,11 @@ const CategoryProgressRow = React.memo(function CategoryProgressRow({
       role={interactive ? 'button' : rowDimmed ? 'presentation' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-disabled={rowDimmed || undefined}
+      aria-label={
+        interactive && categoryName
+          ? `${t('financeTransactions.monthSummary.a11y.filterByCategory')}: ${categoryName}`
+          : undefined
+      }
       sx={{
         borderRadius: 1,
         px: 1,
@@ -300,7 +308,7 @@ const CategoryProgressRow = React.memo(function CategoryProgressRow({
             }}
             noWrap
           >
-            {isUncategorized ? t('financeTransactions.monthSummary.uncategorized') : item.category?.name}
+            {categoryName}
           </Typography>
         </Box>
         <Typography
@@ -351,6 +359,7 @@ const TagProgressRow = React.memo(function TagProgressRow({
   categorySection,
   activeCreditDebitTypeFilter,
 }: TagProgressRowProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const barColor = theme.palette.info.main;
   const trackBg = alpha(theme.palette.text.primary, 0.08);
@@ -384,6 +393,9 @@ const TagProgressRow = React.memo(function TagProgressRow({
       role={interactive ? 'button' : rowDimmed ? 'presentation' : undefined}
       tabIndex={interactive ? 0 : undefined}
       aria-disabled={rowDimmed || undefined}
+      aria-label={
+        interactive ? `${t('financeTransactions.monthSummary.a11y.filterByTag')}: #${item.tag}` : undefined
+      }
       sx={{
         borderRadius: 1,
         px: 1,

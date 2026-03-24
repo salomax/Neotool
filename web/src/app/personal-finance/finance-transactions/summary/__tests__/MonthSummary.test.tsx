@@ -130,6 +130,48 @@ describe.sequential('MonthSummary', () => {
     expect(onTagClick).toHaveBeenCalledWith('Weekend');
   });
 
+  it('exposes accessible names for interactive summary rows', () => {
+    const onCategoryClick = vi.fn();
+    const onTagClick = vi.fn();
+    const onCreditDebitTypeClick = vi.fn();
+    renderWithTheme(
+      <MonthSummary
+        summary={mockSummary}
+        loading={false}
+        expensesByCategory={[
+          {
+            category: { id: 'cat-1', name: 'Mercado', icon: 'shopping_cart', color: '#2E7D32' },
+            uncategorized: false,
+            totalAmount: 200,
+            transactionCount: 3,
+            percentage: 40,
+          },
+        ]}
+        incomeByCategory={[]}
+        tagsSummary={[{ tag: 'Weekend', totalAmount: 300, transactionCount: 2, percentage: 75 }]}
+        onCategoryClick={onCategoryClick}
+        onTagClick={onTagClick}
+        onCreditDebitTypeClick={onCreditDebitTypeClick}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.income/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByCategory: Mercado/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByTag: #Weekend/,
+      }),
+    ).toBeInTheDocument();
+  });
+
   it('renders uncategorized as a separate category block and forwards the explicit uncategorized filter', () => {
     const onCategoryClick = vi.fn();
     renderWithTheme(

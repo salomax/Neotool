@@ -469,7 +469,7 @@ export function InlineTransactionForm({
                   <MenuItem value="TRANSFER">
                     <Stack direction="row" spacing={1} alignItems="center">
                       <SwapHorizIcon fontSize="small" color="info" />
-                      <Typography variant="body2">Transfer</Typography>
+                      <Typography variant="body2">{t('financeTransactions.transfer')}</Typography>
                     </Stack>
                   </MenuItem>
                 </Select>

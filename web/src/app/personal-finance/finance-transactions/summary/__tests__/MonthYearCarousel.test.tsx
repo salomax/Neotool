@@ -63,9 +63,7 @@ describe.sequential('MonthYearCarousel', () => {
       />
     );
 
-    const prevButton = screen.getAllByRole('button')[0];
-    expect(prevButton).toBeDefined();
-    fireEvent.click(prevButton!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.monthYearCarousel.prevAriaLabel' }));
 
     expect(mockOnChange).toHaveBeenCalledWith(2, 2024);
   });
@@ -79,9 +77,7 @@ describe.sequential('MonthYearCarousel', () => {
       />
     );
 
-    const prevButton = screen.getAllByRole('button')[0];
-    expect(prevButton).toBeDefined();
-    fireEvent.click(prevButton!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.monthYearCarousel.prevAriaLabel' }));
 
     expect(mockOnChange).toHaveBeenCalledWith(12, 2023);
   });
@@ -95,9 +91,7 @@ describe.sequential('MonthYearCarousel', () => {
       />
     );
 
-    const nextButton = screen.getAllByRole('button')[1];
-    expect(nextButton).toBeDefined();
-    fireEvent.click(nextButton!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.monthYearCarousel.nextAriaLabel' }));
 
     expect(mockOnChange).toHaveBeenCalledWith(4, 2024);
   });
@@ -111,9 +105,7 @@ describe.sequential('MonthYearCarousel', () => {
       />
     );
 
-    const nextButton = screen.getAllByRole('button')[1];
-    expect(nextButton).toBeDefined();
-    fireEvent.click(nextButton!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.monthYearCarousel.nextAriaLabel' }));
 
     expect(mockOnChange).toHaveBeenCalledWith(1, 2025);
   });

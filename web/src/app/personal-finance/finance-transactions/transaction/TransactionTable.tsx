@@ -24,6 +24,7 @@ import {
   Divider,
   ListItemIcon,
   ListItemText,
+  ButtonBase,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -187,6 +188,7 @@ export function TransactionTable({
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
   const showHeaderProgress = loading || busyCount > 0;
+  const actionMenuId = 'finance-transactions-transaction-actions-menu';
 
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
@@ -723,7 +725,10 @@ export function TransactionTable({
           }}
         />
       </Box>
-      <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }} aria-label="transactions table">
+      <Table
+        sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }}
+        aria-label={t('financeTransactions.transactionTable.ariaLabel')}
+      >
         <TableHead ref={tableHeadRef}>
           <TableRow>
             <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
@@ -869,6 +874,10 @@ export function TransactionTable({
                                 aria-valuemin={1}
                                 aria-valuemax={totalInstallments}
                                 aria-valuenow={Math.min(Math.max(installmentNumber, 1), totalInstallments)}
+                                aria-label={t('financeTransactions.transactionTable.installments.progressAriaLabel', {
+                                  current: installmentNumber,
+                                  total: totalInstallments,
+                                })}
                                 sx={{
                                   display: 'flex',
                                   gap: '2px',
@@ -1043,18 +1052,25 @@ export function TransactionTable({
                               }
                               arrow
                             >
-                              <Typography 
-                                variant="caption" 
-                                color="primary" 
-                                sx={{ 
-                                  cursor: 'pointer',
+                              <ButtonBase
+                                sx={{
+                                  px: 0.5,
+                                  borderRadius: borderRadius,
                                   fontSize: '0.7rem',
-                                  fontWeight: 'medium',
-                                  '&:hover': { textDecoration: 'underline' }
+                                  fontWeight: 600,
+                                  color: theme.palette.primary.main,
+                                  '&:hover': { textDecoration: 'underline' },
+                                  '&:focus-visible': {
+                                    outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                                    outlineOffset: 2,
+                                  },
                                 }}
+                                aria-label={t('financeTransactions.transactionTable.tags.moreAriaLabel', {
+                                  count: transaction.tags.length - 2,
+                                })}
                               >
                                 +{transaction.tags.length - 2}
-                              </Typography>
+                              </ButtonBase>
                             </Tooltip>
                           )}
                         </Stack>
@@ -1129,7 +1145,7 @@ export function TransactionTable({
                                 setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
                               }
                             }}
-                            aria-label="Ver anexo"
+                            aria-label={t('financeTransactions.transactionTable.attachments.ariaLabel')}
                           >
                             <AttachFileIcon sx={{ fontSize: 16 }} />
                           </IconButton>
@@ -1172,7 +1188,15 @@ export function TransactionTable({
                             setActionMenuAnchorEl(e.currentTarget);
                             setActionMenuTransaction(transaction);
                           }}
+                          id={`transaction-actions-button-${transaction.id}`}
                           aria-label={t('financeTransactions.transactionTable.rowActions.ariaLabel')}
+                          aria-haspopup="menu"
+                          aria-expanded={
+                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? 'true' : undefined
+                          }
+                          aria-controls={
+                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? actionMenuId : undefined
+                          }
                         >
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
@@ -1205,11 +1229,15 @@ export function TransactionTable({
       </Table>
 
       <Menu
+        id={actionMenuId}
         open={Boolean(actionMenuAnchorEl)}
         anchorEl={actionMenuAnchorEl}
         onClose={closeActionMenu}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        MenuListProps={{
+          'aria-labelledby': actionMenuAnchorEl?.id,
+        }}
       >
         <MenuItem
           onClick={() => {
@@ -1238,7 +1266,7 @@ export function TransactionTable({
                 <SwapHorizIcon color="info" fontSize="small" />
               )}
             </ListItemIcon>
-            <ListItemText>Marcar como transferência interna</ListItemText>
+            <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsTransfer')}</ListItemText>
           </MenuItem>
         )}
         <Divider />

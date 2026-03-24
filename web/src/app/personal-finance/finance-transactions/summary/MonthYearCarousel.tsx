@@ -47,7 +47,11 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
     <Box>
       <Stack direction="row" alignItems="center" spacing={2}>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <IconButton onClick={handlePrevMonth} size="small">
+          <IconButton
+            onClick={handlePrevMonth}
+            size="small"
+            aria-label={t('financeTransactions.monthYearCarousel.prevAriaLabel')}
+          >
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
           <Typography 
@@ -61,7 +65,11 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
           >
             {currentDate.format('MMMM YYYY')}
           </Typography>
-          <IconButton onClick={handleNextMonth} size="small">
+          <IconButton
+            onClick={handleNextMonth}
+            size="small"
+            aria-label={t('financeTransactions.monthYearCarousel.nextAriaLabel')}
+          >
             <ChevronRightIcon fontSize="small" />
           </IconButton>
         </Stack>

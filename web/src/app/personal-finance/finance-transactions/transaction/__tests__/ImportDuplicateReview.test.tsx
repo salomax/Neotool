@@ -3,6 +3,13 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { ImportDuplicateReview } from '../ImportDuplicateReview';
 
+const mockToast = {
+  success: vi.fn(),
+  error: vi.fn(),
+  info: vi.fn(),
+  warning: vi.fn(),
+};
+
 const mockResolve = vi.fn(() =>
   Promise.resolve({
     data: {
@@ -69,6 +76,10 @@ const jobWithCandidates = {
 vi.mock('@apollo/client/react', () => ({
   useQuery: vi.fn(),
   useMutation: vi.fn(),
+}));
+
+vi.mock('@/shared/providers', () => ({
+  useToast: () => mockToast,
 }));
 
 describe.sequential('ImportDuplicateReview', () => {
@@ -165,6 +176,30 @@ describe.sequential('ImportDuplicateReview', () => {
       });
       expect(onComplete).toHaveBeenCalled();
       expect(onClose).toHaveBeenCalled();
+    });
+  });
+
+  it('givenMutationError_whenFinish_thenShowsError', async () => {
+    mockResolve.mockRejectedValueOnce(new Error('network down'));
+    render(
+      <ImportDuplicateReview jobId="job-1" onComplete={onComplete} onClose={onClose} />,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length,
+      ).toBe(2);
+    });
+    const keepBothButtons = screen.getAllByRole('button', { name: /Keep both|Manter ambas/ });
+    fireEvent.click(keepBothButtons[0]!);
+    fireEvent.click(keepBothButtons[1]!);
+    const finishButton = screen.getByRole('button', {
+      name: /Finish review|Concluir revisão/,
+    });
+    fireEvent.click(finishButton);
+
+    await waitFor(() => {
+      expect(mockToast.error).toHaveBeenCalled();
+      expect(onClose).not.toHaveBeenCalled();
     });
   });
 });

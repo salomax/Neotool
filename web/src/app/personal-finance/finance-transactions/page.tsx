@@ -64,7 +64,7 @@ const ACCOUNT_SELECTOR_TYPES: FinancialAccountType[] = [
 ];
 
 export default function FinanceTransactionsPage() {
-  const { t } = useTranslation(personalFinanceTranslations);
+  const { t, tCommon } = useTranslation(personalFinanceTranslations);
   usePageTitle(t('financeTransactions.title'));
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImportDrawerOpen, setIsImportDrawerOpen] = useState(false);
@@ -522,11 +522,11 @@ export default function FinanceTransactionsPage() {
               sx={{ width: '100%', mb: 2 }}
               action={
                 <Button size="small" onClick={() => refetchImports()}>
-                  {t('cardGrid.retry')}
+                  {tCommon('cardGrid.retry')}
                 </Button>
               }
             >
-              {extractErrorMessage(importsError, t('errors.default'))}
+              {extractErrorMessage(importsError, tCommon('errors.default'))}
             </Alert>
           )}
           {reviewRequiredJob && (
@@ -575,12 +575,16 @@ export default function FinanceTransactionsPage() {
               variant="outlined"
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+              aria-haspopup="menu"
+              aria-expanded={!!importMenuAnchor}
+              aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
             >
               {t('financeTransactions.import.button')}
             </Button>
             <Menu
+              id="finance-transactions-import-menu"
               anchorEl={importMenuAnchor}
-              open={Boolean(importMenuAnchor)}
+              open={!!importMenuAnchor}
               onClose={() => setImportMenuAnchor(null)}
               anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
             >
@@ -780,11 +784,11 @@ export default function FinanceTransactionsPage() {
                   sx={{ width: '100%', mb: 2 }}
                   action={
                     <Button size="small" onClick={() => refetchTransactions()}>
-                      {t('cardGrid.retry')}
+                      {tCommon('cardGrid.retry')}
                     </Button>
                   }
                 >
-                  {extractErrorMessage(transactionsError, t('errors.default'))}
+                  {extractErrorMessage(transactionsError, tCommon('errors.default'))}
                 </Alert>
               )}
               <TransactionTable 

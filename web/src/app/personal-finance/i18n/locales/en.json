@@ -474,6 +474,7 @@
     "quickAdd": "New transaction",
     "credit": "Credit",
     "debit": "Debit",
+    "transfer": "Transfer",
     "amount": "Amount",
     "description": "Description",
     "date": "Date",
@@ -524,6 +525,20 @@
       "saving": "Saving...",
       "cancel": "Cancel",
       "delete": "Delete"
+    },
+    "categoryPicker": {
+      "searchPlaceholder": "Search category...",
+      "noCategory": "No category",
+      "noResults": "No categories found",
+      "newCategory": "New category",
+      "backAriaLabel": "Back",
+      "deleteAriaLabel": "Delete category",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Groceries",
+      "created": "\"{{name}}\" created",
+      "deleteTitle": "Delete '{{name}}'?",
+      "deleteDescription": "Transactions using this category will keep the assignment in history. This action cannot be undone.",
+      "deleteChildrenTitle": "The following subcategories will also be deleted:"
     },
     "similarEditPrompt": {
       "title": "Apply to similar transactions?",
@@ -754,6 +769,7 @@
         "optionalField": "Optional",
         "descriptionBase": "Base description",
         "descriptionBaseHint": "If you provide a description, it will be used as the base name when creating cards.",
+        "defaultBaseName": "Card",
         "previewLabel": "Name preview: {{name}}",
         "unassignedLastFour": "No last 4",
         "noLastFourPlaceholder": "No last 4",
@@ -834,6 +850,7 @@
       "error": "Failed to import NFC-e"
     },
     "transactionTable": {
+      "ariaLabel": "Transactions table",
       "columns": {
         "description": "Description",
         "category": "Category",
@@ -842,8 +859,18 @@
         "currency": "Currency"
       },
       "emptyState": "No transactions found",
+      "attachments": {
+        "ariaLabel": "View attachments"
+      },
+      "tags": {
+        "moreAriaLabel": "View {{count}} more tags"
+      },
+      "installments": {
+        "progressAriaLabel": "Installment {{current}} of {{total}}"
+      },
       "rowActions": {
         "ariaLabel": "Transaction actions",
+        "markAsTransfer": "Mark as internal transfer",
         "edit": "Edit",
         "remove": "Remove"
       }
@@ -853,6 +880,11 @@
       "expenses": "Expenses",
       "balance": "Current Balance",
       "total": "of total",
+      "a11y": {
+        "filterByMetric": "Filter transactions by",
+        "filterByCategory": "Filter transactions by category",
+        "filterByTag": "Filter transactions by tag"
+      },
       "expensesByCategory": "Expenses by Category",
       "incomeByCategory": "Income by Category",
       "tagsSummary": "Tags",
@@ -872,6 +904,20 @@
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"
+    },
+    "monthYearCarousel": {
+      "prevAriaLabel": "Previous month",
+      "nextAriaLabel": "Next month"
+    },
+    "billCarousel": {
+      "title": "Bill {{month}}",
+      "closes": "closes {{day}}",
+      "prevAriaLabel": "Previous bill",
+      "nextAriaLabel": "Next bill",
+      "statusOpen": "OPEN",
+      "statusClosed": "CLOSED",
+      "statusPaid": "PAID",
+      "statusOverdue": "OVERDUE"
     },
     "deleteConfirmation": {
       "title": "Delete transaction",

@@ -140,6 +140,7 @@ export function ImportTransactionsDrawer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('account');
   const [targetAccountId, setTargetAccountId] = useState<string | null>(selectedAccountId);
+  const latestTargetAccountIdRef = useRef<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -155,6 +156,7 @@ export function ImportTransactionsDrawer({
     if (reviewJobId) {
       setJobId(reviewJobId);
       setStep('review');
+      setTargetAccountId(selectedAccountId);
       return;
     }
     setTargetAccountId(canUseSelectedImportableAccount ? selectedAccountId : null);
@@ -166,6 +168,10 @@ export function ImportTransactionsDrawer({
     setErrorMessage(null);
     setErrorDetails(null);
   }, [open, reviewJobId, selectedAccountId, canUseSelectedImportableAccount]);
+
+  React.useEffect(() => {
+    latestTargetAccountIdRef.current = targetAccountId ?? selectedAccountId ?? null;
+  }, [selectedAccountId, targetAccountId]);
 
   const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
@@ -218,7 +224,7 @@ export function ImportTransactionsDrawer({
     onEvent: setLastEvent,
     onCompleted: () => {
       setStep('result');
-      publishTransactionsImported({ source: 'file', financialAccountId: targetAccountId });
+      publishTransactionsImported({ source: 'file', financialAccountId: latestTargetAccountIdRef.current });
       onImportCompleted?.();
     },
     onReviewRequired: () => {
@@ -277,17 +283,20 @@ export function ImportTransactionsDrawer({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = '';
     if (!f) return;
-    setFileError(validateFile(f));
-    setFile(validateFile(f) ? null : f);
+    const err = validateFile(f);
+    setFileError(err);
+    setFile(err ? null : f);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
-    setFileError(validateFile(f));
-    setFile(validateFile(f) ? null : f);
+    const err = validateFile(f);
+    setFileError(err);
+    setFile(err ? null : f);
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -447,7 +456,12 @@ export function ImportTransactionsDrawer({
         <Box
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+              fileInputRef.current.click();
+            }
+          }}
           sx={{
             border: '3px dashed',
             borderColor: fileError ? 'error.main' : 'divider',
@@ -557,7 +571,7 @@ export function ImportTransactionsDrawer({
       <ImportDuplicateReview
         jobId={jobId}
         onComplete={() => {
-          publishTransactionsImported({ source: 'file', financialAccountId: targetAccountId });
+          publishTransactionsImported({ source: 'file', financialAccountId: latestTargetAccountIdRef.current });
           onImportCompleted?.();
         }}
         onClose={handleClose}

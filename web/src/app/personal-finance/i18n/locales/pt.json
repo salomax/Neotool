@@ -474,6 +474,7 @@
     "quickAdd": "Nova movimentação",
     "credit": "Receita",
     "debit": "Despesa",
+    "transfer": "Transferência",
     "amount": "Valor",
     "description": "Descrição",
     "date": "Data",
@@ -524,6 +525,20 @@
       "saving": "Salvando...",
       "cancel": "Cancelar",
       "delete": "Excluir"
+    },
+    "categoryPicker": {
+      "searchPlaceholder": "Buscar categoria...",
+      "noCategory": "Sem categoria",
+      "noResults": "Nenhuma categoria encontrada",
+      "newCategory": "Nova categoria",
+      "backAriaLabel": "Voltar",
+      "deleteAriaLabel": "Excluir categoria",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Ex.: Supermercado",
+      "created": "\"{{name}}\" criada",
+      "deleteTitle": "Excluir '{{name}}'?",
+      "deleteDescription": "As transações que usam esta categoria manterão a atribuição no histórico. Esta ação não pode ser desfeita.",
+      "deleteChildrenTitle": "As subcategorias a seguir também serão excluídas:"
     },
     "similarEditPrompt": {
       "title": "Aplicar às movimentações semelhantes?",
@@ -758,6 +773,7 @@
         "optionalField": "Opcional",
         "descriptionBase": "Descrição base",
         "descriptionBaseHint": "Se informar uma descrição, ela será usada como nome base ao criar os cartões.",
+        "defaultBaseName": "Cartão",
         "previewLabel": "Prévia do nome: {{name}}",
         "unassignedLastFour": "Sem final",
         "noLastFourPlaceholder": "Sem final",
@@ -838,6 +854,7 @@
       "error": "Falha ao importar NFC-e"
     },
     "transactionTable": {
+      "ariaLabel": "Tabela de transações",
       "columns": {
         "description": "Descrição",
         "category": "Categoria",
@@ -846,8 +863,18 @@
         "currency": "Moeda"
       },
       "emptyState": "Nenhuma transação encontrada",
+      "attachments": {
+        "ariaLabel": "Ver anexos"
+      },
+      "tags": {
+        "moreAriaLabel": "Ver mais {{count}} tags"
+      },
+      "installments": {
+        "progressAriaLabel": "Parcela {{current}} de {{total}}"
+      },
       "rowActions": {
         "ariaLabel": "Ações da transação",
+        "markAsTransfer": "Marcar como transferência interna",
         "edit": "Editar",
         "remove": "Remover"
       }
@@ -857,6 +884,11 @@
       "expenses": "Despesas",
       "balance": "Saldo",
       "total": "do total",
+      "a11y": {
+        "filterByMetric": "Filtrar transações por",
+        "filterByCategory": "Filtrar transações por categoria",
+        "filterByTag": "Filtrar transações por tag"
+      },
       "expensesByCategory": "Despesas por Categoria",
       "incomeByCategory": "Receitas por Categoria",
       "tagsSummary": "Tags",
@@ -877,9 +909,15 @@
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
       "retry": "Tentar novamente"
     },
+    "monthYearCarousel": {
+      "prevAriaLabel": "Mês anterior",
+      "nextAriaLabel": "Próximo mês"
+    },
     "billCarousel": {
       "title": "Fatura {{month}}",
       "closes": "fecha {{day}}",
+      "prevAriaLabel": "Fatura anterior",
+      "nextAriaLabel": "Próxima fatura",
       "statusOpen": "ABERTA",
       "statusClosed": "FECHADA",
       "statusPaid": "PAGA",

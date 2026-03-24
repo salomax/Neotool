@@ -82,9 +82,7 @@ describe.sequential('BillCarousel', () => {
     );
 
     // Left arrow -> Older -> February (bill-3)
-    const leftArrow = screen.getAllByRole('button')[0];
-    expect(leftArrow).toBeDefined();
-    fireEvent.click(leftArrow!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.billCarousel.prevAriaLabel' }));
     
     expect(onSelectBill).toHaveBeenCalledWith('bill-3');
   });
@@ -101,9 +99,7 @@ describe.sequential('BillCarousel', () => {
     );
 
     // Right arrow -> Newer -> April (bill-1)
-    const rightArrow = screen.getAllByRole('button')[1];
-    expect(rightArrow).toBeDefined();
-    fireEvent.click(rightArrow!);
+    fireEvent.click(screen.getByRole('button', { name: 'financeTransactions.billCarousel.nextAriaLabel' }));
     
     expect(onSelectBill).toHaveBeenCalledWith('bill-1');
   });
@@ -118,7 +114,7 @@ describe.sequential('BillCarousel', () => {
       />
     );
 
-    const leftArrow = screen.getAllByRole('button')[0];
+    const leftArrow = screen.getByRole('button', { name: 'financeTransactions.billCarousel.prevAriaLabel' });
     expect(leftArrow).toBeDisabled();
   });
 
@@ -132,7 +128,7 @@ describe.sequential('BillCarousel', () => {
       />
     );
 
-    const rightArrow = screen.getAllByRole('button')[1];
+    const rightArrow = screen.getByRole('button', { name: 'financeTransactions.billCarousel.nextAriaLabel' });
     expect(rightArrow).toBeDisabled();
   });
 });
