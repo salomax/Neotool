@@ -225,6 +225,14 @@ class FinancialDataWiringFactory(
                     investmentAssetResolver.investmentAssetByTicker(ticker)
                 },
             )
+            .dataFetcher(
+                "investmentAssetsByTickers",
+                createValidatedDataFetcher { env ->
+                    val tickers: List<String> = env.getArgument<List<String>?>("tickers")
+                        ?: throw IllegalArgumentException("tickers is required")
+                    investmentAssetResolver.investmentAssetsByTickers(tickers)
+                },
+            )
     }
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder {
@@ -1140,6 +1148,17 @@ class FinancialDataWiringFactory(
                     .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.assetType })
                     .dataFetcher("exchange", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.exchange })
                     .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.isActive })
+                    .dataFetcher(
+                        "logoAsset",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.logoAssetId?.let { assetId ->
+                                mapOf(
+                                    "__typename" to "Asset",
+                                    "id" to assetId,
+                                )
+                            }
+                        },
+                    )
                     .dataFetcher("latestPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.latestPrice })
                     .dataFetcher(
                         "priceHistory",

@@ -97,4 +97,81 @@ class FundValuationServiceTest {
         assertThat(result.iof).isNull()
         assertThat(result.netValue).isNull()
     }
+
+    @Test
+    fun `withholding tax only offsets the lots that remain open`() {
+        val holding =
+            Holding(
+                id = UUID.randomUUID(),
+                financialAccountId = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                assetId = UUID.randomUUID(),
+                quantity = BigDecimal("50"),
+                averageCost = BigDecimal("1.00"),
+            )
+        val snapshot =
+            FundMarketSnapshot(
+                fundCnpj = "12345678000199",
+                assetType = "EQUITY_FUND",
+                taxProfile = FundTaxProfile.VARIABLE_INCOME_15,
+                latestNav =
+                    FundMarketNav(
+                        date = LocalDate.of(2025, 12, 1),
+                        closePrice = BigDecimal("1.80"),
+                    ),
+            )
+        val transactions =
+            listOf(
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holding.id!!,
+                    financialAccountId = holding.financialAccountId,
+                    accountId = holding.accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("1.00"),
+                    grossValue = BigDecimal("100.00"),
+                    tradeDate = LocalDate.of(2025, 1, 2),
+                    createdAt = Instant.parse("2025-01-02T12:00:00Z"),
+                    updatedAt = Instant.parse("2025-01-02T12:00:00Z"),
+                ),
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holding.id,
+                    financialAccountId = holding.financialAccountId,
+                    accountId = holding.accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.WITHHOLDING_TAX,
+                    grossValue = BigDecimal("4.00"),
+                    incomeTax = BigDecimal("4.00"),
+                    tradeDate = LocalDate.of(2025, 6, 2),
+                    createdAt = Instant.parse("2025-06-02T12:00:00Z"),
+                    updatedAt = Instant.parse("2025-06-02T12:00:00Z"),
+                ),
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holding.id,
+                    financialAccountId = holding.financialAccountId,
+                    accountId = holding.accountId,
+                    createdByUserId = UUID.randomUUID(),
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.SALE,
+                    quantity = BigDecimal("50"),
+                    grossValue = BigDecimal("90.00"),
+                    tradeDate = LocalDate.of(2025, 7, 1),
+                    createdAt = Instant.parse("2025-07-01T12:00:00Z"),
+                    updatedAt = Instant.parse("2025-07-01T12:00:00Z"),
+                ),
+            )
+
+        val result = service.estimate(holding, snapshot, transactions)
+
+        assertThat(result.grossValue).isEqualByComparingTo("90.00")
+        assertThat(result.iof).isEqualByComparingTo("0")
+        assertThat(result.incomeTax).isEqualByComparingTo("4.00")
+        assertThat(result.netValue).isEqualByComparingTo("86.00")
+    }
 }

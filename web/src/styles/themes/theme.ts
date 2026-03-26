@@ -1,13 +1,30 @@
 import { createTheme, ThemeOptions, alpha, Shadows } from "@mui/material/styles";
 import { tokens, Mode, DesignTokens } from "./tokens";
 
+type CustomPaletteTokens = Pick<
+  DesignTokens["palette"],
+  | "inputBorder"
+  | "tabBorder"
+  | "errorLightBg"
+  | "successLightBg"
+  | "infoLightBg"
+  | "sidebarBg"
+  | "sidebarIcon"
+  | "currencyPositive"
+  | "currencyNegative"
+  | "currencyNeutral"
+  | "thresholdBad"
+  | "thresholdRegular"
+  | "thresholdGood"
+>;
+
 declare module "@mui/material/styles" {
   interface Theme {
     custom: {
       layout: DesignTokens["layout"];
       radius: DesignTokens["radius"];
       border: DesignTokens["border"];
-      palette: DesignTokens["palette"];
+      palette: CustomPaletteTokens;
       shadow: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -16,7 +33,7 @@ declare module "@mui/material/styles" {
       layout?: DesignTokens["layout"];
       radius?: DesignTokens["radius"];
       border?: DesignTokens["border"];
-      palette?: DesignTokens["palette"];
+      palette?: CustomPaletteTokens;
       shadow?: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -33,6 +50,7 @@ export const createAppTheme = (mode: Mode) => {
   const defaultShadows = createTheme().shadows;
   const shadows = [...defaultShadows] as Shadows;
   const buttonRadiusPx = `${t.radius.button}px`;
+  const inputHoverBorderColor = t.palette.primary;
 
   const buildShadow = (level: 0 | 1 | 2 | 3 | 4, color?: string) => {
     if (level === 0) return "none";
@@ -112,10 +130,10 @@ export const createAppTheme = (mode: Mode) => {
       h6: { fontSize: t.typography.h6, fontWeight: 600, lineHeight: 1.25 },
       body1: { fontSize: t.typography.body },
       body2: { fontSize: t.typography.small },
-      button: { textTransform: "none", fontWeight: 600 },
+      button: { textTransform: "none", fontWeight: 600, fontSize: t.typography.small },
       fontFamilyMonospace: t.typography.monoFamily as any,
     } as any,
-    components: {
+    components: ({
       MuiButton: {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {
@@ -124,8 +142,69 @@ export const createAppTheme = (mode: Mode) => {
             minWidth: '90px',
           },
           sizeMedium: {
-            height: '56px',
-            minHeight: '56px',
+            height: '48px',
+            minHeight: '48px',
+          },
+        },
+      },
+      MuiLink: {
+        defaultProps: { variant: "inherit" as any },
+      },
+      MuiFormLabel: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+        },
+      },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+          outlined: {
+            transform: "translate(14px, 14px) scale(1)",
+            "&.MuiInputLabel-shrink": {
+              transform: "translate(14px, -9px) scale(0.75)",
+            },
+          },
+        },
+      },
+      MuiInputBase: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "&:hover:not(.Mui-disabled):not(.Mui-focused):not(.Mui-error) .MuiOutlinedInput-notchedOutline": {
+              borderColor: inputHoverBorderColor,
+            },
+          },
+          input: {
+            padding: "14.5px 14px",
+          },
+        },
+      },
+      MuiPickersOutlinedInput: {
+        styleOverrides: {
+          root: {
+            "&:hover:not(.Mui-disabled):not(.Mui-focused):not(.Mui-error) .MuiPickersOutlinedInput-notchedOutline": {
+              borderColor: inputHoverBorderColor,
+            },
+          },
+          input: {
+            padding: "14.5px 14px",
+          },
+        },
+      },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            fontSize: t.typography.small,
           },
         },
       },
@@ -140,7 +219,7 @@ export const createAppTheme = (mode: Mode) => {
           },
         },
       },
-    },
+    } as any),
     // Custom theme properties for layout and design tokens
     custom: {
       layout: t.layout,
@@ -165,6 +244,6 @@ export const createAppTheme = (mode: Mode) => {
         thresholdGood: t.palette.thresholdGood,
       },
     },
-  } as ThemeOptions & { custom?: { layout: typeof t.layout } };
+  };
   return createTheme(options);
 };

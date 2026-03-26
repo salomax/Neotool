@@ -46,6 +46,11 @@ interface ListedAssetRepositoryCustom {
     fun findAssetByTicker(ticker: String): ListedAsset?
 
     /**
+     * Fetch multiple assets by ticker (case-insensitive) with latest price inline.
+     */
+    fun findAssetsByTickers(tickers: Set<String>): List<ListedAsset>
+
+    /**
      * Fetch full OHLCV history for an asset.
      * [from]/[to] are inclusive bounds. [last] limits rows (most recent first).
      * Defaults to 365 rows when all are null.

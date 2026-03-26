@@ -137,6 +137,40 @@ class InvestmentTransactionServiceTest {
         whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
     }
 
+    @Test
+    fun `first fixed income purchase derives holding pre fixed rate from agreed rate and defaults issue date to trade date`() {
+        val fixedIncomeAsset =
+            asset.copy(
+                ticker = null,
+                name = "CDB IPCA+",
+                assetType = AssetType.CDB,
+            )
+        val command =
+            RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("10674.30"),
+                unitPrice = BigDecimal.ONE,
+                grossValue = BigDecimal("10674.30"),
+                tradeDate = LocalDate.of(2024, 9, 23),
+                indexer = Indexer.IPCA,
+                agreedRate = BigDecimal("0.088"),
+            )
+
+        whenever(assetRepository.findById(assetId)).thenReturn(fixedIncomeAsset)
+        whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId)).thenReturn(null)
+        whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+        service.record(command, accountId, userId)
+
+        val holdingCaptor = argumentCaptor<Holding>()
+        verify(holdingRepository).save(holdingCaptor.capture())
+        assertThat(holdingCaptor.firstValue.preFixedRate).isEqualByComparingTo("0.088")
+        assertThat(holdingCaptor.firstValue.issueDate).isEqualTo(LocalDate.of(2024, 9, 23))
+    }
+
     @Nested
     @DisplayName("DELETE")
     inner class Delete {

@@ -2,13 +2,14 @@
 
 import React from "react";
 import { useQuery } from "@apollo/client/react";
-import { Autocomplete, Box, Chip, CircularProgress, TextField, Typography } from "@mui/material";
+import { Autocomplete, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
 import { SEARCH_INVESTMENT_ASSETS_AUTOCOMPLETE } from "@/lib/graphql/operations/financial-data/queries";
-import { formatB3AssetType } from "@/lib/utils/mapB3AssetType";
+import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
+import { AssetTypeChip } from "./AssetTypeChip";
 
 export type EquityAutocompleteValue = {
   id: string;
@@ -101,7 +102,7 @@ export function EquityAutocomplete({ name, label, disabled, "data-testid": dataT
                   {option.name}
                 </Typography>
               </Box>
-              <Chip size="small" variant="outlined" label={formatB3AssetType(option.assetType, t)} sx={{ flex: "0 0 auto" }} />
+              <AssetTypeChip assetType={mapB3AssetType(option.assetType)} size="small" />
             </Box>
           )}
           renderInput={(params) => (

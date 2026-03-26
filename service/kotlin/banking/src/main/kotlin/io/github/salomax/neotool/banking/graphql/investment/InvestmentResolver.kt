@@ -149,6 +149,7 @@ class InvestmentResolver(
             anbimaCategory = anbimaCategory,
             anbimaClass = anbimaClass,
             anbimaSubclass = anbimaSubclass,
+            logoAsset = null,
             priceFactor = priceFactor.toDouble(),
             createdAt = createdAt,
             updatedAt = updatedAt,

@@ -50,6 +50,7 @@ import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION }
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
+import { Amount } from '@/shared/components/ui/data-display';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -132,7 +133,6 @@ export function TransactionTable({
   const toast = useToast();
   const loaderRef = useRef<HTMLDivElement>(null);
   const transactionsRef = useRef<Transaction[]>(transactions);
-  const currencyFormattersRef = useRef<Map<string, Intl.NumberFormat>>(new Map());
   const borderRadius = '.3rem';
   const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
@@ -475,28 +475,7 @@ export function TransactionTable({
     }
   }, [transactions, deletedTransactionId]);
 
-  const formatCurrency = (amount: number, currencyCode: string) => {
-    const key = `${i18n.language}:${currencyCode}`;
-    let formatter = currencyFormattersRef.current.get(key);
-
-    if (!formatter) {
-      try {
-        formatter = new Intl.NumberFormat(i18n.language, {
-          style: 'currency',
-          currency: currencyCode,
-        });
-        currencyFormattersRef.current.set(key, formatter);
-      } catch {
-        return amount.toLocaleString(i18n.language);
-      }
-    }
-
-    try {
-      return formatter.format(amount);
-    } catch {
-      return amount.toLocaleString(i18n.language);
-    }
-  };
+ 
 
   const getCardLastFourDigits = (account: FinancialAccount, transaction: Transaction) => {
     const raw = transaction.cardIdentifier || account.cardData?.maskedNumber || '';
@@ -1046,26 +1025,22 @@ export function TransactionTable({
                         )}
                       </TableCell>
                       <TableCell align="right">
-                        <Typography 
-                          variant="body2" 
-                          color={
-                            transaction.type === TransactionType.Transfer
-                              ? 'info.main'
-                              : transaction.creditDebitType === CreditDebitType.Debit
-                                ? 'error.main'
-                                : 'success.main'
+                        <Amount
+                          value={
+                            transaction.creditDebitType === CreditDebitType.Debit
+                              ? -Math.abs(transaction.amount)
+                              : Math.abs(transaction.amount)
                           }
-                          fontWeight="medium"
-                          noWrap
-                          sx={{ fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          {formatCurrency(
-                            transaction.creditDebitType === CreditDebitType.Debit 
-                              ? -Math.abs(transaction.amount) 
-                              : Math.abs(transaction.amount), 
-                            transaction.currencyCode
-                          )}
-                        </Typography>
+                          currency={transaction.currencyCode}
+                          locale={i18n.language}
+                          tone={
+                            transaction.type === TransactionType.Transfer
+                              ? 'transfer'
+                              : transaction.creditDebitType === CreditDebitType.Debit
+                              ? 'negative'
+                              : 'positive'
+                          }
+                        />
                       </TableCell>
                       <TableCell
                         align="center"

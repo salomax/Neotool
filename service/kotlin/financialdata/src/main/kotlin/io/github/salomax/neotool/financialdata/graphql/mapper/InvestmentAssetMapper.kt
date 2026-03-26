@@ -54,6 +54,7 @@ class ListedAssetMapper {
             assetType = asset.assetType,
             exchange = asset.exchange,
             isActive = asset.isActive,
+            logoAssetId = asset.logoAssetId,
             latestPrice = asset.latestPrice?.let { toPriceDTO(it) },
         )
 

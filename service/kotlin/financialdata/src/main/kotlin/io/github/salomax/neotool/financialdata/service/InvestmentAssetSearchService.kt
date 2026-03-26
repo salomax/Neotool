@@ -95,7 +95,12 @@ open class ListedAssetSearchService(
     fun findAssetByTicker(ticker: String): ListedAsset? =
         assetRepository.findAssetByTicker(ticker.trim().uppercase())
 
-fun getPriceHistory(
+    fun findAssetsByTickers(tickers: Set<String>): List<ListedAsset> =
+        assetRepository.findAssetsByTickers(
+            tickers.map { it.trim().uppercase() }.filter { it.isNotBlank() }.toSet(),
+        )
+
+    fun getPriceHistory(
         assetId: UUID,
         from: LocalDate?,
         to: LocalDate?,

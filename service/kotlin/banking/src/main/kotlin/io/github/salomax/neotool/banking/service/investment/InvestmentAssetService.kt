@@ -24,17 +24,28 @@ class InvestmentAssetService(
         currencyCode: String,
     ): Asset {
         require(name.isNotBlank()) { "name is required" }
-        if (!fundCnpj.isNullOrBlank()) {
-            assetRepository.findByFundCnpj(fundCnpj)?.let { return it }
+        val normalizedFundCnpj = fundCnpj?.trim()?.takeIf { it.isNotBlank() }
+        val normalizedTicker = ticker?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+        val normalizedIsinCode = isinCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() }
+
+        if (normalizedFundCnpj != null) {
+            assetRepository.findByFundCnpj(normalizedFundCnpj)?.let { return it }
         }
+        if (normalizedTicker != null) {
+            assetRepository.findByTicker(normalizedTicker)?.let { return it }
+        }
+        if (normalizedIsinCode != null) {
+            assetRepository.findByIsinCode(normalizedIsinCode)?.let { return it }
+        }
+
         return assetRepository.save(
             Asset(
                 name = name,
                 assetType = assetType,
                 issuerName = issuerName,
-                fundCnpj = fundCnpj,
-                ticker = ticker,
-                isinCode = isinCode,
+                fundCnpj = normalizedFundCnpj,
+                ticker = normalizedTicker,
+                isinCode = normalizedIsinCode,
                 currencyCode = currencyCode,
             ),
         )

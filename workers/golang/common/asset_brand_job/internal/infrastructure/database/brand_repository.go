@@ -13,16 +13,16 @@ import (
 
 const (
 	findBrandSQL = `
-		SELECT id, status
+		SELECT id, status, logo_asset_id
 		FROM financial_data.asset_brand
 		WHERE normalized_name = $1
 	`
 
 	insertBrandSQL = `
 		INSERT INTO financial_data.asset_brand
-			(normalized_name, display_name, domain, logo_url, source, confidence, status, raw_search_payload, created_at, updated_at)
+			(normalized_name, display_name, domain, logo_url, logo_asset_id, source, confidence, status, raw_search_payload, created_at, updated_at)
 		VALUES
-			($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+			($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id
 	`
 
@@ -31,10 +31,11 @@ const (
 		SET display_name = $2,
 		    domain = $3,
 		    logo_url = $4,
-		    source = $5,
-		    confidence = $6,
-		    status = $7,
-		    raw_search_payload = $8,
+		    logo_asset_id = $5,
+		    source = $6,
+		    confidence = $7,
+		    status = $8,
+		    raw_search_payload = $9,
 		    updated_at = NOW()
 		WHERE id = $1
 	`
@@ -76,6 +77,19 @@ func NewBrandRepository(pool *pgxpool.Pool, logger *slog.Logger) *BrandRepositor
 	return &BrandRepository{pool: pool, logger: logger}
 }
 
+func (r *BrandRepository) FindBrandByNormalizedName(ctx context.Context, normalizedName string) (*domain.ExistingBrand, error) {
+	var brand domain.ExistingBrand
+	var status string
+	err := r.pool.QueryRow(ctx, findBrandSQL, normalizedName).Scan(&brand.ID, &status, &brand.LogoAssetID)
+	if err == pgx.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find brand by normalized name: %w", err)
+	}
+	return &brand, nil
+}
+
 func (r *BrandRepository) UpsertBrandCandidate(ctx context.Context, input domain.BrandUpsertInput) error {
 	tx, err := r.pool.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
@@ -102,13 +116,18 @@ func (r *BrandRepository) UpsertBrandCandidate(ctx context.Context, input domain
 func (r *BrandRepository) upsertBrand(ctx context.Context, tx pgx.Tx, input domain.BrandUpsertInput) (uuid.UUID, error) {
 	var brandID uuid.UUID
 	var currentStatus string
+	var currentLogoAssetID *uuid.UUID
 
-	err := tx.QueryRow(ctx, findBrandSQL, input.NormalizedName).Scan(&brandID, &currentStatus)
+	err := tx.QueryRow(ctx, findBrandSQL, input.NormalizedName).Scan(&brandID, &currentStatus, &currentLogoAssetID)
 	if err != nil && err != pgx.ErrNoRows {
 		return uuid.Nil, fmt.Errorf("find brand: %w", err)
 	}
 
 	mergedStatus := mergeStatus(currentStatus, input.Status)
+	mergedLogoAssetID := input.LogoAssetID
+	if mergedLogoAssetID == nil {
+		mergedLogoAssetID = currentLogoAssetID
+	}
 
 	if err == pgx.ErrNoRows {
 		if err := tx.QueryRow(
@@ -118,6 +137,7 @@ func (r *BrandRepository) upsertBrand(ctx context.Context, tx pgx.Tx, input doma
 			input.DisplayName,
 			input.Domain,
 			input.LogoURL,
+			mergedLogoAssetID,
 			input.Source,
 			input.Confidence,
 			mergedStatus,
@@ -135,6 +155,7 @@ func (r *BrandRepository) upsertBrand(ctx context.Context, tx pgx.Tx, input doma
 		input.DisplayName,
 		input.Domain,
 		input.LogoURL,
+		mergedLogoAssetID,
 		input.Source,
 		input.Confidence,
 		mergedStatus,

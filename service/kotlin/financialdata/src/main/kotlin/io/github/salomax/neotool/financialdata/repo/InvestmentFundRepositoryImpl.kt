@@ -34,23 +34,50 @@ open class InvestmentFundRepositoryImpl(
         limit: Int,
     ): List<InvestmentFund> {
         val sql = """
+            WITH params AS (
+                SELECT
+                    financial_data.normalize_fund_search_text(?::text) AS normalized_query,
+                    financial_data.build_fund_search_tokens(?::text) AS query_tokens
+            )
             SELECT
                 ia.id::text,
                 ia.name,
                 ia.fund_cnpj,
                 ia.asset_type,
-                ia.is_active
+                ia.is_active,
+                financial_data.similarity(
+                    COALESCE(ia.fund_search_text, financial_data.build_fund_search_text(ia.name)),
+                    p.normalized_query
+                ) AS sim_score
             FROM financial_data.investment_asset ia
+            CROSS JOIN params p
             WHERE ia.source = 'CVM'
               AND ia.fund_cnpj IS NOT NULL
-              AND ia.name ILIKE ?
-            ORDER BY financial_data.similarity(ia.name, ?::text) DESC, ia.name ASC
+              AND p.normalized_query <> ''
+              AND (
+                  COALESCE(ia.fund_search_text, financial_data.build_fund_search_text(ia.name)) LIKE '%' || p.normalized_query || '%'
+                  OR NOT EXISTS (
+                      SELECT 1
+                      FROM unnest(p.query_tokens) AS qt
+                      WHERE NOT EXISTS (
+                          SELECT 1
+                          FROM unnest(COALESCE(ia.fund_search_tokens, financial_data.build_fund_search_tokens(ia.name))) AS st
+                          WHERE st LIKE qt || '%'
+                      )
+                  )
+              )
+            ORDER BY
+                CASE
+                    WHEN COALESCE(ia.fund_search_text, financial_data.build_fund_search_text(ia.name)) LIKE p.normalized_query || '%' THEN 0
+                    ELSE 1
+                END,
+                sim_score DESC,
+                ia.name ASC
             LIMIT ?
         """.trimIndent()
 
-        val likePattern = "%$query%"
         val q = entityManager.createNativeQuery(sql)
-        q.setParameter(1, likePattern)
+        q.setParameter(1, query)
         q.setParameter(2, query)
         q.setParameter(3, limit)
 

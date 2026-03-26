@@ -55,11 +55,9 @@ class FundValuationService {
                     )
                 }
 
-                val withholdingPaid = transactions
-                    .filter { it.type == InvestmentTransactionType.WITHHOLDING_TAX }
-                    .fold(BigDecimal.ZERO) { acc, tx ->
-                        acc + (tx.incomeTax ?: tx.grossValue)
-                    }
+                val withholdingPaid = openLots.fold(BigDecimal.ZERO) { acc, lot ->
+                    acc.add(lot.withholdingPaid, mathContext)
+                }
 
                 var totalIof = BigDecimal.ZERO
                 var totalIrDue = BigDecimal.ZERO
@@ -175,16 +173,7 @@ class FundValuationService {
                     InvestmentTransactionType.SALE,
                     InvestmentTransactionType.MATURITY,
                 ) && tx.quantity != null -> {
-                    var remaining = tx.quantity ?: BigDecimal.ZERO
-                    while (remaining > BigDecimal.ZERO && openLots.isNotEmpty()) {
-                        val lot = openLots.removeFirst()
-                        if (lot.quantity <= remaining) {
-                            remaining = remaining.subtract(lot.quantity, mathContext)
-                        } else {
-                            openLots.addFirst(lot.copy(quantity = lot.quantity.subtract(remaining, mathContext)))
-                            remaining = BigDecimal.ZERO
-                        }
-                    }
+                    consumeLots(openLots, tx.quantity ?: BigDecimal.ZERO)
                 }
 
                 tx.type in setOf(
@@ -195,21 +184,75 @@ class FundValuationService {
                     if (tx.direction == InvestmentTransactionDirection.INFLOW && tx.unitPrice != null) {
                         openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
                     } else if (tx.direction == InvestmentTransactionDirection.OUTFLOW) {
-                        var remaining = tx.quantity ?: BigDecimal.ZERO
-                        while (remaining > BigDecimal.ZERO && openLots.isNotEmpty()) {
-                            val lot = openLots.removeFirst()
-                            if (lot.quantity <= remaining) {
-                                remaining = remaining.subtract(lot.quantity, mathContext)
-                            } else {
-                                openLots.addFirst(lot.copy(quantity = lot.quantity.subtract(remaining, mathContext)))
-                                remaining = BigDecimal.ZERO
-                            }
-                        }
+                        consumeLots(openLots, tx.quantity ?: BigDecimal.ZERO)
                     }
+                }
+
+                tx.type == InvestmentTransactionType.WITHHOLDING_TAX -> {
+                    allocateWithholding(
+                        openLots = openLots,
+                        amount = tx.incomeTax ?: tx.grossValue,
+                    )
                 }
             }
         }
         return openLots.toList()
+    }
+
+    private fun consumeLots(openLots: ArrayDeque<OpenLot>, quantityToConsume: BigDecimal) {
+        var remaining = quantityToConsume
+        while (remaining > BigDecimal.ZERO && openLots.isNotEmpty()) {
+            val lot = openLots.removeFirst()
+            if (lot.quantity <= remaining) {
+                remaining = remaining.subtract(lot.quantity, mathContext)
+            } else {
+                val remainingQuantity = lot.quantity.subtract(remaining, mathContext)
+                val remainingWithholding = prorateAmount(lot.withholdingPaid, remainingQuantity, lot.quantity)
+                openLots.addFirst(
+                    lot.copy(
+                        quantity = remainingQuantity,
+                        withholdingPaid = remainingWithholding,
+                    ),
+                )
+                remaining = BigDecimal.ZERO
+            }
+        }
+    }
+
+    private fun allocateWithholding(openLots: ArrayDeque<OpenLot>, amount: BigDecimal) {
+        if (amount <= BigDecimal.ZERO || openLots.isEmpty()) return
+
+        val lots = openLots.toList()
+        val totalQuantity = lots.fold(BigDecimal.ZERO) { acc, lot -> acc.add(lot.quantity, mathContext) }
+        if (totalQuantity <= BigDecimal.ZERO) return
+
+        openLots.clear()
+        var allocated = BigDecimal.ZERO
+        lots.forEachIndexed { index, lot ->
+            val share =
+                if (index == lots.lastIndex) {
+                    amount.subtract(allocated, mathContext)
+                } else {
+                    prorateAmount(amount, lot.quantity, totalQuantity)
+                }
+            allocated = allocated.add(share, mathContext)
+            openLots.addLast(
+                lot.copy(
+                    withholdingPaid = lot.withholdingPaid.add(share, mathContext),
+                ),
+            )
+        }
+    }
+
+    private fun prorateAmount(
+        amount: BigDecimal,
+        quantity: BigDecimal,
+        totalQuantity: BigDecimal,
+    ): BigDecimal {
+        if (amount == BigDecimal.ZERO || quantity <= BigDecimal.ZERO || totalQuantity <= BigDecimal.ZERO) {
+            return BigDecimal.ZERO
+        }
+        return amount.multiply(quantity, mathContext).divide(totalQuantity, mathContext)
     }
 
     private fun calendarDaysBetween(
@@ -234,5 +277,6 @@ class FundValuationService {
         val quantity: BigDecimal,
         val unitPrice: BigDecimal,
         val tradeDate: LocalDate,
+        val withholdingPaid: BigDecimal = BigDecimal.ZERO,
     )
 }

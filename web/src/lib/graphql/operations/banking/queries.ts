@@ -416,6 +416,10 @@ export const INVESTMENT_HOLDINGS = gql`
         ticker
         issuerName
         currencyCode
+        logoAsset {
+          id
+          publicUrl
+        }
       }
     }
   }
@@ -467,6 +471,10 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
         ticker
         issuerName
         currencyCode
+        logoAsset {
+          id
+          publicUrl
+        }
       }
     }
   }

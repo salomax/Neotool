@@ -56,9 +56,9 @@
       "funds": "Fundos"
     },
     "actions": {
-      "recordHolding": "Registrar posição",
-      "recordFund": "Registrar fundo",
-      "recordEquity": "Registrar ação / FII"
+      "recordHolding": "Nova posição",
+      "recordFund": "Novo fundo",
+      "recordEquity": "Nova Ação, FII ou opção"
     },
     "createAccount": {
       "title": "Criar conta de investimento",
@@ -151,6 +151,7 @@
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
       "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
       "total": "Total",
+      "appliedValue": "Valor aplicado",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
       "rowActions": {
@@ -202,10 +203,14 @@
         "indexer": "Indexador",
         "indexerPercentage": "% do indexador",
         "preFixedRate": "Taxa (% a.a.)",
+        "quantity": "Quantidade",
         "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
         "maturityDate": "Data de vencimento",
         "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"
+      },
+      "values": {
+        "unitPriceInfo": "Valor por unidade: {{unitPrice}}"
       },
       "assetTypes": {
         "CDB": "CDB",
@@ -236,6 +241,7 @@
         "indexerRequired": "Indexador é obrigatório",
         "indexerPercentageRequired": "% do indexador é obrigatório",
         "preFixedRateRequired": "Taxa é obrigatória",
+        "quantityNonNegative": "Quantidade deve ser maior ou igual a zero",
         "grossValueRequired": "Valor aplicado é obrigatório",
         "grossValuePositive": "Valor deve ser maior que zero",
         "tradeDateRequired": "Data da aplicação é obrigatória",

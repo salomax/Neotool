@@ -22,16 +22,24 @@ import {
 import { FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
-import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import { INVESTMENT_ASSET_PRICE } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
+  DeleteInvestmentTransactionMutation,
+  DeleteInvestmentTransactionMutationVariables,
   RecordInvestmentTransactionMutation,
   RecordInvestmentTransactionMutationVariables,
 } from "@/lib/graphql/operations/banking/mutations.generated";
-import { FinancialAccount, InvestmentTransactionDirection, InvestmentTransactionType } from "@/lib/graphql/types/__generated__/graphql";
+import {
+  AssetType,
+  FinancialAccount,
+  InvestmentTransaction,
+  InvestmentTransactionDirection,
+  InvestmentTransactionType,
+} from "@/lib/graphql/types/__generated__/graphql";
 import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
@@ -50,6 +58,11 @@ interface RecordEquityHoldingDrawerProps {
   financialAccountId?: string | null;
   financialAccounts?: FinancialAccount[];
   onRecorded?: () => void;
+  editHolding?: {
+    id: string;
+    asset: { id: string; ticker: string | null; name: string; assetType: AssetType };
+  } | null;
+  editTransaction?: InvestmentTransaction | null;
 }
 
 type RecordEquityFormData = {
@@ -70,6 +83,8 @@ export function RecordEquityHoldingDrawer({
   financialAccountId,
   financialAccounts = [],
   onRecorded,
+  editHolding,
+  editTransaction,
 }: RecordEquityHoldingDrawerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -82,6 +97,7 @@ export function RecordEquityHoldingDrawer({
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_QUANTITY");
   const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
+  const isEdit = Boolean(editHolding && editTransaction);
 
   const createSchema = React.useMemo(
     () =>
@@ -232,6 +248,11 @@ export function RecordEquityHoldingDrawer({
     CreateInvestmentAssetMutationVariables
   >(CREATE_INVESTMENT_ASSET);
 
+  const [deleteInvestmentTransaction, { loading: deletingTx, error: deleteTxError }] = useMutation<
+    DeleteInvestmentTransactionMutation,
+    DeleteInvestmentTransactionMutationVariables
+  >(DELETE_INVESTMENT_TRANSACTION);
+
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
@@ -247,8 +268,8 @@ export function RecordEquityHoldingDrawer({
     },
   });
 
-  const isSubmitting = creatingAsset || recordingTx;
-  const mutationError = createAssetError || recordTxError;
+  const isSubmitting = creatingAsset || deletingTx || recordingTx;
+  const mutationError = createAssetError || deleteTxError || recordTxError;
 
   const currencyFormatter = React.useMemo(
     () => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }),
@@ -293,9 +314,29 @@ export function RecordEquityHoldingDrawer({
     return computedGrossValue + computedTotalFees;
   }, [computedGrossValue, computedTotalFees]);
 
+  const mapHoldingAssetTypeToB3 = React.useCallback((assetType: AssetType) => {
+    switch (assetType) {
+      case AssetType.RealEstateFund:
+        return "FII";
+      case AssetType.Option:
+        return "OPTION_CALL";
+      case AssetType.Stock:
+      default:
+        return "EQUITY";
+    }
+  }, []);
+
+  const toDateValue = React.useCallback((value: unknown) => {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const d = new Date(String(value));
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }, []);
+
   const onSubmit = async (data: RecordEquityFormData) => {
     if (!resolvedFinancialAccountId) return;
-    if (!data.asset) return;
+    const asset = data.asset;
+    if (!asset) return;
     if (!data.tradeDate) return;
 
     if (valueFlow === "BY_AMOUNT") {
@@ -334,36 +375,82 @@ export function RecordEquityHoldingDrawer({
       return;
     }
 
-    const createdAsset = await createAsset({
-      variables: {
-        input: {
-          name: data.asset.name,
-          assetType: mapB3AssetType(data.asset.assetType),
-          issuerName: data.asset.ticker,
-          currencyCode: "BRL",
-        },
-      },
-    });
+    const resolvedAssetId =
+      isEdit
+        ? editHolding!.asset.id
+        : (await (async () => {
+            const createdAsset = await createAsset({
+              variables: {
+                input: {
+                  name: asset.name,
+                  assetType: mapB3AssetType(asset.assetType),
+                  ticker: asset.ticker,
+                  currencyCode: "BRL",
+                },
+              },
+            });
+            return createdAsset.data?.createInvestmentAsset.id ?? null;
+          })());
+    if (!resolvedAssetId) return;
 
-    const assetId = createdAsset.data?.createInvestmentAsset.id;
-    if (!assetId) return;
+    try {
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
 
-    await recordTransaction({
-      variables: {
-        input: {
-          financialAccountId: resolvedFinancialAccountId,
-          assetId,
-          direction: InvestmentTransactionDirection.Inflow,
-          type: InvestmentTransactionType.Purchase,
-          quantity,
-          unitPrice,
-          grossValue,
-          tradeDate,
-          settlementDate: dayjs(data.tradeDate).add(2, "day").format("YYYY-MM-DD"),
+      await recordTransaction({
+        variables: {
+          input: {
+            financialAccountId: resolvedFinancialAccountId,
+            assetId: resolvedAssetId,
+            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
+            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+            quantity,
+            unitPrice,
+            grossValue,
+            tradeDate,
+            settlementDate: dayjs(data.tradeDate).add(2, "day").format("YYYY-MM-DD"),
+          },
         },
-      },
-    });
+      });
+    } catch {
+      return;
+    }
   };
+
+  useEffect(() => {
+    if (!open) return;
+    if (!isEdit) return;
+
+    const hasQuantity = editTransaction!.quantity != null && Number.isFinite(editTransaction!.quantity);
+    const hasUnitPrice = editTransaction!.unitPrice != null && Number.isFinite(editTransaction!.unitPrice);
+    const nextFlow = hasQuantity && hasUnitPrice ? "BY_QUANTITY" : "BY_AMOUNT";
+
+    setValueFlow(nextFlow);
+    setFeesMode("SUMMARY");
+
+    const assetTicker = editHolding!.asset.ticker ?? "";
+    methods.reset(
+      {
+        asset: {
+          id: editHolding!.asset.id,
+          ticker: assetTicker,
+          name: editHolding!.asset.name,
+          assetType: mapHoldingAssetTypeToB3(editHolding!.asset.assetType),
+          isActive: true,
+        },
+        quantity: nextFlow === "BY_QUANTITY" ? editTransaction!.quantity ?? undefined : undefined,
+        tradeDate: toDateValue(editTransaction!.tradeDate),
+        unitPrice: nextFlow === "BY_QUANTITY" ? editTransaction!.unitPrice ?? undefined : editTransaction!.unitPrice ?? undefined,
+        grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
+        totalFees: undefined,
+        brokerageFee: undefined,
+        settlementFee: undefined,
+        otherFees: undefined,
+      },
+      { keepDirty: false },
+    );
+  }, [editHolding, editTransaction, isEdit, mapHoldingAssetTypeToB3, methods, open, toDateValue]);
 
   return (
     <InvestmentRecordDrawer
@@ -439,7 +526,7 @@ export function RecordEquityHoldingDrawer({
                       gap: 2,
                     }}
                   >
-                    <EquityAutocomplete name="asset" data-testid="record-equity-autocomplete" />
+                    <EquityAutocomplete name="asset" data-testid="record-equity-autocomplete" disabled={isEdit} />
                     <DatePickerField
                       name="tradeDate"
                       label={t("investments.recordEquity.fields.tradeDate")}

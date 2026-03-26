@@ -22,8 +22,8 @@ open class InvestmentFundSearchService(
     private val logger = KotlinLogging.logger {}
 
     /**
-     * Autocomplete search for investment funds by name.
-     * Returns up to [limit] results ordered by trigram similarity.
+     * Autocomplete search for investment funds by normalized name/abbreviations.
+     * Returns up to [limit] results ordered by normalized similarity.
      */
     fun searchFundsAutocomplete(
         query: String,

@@ -4,12 +4,12 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
-	"math"
-	"regexp"
+	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
 
+	"github.com/google/uuid"
 	"github.com/salomax/invistus/workers/golang/financial_data/asset-brand/internal/domain"
 	"golang.org/x/text/unicode/norm"
 )
@@ -18,7 +18,8 @@ type Hydrator struct {
 	assets               domain.AssetRepository
 	brands               domain.BrandRepository
 	jobs                 domain.JobControlRepository
-	client               domain.SearchClient
+	client               domain.BrandLookupClient
+	assetUploader        domain.AssetUploader
 	batchLimit           int
 	throttleMS           int
 	autoApproveThreshold float64
@@ -29,7 +30,8 @@ func NewHydrator(
 	assets domain.AssetRepository,
 	brands domain.BrandRepository,
 	jobs domain.JobControlRepository,
-	client domain.SearchClient,
+	client domain.BrandLookupClient,
+	assetUploader domain.AssetUploader,
 	batchLimit int,
 	throttleMS int,
 	autoApproveThreshold float64,
@@ -40,6 +42,7 @@ func NewHydrator(
 		brands:               brands,
 		jobs:                 jobs,
 		client:               client,
+		assetUploader:        assetUploader,
 		batchLimit:           batchLimit,
 		throttleMS:           throttleMS,
 		autoApproveThreshold: autoApproveThreshold,
@@ -104,22 +107,32 @@ func (h *Hydrator) Run(ctx context.Context) error {
 }
 
 func (h *Hydrator) processAsset(ctx context.Context, asset domain.PendingAsset) (bool, error) {
-	query := buildSearchQuery(asset.Name)
-	if query == "" {
-		return false, nil
-	}
-
-	response, err := h.client.Search(ctx, query)
+	lookup, err := h.client.LookupBrand(ctx, asset)
 	if err != nil {
 		return false, err
 	}
-	if len(response.Results) == 0 {
-		h.logger.Info("asset-brand hydrator: no search results", "ticker", asset.Ticker, "query", query)
+	if lookup == nil {
+		h.logger.Info(
+			"asset-brand hydrator: no provider result",
+			"ticker", asset.Ticker,
+			"asset_type", asset.AssetType,
+			"isin_code", asset.IsinCode,
+		)
 		return false, nil
 	}
 
-	top := response.Results[0]
-	confidence := scoreCandidate(query, top, 1)
+	normalizedName := normalizeName(asset.Name)
+	existingBrand, err := h.brands.FindBrandByNormalizedName(ctx, normalizedName)
+	if err != nil {
+		return false, err
+	}
+
+	logoAssetID, err := h.resolveLogoAssetID(ctx, asset, normalizedName, lookup, existingBrand)
+	if err != nil {
+		return false, err
+	}
+
+	confidence := resolveConfidence(asset, lookup)
 	status := domain.StatusPending
 	if confidence >= h.autoApproveThreshold {
 		status = domain.StatusAutoApproved
@@ -127,16 +140,17 @@ func (h *Hydrator) processAsset(ctx context.Context, asset domain.PendingAsset) 
 
 	err = h.brands.UpsertBrandCandidate(ctx, domain.BrandUpsertInput{
 		AssetID:          asset.ID,
-		QueryUsed:        query,
+		QueryUsed:        lookup.QueryUsed,
 		CandidateRank:    1,
-		NormalizedName:   normalizeName(top.Name),
-		DisplayName:      top.Name,
-		Domain:           top.Domain,
-		LogoURL:          top.LogoURL,
-		Source:           domain.SourceLogoDevSearch,
+		NormalizedName:   normalizedName,
+		DisplayName:      asset.Name,
+		Domain:           "",
+		LogoURL:          lookup.LogoURL,
+		LogoAssetID:      logoAssetID,
+		Source:           domain.SourceBrandfetchISIN,
 		Status:           status,
 		Confidence:       confidence,
-		RawSearchPayload: response.RawPayload,
+		RawSearchPayload: lookup.RawPayload,
 	})
 	if err != nil {
 		return false, err
@@ -145,46 +159,73 @@ func (h *Hydrator) processAsset(ctx context.Context, asset domain.PendingAsset) 
 	return true, nil
 }
 
-func buildSearchQuery(assetName string) string {
-	query := collapseWhitespace(assetName)
-	query = shareClassSuffixRegex.ReplaceAllString(query, "")
-	return strings.TrimSpace(query)
+func (h *Hydrator) resolveLogoAssetID(
+	ctx context.Context,
+	asset domain.PendingAsset,
+	normalizedName string,
+	lookup *domain.BrandLookupResult,
+	existingBrand *domain.ExistingBrand,
+) (*uuid.UUID, error) {
+	if existingBrand != nil && existingBrand.LogoAssetID != nil {
+		return existingBrand.LogoAssetID, nil
+	}
+	if lookup == nil || len(lookup.LogoData) == 0 {
+		return nil, nil
+	}
+	if strings.TrimSpace(lookup.MimeType) == "" {
+		return nil, fmt.Errorf("missing mime type for asset %s", asset.Ticker)
+	}
+
+	assetID, err := h.assetUploader.UploadLogo(
+		ctx,
+		lookup.LogoData,
+		buildBrandLogoFilename(normalizedName, lookup.MimeType),
+		lookup.MimeType,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("upload brand logo: %w", err)
+	}
+
+	parsedAssetID, err := uuid.Parse(assetID)
+	if err != nil {
+		return nil, fmt.Errorf("parse uploaded asset id %q: %w", assetID, err)
+	}
+
+	return &parsedAssetID, nil
 }
 
-func scoreCandidate(query string, candidate domain.SearchCandidate, rank int) float64 {
-	normalizedQuery := normalizeName(query)
-	normalizedCandidate := normalizeName(candidate.Name)
-
-	queryTokens := tokenSet(normalizedQuery)
-	candidateTokens := tokenSet(normalizedCandidate)
-
-	tokenOverlap := 0.0
-	if len(queryTokens) > 0 {
-		shared := 0
-		for token := range queryTokens {
-			if _, ok := candidateTokens[token]; ok {
-				shared++
-			}
-		}
-		tokenOverlap = float64(shared) / float64(len(queryTokens))
+func buildBrandLogoFilename(normalizedName string, mimeType string) string {
+	baseName := strings.ToLower(strings.ReplaceAll(normalizedName, " ", "-"))
+	baseName = strings.Trim(baseName, "-")
+	if baseName == "" {
+		baseName = "brand-logo"
 	}
+	return filepath.ToSlash(fmt.Sprintf("asset-brands/%s.%s", baseName, fileExtensionForMimeType(mimeType)))
+}
 
-	score := 0.55 + (tokenOverlap * 0.35)
-	switch {
-	case normalizedCandidate == normalizedQuery:
-		score = 0.99
-	case strings.Contains(normalizedCandidate, normalizedQuery), strings.Contains(normalizedQuery, normalizedCandidate):
-		score = 0.93
+func fileExtensionForMimeType(mimeType string) string {
+	switch mimeType {
+	case "image/jpeg":
+		return "jpg"
+	case "image/png":
+		return "png"
+	case "image/webp":
+		return "webp"
+	case "image/svg+xml":
+		return "svg"
+	default:
+		return "bin"
 	}
+}
 
-	if rank > 1 {
-		score -= float64(rank-1) * 0.05
+func resolveConfidence(asset domain.PendingAsset, lookup *domain.BrandLookupResult) float64 {
+	if lookup == nil || strings.TrimSpace(lookup.QueryUsed) == "" {
+		return 0
 	}
-	if strings.TrimSpace(candidate.Domain) == "" {
-		score -= 0.10
+	if strings.TrimSpace(asset.IsinCode) == "" {
+		return 0
 	}
-
-	return math.Round(clamp(score, 0, 0.99)*10000) / 10000
+	return 1
 }
 
 func normalizeName(value string) string {
@@ -207,28 +248,3 @@ func normalizeName(value string) string {
 	}
 	return strings.TrimSpace(builder.String())
 }
-
-func tokenSet(value string) map[string]struct{} {
-	tokens := strings.Fields(value)
-	out := make(map[string]struct{}, len(tokens))
-	for _, token := range tokens {
-		out[token] = struct{}{}
-	}
-	return out
-}
-
-func clamp(value float64, min float64, max float64) float64 {
-	if value < min {
-		return min
-	}
-	if value > max {
-		return max
-	}
-	return value
-}
-
-func collapseWhitespace(value string) string {
-	return strings.Join(strings.Fields(value), " ")
-}
-
-var shareClassSuffixRegex = regexp.MustCompile(`\s+(ON|PN|PNA|PNB|PNC|UNIT|UNT|CI|N1|N2|NM)$`)

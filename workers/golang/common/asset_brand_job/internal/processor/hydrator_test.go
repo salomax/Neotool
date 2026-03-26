@@ -23,6 +23,12 @@ func (f *fakeAssetRepo) FindPendingBrandHydration(ctx context.Context, limit int
 
 type fakeBrandRepo struct {
 	inputs []domain.BrandUpsertInput
+	brand  *domain.ExistingBrand
+	err    error
+}
+
+func (f *fakeBrandRepo) FindBrandByNormalizedName(ctx context.Context, normalizedName string) (*domain.ExistingBrand, error) {
+	return f.brand, f.err
 }
 
 func (f *fakeBrandRepo) UpsertBrandCandidate(ctx context.Context, input domain.BrandUpsertInput) error {
@@ -52,55 +58,69 @@ func (f *fakeJobRepo) MarkFailed(ctx context.Context, jobName string, errMsg str
 }
 
 type fakeClient struct {
-	response domain.SearchResponse
+	result *domain.BrandLookupResult
+	err    error
+}
+
+func (f *fakeClient) LookupBrand(ctx context.Context, asset domain.PendingAsset) (*domain.BrandLookupResult, error) {
+	return f.result, f.err
+}
+
+type fakeBrandAssetUploader struct {
+	assetID  string
+	uploads  int
+	filename string
+	mimeType string
+	data     []byte
 	err      error
 }
 
-func (f *fakeClient) Search(ctx context.Context, query string) (domain.SearchResponse, error) {
-	return f.response, f.err
+func (f *fakeBrandAssetUploader) UploadLogo(ctx context.Context, logoData []byte, filename string, mimeType string) (string, error) {
+	f.uploads++
+	f.filename = filename
+	f.mimeType = mimeType
+	f.data = append([]byte(nil), logoData...)
+	if f.assetID == "" {
+		f.assetID = uuid.NewString()
+	}
+	return f.assetID, f.err
 }
 
 func testLogger() *slog.Logger {
 	return slog.New(slog.NewJSONHandler(io.Discard, nil))
 }
 
-func TestBuildSearchQuery_RemovesShareClassSuffix(t *testing.T) {
-	got := buildSearchQuery("PETROBRAS PN")
-	if got != "PETROBRAS" {
-		t.Fatalf("expected PETROBRAS, got %q", got)
-	}
-}
+func TestResolveConfidence_UsesExactISINLookup(t *testing.T) {
+	score := resolveConfidence(
+		domain.PendingAsset{IsinCode: "BRPETRACNPR6"},
+		&domain.BrandLookupResult{QueryUsed: "BRPETRACNPR6"},
+	)
 
-func TestScoreCandidate_ExactMatchAutoApprove(t *testing.T) {
-	score := scoreCandidate("PETROBRAS", domain.SearchCandidate{
-		Name:    "Petrobras",
-		Domain:  "petrobras.com.br",
-		LogoURL: "https://img.logo.dev/petrobras.com.br",
-	}, 1)
-
-	if score < 0.99 {
-		t.Fatalf("expected exact match score >= 0.99, got %f", score)
+	if score != 1 {
+		t.Fatalf("expected confidence 1.0, got %f", score)
 	}
 }
 
 func TestRun_SavesAutoApprovedCandidate(t *testing.T) {
 	assets := &fakeAssetRepo{
 		assets: []domain.PendingAsset{
-			{ID: uuid.New(), Ticker: "PETR4", Name: "PETROBRAS"},
+			{ID: uuid.New(), Ticker: "PETR4", Name: "PETROBRAS", AssetType: "EQUITY", IsinCode: "BRPETRACNPR6"},
 		},
 	}
 	brands := &fakeBrandRepo{}
 	jobs := &fakeJobRepo{}
+	uploader := &fakeBrandAssetUploader{assetID: uuid.NewString()}
 	client := &fakeClient{
-		response: domain.SearchResponse{
-			Results: []domain.SearchCandidate{
-				{Name: "Petrobras", Domain: "petrobras.com.br", LogoURL: "https://img.logo.dev/petrobras.com.br"},
-			},
-			RawPayload: `[{"name":"Petrobras"}]`,
+		result: &domain.BrandLookupResult{
+			QueryUsed:  "BRPETRACNPR6",
+			LogoURL:    "https://cdn.brandfetch.io/isin/BRPETRACNPR6/w/400/h/400/?c=test-client",
+			LogoData:   []byte("png"),
+			MimeType:   "image/png",
+			RawPayload: `{"provider":"BRANDFETCH_ISIN","isinCode":"BRPETRACNPR6","resolvedType":"default"}`,
 		},
 	}
 
-	hydrator := NewHydrator(assets, brands, jobs, client, 10, 0, 0.93, testLogger())
+	hydrator := NewHydrator(assets, brands, jobs, client, uploader, 10, 0, 0.93, testLogger())
 	if err := hydrator.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -117,34 +137,75 @@ func TestRun_SavesAutoApprovedCandidate(t *testing.T) {
 	if brands.inputs[0].NormalizedName != "PETROBRAS" {
 		t.Fatalf("unexpected normalized name: %s", brands.inputs[0].NormalizedName)
 	}
+	if brands.inputs[0].Source != domain.SourceBrandfetchISIN {
+		t.Fatalf("unexpected source: %s", brands.inputs[0].Source)
+	}
+	if brands.inputs[0].LogoAssetID == nil {
+		t.Fatal("expected logo asset id to be set")
+	}
+	if uploader.uploads != 1 {
+		t.Fatalf("expected one upload, got %d", uploader.uploads)
+	}
 }
 
-func TestRun_LeavesWeakMatchPending(t *testing.T) {
+func TestRun_SkipsWhenProviderReturnsNoResult(t *testing.T) {
 	assets := &fakeAssetRepo{
 		assets: []domain.PendingAsset{
-			{ID: uuid.New(), Ticker: "RAIZ4", Name: "RAIZEN"},
+			{ID: uuid.New(), Ticker: "RAIZ4", Name: "RAIZEN", AssetType: "EQUITY", IsinCode: "BRRAIZACNOR4"},
 		},
 	}
 	brands := &fakeBrandRepo{}
 	jobs := &fakeJobRepo{}
-	client := &fakeClient{
-		response: domain.SearchResponse{
-			Results: []domain.SearchCandidate{
-				{Name: "Raia Drogasil", Domain: "ri.rd.com.br", LogoURL: "https://img.logo.dev/ri.rd.com.br"},
-			},
-			RawPayload: `[{"name":"Raia Drogasil"}]`,
-		},
-	}
+	uploader := &fakeBrandAssetUploader{}
+	client := &fakeClient{}
 
-	hydrator := NewHydrator(assets, brands, jobs, client, 10, 0, 0.93, testLogger())
+	hydrator := NewHydrator(assets, brands, jobs, client, uploader, 10, 0, 0.93, testLogger())
 	if err := hydrator.Run(context.Background()); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
+	if len(brands.inputs) != 0 {
+		t.Fatalf("expected no upserts, got %d", len(brands.inputs))
+	}
+	if uploader.uploads != 0 {
+		t.Fatalf("expected no uploads, got %d", uploader.uploads)
+	}
+}
+
+func TestRun_ReusesExistingBrandLogoAsset(t *testing.T) {
+	existingAssetID := uuid.New()
+	assets := &fakeAssetRepo{
+		assets: []domain.PendingAsset{
+			{ID: uuid.New(), Ticker: "VALE5", Name: "VALE", AssetType: "EQUITY", IsinCode: "BRVALEACNOR0"},
+		},
+	}
+	brands := &fakeBrandRepo{
+		brand: &domain.ExistingBrand{ID: uuid.New(), LogoAssetID: &existingAssetID},
+	}
+	jobs := &fakeJobRepo{}
+	uploader := &fakeBrandAssetUploader{}
+	client := &fakeClient{
+		result: &domain.BrandLookupResult{
+			QueryUsed:  "BRVALEACNOR0",
+			LogoURL:    "https://cdn.brandfetch.io/isin/BRVALEACNOR0/w/400/h/400/?c=test-client",
+			LogoData:   []byte("png"),
+			MimeType:   "image/png",
+			RawPayload: `{"provider":"BRANDFETCH_ISIN","isinCode":"BRVALEACNOR0","resolvedType":"default"}`,
+		},
+	}
+
+	hydrator := NewHydrator(assets, brands, jobs, client, uploader, 10, 0, 0.93, testLogger())
+	if err := hydrator.Run(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if uploader.uploads != 0 {
+		t.Fatalf("expected no upload, got %d", uploader.uploads)
+	}
 	if len(brands.inputs) != 1 {
 		t.Fatalf("expected one upsert, got %d", len(brands.inputs))
 	}
-	if brands.inputs[0].Status != domain.StatusPending {
-		t.Fatalf("expected PENDING, got %s", brands.inputs[0].Status)
+	if brands.inputs[0].LogoAssetID == nil || *brands.inputs[0].LogoAssetID != existingAssetID {
+		t.Fatalf("expected existing logo asset id %s, got %+v", existingAssetID, brands.inputs[0].LogoAssetID)
 	}
 }

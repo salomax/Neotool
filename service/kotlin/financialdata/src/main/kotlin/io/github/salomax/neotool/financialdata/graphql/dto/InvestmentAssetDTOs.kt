@@ -50,6 +50,7 @@ data class ListedAssetDTO(
     val assetType: String,
     val exchange: String?,
     val isActive: Boolean,
+    val logoAssetId: String?,
     val latestPrice: AssetDailyPriceDTO?,
 )
 

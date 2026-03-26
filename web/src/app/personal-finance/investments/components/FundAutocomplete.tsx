@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery } from "@apollo/client/react";
-import { Autocomplete, Box, Chip, CircularProgress, TextField, Typography } from "@mui/material";
+import { Autocomplete, Box, CircularProgress, TextField, Typography } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
@@ -13,7 +13,7 @@ import {
   SearchInvestmentFundsAutocompleteQueryVariables,
 } from "@/lib/graphql/operations/financial-data/queries.generated";
 import { formatCnpj } from "@/lib/utils/formatCnpj";
-import { formatFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
+import { AssetTypeChip } from "./AssetTypeChip";
 
 export type FundAutocompleteValue = {
   id: string;
@@ -102,7 +102,7 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
                   {formatCnpj(option.cnpj)}
                 </Typography>
               </Box>
-              <Chip size="small" variant="outlined" label={formatFundAssetType(option.assetType, t)} sx={{ flex: "0 0 auto" }} />
+              <AssetTypeChip assetType={option.assetType} size="small" />
             </Box>
           )}
           renderInput={(params) => (

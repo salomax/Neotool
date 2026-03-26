@@ -132,7 +132,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       h4: 24,
       h5: 20,
       h6: 18,
-      body: 16,
+      body: 14,
       small: 14,
     },
     palette: {
@@ -206,7 +206,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       h4: 24,
       h5: 20,
       h6: 18,
-      body: 16,
+      body: 14,
       small: 14,
     },
     palette: {

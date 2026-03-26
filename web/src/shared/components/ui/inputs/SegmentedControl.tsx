@@ -21,6 +21,7 @@ const StyledToggleButtonGroup = styled(ToggleButtonGroup, {
   padding: 0,
   borderRadius: 12,
   border: "none",
+  flexWrap: "nowrap",
   gap: gap ? theme.spacing(gap) : 0,
   "& .MuiToggleButtonGroup-grouped": {
     margin: 0,
@@ -95,8 +96,10 @@ export function SegmentedControl({
           value={option.value} 
           aria-label={String(option.label)}
           sx={{
+            whiteSpace: "nowrap",
             "&.Mui-selected": {
               backgroundColor: option.activeColor ? `${alpha(option.activeColor, 0.05)} !important` : undefined,
+              color: option.activeColor ? `${option.activeColor} !important` : undefined,
               "&:hover": {
                 backgroundColor: option.activeColor ? `${alpha(option.activeColor, 0.1)} !important` : undefined,
               }

@@ -29,6 +29,7 @@ data class InvestmentAssetDTO(
     val anbimaCategory: AnbimaCategory?,
     val anbimaClass: String?,
     val anbimaSubclass: String?,
+    val logoAsset: Map<String, String>?,
     val priceFactor: Double,
     val createdAt: Instant,
     val updatedAt: Instant,

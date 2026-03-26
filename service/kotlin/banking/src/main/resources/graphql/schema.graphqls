@@ -1051,6 +1051,7 @@ type InvestmentAsset {
   anbimaCategory: AnbimaCategory
   anbimaClass: String
   anbimaSubclass: String
+  logoAsset: Asset
   """B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001."""
   priceFactor: Float!
   createdAt: DateTime!

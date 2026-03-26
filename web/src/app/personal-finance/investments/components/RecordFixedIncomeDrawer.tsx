@@ -3,15 +3,18 @@
 import React, { useEffect } from "react";
 import { useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Avatar, Box, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Typography, alpha, useTheme } from "@mui/material";
+import { Avatar, Box, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typography, alpha, useTheme } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
-import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
+  DeleteInvestmentTransactionMutation,
+  DeleteInvestmentTransactionMutationVariables,
   RecordInvestmentTransactionMutation,
   RecordInvestmentTransactionMutationVariables,
 } from "@/lib/graphql/operations/banking/mutations.generated";
@@ -21,9 +24,11 @@ import {
   Indexer,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
+  InvestmentTransaction,
 } from "@/lib/graphql/types/__generated__/graphql";
 import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
-import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, PercentField, SelectField } from "@/shared/components/ui/forms/form";
+import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
+import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
@@ -37,6 +42,21 @@ interface RecordFixedIncomeDrawerProps {
   financialAccountId?: string | null;
   financialAccounts?: FinancialAccount[];
   onRecorded?: () => void;
+  editHolding?: {
+    id: string;
+    asset: {
+      id: string;
+      name: string;
+      assetType: AssetType;
+      issuerName: string | null;
+    };
+    indexer: Indexer | null;
+    indexerPercentage: number | null;
+    preFixedRate: number | null;
+    maturityDate: unknown | null;
+    isTaxExempt: boolean;
+  } | null;
+  editTransaction?: InvestmentTransaction | null;
 }
 
 const FIXED_INCOME_ASSET_TYPES: readonly AssetType[] = [
@@ -63,6 +83,7 @@ const FIXED_INCOME_INDEXERS: readonly Indexer[] = [
   Indexer.Outros,
 ] as const;
 
+
 const TAX_EXEMPT_ASSET_TYPES: readonly AssetType[] = [AssetType.Lci, AssetType.Lca, AssetType.Cri, AssetType.Cra] as const;
 
 type RecordFixedIncomeFormData = {
@@ -72,6 +93,7 @@ type RecordFixedIncomeFormData = {
   indexer?: Indexer;
   indexerPercentage?: number;
   preFixedRate?: number;
+  quantity?: number | string;
   grossValue: number;
   tradeDate?: Date;
   maturityDate?: Date;
@@ -84,6 +106,8 @@ export function RecordFixedIncomeDrawer({
   financialAccountId,
   financialAccounts = [],
   onRecorded,
+  editHolding,
+  editTransaction,
 }: RecordFixedIncomeDrawerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -110,6 +134,10 @@ export function RecordFixedIncomeDrawer({
           indexerPercentage: z.preprocess(
             (value) => {
               if (value === "" || value === null || value === undefined) return undefined;
+              // `PercentField` already parses locale-formatted user input into a number.
+              // If we normalize numeric inputs as if they were locale strings, we can
+              // incorrectly treat the decimal dot as a thousands separator in pt-BR.
+              if (typeof value === "number") return value;
               const raw = String(value);
               let normalized: string;
               if (localeGroup) {
@@ -124,11 +152,12 @@ export function RecordFixedIncomeDrawer({
               const parsed = Number(normalized);
               return Number.isNaN(parsed) ? undefined : parsed;
             },
-            z.number().positive().optional(),
+            z.number().positive(t("investments.recordHolding.validation.indexerPercentageRequired")).optional(),
           ),
           preFixedRate: z.preprocess(
             (value) => {
               if (value === "" || value === null || value === undefined) return undefined;
+              if (typeof value === "number") return value;
               const raw = String(value);
               let normalized: string;
               if (localeGroup) {
@@ -145,9 +174,30 @@ export function RecordFixedIncomeDrawer({
             },
             z.number().positive().optional(),
           ),
+          quantity: z.preprocess(
+            (value) => {
+              if (value === "" || value === null || value === undefined) return undefined;
+              if (typeof value === "number") return value;
+              const raw = String(value);
+              let normalized: string;
+              if (localeGroup) {
+                const decimalIndex = raw.lastIndexOf(localeDecimal);
+                if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
+                  return undefined;
+                }
+                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+              } else {
+                normalized = raw.replace(localeDecimal, ".");
+              }
+              const parsed = Number(normalized);
+              return Number.isNaN(parsed) ? undefined : parsed;
+            },
+            z.number().min(0, t("investments.recordHolding.validation.quantityNonNegative")).default(1),
+          ),
           grossValue: z.preprocess(
             (value) => {
               if (value === "" || value === null || value === undefined) return undefined;
+              if (typeof value === "number") return value;
               const raw = String(value);
               let normalized: string;
               if (localeGroup) {
@@ -235,6 +285,7 @@ export function RecordFixedIncomeDrawer({
       indexer: undefined,
       indexerPercentage: undefined,
       preFixedRate: undefined,
+      quantity: 1,
       grossValue: undefined,
       tradeDate: undefined,
       maturityDate: undefined,
@@ -246,8 +297,26 @@ export function RecordFixedIncomeDrawer({
   const watchedAssetType = useWatch({ control: methods.control, name: "assetType" });
   const watchedIndexer = useWatch({ control: methods.control, name: "indexer" });
   const watchedTradeDate = useWatch({ control: methods.control, name: "tradeDate" });
+  const watchedQuantity = useWatch({ control: methods.control, name: "quantity" });
+  const watchedGrossValue = useWatch({ control: methods.control, name: "grossValue" });
   const isTreasury = watchedAssetType === AssetType.Treasury;
   const isPreFixed = watchedIndexer === Indexer.PreFixado;
+const isEdit = Boolean(editHolding && editTransaction);
+  const currencyFormatter = React.useMemo(() => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }), [locale]);
+
+  const computedUnitPrice = React.useMemo(() => {
+    if (typeof watchedQuantity !== "number" || !Number.isFinite(watchedQuantity) || watchedQuantity <= 0) return null;
+    if (typeof watchedGrossValue !== "number" || !Number.isFinite(watchedGrossValue) || watchedGrossValue <= 0) return null;
+    if (watchedQuantity <= 1) return null;
+    return watchedGrossValue / watchedQuantity;
+  }, [watchedGrossValue, watchedQuantity]);
+
+  const toDateValue = React.useCallback((value: unknown) => {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const d = new Date(String(value));
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -270,6 +339,11 @@ export function RecordFixedIncomeDrawer({
     CreateInvestmentAssetMutationVariables
   >(CREATE_INVESTMENT_ASSET);
 
+  const [deleteInvestmentTransaction, { loading: deletingTx, error: deleteTxError }] = useMutation<
+    DeleteInvestmentTransactionMutation,
+    DeleteInvestmentTransactionMutationVariables
+  >(DELETE_INVESTMENT_TRANSACTION);
+
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
@@ -285,8 +359,8 @@ export function RecordFixedIncomeDrawer({
     },
   });
 
-  const isSubmitting = creatingAsset || recordingTx;
-  const mutationError = createAssetError || recordTxError;
+  const isSubmitting = creatingAsset || deletingTx || recordingTx;
+  const mutationError = createAssetError || deleteTxError || recordTxError;
 
   const assetTypeOptions = React.useMemo(
     () =>
@@ -313,42 +387,83 @@ export function RecordFixedIncomeDrawer({
     const tradeDate = dayjs(data.tradeDate).format("YYYY-MM-DD");
     const maturityDate = dayjs(data.maturityDate).format("YYYY-MM-DD");
 
-    const createdAsset = await createAsset({
-      variables: {
-        input: {
-          name: data.assetName,
-          assetType: data.assetType!,
-          issuerName: data.issuerName,
-          currencyCode: "BRL",
-        },
-      },
-    });
+    const quantity = typeof data.quantity === "number" && Number.isFinite(data.quantity) && data.quantity >= 0 ? data.quantity : 1;
+    const unitPrice = quantity > 0 ? data.grossValue / quantity : data.grossValue;
 
-    const assetId = createdAsset.data?.createInvestmentAsset.id;
-    if (!assetId) return;
+    const assetId = isEdit ? editHolding!.asset.id : null;
+    const resolvedAssetId =
+      assetId ??
+      (await (async () => {
+        const createdAsset = await createAsset({
+          variables: {
+            input: {
+              name: data.assetName,
+              assetType: data.assetType!,
+              issuerName: data.issuerName,
+              currencyCode: "BRL",
+            },
+          },
+        });
+        return createdAsset.data?.createInvestmentAsset.id ?? null;
+      })());
+    if (!resolvedAssetId) return;
 
-    await recordTransaction({
-      variables: {
-        input: {
-          financialAccountId: resolvedFinancialAccountId,
-          assetId,
-          direction: InvestmentTransactionDirection.Inflow,
-          type: InvestmentTransactionType.Purchase,
-          quantity: 1,
-          unitPrice: data.grossValue,
-          grossValue: data.grossValue,
-          tradeDate,
-          settlementDate: tradeDate,
-          indexer: data.indexer!,
-          indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
-          preFixedRate: data.indexer === Indexer.PreFixado ? data.preFixedRate! / 100 : undefined,
-          issueDate: tradeDate,
-          maturityDate,
-          isTaxExempt: data.isTaxExempt,
+    try {
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
+
+      await recordTransaction({
+        variables: {
+          input: {
+            financialAccountId: resolvedFinancialAccountId,
+            assetId: resolvedAssetId,
+            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
+            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+            quantity,
+            unitPrice,
+            grossValue: data.grossValue,
+            tradeDate,
+            settlementDate: tradeDate,
+            indexer: data.indexer!,
+            indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
+            preFixedRate: data.indexer === Indexer.PreFixado ? data.preFixedRate! / 100 : undefined,
+            issueDate: tradeDate,
+            maturityDate,
+            isTaxExempt: data.isTaxExempt,
+          },
         },
-      },
-    });
+      });
+    } catch {
+      return;
+    }
   };
+
+  useEffect(() => {
+    if (!open) return;
+    if (!isEdit) return;
+
+    reset(
+      {
+        assetName: editHolding!.asset.name ?? "",
+        assetType: editHolding!.asset.assetType,
+        issuerName: editHolding!.asset.issuerName ?? "",
+        indexer: editHolding!.indexer ?? undefined,
+        indexerPercentage:
+          editHolding!.indexerPercentage != null && Number.isFinite(editHolding!.indexerPercentage)
+            ? editHolding!.indexerPercentage * 100
+            : undefined,
+        preFixedRate:
+          editHolding!.preFixedRate != null && Number.isFinite(editHolding!.preFixedRate) ? editHolding!.preFixedRate * 100 : undefined,
+        quantity: editTransaction!.quantity ?? 1,
+        grossValue: editTransaction!.grossValue,
+        tradeDate: toDateValue(editTransaction!.tradeDate),
+        maturityDate: toDateValue(editHolding!.maturityDate),
+        isTaxExempt: editHolding!.isTaxExempt ?? false,
+      },
+      { keepDirty: false },
+    );
+  }, [editHolding, editTransaction, isEdit, open, reset, toDateValue]);
 
   return (
     <InvestmentRecordDrawer
@@ -367,10 +482,10 @@ export function RecordFixedIncomeDrawer({
       {({ resolvedFinancialAccountId }) => (
         <FormProvider {...methods}>
           <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <Stack spacing={2}>
+            <FormStack>
               {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-              <Stack spacing={1}>
+              <FormStack spacing={1}>
                 <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
                   {t("investments.recordHolding.sections.assetInfo")}
                 </Typography>
@@ -380,7 +495,7 @@ export function RecordFixedIncomeDrawer({
                   label={t("investments.recordHolding.fields.assetName")}
                   data-testid="record-asset-name"
                 />
-              </Stack>
+              </FormStack>
 
               <SelectField
                 name="assetType"
@@ -396,20 +511,58 @@ export function RecordFixedIncomeDrawer({
                 data-testid="record-issuer-name"
               />
 
-              <Divider />
+              <Divider sx={{ pt: 2 }} />
 
               <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
                 {t("investments.recordHolding.sections.applicationDetails")}
               </Typography>
 
-              <MoneyInput
-                name="grossValue"
-                label={t("investments.recordHolding.fields.grossValue")}
-                currency="BRL"
-                data-testid="record-gross-value"
-              />
+              <FormRowStack alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <NumberField
+                    name="quantity"
+                    label={t("investments.recordHolding.fields.quantity")}
+                    fullWidth
+                    locale={locale}
+                    min={0}
+                    allowNegative={false}
+                    data-testid="record-quantity"
+                  />
+                </Box>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <MoneyInput
+                    name="grossValue"
+                    label={t("investments.recordHolding.fields.grossValue")}
+                    currency="BRL"
+                    data-testid="record-gross-value"
+                  />
+                </Box>
+              </FormRowStack>
+
+              {computedUnitPrice != null && (
+                <Paper
+                  variant="outlined"
+                  sx={{
+                    px: 1.5,
+                    py: 1,
+                    borderRadius: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    borderColor: alpha(theme.palette.info.main, 0.35),
+                    bgcolor: alpha(theme.palette.info.main, 0.06),
+                  }}
+                  data-testid="record-unit-price-info"
+                >
+                  <InfoOutlinedIcon fontSize="small" sx={{ color: "info.main" }} />
+                  <Typography variant="body2" color="text.secondary">
+                    {t("investments.recordHolding.values.unitPriceInfo", { unitPrice: currencyFormatter.format(computedUnitPrice) })}
+                  </Typography>
+                </Paper>
+              )}
+
+              <FormRowStack alignItems="flex-start">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <SelectField
                     name="indexer"
@@ -444,9 +597,9 @@ export function RecordFixedIncomeDrawer({
                     />
                   )}
                 </Box>
-              </Stack>
+              </FormRowStack>
 
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems="flex-start">
+              <FormRowStack alignItems="flex-start">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <DatePickerField
                     name="tradeDate"
@@ -463,7 +616,7 @@ export function RecordFixedIncomeDrawer({
                     data-testid="record-maturity-date"
                   />
                 </Box>
-              </Stack>
+              </FormRowStack>
 
               <CheckboxField
                 name="isTaxExempt"
@@ -483,7 +636,7 @@ export function RecordFixedIncomeDrawer({
                 submitDisabled={isSubmitting || !resolvedFinancialAccountId}
                 submitting={isSubmitting}
               />
-            </Stack>
+            </FormStack>
           </form>
         </FormProvider>
       )}

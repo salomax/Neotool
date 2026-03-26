@@ -14,7 +14,8 @@ interface InvestmentFundRepositoryCustom {
 
     /**
      * Search funds for autocomplete suggestions.
-     * Uses trigram similarity on name. Returns top [limit] results ordered by similarity.
+     * Uses normalized fund search text/tokens so abbreviated and reordered queries can match.
+     * Returns top [limit] results ordered by normalized similarity.
      */
     fun searchFundsAutocomplete(
         query: String,

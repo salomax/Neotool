@@ -4,6 +4,8 @@ export * from "./FormSection";
 export * from "./FormActions";
 export * from "./FormErrorBanner";
 export * from "./FormRow";
+export * from "./FormStack";
+export * from "./FormRowStack";
 
 export * from "./fields/ControlledTextField";
 export * from "./fields/ControlledNumberField";

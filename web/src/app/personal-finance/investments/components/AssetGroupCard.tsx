@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 import i18n from 'i18next';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { AllocationInline, GainPercent } from '@/shared/components/ui/data-display';
+import { AllocationInline, PercentageGain } from '@/shared/components/ui/data-display';
 
 interface AssetGroupCardProps {
   title: string;
@@ -26,6 +26,8 @@ interface AssetGroupCardProps {
   /** Percentage gain to show below total amount. */
   gainPercent?: number | null;
   allocationPercent?: number | null;
+  appliedLabel?: string;
+  appliedValue?: React.ReactNode;
   headerAction?: React.ReactNode;
   children: React.ReactNode;
 }
@@ -38,6 +40,8 @@ export function AssetGroupCard({
   summaryAdornment,
   gainPercent,
   allocationPercent,
+  appliedLabel,
+  appliedValue,
   headerAction,
   children,
 }: AssetGroupCardProps) {
@@ -75,6 +79,7 @@ export function AssetGroupCard({
         bgcolor: 'transparent',
         borderRadius: 0,
         transition: 'none',
+        mb: 2,
         '&:before': { display: 'none' },
         '&.Mui-expanded': {
           margin: 0,
@@ -128,7 +133,7 @@ export function AssetGroupCard({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, width: '100%' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0, flex: '1 1 auto' }}>
             <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-              <Typography variant="h6" fontWeight={600} noWrap sx={{ lineHeight: 1.1, fontSize: '1.2rem' }}>
+              <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ lineHeight: 1.1, fontSize: '1.2rem' }}>
                 {title}
               </Typography>
               {parsedSummary.countLabel ? (
@@ -136,7 +141,8 @@ export function AssetGroupCard({
                   <Box sx={{ mt: 0.25, minWidth: 0 }}>
                     <AllocationInline
                       value={allocationPercent}
-                      label={`${parsedSummary.countLabel} · ${allocationLabel}`}
+                      label={`${allocationLabel} · ${parsedSummary.countLabel}`}
+                      barWidth={100}
                       sx={{ minWidth: 0 }}
                       textSx={{ lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     />
@@ -151,18 +157,31 @@ export function AssetGroupCard({
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: '0 0 auto', px: 5 }}>
-            <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}>
-                {summaryAdornment}
-                <Typography variant="subtitle1" fontWeight={700} noWrap sx={{ lineHeight: 2 }}>
-                  {parsedSummary.totalValue ?? '—'}
+            {headerAction ? <Box sx={{ flex: '0 0 auto' }}>{headerAction}</Box> : null}
+            <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 6, minWidth: 0 }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                  {appliedLabel ?? 'Valor aplicado'}
+                </Typography>
+                <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ lineHeight: 1.2, mt: 0.25 }}>
+                  {appliedValue ?? '—'}
                 </Typography>
               </Box>
-              {typeof gainPercent === 'number' && Number.isFinite(gainPercent) ? (
-                <GainPercent value={gainPercent} locale={i18n.language} sx={{ mt: 0.25 }} />
-              ) : null}
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', minWidth: 0 }}>
+                <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2, textTransform: 'uppercase', fontSize: '0.65rem' }}>
+                  POSIÇÃO ATUAL
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, mt: 0.25 }}>
+                  {summaryAdornment}
+                  <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ lineHeight: 1.2 }}>
+                    {parsedSummary.totalValue ?? '—'}
+                  </Typography>
+                </Box>
+                {typeof gainPercent === 'number' && Number.isFinite(gainPercent) ? (
+                  <PercentageGain value={gainPercent} locale={i18n.language} sx={{ mt: 0.25 }} />
+                ) : null}
+              </Box>
             </Box>
-            {headerAction ? <Box sx={{ flex: '0 0 auto' }}>{headerAction}</Box> : null}
           </Box>
         </Box>
       </AccordionSummary>

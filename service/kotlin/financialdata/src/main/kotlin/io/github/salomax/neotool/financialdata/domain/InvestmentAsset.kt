@@ -12,6 +12,7 @@ data class ListedAsset(
     val assetType: String,
     val exchange: String?,
     val isActive: Boolean,
+    val logoAssetId: String? = null,
     // Latest price — fetched inline via LATERAL join on list/detail queries.
     val latestPrice: AssetDailyPrice? = null,
     // Trigram similarity score used internally for cursor pagination when a search query is active.

@@ -262,5 +262,58 @@ class FixedIncomeValuationServiceTest {
         val expectedIr = taxableGain.multiply(BigDecimal("0.225"))
         assertThat(result.incomeTax!!.toDouble()).isCloseTo(expectedIr.toDouble(), within(0.01))
     }
-}
 
+    @Test
+    fun `IPCA monthly series with spread matches issuer style mark to date valuation`() {
+        val issueDate = LocalDate.of(2024, 9, 23)
+        val currentDate = LocalDate.of(2026, 3, 25)
+        val service = FixedIncomeValuationService { currentDate }
+        val principal = BigDecimal("10674.30")
+
+        val h =
+            holding(
+                indexer = Indexer.IPCA,
+                quantity = principal.toPlainString(),
+                averageCost = "1.00",
+                preFixedRate = "0.088",
+                issueDate = issueDate,
+            )
+
+        val monthlySeries =
+            mapOf(
+                Indexer.IPCA to
+                    listOf(
+                        LocalDate.of(2024, 9, 1) to BigDecimal("0.0044"),
+                        LocalDate.of(2024, 10, 1) to BigDecimal("0.0056"),
+                        LocalDate.of(2024, 11, 1) to BigDecimal("0.0039"),
+                        LocalDate.of(2024, 12, 1) to BigDecimal("0.0052"),
+                        LocalDate.of(2025, 1, 1) to BigDecimal("0.0016"),
+                        LocalDate.of(2025, 2, 1) to BigDecimal("0.0131"),
+                        LocalDate.of(2025, 3, 1) to BigDecimal("0.0056"),
+                        LocalDate.of(2025, 4, 1) to BigDecimal("0.0043"),
+                        LocalDate.of(2025, 5, 1) to BigDecimal("0.0026"),
+                        LocalDate.of(2025, 6, 1) to BigDecimal("0.0024"),
+                        LocalDate.of(2025, 7, 1) to BigDecimal("0.0026"),
+                        LocalDate.of(2025, 8, 1) to BigDecimal("-0.0011"),
+                        LocalDate.of(2025, 9, 1) to BigDecimal("0.0048"),
+                        LocalDate.of(2025, 10, 1) to BigDecimal("0.0009"),
+                        LocalDate.of(2025, 11, 1) to BigDecimal("0.0018"),
+                        LocalDate.of(2025, 12, 1) to BigDecimal("0.0033"),
+                        LocalDate.of(2026, 1, 1) to BigDecimal("0.0033"),
+                        LocalDate.of(2026, 2, 1) to BigDecimal("0.0070"),
+                    ),
+            )
+
+        val result =
+            service.estimate(
+                holding = h,
+                indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
+                monthlySeries = monthlySeries,
+            )
+
+        assertThat(result.grossValue).isNotNull
+        assertThat(result.grossValue!!.toDouble()).isCloseTo(13025.83, within(80.0))
+        assertThat(result.netValue).isNotNull
+        assertThat(result.netValue!!.toDouble()).isCloseTo(12577.32, within(80.0))
+    }
+}

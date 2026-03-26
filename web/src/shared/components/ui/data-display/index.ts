@@ -21,6 +21,8 @@ export { GainPercent } from './GainPercent';
 export { AllocationInline } from './AllocationInline';
 export { TrendIndicator } from './TrendIndicator';
 export { StatusIndicator } from './StatusIndicator';
+export { Amount } from './Amount';
+export { PercentageGain } from './PercentageGain';
 export { FinancialMetricItem } from './FinancialMetricItem';
 export { MetricDetailsDrawer } from './MetricDetailsDrawer';
 export { ChartTooltip, createChartTooltipContent } from './ChartTooltip';

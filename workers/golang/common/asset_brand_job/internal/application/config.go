@@ -10,6 +10,7 @@ import (
 type Config struct {
 	Database    DatabaseConfig
 	Job         JobConfig
+	Brandfetch  BrandfetchConfig
 	LogoDev     LogoDevConfig
 	Security    SecurityConfig
 	Assets      AssetsConfig
@@ -44,11 +45,15 @@ type JobConfig struct {
 	RunMerchantLogoHydrator bool    `env:"RUN_MERCHANT_LOGO_HYDRATOR"           envDefault:"true"`
 }
 
+type BrandfetchConfig struct {
+	BaseURL        string `env:"BRANDFETCH_BASE_URL"        envDefault:"https://cdn.brandfetch.io"`
+	ClientID       string `env:"BRANDFETCH_CLIENT_ID"`
+	TimeoutSeconds int    `env:"BRANDFETCH_TIMEOUT_SECONDS" envDefault:"15"`
+}
+
 type LogoDevConfig struct {
-	BaseURL        string `env:"LOGO_DEV_BASE_URL"        envDefault:"https://api.logo.dev"`
 	ImageBaseURL   string `env:"LOGO_DEV_IMAGE_BASE_URL"  envDefault:"https://img.logo.dev"`
-	Token          string `env:"LOGO_DEV_TOKEN,required"`
-	APIKey         string `env:"LOGO_DEV_API_KEY,required"`
+	APIKey         string `env:"LOGO_DEV_API_KEY"`
 	TimeoutSeconds int    `env:"LOGO_DEV_TIMEOUT_SECONDS" envDefault:"15"`
 }
 
@@ -98,19 +103,29 @@ func (c *Config) Validate() error {
 	if c.Job.AutoApproveThreshold < 0 || c.Job.AutoApproveThreshold > 1 {
 		errs = append(errs, "ASSET_BRAND_AUTO_APPROVE_THRESHOLD must be between 0 and 1")
 	}
-	if c.LogoDev.BaseURL == "" {
-		errs = append(errs, "LOGO_DEV_BASE_URL must not be empty")
+	if c.Job.RunAssetBrandHydrator && c.Brandfetch.BaseURL == "" {
+		errs = append(errs, "BRANDFETCH_BASE_URL must not be empty")
 	}
-	if c.LogoDev.ImageBaseURL == "" {
+	if c.Job.RunAssetBrandHydrator && c.Brandfetch.ClientID == "" {
+		errs = append(errs, "BRANDFETCH_CLIENT_ID is required when RUN_ASSET_BRAND_HYDRATOR=true")
+	}
+	if c.Job.RunAssetBrandHydrator && c.Brandfetch.TimeoutSeconds < 5 {
+		errs = append(errs, "BRANDFETCH_TIMEOUT_SECONDS must be >= 5")
+	}
+	if c.Job.RunAssetBrandHydrator && c.Security.ServiceID == "" {
+		errs = append(errs, "SECURITY_SERVICE_ID is required when RUN_ASSET_BRAND_HYDRATOR=true")
+	}
+	if c.Job.RunAssetBrandHydrator && c.Security.ServiceSecret == "" {
+		errs = append(errs, "SECURITY_SERVICE_SECRET is required when RUN_ASSET_BRAND_HYDRATOR=true")
+	}
+	logoHydratorsEnabled := c.Job.RunIssuerLogoHydrator || c.Job.RunMerchantLogoHydrator
+	if logoHydratorsEnabled && c.LogoDev.ImageBaseURL == "" {
 		errs = append(errs, "LOGO_DEV_IMAGE_BASE_URL must not be empty")
 	}
-	if c.LogoDev.Token == "" {
-		errs = append(errs, "LOGO_DEV_TOKEN is required")
+	if logoHydratorsEnabled && c.LogoDev.APIKey == "" {
+		errs = append(errs, "LOGO_DEV_API_KEY is required when a logo.dev hydrator is enabled")
 	}
-	if c.LogoDev.APIKey == "" {
-		errs = append(errs, "LOGO_DEV_API_KEY is required")
-	}
-	if c.LogoDev.TimeoutSeconds < 5 {
+	if logoHydratorsEnabled && c.LogoDev.TimeoutSeconds < 5 {
 		errs = append(errs, "LOGO_DEV_TIMEOUT_SECONDS must be >= 5")
 	}
 	if c.Security.TimeoutSeconds < 1 {

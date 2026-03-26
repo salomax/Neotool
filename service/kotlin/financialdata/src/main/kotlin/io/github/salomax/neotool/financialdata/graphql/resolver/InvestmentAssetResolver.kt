@@ -51,6 +51,9 @@ class InvestmentAssetResolver(
     fun investmentAssetByTicker(ticker: String): ListedAssetDTO? =
         assetSearchService.findAssetByTicker(ticker)?.let { mapper.toAssetDTO(it) }
 
+    fun investmentAssetsByTickers(tickers: List<String>): List<ListedAssetDTO> =
+        assetSearchService.findAssetsByTickers(tickers.toSet()).map { mapper.toAssetDTO(it) }
+
     fun priceHistory(
         assetId: String,
         from: LocalDate?,

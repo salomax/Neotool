@@ -121,11 +121,12 @@ func (d *NAVDispatcher) Run(ctx context.Context) error {
 // buildMonthList returns the ordered list of YearMonth values to process.
 //
 //   - If lastDataDate is nil (first run): backfill backfillYears × 12 months back.
-//   - Otherwise: start from the month of lastDataDate and process up to last month.
+//   - Otherwise: start from the month of lastDataDate and process up to current month.
 func buildMonthList(lastDataDate *time.Time, backfillYears int) []domain.YearMonth {
 	now := time.Now().UTC()
-	// "last month" = the most recently completed month (current month may be incomplete).
-	lastMonth := domain.NewYearMonth(now.Year(), now.Month()).AddMonths(-1)
+	// Include the current month: CVM publishes inf_diario_fi_{YYYYMM}.zip mid-month
+	// and updates it daily, so current-month data is available before month-end.
+	lastMonth := domain.NewYearMonth(now.Year(), now.Month())
 
 	var startMonth domain.YearMonth
 	if lastDataDate == nil {

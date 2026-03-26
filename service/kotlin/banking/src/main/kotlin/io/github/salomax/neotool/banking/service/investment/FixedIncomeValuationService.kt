@@ -38,6 +38,7 @@ class FixedIncomeValuationService(
         holding: Holding,
         indicatorRates: Map<Indexer, BigDecimal>,
         valuationReferenceDate: LocalDate? = null,
+        monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>> = emptyMap(),
     ): HoldingValuationResult {
         if (holding.quantity <= BigDecimal.ZERO || holding.averageCost <= BigDecimal.ZERO) {
             logger.debug { "Holding ${holding.id}: quantity or averageCost <= 0 → UNAVAILABLE" }
@@ -112,24 +113,44 @@ class FixedIncomeValuationService(
                 Indexer.INPC,
                 Indexer.TR,
                 -> {
-                    val indicatorRate = indicatorRates[indexer] ?: run {
-                        logger.debug { "Holding ${holding.id}: no indicator rate for $indexer → UNAVAILABLE" }
-                        return unavailable()
-                    }
-                    val preFixed = holding.preFixedRate ?: BigDecimal.ZERO
-                    val effectiveAnnual =
-                        if (preFixed.compareTo(BigDecimal.ZERO) <= 0) {
-                            indicatorRate
-                        } else {
-                            (BigDecimal.ONE + indicatorRate)
-                                .multiply(BigDecimal.ONE + preFixed, mathContext)
-                                .subtract(BigDecimal.ONE, mathContext)
+                    val indexerPercentage = holding.indexerPercentage ?: BigDecimal.ZERO
+                    val series = monthlySeries[indexer]
+                    if (series != null && series.isNotEmpty()) {
+                        // Accumulate actual monthly values between issueDate's month and endDate's month
+                        val startOfIssueMonth = issueDate.withDayOfMonth(1)
+                        val startOfEndMonth = endDate.withDayOfMonth(1)
+                        val inflationFactor =
+                            series
+                                .filter { (refDate, _) -> !refDate.isBefore(startOfIssueMonth) && !refDate.isAfter(startOfEndMonth) }
+                                .fold(BigDecimal.ONE) { acc, (_, rate) ->
+                                    acc.multiply(BigDecimal.ONE.add(rate, mathContext), mathContext)
+                                }
+                        // Apply spread on top of inflation-adjusted principal
+                        accrualPreFixed(
+                            principal = principal.multiply(inflationFactor, mathContext),
+                            annualRate = indexerPercentage,
+                            businessDays = businessDays,
+                        )
+                    } else {
+                        // Fallback: project using latest annual rate snapshot
+                        val indicatorRate = indicatorRates[indexer] ?: run {
+                            logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
+                            return unavailable()
                         }
-                    accrualPreFixed(
-                        principal = principal,
-                        annualRate = effectiveAnnual,
-                        businessDays = businessDays,
-                    )
+                        val effectiveAnnual =
+                            if (indexerPercentage <= BigDecimal.ZERO) {
+                                indicatorRate
+                            } else {
+                                (BigDecimal.ONE + indicatorRate)
+                                    .multiply(BigDecimal.ONE + indexerPercentage, mathContext)
+                                    .subtract(BigDecimal.ONE, mathContext)
+                            }
+                        accrualPreFixed(
+                            principal = principal,
+                            annualRate = effectiveAnnual,
+                            businessDays = businessDays,
+                        )
+                    }
                 }
 
                 Indexer.OUTROS,

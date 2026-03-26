@@ -1338,6 +1338,7 @@ export type InvestmentAsset = {
   isinCode: Maybe<Scalars['String']['output']>;
   issuerCnpj: Maybe<Scalars['String']['output']>;
   issuerName: Maybe<Scalars['String']['output']>;
+  logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
   /** B3 pricing multiplier. Most assets = 1. Some debentures quoted per 1000 use 0.001. */
   priceFactor: Scalars['Float']['output'];
@@ -1553,6 +1554,7 @@ export type ListedAsset = {
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
   latestPrice: Maybe<AssetDailyPrice>;
+  logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
   priceHistory: Array<AssetDailyPrice>;
   ticker: Scalars['String']['output'];
@@ -2359,6 +2361,7 @@ export type Query = {
   investmentAsset: Maybe<InvestmentAsset>;
   investmentAssetByTicker: Maybe<ListedAsset>;
   investmentAssets: ListedAssetConnection;
+  investmentAssetsByTickers: Array<ListedAsset>;
   investmentFund: Maybe<InvestmentFund>;
   investmentFundMarketSnapshots: Array<InvestmentFundMarketSnapshot>;
   investmentFunds: InvestmentFundConnection;
@@ -2538,6 +2541,11 @@ export type QueryInvestmentAssetsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   isActive?: InputMaybe<Scalars['Boolean']['input']>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryInvestmentAssetsByTickersArgs = {
+  tickers: Array<Scalars['String']['input']>;
 };
 
 

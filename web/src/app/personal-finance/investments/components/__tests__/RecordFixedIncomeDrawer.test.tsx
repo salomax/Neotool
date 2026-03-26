@@ -483,6 +483,24 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  it('sends indexerPercentage as fraction for pt-BR decimals', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    // PercentField parses locale-formatted user input into a number.
+    // For "8,80 %", the drawer should ultimately send 0.088 (8.80 / 100).
+    await fillValidForm({ indexerPercentage: '8.8' });
+    await user.click(screen.getByRole('button', { name: 'investments.recordHolding.actions.submit' }));
+
+    await waitFor(() => {
+      expect(mockRecordTransaction).toHaveBeenCalledOnce();
+    });
+
+    const firstCall = mockRecordTransaction.mock.calls[0]?.[0] as any;
+    const sent = firstCall?.variables?.input?.indexerPercentage;
+    expect(sent).toBeCloseTo(0.088, 12);
+  });
+
   it('renders mutation error banner when mutation has error', () => {
     createMutationState = { loading: false, error: new Error('create failed') };
     renderDrawer();

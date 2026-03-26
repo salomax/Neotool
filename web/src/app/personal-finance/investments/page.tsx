@@ -4,12 +4,13 @@ import React from "react";
 import { useQuery } from "@apollo/client/react";
 import {
   alpha,
-  Autocomplete,
   Box,
   Button,
   CircularProgress,
   Container,
   Divider,
+  IconButton,
+  InputAdornment,
   ListItemIcon,
   Menu,
   MenuItem,
@@ -22,6 +23,8 @@ import AddchartIcon from "@mui/icons-material/Addchart";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddIcon from "@mui/icons-material/Add";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
+import SearchIcon from "@mui/icons-material/Search";
+import ClearIcon from "@mui/icons-material/Clear";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
@@ -29,12 +32,9 @@ import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { QueryErrorState } from "@/shared/components/ui/feedback";
 import { FinancialAccountSelector } from "../finance-transactions/account/FinancialAccountSelector";
-import { ALL_INVESTMENT_HOLDINGS, FINANCIAL_ACCOUNTS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import {
-  AllInvestmentHoldingsQuery,
   FinancialAccountsQuery,
-  InvestmentHoldingsQuery,
-  InvestmentHoldingsQueryVariables,
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
@@ -90,47 +90,6 @@ export default function PersonalFinanceInvestmentsPage() {
   );
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
-
-  const accountHoldingsSearchQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
-    variables: { financialAccountId: selectedAccountId || "" },
-    skip: !selectedAccountId,
-    errorPolicy: "all",
-  });
-
-  const consolidatedHoldingsSearchQuery = useQuery<AllInvestmentHoldingsQuery>(ALL_INVESTMENT_HOLDINGS, {
-    skip: Boolean(selectedAccountId),
-    errorPolicy: "all",
-  });
-
-  const holdingsForSearch = React.useMemo(() => {
-    if (selectedAccountId) return accountHoldingsSearchQuery.data?.investmentHoldings ?? [];
-    return consolidatedHoldingsSearchQuery.data?.allInvestmentHoldings ?? [];
-  }, [
-    accountHoldingsSearchQuery.data?.investmentHoldings,
-    consolidatedHoldingsSearchQuery.data?.allInvestmentHoldings,
-    selectedAccountId,
-  ]);
-
-  const holdingSearchOptions = React.useMemo(() => {
-    const map = new Map<string, { key: string; label: string }>();
-
-    holdingsForSearch.forEach((holding) => {
-      const assetId = holding.asset?.id ?? holding.id;
-      const name = holding.asset?.name ?? "";
-      const ticker = holding.asset?.ticker ?? "";
-      const accountName = (holding as AllInvestmentHoldingsQuery["allInvestmentHoldings"][number]).financialAccount?.name ?? "";
-
-      const base = ticker ? `${name} (${ticker})` : name;
-      const label = accountName ? `${base} — ${accountName}` : base;
-
-      if (!label.trim()) return;
-      map.set(assetId, { key: assetId, label });
-    });
-
-    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
-  }, [holdingsForSearch]);
-
-  const holdingSearchLoading = selectedAccountId ? accountHoldingsSearchQuery.loading : consolidatedHoldingsSearchQuery.loading;
 
   const sidebar = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
@@ -392,40 +351,35 @@ export default function PersonalFinanceInvestmentsPage() {
                   mb: 2,
                 }}
               >
-                <Autocomplete
-                  freeSolo
-                  options={holdingSearchOptions}
-                  inputValue={holdingSearchQuery}
-                  onInputChange={(_, value) => setHoldingSearchQuery(value)}
-                  onChange={(_, value) => {
-                    if (typeof value === "string") setHoldingSearchQuery(value);
-                    else setHoldingSearchQuery(value?.label ?? "");
-                  }}
-                  getOptionLabel={(option) => (typeof option === "string" ? option : option.label)}
-                  isOptionEqualToValue={(option, value) => option.key === value.key}
-                  loading={holdingSearchLoading}
-                  sx={{ width: { xs: "100%", sm: 420 }, maxWidth: 560 }}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      placeholder={t("investments.table.searchPlaceholder")}
+            <TextField
+              value={holdingSearchQuery}
+              onChange={(e) => setHoldingSearchQuery(e.target.value)}
+              placeholder={t("investments.table.searchPlaceholder")}
+              size="small"
+              sx={{ width: { xs: "100%", sm: 420 }, maxWidth: 560 }}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: holdingSearchQuery ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="clear search"
+                      onClick={() => setHoldingSearchQuery("")}
+                      edge="end"
                       size="small"
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {holdingSearchLoading ? <CircularProgress color="inherit" size={16} sx={{ mr: 1 }} /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                      inputProps={{
-                        ...params.inputProps,
-                        "aria-label": t("investments.table.searchPlaceholder"),
-                      }}
-                    />
-                  )}
-                />
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : null,
+              }}
+              inputProps={{
+                "aria-label": t("investments.table.searchPlaceholder"),
+              }}
+            />
                 <Button
                   variant="contained"
                   startIcon={<AddIcon />}

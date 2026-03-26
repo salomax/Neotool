@@ -52,6 +52,7 @@ extend type Query {
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection!
   investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection!
   investmentAssetByTicker(ticker: String!): ListedAsset
+  investmentAssetsByTickers(tickers: [String!]!): [ListedAsset!]!
 }
 
 # Enums
@@ -520,6 +521,7 @@ type ListedAsset {
   assetType: String!
   exchange: String
   isActive: Boolean!
+  logoAsset: Asset
   latestPrice: AssetDailyPrice
   priceHistory(from: Date, to: Date, last: Int): [AssetDailyPrice!]!
 }

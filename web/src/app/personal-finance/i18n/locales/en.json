@@ -151,6 +151,7 @@
       "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
       "groupTotalEstimated": "Part of this total uses estimated valuation or tax data.",
       "total": "Total",
+      "appliedValue": "Invested amount",
       "groupSummary_one": "{{count}} asset · {{total}}",
       "groupSummary_other": "{{count}} assets · {{total}}",
       "rowActions": {
@@ -202,10 +203,14 @@
         "indexer": "Indexer",
         "indexerPercentage": "Indexer %",
         "preFixedRate": "Rate (% p.a.)",
+        "quantity": "Quantity",
         "grossValue": "Invested amount (BRL)",
         "tradeDate": "Application date",
         "maturityDate": "Maturity date",
         "isTaxExempt": "Tax-exempt (LCI, LCA, CRI, CRA)"
+      },
+      "values": {
+        "unitPriceInfo": "Unit price: {{unitPrice}}"
       },
       "assetTypes": {
         "CDB": "CDB",
@@ -236,6 +241,7 @@
         "indexerRequired": "Indexer is required",
         "indexerPercentageRequired": "Indexer % is required",
         "preFixedRateRequired": "Rate is required",
+        "quantityNonNegative": "Quantity must be 0 or greater",
         "grossValueRequired": "Invested amount is required",
         "grossValuePositive": "Amount must be greater than zero",
         "tradeDateRequired": "Application date is required",

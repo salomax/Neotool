@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	JobName             = "asset_brand_logo_dev"
-	SourceLogoDevSearch = "LOGO_DEV_SEARCH"
+	JobName              = "asset_brand_brandfetch"
+	SourceBrandfetchISIN = "BRANDFETCH_ISIN"
 
 	StatusPending      = "PENDING"
 	StatusAutoApproved = "AUTO_APPROVED"
@@ -17,20 +17,24 @@ const (
 )
 
 type PendingAsset struct {
-	ID     uuid.UUID
-	Ticker string
-	Name   string
+	ID        uuid.UUID
+	Ticker    string
+	Name      string
+	AssetType string
+	IsinCode  string
 }
 
-type SearchCandidate struct {
-	Name    string
-	Domain  string
-	LogoURL string
-}
-
-type SearchResponse struct {
-	Results    []SearchCandidate
+type BrandLookupResult struct {
+	QueryUsed  string
+	LogoURL    string
+	LogoData   []byte
+	MimeType   string
 	RawPayload string
+}
+
+type ExistingBrand struct {
+	ID          uuid.UUID
+	LogoAssetID *uuid.UUID
 }
 
 type BrandUpsertInput struct {
@@ -41,6 +45,7 @@ type BrandUpsertInput struct {
 	DisplayName      string
 	Domain           string
 	LogoURL          string
+	LogoAssetID      *uuid.UUID
 	Source           string
 	Status           string
 	Confidence       float64
@@ -59,6 +64,7 @@ type AssetRepository interface {
 }
 
 type BrandRepository interface {
+	FindBrandByNormalizedName(ctx context.Context, normalizedName string) (*ExistingBrand, error)
 	UpsertBrandCandidate(ctx context.Context, input BrandUpsertInput) error
 }
 
@@ -68,6 +74,6 @@ type JobControlRepository interface {
 	MarkFailed(ctx context.Context, jobName string, errMsg string) error
 }
 
-type SearchClient interface {
-	Search(ctx context.Context, query string) (SearchResponse, error)
+type BrandLookupClient interface {
+	LookupBrand(ctx context.Context, asset PendingAsset) (*BrandLookupResult, error)
 }

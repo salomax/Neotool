@@ -22,12 +22,14 @@ import {
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
-import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import { INVESTMENT_FUND_NAV } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
+  DeleteInvestmentTransactionMutation,
+  DeleteInvestmentTransactionMutationVariables,
   RecordInvestmentTransactionMutation,
   RecordInvestmentTransactionMutationVariables,
 } from "@/lib/graphql/operations/banking/mutations.generated";
@@ -35,6 +37,7 @@ import {
   AssetType,
   FinancialAccount,
   HoldingPricingMode,
+  InvestmentTransaction,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
@@ -56,6 +59,15 @@ interface RecordFundHoldingDrawerProps {
   financialAccountId?: string | null;
   financialAccounts?: FinancialAccount[];
   onRecorded?: () => void;
+  editHolding?: {
+    id: string;
+    pricingMode: HoldingPricingMode | null;
+    valuationReferenceDate: unknown | null;
+    grossValue: number | null;
+    netValue: number | null;
+    asset: { id: string; name: string; assetType: AssetType };
+  } | null;
+  editTransaction?: InvestmentTransaction | null;
 }
 
 type ListingMode = "CVM" | "MANUAL";
@@ -95,6 +107,8 @@ export function RecordFundHoldingDrawer({
   financialAccountId,
   financialAccounts = [],
   onRecorded,
+  editHolding,
+  editTransaction,
 }: RecordFundHoldingDrawerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -107,6 +121,14 @@ export function RecordFundHoldingDrawer({
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<ValueFlow>("BY_AMOUNT");
   const [listingMode, setListingMode] = React.useState<ListingMode>("CVM");
+  const isEdit = Boolean(editHolding && editTransaction);
+
+  const toDateValue = React.useCallback((value: unknown) => {
+    if (!value) return undefined;
+    if (value instanceof Date) return value;
+    const d = new Date(String(value));
+    return Number.isNaN(d.getTime()) ? undefined : d;
+  }, []);
 
   const parseLocalizedNumber = React.useCallback(
     (value: unknown) => {
@@ -218,15 +240,21 @@ export function RecordFundHoldingDrawer({
   }, [financialAccountId, open]);
 
   useEffect(() => {
+    if (isEdit) return;
     clearErrors();
     methods.setValue("fund", null, { shouldDirty: false, shouldValidate: false });
     methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldValidate: false });
-  }, [clearErrors, listingMode, methods]);
+  }, [clearErrors, isEdit, listingMode, methods]);
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
     CreateInvestmentAssetMutation,
     CreateInvestmentAssetMutationVariables
   >(CREATE_INVESTMENT_ASSET);
+
+  const [deleteInvestmentTransaction, { loading: deletingTx, error: deleteTxError }] = useMutation<
+    DeleteInvestmentTransactionMutation,
+    DeleteInvestmentTransactionMutationVariables
+  >(DELETE_INVESTMENT_TRANSACTION);
 
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
@@ -243,8 +271,8 @@ export function RecordFundHoldingDrawer({
     },
   });
 
-  const isSubmitting = creatingAsset || recordingTx;
-  const mutationError = createAssetError || recordTxError;
+  const isSubmitting = creatingAsset || deletingTx || recordingTx;
+  const mutationError = createAssetError || deleteTxError || recordTxError;
 
   const currencyFormatter = React.useMemo(
     () => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }),
@@ -275,8 +303,8 @@ export function RecordFundHoldingDrawer({
       return;
     }
 
-    const isManual = listingMode === "MANUAL";
-    if (!isManual && !data.fund) {
+    const isManual = isEdit ? editHolding!.pricingMode === HoldingPricingMode.Manual : listingMode === "MANUAL";
+    if (!isEdit && !isManual && !data.fund) {
       setError("fund", { type: "required", message: t("investments.recordFund.validation.fundRequired") });
       return;
     }
@@ -336,48 +364,104 @@ export function RecordFundHoldingDrawer({
       return;
     }
 
-    const assetType = isManual
-      ? data.manualAssetType ?? AssetType.MutualFund
-      : mapCvmFundAssetType(data.fund!.assetType);
-    const fundCnpj = isManual ? data.manualFundCnpj?.trim() || undefined : data.fund?.cnpj;
+    const pricingMode = isEdit
+      ? (editHolding!.pricingMode ?? HoldingPricingMode.Manual)
+      : isManual
+        ? HoldingPricingMode.Manual
+        : HoldingPricingMode.MarketData;
 
-    const createdAsset = await createAsset({
-      variables: {
-        input: {
-          name: isManual ? data.manualFundName!.trim() : data.fund!.name,
-          assetType,
-          fundCnpj,
-          currencyCode: "BRL",
+    const resolvedAssetId =
+      isEdit
+        ? editHolding!.asset.id
+        : (await (async () => {
+            const assetType = isManual
+              ? data.manualAssetType ?? AssetType.MutualFund
+              : mapCvmFundAssetType(data.fund!.assetType);
+            const fundCnpj = isManual ? data.manualFundCnpj?.trim() || undefined : data.fund?.cnpj;
+
+            const createdAsset = await createAsset({
+              variables: {
+                input: {
+                  name: isManual ? data.manualFundName!.trim() : data.fund!.name,
+                  assetType,
+                  fundCnpj,
+                  currencyCode: "BRL",
+                },
+              },
+            });
+
+            return createdAsset.data?.createInvestmentAsset.id ?? null;
+          })());
+    if (!resolvedAssetId) return;
+
+    try {
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
+
+      await recordTransaction({
+        variables: {
+          input: {
+            financialAccountId: resolvedFinancialAccountId,
+            assetId: resolvedAssetId,
+            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
+            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+            quantity,
+            unitPrice,
+            grossValue,
+            tradeDate,
+            settlementDate: tradeDate,
+            pricingMode,
+            manualValuation:
+              pricingMode === HoldingPricingMode.Manual && data.manualCurrentGrossValue && data.manualValuedAt
+                ? {
+                    grossValue: data.manualCurrentGrossValue,
+                    valuedAt: dayjs(data.manualValuedAt).format("YYYY-MM-DD"),
+                  }
+                : undefined,
+          },
         },
-      },
-    });
-
-    const assetId = createdAsset.data?.createInvestmentAsset.id;
-    if (!assetId) return;
-
-    await recordTransaction({
-      variables: {
-        input: {
-          financialAccountId: resolvedFinancialAccountId,
-          assetId,
-          direction: InvestmentTransactionDirection.Inflow,
-          type: InvestmentTransactionType.Purchase,
-          quantity,
-          unitPrice,
-          grossValue,
-          tradeDate,
-          settlementDate: tradeDate,
-          pricingMode: isManual ? HoldingPricingMode.Manual : HoldingPricingMode.MarketData,
-          manualValuation: isManual && data.manualCurrentGrossValue && data.manualValuedAt
-            ? {
-                grossValue: data.manualCurrentGrossValue,
-                valuedAt: dayjs(data.manualValuedAt).format("YYYY-MM-DD"),
-              }
-            : undefined,
-        },
-      },
-    });
+      });
+    } catch {
+      return;
+    }
   };
+
+  useEffect(() => {
+    if (!open) return;
+    if (!isEdit) return;
+
+    const nextListingMode: ListingMode = editHolding!.pricingMode === HoldingPricingMode.Manual ? "MANUAL" : "CVM";
+    setListingMode(nextListingMode);
+
+    const hasQuantity = editTransaction!.quantity != null && Number.isFinite(editTransaction!.quantity);
+    const hasUnitPrice = editTransaction!.unitPrice != null && Number.isFinite(editTransaction!.unitPrice);
+    const nextFlow: ValueFlow = hasQuantity && hasUnitPrice ? "BY_QUANTITY" : "BY_AMOUNT";
+    setValueFlow(nextFlow);
+
+    const initialCurrentValue =
+      typeof editHolding!.grossValue === "number"
+        ? editHolding!.grossValue
+        : typeof editHolding!.netValue === "number"
+          ? editHolding!.netValue
+          : undefined;
+
+    reset(
+      {
+        fund: null,
+        manualFundName: nextListingMode === "MANUAL" ? editHolding!.asset.name ?? "" : "",
+        manualFundCnpj: "",
+        manualAssetType: editHolding!.asset.assetType,
+        quantity: nextFlow === "BY_QUANTITY" ? editTransaction!.quantity ?? undefined : undefined,
+        tradeDate: toDateValue(editTransaction!.tradeDate),
+        unitPrice: editTransaction!.unitPrice ?? undefined,
+        grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
+        manualCurrentGrossValue: nextListingMode === "MANUAL" ? initialCurrentValue : undefined,
+        manualValuedAt: toDateValue(editHolding!.valuationReferenceDate) ?? new Date(),
+      },
+      { keepDirty: false },
+    );
+  }, [editHolding, editTransaction, isEdit, open, reset, toDateValue]);
 
   return (
     <InvestmentRecordDrawer
@@ -399,33 +483,54 @@ export function RecordFundHoldingDrawer({
             <Stack spacing={2}>
               {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary">
-                    {t("investments.recordFund.sections.fund")}
-                  </Typography>
-                  <SegmentedControl
-                    fullWidth
-                    value={listingMode}
-                    onChange={(v) => setListingMode(v as ListingMode)}
-                    options={[
-                      { value: "CVM", label: t("investments.recordFund.modes.cvmListed") },
-                      { value: "MANUAL", label: t("investments.recordFund.modes.notListed") },
-                    ]}
-                  />
-                </Stack>
+                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: 2, flexWrap: "wrap" }}>
+                  <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
+                    <SegmentedControl
+                      fullWidth
+                      value={listingMode}
+                      onChange={(v) => setListingMode(v as ListingMode)}
+                      disabled={isEdit}
+                      sx={{
+                        m: 0,
+                        p: 0,
+                        "& .MuiToggleButtonGroup-grouped": {
+                          fontSize: "0.75rem",
+                          height: 40,
+                          padding: "4px 12px",
+                          margin: 0,
+                        },
+                        "& .MuiToggleButtonGroup-grouped.Mui-selected": {
+                          backgroundColor: `${theme.palette.primary.main} !important`,
+                          color: `${theme.palette.primary.contrastText} !important`,
+                          boxShadow: "none",
+                          "&:hover": {
+                            backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
+                          },
+                        },
+                      }}
+                      options={[
+                        { value: "CVM", label: t("investments.recordFund.modes.cvmListed") },
+                        { value: "MANUAL", label: t("investments.recordFund.modes.notListed") },
+                      ]}
+                    />
+                  </Box>
+                </Box>
 
                 {listingMode === "CVM" ? (
                   <Stack spacing={1}>
-                    <Typography variant="overline" color="text.secondary">
-                      {t("investments.recordFund.sections.applicationData")}
-                    </Typography>
-                    <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
+                    {isEdit ? (
+                      <TextField
+                        value={editHolding?.asset.name ?? ""}
+                        label={t("investments.recordFund.sections.fund")}
+                        disabled
+                        data-testid="record-fund-edit-fund-name"
+                      />
+                    ) : (
+                      <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
+                    )}
                   </Stack>
                 ) : (
                   <Stack spacing={2}>
-                    <Typography variant="overline" color="text.secondary">
-                      {t("investments.recordFund.sections.manualFund")}
-                    </Typography>
                     <Controller
                       name="manualFundName"
                       control={methods.control}
@@ -447,32 +552,52 @@ export function RecordFundHoldingDrawer({
                           {...field}
                           label={t("investments.recordFund.fields.manualFundCnpj")}
                           error={!!fieldState.error}
-                          helperText={fieldState.error?.message ?? t("investments.recordFund.fields.manualFundCnpjHelper")}
+                          helperText={fieldState.error?.message}
                           data-testid="record-fund-manual-cnpj"
                         />
                       )}
                     />
-                    <Stack spacing={1}>
-                      <Typography variant="caption" color="text.secondary">
+                    <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: "fit-content" }}>
                         {t("investments.recordFund.fields.manualAssetType")}
                       </Typography>
-                      <Controller
-                        name="manualAssetType"
-                        control={methods.control}
-                        render={({ field }) => (
-                          <SegmentedControl
-                            fullWidth
-                            value={field.value ?? AssetType.MutualFund}
-                            onChange={(value) => field.onChange(value)}
-                            options={[
-                              { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
-                              { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
-                              { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
-                            ]}
-                          />
-                        )}
-                      />
-                    </Stack>
+                      <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
+                        <Controller
+                          name="manualAssetType"
+                          control={methods.control}
+                          render={({ field }) => (
+                            <SegmentedControl
+                              fullWidth
+                              value={field.value ?? AssetType.MutualFund}
+                              onChange={(value) => field.onChange(value)}
+                              sx={{
+                                m: 0,
+                                p: 0,
+                                "& .MuiToggleButtonGroup-grouped": {
+                                  fontSize: "0.75rem",
+                                  height: 40,
+                                  padding: "4px 12px",
+                                  margin: 0,
+                                },
+                                "& .MuiToggleButtonGroup-grouped.Mui-selected": {
+                                  backgroundColor: `${theme.palette.primary.main} !important`,
+                                  color: `${theme.palette.primary.contrastText} !important`,
+                                  boxShadow: "none",
+                                  "&:hover": {
+                                    backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
+                                  },
+                                },
+                              }}
+                              options={[
+                                { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
+                                { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
+                                { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
+                              ]}
+                            />
+                          )}
+                        />
+                      </Box>
+                    </Box>
                   </Stack>
                 )}
 
@@ -484,23 +609,43 @@ export function RecordFundHoldingDrawer({
 
                 <Divider />
 
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary">
+                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ minWidth: "fit-content" }}>
                     {t("investments.recordFund.sections.values")}
                   </Typography>
-                  <SegmentedControl
-                    fullWidth
-                    value={valueFlow}
-                    onChange={(v) => setValueFlow(v as ValueFlow)}
-                    options={[
-                      { value: "BY_AMOUNT", label: t("investments.recordFund.flows.byAmount") },
-                      { value: "BY_QUANTITY", label: t("investments.recordFund.flows.byQuantity") },
-                    ]}
-                  />
-                </Stack>
+                  <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
+                    <SegmentedControl
+                      fullWidth
+                      value={valueFlow}
+                      onChange={(v) => setValueFlow(v as ValueFlow)}
+                      sx={{
+                        m: 0,
+                        p: 0,
+                        "& .MuiToggleButtonGroup-grouped": {
+                          fontSize: "0.75rem",
+                          height: 40,
+                          padding: "4px 12px",
+                          margin: 0,
+                        },
+                        "& .MuiToggleButtonGroup-grouped.Mui-selected": {
+                          backgroundColor: `${theme.palette.primary.main} !important`,
+                          color: `${theme.palette.primary.contrastText} !important`,
+                          boxShadow: "none",
+                          "&:hover": {
+                            backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
+                          },
+                        },
+                      }}
+                      options={[
+                        { value: "BY_AMOUNT", label: t("investments.recordFund.flows.byAmount") },
+                        { value: "BY_QUANTITY", label: t("investments.recordFund.flows.byQuantity") },
+                      ]}
+                    />
+                  </Box>
+                </Box>
 
                 {valueFlow === "BY_AMOUNT" ? (
-                  <Stack spacing={2}>
+                  <Stack spacing={2} sx={{ mt: 1 }}>
                     <MoneyInput
                       name="grossValue"
                       label={t("investments.recordFund.fields.grossValue")}
@@ -544,8 +689,8 @@ export function RecordFundHoldingDrawer({
                         {computedQuantityByAmount != null
                           ? t("investments.recordFund.values.byAmount.estimatedShares", {
                               shares: computedQuantityByAmount.toLocaleString(locale, {
-                                minimumFractionDigits: 2,
-                                maximumFractionDigits: 2,
+                                minimumFractionDigits: 0,
+                                maximumFractionDigits: 12,
                               }),
                             })
                           : "—"}
@@ -553,7 +698,7 @@ export function RecordFundHoldingDrawer({
                     </Paper>
                   </Stack>
                 ) : (
-                  <Stack spacing={2}>
+                  <Stack spacing={2} sx={{ mt: 1 }}>
                     <Box
                       sx={{
                         display: "grid",
@@ -566,7 +711,6 @@ export function RecordFundHoldingDrawer({
                         label={t("investments.recordFund.fields.quantity")}
                         fullWidth
                         locale={locale}
-                        fractionDigits={2}
                         allowNegative={false}
                         data-testid="record-fund-quantity"
                       />

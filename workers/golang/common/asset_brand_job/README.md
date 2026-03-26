@@ -1,8 +1,8 @@
 # Asset Brand Job
 
-Go worker that runs two one-off `logo.dev` hydration flows:
+Go worker that runs three one-off brand hydration flows:
 
-- investment asset brand matching into `financial_data.asset_brand` and `financial_data.investment_asset_brand_match`
+- investment asset brand matching into `financial_data.asset_brand` and `financial_data.investment_asset_brand_match` using Brandfetch by ISIN
 - banking issuer logo hydration into `banking.issuers.logo_key`
 - banking merchant logo hydration into `banking.merchant_logo_cache.asset_id`
 
@@ -14,13 +14,13 @@ This job is intentionally separate from the `financialdata` service startup path
 
 ```text
 Asset brand hydrator
-  ├── marks import_job_control(job_name = 'asset_brand_logo_dev') as RUNNING
-  ├── loads pending B3 assets with no existing brand match
+  ├── marks import_job_control(job_name = 'asset_brand_brandfetch') as RUNNING
+  ├── loads pending B3 assets with ISIN and no existing brand match
   ├── for each asset
-  │     ├── builds a search query from asset.name
-  │     ├── calls GET /search on logo.dev
-  │     ├── takes the first result only
-  │     ├── computes confidence from normalized-name similarity
+  │     ├── uses asset.isin_code as the provider query
+  │     ├── calls Brandfetch CDN in order: default, logo, symbol
+  │     ├── keeps the first image that returns a non-empty body
+  │     ├── marks the match AUTO_APPROVED for successful ISIN lookups
   │     └── upserts:
   │           asset_brand
   │           investment_asset_brand_match
@@ -50,14 +50,14 @@ Only B3 rows from `financial_data.investment_asset` where:
 - `source = 'B3'`
 - `ticker IS NOT NULL`
 - `asset_type IN ('EQUITY', 'BDR', 'FII')`
+- `isin_code IS NOT NULL AND btrim(isin_code) <> ''`
 - there is no row yet in `financial_data.investment_asset_brand_match`
 
 ### Matching policy
 
-- Search uses cleaned `asset.name`, not the ticker.
-- Only the first `logo.dev` result is considered in this first pass.
-- `AUTO_APPROVED` is used only when confidence is above the configured threshold.
-- Lower-confidence matches are stored as `PENDING` for manual review.
+- Lookup uses `asset.isin_code`.
+- Attempt order is: default image, `logo`, then `symbol`.
+- Successful ISIN matches are stored as `AUTO_APPROVED`.
 - No result means no row is written; the asset remains eligible for a later retry.
 
 ### Issuers processed
@@ -83,10 +83,12 @@ Uploaded assets use namespace `institution-logos` by default and filenames like 
 | `POSTGRES_POOL_MIN` | `2` | Min pool connections |
 | `POSTGRES_POOL_MAX` | `10` | Max pool connections |
 | `POSTGRES_SSL_MODE` | `prefer` | TLS mode |
-| `LOGO_DEV_BASE_URL` | `https://api.logo.dev` | Base URL for brand search |
+| `BRANDFETCH_BASE_URL` | `https://cdn.brandfetch.io` | Base URL for ISIN logo lookup |
+| `BRANDFETCH_CLIENT_ID` | *(required for asset-brand hydrator)* | Brandfetch client id |
+| `BRANDFETCH_TIMEOUT_SECONDS` | `15` | HTTP timeout per Brandfetch request |
 | `LOGO_DEV_IMAGE_BASE_URL` | `https://img.logo.dev` | Base URL for direct issuer logo fetches |
-| `LOGO_DEV_TOKEN` | *(required)* | Bearer token for `logo.dev` |
-| `LOGO_DEV_TIMEOUT_SECONDS` | `15` | HTTP timeout per request |
+| `LOGO_DEV_API_KEY` | *(required for issuer/merchant hydrators)* | API key for `logo.dev` image fetches |
+| `LOGO_DEV_TIMEOUT_SECONDS` | `15` | HTTP timeout per logo.dev request |
 | `SECURITY_SERVICE_URL` | `http://localhost:8080` | Security service base URL for OAuth client credentials |
 | `SECURITY_SERVICE_ID` | *(optional)* | Service client id; enables issuer logo uploads when set with secret |
 | `SECURITY_SERVICE_SECRET` | *(optional)* | Service client secret; enables issuer logo uploads when set with id |
@@ -123,9 +125,8 @@ go test ./...
 
 The current unit tests cover:
 
-- query cleanup for share-class suffixes
-- confidence scoring for strong vs weak matches
-- end-to-end processor flow with fake repositories and fake `logo.dev` client
+- exact-ISIN confidence resolution
+- end-to-end processor flow with fake repositories and fake Brandfetch client
 - issuer logo hydration flow with fake logo fetch and asset upload dependencies
 
 ---
@@ -150,7 +151,7 @@ LIMIT 20;
 -- Job control state
 SELECT job_name, status, last_run_at, last_success_at, error_message
 FROM financial_data.import_job_control
-WHERE job_name IN ('asset_brand_logo_dev', 'banking_issuer_logo_dev');
+WHERE job_name IN ('asset_brand_brandfetch', 'banking_issuer_logo_dev', 'banking_merchant_logo_dev');
 
 -- Issuers with hydrated logos
 SELECT id, name, domain, logo_key

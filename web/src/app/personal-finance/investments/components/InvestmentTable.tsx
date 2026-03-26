@@ -7,13 +7,8 @@ import {
   alpha,
   Avatar,
   Box,
-  Button,
   Chip,
   CircularProgress,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   Paper,
@@ -27,9 +22,6 @@ import {
   ListItemText,
   Menu,
   MenuItem,
-  Stack,
-  TextField,
-  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
@@ -37,17 +29,14 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import InfoIcon from '@mui/icons-material/Info';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { GainPercent } from '@/shared/components/ui/data-display';
+import { PercentageGain, Amount } from '@/shared/components/ui/data-display';
 import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_BODY_LINE_HEIGHT, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
 import { personalFinanceTranslations } from '../../i18n';
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_INVESTMENT_HOLDING,
-  DELETE_INVESTMENT_TRANSACTION,
-  RECORD_INVESTMENT_TRANSACTION,
 } from '@/lib/graphql/operations/banking/mutations';
 import {
   AllInvestmentHoldingsQuery,
@@ -55,17 +44,19 @@ import {
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
 import {
-  HoldingPricingMode,
+  AssetType,
   Indexer,
   InvestmentSource,
   InvestmentTransaction,
-  ValuationSource,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { AssetGroupCard } from './AssetGroupCard';
-import { AttachmentSection } from '../../components/AttachmentSection';
 import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
 import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
+import { AssetTypeChip } from './AssetTypeChip';
+import { RecordFixedIncomeDrawer } from './RecordFixedIncomeDrawer';
+import { RecordFundHoldingDrawer } from './RecordFundHoldingDrawer';
+import { RecordEquityHoldingDrawer } from './RecordEquityHoldingDrawer';
 
 interface InvestmentTableProps {
   selectedAccountId: string | null;
@@ -92,6 +83,8 @@ const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
 const EMPTY_HOLDINGS: HoldingRow[] = [];
 const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome', 'treasuryDirect']);
+
+type EditDrawerKind = 'fixedIncome' | 'fund' | 'equity';
 
 type AssetGroupKey =
   | 'variableIncome'
@@ -140,10 +133,9 @@ const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
     'REAL_ESTATE_FUND',
     'AGRIBUSINESS_FUND',
     'ETF',
-    'ETF_FIXED_INCOME',
     'ETF_INTERNATIONAL',
   ],
-  bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG'],
+  bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG', 'ETF_FIXED_INCOME'],
   creditFixedIncome: ['DEBENTURES', 'CRI', 'CRA'],
   treasuryDirect: ['TREASURY'],
   mutualFunds: ['MUTUAL_FUND', 'FIXED_INCOME_FUND', 'EQUITY_FUND', 'MULTI_MARKET_FUND', 'FOREX_FUND'],
@@ -203,15 +195,31 @@ function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string
   const label = INDEXER_LABELS[holding.indexer] || holding.indexer;
   if (holding.indexerPercentage == null) return label;
 
-  return `${label} ${(holding.indexerPercentage * 100).toFixed(0)}%`;
+  // `indexerPercentage` comes as a fraction (e.g. 1.2 == 120%). Show at least 1 decimal digit.
+  const percentValue = holding.indexerPercentage * 100;
+  if (!Number.isFinite(percentValue)) return label;
+
+  const formattedPercent = percentValue.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
+  return `${label} ${formattedPercent}%`;
 }
 
-function formatFinancialAccountLabel(holding: HoldingRow): string {
+function formatIssuerLabel(holding: HoldingRow): string {
   const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
-  return consolidated.financialAccount?.name ?? '—';
+  return consolidated.financialAccount?.issuer?.name ?? consolidated.financialAccount?.name ?? '—';
 }
 
-function getFinancialAccountAvatarProps(holding: HoldingRow) {
+function getHoldingAvatarProps(holding: HoldingRow) {
+  const assetName = holding.asset?.name ?? holding.asset?.ticker ?? '';
+  const assetLogoUrl = holding.asset?.logoAsset?.publicUrl ?? undefined;
+  if (assetLogoUrl) {
+    return {
+      src: assetLogoUrl,
+      alt: assetName || undefined,
+      label: assetName ? assetName.slice(0, 1).toUpperCase() : '—',
+      backgroundColor: 'grey.100',
+    };
+  }
+
   const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
   const financialAccount = consolidated.financialAccount;
   const name = financialAccount?.name ?? '';
@@ -234,29 +242,17 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = React.useState<HTMLElement | null>(null);
   const [actionMenuHolding, setActionMenuHolding] = React.useState<HoldingRow | null>(null);
   const [holdingToRemove, setHoldingToRemove] = React.useState<HoldingRow | null>(null);
-  const [holdingToEdit, setHoldingToEdit] = React.useState<HoldingRow | null>(null);
-  const [editingTx, setEditingTx] = React.useState<InvestmentTransaction | null>(null);
-  const [editDraft, setEditDraft] = React.useState<{ tradeDate: string; quantity: string; unitPrice: string; grossValue: string }>({
-    tradeDate: '',
-    quantity: '',
-    unitPrice: '',
-    grossValue: '',
-  });
+  const [editDrawerHolding, setEditDrawerHolding] = React.useState<HoldingRow | null>(null);
+  const [editDrawerTransaction, setEditDrawerTransaction] = React.useState<InvestmentTransaction | null>(null);
+  const [editDrawerKind, setEditDrawerKind] = React.useState<EditDrawerKind>('equity');
+  const [editDrawerFinancialAccountId, setEditDrawerFinancialAccountId] = React.useState<string | null>(null);
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
-  const [deleteInvestmentTransaction, { loading: deletingTransaction }] = useMutation(DELETE_INVESTMENT_TRANSACTION);
-  const [recordInvestmentTransaction, { loading: recordingEdit }] = useMutation(RECORD_INVESTMENT_TRANSACTION);
-  const deleting = deletingHolding || deletingTransaction;
+  const deleting = deletingHolding;
 
   const closeActionMenu = () => {
     setActionMenuAnchorEl(null);
     setActionMenuHolding(null);
-  };
-
-  const toDateInputValue = (value: unknown) => {
-    if (!value) return '';
-    const raw = String(value);
-    return raw.split('T')[0] ?? '';
   };
 
   const resolveManualTransactions = async (holdingId: string) => {
@@ -299,105 +295,26 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
     }
   };
 
+  const closeEditDrawer = () => {
+    setEditDrawerHolding(null);
+    setEditDrawerTransaction(null);
+    setEditDrawerFinancialAccountId(null);
+    setEditDrawerKind('equity');
+  };
+
   const handleOpenEdit = async (holding: HoldingRow) => {
     const tx = await resolveLatestManualTransaction(holding.id);
     if (!tx) return;
 
-    setHoldingToEdit(holding);
-    setEditingTx(tx);
-    setEditDraft({
-      tradeDate: toDateInputValue(tx.tradeDate),
-      quantity: tx.quantity != null ? String(tx.quantity) : '',
-      unitPrice: tx.unitPrice != null ? String(tx.unitPrice) : '',
-      grossValue: String(tx.grossValue ?? ''),
-    });
+    const assetType = holding.asset?.assetType ?? null;
+    const groupKey = getAssetGroupKey(assetType);
+    const kind: EditDrawerKind = FIXED_INCOME_GROUP_KEYS.has(groupKey) ? 'fixedIncome' : FUND_GROUP_KEYS.has(groupKey) ? 'fund' : 'equity';
+
+    setEditDrawerHolding(holding);
+    setEditDrawerTransaction(tx);
+    setEditDrawerKind(kind);
+    setEditDrawerFinancialAccountId(resolveFinancialAccountId(holding));
   };
-
-  const closeEditDialog = () => {
-    setHoldingToEdit(null);
-    setEditingTx(null);
-  };
-
-  const handleSaveEdit = async () => {
-    const holding = holdingToEdit;
-    const tx = editingTx;
-    if (!holding || !tx) return;
-
-    const financialAccountIdResolved = resolveFinancialAccountId(holding);
-    const assetId = holding.asset?.id ?? null;
-    if (!financialAccountIdResolved || !assetId) return;
-
-    const tradeDate = editDraft.tradeDate;
-    const grossValue = Number(editDraft.grossValue);
-    const quantity = tx.quantity != null ? Number(editDraft.quantity) : null;
-    const unitPrice = tx.unitPrice != null ? Number(editDraft.unitPrice) : null;
-
-    if (!tradeDate) return;
-    if (!Number.isFinite(grossValue) || grossValue <= 0) return;
-    if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) return;
-    if (unitPrice != null && (!Number.isFinite(unitPrice) || unitPrice <= 0)) return;
-
-    try {
-      await deleteInvestmentTransaction({ variables: { id: tx.id } });
-
-      const isFixedIncome =
-        holding.asset?.assetType &&
-        (getAssetGroupKey(holding.asset.assetType) === 'bankFixedIncome' ||
-          getAssetGroupKey(holding.asset.assetType) === 'creditFixedIncome' ||
-          getAssetGroupKey(holding.asset.assetType) === 'treasuryDirect');
-
-      await recordInvestmentTransaction({
-        variables: {
-          input: {
-            financialAccountId: financialAccountIdResolved,
-            assetId,
-            direction: tx.direction,
-            type: tx.type,
-            quantity: quantity ?? undefined,
-            unitPrice: unitPrice ?? undefined,
-            grossValue,
-            tradeDate,
-            settlementDate: tradeDate,
-            indexer: isFixedIncome ? holding.indexer ?? undefined : undefined,
-            indexerPercentage: isFixedIncome ? holding.indexerPercentage ?? undefined : undefined,
-            preFixedRate: isFixedIncome ? holding.preFixedRate ?? undefined : undefined,
-            issueDate: isFixedIncome ? toDateInputValue(holding.issueDate) || undefined : undefined,
-            maturityDate: isFixedIncome ? toDateInputValue(holding.maturityDate) || undefined : undefined,
-            isTaxExempt: isFixedIncome ? holding.isTaxExempt ?? undefined : undefined,
-          },
-        },
-      });
-
-      closeEditDialog();
-      if (selectedAccountId) await accountHoldingsQuery.refetch();
-      else await consolidatedHoldingsQuery.refetch();
-    } catch {
-      closeEditDialog();
-    }
-  };
-
-  const EstimatedInfoBadge = React.forwardRef<HTMLSpanElement, { ml?: number; mr?: number }>(({ ml = 0, mr = 0 }, ref) => (
-    <Box
-      ref={ref}
-      component="span"
-      sx={{
-        width: 18,
-        height: 18,
-        border: 'none',
-        color: 'info.main',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        ml,
-        mr,
-        flex: '0 0 auto',
-      }}
-      aria-hidden
-    >
-      <InfoIcon sx={{ fontSize: 18, color: alpha(theme.palette.primary.main, 0.56), }} />
-    </Box>
-  ));
-  EstimatedInfoBadge.displayName = 'EstimatedInfoBadge';
 
   const accountHoldingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
     variables: { financialAccountId: selectedAccountId || '' },
@@ -465,7 +382,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
       let sum = 0;
       let principalSum = 0;
       let hasValue = false;
-      let hasEstimated = false;
+      let hasPrincipal = false;
 
       groupHoldings.forEach((holding) => {
         if (typeof holding.grossValue === 'number') {
@@ -474,14 +391,13 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
         }
         if (typeof holding.averageCost === 'number' && typeof holding.quantity === 'number') {
           principalSum += holding.averageCost * holding.quantity;
-        }
-        if (holding.valuationSource === ValuationSource.Estimated || holding.valuationSource === ValuationSource.MarketData) {
-          hasEstimated = true;
+          hasPrincipal = true;
         }
       });
 
       const currencyCode = currencyCodes.size === 1 ? Array.from(currencyCodes)[0] : null;
       const total = hasValue && currencyCode ? formatCurrency(sum, currencyCode, locale) : '—';
+      const appliedTotal = hasPrincipal && currencyCode ? formatCurrency(principalSum, currencyCode, locale) : '—';
       const allocationPercent = portfolioTotal > 0 && hasValue ? sum / portfolioTotal : null;
 
       return {
@@ -489,7 +405,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
         title: t(`investments.table.groups.${groupKey}`),
         count: groupHoldings.length,
         total,
-        hasEstimatedInGroup: hasEstimated,
+        appliedTotal,
         gainPercent: principalSum > 0 && hasValue ? (sum - principalSum) / principalSum : null,
         allocationPercent,
         summary: t('investments.table.groupSummary', {
@@ -555,23 +471,12 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
     didInitExpansionRef.current = false;
   }, [hasSearchQuery]);
 
-  const isEditOpen = Boolean(holdingToEdit && editingTx);
-  const isEditBusy = deleting || recordingEdit;
-  const canSaveEdit = (() => {
-    if (!isEditOpen) return false;
-    if (!editDraft.tradeDate) return false;
-    const grossValue = Number(editDraft.grossValue);
-    if (!Number.isFinite(grossValue) || grossValue <= 0) return false;
-    if (editingTx?.quantity != null) {
-      const q = Number(editDraft.quantity);
-      if (!Number.isFinite(q) || q <= 0) return false;
-    }
-    if (editingTx?.unitPrice != null) {
-      const u = Number(editDraft.unitPrice);
-      if (!Number.isFinite(u) || u <= 0) return false;
-    }
-    return true;
-  })();
+  const isEditDrawerOpen = Boolean(editDrawerHolding && editDrawerTransaction);
+
+  const handleEditRecorded = React.useCallback(async () => {
+    if (selectedAccountId) await accountHoldingsQuery.refetch();
+    else await consolidatedHoldingsQuery.refetch();
+  }, [accountHoldingsQuery, consolidatedHoldingsQuery, selectedAccountId]);
 
   const isActionMenuFixedIncome = actionMenuHolding?.asset?.assetType
     ? FIXED_INCOME_GROUP_KEYS.has(getAssetGroupKey(actionMenuHolding.asset.assetType))
@@ -609,17 +514,6 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {emptyStateMessage}
           </Typography>
-          {onRecordHolding && (
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<AddIcon />}
-              onClick={onRecordHolding}
-              data-testid="record-holding-inline-btn"
-            >
-              {t('investments.actions.recordHolding')}
-            </Button>
-          )}
         </Box>
       )}
 
@@ -634,16 +528,16 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
             const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
             const isFundGroup = FUND_GROUP_KEYS.has(group.key);
             const isFixedIncomeGroup = FIXED_INCOME_GROUP_KEYS.has(group.key);
-            const showFinancialAccountColumn = !selectedAccountId;
-            const dataColumnCount = isFundGroup ? 4 : isFixedIncomeGroup ? 4 : 5;
+            const isVariableIncomeGroup = group.key === 'variableIncome';
+            const dataColumnCount = isFundGroup ? 4 : isFixedIncomeGroup ? 4 : isVariableIncomeGroup ? 7 : 5;
             const colWidth = `calc((100% - 52px) / ${dataColumnCount})`;
-
-            const summaryAdornment =
-              group.hasEstimatedInGroup ? (
-                <Tooltip title={t('investments.table.groupTotalEstimated')}>
-                  <EstimatedInfoBadge ml={0.25} />
-                </Tooltip>
-              ) : null;
+            const fixedIncomeMaturityColWidth = 140;
+            const fixedIncomeGrossValueColWidth = 170;
+            const fixedIncomeGainColWidth = 160;
+            const assetColSx = isFixedIncomeGroup ? { width: 'auto' } : { width: colWidth };
+            const maturityColSx = { width: isFixedIncomeGroup ? fixedIncomeMaturityColWidth : colWidth };
+            const grossValueColSx = { width: isFixedIncomeGroup ? fixedIncomeGrossValueColWidth : colWidth };
+            const gainColSx = { width: isFixedIncomeGroup ? fixedIncomeGainColWidth : colWidth };
 
             return (
               <AssetGroupCard
@@ -660,9 +554,10 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                 title={group.title}
                 summary={group.summary}
                 leadingIcon={leadingIcon}
-                summaryAdornment={summaryAdornment}
                 gainPercent={group.gainPercent}
                 allocationPercent={group.allocationPercent}
+                appliedLabel={t('investments.table.appliedValue', { defaultValue: 'Valor aplicado' })}
+                appliedValue={group.appliedTotal}
               >
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                   <Table
@@ -682,7 +577,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                   >
                     <TableHead>
                       <TableRow>
-                        <TableCell sx={{ width: colWidth }}>
+                        <TableCell sx={assetColSx}>
                           <Label>{t('investments.table.columns.asset')}</Label>
                         </TableCell>
                         {!isFixedIncomeGroup && (
@@ -693,23 +588,37 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                         {isFundGroup ? (
                           <>
                             <TableCell align="right" sx={{ width: colWidth }}>
-                              <Label>{t('investments.table.columns.grossValue')}</Label>
+                              <Label>{t('investments.table.columns.gain')}</Label>
                             </TableCell>
                             <TableCell align="right" sx={{ width: colWidth }}>
-                              <Label>{t('investments.table.columns.gain')}</Label>
+                              <Label>{t('investments.table.columns.grossValue')}</Label>
                             </TableCell>
                           </>
                         ) : (
                           <>
-                            <TableCell sx={{ width: colWidth }}>
-                              <Label>{t('investments.table.columns.maturityDate')}</Label>
+                            {isVariableIncomeGroup ? (
+                              <>
+                                <TableCell sx={maturityColSx}>
+                                  <Label>{t('investments.table.columns.quantity', { defaultValue: 'Quantidade' })}</Label>
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: colWidth }}>
+                                  <Label>{t('investments.table.columns.avgPrice', { defaultValue: 'Preço médio' })}</Label>
+                                </TableCell>
+                                <TableCell align="right" sx={{ width: colWidth }}>
+                                  <Label>{t('investments.table.columns.priceD1', { defaultValue: 'Preço D+1' })}</Label>
+                                </TableCell>
+                              </>
+                            ) : (
+                              <TableCell sx={maturityColSx}>
+                                <Label>{t('investments.table.columns.maturityDate')}</Label>
+                              </TableCell>
+                            )}
+                            <TableCell align="right" sx={gainColSx}>
+                              <Label>{t('investments.table.columns.gain')}</Label>
                             </TableCell>
-                            <TableCell align="right" sx={{ width: colWidth }}>
+                            <TableCell align="right" sx={grossValueColSx}>
                               <Label>{t('investments.table.columns.grossValue')}</Label>
                             </TableCell>
-                          <TableCell align="right" sx={{ width: colWidth }}>
-                            <Label>{t('investments.table.columns.gain')}</Label>
-                          </TableCell>
                           </>
                         )}
                         <TableCell align="center" sx={{ width: 52 }} />
@@ -738,64 +647,54 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                     >
                       <TableBody>
                     {group.holdings.map((holding) => {
-                      const source = holding.valuationSource;
                       const isExpired = holding.isExpired;
-                      const refDate = typeof holding.valuationReferenceDate === 'string' ? holding.valuationReferenceDate : null;
-                      const refDateFormatted = refDate ? formatDate(refDate, locale) : '';
                       const currencyCode = holding.asset?.currencyCode ?? 'BRL';
-                      const manualPricing = holding.pricingMode === HoldingPricingMode.Manual;
-                      const marketDataPricing = holding.pricingMode === HoldingPricingMode.MarketData;
 
-                      const valueUnavailable = source === ValuationSource.Unavailable || typeof holding.grossValue !== 'number';
-                      const valueContent = valueUnavailable ? (
-                        '—'
-                      ) : (
-                        formatCurrency(holding.grossValue, currencyCode, locale)
-                      );
-                      const valueSourceKey =
-                        source === ValuationSource.Manual || source === ValuationSource.MarketData || source === ValuationSource.Provider
-                          ? source
-                          : manualPricing
-                            ? ValuationSource.Manual
-                            : marketDataPricing
-                              ? ValuationSource.MarketData
-                          : null;
-                      const valueSourceLabel = valueSourceKey
-                        ? t(`investments.table.valueSource.${valueSourceKey}`)
-                        : null;
-                      const valueIcon =
-                        source === ValuationSource.Estimated ||
-                        source === ValuationSource.Manual ||
-                        source === ValuationSource.MarketData ? (
-                          <Tooltip
-                            title={t(`investments.table.valuationTooltip.${source}`, {
-                              date: refDateFormatted || '—',
-                            })}
-                          >
-                            <EstimatedInfoBadge mr={0.25} />
-                          </Tooltip>
-                        ) : null;
+                      const valueUnavailable = typeof holding.grossValue !== 'number';
 
                       const principal = holding.averageCost * holding.quantity;
                       const grossVal = typeof holding.grossValue === 'number' ? holding.grossValue : null;
                       const absolute = principal > 0 && grossVal != null ? grossVal - principal : null;
                       const growthRatio = absolute != null && principal > 0 ? absolute / principal : null;
-                      const gainUnavailable = grossVal == null || source === ValuationSource.Unavailable;
-                      const gainEstimated = source === ValuationSource.Estimated || source === ValuationSource.MarketData;
+                      const gainUnavailable = grossVal == null;
                       const canMutate = holding.source === InvestmentSource.Manual;
+                      const issuerLabel = formatIssuerLabel(holding);
+                      const maturityDateStr = holding.maturityDate ? formatDate(holding.maturityDate, locale) : '';
+                      const expiredNudge =
+                        isExpired && maturityDateStr
+                          ? (t('investments.table.expiredNudge', { maturityDate: maturityDateStr }) as string)
+                          : null;
+                      const assetSecondaryLabel = isVariableIncomeGroup
+                        ? holding.asset?.name ?? '—'
+                        : expiredNudge
+                        ? `${issuerLabel} • ${expiredNudge}`
+                        : issuerLabel;
+                      const gainPercentNode =
+                        growthRatio != null && principal > 0 && absolute != null ? (
+                          <PercentageGain value={growthRatio} locale={locale} />
+                        ) : null;
 
                       return (
                         <TableRow
                           key={holding.id}
                           sx={{
-                            '& td': { borderBottom: `1px solid ${divider}`, py: 1.5 },
+                            '& td': { borderBottom: `1px solid ${divider}`, pt: 2.5, pb: 1.5 },
                             '&:last-of-type td': { borderBottom: 'none' },
                           }}
                         >
-                          <TableCell sx={{ width: colWidth }}>
-                            <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                          <TableCell sx={assetColSx}>
+                            <Box
+                              sx={{
+                                display: 'grid',
+                                gridTemplateColumns: '32px minmax(0, 1fr)',
+                                gridTemplateRows: 'auto auto',
+                                columnGap: 1,
+                                alignItems: 'center',
+                                minWidth: 0,
+                              }}
+                            >
                               {(() => {
-                                const avatar = getFinancialAccountAvatarProps(holding);
+                                const avatar = getHoldingAvatarProps(holding);
                                 return (
                                   <Avatar
                                     src={avatar.src}
@@ -807,7 +706,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                                       bgcolor: avatar.src ? 'transparent' : avatar.backgroundColor,
                                       borderRadius: '.3rem',
                                       fontSize: '0.75rem',
-                                      flex: '0 0 auto',
+                                      gridRow: '1 / span 2',
+                                      alignSelf: 'center',
                                       '& img': { objectFit: 'contain' },
                                     }}
                                   >
@@ -815,36 +715,34 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                                   </Avatar>
                                 );
                               })()}
-                              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                <Typography variant="body2" noWrap>
-                                  {(() => {
-                                    const name = holding.asset?.name ?? '—';
-                                    if (!isFixedIncomeGroup) return name;
-                                    const typeLabel = holding.asset ? formatAssetType(holding.asset.assetType, t) : '—';
-                                    const idx = formatIndexer(holding, locale);
-                                    return idx ? `${name} • ${typeLabel} ${idx}` : `${name} • ${typeLabel}`;
-                                  })()}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap sx={{ mt: 0.25 }}>
-                                  {formatFinancialAccountLabel(holding)}
-                                </Typography>
-                              </Box>
-                            </Stack>
-                            {isExpired && source !== 'PROVIDER' && (() => {
-                              const maturityDateStr = holding.maturityDate ? formatDate(holding.maturityDate, locale) : '';
-                              return maturityDateStr ? (
-                                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.25 }}>
-                                  {t('investments.table.expiredNudge', { maturityDate: maturityDateStr }) as string}
-                                </Typography>
-                              ) : null;
-                            })()}
+                              <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+                                {(() => {
+                                  const name = holding.asset?.name ?? '—';
+                                  if (!isFixedIncomeGroup) {
+                                    if (isVariableIncomeGroup) {
+                                      const ticker = holding.asset?.ticker ?? null;
+                                      return ticker || name;
+                                    }
+                                    return name;
+                                  }
+                                  const typeLabel = holding.asset ? formatAssetType(holding.asset.assetType, t) : '—';
+                                  const idx = formatIndexer(holding, locale);
+                                  return idx ? `${name} • ${typeLabel} ${idx}` : `${name} • ${typeLabel}`;
+                                })()}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap sx={{ mt: 0.25, minWidth: 0 }}>
+                                {assetSecondaryLabel}
+                              </Typography>
+                            </Box>
                           </TableCell>
                           {isFundGroup ? (
                             <TableCell sx={{ width: colWidth }}>
                               <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                <Typography variant="body2" noWrap>
-                                  {holding.asset ? formatFundAssetType(holding.asset.assetType, t) : '—'}
-                                </Typography>
+                                {holding.asset ? (
+                                  <AssetTypeChip assetType={holding.asset.assetType} size="small" />
+                                ) : (
+                                  <Typography variant="body2" noWrap>—</Typography>
+                                )}
                                 <Typography variant="caption" color="text.secondary" noWrap sx={{ fontVariantNumeric: 'tabular-nums' }}>
                                   {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
                                 </Typography>
@@ -853,29 +751,16 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                           ) : (
                             !isFixedIncomeGroup && (
                               <TableCell sx={{ width: colWidth }}>
-                                <Typography variant="body2">
-                                  {holding.asset ? formatAssetType(holding.asset.assetType, t) : '—'}
-                                </Typography>
+                                {holding.asset ? (
+                                  <AssetTypeChip assetType={holding.asset.assetType} size="small" />
+                                ) : (
+                                  <Typography variant="body2">—</Typography>
+                                )}
                               </TableCell>
                             )
                           )}
                           {isFundGroup ? (
                             <>
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
-                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                    {valueIcon}
-                                    <Typography variant="body2" component="span" fontWeight="medium">
-                                      {valueContent}
-                                    </Typography>
-                                  </Box>
-                                  {valueSourceLabel ? (
-                                    <Typography variant="caption" color="text.secondary">
-                                      {valueSourceLabel}
-                                    </Typography>
-                                  ) : null}
-                                </Box>
-                              </TableCell>
                               <TableCell align="right" sx={{ width: colWidth }}>
                                 <Box
                                   sx={{
@@ -883,158 +768,213 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                                     flexDirection: 'column',
                                     alignItems: 'flex-end',
                                     justifyContent: 'center',
-                                    gap: 0.5,
+                                    gap: 0.25,
                                   }}
                                 >
                                   {gainUnavailable ? (
-                                    <Typography variant="body2">—</Typography>
+                                    <>
+                                      <Typography variant="body2">—</Typography>
+                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                        —
+                                      </Typography>
+                                    </>
                                   ) : (
                                     <>
                                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                        {gainEstimated && (
-                                          <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                            <EstimatedInfoBadge mr={0.25} />
-                                          </Tooltip>
-                                        )}
-                                        <Typography
-                                          variant="body2"
-                                          fontWeight="medium"
-                                          color={
-                                            absolute != null && absolute >= 0
-                                              ? 'success.main'
-                                              : absolute != null
-                                                ? 'error.main'
-                                                : 'text.primary'
-                                          }
-                                        >
-                                          {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
-                                        </Typography>
+                                          {absolute != null ? (
+                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
+                                          ) : (
+                                            <Typography variant="body2">—</Typography>
+                                          )}
                                       </Box>
-                                      {growthRatio != null && principal > 0 && absolute != null && (
-                                        <GainPercent value={growthRatio} locale={locale} />
+                                      {gainPercentNode ? (
+                                        <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
+                                      ) : (
+                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                          —
+                                        </Typography>
                                       )}
                                     </>
                                   )}
                                 </Box>
                               </TableCell>
-                            </>
-                          ) : (
-                            <>
-                              <TableCell sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap' }}>
-                                  <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
-                                  {isExpired && (
-                                    <Chip
-                                      size="small"
-                                      label={
-                                        <Typography
-                                          variant="body2"
-                                          sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, lineHeight: FINANCE_TABLE_BODY_LINE_HEIGHT, opacity: 0.7 }}
-                                        >
-                                          {t('investments.table.expiredBadge')}
-                                        </Typography>
-                                      }
-                                      sx={{
-                                        height: 28,
-                                        bgcolor: 'action.selected',
-                                        borderColor: 'divider',
-                                        '& .MuiChip-label': { px: 1 },
-                                      }}
-                                      color="default"
-                                      variant="outlined"
-                                    />
-                                  )}
-                                </Box>
-                              </TableCell>                              
                               <TableCell align="right" sx={{ width: colWidth }}>
                                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
                                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                    {valueIcon}
-                                    <Typography variant="body2" component="span" fontWeight="medium">
-                                      {valueContent}
-                                    </Typography>
+                                    {valueUnavailable ? (
+                                      <Typography variant="body2" component="span" fontWeight="medium">—</Typography>
+                                    ) : (
+                                      <Amount value={holding.grossValue as number} currency={currencyCode} locale={locale} tone="neutral" />
+                                    )}
                                   </Box>
-                                  {isFundGroup && valueSourceLabel ? (
-                                    <Typography variant="caption" color="text.secondary">
-                                      {valueSourceLabel}
-                                    </Typography>
-                                  ) : null}
+                                  <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                    —
+                                  </Typography>
                                 </Box>
                               </TableCell>
+                            </>
+                          ) : (
+                            <>
+                              {isVariableIncomeGroup ? (
+                                <>
+                                  <TableCell sx={{ ...maturityColSx, verticalAlign: 'top' }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, minWidth: 0 }}>
+                                      <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                                        {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                        —
+                                      </Typography>
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ width: colWidth, verticalAlign: 'top' }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+                                      <Typography variant="body2" sx={{ visibility: 'hidden', fontVariantNumeric: 'tabular-nums' }}>
+                                        —
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                        —
+                                      </Typography>
+                                    </Box>
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ width: colWidth, verticalAlign: 'top' }}>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+                                      <Typography variant="body2" sx={{ visibility: 'hidden', fontVariantNumeric: 'tabular-nums' }}>
+                                        —
+                                      </Typography>
+                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                        —
+                                      </Typography>
+                                    </Box>
+                                  </TableCell>
+                                </>
+                              ) : (
+                                <TableCell sx={{ ...maturityColSx, verticalAlign: 'top' }}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, minWidth: 0 }}>
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', minWidth: 0 }}>
+                                      <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
+                                      {isExpired && (
+                                        <Chip
+                                          size="small"
+                                          label={
+                                            <Typography
+                                              variant="body2"
+                                              sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, lineHeight: FINANCE_TABLE_BODY_LINE_HEIGHT, opacity: 0.7 }}
+                                            >
+                                              {t('investments.table.expiredBadge')}
+                                            </Typography>
+                                          }
+                                          sx={{
+                                            height: 28,
+                                            bgcolor: 'action.selected',
+                                            borderColor: 'divider',
+                                            '& .MuiChip-label': { px: 1 },
+                                          }}
+                                          color="default"
+                                          variant="outlined"
+                                        />
+                                      )}
+                                    </Box>
+                                    <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                      —
+                                    </Typography>
+                                  </Box>
+                                </TableCell>
+                              )}
 
                               {isFixedIncomeGroup ? (
-                                <TableCell align="right" sx={{ width: colWidth }}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
+                                <TableCell align="right" sx={gainColSx}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.25 }}>
                                     {gainUnavailable ? (
-                                      <Typography variant="body2">—</Typography>
+                                      <>
+                                        <Typography variant="body2">—</Typography>
+                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                          —
+                                        </Typography>
+                                      </>
                                     ) : (
                                       <>
                                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                          {gainEstimated && (
-                                            <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                              <EstimatedInfoBadge mr={0.25} />
-                                            </Tooltip>
+                                          {absolute != null ? (
+                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
+                                          ) : (
+                                            <Typography variant="body2">—</Typography>
                                           )}
-                                          <Typography
-                                            variant="body2"
-                                            fontWeight="medium"
-                                            color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
-                                          >
-                                            {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
-                                          </Typography>
                                         </Box>
-                                        {growthRatio != null && principal > 0 && absolute != null && (
-                                          <GainPercent value={growthRatio} locale={locale} />
+                                        {gainPercentNode ? (
+                                          <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
+                                        ) : (
+                                          <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                            —
+                                          </Typography>
                                         )}
                                       </>
                                     )}
                                   </Box>
                                 </TableCell>
                               ) : (
-                                <TableCell align="right" sx={{ width: colWidth }}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.5 }}>
+                                <TableCell align="right" sx={gainColSx}>
+                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.25 }}>
                                     {gainUnavailable ? (
-                                      <Typography variant="body2">—</Typography>
+                                      <>
+                                        <Typography variant="body2">—</Typography>
+                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                          —
+                                        </Typography>
+                                      </>
                                     ) : (
                                       <>
                                         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                          {gainEstimated && (
-                                            <Tooltip title={t('investments.table.valuationTooltip.ESTIMATED', { date: refDateFormatted })}>
-                                              <EstimatedInfoBadge mr={0.25} />
-                                            </Tooltip>
+                                          {absolute != null ? (
+                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
+                                          ) : (
+                                            <Typography variant="body2">—</Typography>
                                           )}
-                                          <Typography
-                                            variant="body2"
-                                            fontWeight="medium"
-                                            color={absolute != null && absolute >= 0 ? 'success.main' : absolute != null ? 'error.main' : 'text.primary'}
-                                          >
-                                            {absolute != null ? formatCurrency(absolute, currencyCode, locale) : '—'}
-                                          </Typography>
                                         </Box>
-                                        {growthRatio != null && principal > 0 && absolute != null && (
-                                          <GainPercent value={growthRatio} locale={locale} />
+                                        {gainPercentNode ? (
+                                          <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
+                                        ) : (
+                                          <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                            —
+                                          </Typography>
                                         )}
                                       </>
                                     )}
                                   </Box>
                                 </TableCell>
                               )}
+                              <TableCell align="right" sx={grossValueColSx}>
+                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
+                                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
+                                    {valueUnavailable ? (
+                                      <Typography variant="body2" component="span" fontWeight="medium">—</Typography>
+                                    ) : (
+                                      <Amount value={holding.grossValue as number} currency={currencyCode} locale={locale} tone="neutral" />
+                                    )}
+                                  </Box>
+                                  <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
+                                    —
+                                  </Typography>
+                                </Box>
+                              </TableCell>
                             </>
                           )}
-                          <TableCell align="center" sx={{ width: 52 }}>
-                            <IconButton
-                              size="small"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!canMutate) return;
-                                setActionMenuAnchorEl(e.currentTarget);
-                                setActionMenuHolding(holding);
-                              }}
-                              aria-label={t('investments.table.rowActions.ariaLabel')}
-                              disabled={!canMutate}
-                            >
-                              <MoreVertIcon fontSize="small" />
-                            </IconButton>
+                          <TableCell align="center" sx={{ width: 52, verticalAlign: 'middle' }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+                              <IconButton
+                                size="small"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!canMutate) return;
+                                  setActionMenuAnchorEl(e.currentTarget);
+                                  setActionMenuHolding(holding);
+                                }}
+                                aria-label={t('investments.table.rowActions.ariaLabel')}
+                                disabled={!canMutate}
+                              >
+                                <MoreVertIcon fontSize="small" />
+                              </IconButton>
+                            </Box>
                           </TableCell>
                         </TableRow>
                       );
@@ -1063,7 +1003,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
             if (!holding) return;
             await handleOpenEdit(holding);
           }}
-          disabled={deleting || recordingEdit}
+          disabled={deleting}
         >
           <ListItemIcon>
             <EditIcon fontSize="small" />
@@ -1087,7 +1027,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                 }
               : {}),
           }}
-          disabled={deleting || recordingEdit}
+          disabled={deleting}
         >
           <ListItemIcon sx={{ color: 'inherit' }}>
             <DeleteOutlineIcon fontSize="small" />
@@ -1108,69 +1048,79 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
         loading={deleting}
       />
 
-      <Dialog open={isEditOpen} onClose={closeEditDialog} fullWidth maxWidth="xs">
-        <DialogTitle>{t('investments.editDialog.title')}</DialogTitle>
-        <DialogContent sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <TextField
-            label={t('investments.editDialog.fields.tradeDate')}
-            type="date"
-            value={editDraft.tradeDate}
-            onChange={(e) => setEditDraft((prev) => ({ ...prev, tradeDate: e.target.value }))}
-            fullWidth
-            InputLabelProps={{ shrink: true }}
-          />
+      <RecordFixedIncomeDrawer
+        open={isEditDrawerOpen && editDrawerKind === 'fixedIncome'}
+        onClose={closeEditDrawer}
+        financialAccountId={editDrawerFinancialAccountId}
+        financialAccounts={[]}
+        editHolding={
+          editDrawerHolding
+            ? {
+                id: editDrawerHolding.id,
+                asset: {
+                  id: editDrawerHolding.asset.id,
+                  name: editDrawerHolding.asset.name,
+                  assetType: editDrawerHolding.asset.assetType,
+                  issuerName: editDrawerHolding.asset.issuerName ?? null,
+                },
+                indexer: editDrawerHolding.indexer ?? null,
+                indexerPercentage: editDrawerHolding.indexerPercentage ?? null,
+                preFixedRate: editDrawerHolding.preFixedRate ?? null,
+                maturityDate: editDrawerHolding.maturityDate ?? null,
+                isTaxExempt: editDrawerHolding.isTaxExempt ?? false,
+              }
+            : null
+        }
+        editTransaction={editDrawerTransaction}
+        onRecorded={handleEditRecorded}
+      />
 
-          {editingTx?.quantity != null && (
-            <TextField
-              label={t('investments.editDialog.fields.quantity')}
-              type="number"
-              value={editDraft.quantity}
-              onChange={(e) => setEditDraft((prev) => ({ ...prev, quantity: e.target.value }))}
-              fullWidth
-              inputProps={{ step: 'any', min: 0 }}
-            />
-          )}
+      <RecordFundHoldingDrawer
+        open={isEditDrawerOpen && editDrawerKind === 'fund'}
+        onClose={closeEditDrawer}
+        financialAccountId={editDrawerFinancialAccountId}
+        financialAccounts={[]}
+        editHolding={
+          editDrawerHolding
+            ? {
+                id: editDrawerHolding.id,
+                pricingMode: editDrawerHolding.pricingMode ?? null,
+                valuationReferenceDate: editDrawerHolding.valuationReferenceDate ?? null,
+                grossValue: editDrawerHolding.grossValue ?? null,
+                netValue: editDrawerHolding.netValue ?? null,
+                asset: {
+                  id: editDrawerHolding.asset.id,
+                  name: editDrawerHolding.asset.name,
+                  assetType: editDrawerHolding.asset.assetType as AssetType,
+                },
+              }
+            : null
+        }
+        editTransaction={editDrawerTransaction}
+        onRecorded={handleEditRecorded}
+      />
 
-          {editingTx?.unitPrice != null && (
-            <TextField
-              label={t('investments.editDialog.fields.unitPrice')}
-              type="number"
-              value={editDraft.unitPrice}
-              onChange={(e) => setEditDraft((prev) => ({ ...prev, unitPrice: e.target.value }))}
-              fullWidth
-              inputProps={{ step: 'any', min: 0 }}
-            />
-          )}
-
-          <TextField
-            label={t('investments.editDialog.fields.grossValue')}
-            type="number"
-            value={editDraft.grossValue}
-            onChange={(e) => setEditDraft((prev) => ({ ...prev, grossValue: e.target.value }))}
-            fullWidth
-            inputProps={{ step: 'any', min: 0 }}
-          />
-
-          {holdingToEdit && (
-            <AttachmentSection
-              holdingId={holdingToEdit.id}
-              attachments={'attachments' in holdingToEdit ? holdingToEdit.attachments ?? [] : []}
-              onChanged={() => {
-                if (selectedAccountId) accountHoldingsQuery.refetch();
-                else consolidatedHoldingsQuery.refetch();
-              }}
-            />
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={closeEditDialog} disabled={isEditBusy}>
-            {t('actions.cancel')}
-          </Button>
-          <Button variant="contained" onClick={handleSaveEdit} disabled={!canSaveEdit || isEditBusy}>
-            {t('actions.save')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <RecordEquityHoldingDrawer
+        open={isEditDrawerOpen && editDrawerKind === 'equity'}
+        onClose={closeEditDrawer}
+        financialAccountId={editDrawerFinancialAccountId}
+        financialAccounts={[]}
+        editHolding={
+          editDrawerHolding
+            ? {
+                id: editDrawerHolding.id,
+                asset: {
+                  id: editDrawerHolding.asset.id,
+                  ticker: editDrawerHolding.asset.ticker ?? null,
+                  name: editDrawerHolding.asset.name,
+                  assetType: editDrawerHolding.asset.assetType as AssetType,
+                },
+              }
+            : null
+        }
+        editTransaction={editDrawerTransaction}
+        onRecorded={handleEditRecorded}
+      />
     </TableContainer>
   );
 }

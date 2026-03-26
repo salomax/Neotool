@@ -43,7 +43,7 @@ The `import_job_control` table tracks `last_data_date` per job name:
 | State | Behavior |
 |-------|----------|
 | No row for `cvm_nav` | **Backfill**: processes `CVM_NAV_BACKFILL_YEARS × 12` months (default: 5 years = 60 months) |
-| Row exists | **Incremental**: processes from `last_data_date`'s month to last month |
+| Row exists | **Incremental**: processes from `last_data_date`'s month to current month |
 
 ---
 

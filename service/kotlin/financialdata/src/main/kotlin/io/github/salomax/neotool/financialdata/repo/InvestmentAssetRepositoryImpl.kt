@@ -123,9 +123,9 @@ open class ListedAssetRepositoryImpl(
 
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
-        val totalCount = (rows.firstOrNull()?.get(11) as? Number)?.toLong() ?: 0L
+        val totalCount = (rows.firstOrNull()?.get(13) as? Number)?.toLong() ?: 0L
         val assets = rows.map { row ->
-            val simScore = (row[6] as? Number)?.toDouble() ?: 0.0
+            val simScore = (row[7] as? Number)?.toDouble() ?: 0.0
             mapAssetRow(row, includePrice = true, simScore = simScore)
         }
         return Pair(assets, totalCount)
@@ -161,12 +161,10 @@ open class ListedAssetRepositoryImpl(
             "ORDER BY ia.ticker ASC, ia.id ASC"
         }
 
-        // Columns: id(0), ticker(1), name(2), asset_type(3), exchange(4), is_active(5),
-        //          sim_score(6), price_date(7), open(8), high(9), low(10), close(11) — wait, need to recount
-        // Actually: id(0), ticker(1), name(2), asset_type(3), exchange(4), is_active(5),
-        //           sim_score(6), price_date(7), open_price(8), high_price(9), low_price(10),
-        //           close_price(11) — but total_count needs to be at a fixed index.
-        // Let's put total_count at index 12 and avg_price,volume,trades after.
+        // Columns:
+        // id(0), ticker(1), name(2), asset_type(3), exchange(4), is_active(5),
+        // logo_asset_id(6), sim_score(7), price_date(8), open_price(9), high_price(10),
+        // low_price(11), close_price(12), total_count(13)
         return """
             SELECT
                 ia.id::text,
@@ -175,6 +173,7 @@ open class ListedAssetRepositoryImpl(
                 ia.asset_type,
                 ia.exchange,
                 ia.is_active,
+                brand.logo_asset_id::text,
                 $similaritySelect
                 p.price_date,
                 p.open_price,
@@ -183,6 +182,18 @@ open class ListedAssetRepositoryImpl(
                 p.close_price,
                 COUNT(*) OVER() AS total_count
             FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT ab.logo_asset_id
+                FROM financial_data.investment_asset_brand_match asset_match
+                JOIN financial_data.asset_brand ab ON ab.id = asset_match.asset_brand_id
+                WHERE asset_match.investment_asset_id = ia.id
+                  AND asset_match.status IN ('VERIFIED', 'AUTO_APPROVED')
+                  AND ab.logo_asset_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN asset_match.status = 'VERIFIED' THEN 0 ELSE 1 END,
+                    asset_match.updated_at DESC
+                LIMIT 1
+            ) brand ON true
             LEFT JOIN LATERAL (
                 SELECT price_date, open_price, high_price, low_price, close_price
                 FROM financial_data.asset_daily_price
@@ -214,6 +225,7 @@ open class ListedAssetRepositoryImpl(
                 ia.asset_type,
                 ia.exchange,
                 ia.is_active,
+                brand.logo_asset_id::text,
                 0.0 AS sim_score,
                 p.price_date,
                 p.open_price,
@@ -221,6 +233,18 @@ open class ListedAssetRepositoryImpl(
                 p.low_price,
                 p.close_price
             FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT ab.logo_asset_id
+                FROM financial_data.investment_asset_brand_match asset_match
+                JOIN financial_data.asset_brand ab ON ab.id = asset_match.asset_brand_id
+                WHERE asset_match.investment_asset_id = ia.id
+                  AND asset_match.status IN ('VERIFIED', 'AUTO_APPROVED')
+                  AND ab.logo_asset_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN asset_match.status = 'VERIFIED' THEN 0 ELSE 1 END,
+                    asset_match.updated_at DESC
+                LIMIT 1
+            ) brand ON true
             LEFT JOIN LATERAL (
                 SELECT price_date, open_price, high_price, low_price, close_price
                 FROM financial_data.asset_daily_price
@@ -249,6 +273,7 @@ open class ListedAssetRepositoryImpl(
                 ia.asset_type,
                 ia.exchange,
                 ia.is_active,
+                brand.logo_asset_id::text,
                 0.0 AS sim_score,
                 p.price_date,
                 p.open_price,
@@ -256,6 +281,18 @@ open class ListedAssetRepositoryImpl(
                 p.low_price,
                 p.close_price
             FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT ab.logo_asset_id
+                FROM financial_data.investment_asset_brand_match asset_match
+                JOIN financial_data.asset_brand ab ON ab.id = asset_match.asset_brand_id
+                WHERE asset_match.investment_asset_id = ia.id
+                  AND asset_match.status IN ('VERIFIED', 'AUTO_APPROVED')
+                  AND ab.logo_asset_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN asset_match.status = 'VERIFIED' THEN 0 ELSE 1 END,
+                    asset_match.updated_at DESC
+                LIMIT 1
+            ) brand ON true
             LEFT JOIN LATERAL (
                 SELECT price_date, open_price, high_price, low_price, close_price
                 FROM financial_data.asset_daily_price
@@ -273,6 +310,61 @@ open class ListedAssetRepositoryImpl(
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
         return rows.firstOrNull()?.let { mapAssetRow(it, includePrice = true) }
+    }
+
+    @ReadOnly
+    override fun findAssetsByTickers(tickers: Set<String>): List<ListedAsset> {
+        val normalized = tickers.map { it.trim().uppercase() }.filter { it.isNotBlank() }.toSet()
+        if (normalized.isEmpty()) return emptyList()
+
+        val placeholders = List(normalized.size) { "?" }.joinToString(", ")
+        val sql = """
+            SELECT
+                ia.id::text,
+                ia.ticker,
+                ia.name,
+                ia.asset_type,
+                ia.exchange,
+                ia.is_active,
+                brand.logo_asset_id::text,
+                0.0 AS sim_score,
+                p.price_date,
+                p.open_price,
+                p.high_price,
+                p.low_price,
+                p.close_price
+            FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT ab.logo_asset_id
+                FROM financial_data.investment_asset_brand_match asset_match
+                JOIN financial_data.asset_brand ab ON ab.id = asset_match.asset_brand_id
+                WHERE asset_match.investment_asset_id = ia.id
+                  AND asset_match.status IN ('VERIFIED', 'AUTO_APPROVED')
+                  AND ab.logo_asset_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN asset_match.status = 'VERIFIED' THEN 0 ELSE 1 END,
+                    asset_match.updated_at DESC
+                LIMIT 1
+            ) brand ON true
+            LEFT JOIN LATERAL (
+                SELECT price_date, open_price, high_price, low_price, close_price
+                FROM financial_data.asset_daily_price
+                WHERE asset_id = ia.id
+                ORDER BY price_date DESC
+                LIMIT 1
+            ) p ON true
+            WHERE upper(ia.ticker) IN ($placeholders)
+              AND ia.source = 'B3'
+        """.trimIndent()
+
+        val q = entityManager.createNativeQuery(sql)
+        normalized.forEachIndexed { index, ticker ->
+            q.setParameter(index + 1, ticker)
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = q.resultList as List<Array<Any?>>
+        return rows.map { mapAssetRow(it, includePrice = true) }
     }
 
     // -------------------------------------------------------------------------
@@ -331,19 +423,19 @@ open class ListedAssetRepositoryImpl(
      * Maps a result row to [ListedAsset].
      *
      * Autocomplete (includePrice=false): id(0), ticker(1), name(2), asset_type(3), exchange(4), is_active(5)
-     * List/detail  (includePrice=true):  same + sim_score(6), price_date(7), open(8), high(9), low(10), close(11)
-     * searchAssets adds total_count(12) via COUNT(*) OVER() — extracted separately before calling this.
+     * List/detail  (includePrice=true):  same + logo_asset_id(6), sim_score(7), price_date(8), open(9), high(10), low(11), close(12)
+     * searchAssets adds total_count(13) via COUNT(*) OVER() — extracted separately before calling this.
      */
     private fun mapAssetRow(row: Array<Any?>, includePrice: Boolean, simScore: Double = 0.0): ListedAsset {
         val latestPrice = if (includePrice) {
-            val priceDate = row[7] as? java.sql.Date
-            val closePrice = row[11] as? BigDecimal
+            val priceDate = row[8] as? java.sql.Date
+            val closePrice = row[12] as? BigDecimal
             if (priceDate != null && closePrice != null) {
                 AssetDailyPrice(
                     date = priceDate.toLocalDate(),
-                    openPrice = row[8] as? BigDecimal,
-                    highPrice = row[9] as? BigDecimal,
-                    lowPrice = row[10] as? BigDecimal,
+                    openPrice = row[9] as? BigDecimal,
+                    highPrice = row[10] as? BigDecimal,
+                    lowPrice = row[11] as? BigDecimal,
                     closePrice = closePrice,
                     avgPrice = null,
                     volume = null,
@@ -359,6 +451,7 @@ open class ListedAssetRepositoryImpl(
             assetType = row[3] as String,
             exchange = row[4] as? String,
             isActive = row[5] as Boolean,
+            logoAssetId = row[6] as? String,
             latestPrice = latestPrice,
             simScore = simScore,
         )

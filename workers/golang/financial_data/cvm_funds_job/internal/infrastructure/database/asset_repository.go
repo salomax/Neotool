@@ -32,17 +32,21 @@ const (
 	upsertFundSQL = `
 		INSERT INTO financial_data.investment_asset
 			(id, name, asset_type, fund_cnpj, is_active, source, content_hash,
+			 fund_search_text, fund_search_tokens,
 			 currency_code, lot_size, price_factor, created_at, updated_at)
 		VALUES
 			(gen_random_uuid(), $1, $2, $3, $4, 'CVM', $5,
+			 financial_data.build_fund_search_text($1), financial_data.build_fund_search_tokens($1),
 			 'BRL', 1, 1, NOW(), NOW())
 		ON CONFLICT (fund_cnpj)
 		DO UPDATE SET
-			name         = EXCLUDED.name,
-			asset_type   = EXCLUDED.asset_type,
-			is_active    = EXCLUDED.is_active,
-			content_hash = EXCLUDED.content_hash,
-			updated_at   = NOW()
+			name              = EXCLUDED.name,
+			asset_type        = EXCLUDED.asset_type,
+			is_active         = EXCLUDED.is_active,
+			content_hash      = EXCLUDED.content_hash,
+			fund_search_text  = EXCLUDED.fund_search_text,
+			fund_search_tokens = EXCLUDED.fund_search_tokens,
+			updated_at        = NOW()
 		WHERE financial_data.investment_asset.content_hash IS DISTINCT FROM EXCLUDED.content_hash
 	`
 )

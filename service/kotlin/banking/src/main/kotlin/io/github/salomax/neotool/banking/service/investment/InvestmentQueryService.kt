@@ -17,6 +17,9 @@ import io.github.salomax.neotool.banking.domain.investment.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
+import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
+import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketPrice
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
@@ -29,6 +32,8 @@ import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
+import java.math.MathContext
+import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.UUID
@@ -48,11 +53,13 @@ class InvestmentQueryService(
     private val fixedIncomeValuationService: FixedIncomeValuationService,
     private val fundValuationService: FundValuationService,
     private val fundMarketDataProvider: FundMarketDataProvider,
+    private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     private val logger = KotlinLogging.logger {}
+    private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
     fun getHoldingsByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<InvestmentHoldingDTO> {
         val holdings = holdingRepository.findByFinancialAccount(financialAccountId, accountId)
@@ -83,6 +90,22 @@ class InvestmentQueryService(
         val assetsById = assetRepository
             .findByIds(holdings.map { it.assetId }.toSet())
             .associateBy { it.id!! }
+        val listedAssetDataByTicker = safeGetListedAssetData(
+            holdings.mapNotNull { holding ->
+                assetsById[holding.assetId]?.listedAssetTicker()
+            }.toSet(),
+        )
+        val listedAssetPricesByTicker = listedAssetDataByTicker
+            .mapNotNull { (ticker, assetData) ->
+                val closePrice = assetData.closePrice ?: return@mapNotNull null
+                val referenceDate = assetData.referenceDate ?: return@mapNotNull null
+                ticker to ListedAssetMarketPrice(
+                    ticker = assetData.ticker,
+                    closePrice = closePrice,
+                    referenceDate = referenceDate,
+                )
+            }
+            .toMap()
         val marketDataCnpjs = holdings
             .mapNotNull { holding ->
                 val asset = assetsById[holding.assetId]
@@ -98,6 +121,7 @@ class InvestmentQueryService(
         val rateMap = safeGetIndicatorRates()
         val refDate = indicatorRateProvider.getReferenceDate()
         val today = clock()
+        val monthlySeries = safeGetMonthlySeries(holdings, today)
 
         return holdings.map {
             it.toDTO(
@@ -107,8 +131,11 @@ class InvestmentQueryService(
                 rateMap = rateMap,
                 fixedIncomeRefDate = refDate,
                 today = today,
+                listedAssetDataByTicker = listedAssetDataByTicker,
+                listedAssetPricesByTicker = listedAssetPricesByTicker,
                 marketSnapshotsByCnpj = marketSnapshotsByCnpj,
                 holdingTransactionsById = holdingTransactionsById,
+                monthlySeries = monthlySeries,
             )
         }
     }
@@ -121,11 +148,43 @@ class InvestmentQueryService(
             emptyMap()
         }
 
+    private fun safeGetMonthlySeries(
+        holdings: List<Holding>,
+        today: LocalDate,
+    ): Map<Indexer, List<Pair<LocalDate, BigDecimal>>> {
+        val inflationHoldings = holdings.filter { it.indexer in INFLATION_LINKED_INDEXERS && it.issueDate != null }
+        if (inflationHoldings.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<Indexer, List<Pair<LocalDate, BigDecimal>>>()
+        for (indexer in inflationHoldings.mapNotNull { it.indexer }.toSet()) {
+            val from =
+                inflationHoldings
+                    .filter { it.indexer == indexer }
+                    .mapNotNull { it.issueDate }
+                    .minOrNull() ?: continue
+            try {
+                val series = indicatorRateProvider.getMonthlySeriesRange(indexer, from, today)
+                if (series.isNotEmpty()) result[indexer] = series
+            } catch (e: Exception) {
+                logger.warn(e) { "Failed to fetch monthly series for $indexer; valuation will use annual rate fallback" }
+            }
+        }
+        return result
+    }
+
     private fun safeGetFundMarketSnapshots(cnpjs: Set<String>): Map<String, FundMarketSnapshot> =
         try {
             fundMarketDataProvider.getSnapshotsByCnpj(cnpjs)
         } catch (e: Exception) {
             logger.warn(e) { "Failed to fetch fund market snapshots; fund valuations will fall back" }
+            emptyMap()
+        }
+
+    private fun safeGetListedAssetData(tickers: Set<String>): Map<String, ListedAssetMarketData> =
+        try {
+            listedAssetMarketDataProvider.getAssetsByTicker(tickers)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to fetch listed asset market data; listed-asset enrichments will fall back" }
             emptyMap()
         }
 
@@ -149,8 +208,14 @@ class InvestmentQueryService(
                     null
                 }
             }
-        if (marketDataHoldingIds.isEmpty()) return emptyMap()
-        return investmentTransactionRepository.findByHoldingIds(marketDataHoldingIds, accountId)
+        val fixedIncomeBackfillHoldingIds = holdings
+            .mapNotNull { holding ->
+                val holdingId = holding.id ?: return@mapNotNull null
+                holdingId.takeIf { holding.requiresFixedIncomeTransactionBackfill() }
+            }
+        val holdingIds = (marketDataHoldingIds + fixedIncomeBackfillHoldingIds).distinct()
+        if (holdingIds.isEmpty()) return emptyMap()
+        return investmentTransactionRepository.findByHoldingIds(holdingIds, accountId)
             .groupBy { it.holdingId }
     }
 
@@ -161,8 +226,11 @@ class InvestmentQueryService(
         rateMap: Map<Indexer, BigDecimal>,
         fixedIncomeRefDate: LocalDate?,
         today: LocalDate,
+        listedAssetDataByTicker: Map<String, ListedAssetMarketData>,
+        listedAssetPricesByTicker: Map<String, ListedAssetMarketPrice>,
         marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
         holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
+        monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
     ): InvestmentHoldingDTO {
         val financialAccount = accountsById[financialAccountId]
         val asset = assetsById[assetId]
@@ -171,8 +239,9 @@ class InvestmentQueryService(
         val valuation =
             manualValuation()
                 ?: marketDataValuation(asset, marketSnapshotsByCnpj, holdingTransactionsById)
+                ?: listedAssetMarketValuation(asset, listedAssetPricesByTicker)
                 ?: providerValuation()
-                ?: estimatedFixedIncomeValuation(rateMap, fixedIncomeRefDate)
+                ?: estimatedFixedIncomeValuation(rateMap, fixedIncomeRefDate, monthlySeries, holdingTransactionsById)
                 ?: Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
 
         return InvestmentHoldingDTO(
@@ -180,7 +249,7 @@ class InvestmentQueryService(
             financialAccountId = financialAccountId,
             accountId = accountId,
             assetId = assetId,
-            asset = asset?.toDTO(),
+            asset = asset?.toDTO(asset.listedAssetLogoAssetId(listedAssetDataByTicker)),
             financialAccount = financialAccount?.toDTO(issuersById[financialAccount.issuerId]),
             quantity = quantity.toDouble(),
             averageCost = averageCost.toDouble(),
@@ -256,12 +325,35 @@ class InvestmentQueryService(
         )
     }
 
+    private fun Holding.listedAssetMarketValuation(
+        asset: Asset?,
+        listedAssetPricesByTicker: Map<String, ListedAssetMarketPrice>,
+    ): Valuation? {
+        val ticker = asset?.listedAssetTicker() ?: return null
+        val price = listedAssetPricesByTicker[ticker] ?: return null
+        val grossValue = quantity.multiply(price.closePrice, mathContext).multiply(asset.priceFactor, mathContext)
+        return Valuation(
+            grossValue = grossValue.toDouble(),
+            netValue = null,
+            incomeTax = null,
+            iof = null,
+            source = ValuationSource.MARKET_DATA,
+            refDate = price.referenceDate,
+        )
+    }
+
     private fun Holding.estimatedFixedIncomeValuation(
         rateMap: Map<Indexer, BigDecimal>,
         refDate: LocalDate?,
+        monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+        holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
     ): Valuation? =
         try {
-            val result = fixedIncomeValuationService.estimate(this, rateMap, refDate)
+            val valuationHolding =
+                id?.let { holdingId ->
+                    withBackfilledFixedIncomeTerms(holdingTransactionsById[holdingId].orEmpty())
+                } ?: this
+            val result = fixedIncomeValuationService.estimate(valuationHolding, rateMap, refDate, monthlySeries)
             Valuation(
                 result.grossValue?.toDouble(),
                 result.netValue?.toDouble(),
@@ -284,7 +376,40 @@ class InvestmentQueryService(
         val refDate: LocalDate?,
     )
 
-    private fun Asset.toDTO() = InvestmentAssetDTO(
+    private fun Holding.requiresFixedIncomeTransactionBackfill(): Boolean =
+        indexer != null && (
+            issueDate == null ||
+                indexerPercentage == null ||
+                ((indexer in INFLATION_LINKED_INDEXERS || indexer == Indexer.PRE_FIXADO) && preFixedRate == null)
+        )
+
+    private fun Holding.withBackfilledFixedIncomeTerms(
+        transactions: List<InvestmentTransaction>,
+    ): Holding {
+        if (transactions.isEmpty()) return this
+        val chronologicalTransactions = transactions.sortedBy { it.tradeDate }
+        return copy(
+            indexerPercentage = indexerPercentage ?: chronologicalTransactions.mapNotNull { it.indexerPercentage }.firstOrNull(),
+            preFixedRate = preFixedRate ?: chronologicalTransactions.mapNotNull { it.agreedRate }.firstOrNull(),
+            issueDate = issueDate ?: chronologicalTransactions.firstOrNull()?.tradeDate,
+        )
+    }
+
+    private fun Asset.listedAssetTicker(): String? {
+        ticker?.takeIf { it.isNotBlank() }?.trim()?.uppercase()?.let { return it }
+        if (!assetType.supportsListedAssetTickerFallback()) return null
+        val legacyTicker = issuerName?.takeIf { it.isNotBlank() }?.trim()?.uppercase() ?: return null
+        return legacyTicker.takeIf { LISTED_ASSET_TICKER_REGEX.matches(it) }
+    }
+
+    private fun Asset.listedAssetLogoAssetId(
+        listedAssetDataByTicker: Map<String, ListedAssetMarketData>,
+    ): String? =
+        listedAssetTicker()?.let { ticker ->
+            listedAssetDataByTicker[ticker]?.logoAssetId
+        }
+
+    private fun Asset.toDTO(logoAssetId: String?) = InvestmentAssetDTO(
         id = id!!,
         ticker = ticker,
         isinCode = isinCode,
@@ -298,6 +423,7 @@ class InvestmentQueryService(
         anbimaCategory = anbimaCategory,
         anbimaClass = anbimaClass,
         anbimaSubclass = anbimaSubclass,
+        logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
         priceFactor = priceFactor.toDouble(),
         createdAt = createdAt,
         updatedAt = updatedAt,
@@ -305,6 +431,19 @@ class InvestmentQueryService(
 
     private fun AssetType?.isFundAsset(): Boolean =
         this == AssetType.MUTUAL_FUND || this == AssetType.PGBL || this == AssetType.VGBL
+
+    private fun AssetType?.supportsListedAssetTickerFallback(): Boolean =
+        this in setOf(
+            AssetType.STOCK,
+            AssetType.STOCK_RIGHTS,
+            AssetType.BDR,
+            AssetType.REAL_ESTATE_FUND,
+            AssetType.AGRIBUSINESS_FUND,
+            AssetType.ETF,
+            AssetType.ETF_FIXED_INCOME,
+            AssetType.ETF_INTERNATIONAL,
+            AssetType.OPTION,
+        )
 
     private fun String.normalizedFundCnpj(): String = filter(Char::isDigit)
 
@@ -359,4 +498,10 @@ class InvestmentQueryService(
         createdAt = createdAt.atOffset(ZoneOffset.UTC),
         updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
     )
+
+    private companion object {
+        private val LISTED_ASSET_TICKER_REGEX = Regex("^[A-Z]{4,6}\\d{1,2}$")
+        private val INFLATION_LINKED_INDEXERS =
+            setOf(Indexer.IPCA, Indexer.IGP_M, Indexer.IGP_DI, Indexer.INPC, Indexer.TR)
+    }
 }

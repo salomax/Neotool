@@ -28,6 +28,16 @@ class FinancialDataIndicatorRateProvider(
     override fun getReferenceDate(): LocalDate? =
         getOrLoad().referenceDate
 
+    override fun getMonthlySeriesRange(indexer: Indexer, from: LocalDate, to: LocalDate): List<Pair<LocalDate, BigDecimal>> {
+        val indicatorLabel = inflationIndicatorLabel(indexer) ?: return emptyList()
+        return try {
+            fetchMonthlySeries(indicatorLabel, from, to)
+        } catch (e: Exception) {
+            logger.warn(e) { "Failed to fetch monthly series for $indexer ($indicatorLabel); returning empty list." }
+            emptyList()
+        }
+    }
+
     /**
      * Loads rates from cache or fetches fresh. Note: check-then-act is not atomic — two concurrent
      * threads that both see expired cache may both call fetchLatestRates(); the last write wins.
@@ -143,6 +153,77 @@ class FinancialDataIndicatorRateProvider(
     ) {
         fun isExpired(): Boolean = System.currentTimeMillis() >= expiresAt
     }
+
+    private fun fetchMonthlySeries(
+        indicatorLabel: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<Pair<LocalDate, BigDecimal>> {
+        val query =
+            """
+            query InflationMonthlySeries(${'$'}label: String, ${'$'}range: IndicatorRangeInput) {
+              economicIndicators(label: ${'$'}label) {
+                variations(label: "MONTHLY_CHANGE") {
+                  series(range: ${'$'}range) {
+                    unit
+                    values {
+                      referenceDate
+                      value
+                    }
+                  }
+                }
+              }
+            }
+            """.trimIndent()
+
+        val variables =
+            mapOf(
+                "label" to indicatorLabel,
+                "range" to
+                    mapOf(
+                        "from" to from.format(DateTimeFormatter.ISO_DATE),
+                        "to" to to.format(DateTimeFormatter.ISO_DATE),
+                    ),
+            )
+
+        val response: GraphQLResponse =
+            runBlocking {
+                graphQLServiceClient.query(
+                    query = query,
+                    variables = variables,
+                    targetAudience = "apollo-router",
+                )
+            }
+
+        val indicators = response.data?.get("economicIndicators") as? List<*> ?: return emptyList()
+        val firstIndicator = indicators.firstOrNull() as? Map<*, *> ?: return emptyList()
+        val variations = firstIndicator["variations"] as? List<*> ?: return emptyList()
+        val firstVariation = variations.firstOrNull() as? Map<*, *> ?: return emptyList()
+        val series = firstVariation["series"] as? Map<*, *> ?: return emptyList()
+        val unit = series["unit"] as? String
+        val values = series["values"] as? List<*> ?: return emptyList()
+
+        return values
+            .mapNotNull { pointRaw ->
+                val point = pointRaw as? Map<*, *> ?: return@mapNotNull null
+                val refDateStr = point["referenceDate"] as? String ?: return@mapNotNull null
+                val value = (point["value"] as? Number)?.toDouble() ?: return@mapNotNull null
+                val refDate =
+                    runCatching { LocalDate.parse(refDateStr, DateTimeFormatter.ISO_DATE) }.getOrNull()
+                        ?: return@mapNotNull null
+                refDate to normalizeRateValue(value, unit)
+            }.sortedBy { it.first }
+    }
+
+    private fun inflationIndicatorLabel(indexer: Indexer): String? =
+        when (indexer) {
+            Indexer.IPCA -> "IPCA"
+            Indexer.IGP_M -> "IGP-M"
+            Indexer.IGP_DI -> "IGP-DI"
+            Indexer.INPC -> "INPC"
+            Indexer.TR -> "TR"
+            else -> null
+        }
 
     private fun indexerFor(indicatorLabel: String): Indexer? =
         when (indicatorLabel.uppercase()) {

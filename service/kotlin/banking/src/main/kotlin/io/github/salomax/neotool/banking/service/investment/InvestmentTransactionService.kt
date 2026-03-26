@@ -238,6 +238,7 @@ open class InvestmentTransactionService(
         command: RecordInvestmentTransactionCommand,
         now: Instant,
     ): Holding {
+        val effectiveHolding = holding.withMissingFixedIncomeTerms(command)
         val qty = command.quantity
         val price = command.unitPrice
 
@@ -245,84 +246,84 @@ open class InvestmentTransactionService(
             PURCHASE, SUBSCRIPTION -> {
                 requireNotNull(qty) { "quantity is required for ${command.type}" }
                 requireNotNull(price) { "unitPrice is required for ${command.type}" }
-                val newQty = holding.quantity + qty
+                val newQty = effectiveHolding.quantity + qty
                 val newCost =
-                    if (holding.quantity.signum() == 0) {
+                    if (effectiveHolding.quantity.signum() == 0) {
                         price
                     } else {
-                        (holding.quantity * holding.averageCost + qty * price)
+                        (effectiveHolding.quantity * effectiveHolding.averageCost + qty * price)
                             .divide(newQty, COST_SCALE, HALF_UP)
                     }
-                holding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
+                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
             }
 
             SALE -> {
                 requireNotNull(qty) { "quantity is required for SALE" }
-                require(holding.quantity >= qty) {
-                    "Insufficient quantity for sale: have ${holding.quantity}, selling $qty"
+                require(effectiveHolding.quantity >= qty) {
+                    "Insufficient quantity for sale: have ${effectiveHolding.quantity}, selling $qty"
                 }
                 // averageCost is NOT recalculated on sale (RFB custo médio rule)
-                holding.copy(quantity = holding.quantity - qty, updatedAt = now)
+                effectiveHolding.copy(quantity = effectiveHolding.quantity - qty, updatedAt = now)
             }
 
             MATURITY -> {
                 // If quantity is provided, it's a partial maturity; null = full position matures
-                val closingQty = qty ?: holding.quantity
-                require(holding.quantity >= closingQty) {
-                    "Maturity quantity ($closingQty) exceeds current holding quantity (${holding.quantity})"
+                val closingQty = qty ?: effectiveHolding.quantity
+                require(effectiveHolding.quantity >= closingQty) {
+                    "Maturity quantity ($closingQty) exceeds current holding quantity (${effectiveHolding.quantity})"
                 }
-                holding.copy(quantity = holding.quantity - closingQty, updatedAt = now)
+                effectiveHolding.copy(quantity = effectiveHolding.quantity - closingQty, updatedAt = now)
             }
 
             STOCK_SPLIT, BONUS_SHARES -> {
                 // Shares received at zero cost — total cost basis is preserved, spread across more shares
                 requireNotNull(qty) { "quantity (new shares received) is required for ${command.type}" }
                 require(qty > BigDecimal.ZERO) { "quantity must be positive for ${command.type}" }
-                val newQty = holding.quantity + qty
+                val newQty = effectiveHolding.quantity + qty
                 val newCost =
                     if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (holding.quantity * holding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
-                holding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
+                    else (effectiveHolding.quantity * effectiveHolding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
+                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
             }
 
             REVERSE_SPLIT -> {
                 // Shares consolidated — total cost basis is preserved, concentrated in fewer shares
                 requireNotNull(qty) { "quantity (shares removed) is required for REVERSE_SPLIT" }
                 require(qty > BigDecimal.ZERO) { "quantity must be positive for REVERSE_SPLIT" }
-                require(holding.quantity >= qty) {
-                    "Reverse split quantity ($qty) exceeds current holding quantity (${holding.quantity})"
+                require(effectiveHolding.quantity >= qty) {
+                    "Reverse split quantity ($qty) exceeds current holding quantity (${effectiveHolding.quantity})"
                 }
-                val newQty = holding.quantity - qty
+                val newQty = effectiveHolding.quantity - qty
                 val newCost =
                     if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (holding.quantity * holding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
-                holding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
+                    else (effectiveHolding.quantity * effectiveHolding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
+                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
             }
 
             CUSTODY_TRANSFER, OWNERSHIP_TRANSFER, QUOTA_TRANSFER -> {
                 when {
                     command.direction == INFLOW && qty != null && price != null -> {
                         // Receiving transferred shares: treat as a purchase at the transferred basis
-                        val newQty = holding.quantity + qty
+                        val newQty = effectiveHolding.quantity + qty
                         val newCost =
-                            if (holding.quantity.signum() == 0) {
+                            if (effectiveHolding.quantity.signum() == 0) {
                                 price
                             } else {
-                                (holding.quantity * holding.averageCost + qty * price)
+                                (effectiveHolding.quantity * effectiveHolding.averageCost + qty * price)
                                     .divide(newQty, COST_SCALE, HALF_UP)
                             }
-                        holding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
+                        effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
                     }
 
                     command.direction == OUTFLOW && qty != null -> {
                         // Sending shares: treat as a sale (average cost unchanged)
-                        require(holding.quantity >= qty) {
-                            "Transfer quantity ($qty) exceeds current holding quantity (${holding.quantity})"
+                        require(effectiveHolding.quantity >= qty) {
+                            "Transfer quantity ($qty) exceeds current holding quantity (${effectiveHolding.quantity})"
                         }
-                        holding.copy(quantity = holding.quantity - qty, updatedAt = now)
+                        effectiveHolding.copy(quantity = effectiveHolding.quantity - qty, updatedAt = now)
                     }
 
-                    else -> holding.copy(updatedAt = now)
+                    else -> effectiveHolding.copy(updatedAt = now)
                 }
             }
 
@@ -338,7 +339,7 @@ open class InvestmentTransactionService(
             LATE_PAYMENT_INTEREST,
             CANCELLATION,
             OTHER,
-            -> holding.copy(updatedAt = now)
+            -> effectiveHolding.copy(updatedAt = now)
         }
     }
 
@@ -359,8 +360,8 @@ open class InvestmentTransactionService(
             averageCost = BigDecimal.ZERO,
             indexer = command.indexer,
             indexerPercentage = command.indexerPercentage,
-            preFixedRate = command.preFixedRate,
-            issueDate = command.issueDate,
+            preFixedRate = command.preFixedRate ?: command.agreedRate,
+            issueDate = command.issueDate ?: command.tradeDate,
             maturityDate = command.maturityDate,
             gracePeriodDate = command.gracePeriodDate,
             isTaxExempt = command.isTaxExempt,
@@ -484,6 +485,25 @@ open class InvestmentTransactionService(
         /** Scale for averageCost arithmetic — 8 decimal places to handle crypto and fractional shares. */
         private const val COST_SCALE = 8
     }
+}
+
+private fun Holding.withMissingFixedIncomeTerms(command: RecordInvestmentTransactionCommand): Holding {
+    val hasIncomingFixedIncomeTerms =
+        indexer != null ||
+            command.indexer != null ||
+            command.indexerPercentage != null ||
+            command.preFixedRate != null ||
+            command.agreedRate != null
+
+    return copy(
+        indexer = indexer ?: command.indexer,
+        indexerPercentage = indexerPercentage ?: command.indexerPercentage,
+        preFixedRate = preFixedRate ?: command.preFixedRate ?: command.agreedRate,
+        issueDate = issueDate ?: command.issueDate ?: if (hasIncomingFixedIncomeTerms) command.tradeDate else null,
+        maturityDate = maturityDate ?: command.maturityDate,
+        gracePeriodDate = gracePeriodDate ?: command.gracePeriodDate,
+        isTaxExempt = isTaxExempt || command.isTaxExempt,
+    )
 }
 
 private fun AssetType.isFundAsset(): Boolean =
