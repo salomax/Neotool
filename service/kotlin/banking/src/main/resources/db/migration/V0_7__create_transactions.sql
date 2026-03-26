@@ -22,6 +22,7 @@ CREATE TABLE banking.transactions (
     status                       TEXT NOT NULL DEFAULT 'POSTED'
                                      CHECK (status IN ('POSTED', 'PENDING', 'FUTURE')),
     source                       TEXT NOT NULL DEFAULT 'MANUAL',
+    source_data                  JSONB,
 
     amount                       NUMERIC(18,4) NOT NULL CHECK (amount > 0),
     currency_code                CHAR(3) NOT NULL DEFAULT 'BRL',
@@ -144,6 +145,11 @@ CREATE INDEX idx_transactions_import_fingerprint_active
 CREATE INDEX idx_transactions_merchant_id
     ON banking.transactions(merchant_id)
     WHERE merchant_id IS NOT NULL AND deleted_at IS NULL;
+
+CREATE INDEX idx_transactions_description_fts
+    ON banking.transactions
+    USING GIN (to_tsvector('simple', description))
+    WHERE deleted_at IS NULL;
 
 -- Tags for manual categorization and filtering of transactions.
 -- A transaction can have many tags, and tags are account-scoped for listing/filtering.

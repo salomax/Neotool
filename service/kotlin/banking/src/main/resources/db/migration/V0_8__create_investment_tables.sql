@@ -169,6 +169,10 @@ CREATE TABLE banking.investment_holdings (
     net_value            NUMERIC(18,4),
     income_tax           NUMERIC(18,4),
     iof                  NUMERIC(18,4),
+    pricing_mode         TEXT
+                             CHECK (pricing_mode IN ('MANUAL', 'MARKET_DATA')),
+    manual_gross_value   NUMERIC(18,4),
+    manual_valued_at     DATE,
 
     -- last_valued_at: when gross_value/net_value were last updated from the provider.
     last_valued_at       TIMESTAMPTZ,
@@ -185,13 +189,7 @@ CREATE TABLE banking.investment_holdings (
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
-    -- One position per asset per custodian account
-    CONSTRAINT uq_holdings_account_asset
-        UNIQUE (financial_account_id, asset_id),
-
-    -- Idempotent sync per custodian + provider
-    CONSTRAINT uq_holdings_provider
-        UNIQUE (financial_account_id, provider_investment_id)
+    -- Uniqueness is enforced with partial unique indexes (active rows only).
 );
 
 -- Primary query: all holdings for an account
@@ -208,6 +206,15 @@ CREATE INDEX idx_holdings_tenant
 CREATE INDEX idx_holdings_asset
     ON banking.investment_holdings(asset_id)
     WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_holdings_account_asset
+    ON banking.investment_holdings(financial_account_id, asset_id)
+    WHERE deleted_at IS NULL;
+
+CREATE UNIQUE INDEX uq_holdings_provider
+    ON banking.investment_holdings(financial_account_id, provider_investment_id)
+    WHERE provider_investment_id IS NOT NULL
+      AND deleted_at IS NULL;
 
 -- ─── Investment Transactions ──────────────────────────────────────────────────
 -- Each row is an event that changes (or explains) an investment holding.

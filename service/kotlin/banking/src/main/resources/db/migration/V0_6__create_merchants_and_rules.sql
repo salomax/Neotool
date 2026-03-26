@@ -73,10 +73,10 @@ VALUES
   ('bahamas', 'Bahamas', 'superbahamas.com.br', 'alimentacao', true, NULL),
   ('bretas', 'Bretas', 'bretas.com.br', 'alimentacao', true, NULL),
   ('verdemar', 'Verdemar', 'verdemar.com.br', 'alimentacao', true, NULL),
-  ('bh supermercados', 'BH Supermercados', 'bhsupermercados.com.br', 'alimentacao', true, NULL),
+  ('bh supermercados', 'BH Supermercados', 'supermercadosbh.com.br', 'alimentacao', true, NULL),
   ('hirota', 'Hirota', 'hirota.com.br', 'alimentacao', true, NULL),
   ('hortifruti', 'Hortifruti', 'hortifruti.com.br', 'alimentacao', true, NULL),
-  ('oba hortifruti', 'Oba Hortifruti', 'oba.com.br', 'alimentacao', true, NULL),
+  ('oba hortifruti', 'Oba Hortifruti', 'obahortifruti.com.br', 'alimentacao', true, NULL),
   ('natural da terra', 'Natural Da Terra', 'naturaldaterra.com.br', 'alimentacao', true, NULL),
   ('saint marche', 'Saint Marche', 'saintmarche.com.br', 'alimentacao', true, NULL),
   ('sonda', 'Sonda', 'sonda.com.br', 'alimentacao', true, NULL),
@@ -149,14 +149,14 @@ VALUES
   ('cookn roll', 'Cook''n Roll', 'cooknroll.com.br', 'restaurante', true, NULL),
   ('daccorsi', 'D''Accorsi', 'daccorsi.com.br', 'restaurante', true, NULL),
   ('bullguer', 'Bullguer', 'bullguer.com.br', 'restaurante', true, NULL),
-  ('lanchonete da cidade', 'Lanchonete Da Cidade', 'lanchoneteadacidade.com.br', 'restaurante', true, NULL),
+  ('lanchonete da cidade', 'Lanchonete Da Cidade', 'lanchonetedacidade.com.br', 'restaurante', true, NULL),
   ('fifties', 'Fifties', 'fifties.com.br', 'restaurante', true, NULL),
   ('braz pizzaria', 'Braz Pizzaria', 'pizzariabraz.com.br', 'restaurante', true, NULL),
   ('familia mancini', 'Familia Mancini', 'familiamancini.com.br', 'restaurante', true, NULL),
   ('viena', 'Viena', 'viena.com.br', 'restaurante', true, NULL),
   ('amor aos pedacos', 'Amor aos Pedaços', 'amoraospedacos.com.br', 'restaurante', true, NULL),
   ('freddo', 'Freddo', 'freddo.com.br', 'restaurante', true, NULL),
-  ('bacio di latte', 'Bacio di Latte', 'baciodilatte.com', 'restaurante', true, NULL),
+  ('bacio di latte', 'Bacio di Latte', 'baciodilatte.com.br', 'restaurante', true, NULL),
   ('mil frutas', 'Mil Frutas', 'milfrutas.com.br', 'restaurante', true, NULL),
   ('haagen dazs', 'Häagen-Dazs', 'haagendazs.com', 'restaurante', true, NULL),
   ('hooters', 'Hooters', 'hooters.com.br', 'restaurante', true, NULL),
@@ -323,7 +323,7 @@ VALUES
   ('golds gym', 'Golds Gym', 'goldsgym.com.br', 'saude', true, NULL),
   ('gympass', 'Gympass', 'gympass.com', 'saude', true, NULL),
   ('wellhub', 'Wellhub', 'wellhub.com', 'saude', true, NULL),
-  ('drogaria venancio', 'Drogaria Venancio', 'drogariasvenancio.com.br', 'saude', true, NULL),
+  ('drogaria venancio', 'Drogaria Venancio', 'drogariavenancio.com.br', 'saude', true, NULL),
   ('farma conde', 'Farma Conde', 'farmaconde.com.br', 'saude', true, NULL),
   ('onofre', 'Onofre', 'onofre.com.br', 'saude', true, NULL),
   ('omint', 'Omint', 'omint.com.br', 'saude', true, NULL),
@@ -336,7 +336,7 @@ VALUES
   ('hcor', 'Hcor', 'hcor.com.br', 'saude', true, NULL),
   ('moinhos de vento', 'Moinhos De Vento', 'hmv.org.br', 'saude', true, NULL),
   ('oswaldo cruz', 'Oswaldo Cruz', 'haoc.com.br', 'saude', true, NULL),
-  ('hospital nove de julho', 'Hospital Nove De Julho', 'hospitalnovejulho.com.br', 'saude', true, NULL),
+  ('hospital nove de julho', 'Hospital Nove De Julho', 'h9j.com.br', 'saude', true, NULL),
   ('psicologia viva', 'Psicologia Viva', 'psicologiaviva.com.br', 'saude', true, NULL),
   ('zenklub', 'Zenklub', 'zenklub.com', 'saude', true, NULL),
   ('vittude', 'Vittude', 'vittude.com', 'saude', true, NULL),
@@ -791,7 +791,7 @@ VALUES
   ('dove', 'Dove', 'dove.com', 'beleza', true, NULL),
   ('nars', 'Nars', 'narscosmetics.com', 'beleza', true, NULL),
   ('urban decay', 'Urban Decay', 'urbandecay.com', 'beleza', true, NULL),
-  ('anastasia beverly hills', 'Anastasia Beverly Hills', 'anastasia.net', 'beleza', true, NULL),
+  ('anastasia beverly hills', 'Anastasia Beverly Hills', 'anastasiabeverlyhills.com', 'beleza', true, NULL),
   ('the ordinary', 'The Ordinary', 'theordinary.com', 'beleza', true, NULL),
   ('beauty color', 'Beauty Color', 'beautycolor.com.br', 'beleza', true, NULL)
 ON CONFLICT DO NOTHING;
@@ -814,13 +814,20 @@ CREATE TABLE banking.transaction_rules (
     priority      INT         NOT NULL DEFAULT 100,
     is_system     BOOLEAN     NOT NULL DEFAULT false,
     is_implicit   BOOLEAN     NOT NULL DEFAULT false,
+    description_override TEXT,
+    tags_override_json   TEXT,
     match_count   INT         NOT NULL DEFAULT 0,
     deleted_at    TIMESTAMPTZ,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT chk_transaction_rules_has_target
-        CHECK (category_id IS NOT NULL OR merchant_id IS NOT NULL)
+        CHECK (
+            category_id          IS NOT NULL OR
+            merchant_id          IS NOT NULL OR
+            description_override IS NOT NULL OR
+            tags_override_json   IS NOT NULL
+        )
 );
 
 CREATE INDEX idx_category_rules_account_id
@@ -1052,16 +1059,39 @@ CROSS JOIN (VALUES
 
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- Link system rules to their matching system merchants when the normalized
--- pattern equals the normalized merchant name.
+-- Link rules to merchants (account-specific first, then global system merchant).
+WITH matched_rules AS (
+    SELECT
+        tr.id AS rule_id,
+        COALESCE(
+            (
+                SELECT m.id
+                FROM banking.merchants m
+                WHERE m.account_id = tr.account_id
+                  AND m.merchant_name = tr.pattern
+                ORDER BY m.created_at ASC
+                LIMIT 1
+            ),
+            (
+                SELECT m.id
+                FROM banking.merchants m
+                WHERE m.account_id IS NULL
+                  AND m.is_system = true
+                  AND m.merchant_name = tr.pattern
+                ORDER BY m.created_at ASC
+                LIMIT 1
+            )
+        ) AS merchant_id
+    FROM banking.transaction_rules tr
+    WHERE tr.deleted_at IS NULL
+      AND tr.merchant_id IS NULL
+)
 UPDATE banking.transaction_rules tr
-SET merchant_id = m.id
-FROM banking.merchants m
-WHERE tr.is_system = true
-  AND tr.account_id IS NULL
-  AND tr.pattern = m.merchant_name
-  AND m.is_system = true
-  AND tr.merchant_id IS NULL;
+SET merchant_id = mr.merchant_id,
+    updated_at = NOW()
+FROM matched_rules mr
+WHERE tr.id = mr.rule_id
+  AND mr.merchant_id IS NOT NULL;
 -- EDUCAÇÃO
 -- ─────────────────────────────────────────────────────────────────────────────
 
