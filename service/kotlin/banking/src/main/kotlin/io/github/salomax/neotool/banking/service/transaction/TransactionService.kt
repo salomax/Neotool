@@ -448,6 +448,7 @@ open class TransactionService(
         }
         val normalizedTags = normalizeTags(command.tags)
         val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val isManualInput = true // createTransactionOutcome always creates MANUAL transactions
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -459,7 +460,8 @@ open class TransactionService(
                 }
 
         val ruleSuggestion =
-            if (mode == RuleApplicationMode.NEVER) {
+            // Business rule: transaction rules are never applied to manually entered transactions.
+            if (isManualInput || mode == RuleApplicationMode.NEVER) {
                 null
             } else {
                 try {
@@ -477,7 +479,7 @@ open class TransactionService(
             }
 
         val finalCategoryId =
-            if (mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null) {
+            if (!isManualInput && mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null) {
                 ruleSuggestion.categoryId
             } else {
                 command.categoryId
@@ -485,7 +487,7 @@ open class TransactionService(
 
         val finalCategorySource =
             when {
-                mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null -> CategorySource.RULE
+                !isManualInput && mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 command.categoryId != null -> CategorySource.MANUAL
                 else -> null
             }
@@ -652,7 +654,8 @@ open class TransactionService(
 
         var enriched = updated
         val mode = accountPreferencesService.get(accountId).ruleApplicationMode
-        if (mode != RuleApplicationMode.NEVER) {
+        // Business rule: do not apply rule suggestions to MANUAL transactions on update either.
+        if (existing.source != TransactionSource.MANUAL && mode != RuleApplicationMode.NEVER) {
             val canApplyCategory = !command.categoryIdProvided
             val canApplyMerchant = !command.merchantIdProvided
             val canApplyDescription = command.description == null

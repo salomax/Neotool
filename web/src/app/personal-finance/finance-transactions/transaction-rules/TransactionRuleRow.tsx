@@ -416,26 +416,24 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
             → &quot;{rule.descriptionOverride}&quot;
           </Typography>
         )}
-        {rule.tagsOverride?.map((tag: string) => (
-          (() => {
-            const color = stringToColor(tag);
-            return (
-              <Chip
-                key={tag}
-                label={`#${tag}`}
-                size="small"
-                variant="filled"
-                sx={{
-                  fontSize: '0.7rem',
-                  height: 20,
-                  bgcolor: alpha(color, 0.05),
-                  color: color,
-                  borderRadius: '.3rem',
-                }}
-              />
-            );
-          })()
-        ))}
+        {rule.tagsOverride?.map((tag: string) => {
+          const color = stringToColor(tag);
+          return (
+            <Chip
+              key={tag}
+              label={`#${tag}`}
+              size="small"
+              variant="filled"
+              sx={{
+                fontSize: '0.7rem',
+                height: 20,
+                bgcolor: alpha(color, 0.05),
+                color: color,
+                borderRadius: '.3rem',
+              }}
+            />
+          );
+        })}
         {rule.matchCount > 0 && (
           <Chip
             label={`${rule.matchCount}×`}

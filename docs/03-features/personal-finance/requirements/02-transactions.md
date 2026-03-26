@@ -202,7 +202,7 @@ On create, if neither is supplied, `belongs_to_user_id` defaults to the authenti
 
 ### 3.10 Category resolution on create
 
-When saved without an explicit `categoryId`, the rule engine (`TransactionRuleEngine.suggest`) auto-assigns based on description and direction. If a rule matches, `categorySource = RULE`. Explicit user selection sets `categorySource = MANUAL`. Uncategorized = `categoryId = null, categorySource = null`.
+When saved without an explicit `categoryId`, the rule engine (`TransactionRuleEngine.suggest`) auto-assigns based on description and direction only for non-`MANUAL` transactions (imports/sync sources). `MANUAL` transactions never run rule suggestion during create. If a rule matches, `categorySource = RULE`. Explicit user selection sets `categorySource = MANUAL`. Uncategorized = `categoryId = null, categorySource = null`.
 
 ### 3.11 Implicit rule learning on update
 
@@ -234,7 +234,7 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 1. User opens inline form, selects direction, enters description, amount, date, optionally category and tags.
 2. System validates amount > 0, date within 5-year window, date >= account initial balance date.
 3. Resolves `belongs_to_user_id` to authenticated user if not specified.
-4. Runs rule engine for auto-categorization.
+4. Skips transaction-rule auto-categorization because source is `MANUAL`.
 5. For CREDIT_CARD/CHARGE_CARD accounts, resolves and auto-creates the bill.
 6. Saves; recomputes bill totals; recomputes snapshot chain.
 
