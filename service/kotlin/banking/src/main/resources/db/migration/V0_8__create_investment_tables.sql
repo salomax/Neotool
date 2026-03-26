@@ -187,7 +187,7 @@ CREATE TABLE banking.investment_holdings (
 
     deleted_at           TIMESTAMPTZ,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
 
     -- Uniqueness is enforced with partial unique indexes (active rows only).
 );
