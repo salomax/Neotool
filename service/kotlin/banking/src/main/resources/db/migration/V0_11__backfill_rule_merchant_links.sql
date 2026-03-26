@@ -6,7 +6,7 @@ WITH matched_rules AS (
                 SELECT m.id
                 FROM banking.merchants m
                 WHERE m.account_id = tr.account_id
-                  AND m.name = tr.pattern
+                  AND m.merchant_name = tr.pattern
                 ORDER BY m.created_at ASC
                 LIMIT 1
             ),
@@ -15,7 +15,7 @@ WITH matched_rules AS (
                 FROM banking.merchants m
                 WHERE m.account_id IS NULL
                   AND m.is_system = true
-                  AND m.name = tr.pattern
+                  AND m.merchant_name = tr.pattern
                 ORDER BY m.created_at ASC
                 LIMIT 1
             )
