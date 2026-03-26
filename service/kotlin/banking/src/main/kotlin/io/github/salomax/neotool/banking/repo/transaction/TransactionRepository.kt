@@ -251,6 +251,7 @@ data class TransactionListQuery(
     val financialAccountId: UUID?,
     val belongsToUserId: UUID?,
     val belongsToName: String?,
+    val search: String?,
     val tags: Set<String>?,
     val billId: UUID?,
     val categoryIds: List<UUID>?,

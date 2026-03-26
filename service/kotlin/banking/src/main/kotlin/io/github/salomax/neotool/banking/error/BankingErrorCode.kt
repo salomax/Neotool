@@ -158,4 +158,10 @@ enum class BankingErrorCode(
         "Asset is not ready for attachment — confirm the upload first",
         422,
     ),
+
+    ACCOUNT_PREFERENCES_OWNER_REQUIRED(
+        "ACCOUNT_PREFERENCES_OWNER_REQUIRED",
+        "Only the account owner can update account preferences",
+        403,
+    ),
 }

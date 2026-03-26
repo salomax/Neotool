@@ -129,6 +129,7 @@ class DefaultTransactionRuleEngine(
             merchantId = merchantId,
             descriptionOverride = descriptionOverride,
             tagsOverride = tagsOverride,
+            appliedRuleIds = matchedRuleIds.toList(),
         )
     }
 

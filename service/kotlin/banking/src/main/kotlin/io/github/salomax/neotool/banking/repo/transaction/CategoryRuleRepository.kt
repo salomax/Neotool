@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -29,4 +30,11 @@ interface TransactionRuleRepository {
     ): TransactionRule?
 
     fun incrementMatchCount(id: UUID)
+
+    /** Updates the priority of a single rule (used by reorder). */
+    fun updatePriority(
+        id: UUID,
+        priority: Int,
+        now: Instant,
+    )
 }

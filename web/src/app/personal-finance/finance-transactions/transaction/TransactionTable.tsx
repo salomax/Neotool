@@ -698,6 +698,7 @@ export function TransactionTable({
       ref={containerRef}
       component={Paper}
       elevation={0}
+      data-testid="transaction-table"
       sx={{
         bgcolor: 'transparent',
         background: 'transparent !important',
@@ -818,7 +819,8 @@ export function TransactionTable({
                 return (
                   <Fragment key={transaction.id}>
                     <TableRow
-                      sx={{ 
+                      data-testid={`transaction-row-${transaction.id}`}
+                      sx={{
                         '&:last-child td, &:last-child th': { border: 0 },
                         opacity: isDeleting ? 0 : (isEditing && isEditFormOpen ? 0.5 : 1),
                         pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
@@ -1248,6 +1250,7 @@ export function TransactionTable({
             setIsEditFormOpen(true);
           }}
           disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+          data-testid="transaction-action-edit"
         >
           <ListItemIcon>
             <EditIcon fontSize="small" />
@@ -1277,6 +1280,7 @@ export function TransactionTable({
             if (!tx) return;
             setTransactionToRemove(tx);
           }}
+          data-testid="transaction-action-delete"
           sx={{
             color: 'error.main',
             '&:hover': {

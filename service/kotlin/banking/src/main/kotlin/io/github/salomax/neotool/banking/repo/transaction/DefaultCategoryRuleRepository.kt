@@ -69,4 +69,12 @@ class DefaultCategoryRuleRepository(
     override fun incrementMatchCount(id: UUID) {
         entityRepository.incrementMatchCount(id, Instant.now())
     }
+
+    override fun updatePriority(
+        id: UUID,
+        priority: Int,
+        now: Instant,
+    ) {
+        entityRepository.updatePriority(id, priority, now)
+    }
 }

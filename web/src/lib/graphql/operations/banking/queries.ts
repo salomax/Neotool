@@ -559,6 +559,76 @@ export const BILL_IMPORT_JOB = gql`
 `;
 
 /** Transactions belonging to a specific credit card bill (Bill mode). */
+/** All merchants (system + user-created) available to the authenticated account. */
+export const MERCHANTS = gql`
+  query Merchants {
+    merchants {
+      id
+      name
+      domain
+      isSystem
+      logoAsset {
+        id
+        publicUrl
+      }
+    }
+  }
+`;
+
+// ── Transaction rules ─────────────────────────────────────────────────────────
+
+/** Fragment reused by all rule queries and mutations. */
+export const TRANSACTION_RULE_FIELDS = gql`
+  fragment TransactionRuleFields on TransactionRule {
+    id
+    pattern
+    patternType
+    applicableTo
+    priority
+    isSystem
+    isImplicit
+    matchCount
+    createdAt
+    descriptionOverride
+    tagsOverride
+    categoryId
+    category {
+      id
+      name
+      icon
+      color
+      applicableTo
+    }
+    merchantId
+    merchant {
+      id
+      name
+      domain
+      logoAsset {
+        id
+        publicUrl
+      }
+    }
+  }
+`;
+
+/** All user-defined transaction rules (explicit + implicit) for the active account. */
+export const TRANSACTION_RULES = gql`
+  ${TRANSACTION_RULE_FIELDS}
+  query TransactionRules {
+    transactionRules {
+      ...TransactionRuleFields
+    }
+  }
+`;
+
+/** Tests whether a pattern matches a sample string. */
+export const PREVIEW_TRANSACTION_RULE = gql`
+  query PreviewTransactionRule($pattern: String!, $patternType: PatternType!, $sample: String!) {
+    previewTransactionRule(pattern: $pattern, patternType: $patternType, sample: $sample)
+  }
+`;
+
 export const TRANSACTIONS_BY_BILL = gql`
   query GetTransactionsByBill($billId: ID!, $first: Int, $after: String) {
     transactions(billId: $billId, first: $first, after: $after) {

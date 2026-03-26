@@ -124,6 +124,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
     >
       <ButtonBase
         onClick={() => onSelect('BANK')}
+        data-testid="account-type-BANK"
         sx={{
           borderRadius: optionRadius,
           textAlign: 'left',
@@ -169,6 +170,7 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
 
       <ButtonBase
         onClick={() => onSelect('CARD')}
+        data-testid="account-type-CARD"
         sx={{
           borderRadius: optionRadius,
           textAlign: 'left',

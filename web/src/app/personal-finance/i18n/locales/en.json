@@ -471,7 +471,7 @@
   },
   "financeTransactions": {
     "title": "Finance Transactions",
-    "quickAdd": "New transaction",
+    "quickAdd": "Transaction",
     "credit": "Credit",
     "debit": "Debit",
     "transfer": "Transfer",
@@ -520,11 +520,48 @@
       "newAccountOrCard": "New account or card",
       "addAccount": "Add account",
       "addCard": "Add card",
+      "automation": "Automation",
       "edit": "Edit",
       "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel",
+      "back": "Back",
+      "close": "Close",
       "delete": "Delete"
+    },
+    "transactionRules": {
+      "tabs": {
+        "manual": "Manual Rules",
+        "automatic": "Automatic Rules"
+      },
+      "searchPlaceholder": "Search by pattern…",
+      "actions": {
+        "newRule": "New Rule"
+      },
+      "errors": {
+        "load": "Error loading rules."
+      },
+      "toast": {
+        "deleted": "Rule deleted."
+      },
+      "emptyState": {
+        "manual": "No manual rules created yet.",
+        "automatic": "No automatic rules yet."
+      },
+      "deleteDialog": {
+        "title": "Delete rule?",
+        "description": "This action cannot be undone."
+      },
+      "columns": {
+        "context": "Context",
+        "rule": "Rule",
+        "matchingText": "Matching text",
+        "newDescription": "New description",
+        "category": "Category",
+        "tags": "Tags",
+        "merchant": "Merchant",
+        "priority": "Priority"
+      }
     },
     "categoryPicker": {
       "searchPlaceholder": "Search category...",

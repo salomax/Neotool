@@ -607,17 +607,17 @@ export function CreateFinancialAccountDrawer({
 
             {/* Subtype Selection */}
             {selectedType === 'BANK' && (
-              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} />
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} data-testid="account-subtype-select" />
             )}
             {selectedType === 'CARD' && (
-              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} />
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} data-testid="account-subtype-select" />
             )}
 
             {watchedIssuerId === 'custom' && (
               <SelectField name="currencyCode" label={t('financeTransactions.createAccount.step2.fields.currency')} options={Currencies} />
             )}
 
-            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} />
+            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} />
 
             {/* Initial Balance — only for bank accounts */}
             {selectedType !== 'CARD' && !isEditing && (
@@ -627,6 +627,7 @@ export function CreateFinancialAccountDrawer({
                   label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
                   currency={watchedCurrencyCode}
                   locale={i18n.language}
+                  InputProps={{ inputProps: { 'data-testid': 'initial-balance-input' } }}
                 />
                 <DatePickerField
                   name="initialBalanceDate"
@@ -677,17 +678,17 @@ export function CreateFinancialAccountDrawer({
                       )}
                     </Stack>
                     <Stack direction="row" spacing={2}>
-                      <TextField 
-                        name="closingDay" 
-                        label={t('financeTransactions.createAccount.step2.fields.closingDay')} 
-                        type="number" 
-                        inputProps={{ min: 1, max: 31 }}
-                      />
-                      <TextField 
-                        name="dueDay" 
-                        label={t('financeTransactions.createAccount.step2.fields.dueDay')} 
+                      <TextField
+                        name="closingDay"
+                        label={t('financeTransactions.createAccount.step2.fields.closingDay')}
                         type="number"
-                        inputProps={{ min: 1, max: 31 }}
+                        inputProps={{ min: 1, max: 31, 'data-testid': 'closing-day-input' }}
+                      />
+                      <TextField
+                        name="dueDay"
+                        label={t('financeTransactions.createAccount.step2.fields.dueDay')}
+                        type="number"
+                        inputProps={{ min: 1, max: 31, 'data-testid': 'due-day-input' }}
                       />
                     </Stack>
                   </>
@@ -719,6 +720,8 @@ export function CreateFinancialAccountDrawer({
               cancelDisabled={creating || updating}
               submitDisabled={creating || updating || !isValid}
               submitting={creating || updating}
+              cancelTestId="account-form-cancel"
+              submitTestId="account-form-submit"
             />
 
           </Stack>
@@ -733,6 +736,7 @@ export function CreateFinancialAccountDrawer({
       onClose={onClose}
       anchor="right"
       size="md"
+      data-testid="create-account-drawer"
     >
       <Drawer.Header
         title={
@@ -744,7 +748,16 @@ export function CreateFinancialAccountDrawer({
                     ? t('financeTransactions.createAccount.step1.bankAccount.label')
                     : t('financeTransactions.createAccount.step1.card.label')))
         }
-        icon={step === 2 ? <IconButton onClick={handleBack} edge="start"><BackIcon /></IconButton> : null}
+        icon={
+          step === 2
+            ? (
+                <IconButton onClick={handleBack} edge="start" aria-label={t('financeTransactions.actions.back')}>
+                  <BackIcon />
+                </IconButton>
+              )
+            : null
+        }
+        closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>
         {step === 1 ? renderTypeSelection() : renderForm()}

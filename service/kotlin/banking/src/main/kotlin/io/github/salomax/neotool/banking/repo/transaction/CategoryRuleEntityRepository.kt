@@ -65,4 +65,18 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
         id: UUID,
         now: Instant,
     )
+
+    @Query(
+        """
+        UPDATE banking.transaction_rules
+        SET priority = :priority, updated_at = :now
+        WHERE id = :id AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun updatePriority(
+        id: UUID,
+        priority: Int,
+        now: Instant,
+    )
 }

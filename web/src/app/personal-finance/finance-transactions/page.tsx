@@ -30,9 +30,11 @@ import CreditCardIcon from '@mui/icons-material/CreditCard';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import ListItemIcon from '@mui/material/ListItemIcon';
+import Link from 'next/link';
 import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
 import { ImportTransactionsDrawer } from './transaction/ImportTransactionsDrawer';
 import { BillImportDrawer } from './bill/BillImportDrawer';
@@ -50,6 +52,7 @@ import { BillCarousel } from './bill/BillCarousel';
 import { BillSummaryHeader } from './bill/BillSummaryHeader';
 import { PayBillDialog } from './bill/PayBillDialog';
 import { useOnTransactionsImported } from './events';
+import { UploadIcon } from '@/shared/ui/mui-imports';
 
 const TRANSACTION_ACCOUNT_TYPES: FinancialAccountType[] = [
   FinancialAccountType.Bank,
@@ -550,7 +553,13 @@ export default function FinanceTransactionsPage() {
               })}
             </Alert>
           )}
-          <Stack direction="row" spacing={2} sx={{ width: '100%', mb: 2 }} alignItems="flex-end" flexWrap="wrap">
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 } }}
+            alignItems="flex-end"
+            flexWrap="wrap"
+          >
             <Box sx={{ flex: 1, minWidth: 200 }}>
               {displayMode.kind === 'calendar' ? (
                 <MonthYearCarousel 
@@ -572,14 +581,108 @@ export default function FinanceTransactionsPage() {
               )}
             </Box>
             <Button
+              component={Link}
+              href="/personal-finance/finance-transactions/transaction-rules"
               variant="outlined"
+              startIcon={<AutoFixHighIcon fontSize="small" />}
+              sx={{
+                width: 76,
+                px: 1,
+                transition: 'width 500ms ease, padding 500ms ease',
+                '& .revealLabel': {
+                  display: 'inline-block',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  maxWidth: 0,
+                  opacity: 0,
+                  transform: 'translateX(-8px)',
+                  transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
+                },
+                '& .MuiButton-startIcon': {
+                  marginLeft: 0,
+                  marginRight: 0.5,
+                  transition: 'margin-right 500ms ease',
+                },
+                '&:hover .revealLabel, &:focus-visible .revealLabel': {
+                  maxWidth: 200,
+                  opacity: 1,
+                  transform: 'translateX(0)',
+                },
+                '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon': {
+                  marginRight: 1,
+                },
+                '&:not(:hover):not(:focus-visible) .MuiButton-startIcon': {
+                  marginRight: 0,
+                },
+                '&:hover, &:focus-visible': {
+                  width: 168,
+                  px: 0.75,
+                },
+              }}
+            >
+              <Box component="span" className="revealLabel">
+                {t('financeTransactions.actions.automation')}
+              </Box>
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<UploadIcon />}
               endIcon={<ArrowDropDownIcon />}
               onClick={(e) => setImportMenuAnchor(e.currentTarget)}
               aria-haspopup="menu"
               aria-expanded={!!importMenuAnchor}
               aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+              data-open={!!importMenuAnchor}
+              data-testid="btn-open-import-drawer"
+              sx={{
+                width: 76,
+                px: 1,
+                transition: 'width 500ms ease, padding 500ms ease',
+                '& .revealLabel': {
+                  display: 'inline-block',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  maxWidth: 0,
+                  opacity: 0,
+                  transform: 'translateX(-8px)',
+                  transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
+                },
+                '& .MuiButton-startIcon': {
+                  marginLeft: 0,
+                  marginRight: 0.5,
+                  transition: 'margin-right 500ms ease',
+                },
+                '& .MuiButton-endIcon': {
+                  marginLeft: 0.5,
+                  marginRight: 0,
+                  transition: 'margin-left 500ms ease',
+                },
+                '&:hover .revealLabel, &:focus-visible .revealLabel, &[data-open="true"] .revealLabel': {
+                  maxWidth: 200,
+                  opacity: 1,
+                  transform: 'translateX(0)',
+                },
+                '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon, &[data-open="true"] .MuiButton-startIcon': {
+                  marginRight: 1,
+                },
+                '&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon, &[data-open="true"] .MuiButton-endIcon': {
+                  marginLeft: 1,
+                },
+                '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-startIcon': {
+                  marginRight: 0,
+                },
+                '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-endIcon': {
+                  marginLeft: 0,
+                },
+                '&:hover, &:focus-visible, &[data-open="true"]': {
+                  width: 168,
+                  px: 0.75,
+                },
+              }}
             >
-              {t('financeTransactions.import.button')}
+              <Box component="span" className="revealLabel">
+                {t('financeTransactions.import.button')}
+              </Box>
             </Button>
             <Menu
               id="finance-transactions-import-menu"
@@ -623,6 +726,7 @@ export default function FinanceTransactionsPage() {
               startIcon={<AddIcon />}
               onClick={() => setIsCreatingTransaction(true)}
               disabled={isCreatingTransaction}
+              data-testid="btn-new-transaction"
             >
               {t('financeTransactions.quickAdd')}
             </Button>

@@ -382,6 +382,8 @@ type TransactionRule {
   category: TransactionCategory
   merchantId: ID
   merchant: Merchant
+  descriptionOverride: String
+  tagsOverride: [String!]
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
@@ -395,6 +397,8 @@ type TransactionRule {
 input CreateTransactionRuleInput {
   categoryId: ID
   merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
@@ -404,6 +408,9 @@ input CreateTransactionRuleInput {
 input UpdateTransactionRuleInput {
   categoryId: ID
   merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  applicableTo: CategoryApplicableTo
   pattern: String
   patternType: PatternType
   priority: Int
@@ -1309,6 +1316,26 @@ input AttachFileToHoldingInput {
 }
 
 # ============================================================================
+# Settings / Preferences
+# ============================================================================
+
+enum RuleApplicationMode {
+  NEVER
+  ALWAYS
+  ALWAYS_PROMPT
+}
+
+type AccountPreferences {
+  ruleApplicationMode: RuleApplicationMode!
+  defaultTransactionStatus: TransactionStatus!
+}
+
+input UpdateAccountPreferencesInput {
+  ruleApplicationMode: RuleApplicationMode
+  defaultTransactionStatus: TransactionStatus
+}
+
+# ============================================================================
 # Queries
 # ============================================================================
 
@@ -1321,6 +1348,8 @@ extend type Query {
   issuers(categories: [IssuerCategory!]): [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
+  """Current account (tenant) preferences (defaults when no row exists)."""
+  accountPreferences: AccountPreferences!
   """
   Single transaction by ID (scoped to the authenticated account).
   """
@@ -1343,6 +1372,11 @@ extend type Query {
   All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
   transactionRules: [TransactionRule!]!
+  """
+  Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
+  Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
+  """
+  previewTransactionRule(pattern: String!, patternType: PatternType!, sample: String!): Boolean!
   similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview!
   """
   Category totals for a period (expense/income breakdown). Accepts the same filters as the
@@ -1353,6 +1387,8 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
     """Return only transactions in this category or its subcategories."""
@@ -1373,6 +1409,8 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
     """Return only transactions in this category or its subcategories."""
@@ -1402,6 +1440,8 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
     """Return only transactions in this category or its subcategories."""
@@ -1449,12 +1489,22 @@ extend type Query {
   investmentAsset(id: ID!): InvestmentAsset
 }
 
+# Payload returned by `createTransaction`.
+type CreateTransactionPayload {
+  transaction: Transaction!
+  """Only populated when account.ruleApplicationMode = ALWAYS_PROMPT."""
+  appliedRules: [TransactionRule!]
+}
+
 # ============================================================================
 # Mutations
 # ============================================================================
 
 extend type Mutation {
   _bankingService: String
+
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences!
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
@@ -1465,7 +1515,7 @@ extend type Mutation {
   """
   Create a new manual transaction.
   """
-  createTransaction(input: CreateTransactionInput!): Transaction!
+  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload!
   """
   Update an existing manual transaction.
   """
@@ -1529,6 +1579,11 @@ extend type Mutation {
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
   deleteTransactionRule(id: ID!): Boolean!
+  """
+  Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
+  All IDs must belong to the authenticated account. Returns the full updated rule list.
+  """
+  reorderTransactionRules(ids: [ID!]!): [TransactionRule!]!
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """

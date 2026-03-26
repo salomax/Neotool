@@ -3,8 +3,8 @@ package io.github.salomax.neotool.banking.integration
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionListQuery
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -567,6 +567,7 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = null,
+                        search = null,
                         tags = setOf("Weekend"),
                         billId = null,
                         categoryIds = null,
@@ -582,6 +583,138 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                 )
 
             assertThat(rows.map { it.tag }).containsExactly("Food", "Weekend")
+        }
+
+        @Test
+        fun `filtered tag breakdown honors description full text search`() {
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("25.00"),
+                    date = today,
+                    description = "Mercado Central",
+                    tags = listOf("Food"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "Cinema",
+                    tags = listOf("Fun"),
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val rows =
+                transactionRepository.getFilteredTagBreakdown(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        search = "mercado",
+                        tags = null,
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 1,
+                        offset = 0,
+                    ),
+                    CategoryApplicableTo.EXPENSE,
+                )
+
+            assertThat(rows.map { it.tag }).containsExactly("Food")
+        }
+    }
+
+    @Nested
+    @DisplayName("findPage")
+    inner class FindPageTests {
+        @Test
+        fun `full text search filters rows and total count case insensitively`() {
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("25.00"),
+                    date = today,
+                    description = "Mercado Central",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "Padaria do Bairro",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("12.00"),
+                    date = today,
+                    description = "Cinema",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val result =
+                transactionRepository.findPage(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        search = "MERCADO",
+                        tags = null,
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = null,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 20,
+                        offset = 0,
+                    ),
+                )
+
+            assertThat(result.totalCount).isEqualTo(1)
+            assertThat(result.items.map { it.description }).containsExactly("Mercado Central")
         }
     }
 

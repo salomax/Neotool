@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import java.util.UUID
 
@@ -60,11 +61,3 @@ interface TransactionRuleEngine {
         tagsOverrideProvided: Boolean = false,
     )
 }
-
-data class RuleSuggestion(
-    val ruleId: UUID,
-    val categoryId: UUID?,
-    val merchantId: UUID?,
-    val descriptionOverride: String? = null,
-    val tagsOverride: List<String>? = null,
-)

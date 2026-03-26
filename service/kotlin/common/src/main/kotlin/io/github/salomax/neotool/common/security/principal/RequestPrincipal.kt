@@ -93,4 +93,11 @@ data class RequestPrincipal(
      */
     fun isSessionVersionFresh(expectedSessionVersion: Long?): Boolean =
         expectedSessionVersion == null || sessionVersion == null || sessionVersion == expectedSessionVersion
+
+    /**
+     * Role string for the given account from token claims (e.g. `OWNER`), or null if unknown.
+     */
+    fun roleInAccount(accountId: UUID): String? = accounts?.firstOrNull { it.accountId == accountId }?.role
+
+    fun isOwnerOfAccount(accountId: UUID): Boolean = roleInAccount(accountId) == "OWNER"
 }

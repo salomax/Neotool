@@ -98,6 +98,7 @@ interface SummaryMetricRowProps {
   totalSuffix: string;
   dimmed?: boolean;
   onActivate?: () => void;
+  testId?: string;
 }
 
 const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
@@ -111,6 +112,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
   totalSuffix,
   dimmed = false,
   onActivate,
+  testId,
 }) => {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -119,6 +121,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
 
   return (
     <Box
+      data-testid={testId}
       onClick={interactive ? onActivate : undefined}
       onKeyDown={
         interactive
@@ -699,12 +702,21 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
         : '';
 
   return (
-    <Box>
+    <Box data-testid="month-summary-section">
+      {/* Hidden metadata elements for E2E tests */}
+      <Box
+        data-testid="month-summary-opening-balance"
+        aria-hidden="true"
+        sx={{ display: 'none' }}
+      >
+        {formatCurrency(summary?.openingBalance ?? 0)}
+      </Box>
       <Box sx={{ mb: 2 }}>
         <Label>{t('financeTransactions.monthSummary.balance')}</Label>
         <Typography
           variant="h3"
           component="div"
+          data-testid="month-summary-closing-balance"
           sx={{
             fontWeight: 700,
             mt: 0.5,
@@ -751,6 +763,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
           onActivate={
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Credit) : undefined
           }
+          testId="month-summary-total-income"
         />
         <SummaryMetricRow
           icon={<ExpenseIcon />}
@@ -765,6 +778,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
           onActivate={
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Debit) : undefined
           }
+          testId="month-summary-total-expenses"
         />
       </Stack>
 
@@ -830,7 +844,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
       )}
 
       <Drawer open={drawerKind !== null} onClose={() => setDrawerKind(null)} anchor="right" size="sm">
-        <Drawer.Header title={drawerTitle} showCloseButton />
+        <Drawer.Header title={drawerTitle} showCloseButton closeButtonAriaLabel={t('financeTransactions.actions.close')} />
         <Drawer.Body>
           {drawerKind !== null && drawerCategoryItems && (
             <Stack spacing={1.25}>

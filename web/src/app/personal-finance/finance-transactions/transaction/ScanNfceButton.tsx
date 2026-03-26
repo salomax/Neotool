@@ -102,7 +102,6 @@ export function ScanNfceButton({ selectedAccountId, onImportCompleted }: ScanNfc
           <Stack spacing={2}>
             <TextField
               label={t('financeTransactions.nfce.urlPlaceholder')}
-              placeholder="https://..."
               value={url}
               onChange={(e) => setUrl(e.target.value)}
               fullWidth

@@ -2374,7 +2374,11 @@ export function BillImportDrawer({
   return (
     <>
       <Drawer open={open} onClose={handleClose} anchor="right" size="md">
-        <Drawer.Header title={stepTitles[step]} showCloseButton />
+        <Drawer.Header
+          title={stepTitles[step]}
+          showCloseButton
+          closeButtonAriaLabel={t('financeTransactions.actions.close')}
+        />
         <Drawer.Body>{body}</Drawer.Body>
         {footer && <Drawer.Footer>{footer}</Drawer.Footer>}
       </Drawer>

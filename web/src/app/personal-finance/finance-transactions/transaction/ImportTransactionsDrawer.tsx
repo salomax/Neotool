@@ -554,7 +554,7 @@ export function ImportTransactionsDrawer({
   const renderResultStep = () => (
     <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>{t('financeTransactions.import.resultStep.title')}</Typography>
-      <Alert severity="success" sx={{ mb: 2 }}>
+      <Alert severity="success" sx={{ mb: 2 }} data-testid="import-result-summary">
         {t('financeTransactions.import.resultStep.summary', {
           imported: lastEvent?.importedCount ?? 0,
           skipped: lastEvent?.skippedCount ?? 0,
@@ -581,7 +581,7 @@ export function ImportTransactionsDrawer({
   const renderErrorStep = () => (
     <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>{t('financeTransactions.import.errorStep.title')}</Typography>
-      <Alert severity="error" sx={{ mb: 2 }}>
+      <Alert severity="error" sx={{ mb: 2 }} data-testid="import-error-message">
         {errorMessage ?? t('financeTransactions.import.errorStep.message')}
         {errorDetails && (
           <Typography variant="caption" component="div" sx={{ mt: 1 }}>{errorDetails}</Typography>
@@ -607,6 +607,7 @@ export function ImportTransactionsDrawer({
       <Drawer.Header
         title={t('financeTransactions.import.title')}
         showCloseButton
+        closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>{body}</Drawer.Body>
     </Drawer>

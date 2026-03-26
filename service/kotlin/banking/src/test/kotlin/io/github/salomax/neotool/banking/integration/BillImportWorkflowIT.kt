@@ -4,7 +4,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
@@ -14,12 +14,12 @@ import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewCard
 import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
-import io.github.salomax.neotool.banking.domain.billimport.BillImportJobRepository
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.job.import.BillImportStatusConsumer
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest

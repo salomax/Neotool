@@ -10,7 +10,7 @@ import io.github.salomax.neotool.banking.graphql.transaction.*
 import io.github.salomax.neotool.banking.graphql.config.*
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
-import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

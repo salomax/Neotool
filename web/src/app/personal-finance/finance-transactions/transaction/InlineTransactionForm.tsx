@@ -365,6 +365,7 @@ export function InlineTransactionForm({
             }}
           >
             <Box
+              data-testid="inline-transaction-form"
               sx={{
                 borderRadius: 1,
                 border: 1,
@@ -394,6 +395,7 @@ export function InlineTransactionForm({
                     setCreditDebitType(e.target.value as CreditDebitType);
                     setCategoryId('');
                   }}
+                  inputProps={{ 'data-testid': 'tx-credit-debit-type-select' }}
                   variant="standard"
                   disableUnderline
                   displayEmpty
@@ -486,6 +488,7 @@ export function InlineTransactionForm({
                   required
                   autoFocus
                   multiline
+                  inputProps={{ 'data-testid': 'tx-description-input' }}
                   minRows={1}
                   maxRows={4}
                   InputProps={{ 
@@ -588,7 +591,8 @@ export function InlineTransactionForm({
                   onChange={(val) => setAmount(val as number | undefined)}
                   variant="standard"
                   required
-                  InputProps={{ 
+                  inputProps={{ 'data-testid': 'tx-amount-input' }}
+                  InputProps={{
                     disableUnderline: true,
                     sx: { 
                       fontSize: '0.875rem', 
@@ -619,14 +623,15 @@ export function InlineTransactionForm({
                 value={date}
                 onChange={(newValue) => setDate(newValue)}
                 minDate={minAllowedDate}
-                slotProps={{ 
-                  textField: { 
+                slotProps={{
+                  textField: {
                     hiddenLabel: true,
-                    size: 'small', 
+                    size: 'small',
                     variant: 'standard',
                     error: isDateOutsideWindow,
                     helperText: isDateOutsideWindow ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }) : undefined,
-                    InputProps: { 
+                    inputProps: { 'data-testid': 'tx-date-input' },
+                    InputProps: {
                       disableUnderline: true,
                       sx: { 
                         fontSize: '0.875rem',
@@ -669,7 +674,8 @@ export function InlineTransactionForm({
                 onClick={onClose}
                 color="inherit"
                 size="small"
-                sx={{ 
+                data-testid="tx-cancel-btn"
+                sx={{
                   minWidth: 'auto',
                   bgcolor: alpha(theme.palette.text.primary, 0.0),
                   '&:hover': {
@@ -679,10 +685,11 @@ export function InlineTransactionForm({
               >
                 {t('actions.cancel')}
               </Button>
-              
-              <Button 
-                variant="contained" 
+
+              <Button
+                variant="contained"
                 onClick={handleSave}
+                data-testid="tx-save-btn"
                 loading={creating || updating || applyingSimilarEdit}
                 size="small"
                 disabled={creating || updating || applyingSimilarEdit || !amount || !description || !date || !accountId || isDateOutsideWindow}

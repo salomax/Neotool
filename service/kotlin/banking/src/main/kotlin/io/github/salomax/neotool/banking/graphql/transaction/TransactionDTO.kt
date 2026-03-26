@@ -29,6 +29,8 @@ data class TransactionRuleDTO(
     val category: TransactionCategoryDTO?,
     val merchantId: UUID?,
     val merchant: MerchantDTO?,
+    val descriptionOverride: String?,
+    val tagsOverride: List<String>?,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
@@ -136,4 +138,9 @@ data class SimilarTransactionEditPreviewDTO(
 data class SimilarTransactionEditResultDTO(
     val affectedCount: Int,
     val futureRuleCreated: Boolean,
+)
+
+data class CreateTransactionPayloadDTO(
+    val transaction: TransactionDTO,
+    val appliedRules: List<TransactionRuleDTO>?,
 )

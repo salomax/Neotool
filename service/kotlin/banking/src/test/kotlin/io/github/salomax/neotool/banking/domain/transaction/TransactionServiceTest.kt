@@ -2,7 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
@@ -1472,6 +1472,7 @@ class TransactionServiceTest {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = "Partner",
+                        search = null,
                         tags = null,
                         billId = null,
                         categoryIds = null,
@@ -1492,6 +1493,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = "Partner",
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -1548,6 +1550,7 @@ class TransactionServiceTest {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = null,
+                        search = null,
                         tags = setOf("Weekend", "Transport"),
                         billId = null,
                         categoryIds = null,
@@ -1568,6 +1571,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = listOf("Weekend", "Transport"),
                     billId = null,
                     categoryId = null,
@@ -1604,6 +1608,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = listOf("Weekend"),
                     billId = null,
                     categoryId = null,
@@ -1643,6 +1648,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,

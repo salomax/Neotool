@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintS
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
@@ -77,6 +79,7 @@ open class ImportProcessor(
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
     private val categorizationService: TransactionRuleEngine,
+    private val accountPreferencesService: AccountPreferencesService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     /**
@@ -114,16 +117,22 @@ open class ImportProcessor(
         val sameSourceDuplicateCache = mutableMapOf<String, Boolean>()
         val fingerprintDuplicateCache = mutableMapOf<String, Boolean>()
 
+        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+
         val categorizationRules =
-            try {
-                categorizationService.preloadRules(accountId)
-            } catch (e: Exception) {
-                logger.warn(
-                    "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
-                    accountId,
-                    e,
-                )
+            if (mode == RuleApplicationMode.NEVER) {
                 emptyList()
+            } else {
+                try {
+                    categorizationService.preloadRules(accountId)
+                } catch (e: Exception) {
+                    logger.warn(
+                        "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
+                        accountId,
+                        e,
+                    )
+                    emptyList()
+                }
             }
 
         rows.forEachIndexed { index, parsed ->
@@ -212,20 +221,24 @@ open class ImportProcessor(
                     }
                 val ruleLookupDescription = parsed.descriptionRaw?.takeIf { it.isNotBlank() } ?: parsed.description
                 val categorySuggestion =
-                    try {
-                        categorizationService.suggestFromRulesRecordingMatch(
-                            categorizationRules,
-                            ruleLookupDescription,
-                            parsed.creditDebitType,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn(
-                            "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
-                            accountId,
-                            index,
-                            e,
-                        )
+                    if (mode == RuleApplicationMode.NEVER) {
                         null
+                    } else {
+                        try {
+                            categorizationService.suggestFromRulesRecordingMatch(
+                                categorizationRules,
+                                ruleLookupDescription,
+                                parsed.creditDebitType,
+                            )
+                        } catch (e: Exception) {
+                            logger.warn(
+                                "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
+                                accountId,
+                                index,
+                                e,
+                            )
+                            null
+                        }
                     }
                 val transaction =
                     Transaction(

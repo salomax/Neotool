@@ -471,7 +471,7 @@
   },
   "financeTransactions": {
     "title": "Movimentações Financeiras",
-    "quickAdd": "Nova movimentação",
+    "quickAdd": "Movimentação",
     "credit": "Receita",
     "debit": "Despesa",
     "transfer": "Transferência",
@@ -520,11 +520,48 @@
       "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
+      "automation": "Automatização",
       "edit": "Editar",
       "save": "Salvar",
       "saving": "Salvando...",
       "cancel": "Cancelar",
+      "back": "Voltar",
+      "close": "Fechar",
       "delete": "Excluir"
+    },
+    "transactionRules": {
+      "tabs": {
+        "manual": "Regras Manuais",
+        "automatic": "Regras Automáticas"
+      },
+      "searchPlaceholder": "Buscar por padrão…",
+      "actions": {
+        "newRule": "Nova Regra"
+      },
+      "errors": {
+        "load": "Erro ao carregar regras."
+      },
+      "toast": {
+        "deleted": "Regra excluída."
+      },
+      "emptyState": {
+        "manual": "Nenhuma regra manual criada ainda.",
+        "automatic": "Nenhuma regra automática ainda."
+      },
+      "deleteDialog": {
+        "title": "Excluir regra?",
+        "description": "Esta ação não pode ser desfeita."
+      },
+      "columns": {
+        "context": "Contexto",
+        "rule": "Regra",
+        "matchingText": "Texto correspondente",
+        "newDescription": "Nova descrição",
+        "category": "Categoria",
+        "tags": "Tags",
+        "merchant": "Comerciante",
+        "priority": "Prioridade"
+      }
     },
     "categoryPicker": {
       "searchPlaceholder": "Buscar categoria...",

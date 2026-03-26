@@ -341,6 +341,7 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
             )
             whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId))
                 .thenReturn(mapOf(catId to category))
@@ -350,6 +351,7 @@ class TransactionResolverTest {
                     financialAccountId = financialAccountId.toString(),
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -375,7 +377,7 @@ class TransactionResolverTest {
         }
 
         @Test
-        fun `month and year filters are forwarded`() {
+        fun `search month and year filters are forwarded`() {
             val emptyConnection =
                 io.github.salomax.neotool.common.graphql.pagination.Connection<Transaction>(
                     edges = emptyList(),
@@ -403,21 +405,23 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
             )
             resolver.transactions(
                 financialAccountId = financialAccountId.toString(),
                 belongsToUserId = null,
                 belongsToName = null,
+                search = "coffee",
                 tags = null,
-                    billId = null,
-                    categoryId = null,
-                    uncategorized = null,
-                    creditDebitType = null,
-                    types = null,
-                    month = 1,
-                    year = 2025,
-                    first = 20,
-                    after = null,
+                billId = null,
+                categoryId = null,
+                uncategorized = null,
+                creditDebitType = null,
+                types = null,
+                month = 1,
+                year = 2025,
+                first = 20,
+                after = null,
                 principal = principal(),
             )
 
@@ -426,6 +430,7 @@ class TransactionResolverTest {
                 eq(financialAccountId),
                 anyOrNull(),
                 anyOrNull(),
+                eq("coffee"),
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
@@ -490,6 +495,7 @@ class TransactionResolverTest {
                 anyOrNull(),
                 anyOrNull(),
                 anyOrNull(),
+                anyOrNull(),
             )
             whenever(service.findAccessibleCategoriesByIds(setOf(catId), accountId)).thenReturn(emptyMap())
 
@@ -498,6 +504,7 @@ class TransactionResolverTest {
                     financialAccountId = financialAccountId.toString(),
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -557,6 +564,7 @@ class TransactionResolverTest {
                     financialAccountId = "not-a-uuid",
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -700,6 +708,7 @@ class TransactionResolverTest {
                     financialAccountId = anyOrNull(),
                     belongsToUserId = anyOrNull(),
                     belongsToName = anyOrNull(),
+                    search = anyOrNull(),
                     tags = anyOrNull(),
                     billId = anyOrNull(),
                     categoryId = anyOrNull(),
@@ -725,6 +734,7 @@ class TransactionResolverTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -753,6 +763,7 @@ class TransactionResolverTest {
                     financialAccountId = anyOrNull(),
                     belongsToUserId = anyOrNull(),
                     belongsToName = anyOrNull(),
+                    search = anyOrNull(),
                     tags = anyOrNull(),
                     billId = anyOrNull(),
                     categoryId = anyOrNull(),
@@ -777,6 +788,7 @@ class TransactionResolverTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = listOf("Weekend"),
                     billId = null,
                     categoryId = null,

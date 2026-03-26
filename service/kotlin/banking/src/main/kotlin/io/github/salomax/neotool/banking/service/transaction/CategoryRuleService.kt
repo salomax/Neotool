@@ -21,9 +21,10 @@ open class TransactionRuleService(
         input: CreateTransactionRuleInput,
         accountId: UUID,
     ): TransactionRule {
-        require(input.categoryId != null || input.merchantId != null) {
-            "At least one of categoryId or merchantId is required"
-        }
+        require(
+            input.categoryId != null || input.merchantId != null ||
+                input.descriptionOverride != null || input.tagsOverride != null,
+        ) { "At least one of categoryId, merchantId, descriptionOverride, or tagsOverride is required" }
         input.categoryId?.let { requireCategoryAccessible(it, accountId) }
         input.merchantId?.let { requireMerchantAccessible(it, accountId) }
         validatePattern(input.patternType, input.pattern)
@@ -41,6 +42,8 @@ open class TransactionRuleService(
                 accountId = accountId,
                 categoryId = input.categoryId,
                 merchantId = input.merchantId,
+                descriptionOverride = input.descriptionOverride?.trim(),
+                tagsOverride = input.tagsOverride,
                 pattern = input.pattern.trim(),
                 patternType = input.patternType,
                 applicableTo = input.applicableTo,
@@ -87,23 +90,37 @@ open class TransactionRuleService(
 
         val newCategoryId = input.categoryId ?: existing.categoryId
         val newMerchantId = if (input.merchantIdProvided) input.merchantId else existing.merchantId
-        require(newCategoryId != null || newMerchantId != null) {
-            "At least one of categoryId or merchantId is required"
-        }
+        val newDescriptionOverride =
+            if (input.descriptionOverrideProvided) input.descriptionOverride else existing.descriptionOverride
+        val newTagsOverride =
+            if (input.tagsOverrideProvided) input.tagsOverride else existing.tagsOverride
+        require(
+            newCategoryId != null || newMerchantId != null ||
+                newDescriptionOverride != null || newTagsOverride != null,
+        ) { "At least one of categoryId, merchantId, descriptionOverride, or tagsOverride is required" }
 
         val now = Instant.now()
         val updated =
             existing.copy(
                 categoryId = newCategoryId,
                 merchantId = newMerchantId,
+                descriptionOverride = newDescriptionOverride?.trim(),
+                tagsOverride = newTagsOverride,
                 pattern = pattern,
                 patternType = patternType,
-                applicableTo = existing.applicableTo,
+                applicableTo = input.applicableTo ?: existing.applicableTo,
                 priority = input.priority ?: existing.priority,
+                isImplicit = if (existing.isImplicit && hasExplicitChanges(input)) false else existing.isImplicit,
                 updatedAt = now,
             )
         return ruleRepository.save(updated)
     }
+
+    /** Returns true when the update input contains explicit user-driven changes that should promote an implicit rule. */
+    private fun hasExplicitChanges(input: UpdateTransactionRuleInput): Boolean =
+        input.categoryId != null || input.merchantIdProvided || input.descriptionOverrideProvided ||
+            input.tagsOverrideProvided || input.pattern != null || input.patternType != null ||
+            input.applicableTo != null
 
     fun delete(
         id: UUID,
@@ -121,6 +138,43 @@ open class TransactionRuleService(
         ruleRepository.softDelete(id, accountId)
         return true
     }
+
+    fun previewPattern(
+        pattern: String,
+        patternType: PatternType,
+        sample: String,
+    ): Boolean {
+        validatePattern(patternType, pattern)
+        return matchesPattern(pattern.trim(), patternType, sample)
+    }
+
+    fun reorder(
+        ids: List<UUID>,
+        accountId: UUID,
+    ): List<TransactionRule> {
+        require(ids.isNotEmpty()) { "ids must not be empty" }
+        val existing = ruleRepository.findUserRulesForAccount(accountId).associateBy { it.id!! }
+        for (id in ids) {
+            requireNotNull(existing[id]) { "Rule $id not found or not owned by account" }
+        }
+        val now = Instant.now()
+        ids.forEachIndexed { index, id ->
+            ruleRepository.updatePriority(id, index + 1, now)
+        }
+        return ruleRepository.findUserRulesForAccount(accountId)
+    }
+
+    private fun matchesPattern(
+        pattern: String,
+        patternType: PatternType,
+        sample: String,
+    ): Boolean =
+        when (patternType) {
+            PatternType.CONTAINS -> sample.contains(pattern, ignoreCase = true)
+            PatternType.STARTS_WITH -> sample.startsWith(pattern, ignoreCase = true)
+            PatternType.EXACT -> sample.equals(pattern, ignoreCase = true)
+            PatternType.REGEX -> Regex(pattern, RegexOption.IGNORE_CASE).containsMatchIn(sample)
+        }
 
     private fun requireCategoryAccessible(
         categoryId: UUID,
@@ -156,6 +210,8 @@ open class TransactionRuleService(
 data class CreateTransactionRuleInput(
     val categoryId: UUID? = null,
     val merchantId: UUID? = null,
+    val descriptionOverride: String? = null,
+    val tagsOverride: List<String>? = null,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
@@ -167,6 +223,13 @@ data class UpdateTransactionRuleInput(
     val merchantId: UUID? = null,
     /** When true, merchantId is being explicitly set (possibly to null to clear it). */
     val merchantIdProvided: Boolean = false,
+    val descriptionOverride: String? = null,
+    /** When true, descriptionOverride is being explicitly set (possibly to null to clear it). */
+    val descriptionOverrideProvided: Boolean = false,
+    val tagsOverride: List<String>? = null,
+    /** When true, tagsOverride is being explicitly set (possibly to null to clear it). */
+    val tagsOverrideProvided: Boolean = false,
+    val applicableTo: CategoryApplicableTo? = null,
     val pattern: String? = null,
     val patternType: PatternType? = null,
     val priority: Int? = null,

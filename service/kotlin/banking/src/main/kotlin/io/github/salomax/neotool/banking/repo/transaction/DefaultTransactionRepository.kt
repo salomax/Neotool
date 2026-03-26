@@ -232,6 +232,7 @@ open class DefaultTransactionRepository(
                 financialAccountId = financialAccountId,
                 belongsToUserId = null,
                 belongsToName = null,
+                search = null,
                 tags = null,
                 billId = null,
                 categoryIds = null,
@@ -348,6 +349,7 @@ open class DefaultTransactionRepository(
                 financialAccountId = financialAccountId,
                 belongsToUserId = null,
                 belongsToName = null,
+                search = null,
                 tags = null,
                 billId = null,
                 categoryIds = null,
@@ -753,6 +755,13 @@ open class DefaultTransactionRepository(
         query.belongsToName?.let {
             params["belongsToName"] = it
             conditions += "t.belongs_to_name = :belongsToName"
+        }
+        query.search?.let {
+            params["searchQuery"] = it
+            conditions +=
+                """
+                to_tsvector('simple', t.description) @@ websearch_to_tsquery('simple', :searchQuery)
+                """.trimIndent()
         }
         if (query.uncategorizedOnly) {
             conditions += "t.category_id IS NULL"

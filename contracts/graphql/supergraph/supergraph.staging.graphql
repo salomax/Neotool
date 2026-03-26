@@ -930,6 +930,8 @@ input CreateTransactionRuleInput
 {
   categoryId: ID
   merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
@@ -1804,6 +1806,13 @@ scalar JSON
   @join__type(graph: FINANCIALDATA)
   @join__type(graph: SECURITY)
 
+enum Language
+  @join__type(graph: SECURITY)
+{
+  ENGLISH @join__enumValue(graph: SECURITY)
+  PORTUGUESE @join__enumValue(graph: SECURITY)
+}
+
 scalar link__Import
 
 enum link__Purpose {
@@ -2082,8 +2091,11 @@ type Mutation
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
 
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences! @join__field(graph: BANKING)
+
   """Create a new manual transaction."""
-  createTransaction(input: CreateTransactionInput!): Transaction! @join__field(graph: BANKING)
+  createTransaction(input: CreateTransactionInput!): CreateTransactionPayload! @join__field(graph: BANKING)
 
   """Update an existing manual transaction."""
   updateTransaction(id: ID!, input: UpdateTransactionInput!): Transaction! @join__field(graph: BANKING)
@@ -2157,6 +2169,12 @@ type Mutation
   deleteTransactionRule(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """
+  Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
+  All IDs must belong to the authenticated account. Returns the full updated rule list.
+  """
+  reorderTransactionRules(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
@@ -2191,6 +2209,7 @@ type Mutation
   resetPassword(input: ResetPasswordInput!): ResetPasswordPayload! @join__field(graph: SECURITY)
   verifyEmailWithToken(token: String!): VerifyEmailPayload! @join__field(graph: SECURITY)
   resendVerificationEmail: ResendVerificationEmailPayload! @join__field(graph: SECURITY)
+  updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -2406,6 +2425,9 @@ type Query
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
 
+  """Current account (tenant) preferences (defaults when no row exists)."""
+  accountPreferences: AccountPreferences! @join__field(graph: BANKING)
+
   """Single transaction by ID (scoped to the authenticated account)."""
   transaction(id: ID!): Transaction @join__field(graph: BANKING)
 
@@ -2435,6 +2457,12 @@ type Query
   All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
   """
   transactionRules: [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
+  Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
+  Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
+  """
+  previewTransactionRule(pattern: String!, patternType: PatternType!, sample: String!): Boolean! @join__field(graph: BANKING)
   similarTransactionEditPreview(id: ID!): SimilarTransactionEditPreview! @join__field(graph: BANKING)
 
   """
@@ -2446,6 +2474,9 @@ type Query
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
 
@@ -2472,6 +2503,9 @@ type Query
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
 
@@ -2505,6 +2539,9 @@ type Query
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
+
+    """Full-text search over transaction descriptions."""
+    search: String
     tags: [String!]
     billId: ID
 
@@ -2584,6 +2621,9 @@ type Query
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
   isUserActiveMemberOfAccount(userId: ID!, accountId: ID!): Boolean! @join__field(graph: SECURITY)
+
+  """Current user's preferences (defaults when no row exists)."""
+  userPreferences: UserPreferences! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -2884,6 +2924,14 @@ type TagTotal
   percentage: Float!
 }
 
+enum Theme
+  @join__type(graph: SECURITY)
+{
+  LIGHT @join__enumValue(graph: SECURITY)
+  DARK @join__enumValue(graph: SECURITY)
+  SYSTEM @join__enumValue(graph: SECURITY)
+}
+
 type TokenUsage
   @join__type(graph: ASSISTANT)
 {
@@ -3096,6 +3144,8 @@ type TransactionRule
   category: TransactionCategory
   merchantId: ID
   merchant: Merchant
+  descriptionOverride: String
+  tagsOverride: [String!]
   pattern: String!
   patternType: PatternType!
   applicableTo: CategoryApplicableTo!
@@ -3243,6 +3293,9 @@ input UpdateTransactionRuleInput
 {
   categoryId: ID
   merchantId: ID
+  descriptionOverride: String
+  tagsOverride: [String!]
+  applicableTo: CategoryApplicableTo
   pattern: String
   patternType: PatternType
   priority: Int
@@ -3252,6 +3305,15 @@ input UpdateUserInput
   @join__type(graph: SECURITY)
 {
   displayName: String
+}
+
+input UpdateUserPreferencesInput
+  @join__type(graph: SECURITY)
+{
+  language: Language
+  theme: Theme
+  blurBalances: Boolean
+  firstDayOfWeek: Int
 }
 
 type UsageBudget
@@ -3335,6 +3397,46 @@ enum UserOrderField
 {
   DISPLAY_NAME @join__enumValue(graph: SECURITY)
   EMAIL @join__enumValue(graph: SECURITY)
+}
+
+type UserPreferences
+  @join__type(graph: SECURITY)
+{
+  language: Language!
+  theme: Theme!
+  blurBalances: Boolean!
+  firstDayOfWeek: Int!
+}
+
+# Banking account (tenant) preferences
+type AccountPreferences
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode!
+  defaultTransactionStatus: TransactionStatus!
+}
+
+input UpdateAccountPreferencesInput
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode
+  defaultTransactionStatus: TransactionStatus
+}
+
+"""Payload returned by `createTransaction`."""
+type CreateTransactionPayload
+  @join__type(graph: BANKING)
+{
+  transaction: Transaction!
+  appliedRules: [TransactionRule!]
+}
+
+enum RuleApplicationMode
+  @join__type(graph: BANKING)
+{
+  NEVER @join__enumValue(graph: BANKING)
+  ALWAYS @join__enumValue(graph: BANKING)
+  ALWAYS_PROMPT @join__enumValue(graph: BANKING)
 }
 
 scalar UUID

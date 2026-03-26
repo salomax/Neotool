@@ -136,11 +136,16 @@ class TransactionCategoryResolver(
         val applicableTo = CategoryApplicableTo.valueOf(applicableToRaw)
         val priority = (input["priority"] as? Number)?.toInt()
 
+        val descriptionOverride = input["descriptionOverride"] as? String
+        val tagsOverride = (input["tagsOverride"] as? List<*>)?.filterIsInstance<String>()
+
         val created =
             ruleService.create(
                 CreateTransactionRuleInput(
                     categoryId = categoryId,
                     merchantId = merchantId,
+                    descriptionOverride = descriptionOverride,
+                    tagsOverride = tagsOverride,
                     pattern = pattern,
                     patternType = patternType,
                     applicableTo = applicableTo,
@@ -161,14 +166,20 @@ class TransactionCategoryResolver(
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val ruleId = UUID.fromString(id)
         val merchantIdProvided = input.containsKey("merchantId")
+        val descriptionOverrideProvided = input.containsKey("descriptionOverride")
+        val tagsOverrideProvided = input.containsKey("tagsOverride")
         val updateInput =
             UpdateTransactionRuleInput(
                 categoryId = (input["categoryId"] as? String)?.let { UUID.fromString(it) },
                 merchantId = (input["merchantId"] as? String)?.let { UUID.fromString(it) },
                 merchantIdProvided = merchantIdProvided,
+                descriptionOverride = input["descriptionOverride"] as? String,
+                descriptionOverrideProvided = descriptionOverrideProvided,
+                tagsOverride = (input["tagsOverride"] as? List<*>)?.filterIsInstance<String>(),
+                tagsOverrideProvided = tagsOverrideProvided,
+                applicableTo = (input["applicableTo"] as? String)?.let { CategoryApplicableTo.valueOf(it) },
                 pattern = input["pattern"] as? String,
-                patternType =
-                    (input["patternType"] as? String)?.let { PatternType.valueOf(it) },
+                patternType = (input["patternType"] as? String)?.let { PatternType.valueOf(it) },
                 priority = (input["priority"] as? Number)?.toInt(),
             )
         val updated = ruleService.update(ruleId, updateInput, accountId)
@@ -186,6 +197,26 @@ class TransactionCategoryResolver(
         return ruleService.delete(ruleId, accountId)
     }
 
+    fun previewTransactionRule(
+        pattern: String,
+        patternType: String,
+        sample: String,
+    ): Boolean = ruleService.previewPattern(pattern, PatternType.valueOf(patternType), sample)
+
+    fun reorderTransactionRules(
+        ids: List<String>,
+        principal: RequestPrincipal,
+    ): List<TransactionRuleDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val uuids = ids.map { UUID.fromString(it) }
+        val rules = ruleService.reorder(uuids, accountId)
+        val categoryIds = rules.mapNotNull { it.categoryId }.toSet()
+        val merchantIds = rules.mapNotNull { it.merchantId }.toSet()
+        val categories = categoryIds.associateWith { categoryRepository.findById(it) }
+        val merchants = merchantIds.associateWith { merchantRepository.findById(it) }
+        return rules.map { rule -> rule.toDTO(categories[rule.categoryId], merchants[rule.merchantId]) }
+    }
+
     private fun TransactionRule.toDTO(
         category: TransactionCategory?,
         merchant: Merchant?,
@@ -196,6 +227,8 @@ class TransactionCategoryResolver(
             category = category?.toDTO(),
             merchantId = merchantId,
             merchant = merchant?.toMerchantDTO(),
+            descriptionOverride = descriptionOverride,
+            tagsOverride = tagsOverride,
             pattern = pattern,
             patternType = patternType,
             applicableTo = applicableTo,
