@@ -14,6 +14,7 @@ import {
   Divider,
   alpha,
   useTheme,
+  useMediaQuery,
   Chip,
   Collapse,
   Fade,
@@ -82,6 +83,7 @@ export default function FinanceTransactionsPage() {
   const [isPayBillDialogOpen, setIsPayBillDialogOpen] = useState(false);
 
   const theme = useTheme();
+  const actionButtonsRevealEnabled = useMediaQuery('(min-width:750px)');
   const mountedRef = useRef(true);
   const initialTypeResetTimeoutRef = useRef<number | null>(null);
 
@@ -580,110 +582,137 @@ export default function FinanceTransactionsPage() {
                 />
               )}
             </Box>
-            <Button
-              component={Link}
-              href="/personal-finance/finance-transactions/transaction-rules"
-              variant="outlined"
-              startIcon={<AutoFixHighIcon fontSize="small" />}
-              sx={{
-                width: 76,
-                px: 1,
-                transition: 'width 500ms ease, padding 500ms ease',
-                '& .revealLabel': {
-                  display: 'inline-block',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  maxWidth: 0,
-                  opacity: 0,
-                  transform: 'translateX(-8px)',
-                  transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
-                },
-                '& .MuiButton-startIcon': {
-                  marginLeft: 0,
-                  marginRight: 0.5,
-                  transition: 'margin-right 500ms ease',
-                },
-                '&:hover .revealLabel, &:focus-visible .revealLabel': {
-                  maxWidth: 200,
-                  opacity: 1,
-                  transform: 'translateX(0)',
-                },
-                '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon': {
-                  marginRight: 1,
-                },
-                '&:not(:hover):not(:focus-visible) .MuiButton-startIcon': {
-                  marginRight: 0,
-                },
-                '&:hover, &:focus-visible': {
-                  width: 168,
-                  px: 0.75,
-                },
-              }}
-            >
-              <Box component="span" className="revealLabel">
+            {actionButtonsRevealEnabled ? (
+              <Button
+                component={Link}
+                href="/personal-finance/finance-transactions/transaction-rules"
+                variant="outlined"
+                startIcon={<AutoFixHighIcon fontSize="small" />}
+                sx={{
+                  width: 76,
+                  px: 1,
+                  transition: 'width 500ms ease, padding 500ms ease',
+                  '& .revealLabel': {
+                    display: 'inline-block',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 0,
+                    opacity: 0,
+                    transform: 'translateX(-8px)',
+                    transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
+                  },
+                  '& .MuiButton-startIcon': {
+                    marginLeft: 0,
+                    marginRight: 0.5,
+                    transition: 'margin-right 500ms ease',
+                  },
+                  '&:hover .revealLabel, &:focus-visible .revealLabel': {
+                    maxWidth: 200,
+                    opacity: 1,
+                    transform: 'translateX(0)',
+                  },
+                  '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon': {
+                    marginRight: 1,
+                  },
+                  '&:not(:hover):not(:focus-visible) .MuiButton-startIcon': {
+                    marginRight: 0,
+                  },
+                  '&:hover, &:focus-visible': {
+                    width: 168,
+                    px: 0.75,
+                  },
+                }}
+              >
+                <Box component="span" className="revealLabel">
+                  {t('financeTransactions.actions.automation')}
+                </Box>
+              </Button>
+            ) : (
+              <Button
+                component={Link}
+                href="/personal-finance/finance-transactions/transaction-rules"
+                variant="outlined"
+                startIcon={<AutoFixHighIcon fontSize="small" />}
+              >
                 {t('financeTransactions.actions.automation')}
-              </Box>
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<UploadIcon />}
-              endIcon={<ArrowDropDownIcon />}
-              onClick={(e) => setImportMenuAnchor(e.currentTarget)}
-              aria-haspopup="menu"
-              aria-expanded={!!importMenuAnchor}
-              aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
-              data-open={!!importMenuAnchor}
-              data-testid="btn-open-import-drawer"
-              sx={{
-                width: 76,
-                px: 1,
-                transition: 'width 500ms ease, padding 500ms ease',
-                '& .revealLabel': {
-                  display: 'inline-block',
-                  overflow: 'hidden',
-                  whiteSpace: 'nowrap',
-                  maxWidth: 0,
-                  opacity: 0,
-                  transform: 'translateX(-8px)',
-                  transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
-                },
-                '& .MuiButton-startIcon': {
-                  marginLeft: 0,
-                  marginRight: 0.5,
-                  transition: 'margin-right 500ms ease',
-                },
-                '& .MuiButton-endIcon': {
-                  marginLeft: 0.5,
-                  marginRight: 0,
-                  transition: 'margin-left 500ms ease',
-                },
-                '&:hover .revealLabel, &:focus-visible .revealLabel, &[data-open="true"] .revealLabel': {
-                  maxWidth: 200,
-                  opacity: 1,
-                  transform: 'translateX(0)',
-                },
-                '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon, &[data-open="true"] .MuiButton-startIcon': {
-                  marginRight: 1,
-                },
-                '&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon, &[data-open="true"] .MuiButton-endIcon': {
-                  marginLeft: 1,
-                },
-                '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-startIcon': {
-                  marginRight: 0,
-                },
-                '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-endIcon': {
-                  marginLeft: 0,
-                },
-                '&:hover, &:focus-visible, &[data-open="true"]': {
-                  width: 168,
-                  px: 0.75,
-                },
-              }}
-            >
-              <Box component="span" className="revealLabel">
+              </Button>
+            )}
+
+            {actionButtonsRevealEnabled ? (
+              <Button
+                variant="outlined"
+                startIcon={<UploadIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+                aria-haspopup="menu"
+                aria-expanded={!!importMenuAnchor}
+                aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+                data-open={!!importMenuAnchor}
+                data-testid="btn-open-import-drawer"
+                sx={{
+                  width: 76,
+                  px: 1,
+                  transition: 'width 500ms ease, padding 500ms ease',
+                  '& .revealLabel': {
+                    display: 'inline-block',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: 0,
+                    opacity: 0,
+                    transform: 'translateX(-8px)',
+                    transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
+                  },
+                  '& .MuiButton-startIcon': {
+                    marginLeft: 0,
+                    marginRight: 0.5,
+                    transition: 'margin-right 500ms ease',
+                  },
+                  '& .MuiButton-endIcon': {
+                    marginLeft: 0.5,
+                    marginRight: 0,
+                    transition: 'margin-left 500ms ease',
+                  },
+                  '&:hover .revealLabel, &:focus-visible .revealLabel, &[data-open="true"] .revealLabel': {
+                    maxWidth: 200,
+                    opacity: 1,
+                    transform: 'translateX(0)',
+                  },
+                  '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon, &[data-open="true"] .MuiButton-startIcon': {
+                    marginRight: 1,
+                  },
+                  '&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon, &[data-open="true"] .MuiButton-endIcon': {
+                    marginLeft: 1,
+                  },
+                  '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-startIcon': {
+                    marginRight: 0,
+                  },
+                  '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-endIcon': {
+                    marginLeft: 0,
+                  },
+                  '&:hover, &:focus-visible, &[data-open="true"]': {
+                    width: 168,
+                    px: 0.75,
+                  },
+                }}
+              >
+                <Box component="span" className="revealLabel">
+                  {t('financeTransactions.import.button')}
+                </Box>
+              </Button>
+            ) : (
+              <Button
+                variant="outlined"
+                startIcon={<UploadIcon />}
+                endIcon={<ArrowDropDownIcon />}
+                onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+                aria-haspopup="menu"
+                aria-expanded={!!importMenuAnchor}
+                aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+                data-testid="btn-open-import-drawer"
+              >
                 {t('financeTransactions.import.button')}
-              </Box>
-            </Button>
+              </Button>
+            )}
             <Menu
               id="finance-transactions-import-menu"
               anchorEl={importMenuAnchor}

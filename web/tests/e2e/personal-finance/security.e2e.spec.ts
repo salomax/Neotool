@@ -644,7 +644,7 @@ test.describe('Security — Token Manipulation', () => {
     expect(result.errors![0].message).toMatch(/unauthorized|forbidden|invalid.*token|token.*invalid|expired/i);
   });
 
-  test('SEC-TOK-02: malformed JWT (invalid signature) returns 401', async ({}) => {
+  test('SEC-TOK-02: malformed JWT (invalid signature) returns 401', async () => {
     const malformedToken = 'header.payload.INVALID_SIGNATURE';
 
     const result = await executeGraphQL(`
@@ -654,7 +654,7 @@ test.describe('Security — Token Manipulation', () => {
     expect(result.errors).toBeDefined();
   });
 
-  test('SEC-TOK-03: request with no Authorization header returns 401', async ({}) => {
+  test('SEC-TOK-03: request with no Authorization header returns 401', async () => {
     // executeGraphQL called with no token
     const result = await executeGraphQL(`
       query { financialAccounts { id } }
@@ -663,7 +663,7 @@ test.describe('Security — Token Manipulation', () => {
     expect(result.errors).toBeDefined();
   });
 
-  test('SEC-TOK-04: request with an empty Bearer token returns 401', async ({}) => {
+  test('SEC-TOK-04: request with an empty Bearer token returns 401', async () => {
     const result = await executeGraphQL(`
       query { financialAccounts { id } }
     `, {}, '');

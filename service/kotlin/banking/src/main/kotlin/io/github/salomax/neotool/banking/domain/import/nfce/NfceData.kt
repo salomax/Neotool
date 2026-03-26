@@ -15,4 +15,6 @@ data class NfceData(
     val municipio: String,
     val uf: String,
     val items: List<NfceItem>,
+    val cpfDestinatario: String? = null,
+    val vTotTrib: BigDecimal? = null,
 )

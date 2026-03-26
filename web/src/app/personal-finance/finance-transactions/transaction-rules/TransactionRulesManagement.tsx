@@ -33,6 +33,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { ManagementLayout } from '@/shared/components/management/ManagementLayout';
 import { ManagementHeaderActions, ManagementHeaderActionButton } from '@/shared/components/management/ManagementHeaderActions';
 import { useToast } from '@/shared/providers';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
 import { Label } from '@/shared/components/ui/primitives/Label';
 
@@ -74,7 +75,10 @@ export const TransactionRulesManagement: React.FC = () => {
       setRuleToDelete(null);
       refetch();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) =>
+      toast.error(
+        extractErrorMessage(err, 'Não foi possível excluir a regra'),
+      ),
   });
 
   const filteredRules = useMemo(() => {
@@ -282,7 +286,7 @@ export const TransactionRulesManagement: React.FC = () => {
                     sx={{
                       borderBottom: explicitRules.length > 0 ? 'none' : `1px solid ${theme.palette.divider}`,
                       bgcolor: 'transparent',
-                      width: 120,
+                      width: 80,
                     }}
                   >
                     <Label>{t('financeTransactions.transactionRules.columns.priority')}</Label>
@@ -402,7 +406,7 @@ export const TransactionRulesManagement: React.FC = () => {
                     sx={{
                       borderBottom: implicitRules.length > 0 ? 'none' : `1px solid ${theme.palette.divider}`,
                       bgcolor: 'transparent',
-                      width: 120,
+                      width: 80,
                     }}
                   >
                     <Label>{t('financeTransactions.transactionRules.columns.priority')}</Label>

@@ -798,9 +798,9 @@ export type CreateTransactionInput = {
   type: TransactionType;
 };
 
-/** Payload returned by `createTransaction`. */
 export type CreateTransactionPayload = {
   __typename: 'CreateTransactionPayload';
+  /** Only populated when account.ruleApplicationMode = ALWAYS_PROMPT. */
   appliedRules: Maybe<Array<TransactionRule>>;
   transaction: Transaction;
 };

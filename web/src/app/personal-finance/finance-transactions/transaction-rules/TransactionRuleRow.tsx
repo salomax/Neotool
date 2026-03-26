@@ -17,13 +17,13 @@ import {
   useTheme,
   TableRow,
   TableCell,
-  Avatar,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DragHandleIcon from '@mui/icons-material/DragHandle';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
+import { Logo } from '@/shared/components/ui/primitives';
 import type { TransactionRule } from './types';
 
 const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
@@ -39,6 +39,36 @@ const APPLICABLE_TO_LABELS: Record<CategoryApplicableTo, string> = {
   [CategoryApplicableTo.Expense]: 'Despesa',
   [CategoryApplicableTo.Transfer]: 'Transferência',
 };
+
+const TAG_COLORS = [
+  '#F44336',
+  '#E91E63',
+  '#9C27B0',
+  '#673AB7',
+  '#3F51B5',
+  '#2196F3',
+  '#03A9F4',
+  '#00BCD4',
+  '#009688',
+  '#4CAF50',
+  '#8BC34A',
+  '#CDDC39',
+  '#FFEB3B',
+  '#FFC107',
+  '#FF9800',
+  '#FF5722',
+  '#795548',
+  '#607D8B',
+];
+
+function stringToColor(value: string) {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = value.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash % TAG_COLORS.length);
+  return TAG_COLORS[index]!;
+}
 
 function outlinedChipSx(theme: any, mainColor: string) {
   return {
@@ -201,19 +231,34 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
 
         <TableCell>
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.75, alignItems: 'center' }}>
-            {rule.tagsOverride?.map((tag: string) => (
-              <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
-            ))}
+            {rule.tagsOverride?.map((tag: string) => {
+              const color = stringToColor(tag);
+              return (
+                <Chip
+                  key={tag}
+                  label={`#${tag}`}
+                  size="small"
+                  variant="filled"
+                  sx={{
+                    fontSize: '0.7rem',
+                    height: 20,
+                    bgcolor: alpha(color, 0.05),
+                    color: color,
+                    borderRadius: '.3rem',
+                  }}
+                />
+              );
+            })}
           </Box>
         </TableCell>
 
         <TableCell>
           {rule.merchant ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <Avatar
+              <Logo
                 src={rule.merchant.logoAsset?.publicUrl ?? undefined}
                 alt={rule.merchant.name}
-                sx={{ width: 24, height: 24 }}
+                size="xs"
               />
               <Typography variant="body2">{rule.merchant.name}</Typography>
             </Box>
@@ -372,7 +417,24 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
           </Typography>
         )}
         {rule.tagsOverride?.map((tag: string) => (
-          <Chip key={tag} label={`#${tag}`} size="small" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
+          (() => {
+            const color = stringToColor(tag);
+            return (
+              <Chip
+                key={tag}
+                label={`#${tag}`}
+                size="small"
+                variant="filled"
+                sx={{
+                  fontSize: '0.7rem',
+                  height: 20,
+                  bgcolor: alpha(color, 0.05),
+                  color: color,
+                  borderRadius: '.3rem',
+                }}
+              />
+            );
+          })()
         ))}
         {rule.matchCount > 0 && (
           <Chip

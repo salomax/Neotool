@@ -52,7 +52,7 @@ export type CategoryPickerView = 'browse' | 'create' | 'confirm' | 'deleteConfir
 export interface CategoryPickerProps {
   value: string | null;
   onChange: (categoryId: string | null) => void;
-  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER';
+  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER' | 'ANY';
   anchorEl: HTMLElement | null;
   onClose: () => void;
 }
@@ -140,11 +140,20 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : null;
     const allowedApplicableTo = new Set<CategoryApplicableTo>(
-      mainApplicableTo === CategoryApplicableTo.Transfer
-        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
-        : [mainApplicableTo, CategoryApplicableTo.Any]
+      mainApplicableTo === null
+        ? [
+            CategoryApplicableTo.Any,
+            CategoryApplicableTo.Income,
+            CategoryApplicableTo.Expense,
+            CategoryApplicableTo.Transfer,
+          ]
+        : mainApplicableTo === CategoryApplicableTo.Transfer
+          ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+          : [mainApplicableTo, CategoryApplicableTo.Any]
     );
     const typeFiltered = allCategories.filter((c) => allowedApplicableTo.has(c.applicableTo));
     const idSet = new Set(typeFiltered.map((c) => c.id));
@@ -156,7 +165,7 @@ export function CategoryPicker({
   React.useEffect(() => {
     if (prevCreditDebitType.current === creditDebitType) return;
     prevCreditDebitType.current = creditDebitType;
-    if (value !== null) onChange(null);
+    if (creditDebitType !== 'ANY' && value !== null) onChange(null);
   }, [creditDebitType, value, onChange]);
 
   React.useEffect(() => {
@@ -169,11 +178,20 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : null;
     const allowedApplicableTo = new Set<CategoryApplicableTo>(
-      expectedApplicableTo === CategoryApplicableTo.Transfer
-        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
-        : [expectedApplicableTo, CategoryApplicableTo.Any]
+      expectedApplicableTo === null
+        ? [
+            CategoryApplicableTo.Any,
+            CategoryApplicableTo.Income,
+            CategoryApplicableTo.Expense,
+            CategoryApplicableTo.Transfer,
+          ]
+        : expectedApplicableTo === CategoryApplicableTo.Transfer
+          ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+          : [expectedApplicableTo, CategoryApplicableTo.Any]
     );
     if (!allowedApplicableTo.has(selected.applicableTo)) onChange(null);
   }, [value, data?.transactionCategories, creditDebitType, onChange]);
@@ -235,7 +253,9 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : CategoryApplicableTo.Any;
     try {
       const { data: result } = await createCategory({
         variables: {

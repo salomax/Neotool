@@ -21,6 +21,13 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+type AccountPreferences
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode!
+  defaultTransactionStatus: TransactionStatus!
+}
+
 """
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
 """
@@ -923,6 +930,15 @@ input CreateTransactionInput
   totalInstallments: Int
   cardIdentifier: String
   payeeMcc: Int
+}
+
+type CreateTransactionPayload
+  @join__type(graph: BANKING)
+{
+  transaction: Transaction!
+
+  """Only populated when account.ruleApplicationMode = ALWAYS_PROMPT."""
+  appliedRules: [TransactionRule!]
 }
 
 input CreateTransactionRuleInput
@@ -2083,6 +2099,9 @@ type Mutation
   setUsageBudget(input: SetBudgetInput!): UsageBudget! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
 
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences! @join__field(graph: BANKING)
+
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
@@ -2090,9 +2109,6 @@ type Mutation
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
-
-  """Updates current account preferences (account owner only)."""
-  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences! @join__field(graph: BANKING)
 
   """Create a new manual transaction."""
   createTransaction(input: CreateTransactionInput!): CreateTransactionPayload! @join__field(graph: BANKING)
@@ -2829,6 +2845,14 @@ enum RoleOrderField
   NAME @join__enumValue(graph: SECURITY)
 }
 
+enum RuleApplicationMode
+  @join__type(graph: BANKING)
+{
+  NEVER @join__enumValue(graph: BANKING)
+  ALWAYS @join__enumValue(graph: BANKING)
+  ALWAYS_PROMPT @join__enumValue(graph: BANKING)
+}
+
 input SetBudgetInput
   @join__type(graph: ASSISTANT)
 {
@@ -3221,6 +3245,13 @@ enum TransactionType
   BALANCE_ADJUSTMENT @join__enumValue(graph: BANKING)
 }
 
+input UpdateAccountPreferencesInput
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode
+  defaultTransactionStatus: TransactionStatus
+}
+
 input UpdateCategoryInput
   @join__type(graph: BANKING)
 {
@@ -3406,37 +3437,6 @@ type UserPreferences
   theme: Theme!
   blurBalances: Boolean!
   firstDayOfWeek: Int!
-}
-
-# Banking account (tenant) preferences
-type AccountPreferences
-  @join__type(graph: BANKING)
-{
-  ruleApplicationMode: RuleApplicationMode!
-  defaultTransactionStatus: TransactionStatus!
-}
-
-input UpdateAccountPreferencesInput
-  @join__type(graph: BANKING)
-{
-  ruleApplicationMode: RuleApplicationMode
-  defaultTransactionStatus: TransactionStatus
-}
-
-"""Payload returned by `createTransaction`."""
-type CreateTransactionPayload
-  @join__type(graph: BANKING)
-{
-  transaction: Transaction!
-  appliedRules: [TransactionRule!]
-}
-
-enum RuleApplicationMode
-  @join__type(graph: BANKING)
-{
-  NEVER @join__enumValue(graph: BANKING)
-  ALWAYS @join__enumValue(graph: BANKING)
-  ALWAYS_PROMPT @join__enumValue(graph: BANKING)
 }
 
 scalar UUID

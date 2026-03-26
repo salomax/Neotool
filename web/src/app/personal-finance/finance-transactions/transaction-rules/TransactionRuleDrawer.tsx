@@ -11,6 +11,7 @@ import {
   FormControl,
   InputLabel,
   FormHelperText,
+  InputAdornment,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -24,12 +25,17 @@ import {
   DialogContentText,
   DialogActions,
   Autocomplete,
+  Chip,
+  Stack,
+  alpha,
+  useTheme,
 } from '@mui/material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
 import {
   TRANSACTION_CATEGORIES,
   MERCHANTS,
+  TRANSACTION_TAGS,
 } from '@/lib/graphql/operations/banking/queries';
 import {
   PreviewTransactionRuleDocument,
@@ -41,8 +47,12 @@ import {
   UPDATE_TRANSACTION_RULE,
 } from '@/lib/graphql/operations/banking/mutations';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { useToast } from '@/shared/providers';
 import type { TransactionRule } from './types';
+import { CategoryIcon } from '../category/CategoryIcon';
+import { CategoryPicker } from '../category/CategoryPicker';
+import { Logo } from '@/shared/components/ui/primitives';
 
 interface TransactionCategory {
   id: string;
@@ -66,6 +76,10 @@ interface Merchant {
 
 interface MerchantsData {
   merchants: Merchant[];
+}
+
+interface TransactionTagsData {
+  transactionTags: { tag: string }[];
 }
 
 interface TransactionRuleDrawerProps {
@@ -111,6 +125,18 @@ const defaultForm = (): FormState => ({
   priority: '40',
 });
 
+function normalizeTags(values: string[]): string[] {
+  return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
+}
+
+function upperFirst(value: string): string {
+  if (!value) return value;
+  const trimmedStart = value.trimStart();
+  if (!trimmedStart) return value;
+  const prefixLength = value.length - trimmedStart.length;
+  return `${value.slice(0, prefixLength)}${trimmedStart.charAt(0).toLocaleUpperCase()}${trimmedStart.slice(1)}`;
+}
+
 function formFromRule(rule: TransactionRule): FormState {
   return {
     pattern: rule.pattern,
@@ -119,7 +145,7 @@ function formFromRule(rule: TransactionRule): FormState {
     categoryId: rule.categoryId ?? null,
     merchantId: rule.merchantId ?? null,
     descriptionOverride: rule.descriptionOverride ?? '',
-    tagsOverride: rule.tagsOverride ?? [],
+    tagsOverride: normalizeTags(rule.tagsOverride ?? []),
     priority: String(rule.priority),
   };
 }
@@ -131,6 +157,7 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
   onSaved,
 }) => {
   const toast = useToast();
+  const theme = useTheme();
   const isEdit = !!rule;
 
   const [form, setForm] = useState<FormState>(() => (rule ? formFromRule(rule) : defaultForm()));
@@ -138,12 +165,18 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [previewSample, setPreviewSample] = useState('');
   const [showPreviewField, setShowPreviewField] = useState(false);
+  const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const { data: categoriesData } = useQuery<CategoriesData>(TRANSACTION_CATEGORIES, {
     skip: !open,
   });
 
   const { data: merchantsData } = useQuery<MerchantsData>(MERCHANTS, {
+    skip: !open,
+  });
+
+  const { data: transactionTagsData } = useQuery<TransactionTagsData>(TRANSACTION_TAGS, {
     skip: !open,
   });
 
@@ -159,7 +192,7 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
       toast.success('Regra salva.');
       onSaved();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
   });
 
   const [updateRule, { loading: updateLoading }] = useMutation(UPDATE_TRANSACTION_RULE, {
@@ -167,7 +200,7 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
       toast.success('Regra salva.');
       onSaved();
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
   });
 
   const saving = createLoading || updateLoading;
@@ -186,24 +219,39 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
     }
   }, [form.pattern, form.patternType, previewSample, runPreview]);
 
+  const trimmedPattern = form.pattern.trim();
+  const trimmedDescriptionOverride = form.descriptionOverride.trim();
+  const normalizedTagsOverride = normalizeTags(form.tagsOverride);
+
   const hasAction =
     !!form.categoryId ||
     !!form.merchantId ||
-    form.descriptionOverride.trim().length > 0 ||
-    form.tagsOverride.length > 0;
+    trimmedDescriptionOverride.length > 0 ||
+    normalizedTagsOverride.length > 0;
 
-  const canSave = form.pattern.trim().length > 0 && hasAction && !saving;
+  const canSave = trimmedPattern.length > 0 && hasAction && !saving;
 
   const handleSave = useCallback(() => {
+    setSubmitAttempted(true);
+    if (saving) return;
+    if (!trimmedPattern) {
+      toast.error('Informe o padrão.');
+      return;
+    }
+    if (!hasAction) {
+      toast.error('Configure pelo menos uma ação.');
+      return;
+    }
+
     const priority = parseInt(form.priority, 10);
     const input = {
-      pattern: form.pattern.trim(),
+      pattern: trimmedPattern,
       patternType: form.patternType,
       applicableTo: form.applicableTo,
       categoryId: form.categoryId ?? undefined,
       merchantId: form.merchantId ?? undefined,
-      descriptionOverride: form.descriptionOverride.trim() || undefined,
-      tagsOverride: form.tagsOverride.length > 0 ? form.tagsOverride : undefined,
+      descriptionOverride: trimmedDescriptionOverride || undefined,
+      tagsOverride: normalizedTagsOverride.length > 0 ? normalizedTagsOverride : undefined,
       priority: isNaN(priority) || priority < 1 ? 40 : priority,
     };
 
@@ -211,18 +259,25 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
       updateRule({
         variables: {
           id: rule.id,
-          input: {
-            ...input,
-            merchantIdProvided: true,
-            descriptionOverrideProvided: true,
-            tagsOverrideProvided: true,
-          },
+          input,
         },
       });
     } else {
       createRule({ variables: { input } });
     }
-  }, [form, isEdit, rule, createRule, updateRule]);
+  }, [
+    createRule,
+    form,
+    hasAction,
+    isEdit,
+    normalizedTagsOverride,
+    rule,
+    saving,
+    toast,
+    trimmedDescriptionOverride,
+    trimmedPattern,
+    updateRule,
+  ]);
 
   const handleClose = useCallback(() => {
     if (isDirty) {
@@ -237,9 +292,22 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
 
   const merchants = merchantsData?.merchants ?? [];
   const selectedMerchant = merchants.find((m) => m.id === form.merchantId) ?? null;
+  const tagOptions = transactionTagsData?.transactionTags?.map((t) => t.tag).filter(Boolean) ?? [];
   const shouldShowPreview = showPreviewField && !!previewSample.trim() && !!form.pattern.trim();
-  const previewError = shouldShowPreview ? previewApolloError?.message ?? null : null;
+  const previewError = shouldShowPreview
+    ? previewApolloError
+      ? extractErrorMessage(previewApolloError, 'Não foi possível testar a regra')
+      : null
+    : null;
   const previewResult = shouldShowPreview ? previewData?.previewTransactionRule ?? null : null;
+  const categoryPickerType =
+    form.applicableTo === CategoryApplicableTo.Income
+      ? 'CREDIT'
+      : form.applicableTo === CategoryApplicableTo.Expense
+        ? 'DEBIT'
+        : form.applicableTo === CategoryApplicableTo.Transfer
+          ? 'TRANSFER'
+          : 'ANY';
 
   return (
     <>
@@ -257,10 +325,10 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
             SE a descrição…
           </Typography>
 
-          <FormControl fullWidth size="small" sx={{ mb: 2 }}>
-            <InputLabel>Tipo de padrão</InputLabel>
+          <FormControl fullWidth sx={{ mb: 2 }}>
+            <InputLabel>Tipo de comparação</InputLabel>
             <Select
-              label="Tipo de padrão"
+              label="Tipo de comparação"
               value={form.patternType}
               onChange={(e) => setField('patternType', e.target.value as PatternType)}
             >
@@ -278,15 +346,16 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
           <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
             <TextField
               fullWidth
-              size="small"
-              label="Padrão"
+              label="Texto comparativo"
               value={form.pattern}
               onChange={(e) => setField('pattern', e.target.value)}
               placeholder="Ex: IFOOD"
               inputProps={{ sx: { fontFamily: 'monospace' } }}
+              required
+              error={submitAttempted && trimmedPattern.length === 0}
+              helperText={submitAttempted && trimmedPattern.length === 0 ? 'Campo obrigatório' : undefined}
             />
             <Button
-              size="small"
               variant="outlined"
               onClick={handleTest}
               disabled={!form.pattern.trim()}
@@ -297,10 +366,9 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
           </Box>
 
           {showPreviewField && (
-            <Box sx={{ mb: 2 }}>
+            <Box sx={{ mt: 2, mb: 3 }}>
               <TextField
                 fullWidth
-                size="small"
                 label="Testar com"
                 placeholder="Digite uma descrição de exemplo…"
                 value={previewSample}
@@ -341,7 +409,7 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
                 <FormControlLabel
                   key={opt.value}
                   value={opt.value}
-                  control={<Radio size="small" />}
+                  control={<Radio />}
                   label={<Typography variant="body2">{opt.label}</Typography>}
                 />
               ))}
@@ -355,96 +423,196 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
           </Typography>
 
           {!hasAction && (
-            <Alert severity="warning" sx={{ my: 2 }}>
-              Configure pelo menos uma ação (categoria, renomear ou tags).
+            <Alert severity="info" sx={{ my: 2 }}>
+              Configure pelo menos uma ação (nova descrição, categoria, tags ou comerciante).
             </Alert>
           )}
 
-          <Autocomplete
-            size="small"
-            options={categories}
-            value={selectedCategory}
-            onChange={(_, value) => setField('categoryId', value?.id ?? null)}
-            getOptionLabel={(opt) => opt.name}
-            groupBy={(opt) => {
-              if (opt.applicableTo === CategoryApplicableTo.Income) return 'Receitas';
-              if (opt.applicableTo === CategoryApplicableTo.Expense) return 'Despesas';
-              return 'Qualquer';
-            }}
-            renderInput={(params) => <TextField {...params} label="Categoria" placeholder="Nenhuma" size="small" />}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} sx={{ gap: 1 }}>
-                {option.color && (
-                  <Box
-                    sx={{
-                      width: 10,
-                      height: 10,
-                      borderRadius: '50%',
-                      bgcolor: option.color,
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <Typography variant="body2">{option.name}</Typography>
-              </Box>
-            )}
-            sx={{ mb: 2 }}
-          />
-
-          <Autocomplete
-            size="small"
-            options={merchants}
-            value={selectedMerchant}
-            onChange={(_, value) => setField('merchantId', value?.id ?? null)}
-            getOptionLabel={(opt) => opt.name}
-            renderInput={(params) => <TextField {...params} label="Comerciante" placeholder="Nenhum" size="small" />}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} sx={{ gap: 1, alignItems: 'center' }}>
-                {option.logoAsset?.publicUrl ? (
-                  <Box
-                    component="img"
-                    src={option.logoAsset.publicUrl}
-                    alt={option.name}
-                    sx={{ width: 20, height: 20, objectFit: 'contain', flexShrink: 0 }}
-                  />
-                ) : (
-                  <Box sx={{ width: 20, height: 20, flexShrink: 0 }} />
-                )}
-                <Typography variant="body2">{option.name}</Typography>
-                {option.domain && (
-                  <Typography variant="caption" color="text.secondary">
-                    {option.domain}
-                  </Typography>
-                )}
-              </Box>
-            )}
-            sx={{ mb: 2 }}
-          />
-
           <TextField
             fullWidth
-            size="small"
-            label="Renomear descrição para (opcional)"
+            label="Nova descrição"
             placeholder="Deixe em branco para manter o original"
             value={form.descriptionOverride}
             onChange={(e) => setField('descriptionOverride', e.target.value)}
             sx={{ mb: 2 }}
           />
 
-          <Box sx={{ mb: 3 }}>
+          <Box sx={{ mb: 2 }}>
+            {selectedCategory ? (
+              <Chip
+                clickable
+                onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
+                label={
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                    <CategoryIcon
+                      iconName={selectedCategory.icon}
+                      color={selectedCategory.color ?? undefined}
+                      size={18}
+                      sx={{ flexShrink: 0 }}
+                    />
+                    <Typography
+                      variant="body2"
+                      title={selectedCategory.name}
+                      sx={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        minWidth: 0,
+                        maxWidth: '40ch',
+                      }}
+                    >
+                      {selectedCategory.name}
+                    </Typography>
+                  </Stack>
+                }
+                variant="filled"
+                sx={{
+                  height: 56,
+                  width: '100%',
+                  borderRadius: `${theme.shape.borderRadius}px`,
+                  color: selectedCategory.color || 'text.primary',
+                  bgcolor: selectedCategory.color ? alpha(selectedCategory.color, 0.1) : 'action.selected',
+                  borderColor: selectedCategory.color ? alpha(selectedCategory.color, 0.3) : 'divider',
+                  borderWidth: 1,
+                  borderStyle: 'solid',
+                  justifyContent: 'flex-start',
+                  '&:hover': {
+                    bgcolor: selectedCategory.color ? alpha(selectedCategory.color, 0.2) : 'action.hover',
+                  },
+                  transition: 'background-color 0.15s ease',
+                  '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
+                }}
+              />
+            ) : (
+              <Chip
+                clickable
+                onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
+                label={
+                  <Typography variant="body2" sx={{ opacity: 0.65 }}>
+                    Categoria
+                  </Typography>
+                }
+                variant="outlined"
+                sx={{
+                  height: 56,
+                  width: '100%',
+                  borderRadius: `${theme.shape.borderRadius}px`,
+                  borderStyle: 'dashed',
+                  color: 'text.secondary',
+                  bgcolor: alpha(theme.palette.text.primary, 0.02),
+                  boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.text.primary, 0.06)}`,
+                  justifyContent: 'flex-start',
+                  '&:hover': {
+                    borderColor: 'primary.main',
+                    color: 'primary.main',
+                    bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  },
+                  transition: 'background-color 0.15s ease',
+                  '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
+                }}
+              />
+            )}
+          </Box>
+
+          <CategoryPicker
+            value={form.categoryId}
+            onChange={(categoryId) => setField('categoryId', categoryId)}
+            creditDebitType={categoryPickerType}
+            anchorEl={categoryPickerAnchorEl}
+            onClose={() => setCategoryPickerAnchorEl(null)}
+          />
+
+          <Box sx={{ mb: 2 }}>
             <TagsInput
               label="Tags a adicionar"
-              value={form.tagsOverride}
-              onChange={(tags) => setField('tagsOverride', tags)}
-              options={[]}
+              value={normalizedTagsOverride}
+              onChange={(tags) => setField('tagsOverride', normalizeTags(tags))}
+              options={tagOptions}
               placeholder="Digite e pressione Enter"
+              size="medium"
             />
           </Box>
 
-          <Divider sx={{ mb: 2 }} />
+          <Autocomplete
+            options={merchants}
+            value={selectedMerchant}
+            onChange={(_, value) => setField('merchantId', value?.id ?? null)}
+            getOptionLabel={(opt) => upperFirst(opt.name)}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Comerciante"
+                placeholder="Nenhum"
+                InputProps={{
+                  ...params.InputProps,
+                  startAdornment: selectedMerchant?.logoAsset?.publicUrl ? (
+                    <>
+                      <InputAdornment position="start" sx={{ mr: 1 }}>
+                        <Logo
+                          src={selectedMerchant.logoAsset.publicUrl}
+                          alt={upperFirst(selectedMerchant.name)}
+                          size="sm"
+                        />
+                      </InputAdornment>
+                      {params.InputProps.startAdornment}
+                    </>
+                  ) : (
+                    params.InputProps.startAdornment
+                  ),
+                }}
+              />
+            )}
+            renderOption={(props, option) => (
+              <Box component="li" {...props} sx={{ gap: 1.5, alignItems: 'center', py: 1 }}>
+                {option.logoAsset?.publicUrl ? (
+                  <Logo
+                    src={option.logoAsset.publicUrl}
+                    alt={upperFirst(option.name)}
+                    size="md"
+                    sx={{ flexShrink: 0 }}
+                  />
+                ) : (
+                  <Box sx={{ width: 30, height: 30, flexShrink: 0 }} />
+                )}
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontSize: '0.95rem',
+                      fontWeight: 600,
+                      lineHeight: 1.2,
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                    title={upperFirst(option.name)}
+                  >
+                    {upperFirst(option.name)}
+                  </Typography>
+                  {option.domain && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: 'block',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.2,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                      title={option.domain}
+                    >
+                      {option.domain}
+                    </Typography>
+                  )}
+                </Box>
+              </Box>
+            )}
+            sx={{ mb: 2 }}
+          />
 
           <TextField
-            size="small"
             label="Prioridade"
             type="number"
             value={form.priority}
@@ -453,28 +621,44 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
             inputProps={{ min: 1 }}
             sx={{ width: 160 }}
           />
+
+          <Divider sx={{ my: 2 }} />
+
+            <Drawer.ActionButtons
+              cancelText="Cancelar"
+              submitText={saving ? 'Salvando…' : 'Salvar Regra'}
+              onCancel={handleClose}
+              onSubmit={handleSave}
+              submitDisabled={!canSave}
+              submitting={saving}
+            />
+
         </Drawer.Body>
 
-        <Drawer.Footer>
-          <Drawer.ActionButtons
-            cancelText="Cancelar"
-            submitText={saving ? 'Salvando…' : 'Salvar Regra'}
-            onCancel={handleClose}
-            onSubmit={handleSave}
-            submitDisabled={!canSave}
-            submitting={saving}
-          />
-        </Drawer.Footer>
       </Drawer>
 
-      <Dialog open={discardDialogOpen} onClose={() => setDiscardDialogOpen(false)} maxWidth="xs">
-        <DialogTitle>Descartar alterações?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>As mudanças não salvas serão perdidas.</DialogContentText>
+      <Dialog 
+        open={discardDialogOpen} 
+        onClose={() => setDiscardDialogOpen(false)} 
+        maxWidth="xs" 
+        fullWidth
+        PaperProps={{ sx: { minHeight: 220, p: 1, display: 'flex', justifyContent: 'center' } }}
+      >
+        <DialogTitle sx={{ textAlign: 'center', pb: 1, pt: 3 }}>Descartar alterações?</DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+          <DialogContentText>As mudanças serão perdidas.</DialogContentText>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDiscardDialogOpen(false)}>Continuar editando</Button>
+        <DialogActions 
+          sx={{ 
+            flexDirection: 'column', 
+            gap: 1.5, 
+            px: 3, 
+            pb: 3,
+            '& > button': { m: '0 !important', width: '100%' } 
+          }}
+        >
           <Button
+            variant="contained"
             color="error"
             onClick={() => {
               setDiscardDialogOpen(false);
@@ -482,6 +666,12 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
             }}
           >
             Descartar
+          </Button>
+          <Button 
+            variant="outlined" 
+            onClick={() => setDiscardDialogOpen(false)}
+          >
+            Continuar editando
           </Button>
         </DialogActions>
       </Dialog>

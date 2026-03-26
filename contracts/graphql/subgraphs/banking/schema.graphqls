@@ -1517,6 +1517,9 @@ type CreateTransactionPayload {
 
 extend type Mutation {
   _bankingService: String
+
+  """Updates current account preferences (account owner only)."""
+  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences!
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
@@ -1524,9 +1527,6 @@ extend type Mutation {
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount!
-
-  """Updates current account preferences (account owner only)."""
-  updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences!
   """
   Create a new manual transaction.
   """

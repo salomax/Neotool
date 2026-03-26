@@ -87,13 +87,22 @@ Se a `raw_description` já foi mapeada antes (por este ou outro usuário), reuti
 
 Mesmo estabelecimento (CNPJ) + mesmo código interno (`cProd`) = certamente o mesmo produto. Resolve itens de um estabelecimento que o usuário já comprou antes, mesmo que a descrição tenha mudado levemente.
 
-#### Camada 4 — Heurísticas de Texto (Custo zero, batch D+1)
+#### Camada 4 — Heurísticas de Texto + Dicionário de Abreviações (Custo zero, batch D+1)
 
 Regras determinísticas, sem AI, executadas no job noturno:
 - Normalizar texto: uppercase, remover acentos, trim espaços extras
+- **Expansão de abreviações** via dicionário (ver seção 2.5)
 - Fuzzy match (Jaro-Winkler) contra aliases existentes, threshold ≥ 0.85
 - Regex para extrair padrões recorrentes: `(marca)? (produto) (quantidade)(unidade)`
 - Mesmo NCM + similaridade textual alta → sugerir match com `confidence` alta
+
+Exemplo de fluxo:
+```
+raw: "LING FGO AURORA 700G"
+  → expandir abreviações: "LINGUICA FRANGO AURORA 700G"
+  → fuzzy match contra aliases existentes
+  → se match ≥ 0.85 com "LINGUICA DE FRANGO AURORA 700G" → vincula à mesma variante
+```
 
 #### Camada 5 — Embeddings em Batch (Custo baixo, batch D+1)
 
@@ -102,11 +111,14 @@ Para itens que nenhuma camada anterior resolveu:
 - Gerar embedding dos itens pendentes e comparar via similaridade coseno com catálogo existente
 - **~100x mais barato que LLM** por token processado
 - Gera sugestões com `confidence` score na tabela `product_alias`
+- Pode também sugerir nome expandido para a variante usando o embedding mais próximo do catálogo
 - Usuário confirma ou rejeita na tela de revisão
 
 #### Camada 6 — LLM Sob Demanda (Custo alto, uso controlado)
 
-Último recurso. Invocado **somente quando o usuário abre a tela de revisão de itens pendentes**, nunca automaticamente. O LLM recebe o item + contexto (NCM, itens similares do catálogo) e sugere classificação.
+Último recurso. Invocado **somente quando o usuário abre a tela de revisão de itens pendentes**, nunca automaticamente. O LLM recebe o item + contexto (NCM, itens similares do catálogo) e faz duas coisas:
+1. **Expande a descrição** abreviada em nome legível: `"LING FGO AURORA 700G"` → `"Linguiça de Frango Aurora 700g"`
+2. **Sugere classificação**: produto canônico ("Linguiça de Frango") + variante
 
 ### 2.2 Mitigação de Custos AI
 
@@ -152,7 +164,80 @@ O NCM tem boa cobertura (~90% dos itens de supermercado), mas existem exceções
 
 **Tratamento:** Itens sem NCM válido (`NULL`, `00000000`, ou catch-all como `21069090`, `39249000`) são excluídos das analytics por NCM mas continuam elegíveis para normalização por produto canônico via as outras camadas.
 
-### 2.4 Conceito de Produto Canônico
+### 2.4 Descrições Abreviadas — Expansão e Nome Legível
+
+As descrições de NFC-e são propriedade do estabelecimento e tipicamente abreviadas. O mesmo produto aparece de formas diferentes em lojas diferentes:
+
+```
+Supermercado A:  "LING FGO AURORA 700G"
+Supermercado B:  "LINGUICA FRANGO AURORA 700"
+Supermercado C:  "LG FGO AUR 700G"
+Atacadão:        "AURORA LING FRANGO 700G"
+```
+
+São **4 aliases diferentes** para a mesma variante. O modelo de dados separa claramente:
+
+```
+raw_description (imutável, do estabelecimento) ──── chave de matching
+       ↓ alias
+product_variant.name = "Linguiça de Frango Aurora 700g" ──── nome limpo, exibido ao usuário
+       ↓ pertence a
+product.name = "Linguiça de Frango" ──── produto canônico, para analytics agregados
+```
+
+O usuário nunca vê "LING FGO AURORA 700G" nas analytics — vê "Linguiça de Frango Aurora 700g".
+
+#### Dicionário de Abreviações Comuns
+
+Supermercados usam abreviações recorrentes. Um dicionário estático (custo zero) resolve boa parte dos casos na camada 4:
+
+| Abreviação | Expansão | | Abreviação | Expansão |
+|---|---|---|---|---|
+| LING | LINGUIÇA | | DET | DETERGENTE |
+| FGO, FRANG | FRANGO | | SAB | SABÃO/SABONETE |
+| CX | CAIXA | | COND | CONDICIONADOR |
+| PCT | PACOTE | | DESINF | DESINFETANTE |
+| BG, BEB | BEBIDA | | ALM, ALMOND | ALMÔNDEGA |
+| ACU, ACUC | AÇÚCAR | | HAMB | HAMBÚRGUER |
+| MARG | MARGARINA | | MC, MACA | MAÇÃ |
+| SC, SUC | SUCO | | BAN | BANANA |
+| ERV | ERVA | | ARR | ARROZ |
+| PP, PAP | PAPEL | | FJ, FEIJ | FEIJÃO |
+| LT, LTE | LEITE | | MANT | MANTEIGA |
+| BISQ, BSC | BISCOITO | | SAMP | SHAMPOO |
+| MACA, MAC | MACARRÃO | | DESOD | DESODORANTE |
+| MOL | MOLHO | | AMACIANTE, AMAC | AMACIANTE |
+| PASS | PASSARINHO* | | PRES | PRESUNTO |
+
+\* Contexto-dependente: "FGO PASS" = "Frango à Passarinho", "PASS ROUPA" = "Passar Roupa".
+
+O dicionário é extensível e pode ser enriquecido com o tempo conforme novos padrões aparecem. A expansão é usada para:
+1. **Melhorar o fuzzy match** — "LING FGO" expandido para "LINGUICA FRANGO" dá match melhor com aliases existentes
+2. **Sugerir nome para variante** — quando o usuário mapeia, o sistema pode pré-preencher o nome expandido
+3. **Agrupar por NCM + descrição expandida** — reduz ambiguidade na camada 4
+
+#### Fluxo de Expansão de Nome
+
+```mermaid
+flowchart LR
+    RAW["LING FGO AURORA 700G"] --> DICT[Dicionário de\nabreviações]
+    DICT --> EXPANDED["LINGUICA FRANGO\nAURORA 700G"]
+    EXPANDED --> FUZZY{Fuzzy match\ncom aliases\nexistentes?}
+    FUZZY -- Sim --> VARIANT["Usa nome da variante\nexistente:\nLinguiça de Frango\nAurora 700g"]
+    FUZZY -- Não --> AI{Batch D+1:\nEmbedding ou LLM}
+    AI --> SUGGEST["Sugere nome:\nLinguiça de Frango\nAurora 700g"]
+    SUGGEST --> USER{Usuário\nconfirma?}
+    USER -- Sim --> SAVE["Salva variante\ncom nome limpo"]
+    USER -- Edita --> SAVE
+
+    style RAW fill:#FF9800,color:#fff
+    style VARIANT fill:#2196F3,color:#fff
+    style SAVE fill:#4CAF50,color:#fff
+```
+
+> **Nota sobre fabricante/distribuidor:** Informações como "COOPERATIVA CENTRAL AURORA ALIMENTOS" **não estão na NFC-e** — vêm do cadastro GS1 via EAN. Sem fonte externa de EAN, não teremos automaticamente na v1. O fabricante pode ser inferido pela marca no nome da variante ("Aurora"), mas o dado formal fica para quando/se integrarmos com uma base de EAN.
+
+### 2.5 Conceito de Produto Canônico
 
 Um **Produto Canônico** (`Product`) representa o conceito abstrato do produto, independente de marca, tamanho ou fornecedor:
 
@@ -420,23 +505,136 @@ Para o cenário onde o usuário quer controle fino, oferecer opção de **import
 
 ---
 
-## 6. Campos Adicionais no Parser NFC-e
+## 6. Parser NFC-e — Arquitetura por Estado
+
+### 6.1 Problema: cada SEFAZ retorna dados de forma diferente
+
+O QR code da NFC-e aponta para o portal de consulta pública da SEFAZ do estado emissor. **Cada estado retorna os dados em formato diferente:**
+
+- **Alguns retornam XML** (nós `<infNFe>`, `<det>`, `<prod>`) — o parser atual assume este formato
+- **SP (e outros) retornam HTML** — página renderizada para consulta do consumidor
+- A **página resumida** (HTML) geralmente mostra apenas: `xProd`, `cProd`, `qCom`, `uCom`, `vUnCom`, `vProd`
+- A **página detalhada** ("Visualizar em Abas" em SP) contém `NCM`, `cEAN` e outros campos — mas requer interação (postback ASP.NET)
+
+### 6.2 Agrupamento por sistema de consulta
+
+A maioria dos estados compartilha o sistema SVRS, o que reduz o número de parsers necessários:
+
+| Sistema | Estados | URL base | Formato |
+|---|---|---|---|
+| **SVRS** | RS, AC, AL, AP, BA, CE, DF, ES, MA, PA, PB, PI, RJ, RN, RO, RR, SC, SE, TO (~19) | `dfe-portal.svrs.rs.gov.br` | A verificar |
+| **SP** | SP | `nfce.fazenda.sp.gov.br` | HTML (scraper) |
+| **MG** | MG | `nfce.fazenda.mg.gov.br` | A verificar |
+| **PR** | PR | `nfce.fazenda.pr.gov.br` | A verificar |
+| **MT** | MT | `nfce.sefaz.mt.gov.br` | A verificar |
+| **MS** | MS | `nfce.fazenda.ms.gov.br` | A verificar |
+| **GO** | GO | `nfe.sefaz.go.gov.br` | A verificar |
+| **AM** | AM | `nfce.sefaz.am.gov.br` | A verificar |
+| **PE** | PE | `nfce.sefaz.pe.gov.br` | A verificar |
+
+**Estratégia:** Implementar SP + SVRS primeiro cobre a grande maioria dos usuários. Os demais estados podem ser adicionados incrementalmente.
+
+### 6.3 SP — Scraper validado (2-step HTTP, sem CAPTCHA)
+
+O scraper de SP foi **validado com sucesso** em NFC-e real (46 itens). O fluxo consiste em 2 requisições HTTP simples, sem necessidade de headless browser ou CAPTCHA:
+
+#### Passo 1 — GET na URL do QR code
+```
+GET https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/...
+Headers:
+  User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) ...
+  Accept: text/html,application/xhtml+xml,...
+  Accept-Language: pt-BR,pt;q=0.9,en-US;q=0.8
+```
+Retorna a página resumida (HTML). Dela extrair:
+- Cookies de sessão (Set-Cookie)
+- `__VIEWSTATE`, `__VIEWSTATEGENERATOR`, `__EVENTVALIDATION` (campos hidden do form)
+
+#### Passo 2 — POST do postback "Visualizar em Abas"
+```
+POST https://www.nfce.fazenda.sp.gov.br/.../ConsultaResumidaRJFrame_v400.aspx
+Headers: (mesmos do GET + Content-Type: application/x-www-form-urlencoded + Cookie + Origin + Referer)
+Body:
+  __EVENTTARGET=btnVisualizarAbas
+  __EVENTARGUMENT=
+  __VIEWSTATE=<valor extraído>
+  __VIEWSTATEGENERATOR=<valor extraído>
+  __EVENTVALIDATION=<valor extraído>
+```
+Retorna a página detalhada (~700KB HTML) com **todos os campos** de cada item, incluindo NCM e EAN.
+
+#### Regex patterns para extração dos campos (validados)
+```
+xProd:   fixo-prod-serv-descricao">\s*<span>([^<]+)</span>
+NCM:     Código NCM</label>\s*<span[^>]*>([^<]*)</span>
+cEAN:    Código EAN Comercial</label>\s*<span[^>]*>([^<]*)</span>
+cProd:   Código do Produto</label>\s*<span[^>]*>([^<]*)</span>
+vUnCom:  Valor unitário de comercialização</label>\s*<span[^>]*>([^<]*)</span>
+vDesc:   Valor do Desconto</label>\s*<span[^>]*>([^<]*)</span>
+qCom:    Quantidade Comercial</label>\s*<span[^>]*>([^<]*)</span>
+uCom:    Unidade Comercial</label>\s*<span[^>]*>([^<]*)</span>
+vProd:   Valor do Produto</label>\s*<span[^>]*>([^<]*)</span>
+```
+
+> **Importante:** Headers de browser (User-Agent, Accept, Accept-Language) são essenciais. Sem eles, a SEFAZ redireciona para página de CAPTCHA. Com headers adequados, não há CAPTCHA.
+
+> **Atenção NBSP:** O HTML do SEFAZ SP usa non-breaking spaces (`U+00A0`) dentro dos labels (ex: `Valor\u00A0Total\u00A0da\u00A0Nota\u00A0Fiscal`). O parser deve normalizar NBSPs para espaços regulares antes de aplicar regex.
+
+> **Município:** O campo retorna no formato `"CÓDIGO_IBGE - NomeCidade"` (ex: `"3547809 - Santo Andre"`). Extrair apenas a parte após o `-`.
+
+### 6.4 Arquitetura: Strategy Pattern por Estado
+
+```kotlin
+interface NfceFetcher {
+    /** States this fetcher supports (UF codes). */
+    fun supportedStates(): Set<String>
+
+    /** Fetch and parse full NFC-e data from the QR code URL. */
+    fun fetch(qrCodeUrl: String): NfceData
+}
+
+// Implementations:
+// - SpNfceFetcher      → scraper HTML para SP (2-step HTTP, seção 6.3)
+// - SvrsNfceFetcher    → parser para SVRS (~19 estados)
+// - MgNfceFetcher      → parser para MG
+// - GenericNfceFetcher  → fallback: extrai o que puder da resposta
+```
+
+O estado emissor pode ser identificado pelo **2 primeiros dígitos do chNFe** (código UF no access key):
+
+| UF code | Estado |
+|---|---|
+| 35 | SP |
+| 43 | RS |
+| 33 | RJ |
+| 31 | MG |
+| 41 | PR |
+| ... | ... |
+
+Roteamento: `chNFe[0..1]` → UF → seleciona o `NfceFetcher` correto.
+
+### 6.5 Campos a extrair (todos os parsers)
 
 O parser atual (`NfceItem`) extrai:
 - `xProd`, `vProd`, `qCom`, `uCom`, `ncm`
 
-Precisamos extrair adicionalmente:
+Todos os parsers/scrapers devem extrair adicionalmente:
 
 | Campo | Descrição | Prioridade |
 |---|---|---|
 | `cEAN` / `cEANTrib` | Código de barras EAN/GTIN — melhor identificador único de produto | Essencial |
 | `vUnCom` | Valor unitário comercial — preço sem risco de arredondamento | Importante |
 | `vDesc` | Valor do desconto no item — necessário para calcular effective_price | Importante |
-| `nItem` | Número sequencial do item no XML — ordenação/referência | Nice to have |
+| `nItem` | Número sequencial do item no XML/HTML — ordenação/referência | Nice to have |
 | `cProd` | Código interno do produto no emissor — dedup por estabelecimento (camada 3) | Nice to have |
+| `vTotTrib` (item) | Valor Aproximado dos Tributos por item (Lei 12.741/2012) — analytics de carga tributária | Importante |
 
 E no nível do documento:
 - `cMunFG` — código IBGE do município (para análise regional)
+- `cpfDestinatario` — CPF do comprador (para analytics de BI, cross-reference entre contas)
+- `vTotTrib` — Valor total dos tributos da NF (Lei 12.741/2012) — "quanto de imposto paguei nesta compra"
+
+> **Nota:** Nem todos os parsers conseguirão extrair todos os campos (depende do que a SEFAZ disponibiliza). Campos não disponíveis ficam `null`. O sistema funciona com dados parciais — a normalização por camadas lida com ausências.
 
 ---
 
@@ -487,6 +685,7 @@ type PurchaseItem {
   discount: BigDecimal              # vDesc — desconto no item
   effectivePrice: BigDecimal!       # vProd - vDesc — valor efetivamente pago
   normalizedUnitPrice: BigDecimal   # computed: effectivePrice / normalized qty
+  taxAmount: BigDecimal             # vTotTrib item — tributos aproximados (Lei 12.741)
 }
 
 type PricePoint {
@@ -505,6 +704,8 @@ type NfceDocument {
   issuerName: String!
   emissionDate: DateTime!
   totalValue: BigDecimal!
+  totalTax: BigDecimal              # vTotTrib — tributos totais da NF (Lei 12.741)
+  buyerCpf: String                  # CPF do destinatário (comprador)
   municipality: String
   state: String!
   items: [PurchaseItem!]!
@@ -706,9 +907,14 @@ ORDER BY total_spent DESC;
 ### Fase 0 — Infraestrutura de Dados (pré-requisito)
 1. Migration: criar tabelas `products`, `product_variants`, `product_alias`, `purchase_items`, `nfce_documents`
 2. Migration: criar tabela `ncm_codes` (lookup estático) e popular via seed (~14.000 linhas, dados públicos Receita Federal)
-3. Expandir parser NFC-e: extrair `cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`, `cMunFG`
-4. Persistir `nfce_documents` e `purchase_items` no fluxo de import
-5. Atualizar `NfceItem` domain model
+3. Refatorar parser NFC-e para Strategy Pattern por estado (seção 6.3):
+   - Extrair interface `NfceFetcher` com roteamento por UF (2 primeiros dígitos do chNFe)
+   - Implementar `SpNfceFetcher` (scraper HTML + "Visualizar em Abas" para obter NCM/EAN)
+   - Implementar `SvrsNfceFetcher` (cobre ~19 estados)
+   - Implementar `GenericNfceFetcher` (fallback: extrai o que puder)
+4. Atualizar `NfceItem` domain model com campos adicionais (`cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`)
+5. Atualizar `NfceData` domain model com `cMunFG`
+6. Persistir `nfce_documents` e `purchase_items` no fluxo de import
 
 ### Fase 1A — Catálogo de Produtos + Normalização Síncrona
 1. CRUD de `Product` e `ProductVariant`
@@ -745,11 +951,26 @@ ORDER BY total_spent DESC;
 
 ---
 
-## 10. Questões em Aberto
+## 10. Decisões Tomadas
 
-1. **Granularidade do import:** Default será 1 transação por NFC-e (como hoje) ou 1 por item? Ou configurável?
-2. **Produtos compartilhados (cross-tenant):** O catálogo de aliases é compartilhado entre tenants para efeito de rede. Mas o catálogo de produtos canônicos (`products`) é por `account_id`. Confirmar que essa separação é adequada.
-3. **Retroatividade:** Ao mapear um alias, atualizar retroativamente todos os `purchase_items` com aquela `raw_description` que estavam com `product_variant_id = null`?
-4. **NF-e vs NFC-e:** Vamos suportar NF-e modelo 55 (compras online, B2B) além da NFC-e modelo 65 (varejo presencial)? A estrutura XML é similar mas o fluxo de obtenção é diferente.
-5. **Limites de armazenamento:** Uma NFC-e de supermercado pode ter 50+ itens. Em 1 ano de compras semanais → ~2.600 purchase_items/usuário. Gerenciável, mas analytics pesadas devem usar views materializadas?
-6. **ICMS ST e acréscimos:** `effective_price = vProd - vDesc` está definido. Porém, `vICMSST` (substituição tributária) e `vFrete`/`vSeg` (frete/seguro rateados) também compõem o valor final. Ignorar na v1 ou incluir?
+| # | Decisão | Resolução |
+|---|---|---|
+| 1 | Granularidade do import | **1 transação por NFC-e** (como hoje). Import por item é futuro (Fase 2A). |
+| 2 | Cross-tenant aliases | **Aliases compartilhados como sugestão** (confirmed=false). Catálogo de produtos canônicos é por tenant. Efeito de rede sem poluição. |
+| 3 | Retroatividade | **Sim, síncrono.** Ao criar alias, UPDATE imediato em todos `purchase_items` com mesma `raw_description` e `product_variant_id IS NULL`. |
+| 4 | NF-e modelo 55 | **Sim**, suportar. Estrutura XML similar; precisa de fetcher específico por estado. |
+| 5 | ICMS ST e acréscimos | **Compor tudo.** `vICMSST`, `vFrete`, `vSeg` devem ser incluídos e apresentados ao usuário. |
+| 6 | Fonte externa de EAN | **Nenhuma na v1.** Catálogo 100% auto-alimentado via cross-tenant. |
+| 7 | Parser por estado | **Strategy Pattern.** SP = scraper HTML; SVRS = ~19 estados; demais incrementais. |
+| 8 | CPF destinatário | **Importar.** CPF do comprador armazenado em `nfce_documents.buyer_cpf` para analytics de BI. |
+| 9 | Tributos | **Importar ambos.** Total por NF (`vTotTrib` em `nfce_documents`) e por item (`vTribItem` em `purchase_items`). Permite analytics de carga tributária por categoria/produto. |
+
+## 11. Questões em Aberto
+
+1. **SVRS — formato de resposta:** Verificar se o portal SVRS retorna XML ou HTML. Se XML, o parser atual pode ser reaproveitado com poucas mudanças.
+2. **Cobertura de estados:** Priorizar SP + SVRS na v1. Mapear quais estados adicionais são necessários com base na distribuição de usuários.
+3. **Índices no banco:** Definir índices adequados para `purchase_items` e `product_alias` antes de implementar, considerando os padrões de query das analytics (seção 8).
+
+## 12. Questões Resolvidas
+
+1. **~~Scraper SP — "Visualizar em Abas"~~:** Validado com sucesso. Postback ASP.NET funciona via 2 requisições HTTP simples (sem headless browser, sem CAPTCHA). Requer headers de browser. Ver seção 6.3.

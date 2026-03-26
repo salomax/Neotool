@@ -11,4 +11,10 @@ data class NfceItem(
     val qCom: BigDecimal,
     val uCom: String,
     val ncm: String,
+    val cEAN: String? = null,
+    val vUnCom: BigDecimal? = null,
+    val vDesc: BigDecimal? = null,
+    val cProd: String? = null,
+    val nItem: Int? = null,
+    val vTribItem: BigDecimal? = null,
 )

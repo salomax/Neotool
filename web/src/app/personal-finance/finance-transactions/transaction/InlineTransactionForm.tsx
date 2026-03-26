@@ -591,7 +591,7 @@ export function InlineTransactionForm({
                   onChange={(val) => setAmount(val as number | undefined)}
                   variant="standard"
                   required
-                  inputProps={{ 'data-testid': 'tx-amount-input' }}
+                  data-testid="tx-amount-input"
                   InputProps={{
                     disableUnderline: true,
                     sx: { 

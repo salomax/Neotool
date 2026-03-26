@@ -17,7 +17,6 @@ import {
   IconButton,
   Stack,
   alpha,
-  Avatar,
   Tooltip,
   Menu,
   MenuItem,
@@ -42,6 +41,7 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { FilePreviewDialog, type PreviewAttachment } from '../../components/FilePreviewDialog';
+import { Logo } from '@/shared/components/ui/primitives';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { SimilarEditDialog } from './SimilarEditDialog';
@@ -628,15 +628,10 @@ export function TransactionTable({
     if (logoUrl) {
       return (
         <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
-          <Avatar
+          <Logo
             src={logoUrl}
             alt={merchant?.name ?? ''}
-            variant="rounded"
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: '.3rem',
-            }}
+            size="lg"
           />
           {typeProps && (
             <Box
@@ -1087,18 +1082,16 @@ export function TransactionTable({
 
                             return (
                               <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar 
+                                <Logo
                                   src={logoUrl || undefined}
-                                  sx={{ 
-                                    width: 26, 
-                                    height: 26,
+                                  size="sm"
+                                  sx={{
                                     fontSize: '0.75rem',
                                     bgcolor: logoUrl ? 'transparent' : theme.palette.grey[300],
-                                    borderRadius: borderRadius
                                   }}
                                 >
                                   {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardNetworkIcon network={account.cardData?.cardNetwork} size={16} />)}
-                                </Avatar>
+                                </Logo>
                                 <Stack spacing={0} sx={{ minWidth: 0 }}>
                                   <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }} noWrap>
                                     {account.name}

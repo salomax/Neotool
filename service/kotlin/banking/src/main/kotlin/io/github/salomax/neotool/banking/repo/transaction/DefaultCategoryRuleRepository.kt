@@ -22,31 +22,33 @@ class DefaultCategoryRuleRepository(
 
     override fun save(rule: TransactionRule): TransactionRule {
         val mappedRule = CategoryRuleMapper.toEntity(rule)
-        val entity =
-            if (rule.id == null) {
-                mappedRule
-            } else {
-                entityRepository.findByIdAndDeletedAtIsNull(rule.id)
-                    ?.apply {
-                        accountId = rule.accountId
-                        categoryId = rule.categoryId
-                        merchantId = rule.merchantId
-                        descriptionOverride = rule.descriptionOverride
-                        tagsOverrideJson = mappedRule.tagsOverrideJson
-                        pattern = rule.pattern
-                        patternType = rule.patternType
-                        applicableTo = rule.applicableTo
-                        priority = rule.priority
-                        isSystem = rule.isSystem
-                        isImplicit = rule.isImplicit
-                        matchCount = rule.matchCount
-                        deletedAt = rule.deletedAt
-                        createdAt = rule.createdAt
-                        updatedAt = rule.updatedAt
-                    }
-                    ?: mappedRule
-            }
-        return CategoryRuleMapper.toDomain(entityRepository.save(entity))
+        if (rule.id == null) {
+            return CategoryRuleMapper.toDomain(entityRepository.save(mappedRule))
+        }
+
+        val existingEntity =
+            entityRepository.findByIdAndDeletedAtIsNull(rule.id)
+                ?: throw IllegalStateException("Transaction rule ${rule.id} not found for update")
+
+        existingEntity.apply {
+            accountId = rule.accountId
+            categoryId = rule.categoryId
+            merchantId = rule.merchantId
+            descriptionOverride = rule.descriptionOverride
+            tagsOverrideJson = mappedRule.tagsOverrideJson
+            pattern = rule.pattern
+            patternType = rule.patternType
+            applicableTo = rule.applicableTo
+            priority = rule.priority
+            isSystem = rule.isSystem
+            isImplicit = rule.isImplicit
+            matchCount = rule.matchCount
+            deletedAt = rule.deletedAt
+            createdAt = rule.createdAt
+            updatedAt = rule.updatedAt
+        }
+
+        return CategoryRuleMapper.toDomain(entityRepository.update(existingEntity))
     }
 
     override fun softDelete(

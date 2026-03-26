@@ -553,9 +553,9 @@
         "description": "Esta ação não pode ser desfeita."
       },
       "columns": {
-        "context": "Contexto",
+        "context": "Tipo",
         "rule": "Regra",
-        "matchingText": "Texto correspondente",
+        "matchingText": "Descrição a comparar",
         "newDescription": "Nova descrição",
         "category": "Categoria",
         "tags": "Tags",
