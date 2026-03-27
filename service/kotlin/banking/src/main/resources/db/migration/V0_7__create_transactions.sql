@@ -23,6 +23,7 @@ CREATE TABLE banking.transactions (
                                      CHECK (status IN ('POSTED', 'PENDING', 'FUTURE')),
     source                       TEXT NOT NULL DEFAULT 'MANUAL',
     source_data                  JSONB,
+    applied_rule_ids             JSONB,
 
     amount                       NUMERIC(18,4) NOT NULL CHECK (amount > 0),
     currency_code                CHAR(3) NOT NULL DEFAULT 'BRL',

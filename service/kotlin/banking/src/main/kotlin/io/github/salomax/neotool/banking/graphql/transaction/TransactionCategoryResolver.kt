@@ -110,14 +110,23 @@ class TransactionCategoryResolver(
 
     // ─── Transaction rules ────────────────────────────────────────────────────
 
-    fun transactionRules(principal: RequestPrincipal): List<TransactionRuleDTO> {
+    fun transactionRules(
+        isSystem: Boolean?,
+        principal: RequestPrincipal,
+    ): List<TransactionRuleDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val rules = ruleService.listUserRules(accountId)
+        val rules = ruleService.listRules(accountId, isSystem)
         val categoryIds = rules.mapNotNull { it.categoryId }.toSet()
         val merchantIds = rules.mapNotNull { it.merchantId }.toSet()
         val categories = categoryIds.associateWith { categoryRepository.findById(it) }
         val merchants = merchantIds.associateWith { merchantRepository.findById(it) }
-        return rules.map { rule -> rule.toDTO(categories[rule.categoryId], merchants[rule.merchantId]) }
+        return rules.mapIndexed { index, rule ->
+            rule.toDTO(
+                category = categories[rule.categoryId],
+                merchant = merchants[rule.merchantId],
+                position = index + 1,
+            )
+        }
     }
 
     fun createTransactionRule(
@@ -155,7 +164,7 @@ class TransactionCategoryResolver(
             )
         val category = created.categoryId?.let { categoryRepository.findById(it) }
         val merchant = created.merchantId?.let { merchantRepository.findById(it) }
-        return created.toDTO(category, merchant)
+        return created.toDTO(category, merchant, position = 1)
     }
 
     fun updateTransactionRule(
@@ -185,7 +194,7 @@ class TransactionCategoryResolver(
         val updated = ruleService.update(ruleId, updateInput, accountId)
         val category = updated.categoryId?.let { categoryRepository.findById(it) }
         val merchant = updated.merchantId?.let { merchantRepository.findById(it) }
-        return updated.toDTO(category, merchant)
+        return updated.toDTO(category, merchant, position = 1)
     }
 
     fun deleteTransactionRule(
@@ -214,12 +223,19 @@ class TransactionCategoryResolver(
         val merchantIds = rules.mapNotNull { it.merchantId }.toSet()
         val categories = categoryIds.associateWith { categoryRepository.findById(it) }
         val merchants = merchantIds.associateWith { merchantRepository.findById(it) }
-        return rules.map { rule -> rule.toDTO(categories[rule.categoryId], merchants[rule.merchantId]) }
+        return rules.mapIndexed { index, rule ->
+            rule.toDTO(
+                category = categories[rule.categoryId],
+                merchant = merchants[rule.merchantId],
+                position = index + 1,
+            )
+        }
     }
 
     private fun TransactionRule.toDTO(
         category: TransactionCategory?,
         merchant: Merchant?,
+        position: Int,
     ): TransactionRuleDTO =
         TransactionRuleDTO(
             id = id!!,
@@ -236,6 +252,7 @@ class TransactionCategoryResolver(
             isSystem = isSystem,
             isImplicit = isImplicit,
             matchCount = matchCount,
+            position = position,
             createdAt = createdAt,
         )
 

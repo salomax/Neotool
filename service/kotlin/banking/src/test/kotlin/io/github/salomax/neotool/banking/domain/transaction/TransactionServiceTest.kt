@@ -5,8 +5,11 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
@@ -38,6 +41,7 @@ class TransactionServiceTest {
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var accountPreferencesService: AccountPreferencesService
     private lateinit var service: TransactionService
 
     private val accountId = UUID.randomUUID()
@@ -69,6 +73,8 @@ class TransactionServiceTest {
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
         creditCardBillService = mock()
+        accountPreferencesService = mock()
+        whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
         service =
             TransactionService(
                 transactionRepository = transactionRepository,
@@ -79,6 +85,7 @@ class TransactionServiceTest {
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
+                accountPreferencesService = accountPreferencesService,
             )
     }
 
@@ -144,6 +151,52 @@ class TransactionServiceTest {
             val result = service.create(command, accountId, userId)
 
             assertThat(result.status).isEqualTo(TransactionStatus.FUTURE)
+        }
+
+        @Test
+        fun `manual create applies rule engine suggestion`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            whenever(accountPreferencesService.get(accountId)).thenReturn(
+                AccountPreferences(
+                    accountId = accountId,
+                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
+                    defaultTransactionStatus = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            val suggestedRuleId = UUID.randomUUID()
+            val suggestedCategoryId = UUID.randomUUID()
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
+                RuleSuggestion(
+                    ruleId = suggestedRuleId,
+                    categoryId = suggestedCategoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(suggestedRuleId),
+                ),
+            )
+            val saveCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(saveCaptor.capture())).thenAnswer {
+                saveCaptor.firstValue.copy(id = UUID.randomUUID())
+            }
+
+            service.create(
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Coffee",
+                ),
+                accountId,
+                userId,
+            )
+
+            assertThat(saveCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
+            assertThat(saveCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            assertThat(saveCaptor.firstValue.appliedRuleIds).containsExactly(suggestedRuleId)
+            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
         }
 
         @Test
@@ -754,6 +807,55 @@ class TransactionServiceTest {
                 anyOrNull(),
                 any(),
             )
+        }
+
+        @Test
+        fun `manual update applies suggestion to untouched fields`() {
+            whenever(accountPreferencesService.get(accountId)).thenReturn(
+                AccountPreferences(
+                    accountId = accountId,
+                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
+                    defaultTransactionStatus = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Coffee",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val suggestedCategoryId = UUID.randomUUID()
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
+                RuleSuggestion(
+                    ruleId = UUID.randomUUID(),
+                    categoryId = suggestedCategoryId,
+                    merchantId = null,
+                ),
+            )
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(notes = "updated"),
+                accountId,
+            )
+
+            assertThat(updateCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
+            assertThat(updateCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
         }
     }
 

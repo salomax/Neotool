@@ -374,7 +374,7 @@ input UpdateCategoryInput {
 
 """
 Auto-assignment rule that maps a description pattern to a category and/or merchant.
-Explicit or implicit. System rules are not exposed; only user rules are returned.
+Explicit or implicit.
 """
 type TransactionRule {
   id: ID!
@@ -391,6 +391,8 @@ type TransactionRule {
   isSystem: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
+  """1-based evaluation order position (same order used by the rule engine)."""
+  position: Int!
   createdAt: DateTime!
 }
 
@@ -474,6 +476,8 @@ type Transaction {
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
+  """IDs of rules that contributed to transaction enrichment."""
+  appliedRuleIds: [ID!]!
 
   # Attachments (receipts, contracts, guarantees, etc.)
   attachments: [TransactionAttachment!]!
@@ -1369,9 +1373,12 @@ extend type Query {
   """
   transactionCategories: [TransactionCategory!]!
   """
-  All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
+  Transaction rules for auto-categorization and merchant suggestion.
+  - isSystem omitted: returns all rules (user + system)
+  - isSystem false: returns only user rules
+  - isSystem true: returns only system rules
   """
-  transactionRules: [TransactionRule!]!
+  transactionRules(isSystem: Boolean): [TransactionRule!]!
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
   Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.

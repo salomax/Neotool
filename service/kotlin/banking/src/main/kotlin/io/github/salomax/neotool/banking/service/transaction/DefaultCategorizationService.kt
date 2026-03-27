@@ -12,6 +12,14 @@ class DefaultTransactionRuleEngine(
     private val ruleRepository: TransactionRuleRepository,
     private val categoryRepository: TransactionCategoryRepository,
 ) : TransactionRuleEngine {
+    /**
+     * Matching algorithm:
+     * 1) Rules are pre-ordered by priority ASC (lower = higher precedence)
+     * 2) Tie-breaker: matchCount DESC
+     * 3) Tie-breaker: createdAt DESC
+     * 4) First matching rule that contributes each field wins that field
+     * 5) Multiple rules may contribute different fields in the same suggestion
+     */
     override fun preloadRules(accountId: UUID): List<TransactionRule> = ruleRepository.findRulesForAccount(accountId)
 
     override fun suggest(

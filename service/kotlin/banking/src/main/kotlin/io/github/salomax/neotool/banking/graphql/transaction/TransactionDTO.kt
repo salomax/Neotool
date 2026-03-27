@@ -38,6 +38,7 @@ data class TransactionRuleDTO(
     val isSystem: Boolean,
     val isImplicit: Boolean,
     val matchCount: Int,
+    val position: Int,
     val createdAt: Instant,
 )
 
@@ -94,6 +95,7 @@ data class TransactionDTO(
     val cardIdentifier: String?,
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,
+    val appliedRuleIds: List<UUID>,
     // Audit
     val createdAt: Instant,
     val updatedAt: Instant,

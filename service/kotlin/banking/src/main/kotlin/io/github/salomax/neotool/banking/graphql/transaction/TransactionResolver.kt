@@ -359,7 +359,8 @@ class TransactionResolver(
                         .associateBy { requireNotNull(it.id) }
                 ids.mapNotNull { id ->
                     val rule = rulesById[id] ?: return@mapNotNull null
-                    rule.toRuleDTO()
+                    val position = ids.indexOf(id) + 1
+                    rule.toRuleDTO(position)
                 }
             }
 
@@ -468,7 +469,7 @@ class TransactionResolver(
             sortOrder = sortOrder,
         )
 
-    private fun TransactionRule.toRuleDTO(): TransactionRuleDTO {
+    private fun TransactionRule.toRuleDTO(position: Int): TransactionRuleDTO {
         val category = categoryId?.let { transactionCategoryRepository.findById(it) }
         val merchant = merchantId?.let { loadMerchantDTO(it) }
         return TransactionRuleDTO(
@@ -486,6 +487,7 @@ class TransactionResolver(
             isSystem = isSystem,
             isImplicit = isImplicit,
             matchCount = matchCount,
+            position = position,
             createdAt = createdAt,
         )
     }
@@ -543,6 +545,7 @@ class TransactionResolver(
             cardIdentifier = cardIdentifier,
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
+            appliedRuleIds = appliedRuleIds,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )

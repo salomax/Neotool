@@ -14,6 +14,9 @@ interface TransactionRuleRepository {
     /** Returns only user-owned rules (explicit + implicit) for the account. Excludes system rules. */
     fun findUserRulesForAccount(accountId: UUID): List<TransactionRule>
 
+    /** Returns only active system/global rules ordered by evaluation precedence. */
+    fun findSystemRules(): List<TransactionRule>
+
     fun findById(id: UUID): TransactionRule?
 
     fun save(rule: TransactionRule): TransactionRule

@@ -17,6 +17,9 @@ class DefaultCategoryRuleRepository(
     override fun findUserRulesForAccount(accountId: UUID): List<TransactionRule> =
         entityRepository.findUserRulesForAccount(accountId).map(CategoryRuleMapper::toDomain)
 
+    override fun findSystemRules(): List<TransactionRule> =
+        entityRepository.findSystemRules().map(CategoryRuleMapper::toDomain)
+
     override fun findById(id: UUID): TransactionRule? =
         entityRepository.findByIdAndDeletedAtIsNull(id)?.let(CategoryRuleMapper::toDomain)
 

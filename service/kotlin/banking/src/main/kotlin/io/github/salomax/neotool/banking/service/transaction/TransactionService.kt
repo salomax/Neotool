@@ -448,7 +448,6 @@ open class TransactionService(
         }
         val normalizedTags = normalizeTags(command.tags)
         val mode = accountPreferencesService.get(accountId).ruleApplicationMode
-        val isManualInput = true // createTransactionOutcome always creates MANUAL transactions
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -460,12 +459,15 @@ open class TransactionService(
                 }
 
         val ruleSuggestion =
-            // Business rule: transaction rules are never applied to manually entered transactions.
-            if (isManualInput || mode == RuleApplicationMode.NEVER) {
+            if (mode == RuleApplicationMode.NEVER) {
                 null
             } else {
                 try {
-                    transactionRuleEngine.suggest(accountId, command.description, command.creditDebitType)
+                    suggestRuleForTransaction(
+                        accountId = accountId,
+                        description = command.description,
+                        creditDebitType = command.creditDebitType,
+                    )
                 } catch (e: Exception) {
                     logger.warn(
                         "Rule engine suggestion failed; continuing without suggestion (accountId={}, txType={}, descriptionLength={})",
@@ -478,23 +480,29 @@ open class TransactionService(
                 }
             }
 
+        val isManualSource = true
         val finalCategoryId =
-            if (!isManualInput && mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null) {
-                ruleSuggestion.categoryId
-            } else {
+            if (isManualSource && command.categoryId != null) {
                 command.categoryId
+            } else {
+                command.categoryId ?: ruleSuggestion?.categoryId
             }
 
         val finalCategorySource =
             when {
-                !isManualInput && mode != RuleApplicationMode.NEVER && ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 command.categoryId != null -> CategorySource.MANUAL
+                ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 else -> null
             }
 
         val finalMerchantId = ruleSuggestion?.merchantId ?: command.merchantId
-        val finalDescription = ruleSuggestion?.descriptionOverride ?: command.description
-        val finalTags = ruleSuggestion?.tagsOverride ?: normalizedTags
+        val finalDescription = command.description
+        val finalTags =
+            if (isManualSource && normalizedTags.isNotEmpty()) {
+                normalizedTags
+            } else {
+                ruleSuggestion?.tagsOverride ?: normalizedTags
+            }
 
         val now = Instant.now()
         val transaction =
@@ -528,6 +536,7 @@ open class TransactionService(
                 totalInstallments = command.totalInstallments,
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
+                appliedRuleIds = ruleSuggestion?.appliedRuleIds ?: emptyList(),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -654,8 +663,7 @@ open class TransactionService(
 
         var enriched = updated
         val mode = accountPreferencesService.get(accountId).ruleApplicationMode
-        // Business rule: do not apply rule suggestions to MANUAL transactions on update either.
-        if (existing.source != TransactionSource.MANUAL && mode != RuleApplicationMode.NEVER) {
+        if (mode != RuleApplicationMode.NEVER) {
             val canApplyCategory = !command.categoryIdProvided
             val canApplyMerchant = !command.merchantIdProvided
             val canApplyDescription = command.description == null
@@ -665,7 +673,11 @@ open class TransactionService(
                 val descriptionForRules = command.description ?: existing.baseDescription()
                 val suggestion =
                     try {
-                        transactionRuleEngine.suggest(accountId, descriptionForRules, enriched.creditDebitType)
+                        suggestRuleForTransaction(
+                            accountId = accountId,
+                            description = descriptionForRules,
+                            creditDebitType = enriched.creditDebitType,
+                        )
                     } catch (e: Exception) {
                         logger.warn(
                             "Rule engine suggestion failed; continuing without enrichment (accountId={}, txType={}, descriptionLength={})",
@@ -1055,6 +1067,13 @@ open class TransactionService(
         }
         return normalized.distinct()
     }
+
+    private fun suggestRuleForTransaction(
+        accountId: UUID,
+        description: String?,
+        creditDebitType: CreditDebitType,
+    ): RuleSuggestion? =
+        transactionRuleEngine.suggest(accountId, description, creditDebitType)
 
     private fun Transaction.baseDescription(): String =
         descriptionRaw?.trim()?.takeIf { it.isNotEmpty() } ?: description

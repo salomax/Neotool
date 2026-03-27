@@ -5,6 +5,7 @@ import com.fasterxml.jackson.module.kotlin.readValue
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import java.util.UUID
 
 /**
  * Maps between domain models and JPA entities for transactions and categories.
@@ -87,6 +88,11 @@ object TransactionMapper {
             importFingerprint = entity.importFingerprint,
             importJobId = entity.importJobId,
             sourceData = entity.sourceData?.let { objectMapper.readValue<Map<String, Any?>>(it) },
+            appliedRuleIds =
+                entity.appliedRuleIds
+                    ?.let { objectMapper.readValue<List<String>>(it) }
+                    ?.map(UUID::fromString)
+                    ?: emptyList(),
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -132,6 +138,10 @@ object TransactionMapper {
             importFingerprint = domain.importFingerprint,
             importJobId = domain.importJobId,
             sourceData = domain.sourceData?.let { objectMapper.writeValueAsString(it) },
+            appliedRuleIds =
+                domain.appliedRuleIds
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { ids -> objectMapper.writeValueAsString(ids.map(UUID::toString)) },
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
@@ -168,6 +178,10 @@ object TransactionMapper {
         entity.cardIdentifier = domain.cardIdentifier
         entity.importFingerprint = domain.importFingerprint
         entity.importJobId = domain.importJobId
+        entity.appliedRuleIds =
+            domain.appliedRuleIds
+                .takeIf { it.isNotEmpty() }
+                ?.let { ids -> objectMapper.writeValueAsString(ids.map(UUID::toString)) }
         entity.deletedAt = domain.deletedAt
         entity.updatedAt = domain.updatedAt
     }

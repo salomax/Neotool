@@ -5,7 +5,9 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -38,6 +40,7 @@ class TransactionCategorizationEngineTest {
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var accountPreferencesService: AccountPreferencesService
 
     private lateinit var service: TransactionService
 
@@ -68,6 +71,8 @@ class TransactionCategorizationEngineTest {
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
         creditCardBillService = mock()
+        accountPreferencesService = mock()
+        whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
 
         service =
             TransactionService(
@@ -79,6 +84,7 @@ class TransactionCategorizationEngineTest {
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
+                accountPreferencesService = accountPreferencesService,
             )
     }
 
@@ -153,7 +159,7 @@ class TransactionCategorizationEngineTest {
     @DisplayName("Implicit rule learning and evaluation")
     inner class ImplicitLearningTests {
         @Test
-        fun `recategorizing transaction learns implicit rule and next create suggests it`() {
+        fun `recategorizing transaction learns implicit rule but manual create does not apply it`() {
             stubSaveAndUpdate()
 
             val txId = UUID.randomUUID()
@@ -195,8 +201,8 @@ class TransactionCategorizationEngineTest {
                     userId = userId,
                 )
 
-            assertThat(created.categoryId).isEqualTo(categoryAlimentacao)
-            assertThat(created.categorySource).isEqualTo(CategorySource.RULE)
+            assertThat(created.categoryId).isNull()
+            assertThat(created.categorySource).isNull()
         }
 
         @Test
@@ -263,8 +269,8 @@ class TransactionCategorizationEngineTest {
                     accountId = accountId,
                     userId = userId,
                 )
-            assertThat(created.categoryId).isEqualTo(categoryPadaria)
-            assertThat(created.categorySource).isEqualTo(CategorySource.RULE)
+            assertThat(created.categoryId).isNull()
+            assertThat(created.categorySource).isNull()
         }
 
         @Test
@@ -341,6 +347,92 @@ class TransactionCategorizationEngineTest {
             )
 
             assertThat(ruleRepository.implicitRulesForAccount(accountId)).isEmpty()
+        }
+
+        @Test
+        fun `manual create applies matching system rule`() {
+            stubSaveAndUpdate()
+
+            val systemCategoryId = UUID.randomUUID()
+            categoryRepository.put(
+                TransactionCategory(
+                    id = systemCategoryId,
+                    accountId = null,
+                    parentId = null,
+                    name = "Padaria",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    isSystem = true,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            ruleRepository.save(
+                TransactionRule(
+                    accountId = null,
+                    categoryId = systemCategoryId,
+                    pattern = "padaria",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    isSystem = true,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            val created =
+                service.create(
+                    command = createCommand(description = "PADARIA DO ZE LTDA", categoryId = null),
+                    accountId = accountId,
+                    userId = userId,
+                )
+
+            assertThat(created.categoryId).isEqualTo(systemCategoryId)
+            assertThat(created.categorySource).isEqualTo(CategorySource.RULE)
+        }
+
+        @Test
+        fun `manual update applies matching system rule to untouched category`() {
+            stubSaveAndUpdate()
+
+            val txId = UUID.randomUUID()
+            val systemCategoryId = UUID.randomUUID()
+            categoryRepository.put(
+                TransactionCategory(
+                    id = systemCategoryId,
+                    accountId = null,
+                    parentId = null,
+                    name = "Padaria",
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    isSystem = true,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            ruleRepository.save(
+                TransactionRule(
+                    accountId = null,
+                    categoryId = systemCategoryId,
+                    pattern = "padaria",
+                    patternType = PatternType.CONTAINS,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                    isSystem = true,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(
+                txExisting(txId = txId, description = "PADARIA DO ZE LTDA", categoryId = null),
+            )
+
+            val updated =
+                service.update(
+                    id = txId,
+                    command = UpdateTransactionCommand(notes = "ajustada"),
+                    accountId = accountId,
+                )
+
+            assertThat(updated.categoryId).isEqualTo(systemCategoryId)
+            assertThat(updated.categorySource).isEqualTo(CategorySource.RULE)
         }
     }
 }

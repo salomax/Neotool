@@ -265,6 +265,7 @@ open class ImportProcessor(
                         sourceData = buildSourceData(parsed),
                         categoryId = categorySuggestion?.categoryId,
                         categorySource = categorySuggestion?.let { CategorySource.RULE },
+                        appliedRuleIds = categorySuggestion?.appliedRuleIds ?: emptyList(),
                         createdAt = now,
                         updatedAt = now,
                     )

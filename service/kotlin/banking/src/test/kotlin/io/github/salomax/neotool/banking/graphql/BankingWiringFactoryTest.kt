@@ -149,6 +149,25 @@ class BankingWiringFactoryTest {
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_VIEW))
         }
+
+        @Test
+        fun `transactionRules forwards optional isSystem argument to resolver`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["transactionRules"]!!
+            whenever(transactionCategoryResolver.transactionRules(anyOrNull(), any())).thenReturn(emptyList())
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "isSystem" to true,
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(transactionCategoryResolver).transactionRules(eq(true), any())
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_CATEGORY_VIEW))
+        }
     }
 
     @Nested

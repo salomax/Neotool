@@ -84,6 +84,109 @@ export default function FinanceTransactionsPage() {
 
   const theme = useTheme();
   const actionButtonsRevealEnabled = useMediaQuery('(min-width:750px)');
+  const actionButtonsRevealCollapsedWidth = 76;
+  const actionButtonsRevealExpandedWidth = 168;
+  const actionButtonsRevealCollapsedPx = 1;
+  const actionButtonsRevealExpandedPx = 0.75;
+  const actionButtonsRevealWidthDurationMs = 180;
+  const actionButtonsRevealLabelDurationMs = 260;
+  const actionButtonsRevealLabelOpacityDurationMs = 180;
+  const actionButtonsRevealLabelDelayMs = 160;
+  const actionButtonsRevealButtonTransition = `width ${actionButtonsRevealWidthDurationMs}ms ease, padding ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealStartIconTransition = `margin-right ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealEndIconTransition = `margin-left ${actionButtonsRevealWidthDurationMs}ms ease`;
+  const actionButtonsRevealLabelHiddenTransition = `max-width ${actionButtonsRevealLabelDurationMs}ms ease 0ms, opacity ${actionButtonsRevealLabelOpacityDurationMs}ms ease 0ms, transform ${actionButtonsRevealLabelDurationMs}ms ease 0ms`;
+  const actionButtonsRevealLabelShownTransition = `max-width ${actionButtonsRevealLabelDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms, opacity ${actionButtonsRevealLabelOpacityDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms, transform ${actionButtonsRevealLabelDurationMs}ms ease ${actionButtonsRevealLabelDelayMs}ms`;
+
+  type ActionButtonsRevealSxOptions = {
+    expandedWidth: number;
+    expandedSelector?: string;
+    notExpandedSelector?: string;
+    hasEndIcon?: boolean;
+  };
+
+  const getActionButtonsRevealSx = ({
+    expandedWidth,
+    expandedSelector,
+    notExpandedSelector,
+    hasEndIcon,
+  }: ActionButtonsRevealSxOptions) => {
+    const revealLabelShownSelector = `&:hover .revealLabel, &:focus-visible .revealLabel${
+      expandedSelector ? `, ${expandedSelector} .revealLabel` : ''
+    }`;
+    const startIconExpandedSelector = `&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon${
+      expandedSelector ? `, ${expandedSelector} .MuiButton-startIcon` : ''
+    }`;
+    const endIconExpandedSelector = `&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon${
+      expandedSelector ? `, ${expandedSelector} .MuiButton-endIcon` : ''
+    }`;
+    const startIconCollapsedSelector = `&:not(:hover):not(:focus-visible)${
+      notExpandedSelector ?? ''
+    } .MuiButton-startIcon`;
+    const endIconCollapsedSelector = `&:not(:hover):not(:focus-visible)${
+      notExpandedSelector ?? ''
+    } .MuiButton-endIcon`;
+    const expandedStateSelector = `&:hover, &:focus-visible${expandedSelector ? `, ${expandedSelector}` : ''}`;
+
+    return {
+      width: actionButtonsRevealCollapsedWidth,
+      px: actionButtonsRevealCollapsedPx,
+      transition: actionButtonsRevealButtonTransition,
+      '& .revealLabel': {
+        display: 'inline-block',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        maxWidth: 0,
+        opacity: 0,
+        transform: 'translateX(-8px)',
+        transition: actionButtonsRevealLabelHiddenTransition,
+      },
+      '& .MuiButton-startIcon': {
+        marginLeft: 0,
+        marginRight: 0.5,
+        transition: actionButtonsRevealStartIconTransition,
+      },
+      ...(hasEndIcon
+        ? {
+            '& .MuiButton-endIcon': {
+              marginLeft: 0.5,
+              marginRight: 0,
+              transition: actionButtonsRevealEndIconTransition,
+            },
+          }
+        : null),
+      [revealLabelShownSelector]: {
+        transition: actionButtonsRevealLabelShownTransition,
+        maxWidth: 200,
+        opacity: 1,
+        transform: 'translateX(0)',
+      },
+      [startIconExpandedSelector]: {
+        marginRight: 1,
+      },
+      ...(hasEndIcon
+        ? {
+            [endIconExpandedSelector]: {
+              marginLeft: 1,
+            },
+          }
+        : null),
+      [startIconCollapsedSelector]: {
+        marginRight: 0,
+      },
+      ...(hasEndIcon
+        ? {
+            [endIconCollapsedSelector]: {
+              marginLeft: 0,
+            },
+          }
+        : null),
+      [expandedStateSelector]: {
+        width: expandedWidth,
+        px: actionButtonsRevealExpandedPx,
+      },
+    };
+  };
   const mountedRef = useRef(true);
   const initialTypeResetTimeoutRef = useRef<number | null>(null);
 
@@ -433,520 +536,393 @@ export default function FinanceTransactionsPage() {
     }, 300);
   };
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
+  const renderSidebarContent = () => (
+    <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ p: 3, pb: 2 }}>
+        <FinancialAccountSelector
+          onNewAccount={() => handleOpenDrawer()}
+          onEditAccount={handleEditAccount}
+          selectedAccountId={effectiveSelectedAccountId}
+          onSelectAccount={setSelectedAccountId}
+          accountTypes={ACCOUNT_SELECTOR_TYPES}
+        />
+        <Divider sx={{ my: 3 }} />
+        {displayMode.kind === 'calendar' ? (
+          <MonthSummary
+            summary={monthSummaryData?.monthSummary}
+            loading={monthSummaryLoading}
+            error={monthSummaryError}
+            onRetry={() => refetchMonthSummary()}
+            isConsolidated={!effectiveSelectedAccountId}
+            expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
+            incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
+            tagsSummary={monthSummaryData?.monthSummary?.tagsSummary ?? []}
+            onCategoryClick={(selection) => setSummaryCategoryFilterSelection(selection)}
+            activeCategoryFilter={summaryCategoryFilterSelection}
+            onTagClick={(tag) => setSummaryTagFilterValue(tag)}
+            activeTagFilter={summaryTagFilterValue}
+            onCreditDebitTypeClick={handleCreditDebitTypeFilter}
+            activeCreditDebitTypeFilter={summaryCreditDebitTypeFilterEffective}
+          />
+        ) : (
+          <BillSummaryHeader
+            bill={
+              displayMode.selectedBill
+                ? {
+                    totalAmount: displayMode.selectedBill.totalAmount,
+                    closingDate: displayMode.selectedBill.closingDate,
+                    dueDate: displayMode.selectedBill.dueDate,
+                    status: displayMode.selectedBill.status,
+                    creditLimit: selectedAccount?.cardData?.creditLimit,
+                  }
+                : undefined
+            }
+            loading={displayMode.loading}
+            onPayClick={() => setIsPayBillDialogOpen(true)}
+          />
+        )}
+        <Divider sx={{ my: 3 }} />
       </Box>
-    );
-  }
+    </Box>
+  );
 
-  if (financialAccountsError) {
-    return (
-      <Page>
-        <Container maxWidth="md" sx={{ py: 6 }}>
-          <QueryErrorState error={financialAccountsError} onRetry={() => refetchFinancialAccounts()} />
-        </Container>
-      </Page>
-    );
-  }
+  const renderHeaderBar = () => (
+    <>
+      {importsError && effectiveSelectedAccountId && (
+        <Alert
+          severity="warning"
+          sx={{ width: '100%', mb: 2 }}
+          action={
+            <Button size="small" onClick={() => refetchImports()}>
+              {tCommon('cardGrid.retry')}
+            </Button>
+          }
+        >
+          {extractErrorMessage(importsError, tCommon('errors.default'))}
+        </Alert>
+      )}
+      {reviewRequiredJob && (
+        <Alert
+          severity="info"
+          sx={{ width: '100%', mb: 2 }}
+          action={
+            <Button
+              size="small"
+              onClick={() => {
+                setReviewJobId(reviewRequiredJob.id);
+                setIsImportDrawerOpen(true);
+              }}
+            >
+              {t('financeTransactions.duplicateReview.bannerAction')}
+            </Button>
+          }
+        >
+          {t('financeTransactions.duplicateReview.header', {
+            count: reviewRequiredJob.duplicateReviewCount ?? 1,
+          })}
+        </Alert>
+      )}
+      <Stack
+        direction="row"
+        spacing={2}
+        sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 } }}
+        alignItems="flex-end"
+        flexWrap="wrap"
+      >
+        <Box sx={{ flex: 1, minWidth: 200 }}>
+          {displayMode.kind === 'calendar' ? (
+            <MonthYearCarousel selectedMonth={displayMode.month} selectedYear={displayMode.year} onChange={handleDateChange} />
+          ) : (
+            <BillCarousel
+              bills={displayMode.bills}
+              selectedBillId={displayMode.selectedBill?.id ?? null}
+              onSelectBill={(id) => {
+                const bill = displayMode.bills.find((b) => b.id === id);
+                if (bill && displayMode.kind === 'bill') {
+                  displayMode.setSelectedBill(bill);
+                }
+              }}
+            />
+          )}
+        </Box>
+        {actionButtonsRevealEnabled ? (
+          <Button
+            component={Link}
+            href="/personal-finance/finance-transactions/transaction-rules"
+            variant="outlined"
+            startIcon={<AutoFixHighIcon fontSize="small" />}
+            sx={getActionButtonsRevealSx({ expandedWidth: actionButtonsRevealExpandedWidth })}
+          >
+            <Box component="span" className="revealLabel">
+              {t('financeTransactions.actions.automation')}
+            </Box>
+          </Button>
+        ) : (
+          <Button
+            component={Link}
+            href="/personal-finance/finance-transactions/transaction-rules"
+            variant="outlined"
+            startIcon={<AutoFixHighIcon fontSize="small" />}
+          >
+            {t('financeTransactions.actions.automation')}
+          </Button>
+        )}
 
-  const hasAccounts = transactionAccounts.length > 0;
+        {actionButtonsRevealEnabled ? (
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            endIcon={<ArrowDropDownIcon />}
+            onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={!!importMenuAnchor}
+            aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+            data-open={!!importMenuAnchor}
+            data-testid="btn-open-import-drawer"
+            sx={getActionButtonsRevealSx({
+              expandedWidth: actionButtonsRevealExpandedWidth,
+              hasEndIcon: true,
+              expandedSelector: '&[data-open="true"]',
+              notExpandedSelector: ':not([data-open="true"])',
+            })}
+          >
+            <Box component="span" className="revealLabel">
+              {t('financeTransactions.import.button')}
+            </Box>
+          </Button>
+        ) : (
+          <Button
+            variant="outlined"
+            startIcon={<UploadIcon />}
+            endIcon={<ArrowDropDownIcon />}
+            onClick={(e) => setImportMenuAnchor(e.currentTarget)}
+            aria-haspopup="menu"
+            aria-expanded={!!importMenuAnchor}
+            aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
+            data-testid="btn-open-import-drawer"
+          >
+            {t('financeTransactions.import.button')}
+          </Button>
+        )}
+        <Menu
+          id="finance-transactions-import-menu"
+          anchorEl={importMenuAnchor}
+          open={!!importMenuAnchor}
+          onClose={() => setImportMenuAnchor(null)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        >
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null);
+              setReviewJobId(null);
+              setIsImportDrawerOpen(true);
+            }}
+          >
+            <ListItemIcon>
+              <AccountBalanceIcon fontSize="small" />
+            </ListItemIcon>
+            {t('financeTransactions.import.menu.file')}
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null);
+              setIsImportBillDrawerOpen(true);
+            }}
+          >
+            <ListItemIcon>
+              <CreditCardIcon fontSize="small" />
+            </ListItemIcon>
+            {t('financeTransactions.import.menu.cardBill')}
+          </MenuItem>
+        </Menu>
+        <Button
+          sx={{
+            boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
+            '&:hover': {
+              boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
+            },
+          }}
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={() => setIsCreatingTransaction(true)}
+          disabled={isCreatingTransaction}
+          data-testid="btn-new-transaction"
+        >
+          {t('financeTransactions.quickAdd')}
+        </Button>
+      </Stack>
+    </>
+  );
 
-  if (!hasAccounts) {
-    return (
+  const renderActiveFilters = () =>
+    displayMode.kind === 'calendar' ? (
+      <Collapse
+        in={summaryTableFiltersOpen}
+        timeout={{ enter: 320, exit: 240 }}
+        unmountOnExit
+        easing={{
+          enter: theme.transitions.easing.easeOut,
+          exit: theme.transitions.easing.sharp,
+        }}
+        sx={{ width: '100%' }}
+      >
+        <Fade
+          in={summaryTableFiltersOpen}
+          timeout={{ enter: 260, exit: 180 }}
+          easing={{
+            enter: theme.transitions.easing.easeOut,
+            exit: theme.transitions.easing.sharp,
+          }}
+        >
+          <Box sx={{ width: '100%', mb: 2, pt: 0.25 }}>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: '100%' }}>
+              {summaryCreditDebitTypeFilterEffective && (
+                <Chip
+                  icon={
+                    summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit ? (
+                      <ArrowUpwardIcon sx={{ fontSize: 18 }} />
+                    ) : (
+                      <ArrowDownwardIcon sx={{ fontSize: 18 }} />
+                    )
+                  }
+                  label={
+                    summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit
+                      ? t('financeTransactions.monthSummary.filteringByCredit')
+                      : t('financeTransactions.monthSummary.filteringByDebit')
+                  }
+                  onDelete={clearCreditDebitTypeFilter}
+                  deleteIcon={
+                    <CloseIcon fontSize="small" aria-label={t('financeTransactions.monthSummary.clearCreditDebitTypeFilter')} />
+                  }
+                  variant="outlined"
+                  sx={{
+                    pl: 1.5,
+                    pr: 1.25,
+                    py: 0.75,
+                    bgcolor: alpha(summaryTypeChipAccent, 0.12),
+                    borderColor: alpha(summaryTypeChipAccent, 0.4),
+                    color: summaryTypeChipAccent,
+                    fontWeight: 600,
+                    '& .MuiChip-icon': {
+                      color: summaryTypeChipAccent,
+                      ml: 0.25,
+                      mr: 0.5,
+                    },
+                    '& .MuiChip-label': { px: 1.25 },
+                    '& .MuiChip-deleteIcon': {
+                      color: alpha(summaryTypeChipAccent, 0.75),
+                      '&:hover': { color: summaryTypeChipAccent },
+                    },
+                  }}
+                />
+              )}
+              {summaryCategoryFilterSelection && (
+                <Chip
+                  icon={<CategoryIcon iconName={summaryCategoryFilterMeta?.icon ?? null} color={summaryCategoryChipAccent} size={18} />}
+                  label={t('financeTransactions.monthSummary.filteringByCategory', {
+                    name:
+                      summaryCategoryFilterMeta?.name ??
+                      (summaryUncategorizedFilterActive
+                        ? t('financeTransactions.monthSummary.uncategorized')
+                        : summaryCategoryFilterId),
+                  })}
+                  onDelete={() => setSummaryCategoryFilterSelection(null)}
+                  deleteIcon={<CloseIcon fontSize="small" aria-label={t('financeTransactions.monthSummary.clearCategoryFilter')} />}
+                  variant="outlined"
+                  sx={{
+                    pl: 1.5,
+                    pr: 1.25,
+                    py: 0.75,
+                    bgcolor: alpha(summaryCategoryChipAccent, 0.12),
+                    borderColor: alpha(summaryCategoryChipAccent, 0.4),
+                    color: summaryCategoryChipAccent,
+                    fontWeight: 600,
+                    '& .MuiChip-icon': {
+                      color: summaryCategoryChipAccent,
+                      ml: 0.25,
+                      mr: 0.5,
+                    },
+                    '& .MuiChip-label': { px: 1.25 },
+                    '& .MuiChip-deleteIcon': {
+                      color: alpha(summaryCategoryChipAccent, 0.75),
+                      '&:hover': { color: summaryCategoryChipAccent },
+                    },
+                  }}
+                />
+              )}
+              {summaryTagFilterValue && (
+                <Chip
+                  label={t('financeTransactions.monthSummary.filteringByTag', {
+                    name: summaryTagFilterMeta?.tag ?? summaryTagFilterValue,
+                  })}
+                  onDelete={() => setSummaryTagFilterValue(null)}
+                  deleteIcon={<CloseIcon fontSize="small" aria-label={t('financeTransactions.monthSummary.clearTagFilter')} />}
+                  variant="outlined"
+                  sx={{
+                    pl: 1.5,
+                    pr: 1.25,
+                    py: 0.75,
+                    bgcolor: alpha(summaryTagChipAccent, 0.12),
+                    borderColor: alpha(summaryTagChipAccent, 0.4),
+                    color: summaryTagChipAccent,
+                    fontWeight: 600,
+                    '& .MuiChip-label': { px: 1.25 },
+                    '& .MuiChip-deleteIcon': {
+                      color: alpha(summaryTagChipAccent, 0.75),
+                      '&:hover': { color: summaryTagChipAccent },
+                    },
+                  }}
+                />
+              )}
+            </Stack>
+          </Box>
+        </Fade>
+      </Collapse>
+    ) : null;
+
+  const renderTransactionsContent = () =>
+    transactionsError && !transactionsLoading && transactions.length === 0 ? (
+      <Box sx={{ width: '100%' }}>
+        <QueryErrorState error={transactionsError} onRetry={() => refetchTransactions()} />
+      </Box>
+    ) : (
       <>
-        <EmptyFinancialAccountsState onSelectType={handleOpenDrawer} />
-        <CreateFinancialAccountDrawer 
-          open={isDrawerOpen} 
-          onClose={handleCloseDrawer}
-          initialType={initialType}
-          accountToEdit={editingAccount}
-          onCreated={handleAccountCreated}
+        {transactionsError && (
+          <Alert
+            severity="warning"
+            sx={{ width: '100%', mb: 2 }}
+            action={
+              <Button size="small" onClick={() => refetchTransactions()}>
+                {tCommon('cardGrid.retry')}
+              </Button>
+            }
+          >
+            {extractErrorMessage(transactionsError, tCommon('errors.default'))}
+          </Alert>
+        )}
+        <TransactionTable
+          transactions={transactions}
+          financialAccounts={transactionAccounts}
+          loading={transactionsLoading || isFetchingMore}
+          hasMore={hasMore}
+          onLoadMore={handleLoadMore}
+          isCreating={isCreatingTransaction}
+          onCancelCreate={() => setIsCreatingTransaction(false)}
+          onSuccessCreate={() => {
+            refetchTransactions();
+            refetchSummary();
+          }}
+          selectedAccountId={effectiveSelectedAccountId}
+          selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
+          selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
         />
       </>
     );
-  }
 
-  return (
-    <SidebarLayout
-      side="left"
-      size="sm"
-      fullHeight
-      sidebar={
-        <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <Box sx={{ p: 3, pb: 2 }}>
-            <FinancialAccountSelector 
-              onNewAccount={() => handleOpenDrawer()}
-              onEditAccount={handleEditAccount}
-              selectedAccountId={effectiveSelectedAccountId}
-              onSelectAccount={setSelectedAccountId}
-              accountTypes={ACCOUNT_SELECTOR_TYPES}
-            />
-            <Divider sx={{ my: 3 }} />
-            {displayMode.kind === 'calendar' ? (
-              <MonthSummary 
-                  summary={monthSummaryData?.monthSummary}
-                  loading={monthSummaryLoading}
-                  error={monthSummaryError}
-                  onRetry={() => refetchMonthSummary()}
-                  isConsolidated={!effectiveSelectedAccountId}
-                  expensesByCategory={monthSummaryData?.monthSummary?.expensesByCategory ?? []}
-                  incomeByCategory={monthSummaryData?.monthSummary?.incomeByCategory ?? []}
-                  tagsSummary={monthSummaryData?.monthSummary?.tagsSummary ?? []}
-                  onCategoryClick={(selection) => setSummaryCategoryFilterSelection(selection)}
-                  activeCategoryFilter={summaryCategoryFilterSelection}
-                  onTagClick={(tag) => setSummaryTagFilterValue(tag)}
-                  activeTagFilter={summaryTagFilterValue}
-                  onCreditDebitTypeClick={handleCreditDebitTypeFilter}
-                  activeCreditDebitTypeFilter={summaryCreditDebitTypeFilterEffective}
-                />
-            ) : (
-              <BillSummaryHeader 
-                bill={displayMode.selectedBill ? {
-                  totalAmount: displayMode.selectedBill.totalAmount,
-                  closingDate: displayMode.selectedBill.closingDate,
-                  dueDate: displayMode.selectedBill.dueDate,
-                  status: displayMode.selectedBill.status,
-                  creditLimit: selectedAccount?.cardData?.creditLimit
-                } : undefined}
-                loading={displayMode.loading}
-                onPayClick={() => setIsPayBillDialogOpen(true)}
-              />
-            )}
-            <Divider sx={{ my: 3 }} />           
-          </Box>
-        </Box>
-      }
-    >
-      <Page>
-        <Container maxWidth="xl" sx={{ py: 4 }}>
-          {importsError && effectiveSelectedAccountId && (
-            <Alert
-              severity="warning"
-              sx={{ width: '100%', mb: 2 }}
-              action={
-                <Button size="small" onClick={() => refetchImports()}>
-                  {tCommon('cardGrid.retry')}
-                </Button>
-              }
-            >
-              {extractErrorMessage(importsError, tCommon('errors.default'))}
-            </Alert>
-          )}
-          {reviewRequiredJob && (
-            <Alert
-              severity="info"
-              sx={{ width: '100%', mb: 2 }}
-              action={
-                <Button
-                  size="small"
-                  onClick={() => {
-                    setReviewJobId(reviewRequiredJob.id);
-                    setIsImportDrawerOpen(true);
-                  }}
-                >
-                  {t('financeTransactions.duplicateReview.bannerAction')}
-                </Button>
-              }
-            >
-              {t('financeTransactions.duplicateReview.header', {
-                count: reviewRequiredJob.duplicateReviewCount ?? 1,
-              })}
-            </Alert>
-          )}
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 } }}
-            alignItems="flex-end"
-            flexWrap="wrap"
-          >
-            <Box sx={{ flex: 1, minWidth: 200 }}>
-              {displayMode.kind === 'calendar' ? (
-                <MonthYearCarousel 
-                  selectedMonth={displayMode.month} 
-                  selectedYear={displayMode.year}
-                  onChange={handleDateChange}
-                />
-              ) : (
-                <BillCarousel 
-                  bills={displayMode.bills}
-                  selectedBillId={displayMode.selectedBill?.id ?? null}
-                  onSelectBill={(id) => {
-                    const bill = displayMode.bills.find(b => b.id === id);
-                    if (bill && displayMode.kind === 'bill') {
-                      displayMode.setSelectedBill(bill);
-                    }
-                  }}
-                />
-              )}
-            </Box>
-            {actionButtonsRevealEnabled ? (
-              <Button
-                component={Link}
-                href="/personal-finance/finance-transactions/transaction-rules"
-                variant="outlined"
-                startIcon={<AutoFixHighIcon fontSize="small" />}
-                sx={{
-                  width: 76,
-                  px: 1,
-                  transition: 'width 500ms ease, padding 500ms ease',
-                  '& .revealLabel': {
-                    display: 'inline-block',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    maxWidth: 0,
-                    opacity: 0,
-                    transform: 'translateX(-8px)',
-                    transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
-                  },
-                  '& .MuiButton-startIcon': {
-                    marginLeft: 0,
-                    marginRight: 0.5,
-                    transition: 'margin-right 500ms ease',
-                  },
-                  '&:hover .revealLabel, &:focus-visible .revealLabel': {
-                    maxWidth: 200,
-                    opacity: 1,
-                    transform: 'translateX(0)',
-                  },
-                  '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon': {
-                    marginRight: 1,
-                  },
-                  '&:not(:hover):not(:focus-visible) .MuiButton-startIcon': {
-                    marginRight: 0,
-                  },
-                  '&:hover, &:focus-visible': {
-                    width: 168,
-                    px: 0.75,
-                  },
-                }}
-              >
-                <Box component="span" className="revealLabel">
-                  {t('financeTransactions.actions.automation')}
-                </Box>
-              </Button>
-            ) : (
-              <Button
-                component={Link}
-                href="/personal-finance/finance-transactions/transaction-rules"
-                variant="outlined"
-                startIcon={<AutoFixHighIcon fontSize="small" />}
-              >
-                {t('financeTransactions.actions.automation')}
-              </Button>
-            )}
-
-            {actionButtonsRevealEnabled ? (
-              <Button
-                variant="outlined"
-                startIcon={<UploadIcon />}
-                endIcon={<ArrowDropDownIcon />}
-                onClick={(e) => setImportMenuAnchor(e.currentTarget)}
-                aria-haspopup="menu"
-                aria-expanded={!!importMenuAnchor}
-                aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
-                data-open={!!importMenuAnchor}
-                data-testid="btn-open-import-drawer"
-                sx={{
-                  width: 76,
-                  px: 1,
-                  transition: 'width 500ms ease, padding 500ms ease',
-                  '& .revealLabel': {
-                    display: 'inline-block',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    maxWidth: 0,
-                    opacity: 0,
-                    transform: 'translateX(-8px)',
-                    transition: 'max-width 500ms ease, opacity 260ms ease, transform 500ms ease',
-                  },
-                  '& .MuiButton-startIcon': {
-                    marginLeft: 0,
-                    marginRight: 0.5,
-                    transition: 'margin-right 500ms ease',
-                  },
-                  '& .MuiButton-endIcon': {
-                    marginLeft: 0.5,
-                    marginRight: 0,
-                    transition: 'margin-left 500ms ease',
-                  },
-                  '&:hover .revealLabel, &:focus-visible .revealLabel, &[data-open="true"] .revealLabel': {
-                    maxWidth: 200,
-                    opacity: 1,
-                    transform: 'translateX(0)',
-                  },
-                  '&:hover .MuiButton-startIcon, &:focus-visible .MuiButton-startIcon, &[data-open="true"] .MuiButton-startIcon': {
-                    marginRight: 1,
-                  },
-                  '&:hover .MuiButton-endIcon, &:focus-visible .MuiButton-endIcon, &[data-open="true"] .MuiButton-endIcon': {
-                    marginLeft: 1,
-                  },
-                  '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-startIcon': {
-                    marginRight: 0,
-                  },
-                  '&:not(:hover):not(:focus-visible):not([data-open="true"]) .MuiButton-endIcon': {
-                    marginLeft: 0,
-                  },
-                  '&:hover, &:focus-visible, &[data-open="true"]': {
-                    width: 168,
-                    px: 0.75,
-                  },
-                }}
-              >
-                <Box component="span" className="revealLabel">
-                  {t('financeTransactions.import.button')}
-                </Box>
-              </Button>
-            ) : (
-              <Button
-                variant="outlined"
-                startIcon={<UploadIcon />}
-                endIcon={<ArrowDropDownIcon />}
-                onClick={(e) => setImportMenuAnchor(e.currentTarget)}
-                aria-haspopup="menu"
-                aria-expanded={!!importMenuAnchor}
-                aria-controls={importMenuAnchor ? 'finance-transactions-import-menu' : undefined}
-                data-testid="btn-open-import-drawer"
-              >
-                {t('financeTransactions.import.button')}
-              </Button>
-            )}
-            <Menu
-              id="finance-transactions-import-menu"
-              anchorEl={importMenuAnchor}
-              open={!!importMenuAnchor}
-              onClose={() => setImportMenuAnchor(null)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-            >
-              <MenuItem
-                onClick={() => {
-                  setImportMenuAnchor(null);
-                  setReviewJobId(null);
-                  setIsImportDrawerOpen(true);
-                }}
-              >
-                <ListItemIcon><AccountBalanceIcon fontSize="small" /></ListItemIcon>
-                {t('financeTransactions.import.menu.file')}
-              </MenuItem>
-              <MenuItem
-                onClick={() => {
-                  setImportMenuAnchor(null);
-                  setIsImportBillDrawerOpen(true);
-                }}
-              >
-                <ListItemIcon><CreditCardIcon fontSize="small" /></ListItemIcon>
-                {t('financeTransactions.import.menu.cardBill')}
-              </MenuItem>
-            </Menu>
-            {/* <ScanNfceButton
-              selectedAccountId={selectedAccountId}
-              onImportCompleted={handleImportCompleted}
-            /> */}
-            <Button
-              sx={{
-                boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
-                '&:hover': {
-                  boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
-                },
-              }}
-              variant="contained"
-              startIcon={<AddIcon />}
-              onClick={() => setIsCreatingTransaction(true)}
-              disabled={isCreatingTransaction}
-              data-testid="btn-new-transaction"
-            >
-              {t('financeTransactions.quickAdd')}
-            </Button>
-          </Stack>
-
-          {displayMode.kind === 'calendar' && (
-            <Collapse
-              in={summaryTableFiltersOpen}
-              timeout={{ enter: 320, exit: 240 }}
-              unmountOnExit
-              easing={{
-                enter: theme.transitions.easing.easeOut,
-                exit: theme.transitions.easing.sharp,
-              }}
-              sx={{ width: '100%' }}
-            >
-              <Fade
-                in={summaryTableFiltersOpen}
-                timeout={{ enter: 260, exit: 180 }}
-                easing={{
-                  enter: theme.transitions.easing.easeOut,
-                  exit: theme.transitions.easing.sharp,
-                }}
-              >
-                <Box sx={{ width: '100%', mb: 2, pt: 0.25 }}>
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ width: '100%' }}>
-                    {summaryCreditDebitTypeFilterEffective && (
-                      <Chip
-                        icon={
-                          summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit ? (
-                            <ArrowUpwardIcon sx={{ fontSize: 18 }} />
-                          ) : (
-                            <ArrowDownwardIcon sx={{ fontSize: 18 }} />
-                          )
-                        }
-                        label={
-                          summaryCreditDebitTypeFilterEffective === CreditDebitType.Credit
-                            ? t('financeTransactions.monthSummary.filteringByCredit')
-                            : t('financeTransactions.monthSummary.filteringByDebit')
-                        }
-                        onDelete={clearCreditDebitTypeFilter}
-                        deleteIcon={
-                          <CloseIcon
-                            fontSize="small"
-                            aria-label={t('financeTransactions.monthSummary.clearCreditDebitTypeFilter')}
-                          />
-                        }
-                        variant="outlined"
-                        sx={{
-                          pl: 1.5,
-                          pr: 1.25,
-                          py: 0.75,
-                          bgcolor: alpha(summaryTypeChipAccent, 0.12),
-                          borderColor: alpha(summaryTypeChipAccent, 0.4),
-                          color: summaryTypeChipAccent,
-                          fontWeight: 600,
-                          '& .MuiChip-icon': {
-                            color: summaryTypeChipAccent,
-                            ml: 0.25,
-                            mr: 0.5,
-                          },
-                          '& .MuiChip-label': { px: 1.25 },
-                          '& .MuiChip-deleteIcon': {
-                            color: alpha(summaryTypeChipAccent, 0.75),
-                            '&:hover': { color: summaryTypeChipAccent },
-                          },
-                        }}
-                      />
-                    )}
-                    {summaryCategoryFilterSelection && (
-                      <Chip
-                        icon={
-                          <CategoryIcon
-                            iconName={summaryCategoryFilterMeta?.icon ?? null}
-                            color={summaryCategoryChipAccent}
-                            size={18}
-                          />
-                        }
-                        label={t('financeTransactions.monthSummary.filteringByCategory', {
-                          name:
-                            summaryCategoryFilterMeta?.name ??
-                            (summaryUncategorizedFilterActive
-                              ? t('financeTransactions.monthSummary.uncategorized')
-                              : summaryCategoryFilterId),
-                        })}
-                        onDelete={() => setSummaryCategoryFilterSelection(null)}
-                        deleteIcon={
-                          <CloseIcon
-                            fontSize="small"
-                            aria-label={t('financeTransactions.monthSummary.clearCategoryFilter')}
-                          />
-                        }
-                        variant="outlined"
-                        sx={{
-                          pl: 1.5,
-                          pr: 1.25,
-                          py: 0.75,
-                          bgcolor: alpha(summaryCategoryChipAccent, 0.12),
-                          borderColor: alpha(summaryCategoryChipAccent, 0.4),
-                          color: summaryCategoryChipAccent,
-                          fontWeight: 600,
-                          '& .MuiChip-icon': {
-                            color: summaryCategoryChipAccent,
-                            ml: 0.25,
-                            mr: 0.5,
-                          },
-                          '& .MuiChip-label': { px: 1.25 },
-                          '& .MuiChip-deleteIcon': {
-                            color: alpha(summaryCategoryChipAccent, 0.75),
-                            '&:hover': { color: summaryCategoryChipAccent },
-                          },
-                        }}
-                      />
-                    )}
-                    {summaryTagFilterValue && (
-                      <Chip
-                        label={t('financeTransactions.monthSummary.filteringByTag', {
-                          name: summaryTagFilterMeta?.tag ?? summaryTagFilterValue,
-                        })}
-                        onDelete={() => setSummaryTagFilterValue(null)}
-                        deleteIcon={
-                          <CloseIcon
-                            fontSize="small"
-                            aria-label={t('financeTransactions.monthSummary.clearTagFilter')}
-                          />
-                        }
-                        variant="outlined"
-                        sx={{
-                          pl: 1.5,
-                          pr: 1.25,
-                          py: 0.75,
-                          bgcolor: alpha(summaryTagChipAccent, 0.12),
-                          borderColor: alpha(summaryTagChipAccent, 0.4),
-                          color: summaryTagChipAccent,
-                          fontWeight: 600,
-                          '& .MuiChip-label': { px: 1.25 },
-                          '& .MuiChip-deleteIcon': {
-                            color: alpha(summaryTagChipAccent, 0.75),
-                            '&:hover': { color: summaryTagChipAccent },
-                          },
-                        }}
-                      />
-                    )}
-                  </Stack>
-                </Box>
-              </Fade>
-            </Collapse>
-          )}
-
-          {transactionsError && !transactionsLoading && transactions.length === 0 ? (
-            <Box sx={{ width: '100%' }}>
-              <QueryErrorState error={transactionsError} onRetry={() => refetchTransactions()} />
-            </Box>
-          ) : (
-            <>
-              {transactionsError && (
-                <Alert
-                  severity="warning"
-                  sx={{ width: '100%', mb: 2 }}
-                  action={
-                    <Button size="small" onClick={() => refetchTransactions()}>
-                      {tCommon('cardGrid.retry')}
-                    </Button>
-                  }
-                >
-                  {extractErrorMessage(transactionsError, tCommon('errors.default'))}
-                </Alert>
-              )}
-              <TransactionTable 
-                transactions={transactions} 
-                financialAccounts={transactionAccounts}
-                loading={transactionsLoading || isFetchingMore} 
-                hasMore={hasMore} 
-                onLoadMore={handleLoadMore} 
-                isCreating={isCreatingTransaction}
-                onCancelCreate={() => setIsCreatingTransaction(false)}
-                onSuccessCreate={() => {
-                  refetchTransactions();
-                  refetchSummary();
-                }}
-                selectedAccountId={effectiveSelectedAccountId}
-                selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
-                selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
-              />
-            </>
-          )}
-        </Container>
-      </Page>
-      
-      <CreateFinancialAccountDrawer 
-        open={isDrawerOpen} 
+  const renderDialogs = () => (
+    <>
+      <CreateFinancialAccountDrawer
+        open={isDrawerOpen}
         onClose={handleCloseDrawer}
         initialType={initialType}
         accountToEdit={editingAccount}
@@ -994,6 +970,59 @@ export default function FinanceTransactionsPage() {
           refetchTransactions();
         }}
       />
+    </>
+  );
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (financialAccountsError) {
+    return (
+      <Page>
+        <Container maxWidth="md" sx={{ py: 6 }}>
+          <QueryErrorState error={financialAccountsError} onRetry={() => refetchFinancialAccounts()} />
+        </Container>
+      </Page>
+    );
+  }
+
+  const hasAccounts = transactionAccounts.length > 0;
+
+  if (!hasAccounts) {
+    return (
+      <>
+        <EmptyFinancialAccountsState onSelectType={handleOpenDrawer} />
+        <CreateFinancialAccountDrawer 
+          open={isDrawerOpen} 
+          onClose={handleCloseDrawer}
+          initialType={initialType}
+          accountToEdit={editingAccount}
+          onCreated={handleAccountCreated}
+        />
+      </>
+    );
+  }
+
+  return (
+    <SidebarLayout
+      side="left"
+      size="sm"
+      fullHeight
+      sidebar={renderSidebarContent()}
+    >
+      <Page>
+        <Container maxWidth="xl" sx={{ py: 4 }}>
+          {renderHeaderBar()}
+          {renderActiveFilters()}
+          {renderTransactionsContent()}
+        </Container>
+      </Page>
+      {renderDialogs()}
     </SidebarLayout>
   );
 }

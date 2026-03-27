@@ -314,7 +314,7 @@ export const TransactionRulesManagement: React.FC = () => {
                 ))}
                 {!loading && explicitRules.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         {t('financeTransactions.transactionRules.emptyState.manual')}
                       </Typography>
@@ -434,7 +434,7 @@ export const TransactionRulesManagement: React.FC = () => {
                 ))}
                 {!loading && implicitRules.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={9}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                       <Typography variant="body2" color="text.secondary">
                         {t('financeTransactions.transactionRules.emptyState.automatic')}
                       </Typography>

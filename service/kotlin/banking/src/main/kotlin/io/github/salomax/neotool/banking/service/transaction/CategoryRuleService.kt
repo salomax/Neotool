@@ -17,6 +17,17 @@ open class TransactionRuleService(
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
     fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
 
+    /** Returns rules filtered by system/user ownership. */
+    fun listRules(
+        accountId: UUID,
+        isSystem: Boolean?,
+    ): List<TransactionRule> =
+        when (isSystem) {
+            true -> ruleRepository.findSystemRules()
+            false -> ruleRepository.findUserRulesForAccount(accountId)
+            null -> ruleRepository.findRulesForAccount(accountId)
+        }
+
     fun create(
         input: CreateTransactionRuleInput,
         accountId: UUID,

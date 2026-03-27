@@ -202,7 +202,7 @@ On create, if neither is supplied, `belongs_to_user_id` defaults to the authenti
 
 ### 3.10 Category resolution on create
 
-When saved without an explicit `categoryId`, the rule engine (`TransactionRuleEngine.suggest`) auto-assigns based on description and direction only for non-`MANUAL` transactions (imports/sync sources). `MANUAL` transactions never run rule suggestion during create. If a rule matches, `categorySource = RULE`. Explicit user selection sets `categorySource = MANUAL`. Uncategorized = `categoryId = null, categorySource = null`.
+When saved without an explicit `categoryId`, the rule engine auto-assigns based on description and direction. For non-`MANUAL` transactions (imports/sync sources), all applicable rules may contribute. For `MANUAL` transactions, only `system` rules are evaluated during create. If a rule matches, `categorySource = RULE`. Explicit user selection sets `categorySource = MANUAL`. Uncategorized = `categoryId = null, categorySource = null`.
 
 ### 3.11 Implicit rule learning on update
 

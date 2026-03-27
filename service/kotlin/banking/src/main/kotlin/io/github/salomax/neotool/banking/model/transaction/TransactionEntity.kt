@@ -122,6 +122,9 @@ open class TransactionEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "source_data", columnDefinition = "jsonb")
     open var sourceData: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "applied_rule_ids", columnDefinition = "jsonb")
+    open var appliedRuleIds: String? = null,
     // Soft delete + audit
     @Column(name = "deleted_at")
     open var deletedAt: Instant? = null,

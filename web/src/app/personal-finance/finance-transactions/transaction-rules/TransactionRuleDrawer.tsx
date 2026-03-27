@@ -637,26 +637,32 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
 
       </Drawer>
 
-      <Dialog 
-        open={discardDialogOpen} 
-        onClose={() => setDiscardDialogOpen(false)} 
-        maxWidth="xs" 
-        fullWidth
-        PaperProps={{ sx: { minHeight: 220, p: 1, display: 'flex', justifyContent: 'center' } }}
+      <Dialog
+        open={discardDialogOpen}
+        onClose={() => setDiscardDialogOpen(false)}
+        maxWidth={false}
+        PaperProps={{ sx: { minHeight: 180, width: 340, maxWidth: 'calc(100% - 32px)', p: 0, display: 'flex', justifyContent: 'center' } }}
       >
-        <DialogTitle sx={{ textAlign: 'center', pb: 1, pt: 3 }}>Descartar alterações?</DialogTitle>
-        <DialogContent sx={{ textAlign: 'center', pb: 3 }}>
+        <DialogTitle sx={{ textAlign: 'center', pt: 2, pb: 0.5 }}>Descartar alterações?</DialogTitle>
+        <DialogContent sx={{ textAlign: 'center', pb: 2 }}>
           <DialogContentText>As mudanças serão perdidas.</DialogContentText>
         </DialogContent>
-        <DialogActions 
-          sx={{ 
-            flexDirection: 'column', 
-            gap: 1.5, 
-            px: 3, 
-            pb: 3,
-            '& > button': { m: '0 !important', width: '100%' } 
+        <DialogActions
+          sx={{
+            flexDirection: 'row',
+            gap: 1,
+            px: 2,
+            pb: 2,
+            justifyContent: 'center',
+            alignItems: 'center',
           }}
         >
+          <Button
+            variant="outlined"
+            onClick={() => setDiscardDialogOpen(false)}
+          >
+            Continuar editando
+          </Button>
           <Button
             variant="contained"
             color="error"
@@ -666,12 +672,6 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
             }}
           >
             Descartar
-          </Button>
-          <Button 
-            variant="outlined" 
-            onClick={() => setDiscardDialogOpen(false)}
-          >
-            Continuar editando
           </Button>
         </DialogActions>
       </Dialog>
