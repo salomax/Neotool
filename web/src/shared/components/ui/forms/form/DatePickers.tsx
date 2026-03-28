@@ -4,8 +4,10 @@ import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import type { DatePickerProps } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import type { DateView } from "@mui/x-date-pickers/models";
 import { Stack } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
@@ -31,6 +33,12 @@ export interface DatePickerFieldProps {
   fullWidth?: boolean;
   minDate?: Date;
   maxDate?: Date;
+  /** When set (e.g. `['year', 'month', 'day']`), the popover steps through each view in order. */
+  views?: readonly DateView[];
+  /** Initial view when the picker opens; pairs with `views`. */
+  openTo?: DateView;
+  /** Merged into the underlying MUI `DatePicker` `slotProps` (e.g. `calendar`); `textField` is merged with the field wiring. */
+  pickerSlotProps?: DatePickerProps["slotProps"];
   'data-testid'?: string;
 }
 
@@ -42,6 +50,9 @@ type DatePickerFieldInnerProps = {
   fullWidth: boolean;
   minDate?: Date;
   maxDate?: Date;
+  views?: readonly DateView[];
+  openTo?: DateView;
+  pickerSlotProps?: DatePickerProps["slotProps"];
   helperText?: React.ReactNode;
   dataTestId?: string;
   pickerError: string | null;
@@ -58,6 +69,9 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   fullWidth,
   minDate,
   maxDate,
+  views,
+  openTo,
+  pickerSlotProps,
   helperText,
   dataTestId,
   pickerError,
@@ -74,6 +88,8 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   return (
     <DatePicker
       format={dateFormat}
+      views={views ? [...views] : undefined}
+      openTo={openTo}
       value={draftValue}
       onChange={(v, context) => {
         setDraftValue(v);
@@ -91,15 +107,26 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       minDate={minDate ? dayjs(minDate) : undefined}
       maxDate={maxDate ? dayjs(maxDate) : undefined}
       slotProps={{
+        ...pickerSlotProps,
         textField: {
+          ...(typeof pickerSlotProps?.textField === "object" && pickerSlotProps.textField !== null
+            ? pickerSlotProps.textField
+            : {}),
           label: effectiveLabel,
           placeholder: formatHint,
           fullWidth,
           error: !!fieldState.error || !!pickerError,
           helperText: fieldState.error?.message ?? pickerErrorText ?? helperText,
-          'data-testid': dataTestId,
+          "data-testid": dataTestId,
           inputProps: {
-            'data-testid': dataTestId,
+            ...(typeof pickerSlotProps?.textField === "object" &&
+            pickerSlotProps.textField !== null &&
+            "inputProps" in pickerSlotProps.textField &&
+            typeof pickerSlotProps.textField.inputProps === "object" &&
+            pickerSlotProps.textField.inputProps !== null
+              ? pickerSlotProps.textField.inputProps
+              : {}),
+            "data-testid": dataTestId,
           },
         } as any,
       }}
@@ -114,6 +141,9 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   fullWidth = true,
   minDate,
   maxDate,
+  views,
+  openTo,
+  pickerSlotProps,
   'data-testid': dataTestId,
 }) => {
   const { t } = useTranslation(COMMON_NS);
@@ -172,6 +202,9 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             fullWidth={fullWidth}
             minDate={minDate}
             maxDate={maxDate}
+            views={views}
+            openTo={openTo}
+            pickerSlotProps={pickerSlotProps}
             helperText={helperText}
             dataTestId={dataTestId}
             pickerError={pickerError}

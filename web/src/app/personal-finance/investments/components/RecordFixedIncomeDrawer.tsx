@@ -8,6 +8,10 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
+import type { Theme } from "@mui/material/styles";
+import type { DatePickerProps } from "@mui/x-date-pickers/DatePicker";
+import { monthCalendarClasses } from "@mui/x-date-pickers/MonthCalendar";
+import { pickersCalendarHeaderClasses } from "@mui/x-date-pickers/PickersCalendarHeader";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import {
@@ -30,6 +34,7 @@ import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErr
 import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { labelTypographySx } from "@/shared/components/ui/primitives/Label";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
@@ -52,7 +57,7 @@ interface RecordFixedIncomeDrawerProps {
     };
     indexer: Indexer | null;
     indexerPercentage: number | null;
-    preFixedRate: number | null;
+    fixedAnnualRate: number | null;
     maturityDate: unknown | null;
     isTaxExempt: boolean;
   } | null;
@@ -83,6 +88,28 @@ const FIXED_INCOME_INDEXERS: readonly Indexer[] = [
   Indexer.Outros,
 ] as const;
 
+/** MUI DatePicker: day calendar by default; year/month views via the header switch control. */
+const FIXED_INCOME_DATE_VIEWS = ["year", "month", "day"] as const;
+
+/** Passed to MUI `DatePicker` `slotProps` (forwarded to `DateCalendar`). */
+const FIXED_INCOME_DATE_PICKER_SLOT_PROPS = {
+  calendarHeader: {
+    sx: (theme: Theme) => ({
+      [`& .${pickersCalendarHeaderClasses.labelContainer}`]: {
+        ...labelTypographySx(theme),
+      },
+    }),
+  },
+  monthButton: {
+    sx: (theme: Theme) => ({
+      ...labelTypographySx(theme),
+      [`&.${monthCalendarClasses.selected}`]: {
+        color: theme.palette.primary.contrastText,
+      },
+    }),
+  },
+} as DatePickerProps["slotProps"];
+
 
 const TAX_EXEMPT_ASSET_TYPES: readonly AssetType[] = [AssetType.Lci, AssetType.Lca, AssetType.Cri, AssetType.Cra] as const;
 
@@ -92,13 +119,17 @@ type RecordFixedIncomeFormData = {
   issuerName: string;
   indexer?: Indexer;
   indexerPercentage?: number;
-  preFixedRate?: number;
+  fixedAnnualRate?: number;
   quantity?: number | string;
   grossValue: number;
   tradeDate?: Date;
   maturityDate?: Date;
   isTaxExempt: boolean;
 };
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export function RecordFixedIncomeDrawer({
   open,
@@ -154,7 +185,7 @@ export function RecordFixedIncomeDrawer({
             },
             z.number().positive(t("investments.recordHolding.validation.indexerPercentageRequired")).optional(),
           ),
-          preFixedRate: z.preprocess(
+          fixedAnnualRate: z.preprocess(
             (value) => {
               if (value === "" || value === null || value === undefined) return undefined;
               if (typeof value === "number") return value;
@@ -257,11 +288,11 @@ export function RecordFixedIncomeDrawer({
             });
           }
 
-          if (data.indexer === Indexer.PreFixado && !data.preFixedRate) {
+          if (data.indexer === Indexer.PreFixado && !data.fixedAnnualRate) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
-              message: t("investments.recordHolding.validation.preFixedRateRequired"),
-              path: ["preFixedRate"],
+              message: t("investments.recordHolding.validation.fixedAnnualRateRequired"),
+              path: ["fixedAnnualRate"],
             });
           }
 
@@ -284,7 +315,7 @@ export function RecordFixedIncomeDrawer({
       issuerName: "",
       indexer: undefined,
       indexerPercentage: undefined,
-      preFixedRate: undefined,
+      fixedAnnualRate: undefined,
       quantity: 1,
       grossValue: undefined,
       tradeDate: undefined,
@@ -293,7 +324,8 @@ export function RecordFixedIncomeDrawer({
     },
   });
 
-  const { reset, setValue } = methods;
+  const { reset, setValue, getValues } = methods;
+  const watchedAssetName = useWatch({ control: methods.control, name: "assetName" });
   const watchedAssetType = useWatch({ control: methods.control, name: "assetType" });
   const watchedIndexer = useWatch({ control: methods.control, name: "indexer" });
   const watchedTradeDate = useWatch({ control: methods.control, name: "tradeDate" });
@@ -303,6 +335,11 @@ export function RecordFixedIncomeDrawer({
   const isPreFixed = watchedIndexer === Indexer.PreFixado;
 const isEdit = Boolean(editHolding && editTransaction);
   const currencyFormatter = React.useMemo(() => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }), [locale]);
+
+  const assetTypeTokens = React.useMemo(
+    () => FIXED_INCOME_ASSET_TYPES.map(String).sort((a, b) => b.length - a.length),
+    [],
+  );
 
   const computedUnitPrice = React.useMemo(() => {
     if (typeof watchedQuantity !== "number" || !Number.isFinite(watchedQuantity) || watchedQuantity <= 0) return null;
@@ -325,6 +362,19 @@ const isEdit = Boolean(editHolding && editTransaction);
   }, [open, reset]);
 
   // resolvedFinancialAccountId will be controlled by InvestmentRecordDrawer via onResolvedChange
+
+  useEffect(() => {
+    if (!open) return;
+    if (!watchedAssetName) return;
+
+    const matchedToken = assetTypeTokens.find((token) => new RegExp(`\\b${escapeRegExp(token)}\\b`).test(watchedAssetName));
+    if (!matchedToken) return;
+
+    const nextAssetType = matchedToken as AssetType;
+    if (getValues("assetType") === nextAssetType) return;
+
+    setValue("assetType", nextAssetType, { shouldDirty: true, shouldValidate: true });
+  }, [assetTypeTokens, getValues, open, setValue, watchedAssetName]);
 
   useEffect(() => {
     if (watchedAssetType === AssetType.Treasury) {
@@ -427,7 +477,7 @@ const isEdit = Boolean(editHolding && editTransaction);
             settlementDate: tradeDate,
             indexer: data.indexer!,
             indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
-            preFixedRate: data.indexer === Indexer.PreFixado ? data.preFixedRate! / 100 : undefined,
+            fixedAnnualRate: data.indexer === Indexer.PreFixado ? data.fixedAnnualRate! / 100 : undefined,
             issueDate: tradeDate,
             maturityDate,
             isTaxExempt: data.isTaxExempt,
@@ -453,8 +503,8 @@ const isEdit = Boolean(editHolding && editTransaction);
           editHolding!.indexerPercentage != null && Number.isFinite(editHolding!.indexerPercentage)
             ? editHolding!.indexerPercentage * 100
             : undefined,
-        preFixedRate:
-          editHolding!.preFixedRate != null && Number.isFinite(editHolding!.preFixedRate) ? editHolding!.preFixedRate * 100 : undefined,
+        fixedAnnualRate:
+          editHolding!.fixedAnnualRate != null && Number.isFinite(editHolding!.fixedAnnualRate) ? editHolding!.fixedAnnualRate * 100 : undefined,
         quantity: editTransaction!.quantity ?? 1,
         grossValue: editTransaction!.grossValue,
         tradeDate: toDateValue(editTransaction!.tradeDate),
@@ -586,8 +636,8 @@ const isEdit = Boolean(editHolding && editTransaction);
                     />
                   ) : (
                     <PercentField
-                      name="preFixedRate"
-                      label={t("investments.recordHolding.fields.preFixedRate")}
+                      name="fixedAnnualRate"
+                      label={t("investments.recordHolding.fields.fixedAnnualRate")}
                       min={0}
                       max={1000}
                       step={0.01}
@@ -604,6 +654,8 @@ const isEdit = Boolean(editHolding && editTransaction);
                   <DatePickerField
                     name="tradeDate"
                     label={t("investments.recordHolding.fields.tradeDate")}
+                    views={FIXED_INCOME_DATE_VIEWS}
+                    pickerSlotProps={FIXED_INCOME_DATE_PICKER_SLOT_PROPS}
                     data-testid="record-trade-date"
                   />
                 </Box>
@@ -613,6 +665,8 @@ const isEdit = Boolean(editHolding && editTransaction);
                     name="maturityDate"
                     label={t("investments.recordHolding.fields.maturityDate")}
                     minDate={watchedTradeDate}
+                    views={FIXED_INCOME_DATE_VIEWS}
+                    pickerSlotProps={FIXED_INCOME_DATE_PICKER_SLOT_PROPS}
                     data-testid="record-maturity-date"
                   />
                 </Box>

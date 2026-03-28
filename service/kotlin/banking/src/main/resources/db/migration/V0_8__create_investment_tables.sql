@@ -302,7 +302,7 @@ CREATE TABLE banking.investment_transactions (
     -- from the holding's contracted rate — e.g. early redemption penalties).
     indexer_percentage   NUMERIC(8,6),
 
-    -- agreed_rate: the pre-fixed rate applied (Pluggy: agreedRate, OFB: remunerationTransactionRate).
+    -- agreed_rate: canonical fixed annual rate persisted for legacy compatibility
     agreed_rate          NUMERIC(10,8),
 
     -- ── Equity context ────────────────────────────────────────────────────────

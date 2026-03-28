@@ -11,6 +11,7 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import java.math.BigDecimal
+import java.time.LocalDate
 
 @DisplayName("FinancialDataIndicatorRateProvider")
 class FinancialDataIndicatorRateProviderTest {
@@ -128,6 +129,58 @@ class FinancialDataIndicatorRateProviderTest {
             val provider = FinancialDataIndicatorRateProvider(client)
 
             assertThat(provider.getLatestRates()).isEmpty()
+        }
+    }
+
+    @Test
+    @DisplayName("monthly series supports CDI")
+    fun monthlySeriesSupportsCdi() {
+        runBlocking {
+            val client = mockk<GraphQLServiceClient>()
+            coEvery { client.query(any(), any(), any(), any()) } returns
+                GraphQLResponse(
+                    data = mapOf(
+                        "economicIndicators" to listOf(
+                            mapOf(
+                                "label" to "CDI",
+                                "variations" to listOf(
+                                    mapOf(
+                                        "label" to "MONTHLY_CHANGE",
+                                        "series" to
+                                            mapOf(
+                                                "unit" to "Percentage (%)",
+                                                "values" to
+                                                    listOf(
+                                                        mapOf(
+                                                            "referenceDate" to "2024-02-01",
+                                                            "value" to 0.8,
+                                                        ),
+                                                        mapOf(
+                                                            "referenceDate" to "2024-03-01",
+                                                            "value" to 0.83,
+                                                        ),
+                                                    ),
+                                            ),
+                                    ),
+                                ),
+                            ),
+                        ),
+                    ),
+                )
+
+            val provider = FinancialDataIndicatorRateProvider(client)
+
+            val result =
+                provider.getMonthlySeriesRange(
+                    indexer = Indexer.CDI,
+                    from = LocalDate.of(2024, 2, 1),
+                    to = LocalDate.of(2024, 3, 31),
+                )
+
+            assertThat(result).containsExactly(
+                LocalDate.of(2024, 2, 1) to BigDecimal("0.0080000000"),
+                LocalDate.of(2024, 3, 1) to BigDecimal("0.0083000000"),
+            )
         }
     }
 

@@ -74,7 +74,7 @@
     "react-is": "^18.3.1",
     "react-number-format": "^5.4.4",
     "react-syntax-highlighter": "^15.6.6",
-    "recharts": "^3.2.1",
+    "recharts": "^3.8.1",
     "stylis": "^4.3.6",
     "stylis-plugin-rtl": "^2.1.1",
     "unleash-client": "^6.9.0",

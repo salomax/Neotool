@@ -78,7 +78,7 @@ open class InvestmentTransactionEntity(
     open var indexerPercentage: BigDecimal? = null,
 
     @Column(name = "agreed_rate", precision = 10, scale = 8)
-    open var agreedRate: BigDecimal? = null,
+    open var fixedAnnualRate: BigDecimal? = null,
 
     // Equity context
     @Column(name = "price_factor", precision = 10, scale = 6)

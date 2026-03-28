@@ -8,6 +8,7 @@ import {
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { CategoryIcon } from '../category/CategoryIcon';
@@ -655,37 +656,34 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
     <Box>
       <Box sx={{ mb: 2 }}>
         <Label>{t('financeTransactions.monthSummary.balance')}</Label>
-        <Typography
-          variant="h3"
-          component="div"
-          sx={{
-            fontWeight: 700,
-            mt: 0.5,
-            fontSize: '2.3rem',
-            color: theme.palette.text.primary,
-          }}
-        >
-          {loading && !summary ? (
+        {loading && !summary ? (
+          <Typography
+            variant="h3"
+            component="div"
+            sx={{
+              fontWeight: 700,
+              mt: 0.5,
+              fontSize: '2.3rem',
+              color: theme.palette.text.primary,
+            }}
+          >
             <Skeleton width={200} />
-          ) : (
-            currencyFormatter.formatToParts(balance).map((part, index) => {
-              const isMain = part.type === 'integer' || part.type === 'group';
-              return (
-                <Box
-                  key={`${part.type}-${index}`}
-                  component="span"
-                  sx={{
-                    fontSize: isMain ? 'inherit' : '0.6em',
-                    opacity: isMain ? 1 : 0.7,
-                    mr: part.type === 'currency' ? 0.5 : 0,
-                  }}
-                >
-                  {part.value}
-                </Box>
-              );
-            })
-          )}
-        </Typography>
+          </Typography>
+        ) : (
+          <CurrencyAmountParts
+            value={balance}
+            currency={MONTH_SUMMARY_CURRENCY}
+            locale={MONTH_SUMMARY_LOCALE}
+            variant="h3"
+            component="div"
+            sx={{
+              fontWeight: 700,
+              mt: 0.5,
+              fontSize: '2.3rem',
+              color: theme.palette.text.primary,
+            }}
+          />
+        )}
       </Box>
 
       <Divider sx={{ mb: 3 }} />

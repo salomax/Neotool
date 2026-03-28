@@ -49,7 +49,7 @@ open class HoldingEntity(
     open var indexerPercentage: BigDecimal? = null,
 
     @Column(name = "pre_fixed_rate", precision = 10, scale = 8)
-    open var preFixedRate: BigDecimal? = null,
+    open var fixedAnnualRate: BigDecimal? = null,
 
     @Column(name = "issue_date")
     open var issueDate: LocalDate? = null,

@@ -156,7 +156,7 @@ class InvestmentTransactionServiceTest {
                 grossValue = BigDecimal("10674.30"),
                 tradeDate = LocalDate.of(2024, 9, 23),
                 indexer = Indexer.IPCA,
-                agreedRate = BigDecimal("0.088"),
+                fixedAnnualRate = BigDecimal("0.088"),
             )
 
         whenever(assetRepository.findById(assetId)).thenReturn(fixedIncomeAsset)
@@ -167,7 +167,7 @@ class InvestmentTransactionServiceTest {
 
         val holdingCaptor = argumentCaptor<Holding>()
         verify(holdingRepository).save(holdingCaptor.capture())
-        assertThat(holdingCaptor.firstValue.preFixedRate).isEqualByComparingTo("0.088")
+        assertThat(holdingCaptor.firstValue.fixedAnnualRate).isEqualByComparingTo("0.088")
         assertThat(holdingCaptor.firstValue.issueDate).isEqualTo(LocalDate.of(2024, 9, 23))
     }
 

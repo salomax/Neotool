@@ -24,4 +24,3 @@ interface IndicatorRateProvider {
     fun getMonthlySeriesRange(indexer: Indexer, from: LocalDate, to: LocalDate): List<Pair<LocalDate, BigDecimal>> =
         emptyList()
 }
-

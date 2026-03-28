@@ -86,7 +86,7 @@ The `import_job_control` table tracks `last_data_date` per job name (`b3_cotahis
 | `B3_WORKERS` | `3` | Concurrent year tasks in the worker pool |
 | `B3_QUEUE_BUFFER` | `2` | Task queue buffer multiplier |
 | `B3_CHUNK_SIZE` | `500` | Rows per `pgx.Batch` commit |
-| `B3_BACKFILL_YEARS` | `5` | Years of history to load on first run |
+| `B3_BACKFILL_YEARS` | `10` | Years of history to load on first run |
 | `HEALTH_CHECK_ENABLED` | `true` | Expose `/health`, `/live`, `/ready` |
 | `HEALTH_CHECK_PORT` | `8080` | Health check port |
 | `B3_LOG_CONFIG` | `false` | Log resolved config values at startup |
@@ -102,7 +102,7 @@ The `import_job_control` table tracks `last_data_date` per job name (`b3_cotahis
 
 The script sources `.env.local`, builds `./bin/cronjob`, and runs it. See `.env.local` for defaults — `B3_BACKFILL_YEARS=1` keeps the first local run fast (~1 year of data).
 
-For a full backfill from scratch, edit `.env.local` and set `B3_BACKFILL_YEARS=5` (or more).
+For a full backfill from scratch, edit `.env.local` and set `B3_BACKFILL_YEARS=10` (or more).
 
 To force a re-run from scratch without changing the years:
 

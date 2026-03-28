@@ -1223,6 +1223,64 @@ export type HoldingAttachment = {
   sizeBytes: Maybe<Scalars['Int']['output']>;
 };
 
+export type HoldingPerformance = {
+  __typename: 'HoldingPerformance';
+  assetType: AssetType;
+  capabilities: HoldingPerformanceCapabilities;
+  currencyCode: Scalars['String']['output'];
+  holdingId: Scalars['ID']['output'];
+  points: Array<HoldingPerformancePoint>;
+  resolution: HoldingPerformanceResolution;
+  summary: HoldingPerformanceSummary;
+  valuationReferenceDate: Maybe<Scalars['Date']['output']>;
+  valuationSource: ValuationSource;
+};
+
+export type HoldingPerformanceCapabilities = {
+  __typename: 'HoldingPerformanceCapabilities';
+  defaultResolution: HoldingPerformanceResolution;
+  projectionDefaultEnabled: Scalars['Boolean']['output'];
+  supportedResolutions: Array<HoldingPerformanceResolution>;
+  supportsProjection: Scalars['Boolean']['output'];
+};
+
+export type HoldingPerformancePoint = {
+  __typename: 'HoldingPerformancePoint';
+  currentCostBasis: Maybe<Scalars['Float']['output']>;
+  grossGain: Maybe<Scalars['Float']['output']>;
+  grossValue: Maybe<Scalars['Float']['output']>;
+  incomeTax: Maybe<Scalars['Float']['output']>;
+  investedPrincipal: Maybe<Scalars['Float']['output']>;
+  iof: Maybe<Scalars['Float']['output']>;
+  isProjected: Scalars['Boolean']['output'];
+  netContributions: Maybe<Scalars['Float']['output']>;
+  netGain: Maybe<Scalars['Float']['output']>;
+  netValue: Maybe<Scalars['Float']['output']>;
+  quantity: Maybe<Scalars['Float']['output']>;
+  timestamp: Scalars['DateTime']['output'];
+};
+
+export enum HoldingPerformanceResolution {
+  Day = 'DAY',
+  Hour = 'HOUR',
+  Minute = 'MINUTE',
+  Month = 'MONTH'
+}
+
+export type HoldingPerformanceSummary = {
+  __typename: 'HoldingPerformanceSummary';
+  currentCostBasis: Maybe<Scalars['Float']['output']>;
+  grossGain: Maybe<Scalars['Float']['output']>;
+  grossGainPercent: Maybe<Scalars['Float']['output']>;
+  grossValue: Maybe<Scalars['Float']['output']>;
+  incomeTax: Maybe<Scalars['Float']['output']>;
+  investedPrincipal: Maybe<Scalars['Float']['output']>;
+  iof: Maybe<Scalars['Float']['output']>;
+  netContributions: Maybe<Scalars['Float']['output']>;
+  netGain: Maybe<Scalars['Float']['output']>;
+  netValue: Maybe<Scalars['Float']['output']>;
+};
+
 export enum HoldingPricingMode {
   Manual = 'MANUAL',
   MarketData = 'MARKET_DATA'
@@ -1424,6 +1482,8 @@ export type InvestmentHolding = {
   createdAt: Scalars['DateTime']['output'];
   financialAccount: Maybe<FinancialAccount>;
   financialAccountId: Scalars['ID']['output'];
+  /** Annual fixed rate or spread (e.g. 0.12 = 12% a.a.). */
+  fixedAnnualRate: Maybe<Scalars['Float']['output']>;
   /** Earliest redemption date (carência). */
   gracePeriodDate: Maybe<Scalars['Date']['output']>;
   grossValue: Maybe<Scalars['Float']['output']>;
@@ -1441,8 +1501,6 @@ export type InvestmentHolding = {
   lastValuedAt: Maybe<Scalars['DateTime']['output']>;
   maturityDate: Maybe<Scalars['Date']['output']>;
   netValue: Maybe<Scalars['Float']['output']>;
-  /** Annual pre-fixed rate (e.g. 0.12 = 12% a.a.). */
-  preFixedRate: Maybe<Scalars['Float']['output']>;
   pricingMode: Maybe<HoldingPricingMode>;
   /** Current number of units/shares/cotas held. Zero means position is closed. */
   quantity: Scalars['Float']['output'];
@@ -1467,11 +1525,12 @@ export enum InvestmentSource {
  */
 export type InvestmentTransaction = {
   __typename: 'InvestmentTransaction';
-  agreedRate: Maybe<Scalars['Float']['output']>;
   brokerNote: Maybe<BrokerNote>;
   createdAt: Scalars['DateTime']['output'];
   direction: InvestmentTransactionDirection;
   financialAccountId: Scalars['ID']['output'];
+  /** Annual fixed rate associated with the transaction, when applicable. */
+  fixedAnnualRate: Maybe<Scalars['Float']['output']>;
   grossValue: Scalars['Float']['output'];
   holdingId: Scalars['ID']['output'];
   id: Scalars['ID']['output'];
@@ -2356,6 +2415,8 @@ export type Query = {
   fixedIncomeComparison: FixedIncomeComparisonResult;
   group: Maybe<Group>;
   groups: GroupConnection;
+  /** Generic performance series and valuation summary for a holding. */
+  holdingPerformance: Maybe<HoldingPerformance>;
   indicatorsLatest: Array<EconomicIndicatorLatestItem>;
   /** Look up an asset from the global catalog. */
   investmentAsset: Maybe<InvestmentAsset>;
@@ -2522,6 +2583,13 @@ export type QueryGroupsArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   orderBy?: InputMaybe<Array<GroupOrderByInput>>;
   query?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryHoldingPerformanceArgs = {
+  holdingId: Scalars['ID']['input'];
+  includeProjection?: InputMaybe<Scalars['Boolean']['input']>;
+  resolution?: InputMaybe<HoldingPerformanceResolution>;
 };
 
 
@@ -2786,11 +2854,11 @@ export type RatingIssuer = {
  * RF-specific terms (indexer, maturityDate, etc.) are only used when creating a brand-new holding.
  */
 export type RecordInvestmentTransactionInput = {
-  agreedRate?: InputMaybe<Scalars['Float']['input']>;
   assetId: Scalars['ID']['input'];
   brokerNote?: InputMaybe<BrokerNoteInput>;
   direction: InvestmentTransactionDirection;
   financialAccountId: Scalars['ID']['input'];
+  fixedAnnualRate?: InputMaybe<Scalars['Float']['input']>;
   gracePeriodDate?: InputMaybe<Scalars['Date']['input']>;
   grossValue: Scalars['Float']['input'];
   incomeTax?: InputMaybe<Scalars['Float']['input']>;
@@ -2802,7 +2870,6 @@ export type RecordInvestmentTransactionInput = {
   manualValuation?: InputMaybe<ManualFundValuationInput>;
   maturityDate?: InputMaybe<Scalars['Date']['input']>;
   netValue?: InputMaybe<Scalars['Float']['input']>;
-  preFixedRate?: InputMaybe<Scalars['Float']['input']>;
   priceFactor?: InputMaybe<Scalars['Float']['input']>;
   pricingMode?: InputMaybe<HoldingPricingMode>;
   providerInvestmentId?: InputMaybe<Scalars['String']['input']>;

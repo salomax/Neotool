@@ -55,7 +55,7 @@ export function AssetTypeChip({ assetType, size = 'small', variant = 'outlined',
       ? '—'
       : FUND_LABEL_TYPES.has(assetType)
       ? formatFundAssetType(assetType, t)
-      : (t(`investments.assetTypes.${assetType}` as string, { defaultValue: String(assetType).replaceAll('_', ' ') }) as string);
+      : (t(`investments.assetTypes.${assetType}` as string) as string);
 
   return (
     <Chip

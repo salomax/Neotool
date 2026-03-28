@@ -56,7 +56,7 @@
       "funds": "Funds"
     },
     "actions": {
-      "recordHolding": "Record holding",
+      "recordHolding": "Investment",
       "recordFund": "Record fund",
       "recordEquity": "Record stock / FII"
     },
@@ -88,6 +88,14 @@
       "OPTION": "Options",
       "DERIVATIVES": "Derivatives",
       "OTHER": "Other"
+    },
+    "assetGroups": {
+      "fixedIncome": "Fixed income",
+      "variableIncome": "Variable income",
+      "mutualFunds": "Investment funds",
+      "pension": "Pension",
+      "structured": "Structured",
+      "others": "Others"
     },
     "createAccount": {
       "title": "Create investment account",
@@ -126,6 +134,7 @@
         "financialAccount": "Financial account",
         "quantity": "Quantity",
         "averagePrice": "Average price",
+        "priceD1": "Price D+1",
         "currentValue": "Current value",
         "indexer": "Indexer",
         "fundQuantity": "Fund units",
@@ -147,6 +156,29 @@
         "MARKET_DATA": "CVM NAV",
         "PROVIDER": "Integration"
       },
+      "valueOrigin": {
+        "ariaLabel": "Value origin",
+        "labels": {
+          "calculado_app": "The value may be approximate",
+          "estimado_app": "The value may be approximate",
+          "mercado_app": "The value may be approximate",
+          "manual": "Entered manually",
+          "sincronizado_provider": "Synced with provider",
+          "importado": "Imported",
+          "externo": "External",
+          "indisponivel": "Unavailable"
+        },
+        "descriptions": {
+          "calculado_app": "Value calculated by the app based on the investment terms.",
+          "estimado_app": "Estimated value calculated by the app based on the investment terms and economic indicators.",
+          "mercado_app": "Value calculated by the app based on market data.",
+          "manual": "Value entered manually.",
+          "sincronizado_provider": "Value sent by the institution or connected provider.",
+          "importado": "Value imported from a file.",
+          "externo": "Value sent by an external source.",
+          "indisponivel": "We couldn't determine the current value of this investment."
+        }
+      },
       "expiredBadge": "Expired",
       "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
       "groupTotalEstimated": "Part of this total uses estimated valuation or tax data.",
@@ -156,6 +188,7 @@
       "groupSummary_other": "{{count}} assets · {{total}}",
       "rowActions": {
         "ariaLabel": "Holding actions",
+        "viewDetails": "View details",
         "edit": "Edit",
         "remove": "Delete"
       },
@@ -173,6 +206,85 @@
       "recordFirstHolding": "Record first holding",
       "error": "Failed to load investments"
     },
+    "detailDrawer": {
+      "title": "Investment details",
+      "comingSoonTitle": "Details coming soon",
+      "comingSoonDescription": "Full details for this investment type will be added in the next steps.",
+      "errorTitle": "We couldn't load this asset",
+      "emptyTitle": "Asset unavailable",
+      "emptyDescription": "We couldn't load the details for this position.",
+      "netValue": "Net total",
+      "grid": {
+        "principal": "Principal",
+        "grossTotal": "Gross total",
+        "netTotal": "Net total",
+        "grossEarnings": "Gross earnings",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "netEarnings": "Net earnings"
+      },
+      "metrics": {
+        "principal": "Invested principal",
+        "currentCostBasis": "Current cost basis",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "grossGain": "Gross gain",
+        "grossGainPercent": "Gross return"
+      },
+      "chart": {
+        "title": "Investment progression",
+        "emptyTitle": "No history available",
+        "emptyDescription": "There are not enough points yet to build this position's progression.",
+        "principalLabel": "Invested principal",
+        "grossLabel": "Gross value",
+        "netLabel": "Net value",
+        "modes": {
+          "actual": "Current",
+          "projected": "Include projection until maturity"
+        }
+      },
+      "dates": {
+        "elapsedTitle": "Time elapsed",
+        "elapsedValue_one": "1 month passed",
+        "elapsedValue_other": "{{count}} months passed",
+        "remainingTitle": "Time remaining",
+        "remainingValue_one": "1 month left",
+        "remainingValue_other": "{{count}} months left"
+      },
+      "taxExempt": {
+        "yes": "Tax exempt",
+        "no": "Taxable"
+      },
+      "status": {
+        "expired": "Expired"
+      },
+      "terms": {
+        "title": "Investment terms",
+        "issueDate": "Issue date",
+        "gracePeriodDate": "Grace period",
+        "maturityDate": "Maturity",
+        "indexer": "Indexer"
+      },
+      "timeline": {
+        "title": "Timeline",
+        "emptyTitle": "No transactions yet",
+        "emptyDescription": "No events were found for this position.",
+        "tradeDate": "Trade date: {{date}}",
+        "settlementDate": "Settlement: {{date}}",
+        "netAmount": "Net: {{value}}",
+        "incomeTax": "Income tax: {{value}}",
+        "iof": "IOF: {{value}}"
+      },
+      "transactionTypes": {
+        "AMORTIZATION": "Amortization",
+        "INTEREST_PAYMENT": "Interest payment",
+        "MATURITY": "Maturity",
+        "PURCHASE": "Purchase",
+        "SALE": "Sale"
+      }
+    },
     "deleteConfirmation": {
       "title": "Delete holding",
       "message": "Are you sure you want to delete this entry? This action cannot be undone."
@@ -184,6 +296,46 @@
         "quantity": "Quantity",
         "unitPrice": "Unit price",
         "grossValue": "Gross value"
+      }
+    },
+    "redemption": {
+      "title": "Record redemption",
+      "trigger": "Record redemption",
+      "success": "Redemption recorded successfully",
+      "sections": {
+        "type": "Transaction type",
+        "scope": "Redemption",
+        "values": "Received amounts"
+      },
+      "types": {
+        "sale": "Early redemption",
+        "maturity": "Maturity"
+      },
+      "scope": {
+        "full": "Full",
+        "partial": "Partial"
+      },
+      "fields": {
+        "quantity": "Redeemed quantity",
+        "quantityHelper": "Max: {{max}}",
+        "grossValue": "Gross amount received",
+        "incomeTax": "Withheld income tax",
+        "iof": "IOF",
+        "netValueInfo": "Net amount: {{value}}",
+        "tradeDate": "Redemption date"
+      },
+      "taxExemptInfo": "This asset is tax-exempt for individuals.",
+      "actions": {
+        "submit": "Record redemption",
+        "submitting": "Recording..."
+      },
+      "validation": {
+        "quantityRequired": "Enter quantity",
+        "quantityPositive": "Quantity must be positive",
+        "quantityExceedsHolding": "Maximum available quantity: {{max}}",
+        "grossValueRequired": "Enter gross amount received",
+        "grossValuePositive": "Gross amount must be positive",
+        "tradeDateRequired": "Enter redemption date"
       }
     },
     "recordHolding": {
@@ -202,7 +354,7 @@
         "issuerName": "Issuer",
         "indexer": "Indexer",
         "indexerPercentage": "Indexer %",
-        "preFixedRate": "Rate (% p.a.)",
+        "fixedAnnualRate": "Rate (% p.a.)",
         "quantity": "Quantity",
         "grossValue": "Invested amount (BRL)",
         "tradeDate": "Application date",
@@ -240,7 +392,7 @@
         "issuerRequired": "Issuer is required",
         "indexerRequired": "Indexer is required",
         "indexerPercentageRequired": "Indexer % is required",
-        "preFixedRateRequired": "Rate is required",
+        "fixedAnnualRateRequired": "Rate is required",
         "quantityNonNegative": "Quantity must be 0 or greater",
         "grossValueRequired": "Invested amount is required",
         "grossValuePositive": "Amount must be greater than zero",

@@ -1449,6 +1449,70 @@ type HoldingAttachment
   createdAt: DateTime!
 }
 
+type HoldingPerformance
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  assetType: AssetType!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+}
+
+type HoldingPerformanceCapabilities
+  @join__type(graph: BANKING)
+{
+  supportsProjection: Boolean!
+  projectionDefaultEnabled: Boolean!
+  supportedResolutions: [HoldingPerformanceResolution!]!
+  defaultResolution: HoldingPerformanceResolution!
+}
+
+type HoldingPerformancePoint
+  @join__type(graph: BANKING)
+{
+  timestamp: DateTime!
+  isProjected: Boolean!
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  quantity: Float
+}
+
+enum HoldingPerformanceResolution
+  @join__type(graph: BANKING)
+{
+  MINUTE @join__enumValue(graph: BANKING)
+  HOUR @join__enumValue(graph: BANKING)
+  DAY @join__enumValue(graph: BANKING)
+  MONTH @join__enumValue(graph: BANKING)
+}
+
+type HoldingPerformanceSummary
+  @join__type(graph: BANKING)
+{
+  investedPrincipal: Float
+  netContributions: Float
+  currentCostBasis: Float
+  grossValue: Float
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  grossGain: Float
+  netGain: Float
+  grossGainPercent: Float
+}
+
 enum HoldingPricingMode
   @join__type(graph: BANKING)
 {
@@ -1685,8 +1749,8 @@ type InvestmentHolding
   """Fraction of indexer applied (e.g. 1.15 = 115% CDI)."""
   indexerPercentage: Float
 
-  """Annual pre-fixed rate (e.g. 0.12 = 12% a.a.)."""
-  preFixedRate: Float
+  """Annual fixed rate or spread (e.g. 0.12 = 12% a.a.)."""
+  fixedAnnualRate: Float
   issueDate: Date
   maturityDate: Date
 
@@ -1754,7 +1818,9 @@ type InvestmentTransaction
   incomeTax: Float
   iof: Float
   indexerPercentage: Float
-  agreedRate: Float
+
+  """Annual fixed rate associated with the transaction, when applicable."""
+  fixedAnnualRate: Float
   priceFactor: Float
 
   """Legal event date — fato gerador for IR calculation."""
@@ -2614,6 +2680,9 @@ type Query
 
   """Look up an asset from the global catalog."""
   investmentAsset(id: ID!): InvestmentAsset @join__field(graph: BANKING)
+
+  """Generic performance series and valuation summary for a holding."""
+  holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
   _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
@@ -2689,13 +2758,12 @@ input RecordInvestmentTransactionInput
   incomeTax: Float
   iof: Float
   indexerPercentage: Float
-  agreedRate: Float
+  fixedAnnualRate: Float
   priceFactor: Float
   tradeDate: Date!
   settlementDate: Date
   brokerNote: BrokerNoteInput
   indexer: Indexer
-  preFixedRate: Float
   issueDate: Date
   maturityDate: Date
   gracePeriodDate: Date

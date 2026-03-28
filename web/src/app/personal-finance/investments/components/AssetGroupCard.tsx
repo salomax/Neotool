@@ -79,7 +79,6 @@ export function AssetGroupCard({
         bgcolor: 'transparent',
         borderRadius: 0,
         transition: 'none',
-        mb: 2,
         '&:before': { display: 'none' },
         '&.Mui-expanded': {
           margin: 0,
@@ -93,7 +92,7 @@ export function AssetGroupCard({
         sx={{
           flexDirection: 'row-reverse',
           px: 2,
-          pt: 1.75,
+          pt: 2.75,
           pb: 0.75,
           minHeight: 64,
           border: 'none',
@@ -171,11 +170,22 @@ export function AssetGroupCard({
                 <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2, textTransform: 'uppercase', fontSize: '0.65rem' }}>
                   POSIÇÃO ATUAL
                 </Typography>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0, mt: 0.25 }}>
-                  {summaryAdornment}
+                <Box
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    width: '100%',
+                    minWidth: 0,
+                    mt: 0.25,
+                    overflow: 'visible',
+                  }}
+                >
                   <Typography variant="subtitle2" fontWeight={600} noWrap sx={{ lineHeight: 1.2 }}>
                     {parsedSummary.totalValue ?? '—'}
                   </Typography>
+                  {summaryAdornment}
                 </Box>
                 {typeof gainPercent === 'number' && Number.isFinite(gainPercent) ? (
                   <PercentageGain value={gainPercent} locale={i18n.language} sx={{ mt: 0.25 }} />

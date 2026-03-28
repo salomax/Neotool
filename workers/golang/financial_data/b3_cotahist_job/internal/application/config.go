@@ -40,7 +40,7 @@ type JobConfig struct {
 	ChunkSize int `env:"B3_CHUNK_SIZE" envDefault:"1000"`
 
 	// BackfillYears is the number of past years to load on the first run.
-	BackfillYears int `env:"B3_BACKFILL_YEARS" envDefault:"5"`
+	BackfillYears int `env:"B3_BACKFILL_YEARS" envDefault:"10"`
 
 	// GapThresholdDays: when the outstanding data window is this many days or fewer,
 	// only daily files are fetched (no annual/monthly ZIPs).

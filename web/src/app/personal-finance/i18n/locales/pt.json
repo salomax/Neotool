@@ -56,7 +56,7 @@
       "funds": "Fundos"
     },
     "actions": {
-      "recordHolding": "Nova posição",
+      "recordHolding": "Investimento",
       "recordFund": "Novo fundo",
       "recordEquity": "Nova Ação, FII ou opção"
     },
@@ -118,6 +118,14 @@
       "DERIVATIVES": "Derivativos",
       "OTHER": "Outros"
     },
+    "assetGroups": {
+      "fixedIncome": "Renda fixa",
+      "variableIncome": "Renda variável",
+      "mutualFunds": "Fundos de investimento",
+      "pension": "Previdência",
+      "structured": "Estruturados",
+      "others": "Outros"
+    },
     "table": {
       "columns": {
         "asset": "Ativo",
@@ -126,6 +134,7 @@
         "financialAccount": "Conta financeira",
         "quantity": "Quantidade",
         "averagePrice": "Preço médio",
+        "priceD1": "Preço D+1",
         "currentValue": "Valor atual",
         "indexer": "Indexador",
         "fundQuantity": "Qtd. Cotas",
@@ -147,6 +156,29 @@
         "MARKET_DATA": "Cota CVM",
         "PROVIDER": "Integração"
       },
+      "valueOrigin": {
+        "ariaLabel": "Origem do valor",
+        "labels": {
+          "calculado_app": "Valores aproximados",
+          "estimado_app": "Valores aproximados",
+          "mercado_app": "Valores aproximados",
+          "manual": "Informado manualmente",
+          "sincronizado_provider": "Sincronizado com provedor",
+          "importado": "Importado",
+          "externo": "Externo",
+          "indisponivel": "Indisponível"
+        },
+        "descriptions": {
+          "calculado_app": "Valor estimado com base nas condições informadas.",
+          "estimado_app": "Valor estimado com base nas condições informadas e em indicadores econômicos.",
+          "mercado_app": "Valor estimado com base em dados de mercado em ao menos D+1.",
+          "manual": "Valor informado manualmente.",
+          "sincronizado_provider": "Valor enviado pela instituição ou pelo provedor conectado.",
+          "importado": "Valor importado de arquivo.",
+          "externo": "Valor enviado por uma fonte externa.",
+          "indisponivel": "Não foi possível determinar o valor atual deste investimento."
+        }
+      },
       "expiredBadge": "Expirado",
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
       "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
@@ -156,6 +188,7 @@
       "groupSummary_other": "{{count}} ativos · {{total}}",
       "rowActions": {
         "ariaLabel": "Ações do ativo",
+        "viewDetails": "Ver detalhes",
         "edit": "Editar",
         "remove": "Excluir"
       },
@@ -173,6 +206,85 @@
       "recordFirstHolding": "Registrar primeiro ativo",
       "error": "Erro ao carregar investimentos"
     },
+    "detailDrawer": {
+      "title": "Detalhes do investimento",
+      "comingSoonTitle": "Detalhes em breve",
+      "comingSoonDescription": "Os detalhes completos para este tipo de investimento serão adicionados nas próximas etapas.",
+      "errorTitle": "Não foi possível carregar o ativo",
+      "emptyTitle": "Ativo indisponível",
+      "emptyDescription": "Não foi possível carregar os detalhes desta posição.",
+      "netValue": "Total Líquido",
+      "grid": {
+        "principal": "Principal",
+        "grossTotal": "Total Bruto",
+        "netTotal": "Total Líquido",
+        "grossEarnings": "Rendimento Bruto",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "netEarnings": "Rendimento Líquido"
+      },
+      "metrics": {
+        "principal": "Principal investido",
+        "currentCostBasis": "Custo atual",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "grossGain": "Ganho bruto",
+        "grossGainPercent": "Rentabilidade bruta"
+      },
+      "chart": {
+        "title": "Evolução do investimento",
+        "emptyTitle": "Sem histórico disponível",
+        "emptyDescription": "Ainda não há pontos suficientes para montar a evolução desta posição.",
+        "principalLabel": "Principal investido",
+        "grossLabel": "Valor bruto",
+        "netLabel": "Valor líquido",
+        "modes": {
+          "actual": "Atual",
+          "projected": "Projeção até o vencimento"
+        }
+      },
+      "dates": {
+        "elapsedTitle": "Tempo decorrido",
+        "elapsedValue_one": "1 mês decorrido",
+        "elapsedValue_other": "{{count}} meses decorridos",
+        "remainingTitle": "Tempo restante",
+        "remainingValue_one": "1 mês restante",
+        "remainingValue_other": "{{count}} meses restantes"
+      },
+      "taxExempt": {
+        "yes": "Isento de IR",
+        "no": "Tributado"
+      },
+      "status": {
+        "expired": "Vencido"
+      },
+      "terms": {
+        "title": "Condições do investimento",
+        "issueDate": "Data de emissão",
+        "gracePeriodDate": "Carência",
+        "maturityDate": "Vencimento",
+        "indexer": "Indexador"
+      },
+      "timeline": {
+        "title": "Linha do tempo",
+        "emptyTitle": "Sem movimentações",
+        "emptyDescription": "Nenhum evento foi encontrado para esta posição.",
+        "tradeDate": "Data: {{date}}",
+        "settlementDate": "Liquidação: {{date}}",
+        "netAmount": "Líquido: {{value}}",
+        "incomeTax": "IR: {{value}}",
+        "iof": "IOF: {{value}}"
+      },
+      "transactionTypes": {
+        "AMORTIZATION": "Amortização",
+        "INTEREST_PAYMENT": "Pagamento de juros",
+        "MATURITY": "Vencimento",
+        "PURCHASE": "Aplicação",
+        "SALE": "Resgate"
+      }
+    },
     "deleteConfirmation": {
       "title": "Excluir ativo",
       "message": "Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
@@ -184,6 +296,46 @@
         "quantity": "Quantidade",
         "unitPrice": "Preço unitário",
         "grossValue": "Valor bruto"
+      }
+    },
+    "redemption": {
+      "title": "Registrar resgate",
+      "trigger": "Registrar resgate",
+      "success": "Resgate registrado com sucesso",
+      "sections": {
+        "type": "Tipo de movimentação",
+        "scope": "Resgate",
+        "values": "Valores recebidos"
+      },
+      "types": {
+        "sale": "Resgate antecipado",
+        "maturity": "Vencimento"
+      },
+      "scope": {
+        "full": "Total",
+        "partial": "Parcial"
+      },
+      "fields": {
+        "quantity": "Quantidade resgatada",
+        "quantityHelper": "Máximo: {{max}}",
+        "grossValue": "Valor bruto recebido",
+        "incomeTax": "IR retido na fonte",
+        "iof": "IOF",
+        "netValueInfo": "Valor líquido: {{value}}",
+        "tradeDate": "Data do resgate"
+      },
+      "taxExemptInfo": "Este ativo é isento de IR para pessoa física.",
+      "actions": {
+        "submit": "Registrar resgate",
+        "submitting": "Registrando..."
+      },
+      "validation": {
+        "quantityRequired": "Informe a quantidade",
+        "quantityPositive": "A quantidade deve ser positiva",
+        "quantityExceedsHolding": "Quantidade máxima disponível: {{max}}",
+        "grossValueRequired": "Informe o valor bruto recebido",
+        "grossValuePositive": "O valor bruto deve ser positivo",
+        "tradeDateRequired": "Informe a data do resgate"
       }
     },
     "recordHolding": {
@@ -202,7 +354,7 @@
         "issuerName": "Emissor",
         "indexer": "Indexador",
         "indexerPercentage": "% do indexador",
-        "preFixedRate": "Taxa (% a.a.)",
+        "fixedAnnualRate": "Taxa (% a.a.)",
         "quantity": "Quantidade",
         "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
@@ -240,7 +392,7 @@
         "issuerRequired": "Emissor é obrigatório",
         "indexerRequired": "Indexador é obrigatório",
         "indexerPercentageRequired": "% do indexador é obrigatório",
-        "preFixedRateRequired": "Taxa é obrigatória",
+        "fixedAnnualRateRequired": "Taxa é obrigatória",
         "quantityNonNegative": "Quantidade deve ser maior ou igual a zero",
         "grossValueRequired": "Valor aplicado é obrigatório",
         "grossValuePositive": "Valor deve ser maior que zero",

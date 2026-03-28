@@ -27,44 +27,50 @@ vi.mock('@/shared/components/ui/layout/SidebarLayout', () => ({
   ),
 }));
 
-vi.mock('../components/FinancialAccountSelector', () => ({
+vi.mock('../account/FinancialAccountSelector', () => ({
   FinancialAccountSelector: () => <div data-testid="financial-account-selector" />,
 }));
 
-vi.mock('../components/MonthYearCarousel', () => ({
+vi.mock('../summary/MonthYearCarousel', () => ({
   MonthYearCarousel: () => <div data-testid="month-year-carousel" />,
 }));
 
-vi.mock('../components/BillCarousel', () => ({
+vi.mock('../bill/BillCarousel', () => ({
   BillCarousel: () => <div data-testid="bill-carousel" />,
 }));
 
-vi.mock('../components/BillSummaryHeader', () => ({
+vi.mock('../bill/BillSummaryHeader', () => ({
   BillSummaryHeader: () => <div data-testid="bill-summary-header" />,
 }));
 
-vi.mock('../components/MonthSummary', () => ({
+vi.mock('../summary/MonthSummary', () => ({
   MonthSummary: () => <div data-testid="month-summary" />,
 }));
 
-vi.mock('../components/TransactionTable', () => ({
+vi.mock('../transaction/TransactionTable', () => ({
   TransactionTable: () => <div data-testid="transaction-table" />,
 }));
 
-vi.mock('../components/CreateFinancialAccountDrawer', () => ({
+vi.mock('../account/CreateFinancialAccountDrawer', () => ({
   CreateFinancialAccountDrawer: () => <div data-testid="create-account-drawer" />,
 }));
 
-vi.mock('../components/ImportTransactionsDrawer', () => ({
+vi.mock('../transaction/ImportTransactionsDrawer', () => ({
   ImportTransactionsDrawer: () => <div data-testid="import-transactions-drawer" />,
 }));
 
-vi.mock('../components/EmptyFinancialAccountsState', () => ({
+vi.mock('../account/EmptyFinancialAccountsState', () => ({
   EmptyFinancialAccountsState: () => <div data-testid="empty-state" />,
 }));
 
+vi.mock('../bill/BillImportDrawer', () => ({
+  BillImportDrawer: () => <div data-testid="bill-import-drawer" />,
+}));
+
 // Mock useAccountDisplayMode
-vi.mock('../hooks/useAccountDisplayMode');
+vi.mock('../account/useAccountDisplayMode', () => ({
+  useAccountDisplayMode: vi.fn(),
+}));
 
 // Mock Apollo useQuery
 vi.mock('@apollo/client/react', () => ({
@@ -87,12 +93,11 @@ describe.sequential('FinanceTransactionsPage', () => {
 
     // Default useAccountDisplayMode mock implementation (calendar)
     (useAccountDisplayMode as unknown as Mock).mockReturnValue({
-      kind: 'bill',
-      bills: [],
-      selectedBill: null,
-      loading: false,
-      refetchBills: vi.fn(),
-      setSelectedBill: vi.fn(),
+      kind: 'calendar',
+      month: 3,
+      year: 2024,
+      setMonth: vi.fn(),
+      setYear: vi.fn(),
     });
   });
 
@@ -176,6 +181,7 @@ describe.sequential('FinanceTransactionsPage', () => {
       bills: [],
       loading: false,
       refetchBills: vi.fn(),
+      setSelectedBill: vi.fn(),
     });
 
     (useQuery as any).mockReturnValue({

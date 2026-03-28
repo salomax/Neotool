@@ -350,6 +350,19 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "holdingPerformance",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val holdingId =
+                            env.getArgument<String>("holdingId")
+                                ?: throw IllegalArgumentException("holdingId is required")
+                        val resolution = env.getArgument<String?>("resolution")
+                        val includeProjection = env.getArgument<Boolean?>("includeProjection")
+                        investmentResolver.holdingPerformance(holdingId, resolution, includeProjection, principal)
+                    }
+                },
+            )
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
         type

@@ -18,7 +18,7 @@ class FixedIncomeValuationServiceTest {
         indexer: Indexer,
         quantity: String = "10000.00",
         averageCost: String = "1.00",
-        preFixedRate: String? = null,
+        fixedAnnualRate: String? = null,
         issueDate: LocalDate = startDate,
         maturityDate: LocalDate? = null,
         isTaxExempt: Boolean = false,
@@ -33,7 +33,7 @@ class FixedIncomeValuationServiceTest {
             averageCost = BigDecimal(averageCost),
             indexer = indexer,
             indexerPercentage = indexerPercentage?.let { BigDecimal(it) },
-            preFixedRate = preFixedRate?.let { BigDecimal(it) },
+            fixedAnnualRate = fixedAnnualRate?.let { BigDecimal(it) },
             issueDate = issueDate,
             maturityDate = maturityDate,
             isTaxExempt = isTaxExempt,
@@ -49,7 +49,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.PRE_FIXADO,
                 quantity = "10000.00",
                 averageCost = "1.00",
-                preFixedRate = "0.12",
+                fixedAnnualRate = "0.12",
             )
 
         val result =
@@ -98,6 +98,66 @@ class FixedIncomeValuationServiceTest {
     }
 
     @Test
+    fun `CDI historical monthly series is preferred over latest rolling annual rate`() {
+        val issueDate = LocalDate.of(2024, 2, 18)
+        val currentDate = LocalDate.of(2026, 3, 26)
+        val service = FixedIncomeValuationService { currentDate }
+
+        val h =
+            holding(
+                indexer = Indexer.CDI,
+                quantity = "10000.00",
+                averageCost = "1.00",
+                issueDate = issueDate,
+                indexerPercentage = "1.2393",
+            )
+
+        val monthlySeries =
+            mapOf(
+                Indexer.CDI to
+                    listOf(
+                        LocalDate.of(2024, 2, 1) to BigDecimal("0.0080"),
+                        LocalDate.of(2024, 3, 1) to BigDecimal("0.0083"),
+                        LocalDate.of(2024, 4, 1) to BigDecimal("0.0089"),
+                        LocalDate.of(2024, 5, 1) to BigDecimal("0.0083"),
+                        LocalDate.of(2024, 6, 1) to BigDecimal("0.0079"),
+                        LocalDate.of(2024, 7, 1) to BigDecimal("0.0091"),
+                        LocalDate.of(2024, 8, 1) to BigDecimal("0.0087"),
+                        LocalDate.of(2024, 9, 1) to BigDecimal("0.0084"),
+                        LocalDate.of(2024, 10, 1) to BigDecimal("0.0093"),
+                        LocalDate.of(2024, 11, 1) to BigDecimal("0.0079"),
+                        LocalDate.of(2024, 12, 1) to BigDecimal("0.0093"),
+                        LocalDate.of(2025, 1, 1) to BigDecimal("0.0101"),
+                        LocalDate.of(2025, 2, 1) to BigDecimal("0.0099"),
+                        LocalDate.of(2025, 3, 1) to BigDecimal("0.0096"),
+                        LocalDate.of(2025, 4, 1) to BigDecimal("0.0106"),
+                        LocalDate.of(2025, 5, 1) to BigDecimal("0.0114"),
+                        LocalDate.of(2025, 6, 1) to BigDecimal("0.0110"),
+                        LocalDate.of(2025, 7, 1) to BigDecimal("0.0128"),
+                        LocalDate.of(2025, 8, 1) to BigDecimal("0.0116"),
+                        LocalDate.of(2025, 9, 1) to BigDecimal("0.0122"),
+                        LocalDate.of(2025, 10, 1) to BigDecimal("0.0128"),
+                        LocalDate.of(2025, 11, 1) to BigDecimal("0.0105"),
+                        LocalDate.of(2025, 12, 1) to BigDecimal("0.0122"),
+                        LocalDate.of(2026, 1, 1) to BigDecimal("0.0116"),
+                        LocalDate.of(2026, 2, 1) to BigDecimal("0.0100"),
+                        LocalDate.of(2026, 3, 1) to BigDecimal("0.0094"),
+                    ),
+            )
+
+        val result =
+            service.estimate(
+                holding = h,
+                indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.1449119371")),
+                monthlySeries = monthlySeries,
+            )
+
+        assertThat(result.grossValue).isNotNull
+        assertThat(result.grossValue!!.toDouble()).isCloseTo(13664.34, within(0.5))
+        assertThat(result.grossValue!!.toDouble()).isLessThan(14000.0)
+    }
+
+    @Test
     fun `IPCA+ accrual combines price index and spread`() {
         val tPlus252 = startDate.plusDays(365)
         val service = FixedIncomeValuationService { tPlus252 }
@@ -107,7 +167,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.IPCA,
                 quantity = "10000.00",
                 averageCost = "1.00",
-                preFixedRate = "0.06",
+                fixedAnnualRate = "0.06",
             )
 
         val ipcaAnnual = BigDecimal("0.065")
@@ -117,12 +177,12 @@ class FixedIncomeValuationServiceTest {
                 indicatorRates = mapOf(Indexer.IPCA to ipcaAnnual),
             )
 
-        val effectiveAnnual = (1.0 + 0.065) * (1.0 + 0.06) - 1.0
         val expected =
             run {
                 val principal = 10_000.0
-                val factor = Math.pow(1.0 + effectiveAnnual, 252.0 / 252.0)
-                principal * factor
+                val indexedGross = principal * (1.0 + 0.065)
+                val spreadGross = principal * (1.0 + 0.06)
+                indexedGross + spreadGross - principal
             }
 
         assertThat(result.grossValue).isNotNull
@@ -139,7 +199,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.PRE_FIXADO,
                 quantity = "10000.00",
                 averageCost = "1.00",
-                preFixedRate = "0.12",
+                fixedAnnualRate = "0.12",
                 isTaxExempt = true,
             )
 
@@ -163,7 +223,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.PRE_FIXADO,
                 quantity = "10000.00",
                 averageCost = "1.00",
-                preFixedRate = "0.12",
+                fixedAnnualRate = "0.12",
                 maturityDate = maturity,
             )
 
@@ -208,7 +268,7 @@ class FixedIncomeValuationServiceTest {
     }
 
     @Test
-    fun `OUTROS indexer returns unavailable`() {
+    fun `OUTROS indexer uses pre fixed rate`() {
         val tPlus100 = startDate.plusDays(150)
         val service = FixedIncomeValuationService { tPlus100 }
 
@@ -217,6 +277,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.OUTROS,
                 quantity = "10000.00",
                 averageCost = "1.00",
+                fixedAnnualRate = "0.12",
             )
 
         val result =
@@ -225,8 +286,9 @@ class FixedIncomeValuationServiceTest {
                 indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
             )
 
-        assertThat(result.grossValue).isNull()
-        assertThat(result.valuationSource).isEqualTo(ValuationSource.UNAVAILABLE)
+        assertThat(result.grossValue).isNotNull
+        assertThat(result.grossValue!!.toDouble()).isGreaterThan(10000.0)
+        assertThat(result.valuationSource).isEqualTo(ValuationSource.CALCULATED)
     }
 
     @Test
@@ -240,7 +302,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.PRE_FIXADO,
                 quantity = "10000.00",
                 averageCost = "1.00",
-                preFixedRate = "0.12",
+                fixedAnnualRate = "0.12",
                 isTaxExempt = false,
             )
 
@@ -275,7 +337,7 @@ class FixedIncomeValuationServiceTest {
                 indexer = Indexer.IPCA,
                 quantity = principal.toPlainString(),
                 averageCost = "1.00",
-                preFixedRate = "0.088",
+                fixedAnnualRate = "0.088",
                 issueDate = issueDate,
             )
 
@@ -312,8 +374,68 @@ class FixedIncomeValuationServiceTest {
             )
 
         assertThat(result.grossValue).isNotNull
-        assertThat(result.grossValue!!.toDouble()).isCloseTo(13025.83, within(80.0))
+        assertThat(result.grossValue!!.toDouble()).isCloseTo(12900.25, within(2.0))
         assertThat(result.netValue).isNotNull
-        assertThat(result.netValue!!.toDouble()).isCloseTo(12577.32, within(80.0))
+        assertThat(result.netValue!!.toDouble()).isCloseTo(12510.71, within(2.0))
+    }
+
+    @Test
+    fun `projection after monthly series coverage keeps historical accrual and does not drop`() {
+        val issueDate = LocalDate.of(2024, 9, 23)
+        val service = FixedIncomeValuationService { LocalDate.of(2026, 3, 27) }
+        val principal = BigDecimal("10674.30")
+        val monthlySeries =
+            mapOf(
+                Indexer.IPCA to
+                    listOf(
+                        LocalDate.of(2024, 9, 1) to BigDecimal("0.0044"),
+                        LocalDate.of(2024, 10, 1) to BigDecimal("0.0056"),
+                        LocalDate.of(2024, 11, 1) to BigDecimal("0.0039"),
+                        LocalDate.of(2024, 12, 1) to BigDecimal("0.0052"),
+                        LocalDate.of(2025, 1, 1) to BigDecimal("0.0016"),
+                        LocalDate.of(2025, 2, 1) to BigDecimal("0.0131"),
+                        LocalDate.of(2025, 3, 1) to BigDecimal("0.0056"),
+                        LocalDate.of(2025, 4, 1) to BigDecimal("0.0043"),
+                        LocalDate.of(2025, 5, 1) to BigDecimal("0.0026"),
+                        LocalDate.of(2025, 6, 1) to BigDecimal("0.0024"),
+                        LocalDate.of(2025, 7, 1) to BigDecimal("0.0026"),
+                        LocalDate.of(2025, 8, 1) to BigDecimal("-0.0011"),
+                        LocalDate.of(2025, 9, 1) to BigDecimal("0.0048"),
+                        LocalDate.of(2025, 10, 1) to BigDecimal("0.0009"),
+                        LocalDate.of(2025, 11, 1) to BigDecimal("0.0018"),
+                        LocalDate.of(2025, 12, 1) to BigDecimal("0.0033"),
+                        LocalDate.of(2026, 1, 1) to BigDecimal("0.0033"),
+                        LocalDate.of(2026, 2, 1) to BigDecimal("0.0070"),
+                    ),
+            )
+        val h =
+            holding(
+                indexer = Indexer.IPCA,
+                quantity = principal.toPlainString(),
+                averageCost = "1.00",
+                fixedAnnualRate = "0.088",
+                issueDate = issueDate,
+            )
+
+        val historical =
+            service.estimate(
+                holding = h,
+                indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
+                monthlySeries = monthlySeries,
+                asOfDate = LocalDate.of(2026, 3, 27),
+            )
+        val projected =
+            service.estimate(
+                holding = h,
+                indicatorRates = mapOf(Indexer.IPCA to BigDecimal("0.0701")),
+                monthlySeries = monthlySeries,
+                asOfDate = LocalDate.of(2026, 3, 28),
+                allowRateProjectionPastSeries = true,
+            )
+
+        assertThat(historical.grossValue).isNotNull
+        assertThat(projected.grossValue).isNotNull
+        assertThat(projected.grossValue!!).isGreaterThanOrEqualTo(historical.grossValue)
+        assertThat(projected.netValue!!).isGreaterThanOrEqualTo(historical.netValue)
     }
 }

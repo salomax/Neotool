@@ -13,6 +13,13 @@ import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
+enum class HoldingPerformanceResolution {
+    MINUTE,
+    HOUR,
+    DAY,
+    MONTH,
+}
+
 // ── Asset ─────────────────────────────────────────────────────────────────────
 
 data class InvestmentAssetDTO(
@@ -49,7 +56,7 @@ data class InvestmentHoldingDTO(
     // RF-specific terms
     val indexer: Indexer?,
     val indexerPercentage: Double?,
-    val preFixedRate: Double?,
+    val fixedAnnualRate: Double?,
     val issueDate: LocalDate?,
     val maturityDate: LocalDate?,
     val gracePeriodDate: LocalDate?,
@@ -103,7 +110,7 @@ data class InvestmentTransactionDTO(
     val incomeTax: Double?,
     val iof: Double?,
     val indexerPercentage: Double?,
-    val agreedRate: Double?,
+    val fixedAnnualRate: Double?,
     val priceFactor: Double?,
     val tradeDate: LocalDate,
     val settlementDate: LocalDate?,
@@ -111,4 +118,51 @@ data class InvestmentTransactionDTO(
     val brokerNote: BrokerNoteDTO?,
     val createdAt: Instant,
     val updatedAt: Instant,
+)
+
+data class HoldingPerformanceCapabilitiesDTO(
+    val supportsProjection: Boolean,
+    val projectionDefaultEnabled: Boolean,
+    val supportedResolutions: List<HoldingPerformanceResolution>,
+    val defaultResolution: HoldingPerformanceResolution,
+)
+
+data class HoldingPerformanceSummaryDTO(
+    val investedPrincipal: Double?,
+    val netContributions: Double?,
+    val currentCostBasis: Double?,
+    val grossValue: Double?,
+    val netValue: Double?,
+    val incomeTax: Double?,
+    val iof: Double?,
+    val grossGain: Double?,
+    val netGain: Double?,
+    val grossGainPercent: Double?,
+)
+
+data class HoldingPerformancePointDTO(
+    val timestamp: Instant,
+    val isProjected: Boolean,
+    val investedPrincipal: Double?,
+    val netContributions: Double?,
+    val currentCostBasis: Double?,
+    val grossValue: Double?,
+    val netValue: Double?,
+    val incomeTax: Double?,
+    val iof: Double?,
+    val grossGain: Double?,
+    val netGain: Double?,
+    val quantity: Double?,
+)
+
+data class HoldingPerformanceDTO(
+    val holdingId: UUID,
+    val assetType: AssetType,
+    val currencyCode: String,
+    val resolution: HoldingPerformanceResolution,
+    val valuationSource: ValuationSource,
+    val valuationReferenceDate: LocalDate?,
+    val capabilities: HoldingPerformanceCapabilitiesDTO,
+    val summary: HoldingPerformanceSummaryDTO,
+    val points: List<HoldingPerformancePointDTO>,
 )

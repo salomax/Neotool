@@ -26,6 +26,11 @@ import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
 import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceCapabilitiesDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformancePointDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceSummaryDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
@@ -34,7 +39,9 @@ import mu.KotlinLogging
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
+import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneOffset
 import java.util.UUID
 
@@ -76,6 +83,82 @@ class InvestmentQueryService(
     fun getHolding(id: UUID, accountId: UUID): InvestmentHoldingDTO? {
         val holding = holdingRepository.findById(id, accountId) ?: return null
         return mapHoldingsToDTO(listOf(holding), accountId).first()
+    }
+
+    fun getHoldingPerformance(
+        id: UUID,
+        accountId: UUID,
+        resolution: HoldingPerformanceResolution?,
+        includeProjection: Boolean,
+    ): HoldingPerformanceDTO? {
+        val holding = holdingRepository.findById(id, accountId) ?: return null
+        val asset = assetRepository.findById(holding.assetId) ?: return null
+        if (!asset.assetType.isFixedIncomePerformanceSupported()) return null
+
+        val today = clock()
+        val transactions = investmentTransactionRepository.findByHolding(id, accountId).sortedBy { it.tradeDate }
+        val valuationHolding = holding.withBackfilledFixedIncomeTerms(transactions)
+        val resolvedResolution = resolution.takeIf { it == HoldingPerformanceResolution.MONTH }
+            ?: HoldingPerformanceResolution.MONTH
+        val rateMap = safeGetIndicatorRates()
+        val valuationReferenceDate = indicatorRateProvider.getReferenceDate()
+        val monthlySeries = safeGetMonthlySeries(listOf(valuationHolding), today)
+
+        val points = buildFixedIncomePerformancePoints(
+            holding = valuationHolding,
+            transactions = transactions,
+            rateMap = rateMap,
+            valuationReferenceDate = valuationReferenceDate,
+            monthlySeries = monthlySeries,
+            includeProjection = includeProjection,
+            today = today,
+        )
+
+        val latestHistoricalPoint = points.lastOrNull { !it.isProjected }
+        val supportsProjection = valuationHolding.maturityDate?.isAfter(today) == true
+
+        return HoldingPerformanceDTO(
+            holdingId = id,
+            assetType = asset.assetType,
+            currencyCode = asset.currencyCode,
+            resolution = resolvedResolution,
+            valuationSource = latestHistoricalPoint?.valuationSource ?: ValuationSource.UNAVAILABLE,
+            valuationReferenceDate = latestHistoricalPoint?.valuationReferenceDate,
+            capabilities = HoldingPerformanceCapabilitiesDTO(
+                supportsProjection = supportsProjection,
+                projectionDefaultEnabled = false,
+                supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
+                defaultResolution = HoldingPerformanceResolution.MONTH,
+            ),
+            summary = HoldingPerformanceSummaryDTO(
+                investedPrincipal = latestHistoricalPoint?.investedPrincipal?.toDouble(),
+                netContributions = latestHistoricalPoint?.netContributions?.toDouble(),
+                currentCostBasis = latestHistoricalPoint?.currentCostBasis?.toDouble(),
+                grossValue = latestHistoricalPoint?.grossValue?.toDouble(),
+                netValue = latestHistoricalPoint?.netValue?.toDouble(),
+                incomeTax = latestHistoricalPoint?.incomeTax?.toDouble(),
+                iof = latestHistoricalPoint?.iof?.toDouble(),
+                grossGain = latestHistoricalPoint?.grossGain?.toDouble(),
+                netGain = latestHistoricalPoint?.netGain?.toDouble(),
+                grossGainPercent = latestHistoricalPoint?.grossGainPercent?.toDouble(),
+            ),
+            points = points.map { point ->
+                HoldingPerformancePointDTO(
+                    timestamp = point.timestamp,
+                    isProjected = point.isProjected,
+                    investedPrincipal = point.investedPrincipal?.toDouble(),
+                    netContributions = point.netContributions?.toDouble(),
+                    currentCostBasis = point.currentCostBasis?.toDouble(),
+                    grossValue = point.grossValue?.toDouble(),
+                    netValue = point.netValue?.toDouble(),
+                    incomeTax = point.incomeTax?.toDouble(),
+                    iof = point.iof?.toDouble(),
+                    grossGain = point.grossGain?.toDouble(),
+                    netGain = point.netGain?.toDouble(),
+                    quantity = point.quantity?.toDouble(),
+                )
+            },
+        )
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -152,13 +235,13 @@ class InvestmentQueryService(
         holdings: List<Holding>,
         today: LocalDate,
     ): Map<Indexer, List<Pair<LocalDate, BigDecimal>>> {
-        val inflationHoldings = holdings.filter { it.indexer in INFLATION_LINKED_INDEXERS && it.issueDate != null }
-        if (inflationHoldings.isEmpty()) return emptyMap()
+        val monthlySeriesHoldings = holdings.filter { it.indexer in MONTHLY_SERIES_INDEXERS && it.issueDate != null }
+        if (monthlySeriesHoldings.isEmpty()) return emptyMap()
 
         val result = mutableMapOf<Indexer, List<Pair<LocalDate, BigDecimal>>>()
-        for (indexer in inflationHoldings.mapNotNull { it.indexer }.toSet()) {
+        for (indexer in monthlySeriesHoldings.mapNotNull { it.indexer }.toSet()) {
             val from =
-                inflationHoldings
+                monthlySeriesHoldings
                     .filter { it.indexer == indexer }
                     .mapNotNull { it.issueDate }
                     .minOrNull() ?: continue
@@ -255,7 +338,7 @@ class InvestmentQueryService(
             averageCost = averageCost.toDouble(),
             indexer = indexer,
             indexerPercentage = indexerPercentage?.toDouble(),
-            preFixedRate = preFixedRate?.toDouble(),
+            fixedAnnualRate = fixedAnnualRate?.toDouble(),
             issueDate = issueDate,
             maturityDate = maturityDate,
             gracePeriodDate = gracePeriodDate,
@@ -367,6 +450,247 @@ class InvestmentQueryService(
             null
         }
 
+    private fun buildFixedIncomePerformancePoints(
+        holding: Holding,
+        transactions: List<InvestmentTransaction>,
+        rateMap: Map<Indexer, BigDecimal>,
+        valuationReferenceDate: LocalDate?,
+        monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+        includeProjection: Boolean,
+        today: LocalDate,
+    ): List<PerformancePoint> {
+        val startDate = holding.issueDate ?: transactions.minOfOrNull { it.tradeDate } ?: return emptyList()
+        val endDate = minOf(holding.maturityDate ?: today, today)
+        val pointDates = buildMonthlyPerformanceDates(
+            startDate = startDate,
+            historicalEndDate = endDate,
+            projectionEndDate = if (includeProjection) holding.maturityDate else null,
+        )
+        if (pointDates.isEmpty()) return emptyList()
+
+        var txIndex = 0
+        var state = holding.asEmptyPerformanceState()
+        var investedPrincipal = BigDecimal.ZERO
+        var netContributions = BigDecimal.ZERO
+
+        return pointDates.map { pointDate ->
+            while (txIndex < transactions.size && !transactions[txIndex].tradeDate.isAfter(pointDate.date)) {
+                val transaction = transactions[txIndex]
+                state = state.applyPerformanceTransaction(transaction)
+                if (transaction.isCapitalContribution()) {
+                    investedPrincipal += transaction.grossValue
+                    netContributions += transaction.grossValue
+                } else if (transaction.isCapitalWithdrawal()) {
+                    netContributions -= transaction.grossValue
+                }
+                txIndex += 1
+            }
+
+            createPerformancePoint(
+                holding = state,
+                investedPrincipal = investedPrincipal,
+                netContributions = netContributions,
+                pointDate = pointDate,
+                rateMap = rateMap,
+                valuationReferenceDate = valuationReferenceDate,
+                monthlySeries = monthlySeries,
+            )
+        }
+    }
+
+    private fun createPerformancePoint(
+        holding: Holding,
+        investedPrincipal: BigDecimal,
+        netContributions: BigDecimal,
+        pointDate: DatedPerformancePoint,
+        rateMap: Map<Indexer, BigDecimal>,
+        valuationReferenceDate: LocalDate?,
+        monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+    ): PerformancePoint {
+        val currentCostBasis = holding.quantity.multiply(holding.averageCost, mathContext)
+
+        if (holding.quantity <= BigDecimal.ZERO || currentCostBasis <= BigDecimal.ZERO) {
+            return PerformancePoint(
+                timestamp = pointDate.date.atStartOfDay().toInstant(ZoneOffset.UTC),
+                isProjected = pointDate.isProjected,
+                investedPrincipal = investedPrincipal,
+                netContributions = netContributions,
+                currentCostBasis = BigDecimal.ZERO,
+                grossValue = BigDecimal.ZERO,
+                netValue = BigDecimal.ZERO,
+                incomeTax = BigDecimal.ZERO,
+                iof = BigDecimal.ZERO,
+                grossGain = BigDecimal.ZERO,
+                netGain = BigDecimal.ZERO,
+                grossGainPercent = BigDecimal.ZERO,
+                quantity = BigDecimal.ZERO,
+                valuationSource = ValuationSource.CALCULATED,
+                valuationReferenceDate = valuationReferenceDate,
+            )
+        }
+
+        val valuation = fixedIncomeValuationService.estimate(
+            holding = holding,
+            indicatorRates = rateMap,
+            valuationReferenceDate = valuationReferenceDate,
+            monthlySeries = monthlySeries,
+            asOfDate = pointDate.date,
+            allowRateProjectionPastSeries = pointDate.isProjected,
+        )
+        val grossValue = valuation.grossValue
+        val netValue = valuation.netValue
+        val grossGain = grossValue?.subtract(currentCostBasis)
+        val netGain = netValue?.subtract(currentCostBasis)
+        val grossGainPercent =
+            if (grossGain != null && currentCostBasis > BigDecimal.ZERO) {
+                grossGain.divide(currentCostBasis, mathContext)
+            } else {
+                null
+            }
+
+        return PerformancePoint(
+            timestamp = pointDate.date.atStartOfDay().toInstant(ZoneOffset.UTC),
+            isProjected = pointDate.isProjected,
+            investedPrincipal = investedPrincipal,
+            netContributions = netContributions,
+            currentCostBasis = currentCostBasis,
+            grossValue = grossValue,
+            netValue = netValue,
+            incomeTax = valuation.incomeTax,
+            iof = valuation.iof,
+            grossGain = grossGain,
+            netGain = netGain,
+            grossGainPercent = grossGainPercent,
+            quantity = holding.quantity,
+            valuationSource = valuation.valuationSource,
+            valuationReferenceDate = valuation.valuationReferenceDate,
+        )
+    }
+
+    private fun buildMonthlyPerformanceDates(
+        startDate: LocalDate,
+        historicalEndDate: LocalDate,
+        projectionEndDate: LocalDate?,
+    ): List<DatedPerformancePoint> {
+        if (historicalEndDate.isBefore(startDate)) return emptyList()
+
+        val dates = mutableListOf<DatedPerformancePoint>()
+        fun appendMonthlyRange(
+            rangeStart: LocalDate,
+            rangeEnd: LocalDate,
+            isProjected: Boolean,
+            useRangeStartForFirstMonth: Boolean,
+        ) {
+            if (rangeEnd.isBefore(rangeStart)) return
+
+            val startMonth = YearMonth.from(rangeStart)
+            val endMonth = YearMonth.from(rangeEnd)
+            var monthCursor = startMonth
+            while (!monthCursor.isAfter(endMonth)) {
+                val pointDate =
+                    when {
+                        startMonth == endMonth -> rangeEnd
+                        monthCursor == startMonth && useRangeStartForFirstMonth -> rangeStart
+                        monthCursor == startMonth -> monthCursor.atEndOfMonth()
+                        monthCursor == endMonth -> rangeEnd
+                        else -> monthCursor.atEndOfMonth()
+                    }
+                if (dates.none { it.date == pointDate }) {
+                    dates += DatedPerformancePoint(pointDate, isProjected)
+                }
+                monthCursor = monthCursor.plusMonths(1)
+            }
+        }
+
+        appendMonthlyRange(startDate, historicalEndDate, false, true)
+
+        if (projectionEndDate != null && projectionEndDate.isAfter(historicalEndDate)) {
+            val projectionStart =
+                if (YearMonth.from(historicalEndDate) == YearMonth.from(historicalEndDate.plusDays(1))) {
+                    historicalEndDate.withDayOfMonth(1).plusMonths(1)
+                } else {
+                    historicalEndDate.plusDays(1)
+                }
+            appendMonthlyRange(projectionStart, projectionEndDate, true, false)
+        }
+
+        return dates.sortedBy { it.date }
+    }
+
+    private fun Holding.asEmptyPerformanceState(): Holding =
+        copy(
+            quantity = BigDecimal.ZERO,
+            averageCost = BigDecimal.ZERO,
+            grossValue = null,
+            netValue = null,
+            incomeTax = null,
+            iof = null,
+            lastValuedAt = null,
+        )
+
+    private fun Holding.applyPerformanceTransaction(transaction: InvestmentTransaction): Holding {
+        val quantity = transaction.quantity
+        val unitPrice = transaction.unitPrice ?: quantity?.takeIf { it > BigDecimal.ZERO }?.let {
+            transaction.grossValue.divide(it, COST_SCALE, RoundingMode.HALF_UP)
+        }
+
+        return when (transaction.type) {
+            InvestmentTransactionType.PURCHASE,
+            InvestmentTransactionType.SUBSCRIPTION,
+            -> {
+                if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO) return this
+                val newQuantity = this.quantity + quantity
+                val newAverageCost =
+                    if (this.quantity.signum() == 0) {
+                        unitPrice
+                    } else {
+                        (this.quantity * this.averageCost + quantity * unitPrice)
+                            .divide(newQuantity, COST_SCALE, RoundingMode.HALF_UP)
+                    }
+                copy(quantity = newQuantity, averageCost = newAverageCost)
+            }
+
+            InvestmentTransactionType.SALE -> {
+                if (quantity == null || quantity <= BigDecimal.ZERO) return this
+                copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
+            }
+
+            InvestmentTransactionType.MATURITY -> {
+                val closingQuantity = quantity ?: this.quantity
+                copy(quantity = (this.quantity - closingQuantity).coerceAtLeast(BigDecimal.ZERO))
+            }
+
+            InvestmentTransactionType.CUSTODY_TRANSFER,
+            InvestmentTransactionType.OWNERSHIP_TRANSFER,
+            InvestmentTransactionType.QUOTA_TRANSFER,
+            -> {
+                if (transaction.direction == InvestmentTransactionDirection.INFLOW) {
+                    if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO) return this
+                    val newQuantity = this.quantity + quantity
+                    val newAverageCost =
+                        if (this.quantity.signum() == 0) {
+                            unitPrice
+                        } else {
+                            (this.quantity * this.averageCost + quantity * unitPrice)
+                                .divide(newQuantity, COST_SCALE, RoundingMode.HALF_UP)
+                        }
+                    copy(quantity = newQuantity, averageCost = newAverageCost)
+                } else {
+                    if (quantity == null || quantity <= BigDecimal.ZERO) return this
+                    copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
+                }
+            }
+
+            else -> this
+        }
+    }
+
+    private fun InvestmentTransaction.isCapitalContribution(): Boolean =
+        direction == InvestmentTransactionDirection.INFLOW && type in CAPITAL_CONTRIBUTION_TYPES
+
+    private fun InvestmentTransaction.isCapitalWithdrawal(): Boolean =
+        direction == InvestmentTransactionDirection.OUTFLOW && type in CAPITAL_WITHDRAWAL_TYPES
+
     private data class Valuation(
         val grossValue: Double?,
         val netValue: Double?,
@@ -376,11 +700,34 @@ class InvestmentQueryService(
         val refDate: LocalDate?,
     )
 
+    private data class DatedPerformancePoint(
+        val date: LocalDate,
+        val isProjected: Boolean,
+    )
+
+    private data class PerformancePoint(
+        val timestamp: Instant,
+        val isProjected: Boolean,
+        val investedPrincipal: BigDecimal?,
+        val netContributions: BigDecimal?,
+        val currentCostBasis: BigDecimal?,
+        val grossValue: BigDecimal?,
+        val netValue: BigDecimal?,
+        val incomeTax: BigDecimal?,
+        val iof: BigDecimal?,
+        val grossGain: BigDecimal?,
+        val netGain: BigDecimal?,
+        val grossGainPercent: BigDecimal?,
+        val quantity: BigDecimal?,
+        val valuationSource: ValuationSource,
+        val valuationReferenceDate: LocalDate?,
+    )
+
     private fun Holding.requiresFixedIncomeTransactionBackfill(): Boolean =
         indexer != null && (
             issueDate == null ||
                 indexerPercentage == null ||
-                ((indexer in INFLATION_LINKED_INDEXERS || indexer == Indexer.PRE_FIXADO) && preFixedRate == null)
+                ((indexer in INFLATION_LINKED_INDEXERS || indexer == Indexer.PRE_FIXADO) && fixedAnnualRate == null)
         )
 
     private fun Holding.withBackfilledFixedIncomeTerms(
@@ -390,7 +737,7 @@ class InvestmentQueryService(
         val chronologicalTransactions = transactions.sortedBy { it.tradeDate }
         return copy(
             indexerPercentage = indexerPercentage ?: chronologicalTransactions.mapNotNull { it.indexerPercentage }.firstOrNull(),
-            preFixedRate = preFixedRate ?: chronologicalTransactions.mapNotNull { it.agreedRate }.firstOrNull(),
+            fixedAnnualRate = fixedAnnualRate ?: chronologicalTransactions.mapNotNull { it.fixedAnnualRate }.firstOrNull(),
             issueDate = issueDate ?: chronologicalTransactions.firstOrNull()?.tradeDate,
         )
     }
@@ -444,6 +791,9 @@ class InvestmentQueryService(
             AssetType.ETF_INTERNATIONAL,
             AssetType.OPTION,
         )
+
+    private fun AssetType?.isFixedIncomePerformanceSupported(): Boolean =
+        this in FIXED_INCOME_PERFORMANCE_ASSET_TYPES
 
     private fun String.normalizedFundCnpj(): String = filter(Char::isDigit)
 
@@ -500,8 +850,44 @@ class InvestmentQueryService(
     )
 
     private companion object {
+        private const val COST_SCALE = 8
         private val LISTED_ASSET_TICKER_REGEX = Regex("^[A-Z]{4,6}\\d{1,2}$")
         private val INFLATION_LINKED_INDEXERS =
             setOf(Indexer.IPCA, Indexer.IGP_M, Indexer.IGP_DI, Indexer.INPC, Indexer.TR)
+        private val MONTHLY_SERIES_INDEXERS =
+            INFLATION_LINKED_INDEXERS + setOf(Indexer.CDI, Indexer.DI, Indexer.SELIC)
+        private val FIXED_INCOME_PERFORMANCE_ASSET_TYPES =
+            setOf(
+                AssetType.CDB,
+                AssetType.RDB,
+                AssetType.LCI,
+                AssetType.LCA,
+                AssetType.LC,
+                AssetType.LF,
+                AssetType.LIG,
+                AssetType.DEBENTURES,
+                AssetType.CRI,
+                AssetType.CRA,
+                AssetType.TREASURY,
+                AssetType.COE,
+            )
+        private val CAPITAL_CONTRIBUTION_TYPES =
+            setOf(
+                InvestmentTransactionType.PURCHASE,
+                InvestmentTransactionType.SUBSCRIPTION,
+                InvestmentTransactionType.CUSTODY_TRANSFER,
+                InvestmentTransactionType.OWNERSHIP_TRANSFER,
+                InvestmentTransactionType.QUOTA_TRANSFER,
+            )
+        private val CAPITAL_WITHDRAWAL_TYPES =
+            setOf(
+                InvestmentTransactionType.SALE,
+                InvestmentTransactionType.MATURITY,
+                InvestmentTransactionType.AMORTIZATION,
+                InvestmentTransactionType.CANCELLATION,
+                InvestmentTransactionType.CUSTODY_TRANSFER,
+                InvestmentTransactionType.OWNERSHIP_TRANSFER,
+                InvestmentTransactionType.QUOTA_TRANSFER,
+            )
     }
 }

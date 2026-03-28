@@ -29,7 +29,7 @@ class FinancialDataIndicatorRateProvider(
         getOrLoad().referenceDate
 
     override fun getMonthlySeriesRange(indexer: Indexer, from: LocalDate, to: LocalDate): List<Pair<LocalDate, BigDecimal>> {
-        val indicatorLabel = inflationIndicatorLabel(indexer) ?: return emptyList()
+        val indicatorLabel = monthlySeriesIndicatorLabel(indexer) ?: return emptyList()
         return try {
             fetchMonthlySeries(indicatorLabel, from, to)
         } catch (e: Exception) {
@@ -215,8 +215,11 @@ class FinancialDataIndicatorRateProvider(
             }.sortedBy { it.first }
     }
 
-    private fun inflationIndicatorLabel(indexer: Indexer): String? =
+    private fun monthlySeriesIndicatorLabel(indexer: Indexer): String? =
         when (indexer) {
+            Indexer.CDI -> "CDI"
+            Indexer.DI -> "DI_OVER"
+            Indexer.SELIC -> "SELIC"
             Indexer.IPCA -> "IPCA"
             Indexer.IGP_M -> "IGP-M"
             Indexer.IGP_DI -> "IGP-DI"

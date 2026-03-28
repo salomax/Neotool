@@ -17,6 +17,8 @@ import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.graphql.investment.BrokerNoteDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
@@ -76,6 +78,22 @@ class InvestmentResolver(
     ): InvestmentTransactionDTO {
         val accountId = requireAccountId(principal)
         return investmentTransactionService.findById(UUID.fromString(id), accountId).toDTO()
+    }
+
+    fun holdingPerformance(
+        holdingId: String,
+        resolution: String?,
+        includeProjection: Boolean?,
+        principal: RequestPrincipal,
+    ): HoldingPerformanceDTO? {
+        val accountId = requireAccountId(principal)
+        val resolvedResolution = resolution?.let(HoldingPerformanceResolution::valueOf)
+        return investmentQueryService.getHoldingPerformance(
+            id = UUID.fromString(holdingId),
+            accountId = accountId,
+            resolution = resolvedResolution,
+            includeProjection = includeProjection ?: false,
+        )
     }
 
     fun investmentAsset(id: String): InvestmentAssetDTO? =
@@ -170,7 +188,7 @@ class InvestmentResolver(
             incomeTax = incomeTax?.toDouble(),
             iof = iof?.toDouble(),
             indexerPercentage = indexerPercentage?.toDouble(),
-            agreedRate = agreedRate?.toDouble(),
+            fixedAnnualRate = fixedAnnualRate?.toDouble(),
             priceFactor = priceFactor?.toDouble(),
             tradeDate = tradeDate,
             settlementDate = settlementDate,
@@ -221,7 +239,7 @@ class InvestmentResolver(
             incomeTax = (this["incomeTax"] as? Number)?.let { BigDecimal(it.toString()) },
             iof = (this["iof"] as? Number)?.let { BigDecimal(it.toString()) },
             indexerPercentage = (this["indexerPercentage"] as? Number)?.let { BigDecimal(it.toString()) },
-            agreedRate = (this["agreedRate"] as? Number)?.let { BigDecimal(it.toString()) },
+            fixedAnnualRate = (this["fixedAnnualRate"] as? Number)?.let { BigDecimal(it.toString()) },
             priceFactor = (this["priceFactor"] as? Number)?.let { BigDecimal(it.toString()) },
             tradeDate = this["tradeDate"].toLocalDateOrNull()
                 ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
@@ -229,7 +247,6 @@ class InvestmentResolver(
             source = InvestmentSource.MANUAL,
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
             indexer = (this["indexer"] as? String)?.let { Indexer.valueOf(it) },
-            preFixedRate = (this["preFixedRate"] as? Number)?.let { BigDecimal(it.toString()) },
             issueDate = this["issueDate"].toLocalDateOrNull(),
             maturityDate = this["maturityDate"].toLocalDateOrNull(),
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),

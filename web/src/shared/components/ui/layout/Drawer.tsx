@@ -347,8 +347,9 @@ const Header: React.FC<DrawerHeaderProps> = ({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          p: 2,
-          minHeight: 64,
+          py: 1.5,
+          px: 2,
+          minHeight: 54,
           flexShrink: 0,
         }}
       >

@@ -395,7 +395,7 @@ export const INVESTMENT_HOLDINGS = gql`
       isExpired
       indexer
       indexerPercentage
-      preFixedRate
+      fixedAnnualRate
       issueDate
       maturityDate
       isTaxExempt
@@ -442,7 +442,7 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
       isExpired
       indexer
       indexerPercentage
-      preFixedRate
+      fixedAnnualRate
       issueDate
       maturityDate
       isTaxExempt

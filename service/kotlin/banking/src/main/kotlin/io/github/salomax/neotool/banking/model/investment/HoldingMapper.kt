@@ -16,7 +16,7 @@ object HoldingMapper {
             averageCost = entity.averageCost,
             indexer = entity.indexer,
             indexerPercentage = entity.indexerPercentage,
-            preFixedRate = entity.preFixedRate,
+            fixedAnnualRate = entity.fixedAnnualRate,
             issueDate = entity.issueDate,
             maturityDate = entity.maturityDate,
             gracePeriodDate = entity.gracePeriodDate,
@@ -46,7 +46,7 @@ object HoldingMapper {
             averageCost = domain.averageCost,
             indexer = domain.indexer,
             indexerPercentage = domain.indexerPercentage,
-            preFixedRate = domain.preFixedRate,
+            fixedAnnualRate = domain.fixedAnnualRate,
             issueDate = domain.issueDate,
             maturityDate = domain.maturityDate,
             gracePeriodDate = domain.gracePeriodDate,
@@ -74,7 +74,7 @@ object HoldingMapper {
         entity.averageCost = domain.averageCost
         entity.indexer = domain.indexer
         entity.indexerPercentage = domain.indexerPercentage
-        entity.preFixedRate = domain.preFixedRate
+        entity.fixedAnnualRate = domain.fixedAnnualRate
         entity.issueDate = domain.issueDate
         entity.maturityDate = domain.maturityDate
         entity.gracePeriodDate = domain.gracePeriodDate

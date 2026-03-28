@@ -40,7 +40,7 @@ data class Holding(
     // Null for equities, FIIs, ETFs, BDRs.
     val indexer: Indexer? = null,
     val indexerPercentage: BigDecimal? = null,  // 1.15 = 115% CDI
-    val preFixedRate: BigDecimal? = null,        // 0.12 = 12% a.a.
+    val fixedAnnualRate: BigDecimal? = null,    // Fixed leg / spread / pre-fixed total, depending on indexer
     val issueDate: LocalDate? = null,
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,

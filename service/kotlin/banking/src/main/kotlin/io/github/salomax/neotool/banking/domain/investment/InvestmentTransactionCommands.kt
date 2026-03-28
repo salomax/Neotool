@@ -10,7 +10,7 @@ import java.util.UUID
  * The service resolves the [Holding] from ([financialAccountId], [assetId]) — creating it
  * on the first PURCHASE — so the caller never supplies a holdingId directly.
  *
- * RF-specific holding terms ([indexer], [preFixedRate], [maturityDate], etc.) are only
+ * RF-specific holding terms ([indexer], [fixedAnnualRate], [maturityDate], etc.) are only
  * used when creating a brand-new holding (first PURCHASE of a fixed income instrument).
  * They are ignored on subsequent transactions against an existing holding.
  */
@@ -35,7 +35,7 @@ data class RecordInvestmentTransactionCommand(
 
     // ── Fixed income context ──────────────────────────────────────────────────
     val indexerPercentage: BigDecimal? = null,
-    val agreedRate: BigDecimal? = null,
+    val fixedAnnualRate: BigDecimal? = null,
 
     // ── Equity context ────────────────────────────────────────────────────────
     val priceFactor: BigDecimal? = null,
@@ -54,7 +54,6 @@ data class RecordInvestmentTransactionCommand(
 
     // ── New holding terms (RF — only applied when holding does not yet exist) ─
     val indexer: Indexer? = null,
-    val preFixedRate: BigDecimal? = null,
     val issueDate: LocalDate? = null,
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,

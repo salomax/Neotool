@@ -356,14 +356,14 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
     renderDrawer();
 
     expect(screen.getByLabelText('investments.recordHolding.fields.indexerPercentage')).toBeInTheDocument();
-    expect(screen.queryByLabelText('investments.recordHolding.fields.preFixedRate')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('investments.recordHolding.fields.fixedAnnualRate')).not.toBeInTheDocument();
 
     await act(async () => {
       await user.selectOptions(screen.getByLabelText('investments.recordHolding.fields.indexer'), 'PRE_FIXADO');
     });
 
     expect(screen.queryByLabelText('investments.recordHolding.fields.indexerPercentage')).not.toBeInTheDocument();
-    expect(screen.getByLabelText('investments.recordHolding.fields.preFixedRate')).toBeInTheDocument();
+    expect(screen.getByLabelText('investments.recordHolding.fields.fixedAnnualRate')).toBeInTheDocument();
   });
 
   it('auto-fills issuer as Tesouro Nacional when asset type is treasury', async () => {
@@ -395,6 +395,34 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
       await user.selectOptions(screen.getByLabelText('investments.recordHolding.fields.assetType'), 'CDB');
     });
     expect(taxExempt).not.toBeChecked();
+  });
+
+  it('auto-selects asset type based on asset name with case-sensitive match', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const assetName = screen.getByLabelText('investments.recordHolding.fields.assetName');
+    const assetType = screen.getByLabelText('investments.recordHolding.fields.assetType');
+
+    await act(async () => {
+      await user.selectOptions(assetType, 'LCI');
+    });
+    expect(assetType).toHaveValue('LCI');
+
+    await act(async () => {
+      fireEvent.change(assetName, { target: { value: 'CDB Banco Inter 120% CDI' } });
+    });
+    expect(assetType).toHaveValue('CDB');
+
+    await act(async () => {
+      await user.selectOptions(assetType, 'LCI');
+    });
+    expect(assetType).toHaveValue('LCI');
+
+    await act(async () => {
+      fireEvent.change(assetName, { target: { value: 'cdb Banco Inter 120% CDI' } });
+    });
+    expect(assetType).toHaveValue('LCI');
   });
 
   it('shows validation errors when submitting empty form', async () => {
@@ -467,7 +495,7 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
             grossValue: 10000,
             indexer: 'CDI',
             indexerPercentage: 1.2,
-            preFixedRate: undefined,
+            fixedAnnualRate: undefined,
             tradeDate: '2026-03-12',
             settlementDate: '2026-03-12',
             issueDate: '2026-03-12',

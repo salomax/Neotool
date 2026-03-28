@@ -43,7 +43,7 @@ data class InvestmentTransaction(
 
     // ── Fixed income context ──────────────────────────────────────────────────
     val indexerPercentage: BigDecimal? = null, // Rate applied in this transaction
-    val agreedRate: BigDecimal? = null,        // Pre-fixed rate (OFB: remunerationTransactionRate)
+    val fixedAnnualRate: BigDecimal? = null,    // Canonical fixed leg rate (OFB: remunerationTransactionRate)
 
     // ── Equity context ────────────────────────────────────────────────────────
     val priceFactor: BigDecimal? = null,       // B3 price factor for this transaction
