@@ -65,13 +65,13 @@ class TransactionCategoryResolverTest {
             )
         whenever(ruleService.listRules(accountId, true)).thenReturn(rules)
 
-        val result = resolver.transactionRules(isSystem = true, principal = principal)
+        val result = resolver.transactionRules(isSystem = true, search = null, first = 20, after = null, principal = principal)
 
         verify(ruleService).listRules(accountId, true)
-        assertThat(result).hasSize(2)
-        assertThat(result[0].position).isEqualTo(1)
-        assertThat(result[1].position).isEqualTo(2)
-        assertThat(result.map { it.pattern }).containsExactly("ifood", "uber")
+        assertThat(result.edges).hasSize(2)
+        assertThat(result.edges[0].node.position).isEqualTo(1)
+        assertThat(result.edges[1].node.position).isEqualTo(2)
+        assertThat(result.edges.map { it.node.pattern }).containsExactly("ifood", "uber")
     }
 
     @Test
@@ -99,10 +99,28 @@ class TransactionCategoryResolverTest {
     fun `transactionRules with null filter returns all rules`() {
         whenever(ruleService.listRules(accountId, null)).thenReturn(emptyList())
 
-        val result = resolver.transactionRules(isSystem = null, principal = principal)
+        val result = resolver.transactionRules(isSystem = null, search = null, first = 20, after = null, principal = principal)
 
         verify(ruleService).listRules(accountId, null)
-        assertThat(result).isEmpty()
+        assertThat(result.edges).isEmpty()
+    }
+
+    @Test
+    fun `transactionRules applies backend text search case-insensitively before pagination`() {
+        val rules =
+            listOf(
+                rule(pattern = "iFood delivery"),
+                rule(pattern = "Uber trip"),
+                rule(pattern = "IFOOD mercado"),
+            )
+        whenever(ruleService.listRules(accountId, false)).thenReturn(rules)
+
+        val result = resolver.transactionRules(isSystem = false, search = "ifood", first = 20, after = null, principal = principal)
+
+        verify(ruleService).listRules(accountId, false)
+        assertThat(result.edges).hasSize(2)
+        assertThat(result.edges.map { it.node.pattern }).containsExactly("iFood delivery", "IFOOD mercado")
+        assertThat(result.totalCount).isEqualTo(2)
     }
 
     private fun rule(

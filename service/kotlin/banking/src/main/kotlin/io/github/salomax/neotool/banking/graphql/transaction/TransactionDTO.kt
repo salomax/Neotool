@@ -42,6 +42,17 @@ data class TransactionRuleDTO(
     val createdAt: Instant,
 )
 
+data class TransactionRuleEdgeDTO(
+    val node: TransactionRuleDTO,
+    val cursor: String,
+)
+
+data class TransactionRuleConnectionDTO(
+    val edges: List<TransactionRuleEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int?,
+)
+
 data class CategoryTotalDTO(
     val category: TransactionCategoryDTO?,
     val uncategorized: Boolean,

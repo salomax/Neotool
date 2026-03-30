@@ -534,7 +534,7 @@
         "manual": "Regras Manuais",
         "automatic": "Regras Automáticas"
       },
-      "searchPlaceholder": "Buscar por padrão…",
+      "searchPlaceholder": "Buscar...",
       "actions": {
         "newRule": "Nova Regra"
       },

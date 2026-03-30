@@ -2476,8 +2476,13 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
-  /** All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned. */
-  transactionRules: Array<TransactionRule>;
+  /**
+   * Transaction rules for auto-categorization and merchant suggestion.
+   * - isSystem omitted: returns all rules (user + system)
+   * - isSystem false: returns only user rules
+   * - isSystem true: returns only system rules
+   */
+  transactionRules: TransactionRuleConnection;
   /** Distinct tags used in transactions for the authenticated account. */
   transactionTags: Array<TransactionTagOption>;
   /**
@@ -2770,6 +2775,14 @@ export type QueryTransactionImportArgs = {
 
 export type QueryTransactionImportsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryTransactionRulesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isSystem?: InputMaybe<Scalars['Boolean']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3154,6 +3167,8 @@ export type Transaction = {
   amount: Scalars['Float']['output'];
   /** BRL equivalent for FX transactions (null for BRL). */
   amountBrl: Maybe<Scalars['Float']['output']>;
+  /** IDs of rules that contributed to transaction enrichment. */
+  appliedRuleIds: Array<Scalars['ID']['output']>;
   attachments: Array<TransactionAttachment>;
   belongsToName: Maybe<Scalars['String']['output']>;
   belongsToUserId: Maybe<Scalars['ID']['output']>;
@@ -3272,7 +3287,7 @@ export type TransactionImport = {
 
 /**
  * Auto-assignment rule that maps a description pattern to a category and/or merchant.
- * Explicit or implicit. System rules are not exposed; only user rules are returned.
+ * Explicit or implicit.
  */
 export type TransactionRule = {
   __typename: 'TransactionRule';
@@ -3289,8 +3304,25 @@ export type TransactionRule = {
   merchantId: Maybe<Scalars['ID']['output']>;
   pattern: Scalars['String']['output'];
   patternType: PatternType;
+  /** 1-based evaluation order position (same order used by the rule engine). */
+  position: Scalars['Int']['output'];
   priority: Scalars['Int']['output'];
   tagsOverride: Maybe<Array<Scalars['String']['output']>>;
+};
+
+/** Relay connection for paginated transaction rules. */
+export type TransactionRuleConnection = {
+  __typename: 'TransactionRuleConnection';
+  edges: Array<TransactionRuleEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+/** Edge in a TransactionRuleConnection. */
+export type TransactionRuleEdge = {
+  __typename: 'TransactionRuleEdge';
+  cursor: Scalars['String']['output'];
+  node: TransactionRule;
 };
 
 /** How the transaction entered the system. */

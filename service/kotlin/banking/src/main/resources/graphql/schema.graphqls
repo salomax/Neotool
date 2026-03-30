@@ -396,6 +396,19 @@ type TransactionRule {
   createdAt: DateTime!
 }
 
+"""Edge in a TransactionRuleConnection."""
+type TransactionRuleEdge {
+  node: TransactionRule!
+  cursor: String!
+}
+
+"""Relay connection for paginated transaction rules."""
+type TransactionRuleConnection {
+  edges: [TransactionRuleEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
 input CreateTransactionRuleInput {
   categoryId: ID
   merchantId: ID
@@ -1378,7 +1391,7 @@ extend type Query {
   - isSystem false: returns only user rules
   - isSystem true: returns only system rules
   """
-  transactionRules(isSystem: Boolean): [TransactionRule!]!
+  transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection!
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
   Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.

@@ -612,12 +612,24 @@ export const TRANSACTION_RULE_FIELDS = gql`
   }
 `;
 
-/** All user-defined transaction rules (explicit + implicit) for the active account. */
+/** Transaction rules filtered by ownership (manual/user vs automatic/system). */
 export const TRANSACTION_RULES = gql`
   ${TRANSACTION_RULE_FIELDS}
-  query TransactionRules {
-    transactionRules {
-      ...TransactionRuleFields
+  query TransactionRules($isSystem: Boolean, $search: String, $first: Int, $after: String) {
+    transactionRules(isSystem: $isSystem, search: $search, first: $first, after: $after) {
+      edges {
+        node {
+          ...TransactionRuleFields
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
     }
   }
 `;

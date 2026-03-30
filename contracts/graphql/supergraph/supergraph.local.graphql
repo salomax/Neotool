@@ -2524,9 +2524,12 @@ type Query
   transactionCategories: [TransactionCategory!]! @join__field(graph: BANKING)
 
   """
-  All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned.
+  Transaction rules for auto-categorization and merchant suggestion.
+  - isSystem omitted: returns all rules (user + system)
+  - isSystem false: returns only user rules
+  - isSystem true: returns only system rules
   """
-  transactionRules: [TransactionRule!]! @join__field(graph: BANKING)
+  transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection! @join__field(graph: BANKING)
 
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
@@ -3114,6 +3117,9 @@ type Transaction
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
+
+  """IDs of rules that contributed to transaction enrichment."""
+  appliedRuleIds: [ID!]!
   attachments: [TransactionAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -3213,7 +3219,7 @@ type TransactionImport
 
 """
 Auto-assignment rule that maps a description pattern to a category and/or merchant.
-Explicit or implicit. System rules are not exposed; only user rules are returned.
+Explicit or implicit.
 """
 type TransactionRule
   @join__type(graph: BANKING)
@@ -3232,7 +3238,29 @@ type TransactionRule
   isSystem: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
+
+  """
+  1-based evaluation order position (same order used by the rule engine).
+  """
+  position: Int!
   createdAt: DateTime!
+}
+
+"""Relay connection for paginated transaction rules."""
+type TransactionRuleConnection
+  @join__type(graph: BANKING)
+{
+  edges: [TransactionRuleEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+"""Edge in a TransactionRuleConnection."""
+type TransactionRuleEdge
+  @join__type(graph: BANKING)
+{
+  node: TransactionRule!
+  cursor: String!
 }
 
 """How the transaction entered the system."""

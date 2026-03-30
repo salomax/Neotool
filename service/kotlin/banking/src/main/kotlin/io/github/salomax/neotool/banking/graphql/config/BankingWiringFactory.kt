@@ -184,7 +184,10 @@ class BankingWiringFactory(
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
                         val isSystem = env.getArgument<Boolean?>("isSystem")
-                        transactionCategoryResolver.transactionRules(isSystem, principal)
+                        val search = env.getArgument<String?>("search")
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        transactionCategoryResolver.transactionRules(isSystem, search, first, after, principal)
                     }
                 },
             )

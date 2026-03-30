@@ -24,6 +24,7 @@ import DragHandleIcon from '@mui/icons-material/DragHandle';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
 import { Logo } from '@/shared/components/ui/primitives';
+import { CategoryChip } from '../category/CategoryChip';
 import type { TransactionRule } from './types';
 
 const PATTERN_TYPE_LABELS: Record<PatternType, string> = {
@@ -102,6 +103,7 @@ interface TransactionRuleRowProps {
   renderAs?: 'list' | 'table';
   isFirst?: boolean;
   isLast?: boolean;
+  showActions?: boolean;
 }
 
 export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
@@ -112,6 +114,7 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
   renderAs = 'list',
   isFirst = false,
   isLast = false,
+  showActions = true,
 }) => {
   const theme = useTheme();
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
@@ -213,20 +216,7 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
         </TableCell>
 
         <TableCell>
-          {rule.category ? (
-            <Chip
-              label={rule.category.name}
-              size="small"
-              sx={{
-                bgcolor: rule.category.color ? alpha(rule.category.color, 0.12) : undefined,
-                borderColor: rule.category.color ? alpha(rule.category.color, 0.4) : undefined,
-                color: rule.category.color ?? undefined,
-                fontWeight: 600,
-                fontSize: '0.75rem',
-              }}
-              variant="outlined"
-            />
-          ) : null}
+          <CategoryChip category={rule.category} />
         </TableCell>
 
         <TableCell>
@@ -271,64 +261,66 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
           </Typography>
         </TableCell>
 
-        <TableCell
-          align="center"
-          padding="none"
-          sx={{
-            width: 30,
-            maxWidth: 30,
-          }}
-        >
-          <IconButton
-            size="small"
-            sx={{ p: 0.5 }}
-            onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
-            id={actionButtonId}
-            aria-label="Ações da regra"
-            aria-haspopup="menu"
-            aria-expanded={isActionMenuOpen ? 'true' : undefined}
-            aria-controls={isActionMenuOpen ? actionMenuId : undefined}
-          >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-
-          <Menu
-            id={actionMenuId}
-            open={isActionMenuOpen}
-            anchorEl={actionMenuAnchorEl}
-            onClose={closeActionMenu}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            MenuListProps={{
-              'aria-labelledby': actionButtonId,
+        {showActions && (
+          <TableCell
+            align="center"
+            padding="none"
+            sx={{
+              width: 30,
+              maxWidth: 30,
             }}
           >
-            <MenuItem onClick={handleEditClick}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Editar</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem
-              onClick={handleDeleteClick}
-              sx={{
-                color: 'error.main',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.error.main, 0.08),
-                },
-                '&.Mui-focusVisible': {
-                  bgcolor: alpha(theme.palette.error.main, 0.08),
-                },
+            <IconButton
+              size="small"
+              sx={{ p: 0.5 }}
+              onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
+              id={actionButtonId}
+              aria-label="Ações da regra"
+              aria-haspopup="menu"
+              aria-expanded={isActionMenuOpen ? 'true' : undefined}
+              aria-controls={isActionMenuOpen ? actionMenuId : undefined}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+
+            <Menu
+              id={actionMenuId}
+              open={isActionMenuOpen}
+              anchorEl={actionMenuAnchorEl}
+              onClose={closeActionMenu}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+              MenuListProps={{
+                'aria-labelledby': actionButtonId,
               }}
             >
-              <ListItemIcon sx={{ color: 'inherit' }}>
-                <DeleteOutlineIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Excluir</ListItemText>
-            </MenuItem>
-          </Menu>
-        </TableCell>
+              <MenuItem onClick={handleEditClick}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Editar</ListItemText>
+              </MenuItem>
+              <Divider />
+              <MenuItem
+                onClick={handleDeleteClick}
+                sx={{
+                  color: 'error.main',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                  '&.Mui-focusVisible': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'inherit' }}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Excluir</ListItemText>
+              </MenuItem>
+            </Menu>
+          </TableCell>
+        )}
       </TableRow>
     );
   }
@@ -444,67 +436,69 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
         )}
       </Box>
 
-      <Box
-        className="rule-actions"
-        sx={{
-          display: 'flex',
-          gap: 0.5,
-          opacity: 0.4,
-          transition: 'opacity 0.15s',
-          flexShrink: 0,
-        }}
-      >
-        <Tooltip title="Ações">
-          <IconButton
-            size="small"
-            onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
-            id={actionButtonId}
-            aria-label="Ações da regra"
-            aria-haspopup="menu"
-            aria-expanded={isActionMenuOpen ? 'true' : undefined}
-            aria-controls={isActionMenuOpen ? actionMenuId : undefined}
-          >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-
-        <Menu
-          id={actionMenuId}
-          open={isActionMenuOpen}
-          anchorEl={actionMenuAnchorEl}
-          onClose={closeActionMenu}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          MenuListProps={{
-            'aria-labelledby': actionButtonId,
+      {showActions && (
+        <Box
+          className="rule-actions"
+          sx={{
+            display: 'flex',
+            gap: 0.5,
+            opacity: 0.4,
+            transition: 'opacity 0.15s',
+            flexShrink: 0,
           }}
         >
-          <MenuItem onClick={handleEditClick}>
-            <ListItemIcon>
-              <EditIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Editar</ListItemText>
-          </MenuItem>
-          <Divider />
-          <MenuItem
-            onClick={handleDeleteClick}
-            sx={{
-              color: 'error.main',
-              '&:hover': {
-                bgcolor: alpha(theme.palette.error.main, 0.08),
-              },
-              '&.Mui-focusVisible': {
-                bgcolor: alpha(theme.palette.error.main, 0.08),
-              },
+          <Tooltip title="Ações">
+            <IconButton
+              size="small"
+              onClick={(e) => setActionMenuAnchorEl(e.currentTarget)}
+              id={actionButtonId}
+              aria-label="Ações da regra"
+              aria-haspopup="menu"
+              aria-expanded={isActionMenuOpen ? 'true' : undefined}
+              aria-controls={isActionMenuOpen ? actionMenuId : undefined}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Menu
+            id={actionMenuId}
+            open={isActionMenuOpen}
+            anchorEl={actionMenuAnchorEl}
+            onClose={closeActionMenu}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            MenuListProps={{
+              'aria-labelledby': actionButtonId,
             }}
           >
-            <ListItemIcon sx={{ color: 'inherit' }}>
-              <DeleteOutlineIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Excluir</ListItemText>
-          </MenuItem>
-        </Menu>
-      </Box>
+            <MenuItem onClick={handleEditClick}>
+              <ListItemIcon>
+                <EditIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Editar</ListItemText>
+            </MenuItem>
+            <Divider />
+            <MenuItem
+              onClick={handleDeleteClick}
+              sx={{
+                color: 'error.main',
+                '&:hover': {
+                  bgcolor: alpha(theme.palette.error.main, 0.08),
+                },
+                '&.Mui-focusVisible': {
+                  bgcolor: alpha(theme.palette.error.main, 0.08),
+                },
+              }}
+            >
+              <ListItemIcon sx={{ color: 'inherit' }}>
+                <DeleteOutlineIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Excluir</ListItemText>
+            </MenuItem>
+          </Menu>
+        </Box>
+      )}
     </ListItem>
   );
 };
