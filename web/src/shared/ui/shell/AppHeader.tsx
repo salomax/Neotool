@@ -33,6 +33,7 @@ export function AppHeader() {
   const { mode, toggle } = useThemeMode();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
@@ -40,6 +41,8 @@ export function AppHeader() {
   const router = useRouter();
   const pageTitle = usePageTitleValue();
   const isAssistantEnabled = useFeatureFlagEnabled("assistant-enable");
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = React.useState<number | null>(null);
 
   const handleChatIconClick = () => {
     setChatDrawerOpen(true);
@@ -68,6 +71,28 @@ export function AppHeader() {
 
   const open = Boolean(anchorEl);
 
+  React.useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+  }, []);
+
+  React.useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+    };
+
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <Box
       component="header"
@@ -82,122 +107,130 @@ export function AppHeader() {
         borderColor: "divider",
         backdropFilter: "blur(6px)",
         display: { xs: "none", md: "block" }, // Hide on mobile as requested
+        height: contentHeight ? `${contentHeight}px` : "auto",
+        overflow: "hidden",
+        transition: prefersReducedMotion
+          ? "none"
+          : theme.transitions.create("height", {
+              duration: theme.transitions.duration.shorter,
+              easing: theme.transitions.easing.easeInOut,
+            }),
+        willChange: prefersReducedMotion ? undefined : "height",
       }}
     >
-      <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: { xs: 1, md: 2 },
-          }}
-        >
-          {/* Left Section: Logo (Mobile) + Page Title */}
+      <Box ref={contentRef}>
+        <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1.5,
-              flex: "0 1 auto",
-              minWidth: 0,
+              justifyContent: "space-between",
+              gap: { xs: 1, md: 2 },
             }}
           >
-            {/* Mobile Logo */}
-            <Box sx={{ display: { xs: "block", md: "none" } }}>
-              <Logo size="small" />
-            </Box>
+            {/* Left Section: Logo (Mobile) + Page Title */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                flex: "0 1 auto",
+                minWidth: 0,
+              }}
+            >
+              {/* Mobile Logo */}
+              <Box sx={{ display: { xs: "block", md: "none" } }}>
+                <Logo size="small" />
+              </Box>
 
-            {/* Page Title and Breadcrumb */}
-            {pageTitle && (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  minWidth: 0, // Allow text truncation
-                }}
-              >
-                <Typography
-                  variant={isMobile ? "h6" : "h4"}
-                  component="h1"
+              {/* Page Title and Breadcrumb */}
+              {pageTitle && (
+                <Box
                   sx={{
-                    fontWeight: 600,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.5,
+                    minWidth: 0, // Allow text truncation
                   }}
                 >
-                  {pageTitle}
-                </Typography>
-                <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                  <Breadcrumb />
-                </Box>
-              </Box>
-            )}
-          </Box>
-
-          {/* Actions - Right aligned */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: { xs: 1, md: 1 },
-              flex: "0 0 auto", // Prevent actions from shrinking
-            }}
-          >
-            <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
-              <IconButton 
-                aria-label="toggle theme" 
-                onClick={toggle}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
-              >
-                {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
-              </IconButton>
-            </Tooltip>
-            {isAssistantEnabled && (
-              <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
-                <Tooltip title="AI Assistant">
-                  <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
-                    <AutoAwesomeIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-            {isAuthenticated ? (
-              <Tooltip title={t("appHeader.account")}>
-                <IconButton 
-                  aria-label="Account menu"
-                  onClick={handleProfileMenuOpen}
-                  aria-controls={open ? "profile-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={open ? "true" : undefined}
-                >
-                  <Avatar
-                    sx={{ width: 32, height: 32 }}
-                    src={user?.avatarUrl || undefined}
+                  <Typography
+                    variant={isMobile ? "h6" : "h4"}
+                    component="h1"
+                    sx={{
+                      fontWeight: 600,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
                   >
-                    {user ? getInitials(user) : <PersonIcon />}
-                  </Avatar>
+                    {pageTitle}
+                  </Typography>
+                  <Box sx={{ display: { xs: "none", md: "block" } }}>
+                    <Breadcrumb />
+                  </Box>
+                </Box>
+              )}
+            </Box>
+
+            {/* Actions - Right aligned */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                gap: { xs: 1, md: 1 },
+                flex: "0 0 auto", // Prevent actions from shrinking
+              }}
+            >
+              <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
+                <IconButton
+                  aria-label="toggle theme"
+                  onClick={toggle}
+                  sx={{ display: { xs: "none", md: "inline-flex" } }}
+                >
+                  {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
                 </IconButton>
               </Tooltip>
-            ) : (
-              <Button
-                variant="contained"
-                size="medium"
-                onClick={handleSignIn}
-                aria-label={t("appHeader.signIn")}
-                data-testid="header-signin-button"
-                name="header-signin"
-                sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
-              >
-                {t("appHeader.signIn")}
-              </Button>
-            )}
+              {isAssistantEnabled && (
+                <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
+                  <Tooltip title="AI Assistant">
+                    <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                      <AutoAwesomeIcon />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              )}
+              {isAuthenticated ? (
+                <Tooltip title={t("appHeader.account")}>
+                  <IconButton
+                    aria-label="Account menu"
+                    onClick={handleProfileMenuOpen}
+                    aria-controls={open ? "profile-menu" : undefined}
+                    aria-haspopup="true"
+                    aria-expanded={open ? "true" : undefined}
+                  >
+                    <Avatar sx={{ width: 32, height: 32 }} src={user?.avatarUrl || undefined}>
+                      {user ? getInitials(user) : <PersonIcon />}
+                    </Avatar>
+                  </IconButton>
+                </Tooltip>
+              ) : (
+                <Button
+                  variant="contained"
+                  size="medium"
+                  onClick={handleSignIn}
+                  aria-label={t("appHeader.signIn")}
+                  data-testid="header-signin-button"
+                  name="header-signin"
+                  sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
+                >
+                  {t("appHeader.signIn")}
+                </Button>
+              )}
+            </Box>
           </Box>
-        </Box>
-      </Container>
+        </Container>
+      </Box>
       {isAssistantEnabled && (
         <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
       )}

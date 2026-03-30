@@ -123,7 +123,7 @@ VALUES
   ('pobre juan', 'Pobre Juan', 'pobrejuan.com.br', 'restaurante', true, NULL),
   ('gendai', 'Gendai', 'gendai.com.br', 'restaurante', true, NULL),
   ('camarada camarao', 'Camarada Camarão', 'camaradacamarao.com.br', 'restaurante', true, NULL),
-  ('patroni', 'Patroni', 'patroni.com.br', 'restaurante', true, NULL),
+  ('patroni pizza', 'Patroni Pizza', 'patronipizza.com.br', 'restaurante', true, NULL),
   ('parme', 'Parme', 'parme.com.br', 'restaurante', true, NULL),
   ('montana grill', 'Montana Grill', 'montanagrill.com.br', 'restaurante', true, NULL),
   ('divino fogao', 'Divino Fogão', 'divinofogao.com.br', 'restaurante', true, NULL),
@@ -473,6 +473,7 @@ VALUES
   ('starlink', 'Starlink', 'starlink.com', 'utilities', true, NULL),
   ('unifique', 'Unifique', 'unifique.com.br', 'utilities', true, NULL),
   ('desktop', 'Desktop', 'desktop.com.br', 'utilities', true, NULL),
+  ('mob telecom', 'Mob Telecom', 'mobtelecom.com.br', 'utilities', true, NULL),
   ('surf telecom', 'Surf Telecom', 'surftelecom.com.br', 'utilities', true, NULL),
   ('porto seguro seguros', 'Porto Seguro Seguros', 'portoseguro.com.br', 'utilities', true, NULL),
   ('bradesco seguros', 'Bradesco Seguros', 'bradescoseguros.com.br', 'utilities', true, NULL),
@@ -701,6 +702,7 @@ VALUES
   ('expressvpn', 'Expressvpn', 'expressvpn.com', 'tecnologia', true, NULL),
   ('zoom', 'Zoom', 'zoom.us', 'tecnologia', true, NULL),
   ('notion', 'Notion', 'notion.so', 'tecnologia', true, NULL),
+  ('slack', 'Slack', 'slack.com', 'tecnologia', true, NULL),
   ('aws', 'Aws', 'aws.amazon.com', 'tecnologia', true, NULL),
   ('digitalocean', 'Digitalocean', 'digitalocean.com', 'tecnologia', true, NULL),
   ('cloudflare', 'Cloudflare', 'cloudflare.com', 'tecnologia', true, NULL),
@@ -1057,41 +1059,6 @@ CROSS JOIN (VALUES
 ) AS p(pattern);
 
 
--- ─────────────────────────────────────────────────────────────────────────────
-
--- Link rules to merchants (account-specific first, then global system merchant).
-WITH matched_rules AS (
-    SELECT
-        tr.id AS rule_id,
-        COALESCE(
-            (
-                SELECT m.id
-                FROM banking.merchants m
-                WHERE m.account_id = tr.account_id
-                  AND m.merchant_name = tr.pattern
-                ORDER BY m.created_at ASC
-                LIMIT 1
-            ),
-            (
-                SELECT m.id
-                FROM banking.merchants m
-                WHERE m.account_id IS NULL
-                  AND m.is_system = true
-                  AND m.merchant_name = tr.pattern
-                ORDER BY m.created_at ASC
-                LIMIT 1
-            )
-        ) AS merchant_id
-    FROM banking.transaction_rules tr
-    WHERE tr.deleted_at IS NULL
-      AND tr.merchant_id IS NULL
-)
-UPDATE banking.transaction_rules tr
-SET merchant_id = mr.merchant_id,
-    updated_at = NOW()
-FROM matched_rules mr
-WHERE tr.id = mr.rule_id
-  AND mr.merchant_id IS NOT NULL;
 -- EDUCAÇÃO
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -1354,7 +1321,76 @@ WHERE NOT EXISTS (
 
 -- PIX (suggest whenever description contains pix)
 INSERT INTO banking.transaction_rules (account_id, category_id, pattern, pattern_type, applicable_to, priority, is_system)
-SELECT NULL, cat.id, p.pattern, 'CONTAINS', a.applicable_to, 100, true
+SELECT NULL, cat.id, p.pattern, 'CONTAINS', 'ANY', 100, true
 FROM (SELECT id FROM banking.transaction_categories WHERE name = 'PIX' AND applicable_to = 'ANY' AND is_system = true LIMIT 1) AS cat
-CROSS JOIN (VALUES ('pix')) AS p(pattern)
-CROSS JOIN (VALUES ('INCOME'), ('TRANSFER'), ('EXPENSE')) AS a(applicable_to);
+CROSS JOIN (VALUES ('pix')) AS p(pattern);
+
+-- Final pass: link seeded rules to merchants after the full rule seed is in place.
+-- A subset of rule patterns are intentionally aliases of the merchant name that
+-- appears in normalized card descriptions (e.g. 99app -> 99, ray ban -> ray-ban).
+WITH pattern_aliases(rule_pattern, merchant_name) AS (
+    VALUES
+        ('99app', '99'),
+        ('araujo farma', 'araujo'),
+        ('bp beneficencia', 'bp beneficencia portuguesa'),
+        ('budget car', 'budget'),
+        ('desktop fibra', 'desktop'),
+        ('disney', 'disney+'),
+        ('dr consulta', 'dr. consulta'),
+        ('equatorial energia', 'equatorial'),
+        ('grow bike', 'grow'),
+        ('hospital oswaldo cruz', 'oswaldo cruz'),
+        ('indigo park', 'indigo'),
+        ('levis', 'levi''s'),
+        ('paramount', 'paramount+'),
+        ('patroni', 'patroni pizza'),
+        ('ray ban', 'ray-ban'),
+        ('rede dor', 'rede d''or'),
+        ('restaurante spot', 'spot'),
+        ('sky brasil', 'sky'),
+        ('unidas rent', 'unidas'),
+        ('urbs curitiba', 'urbs')
+),
+matched_rules AS (
+    SELECT
+        tr.id AS rule_id,
+        COALESCE(
+            (
+                SELECT m.id
+                FROM banking.merchants m
+                WHERE m.account_id = tr.account_id
+                  AND m.merchant_name = tr.pattern
+                ORDER BY m.created_at ASC
+                LIMIT 1
+            ),
+            (
+                SELECT m.id
+                FROM banking.merchants m
+                WHERE m.account_id IS NULL
+                  AND m.is_system = true
+                  AND m.merchant_name = tr.pattern
+                ORDER BY m.created_at ASC
+                LIMIT 1
+            ),
+            (
+                SELECT m.id
+                FROM pattern_aliases pa
+                JOIN banking.merchants m
+                    ON m.merchant_name = pa.merchant_name
+                WHERE pa.rule_pattern = tr.pattern
+                  AND m.account_id IS NULL
+                  AND m.is_system = true
+                ORDER BY m.created_at ASC
+                LIMIT 1
+            )
+        ) AS merchant_id
+    FROM banking.transaction_rules tr
+    WHERE tr.deleted_at IS NULL
+      AND tr.merchant_id IS NULL
+)
+UPDATE banking.transaction_rules tr
+SET merchant_id = mr.merchant_id,
+    updated_at = NOW()
+FROM matched_rules mr
+WHERE tr.id = mr.rule_id
+  AND mr.merchant_id IS NOT NULL;

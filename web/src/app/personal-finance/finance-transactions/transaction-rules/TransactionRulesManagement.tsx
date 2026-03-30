@@ -349,7 +349,7 @@ export const TransactionRulesManagement: React.FC = () => {
       </ManagementLayout.Header>
 
       <ManagementLayout.Content>
-        <Box sx={{ height: '100%', minHeight: 0, overflowY: 'scroll' }}>
+        <Box sx={{ height: '100%', minHeight: 0, overflowY: 'visible' }}>
           {tab === 'manual' ? (
             <Box sx={{ px: 3 }}>
             <TableContainer
