@@ -17,6 +17,7 @@ vi.mock('react-i18next', () => ({
         'appHeader.theme.light': 'Switch to light mode',
         'appHeader.theme.dark': 'Switch to dark mode',
         'appHeader.aiAssistant': 'AI Assistant',
+        'appHeader.pendingActions': 'Pending actions',
       };
       return translations[key] || key;
     },
@@ -115,6 +116,10 @@ vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
 const mockUseFeatureFlagEnabled = vi.fn<[], boolean>(() => true);
 vi.mock('@/shared/hooks/useFeatureFlag', () => ({
   useFeatureFlagEnabled: () => mockUseFeatureFlagEnabled(),
+}));
+
+vi.mock('@/shared/ui/shell/HeaderPendingActionsBadge', () => ({
+  HeaderPendingActionsBadge: () => null,
 }));
 
 const renderAppHeader = () => {

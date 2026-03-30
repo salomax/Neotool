@@ -19,6 +19,10 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
 import { CalendarTodayIcon } from '@/shared/ui/mui-imports';
+import {
+  APP_DATE_PICKER_VIEWS,
+  mergeAppDatePickerSlotProps,
+} from '@/shared/components/ui/forms/form/appDatePickerConfig';
 
 export interface DateRange {
   start: Dayjs | null;
@@ -436,6 +440,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <Box sx={{ margin: 0, padding: 0 }}>
                 <StaticDatePicker
                   displayStaticWrapperAs="desktop"
+                  views={[...APP_DATE_PICKER_VIEWS]}
                   value={tempStart || null}
                   onChange={handleDateChange}
                   minDate={getMinDate()}
@@ -453,7 +458,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     }
                   }}
                   slotProps={{
-                    ...getDaySlotProps(),
+                    ...mergeAppDatePickerSlotProps(getDaySlotProps() as any),
                     // Hide any action buttons from the calendar (they have their own navigation)
                     actionBar: {
                       actions: [],
@@ -480,6 +485,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
               <Box sx={{ margin: 0, padding: 0 }}>
                 <StaticDatePicker
                   displayStaticWrapperAs="desktop"
+                  views={[...APP_DATE_PICKER_VIEWS]}
                   value={tempEnd || null}
                   onChange={handleDateChange}
                   minDate={getMinDate()}
@@ -497,7 +503,7 @@ const DateRangePicker: React.FC<DateRangePickerProps> = ({
                     }
                   }}
                   slotProps={{
-                    ...getDaySlotProps(),
+                    ...mergeAppDatePickerSlotProps(getDaySlotProps() as any),
                     // Hide any action buttons from the calendar (they have their own navigation)
                     actionBar: {
                       actions: [],

@@ -64,6 +64,11 @@ data class Holding(
     val providerInvestmentId: String? = null,   // OFB investmentId / Pluggy id / Belvo id
 
     val deletedAt: Instant? = null,
+
+    /** Set when the position is fully closed with an explicit reason (maturity, early redemption, transfer). */
+    val closedAt: LocalDate? = null,
+    val closeReason: HoldingCloseReason? = null,
+
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 )

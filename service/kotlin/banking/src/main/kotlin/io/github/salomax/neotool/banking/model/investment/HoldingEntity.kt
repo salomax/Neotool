@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.model.investment
 
+import io.github.salomax.neotool.banking.domain.investment.HoldingCloseReason
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
@@ -99,6 +100,13 @@ open class HoldingEntity(
 
     @Column(name = "deleted_at")
     open var deletedAt: Instant? = null,
+
+    @Column(name = "closed_at")
+    open var closedAt: LocalDate? = null,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "close_reason", length = 32)
+    open var closeReason: HoldingCloseReason? = null,
 
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),

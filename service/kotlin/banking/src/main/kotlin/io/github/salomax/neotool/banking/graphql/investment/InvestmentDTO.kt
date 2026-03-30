@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.investment.HoldingCloseReason
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
@@ -71,6 +72,10 @@ data class InvestmentHoldingDTO(
     val valuationSource: ValuationSource,
     val valuationReferenceDate: LocalDate?,
     val isExpired: Boolean,
+    val isClosed: Boolean,
+    val isExpiredPending: Boolean,
+    val closedAt: LocalDate?,
+    val closeReason: HoldingCloseReason?,
     // Provenance
     val source: InvestmentSource,
     val createdAt: Instant,

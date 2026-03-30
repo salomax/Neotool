@@ -9,6 +9,8 @@ import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.import.ImportResolver
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
+import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
@@ -43,6 +45,8 @@ class BankingWiringFactoryTest {
     private lateinit var pdfImportResolver: BillImportResolver
     private lateinit var attachmentResolver: AttachmentResolver
     private lateinit var investmentResolver: InvestmentResolver
+    private lateinit var pendingActionResolver: PendingActionResolver
+    private lateinit var investmentQueryService: InvestmentQueryService
     private lateinit var authorizationChecker: AuthorizationChecker
     private lateinit var requestPrincipalProvider: RequestPrincipalProvider
     private lateinit var wiringFactory: BankingWiringFactory
@@ -60,6 +64,8 @@ class BankingWiringFactoryTest {
         pdfImportResolver = mock()
         attachmentResolver = mock()
         investmentResolver = mock()
+        pendingActionResolver = mock()
+        investmentQueryService = mock()
         authorizationChecker = mock()
         whenever(issuerResolver.listIssuers(anyOrNull())).thenReturn(emptyList())
 
@@ -83,6 +89,8 @@ class BankingWiringFactoryTest {
                 transactionCategoryResolver,
                 merchantResolver,
                 investmentResolver,
+                pendingActionResolver,
+                investmentQueryService,
                 importResolver,
                 pdfImportResolver,
                 attachmentResolver,

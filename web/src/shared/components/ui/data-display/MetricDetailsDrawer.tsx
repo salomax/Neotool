@@ -175,12 +175,7 @@ export const MetricDetailsDrawer: React.FC<MetricDetailsDrawerProps> = ({
       size={drawerSize}
       width={drawerWidth}
     >
-      <Drawer.Header
-        title={displayTitle}
-        titleTypographyProps={{
-          sx: { textTransform: 'uppercase', fontWeight: 700, flex: 1 }
-        }}
-      />
+      <Drawer.Header title={displayTitle} locale={metric?.locale} />
       <Drawer.Body>
         <Box sx={{ 
           p: 2, 

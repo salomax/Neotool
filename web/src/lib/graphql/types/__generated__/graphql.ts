@@ -21,6 +21,20 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+export type AccountPendingAction = {
+  __typename: 'AccountPendingAction';
+  createdAt: Scalars['DateTime']['output'];
+  entityId: Maybe<Scalars['ID']['output']>;
+  entityType: Maybe<Scalars['String']['output']>;
+  expiresAt: Maybe<Scalars['DateTime']['output']>;
+  id: Scalars['ID']['output'];
+  payload: Scalars['JSON']['output'];
+  relatedHolding: Maybe<InvestmentHolding>;
+  severity: PendingActionSeverity;
+  status: PendingActionStatus;
+  type: PendingActionType;
+};
+
 /** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
 export enum AnbimaCategory {
   Acoes = 'ACOES',
@@ -460,34 +474,7 @@ export enum BudgetScope {
 export type BulkOperationResult = {
   __typename: 'BulkOperationResult';
   affectedCount: Scalars['Int']['output'];
-  /** Soft-deletes a MANUAL investment holding and all of its MANUAL transactions. */
-  deleteInvestmentHolding: Scalars['Boolean']['output'];
-  /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
-  deleteInvestmentTransaction: Scalars['Boolean']['output'];
   errors: Array<Scalars['String']['output']>;
-  /**
-   * Records an investment transaction and updates the holding's quantity and averageCost.
-   * Creates the holding automatically on the first PURCHASE of an asset.
-   */
-  recordInvestmentTransaction: InvestmentTransaction;
-};
-
-
-/** Result of a bulk operation (e.g. bulkCategorize). */
-export type BulkOperationResultDeleteInvestmentHoldingArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
-/** Result of a bulk operation (e.g. bulkCategorize). */
-export type BulkOperationResultDeleteInvestmentTransactionArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
-/** Result of a bulk operation (e.g. bulkCategorize). */
-export type BulkOperationResultRecordInvestmentTransactionArgs = {
-  input: RecordInvestmentTransactionInput;
 };
 
 /**
@@ -632,6 +619,24 @@ export type ConfirmBillReviewTransactionInput = {
   include: Scalars['Boolean']['input'];
   installment?: InputMaybe<InstallmentInfoInput>;
   isBillPayment?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+export type ConfirmHoldingMaturityInput = {
+  cashMovement?: InputMaybe<MaturityCashMovementInput>;
+  closeReason: HoldingCloseReason;
+  grossValue: Scalars['Float']['input'];
+  holdingId: Scalars['ID']['input'];
+  incomeTax?: InputMaybe<Scalars['Float']['input']>;
+  iof?: InputMaybe<Scalars['Float']['input']>;
+  maturityDate: Scalars['Date']['input'];
+  netValue: Scalars['Float']['input'];
+};
+
+export type ConfirmHoldingMaturityResult = {
+  __typename: 'ConfirmHoldingMaturityResult';
+  bankingTransaction: Maybe<Transaction>;
+  maturityTransaction: InvestmentTransaction;
+  pendingAction: AccountPendingAction;
 };
 
 export enum ConnectionStatus {
@@ -1223,6 +1228,12 @@ export type HoldingAttachment = {
   sizeBytes: Maybe<Scalars['Int']['output']>;
 };
 
+export enum HoldingCloseReason {
+  Matured = 'MATURED',
+  RedeemedEarly = 'REDEEMED_EARLY',
+  Transferred = 'TRANSFERRED'
+}
+
 export type HoldingPerformance = {
   __typename: 'HoldingPerformance';
   assetType: AssetType;
@@ -1479,6 +1490,8 @@ export type InvestmentHolding = {
   attachments: Array<HoldingAttachment>;
   /** Weighted average purchase price per unit (custo médio ponderado). */
   averageCost: Scalars['Float']['output'];
+  closeReason: Maybe<HoldingCloseReason>;
+  closedAt: Maybe<Scalars['Date']['output']>;
   createdAt: Scalars['DateTime']['output'];
   financialAccount: Maybe<FinancialAccount>;
   financialAccountId: Scalars['ID']['output'];
@@ -1493,8 +1506,15 @@ export type InvestmentHolding = {
   /** Fraction of indexer applied (e.g. 1.15 = 115% CDI). */
   indexerPercentage: Maybe<Scalars['Float']['output']>;
   iof: Maybe<Scalars['Float']['output']>;
-  /** Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today. */
+  /** True when the holding was closed with an explicit reason (maturity, early redemption, transfer). */
+  isClosed: Scalars['Boolean']['output'];
+  /**
+   * Whether the holding is on or past its maturity date.
+   * Computed as maturityDate != null && !maturityDate.isAfter(today).
+   */
   isExpired: Scalars['Boolean']['output'];
+  /** True when the holding is past maturity, still open (qty > 0), and not yet closed with a reason. */
+  isExpiredPending: Scalars['Boolean']['output'];
   /** True for LCI/LCA/CRI/CRA — exempt from IR for individuals. */
   isTaxExempt: Scalars['Boolean']['output'];
   issueDate: Maybe<Scalars['Date']['output']>;
@@ -1658,6 +1678,12 @@ export type ManualFundValuationInput = {
   valuedAt: Scalars['Date']['input'];
 };
 
+export type MaturityCashMovementInput = {
+  amount: Scalars['Float']['input'];
+  date: Scalars['Date']['input'];
+  financialAccountId: Scalars['ID']['input'];
+};
+
 /**
  * A merchant (payee) associated with a transaction.
  * System merchants are shared across all accounts; user merchants are account-scoped.
@@ -1787,6 +1813,8 @@ export type Mutation = {
    */
   confirmAssetUpload: Asset;
   confirmBillImport: BillImportJob;
+  /** Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit. */
+  confirmHoldingMaturity: ConfirmHoldingMaturityResult;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
    *
@@ -1869,6 +1897,8 @@ export type Mutation = {
   /** Soft-delete a user-owned transaction rule. System rules cannot be deleted. */
   deleteTransactionRule: Scalars['Boolean']['output'];
   disableUser: User;
+  /** Dismiss a pending action (e.g. mark informational item as seen). */
+  dismissPendingAction: AccountPendingAction;
   enableUser: User;
   generateCompletion: CompletionResponse;
   importNfce: ImportResult;
@@ -1973,6 +2003,11 @@ export type MutationConfirmBillImportArgs = {
 };
 
 
+export type MutationConfirmHoldingMaturityArgs = {
+  command: ConfirmHoldingMaturityInput;
+};
+
+
 export type MutationCreateAssetUploadArgs = {
   input: CreateAssetUploadInput;
 };
@@ -2065,6 +2100,11 @@ export type MutationDeleteTransactionRuleArgs = {
 
 export type MutationDisableUserArgs = {
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationDismissPendingActionArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2274,6 +2314,27 @@ export enum PatternType {
   StartsWith = 'STARTS_WITH'
 }
 
+export enum PendingActionSeverity {
+  ActionRequired = 'ACTION_REQUIRED',
+  Info = 'INFO',
+  Warning = 'WARNING'
+}
+
+export enum PendingActionStatus {
+  Cancelled = 'CANCELLED',
+  Completed = 'COMPLETED',
+  Dismissed = 'DISMISSED',
+  Pending = 'PENDING'
+}
+
+export enum PendingActionType {
+  CorporateEvent = 'CORPORATE_EVENT',
+  Informational = 'INFORMATIONAL',
+  InvestmentIncome = 'INVESTMENT_INCOME',
+  InvestmentMatured = 'INVESTMENT_MATURED',
+  InvestmentPositionMissing = 'INVESTMENT_POSITION_MISSING'
+}
+
 export type Permission = {
   __typename: 'Permission';
   id: Scalars['ID']['output'];
@@ -2453,6 +2514,8 @@ export type Query = {
   monthSummary: MonthSummary;
   myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
+  /** Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation). */
+  pendingActions: Array<AccountPendingAction>;
   pendingReviewImports: Array<TransactionImport>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
@@ -2676,6 +2739,11 @@ export type QueryMonthSummaryArgs = {
 
 export type QueryMyUsageArgs = {
   period: UsagePeriod;
+};
+
+
+export type QueryPendingActionsArgs = {
+  status?: InputMaybe<PendingActionStatus>;
 };
 
 

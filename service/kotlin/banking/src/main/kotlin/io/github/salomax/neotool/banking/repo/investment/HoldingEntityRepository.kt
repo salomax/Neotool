@@ -5,6 +5,7 @@ import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -50,4 +51,21 @@ interface HoldingEntityRepository : JpaRepository<HoldingEntity, UUID> {
         accountId: UUID,
         deletedAt: Instant,
     ): Int
+
+    @Query(
+        """
+        SELECT h.* FROM banking.investment_holdings h
+        INNER JOIN banking.financial_accounts fa ON fa.id = h.financial_account_id
+        WHERE h.deleted_at IS NULL
+          AND fa.deleted_at IS NULL
+          AND fa.type = 'INVESTMENT'
+          AND h.quantity > 0
+          AND h.close_reason IS NULL
+          AND h.maturity_date IS NOT NULL
+          AND h.maturity_date <= :asOf
+          AND h.source IN ('MANUAL', 'FILE_IMPORT')
+        """,
+        nativeQuery = true,
+    )
+    fun findMaturedOpenHoldingsForPendingScan(asOf: LocalDate): List<HoldingEntity>
 }

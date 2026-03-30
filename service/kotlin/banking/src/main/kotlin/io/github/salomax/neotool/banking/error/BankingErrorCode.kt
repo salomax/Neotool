@@ -158,4 +158,25 @@ enum class BankingErrorCode(
         "Asset is not ready for attachment — confirm the upload first",
         422,
     ),
+
+    HOLDING_MATURITY_INVALID_STATE(
+        "HOLDING_MATURITY_INVALID_STATE",
+        "Holding cannot be confirmed as matured in the current state",
+        422,
+    ),
+    PENDING_ACTION_NOT_FOUND(
+        "PENDING_ACTION_NOT_FOUND",
+        "Pending action not found",
+        404,
+    ),
+    PENDING_ACTION_FORBIDDEN(
+        "PENDING_ACTION_FORBIDDEN",
+        "You are not allowed to act on this pending action",
+        403,
+    ),
+    PENDING_ACTION_INVALID_STATE(
+        "PENDING_ACTION_INVALID_STATE",
+        "Pending action is not in a state that allows this operation",
+        409,
+    ),
 }

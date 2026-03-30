@@ -19,6 +19,29 @@ export function getAuthToken(): string | null {
 }
 
 /**
+ * Reads the active workspace account id from an access JWT (`current_account` claim).
+ * Use when an operation must know the workspace id on the client; banking `pendingActions`
+ * resolves the account from the token and does not take a client-supplied account id.
+ */
+export function getCurrentAccountIdFromAccessToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const parts = token.split('.');
+  if (parts.length < 2) return null;
+  let b64 = parts[1]!;
+  b64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = b64.length % 4;
+  if (pad) b64 += '='.repeat(4 - pad);
+  try {
+    const json = atob(b64);
+    const payload = JSON.parse(json) as { current_account?: unknown };
+    const id = payload.current_account;
+    return typeof id === 'string' && id.length > 0 ? id : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Checks if an authentication token exists in storage
  */
 export function hasAuthToken(): boolean {

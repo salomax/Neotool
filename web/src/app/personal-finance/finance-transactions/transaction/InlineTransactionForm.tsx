@@ -15,7 +15,12 @@ import {
 } from '@mui/material';
 import { Button } from '@/shared/components/ui/primitives/Button';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import { useTranslation } from '@/shared/i18n';
+import {
+  APP_DATE_PICKER_VIEWS,
+  appDatePickerDisplayFormatFromLanguageTag,
+  mergeAppDatePickerSlotProps,
+} from '@/shared/components/ui/forms/form';
+import { i18n, useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import dayjs from 'dayjs';
 import { useQuery, useMutation } from '@apollo/client/react';
@@ -493,39 +498,41 @@ export function InlineTransactionForm({
             <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1, px: 2, alignItems: 'center', bgcolor: theme.custom.palette.infoLightBg, borderTop: 1, borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <DatePicker
+                format={appDatePickerDisplayFormatFromLanguageTag(i18n.language)}
+                views={[...APP_DATE_PICKER_VIEWS]}
                 value={date}
                 onChange={(newValue) => setDate(newValue)}
                 minDate={minAllowedDate}
-                slotProps={{ 
-                  textField: { 
+                slotProps={mergeAppDatePickerSlotProps({
+                  textField: {
                     hiddenLabel: true,
-                    size: 'small', 
+                    size: 'small',
                     variant: 'standard',
                     error: isDateOutsideWindow,
                     helperText: isDateOutsideWindow ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }) : undefined,
-                    InputProps: { 
+                    InputProps: {
                       disableUnderline: true,
-                      sx: { 
+                      sx: {
                         fontSize: '0.875rem',
                         flexDirection: 'row-reverse',
                         '& .MuiInputAdornment-root': {
                           ml: 0,
-                          mr: 1
-                        }
-                      }
+                          mr: 1,
+                        },
+                      },
                     },
-                    sx: { 
-                      width: 140, 
+                    sx: {
+                      width: 140,
                       m: 0,
                       ...focusBorderSx,
                       '& .MuiInputBase-input': {
                         textAlign: 'left',
                         fontSize: '0.875rem',
-                        p: '4px 0 5px'
-                      }
-                    }
-                  } 
-                }}
+                        p: '4px 0 5px',
+                      },
+                    },
+                  },
+                })}
               />
             </Box>
 

@@ -40,7 +40,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
     @DisplayName("migrations")
     inner class MigrationsTests {
         @Test
-        fun `V0_1 through V0_10 apply cleanly on fresh schema`() {
+        fun `versioned migrations apply cleanly on fresh schema`() {
             val container = getPgContainer()
             val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
             DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
@@ -50,7 +50,23 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     val versions = mutableListOf<String>()
                     while (rs.next()) rs.getString("version")?.let { versions.add(it) }
                     assertThat(versions)
-                        .containsExactly("0.1", "0.2", "0.3", "0.4", "0.5", "0.6", "0.7", "0.8", "0.9", "0.10")
+                        .containsExactly(
+                            "0.1",
+                            "0.2",
+                            "0.3",
+                            "0.4",
+                            "0.5",
+                            "0.6",
+                            "0.7",
+                            "0.8",
+                            "0.9",
+                            "0.10",
+                            "0.11",
+                            "0.12",
+                            "0.13",
+                            "0.14",
+                            "0.15",
+                        )
                 }
                 conn.createStatement().executeQuery(
                     "SELECT table_name FROM information_schema.tables " +

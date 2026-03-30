@@ -27,6 +27,7 @@ import { useTranslation } from "react-i18next";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
 import { getInitials } from "@/shared/utils/user";
+import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingActionsBadge";
 
 export function AppHeader() {
   const { t } = useTranslation();
@@ -156,6 +157,7 @@ export function AppHeader() {
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
+            <HeaderPendingActionsBadge />
             {isAssistantEnabled && (
               <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
                 <Tooltip title="AI Assistant">

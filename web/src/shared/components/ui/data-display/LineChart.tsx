@@ -102,6 +102,8 @@ function ProjectionLine({
   );
 }
 
+const MemoProjectionLine = React.memo(ProjectionLine);
+
 function formatFullShortDate(value: unknown): string | null {
   const date =
     value instanceof Date
@@ -210,23 +212,23 @@ const buildTickFormatter = (axis: LineChartAxisConfig | undefined, locale: strin
   if (axis.tickFormatter) return axis.tickFormatter;
 
   if (axis.format === "currency") {
-    return (value: number) =>
-      new Intl.NumberFormat(locale, {
-        style: "currency",
-        currency: axis.currency ?? "BRL",
-        maximumFractionDigits: 0,
-      }).format(value ?? 0);
+    const formatter = new Intl.NumberFormat(locale, {
+      style: "currency",
+      currency: axis.currency ?? "BRL",
+      maximumFractionDigits: 0,
+    });
+    return (value: number) => formatter.format(value ?? 0);
   }
   if (axis.format === "percent") {
-    return (value: number) =>
-      new Intl.NumberFormat(locale, {
-        style: "percent",
-        maximumFractionDigits: 1,
-      }).format((value ?? 0) / 100);
+    const formatter = new Intl.NumberFormat(locale, {
+      style: "percent",
+      maximumFractionDigits: 1,
+    });
+    return (value: number) => formatter.format((value ?? 0) / 100);
   }
   if (axis.format === "number") {
-    return (value: number) =>
-      new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }).format(value ?? 0);
+    const formatter = new Intl.NumberFormat(locale, { maximumFractionDigits: 2 });
+    return (value: number) => formatter.format(value ?? 0);
   }
   return undefined;
 };
@@ -285,6 +287,8 @@ function XAxisEdgeTick({ x = 0, y = 0, payload, index = 0, visibleTicksCount = 0
   );
 }
 
+const MemoXAxisEdgeTick = React.memo(XAxisEdgeTick);
+
 // --- Custom Tooltip ---
 
 interface CustomTooltipProps {
@@ -312,17 +316,43 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   xTickFormatter,
   tooltipFormatter,
 }) => {
-  if (!active || !payload || payload.length === 0) return null;
+  const { byId, byDataKey, byName } = React.useMemo(() => {
+    const byIdMap = new Map<string, LineChartSeries>();
+    const byDataKeyMap = new Map<string, LineChartSeries>();
+    const byNameMap = new Map<string, LineChartSeries>();
+    for (const s of series) {
+      byIdMap.set(s.id, s);
+      byDataKeyMap.set(s.dataKey, s);
+      byNameMap.set(s.name, s);
+    }
+    return { byId: byIdMap, byDataKey: byDataKeyMap, byName: byNameMap };
+  }, [series]);
 
-  // At the projection boundary, both __actual_* and __proj_* have a value for the
-  // same series. Keep only the __actual_* entry to avoid duplicate tooltip rows.
-  const visiblePayload = (payload as any[]).filter((entry) => {
-    if (!entry.dataKey?.startsWith("__proj_")) return true;
-    const seriesId = entry.dataKey.slice("__proj_".length);
-    return !(payload as any[]).some(
-      (e) => e.dataKey === `__actual_${seriesId}` && e.value != null,
-    );
-  });
+  const safePayload = React.useMemo(() => (payload ?? []) as any[], [payload]);
+
+  const visiblePayload = React.useMemo(() => {
+    const rawPayload = safePayload;
+    const actualWithValue = new Set<string>();
+    for (const entry of rawPayload) {
+      const key = entry?.dataKey;
+      if (typeof key === "string" && key.startsWith("__actual_") && entry.value != null) {
+        actualWithValue.add(key.slice("__actual_".length));
+      }
+    }
+
+    const out: any[] = [];
+    for (const entry of rawPayload) {
+      const key = entry?.dataKey;
+      if (typeof key === "string" && key.startsWith("__proj_")) {
+        const seriesId = key.slice("__proj_".length);
+        if (actualWithValue.has(seriesId)) continue;
+      }
+      out.push(entry);
+    }
+    return out;
+  }, [safePayload]);
+
+  if (!active || safePayload.length === 0) return null;
 
   if (visiblePayload.length === 0) return null;
 
@@ -335,18 +365,18 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
     if (typeof key === "string") {
       if (key.startsWith("__actual_")) {
         const id = key.slice("__actual_".length);
-        return series.find((s) => s.id === id);
+        return byId.get(id);
       }
       if (key.startsWith("__proj_")) {
         const id = key.slice("__proj_".length);
-        return series.find((s) => s.id === id);
+        return byId.get(id);
       }
-      const matchByDataKey = series.find((s) => s.dataKey === key);
+      const matchByDataKey = byDataKey.get(key);
       if (matchByDataKey) return matchByDataKey;
     }
     const entryName = entry?.name;
     if (entryName) {
-      const matchByName = series.find((s) => s.name === entryName);
+      const matchByName = byName.get(entryName);
       if (matchByName) return matchByName;
     }
     return undefined;
@@ -402,6 +432,8 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   );
 };
 
+const MemoCustomTooltip = React.memo(CustomTooltip);
+
 interface CustomLegendProps {
   payload?: ReadonlyArray<{ value?: unknown; color?: string }>;
 }
@@ -444,6 +476,8 @@ const CustomLegend: React.FC<CustomLegendProps> = ({ payload }) => {
   );
 };
 
+const MemoCustomLegend = React.memo(CustomLegend);
+
 // --- Main Component ---
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -463,7 +497,6 @@ export const LineChart: React.FC<LineChartProps> = ({
   projectionKey,
   projectedStyle,
   projectionMarker = true,
-  projectionMarkerSeriesId,
   projectionMarkerLabel,
   showXAxis = true,
   showYAxis = true,
@@ -486,30 +519,62 @@ export const LineChart: React.FC<LineChartProps> = ({
 }) => {
   const theme = useTheme();
 
-  const locale =
-    localeProp ||
-    (typeof window !== "undefined" && window.navigator?.language ? window.navigator.language : "pt-BR");
+  const locale = React.useMemo(() => {
+    if (localeProp) return localeProp;
+    if (typeof window !== "undefined" && window.navigator?.language) return window.navigator.language;
+    return "pt-BR";
+  }, [localeProp]);
 
-  const palette = colors && colors.length > 0 ? colors : defaultPalette(theme);
+  const palette = React.useMemo(
+    () => (colors && colors.length > 0 ? colors : defaultPalette(theme)),
+    [colors, theme]
+  );
+
+  const axisById = React.useMemo(() => {
+    const map = new Map<string, LineChartAxisConfig>();
+    for (const axis of axes || []) map.set(axis.id, axis);
+    return map;
+  }, [axes]);
+
+  const defaultAxis = axes && axes.length > 0 ? axes[0] : undefined;
+  const defaultAxisId = defaultAxis?.id ?? "default";
 
   const leftAxes = React.useMemo(() => (axes || []).filter((a) => a.side === "left"), [axes]);
   const rightAxes = React.useMemo(() => (axes || []).filter((a) => a.side === "right"), [axes]);
 
   const getAxis = React.useCallback(
     (id: string | undefined): LineChartAxisConfig | undefined => {
-      if (!id) return axes && axes.length > 0 ? axes[0] : undefined;
-      return axes?.find((axis) => axis.id === id);
+      if (!id) return defaultAxis;
+      return axisById.get(id);
     },
-    [axes]
+    [axisById, defaultAxis]
   );
+
+  const seriesByDataKey = React.useMemo(() => {
+    const map = new Map<string, LineChartSeries>();
+    for (const s of series) map.set(s.dataKey, s);
+    return map;
+  }, [series]);
+
+  const seriesByName = React.useMemo(() => {
+    const map = new Map<string, LineChartSeries>();
+    for (const s of series) map.set(s.name, s);
+    return map;
+  }, [series]);
+
+  const needsAxisStats = React.useMemo(() => {
+    if (scale || consolidateDecimal) return true;
+    return (axes || []).some((a) => a.marginPercent != null || a.min != null || a.max != null);
+  }, [axes, consolidateDecimal, scale]);
 
   const axisStats = React.useMemo(() => {
     const stats = new Map<string, { min: number; max: number; maxAbs: number }>();
+    if (!needsAxisStats) return stats;
     if (!data || data.length === 0 || !series || series.length === 0) return stats;
 
     for (const row of data) {
       for (const serie of series) {
-        const axisId = serie.yAxisId || "default";
+        const axisId = serie.yAxisId ?? defaultAxisId;
         const raw = row[serie.dataKey];
         const numericValue =
           typeof raw === "number" ? raw : raw == null ? NaN : Number(raw);
@@ -528,15 +593,14 @@ export const LineChart: React.FC<LineChartProps> = ({
       }
     }
     return stats;
-  }, [data, series]);
+  }, [data, series, defaultAxisId, needsAxisStats]);
 
   const consolidationByAxis = React.useMemo(() => {
     const map = new Map<string, { divisor: number; suffix: string }>();
     if (!consolidateDecimal) return map;
 
     axisStats.forEach((stats, axisId) => {
-      const axisConfig =
-        axes && axes.length > 0 ? axes.find((a) => a.id === axisId) || axes[0] : undefined;
+      const axisConfig = axisById.get(axisId) ?? defaultAxis;
       if (!axisConfig || (axisConfig.format !== "currency" && axisConfig.format !== "number")) return;
 
       const abs = stats.maxAbs;
@@ -557,11 +621,11 @@ export const LineChart: React.FC<LineChartProps> = ({
       map.set(axisId, { divisor, suffix });
     });
     return map;
-  }, [axisStats, axes, consolidateDecimal]);
+  }, [axisById, axisStats, consolidateDecimal, defaultAxis]);
 
   const getAxisDomain = React.useCallback((axisId: string | undefined) => {
     const axisConfig = getAxis(axisId);
-    const key = axisConfig?.id || axisId || "default";
+    const key = axisId ?? defaultAxisId;
     const stats = axisStats.get(key);
     const hasExplicitBounds = axisConfig?.min != null || axisConfig?.max != null;
 
@@ -586,43 +650,55 @@ export const LineChart: React.FC<LineChartProps> = ({
 
     const padding = (max - min) * percent;
     return [min - padding, max + padding] as [number, number];
-  }, [getAxis, axisStats, scale]);
+  }, [axisStats, defaultAxisId, getAxis, scale]);
 
   const getTickFormatter = React.useCallback((axisId: string | undefined) => {
     const axisConfig = getAxis(axisId);
     const baseFormatter = buildTickFormatter(axisConfig, locale);
     if (!consolidateDecimal) return baseFormatter;
 
-    const key = axisConfig?.id || "default";
+    const key = axisId ?? defaultAxisId;
     const consolidation = consolidationByAxis.get(key);
     if (!consolidation || consolidation.divisor === 1) return baseFormatter;
+
+    const currencyFormatter =
+      axisConfig?.format === "currency"
+        ? new Intl.NumberFormat(locale, {
+            style: "currency",
+            currency: axisConfig.currency ?? "BRL",
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })
+        : null;
+
+    const numberFormatter =
+      axisConfig?.format === "number"
+        ? new Intl.NumberFormat(locale, {
+            minimumFractionDigits: 1,
+            maximumFractionDigits: 1,
+          })
+        : null;
 
     return (value: number) => {
       const scaled = value / consolidation.divisor;
       if (axisConfig?.format === "currency") {
-        const formatted = new Intl.NumberFormat(locale, {
-          style: "currency",
-          currency: axisConfig.currency ?? "BRL",
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        }).format(scaled ?? 0);
+        const formatted = (currencyFormatter ?? new Intl.NumberFormat(locale)).format(scaled ?? 0);
         return consolidation.suffix ? `${formatted}\u00A0${consolidation.suffix}` : formatted;
       }
       if (axisConfig?.format === "number") {
-        const formatted = new Intl.NumberFormat(locale, {
-          minimumFractionDigits: 1,
-          maximumFractionDigits: 1,
-        }).format(scaled ?? 0);
+        const formatted = (numberFormatter ?? new Intl.NumberFormat(locale)).format(scaled ?? 0);
         return consolidation.suffix ? `${formatted}\u00A0${consolidation.suffix}` : formatted;
       }
       const formatted = baseFormatter ? baseFormatter(scaled) : String(scaled ?? 0);
       return consolidation.suffix ? `${formatted}\u00A0${consolidation.suffix}` : formatted;
     };
-  }, [getAxis, locale, consolidateDecimal, consolidationByAxis]);
+  }, [consolidateDecimal, consolidationByAxis, defaultAxisId, getAxis, locale]);
 
   const tooltipFormatter = React.useCallback(
     (value: any, name: any, tooltipProps: any): [string, string] => {
-      const serie = series.find((s) => s.dataKey === tooltipProps?.dataKey || s.name === name);
+      const serie =
+        (typeof tooltipProps?.dataKey === "string" ? seriesByDataKey.get(tooltipProps.dataKey) : undefined) ??
+        (name ? seriesByName.get(String(name)) : undefined);
       const axisConfig = getAxis(serie?.yAxisId);
       const numeric = typeof value === "number" ? value : value == null ? NaN : Number(value);
 
@@ -643,16 +719,17 @@ export const LineChart: React.FC<LineChartProps> = ({
       const formatter = getTickFormatter(serie?.yAxisId);
       return [formatter ? formatter(numeric) : String(value), ""];
     },
-    [series, getAxis, getTickFormatter, locale]
+    [getAxis, getTickFormatter, locale, seriesByDataKey, seriesByName]
   );
 
   const xTickFormatter = React.useMemo(() => {
     if (xDateFormat) return xDateFormat;
     if (!xIsDate) return undefined;
+    const dateFormatter = new Intl.DateTimeFormat(locale, { year: "2-digit", month: "2-digit" });
     return (value: any) => {
       const date = value instanceof Date ? value : new Date(value);
       if (Number.isNaN(date.getTime())) return String(value);
-      return new Intl.DateTimeFormat(locale, { year: "2-digit", month: "2-digit" }).format(date);
+      return dateFormatter.format(date);
     };
   }, [locale, xDateFormat, xIsDate]);
 
@@ -674,12 +751,15 @@ export const LineChart: React.FC<LineChartProps> = ({
 
   const xTicks = React.useMemo(() => {
     if (!xContinuous || !xIsDate) return undefined;
-    const values = (chartData || [])
-      .map((row) => (row as any)[INTERNAL_X_KEY])
-      .filter((v: any) => typeof v === "number" && Number.isFinite(v)) as number[];
-    if (values.length === 0) return undefined;
-    const min = Math.min(...values);
-    const max = Math.max(...values);
+    let min = Infinity;
+    let max = -Infinity;
+    for (const row of chartData || []) {
+      const v = (row as any)[INTERNAL_X_KEY];
+      if (typeof v !== "number" || !Number.isFinite(v)) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max)) return undefined;
     if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) return [min];
     const count = Math.max(2, Math.floor(xTickCount));
     const step = (max - min) / (count - 1);
@@ -802,9 +882,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                 scale={xContinuous && xIsDate ? "time" : undefined}
                 ticks={xContinuous && xIsDate ? (xTicks as any) : undefined}
                 tickFormatter={xHideTicks ? undefined : xTickFormatter}
-                tick={xHideTicks ? false : (props: any) => (
-                  <XAxisEdgeTick {...props} formatter={xTickFormatter} />
-                )}
+                tick={xHideTicks ? false : <MemoXAxisEdgeTick formatter={xTickFormatter} />}
                 axisLine={{ stroke: theme.palette.divider }}
                 tickLine={xHideTicks ? { stroke: "transparent" } : { stroke: theme.palette.divider }}
                 interval={xContinuous && xIsDate ? 0 : "preserveStartEnd"}
@@ -882,9 +960,8 @@ export const LineChart: React.FC<LineChartProps> = ({
 
             {showTooltip && (
               <Tooltip
-                content={(props) => (
-                  <CustomTooltip
-                    {...props}
+                content={
+                  <MemoCustomTooltip
                     theme={theme}
                     palette={palette}
                     series={series}
@@ -893,11 +970,11 @@ export const LineChart: React.FC<LineChartProps> = ({
                     xTickFormatter={xTickFormatter}
                     tooltipFormatter={tooltipFormatter}
                   />
-                )}
+                }
               />
             )}
 
-            {showLegend && <Legend content={(props) => <CustomLegend payload={props.payload as any} />} />}
+            {showLegend && <Legend content={<MemoCustomLegend />} />}
 
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];
@@ -969,7 +1046,7 @@ export const LineChart: React.FC<LineChartProps> = ({
             })}
 
             {projectionSplit && (
-              <ProjectionLine
+              <MemoProjectionLine
                 xValue={projectionSplit.x}
                 label={projectionSplit.label}
                 stroke={projectionStroke}

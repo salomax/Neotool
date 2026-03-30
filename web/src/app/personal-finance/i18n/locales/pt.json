@@ -60,6 +60,28 @@
       "recordFund": "Novo fundo",
       "recordEquity": "Nova Ação, FII ou opção"
     },
+    "pendingActions": {
+      "panelTitle": "Ações pendentes",
+      "registerMaturity": "Registrar vencimento",
+      "markSeen": "Marcar como visto",
+      "maturityDrawer": {
+        "step1Title": "Confirmar vencimento",
+        "step2Title": "Crédito na conta",
+        "step2Hint": "O valor líquido foi creditado em alguma conta?",
+        "confirmContinue": "Confirmar e continuar",
+        "registerCredit": "Registrar crédito",
+        "skipCredit": "Pular",
+        "cancel": "Cancelar",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "closeReason": "Motivo do encerramento",
+        "bankAccount": "Conta bancária",
+        "creditDate": "Data do crédito",
+        "back": "Voltar"
+      }
+    },
     "createAccount": {
       "title": "Criar conta de investimento",
       "fields": {
@@ -180,6 +202,7 @@
         }
       },
       "expiredBadge": "Expirado",
+      "maturityPendingBadge": "Vencido",
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
       "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
       "total": "Total",

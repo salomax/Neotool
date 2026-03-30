@@ -43,6 +43,7 @@ import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
 import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawer";
+import { PendingActionsPanel } from "./PendingActionsPanel";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -87,6 +88,11 @@ export default function PersonalFinanceInvestmentsPage() {
           account.type === FinancialAccountType.Investment || account.type === benefitAccountType,
       ) as FinancialAccount[],
     [accountsData?.financialAccounts, benefitAccountType],
+  );
+
+  const bankAccounts = React.useMemo(
+    () => (accountsData?.financialAccounts ?? []).filter((a) => a.type === FinancialAccountType.Bank),
+    [accountsData?.financialAccounts],
   );
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
@@ -402,9 +408,11 @@ export default function PersonalFinanceInvestmentsPage() {
                   {t("investments.actions.recordHolding")}
                 </Button>
               </Box>
+              <PendingActionsPanel bankAccounts={bankAccounts} />
               <Box sx={{ mt: 2 }}>
                 <InvestmentTable
                   selectedAccountId={selectedAccountId}
+                  bankAccounts={bankAccounts}
                   onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
                   searchQuery={holdingSearchQuery}
                 />

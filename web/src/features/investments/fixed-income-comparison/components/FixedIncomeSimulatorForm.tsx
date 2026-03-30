@@ -15,6 +15,11 @@ import {
 } from "@mui/material";
 import { Label } from "@/shared/components/ui/primitives";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import {
+  APP_DATE_PICKER_VIEWS,
+  appDatePickerDisplayFormat,
+  mergeAppDatePickerSlotProps,
+} from "@/shared/components/ui/forms/form";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
 import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import dayjs, { Dayjs } from "dayjs";
@@ -459,11 +464,13 @@ export function FixedIncomeSimulatorForm({
                 rules={{ required: reqMsg }}
                 render={({ field, fieldState }) => (
                   <DatePicker
+                    format={appDatePickerDisplayFormat(getDateAdapterLocale())}
+                    views={[...APP_DATE_PICKER_VIEWS]}
                     value={field.value ? dayjs(field.value) : null}
                     onChange={(v: Dayjs | null) =>
                       field.onChange(v ? v.format("YYYY-MM-DD") : "")
                     }
-                    slotProps={{
+                    slotProps={mergeAppDatePickerSlotProps({
                       textField: {
                         fullWidth: true,
                         size: "small",
@@ -471,7 +478,7 @@ export function FixedIncomeSimulatorForm({
                         helperText: fieldState.error?.message,
                         sx: { minWidth: 0 },
                       },
-                    }}
+                    })}
                   />
                 )}
               />
@@ -494,6 +501,8 @@ export function FixedIncomeSimulatorForm({
                 }}
                 render={({ field, fieldState }) => (
                   <DatePicker
+                    format={appDatePickerDisplayFormat(getDateAdapterLocale())}
+                    views={[...APP_DATE_PICKER_VIEWS]}
                     value={field.value ? dayjs(field.value) : null}
                     onChange={(v: Dayjs | null) =>
                       field.onChange(v ? v.format("YYYY-MM-DD") : "")
@@ -503,7 +512,7 @@ export function FixedIncomeSimulatorForm({
                         ? dayjs(startDate).add(1, "day")
                         : undefined
                     }
-                    slotProps={{
+                    slotProps={mergeAppDatePickerSlotProps({
                       textField: {
                         fullWidth: true,
                         size: "small",
@@ -511,7 +520,7 @@ export function FixedIncomeSimulatorForm({
                         helperText: fieldState.error?.message,
                         sx: { minWidth: 0 },
                       },
-                    }}
+                    })}
                   />
                 )}
               />

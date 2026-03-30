@@ -11,8 +11,20 @@ import type { DateView } from "@mui/x-date-pickers/models";
 import { Stack } from "@mui/material";
 import dayjs, { Dayjs } from "dayjs";
 import "dayjs/locale/pt-br";
+import {
+  APP_DATE_PICKER_VIEWS,
+  mergeAppDatePickerSlotProps,
+} from "./appDatePickerConfig";
 
 const COMMON_NS = "common";
+
+export {
+  APP_DATE_PICKER_VIEWS,
+  appDatePickerDisplayFormat,
+  appDatePickerDisplayFormatFromLanguageTag,
+  appDatePickerSlotProps,
+  mergeAppDatePickerSlotProps,
+} from "./appDatePickerConfig";
 
 function useDatePickerI18nConfig() {
   const { i18n } = useTranslation();
@@ -33,11 +45,11 @@ export interface DatePickerFieldProps {
   fullWidth?: boolean;
   minDate?: Date;
   maxDate?: Date;
-  /** When set (e.g. `['year', 'month', 'day']`), the popover steps through each view in order. */
+  /** Defaults to `APP_DATE_PICKER_VIEWS` (year/month/day; opens on day grid). Override to narrow views. */
   views?: readonly DateView[];
-  /** Initial view when the picker opens; pairs with `views`. */
+  /** Initial view when opening; default follows MUI (typically `day` when present in `views`). */
   openTo?: DateView;
-  /** Merged into the underlying MUI `DatePicker` `slotProps` (e.g. `calendar`); `textField` is merged with the field wiring. */
+  /** Extra MUI `DatePicker` `slotProps` merged with app standards (`mergeAppDatePickerSlotProps`). `textField` merges with error/helper wiring. */
   pickerSlotProps?: DatePickerProps["slotProps"];
   'data-testid'?: string;
 }
@@ -85,10 +97,18 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
     setDraftValue(field.value ? dayjs(field.value) : null);
   }, [field.value]);
 
+  const resolvedViews = views !== undefined ? [...views] : [...APP_DATE_PICKER_VIEWS];
+  const mergedNonTextFieldSlotProps = React.useMemo(() => {
+    if (!pickerSlotProps) return mergeAppDatePickerSlotProps();
+    const { textField: _omit, ...rest } = pickerSlotProps;
+    void _omit;
+    return mergeAppDatePickerSlotProps(rest);
+  }, [pickerSlotProps]);
+
   return (
     <DatePicker
       format={dateFormat}
-      views={views ? [...views] : undefined}
+      views={resolvedViews}
       openTo={openTo}
       value={draftValue}
       onChange={(v, context) => {
@@ -107,7 +127,7 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       minDate={minDate ? dayjs(minDate) : undefined}
       maxDate={maxDate ? dayjs(maxDate) : undefined}
       slotProps={{
-        ...pickerSlotProps,
+        ...mergedNonTextFieldSlotProps,
         textField: {
           ...(typeof pickerSlotProps?.textField === "object" && pickerSlotProps.textField !== null
             ? pickerSlotProps.textField
@@ -257,9 +277,13 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
           render={({ field }) => (
             <DatePicker
               format={dateFormat}
+              views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
               onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
-              slotProps={{ textField: { label: startLabel, placeholder: t("datePicker.formatHint") } as any }}
+              slotProps={{
+                ...mergeAppDatePickerSlotProps(),
+                textField: { label: startLabel, placeholder: t("datePicker.formatHint") } as any,
+              }}
             />
           )}
         />
@@ -269,9 +293,13 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
           render={({ field }) => (
             <DatePicker
               format={dateFormat}
+              views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
               onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
-              slotProps={{ textField: { label: endLabel, placeholder: t("datePicker.formatHint") } as any }}
+              slotProps={{
+                ...mergeAppDatePickerSlotProps(),
+                textField: { label: endLabel, placeholder: t("datePicker.formatHint") } as any,
+              }}
             />
           )}
         />

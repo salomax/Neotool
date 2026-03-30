@@ -32,6 +32,8 @@ object HoldingMapper {
             source = entity.source,
             providerInvestmentId = entity.providerInvestmentId,
             deletedAt = entity.deletedAt,
+            closedAt = entity.closedAt,
+            closeReason = entity.closeReason,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
         )
@@ -62,6 +64,8 @@ object HoldingMapper {
             source = domain.source,
             providerInvestmentId = domain.providerInvestmentId,
             deletedAt = domain.deletedAt,
+            closedAt = domain.closedAt,
+            closeReason = domain.closeReason,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
         )
@@ -89,6 +93,8 @@ object HoldingMapper {
         entity.manualValuedAt = domain.manualValuedAt
         entity.providerInvestmentId = domain.providerInvestmentId
         entity.deletedAt = domain.deletedAt
+        entity.closedAt = domain.closedAt
+        entity.closeReason = domain.closeReason
         entity.updatedAt = domain.updatedAt
     }
 }

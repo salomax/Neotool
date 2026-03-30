@@ -36,6 +36,7 @@ export function InvestmentRecordDrawer({
   children,
   footer,
 }: InvestmentRecordDrawerProps) {
+  const locale = React.useMemo(() => Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
   const [userSelectedAccountId, setUserSelectedAccountId] = React.useState<string | null>(null);
   const resolvedFinancialAccountId = open ? (userSelectedAccountId ?? initialFinancialAccountId ?? null) : null;
   const needsAccountSelection = !resolvedFinancialAccountId;
@@ -51,7 +52,7 @@ export function InvestmentRecordDrawer({
       ) : (
         <Drawer.Header>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
               <IconButton
                 onClick={() => {
                   setUserSelectedAccountId(null);
@@ -61,8 +62,14 @@ export function InvestmentRecordDrawer({
               >
                 <ArrowBackIcon />
               </IconButton>
-              <Typography variant="h5" component="h2">
-                {title}
+              <Typography
+                variant="h5"
+                component="h2"
+                fontWeight={400}
+                noWrap
+                sx={{ letterSpacing: "0.05em", lineHeight: 1.15 }}
+              >
+                {title.toLocaleUpperCase(locale)}
               </Typography>
             </Box>
             <IconButton onClick={onClose} size="small" data-testid="investment-record-close-btn">

@@ -2,6 +2,11 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
+import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSeverity
+import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.INFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.OUTFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.AMORTIZATION
@@ -52,6 +57,7 @@ open class InvestmentTransactionService(
     private val holdingRepository: HoldingRepository,
     private val assetRepository: AssetRepository,
     private val financialAccountRepository: FinancialAccountRepository,
+    private val pendingActionRepository: AccountPendingActionRepository,
 ) {
     // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -171,7 +177,72 @@ open class InvestmentTransactionService(
                 updatedAt = now,
             )
 
-        return investmentTransactionRepository.save(transaction)
+        val savedTx = investmentTransactionRepository.save(transaction)
+        syncMaturityPendingAction(savedHolding, accountId)
+        return savedTx
+    }
+
+    /**
+     * Keeps the INVESTMENT_MATURED pending action in sync after every holding mutation.
+     *
+     * - quantity > 0 with maturityDate  → upsert: create or update visibleFrom
+     * - quantity = 0 with maturityDate  → cancel: early redemption/sale closed the position
+     * - no maturityDate                 → cancel if one exists (maturityDate was removed)
+     */
+    private fun syncMaturityPendingAction(
+        holding: Holding,
+        accountId: UUID,
+    ) {
+        val holdingId = holding.id ?: return
+        val maturityDate = holding.maturityDate
+
+        if (maturityDate == null || holding.quantity <= java.math.BigDecimal.ZERO) {
+            pendingActionRepository.cancelByEntityAndType(
+                entityType = "HOLDING",
+                entityId = holdingId,
+                type = PendingActionType.INVESTMENT_MATURED,
+            )
+            return
+        }
+
+        val visibleFrom = maturityDate.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+        val now = Instant.now()
+
+        val existing = pendingActionRepository.findPendingByEntityAndType(
+            entityType = "HOLDING",
+            entityId = holdingId,
+            type = PendingActionType.INVESTMENT_MATURED,
+        )
+
+        if (existing != null) {
+            if (existing.visibleFrom != visibleFrom) {
+                pendingActionRepository.update(existing.copy(visibleFrom = visibleFrom, updatedAt = now))
+            }
+        } else {
+            pendingActionRepository.save(
+                AccountPendingAction(
+                    accountId = accountId,
+                    type = PendingActionType.INVESTMENT_MATURED,
+                    severity = PendingActionSeverity.ACTION_REQUIRED,
+                    status = AccountPendingActionStatus.PENDING,
+                    entityType = "HOLDING",
+                    entityId = holdingId,
+                    relatedTransactionId = null,
+                    payload = mapOf(
+                        "assetName" to holding.assetId.toString(),
+                        "maturityDate" to maturityDate.toString(),
+                    ),
+                    visibleFrom = visibleFrom,
+                    notifiedAt = null,
+                    dismissedAt = null,
+                    completedAt = null,
+                    cancelledAt = null,
+                    expiresAt = null,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+        }
     }
 
     fun delete(
@@ -216,6 +287,12 @@ open class InvestmentTransactionService(
             val deleted = investmentTransactionRepository.softDelete(transactionId, accountId)
             check(deleted) { "Failed to delete investment transaction $transactionId for holding $id" }
         }
+
+        pendingActionRepository.cancelByEntityAndType(
+            entityType = "HOLDING",
+            entityId = id,
+            type = PendingActionType.INVESTMENT_MATURED,
+        )
 
         return holdingRepository.softDelete(id, accountId)
     }
@@ -436,6 +513,7 @@ open class InvestmentTransactionService(
                 .sortedWith(compareBy<InvestmentTransaction>({ it.tradeDate }, { it.createdAt }))
 
         if (remainingTransactions.isEmpty()) {
+            pendingActionRepository.cancelByEntityAndType("HOLDING", holdingId, PendingActionType.INVESTMENT_MATURED, now)
             holdingRepository.softDelete(holdingId, accountId)
             return
         }
@@ -456,7 +534,8 @@ open class InvestmentTransactionService(
                 )
             }
 
-        holdingRepository.update(rebuiltHolding.copy(updatedAt = now))
+        val saved = holdingRepository.update(rebuiltHolding.copy(updatedAt = now))
+        syncMaturityPendingAction(saved, accountId)
     }
 
     private fun InvestmentTransaction.toReplayCommand(existingHolding: Holding) =

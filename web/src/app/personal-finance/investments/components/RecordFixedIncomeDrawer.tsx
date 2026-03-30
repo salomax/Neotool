@@ -8,10 +8,6 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
-import type { Theme } from "@mui/material/styles";
-import type { DatePickerProps } from "@mui/x-date-pickers/DatePicker";
-import { monthCalendarClasses } from "@mui/x-date-pickers/MonthCalendar";
-import { pickersCalendarHeaderClasses } from "@mui/x-date-pickers/PickersCalendarHeader";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import {
@@ -34,7 +30,6 @@ import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErr
 import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { labelTypographySx } from "@/shared/components/ui/primitives/Label";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
@@ -87,29 +82,6 @@ const FIXED_INCOME_INDEXERS: readonly Indexer[] = [
   Indexer.PreFixado,
   Indexer.Outros,
 ] as const;
-
-/** MUI DatePicker: day calendar by default; year/month views via the header switch control. */
-const FIXED_INCOME_DATE_VIEWS = ["year", "month", "day"] as const;
-
-/** Passed to MUI `DatePicker` `slotProps` (forwarded to `DateCalendar`). */
-const FIXED_INCOME_DATE_PICKER_SLOT_PROPS = {
-  calendarHeader: {
-    sx: (theme: Theme) => ({
-      [`& .${pickersCalendarHeaderClasses.labelContainer}`]: {
-        ...labelTypographySx(theme),
-      },
-    }),
-  },
-  monthButton: {
-    sx: (theme: Theme) => ({
-      ...labelTypographySx(theme),
-      [`&.${monthCalendarClasses.selected}`]: {
-        color: theme.palette.primary.contrastText,
-      },
-    }),
-  },
-} as DatePickerProps["slotProps"];
-
 
 const TAX_EXEMPT_ASSET_TYPES: readonly AssetType[] = [AssetType.Lci, AssetType.Lca, AssetType.Cri, AssetType.Cra] as const;
 
@@ -654,8 +626,6 @@ const isEdit = Boolean(editHolding && editTransaction);
                   <DatePickerField
                     name="tradeDate"
                     label={t("investments.recordHolding.fields.tradeDate")}
-                    views={FIXED_INCOME_DATE_VIEWS}
-                    pickerSlotProps={FIXED_INCOME_DATE_PICKER_SLOT_PROPS}
                     data-testid="record-trade-date"
                   />
                 </Box>
@@ -665,8 +635,6 @@ const isEdit = Boolean(editHolding && editTransaction);
                     name="maturityDate"
                     label={t("investments.recordHolding.fields.maturityDate")}
                     minDate={watchedTradeDate}
-                    views={FIXED_INCOME_DATE_VIEWS}
-                    pickerSlotProps={FIXED_INCOME_DATE_PICKER_SLOT_PROPS}
                     data-testid="record-maturity-date"
                   />
                 </Box>

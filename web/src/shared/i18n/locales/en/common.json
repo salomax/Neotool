@@ -5,6 +5,7 @@
     "signOut": "Sign Out",
     "defaultUser": "User",
     "aiAssistant": "AI Assistant",
+    "pendingActions": "Pending actions",
     "theme": {
       "light": "Switch to light mode",
       "dark": "Switch to dark mode"

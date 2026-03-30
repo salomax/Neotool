@@ -21,6 +21,21 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+type AccountPendingAction
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  type: PendingActionType!
+  severity: PendingActionSeverity!
+  status: PendingActionStatus!
+  entityType: String
+  entityId: ID
+  relatedHolding: InvestmentHolding
+  payload: JSON!
+  createdAt: DateTime!
+  expiresAt: DateTime
+}
+
 """
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
 """
@@ -525,22 +540,6 @@ type BulkOperationResult
 {
   affectedCount: Int!
   errors: [String!]!
-
-  """
-  Records an investment transaction and updates the holding's quantity and averageCost.
-  Creates the holding automatically on the first PURCHASE of an asset.
-  """
-  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
-
-  """
-  Soft-deletes a MANUAL investment holding and all of its MANUAL transactions.
-  """
-  deleteInvestmentHolding(id: ID!): Boolean!
-
-  """
-  Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
-  """
-  deleteInvestmentTransaction(id: ID!): Boolean!
 }
 
 """
@@ -721,6 +720,27 @@ input ConfirmBillReviewTransactionInput
   installment: InstallmentInfoInput
   categoryId: ID
   categorySource: CategorySource
+}
+
+input ConfirmHoldingMaturityInput
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  maturityDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float
+  iof: Float
+  closeReason: HoldingCloseReason!
+  cashMovement: MaturityCashMovementInput
+}
+
+type ConfirmHoldingMaturityResult
+  @join__type(graph: BANKING)
+{
+  maturityTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction!
 }
 
 enum ConnectionStatus
@@ -1449,6 +1469,14 @@ type HoldingAttachment
   createdAt: DateTime!
 }
 
+enum HoldingCloseReason
+  @join__type(graph: BANKING)
+{
+  MATURED @join__enumValue(graph: BANKING)
+  REDEEMED_EARLY @join__enumValue(graph: BANKING)
+  TRANSFERRED @join__enumValue(graph: BANKING)
+}
+
 type HoldingPerformance
   @join__type(graph: BANKING)
 {
@@ -1773,9 +1801,22 @@ type InvestmentHolding
   valuationReferenceDate: Date
 
   """
-  Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today.
+  Whether the holding is on or past its maturity date.
+  Computed as maturityDate != null && !maturityDate.isAfter(today).
   """
   isExpired: Boolean!
+
+  """
+  True when the holding was closed with an explicit reason (maturity, early redemption, transfer).
+  """
+  isClosed: Boolean!
+
+  """
+  True when the holding is past maturity, still open (qty > 0), and not yet closed with a reason.
+  """
+  isExpiredPending: Boolean!
+  closedAt: Date
+  closeReason: HoldingCloseReason
   source: InvestmentSource!
 
   """Attached files (corretagem, contracts, etc.). Max 3."""
@@ -1989,6 +2030,14 @@ input ManualFundValuationInput
 {
   grossValue: Float!
   valuedAt: Date!
+}
+
+input MaturityCashMovementInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  amount: Float!
+  date: Date!
 }
 
 """
@@ -2298,6 +2347,14 @@ type Mutation
 
   """Remove an attachment from a holding and delete the underlying asset."""
   removeHoldingAttachment(attachmentId: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit.
+  """
+  confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult! @join__field(graph: BANKING)
+
+  """Dismiss a pending action (e.g. mark informational item as seen)."""
+  dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
@@ -2370,6 +2427,33 @@ enum PatternType
   STARTS_WITH @join__enumValue(graph: BANKING)
   EXACT @join__enumValue(graph: BANKING)
   REGEX @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionSeverity
+  @join__type(graph: BANKING)
+{
+  INFO @join__enumValue(graph: BANKING)
+  WARNING @join__enumValue(graph: BANKING)
+  ACTION_REQUIRED @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionStatus
+  @join__type(graph: BANKING)
+{
+  PENDING @join__enumValue(graph: BANKING)
+  COMPLETED @join__enumValue(graph: BANKING)
+  DISMISSED @join__enumValue(graph: BANKING)
+  CANCELLED @join__enumValue(graph: BANKING)
+}
+
+enum PendingActionType
+  @join__type(graph: BANKING)
+{
+  INVESTMENT_MATURED @join__enumValue(graph: BANKING)
+  INVESTMENT_POSITION_MISSING @join__enumValue(graph: BANKING)
+  CORPORATE_EVENT @join__enumValue(graph: BANKING)
+  INVESTMENT_INCOME @join__enumValue(graph: BANKING)
+  INFORMATIONAL @join__enumValue(graph: BANKING)
 }
 
 type Permission
@@ -2683,6 +2767,11 @@ type Query
 
   """Generic performance series and valuation summary for a holding."""
   holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
+
+  """
+  Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation).
+  """
+  pendingActions(status: PendingActionStatus): [AccountPendingAction!]! @join__field(graph: BANKING)
   _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)

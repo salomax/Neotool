@@ -66,6 +66,8 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
 export interface DrawerHeaderProps {
   /** Title text displayed in the header */
   title?: string;
+  /** Locale used for title uppercasing (falls back to environment locale) */
+  locale?: string;
   /** Icon displayed before the title */
   icon?: React.ReactNode;
   /** Props forwarded to the title Typography component */
@@ -329,6 +331,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
  */
 const Header: React.FC<DrawerHeaderProps> = ({
   title,
+  locale,
   icon,
   titleTypographyProps,
   showCloseButton = true,
@@ -363,18 +366,23 @@ const Header: React.FC<DrawerHeaderProps> = ({
     return null;
   }
 
+  const resolvedLocale = locale || Intl.DateTimeFormat().resolvedOptions().locale;
+  const displayTitle = title ? title.toLocaleUpperCase(resolvedLocale) : "";
+  const { sx: titleSx, ...restTitleTypographyProps } = titleTypographyProps || {};
+
   return (
     <Box
       sx={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        p: 2,
-        minHeight: 64,
+        py: 1.5,
+        px: 2,
+        minHeight: 54,
         flexShrink: 0,
       }}
     >
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
         {showMenuButton && (
           <IconButton
             onClick={onMenuClick || (() => {})}
@@ -393,12 +401,17 @@ const Header: React.FC<DrawerHeaderProps> = ({
         )}
         {title && (
           <Typography 
-            variant="h5" 
-            component="h2" 
-            sx={{ flex: 1 }}
-            {...titleTypographyProps}
+            variant="h5"
+            component="h2"
+            fontWeight={400}
+            noWrap
+            sx={[
+              { flex: 1, minWidth: 0, letterSpacing: "0.05em", lineHeight: 1.15 },
+              ...(Array.isArray(titleSx) ? titleSx : titleSx ? [titleSx] : []),
+            ]}
+            {...restTitleTypographyProps}
           >
-            {title}
+            {displayTitle}
           </Typography>
         )}
       </Box>

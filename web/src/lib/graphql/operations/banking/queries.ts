@@ -393,6 +393,10 @@ export const INVESTMENT_HOLDINGS = gql`
       valuationSource
       valuationReferenceDate
       isExpired
+      isClosed
+      isExpiredPending
+      closedAt
+      closeReason
       indexer
       indexerPercentage
       fixedAnnualRate
@@ -440,6 +444,10 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
       valuationSource
       valuationReferenceDate
       isExpired
+      isClosed
+      isExpiredPending
+      closedAt
+      closeReason
       indexer
       indexerPercentage
       fixedAnnualRate

@@ -317,7 +317,12 @@ class InvestmentQueryService(
     ): InvestmentHoldingDTO {
         val financialAccount = accountsById[financialAccountId]
         val asset = assetsById[assetId]
-        val isExpired = maturityDate != null && maturityDate!!.isBefore(today)
+        val isExpired = maturityDate != null && !maturityDate!!.isAfter(today)
+        val isClosed = closeReason != null
+        val isExpiredPending =
+            isExpired &&
+                quantity > BigDecimal.ZERO &&
+                closeReason == null
 
         val valuation =
             manualValuation()
@@ -352,6 +357,10 @@ class InvestmentQueryService(
             valuationSource = valuation.source,
             valuationReferenceDate = valuation.refDate,
             isExpired = isExpired,
+            isClosed = isClosed,
+            isExpiredPending = isExpiredPending,
+            closedAt = closedAt,
+            closeReason = closeReason,
             source = source,
             createdAt = createdAt,
             updatedAt = updatedAt,

@@ -5,6 +5,7 @@
     "signOut": "Sair",
     "defaultUser": "Usuário",
     "aiAssistant": "Assistente IA",
+    "pendingActions": "Ações pendentes",
     "theme": {
       "light": "Alternar para modo claro",
       "dark": "Alternar para modo escuro"

@@ -12,13 +12,9 @@ docker compose -f infra/docker/docker-compose.local.yml up -d kafka
 
 # From service/kotlin
 cd service/kotlin
-export KAFKA_BROKERS=localhost:9094
-export COMMS_EMAIL_PROVIDER=mock
-export EMAIL_FROM=noreply@neotool.com
-export EMAIL_FROM_NAME=Neotool
-
-# JWT validation (recommended for authenticated GraphQL usage)
-export JWT_JWKS_URL=http://localhost:8080/.well-known/jwks.json
+set -a
+source comms/.env.local
+set +a
 
 ./gradlew :comms:run
 ```

@@ -16,11 +16,14 @@ import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.import.ImportResolver
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
+import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -38,6 +41,8 @@ class BankingWiringFactory(
     private val transactionCategoryResolver: TransactionCategoryResolver,
     private val merchantResolver: MerchantResolver,
     private val investmentResolver: InvestmentResolver,
+    private val pendingActionResolver: PendingActionResolver,
+    private val investmentQueryService: InvestmentQueryService,
     private val importResolver: ImportResolver,
     private val billImportResolver: BillImportResolver,
     private val attachmentResolver: AttachmentResolver,
@@ -360,6 +365,15 @@ class BankingWiringFactory(
                         val resolution = env.getArgument<String?>("resolution")
                         val includeProjection = env.getArgument<Boolean?>("includeProjection")
                         investmentResolver.holdingPerformance(holdingId, resolution, includeProjection, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "pendingActions",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val status = env.getArgument<String?>("status")
+                        pendingActionResolver.pendingActions(status, principal)
                     }
                 },
             )
@@ -703,6 +717,29 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "confirmHoldingMaturity",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val command =
+                            env.getArgument<Map<String, Any?>>("command")
+                                ?: throw IllegalArgumentException("command is required")
+                        pendingActionResolver.confirmHoldingMaturity(command, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "dismissPendingAction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        pendingActionResolver.dismissPendingAction(id, principal)
+                    }
+                },
+            )
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder =
         builder
@@ -760,6 +797,22 @@ class BankingWiringFactory(
                     createValidatedDataFetcher { env ->
                         val transaction = env.getSource<InvestmentTransactionDTO>()
                         transaction?.brokerNote
+                    },
+                )
+            }
+            .type("AccountPendingAction") { type ->
+                type.dataFetcher(
+                    "relatedHolding",
+                    createValidatedDataFetcher { env ->
+                        env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                            val dto = env.getSource<AccountPendingActionDTO>()
+                            if (dto?.entityType != "HOLDING") return@withPermission null
+                            val eid = dto.entityId ?: return@withPermission null
+                            val accountId =
+                                principal.currentAccountId
+                                    ?: throw IllegalArgumentException("No active account in token")
+                            investmentQueryService.getHolding(eid, accountId)
+                        }
                     },
                 )
             }

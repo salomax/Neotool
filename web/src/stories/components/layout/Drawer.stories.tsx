@@ -147,10 +147,10 @@ export const WithCustomTitleStyle: Story = {
         </Button>
         <Drawer {...args} open={open} onClose={() => setOpen(false)}>
           <Drawer.Header 
-            title="SETTINGS" 
+            title="Settings"
             icon={<Settings />}
             titleTypographyProps={{
-              sx: { textTransform: 'uppercase', letterSpacing: 2, color: 'primary.main', fontWeight: 'bold' }
+              sx: { color: 'primary.main' }
             }}
           />
           <Drawer.Body>

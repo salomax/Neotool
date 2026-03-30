@@ -3,38 +3,22 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import i18n from 'i18next';
 import {
   alpha,
-  Avatar,
   Box,
-  Chip,
   CircularProgress,
-  Divider,
   IconButton,
-  Paper,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  ListItemIcon,
-  ListItemText,
   Menu,
   MenuItem,
+  Paper,
+  TableContainer,
   Typography,
   useTheme,
 } from '@mui/material';
-import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import QueryStatsIcon from '@mui/icons-material/QueryStats';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { PercentageGain, Amount, ValueOriginIndicator } from '@/shared/components/ui/data-display';
-import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_BODY_LINE_HEIGHT, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
+import { ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -42,68 +26,58 @@ import {
 } from '@/lib/graphql/operations/banking/mutations';
 import {
   AllInvestmentHoldingsQuery,
+  FinancialAccountsQuery,
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
 import {
   AssetType,
-  Indexer,
   InvestmentSource,
   InvestmentTransaction,
 } from '@/lib/graphql/types/__generated__/graphql';
-import { AssetGroupCard } from './AssetGroupCard';
-import { formatFundAssetType } from '@/lib/utils/mapCvmFundAssetType';
 import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
-import { AssetTypeChip } from './AssetTypeChip';
 import { RecordFixedIncomeDrawer } from './RecordFixedIncomeDrawer';
 import { RecordFundHoldingDrawer } from './RecordFundHoldingDrawer';
 import { RecordEquityHoldingDrawer } from './RecordEquityHoldingDrawer';
-import { getHoldingValueOrigin, type ValueOriginLabel } from '@/shared/utils/holdingValueOrigin';
 import type { InvestmentHoldingDetailKind } from './InvestmentHoldingDetailDrawer';
+import { InvestmentGroupSection } from './InvestmentGroupSection';
+import {
+  ASSET_GROUP_ORDER,
+  FIXED_INCOME_GROUP_KEYS,
+  FUND_GROUP_KEYS,
+  formatCurrency,
+  getAssetGroupKey,
+  getCurrentLocale,
+  pickGroupValueOrigin,
+  type AssetGroupKey,
+  type HoldingRow,
+} from './investmentTableHelpers';
+import type { MaturityDrawerHolding } from '../MaturityConfirmDrawer';
+import { formatTableDate } from '@/shared/utils/date';
 
 const InvestmentHoldingDetailDrawer = dynamic(
   () => import('./InvestmentHoldingDetailDrawer').then((mod) => ({ default: mod.InvestmentHoldingDetailDrawer })),
   { loading: () => null },
 );
 
+const MaturityConfirmDrawer = dynamic(
+  () => import('../MaturityConfirmDrawer').then((mod) => ({ default: mod.MaturityConfirmDrawer })),
+  { loading: () => null },
+);
+
+type BankAccountRow = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
+
 interface InvestmentTableProps {
   selectedAccountId: string | null;
+  bankAccounts: BankAccountRow[];
   onRecordHolding?: () => void;
   searchQuery?: string;
 }
 
-type HoldingRow =
-  | InvestmentHoldingsQuery['investmentHoldings'][number]
-  | AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
-
-const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
-  [Indexer.Cdi]: 'CDI',
-  [Indexer.Di]: 'DI',
-  [Indexer.Ipca]: 'IPCA+',
-  [Indexer.IgpM]: 'IGP-M',
-  [Indexer.IgpDi]: 'IGP-DI',
-  [Indexer.Inpc]: 'INPC',
-  [Indexer.Tr]: 'TR',
-  [Indexer.Selic]: 'SELIC',
-  [Indexer.PreFixado]: 'Prefixado',
-};
-
 const EMPTY_HOLDINGS: HoldingRow[] = [];
-const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
-const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome', 'treasuryDirect']);
 
 type EditDrawerKind = 'fixedIncome' | 'fund' | 'equity';
-
-type AssetGroupKey =
-  | 'variableIncome'
-  | 'bankFixedIncome'
-  | 'creditFixedIncome'
-  | 'treasuryDirect'
-  | 'mutualFunds'
-  | 'pension'
-  | 'structured'
-  | 'others';
 
 const ICON_KIND_BY_GROUP: Record<AssetGroupKey, AssetTypeIconKind> = {
   bankFixedIncome: 'FIXED_INCOME',
@@ -123,160 +97,22 @@ function AssetGroupIcon({
   return <AssetTypeIcon kind={ICON_KIND_BY_GROUP[groupKey]} {...props} />;
 }
 
-const ASSET_GROUP_ORDER: readonly AssetGroupKey[] = [
-  'bankFixedIncome',
-  'creditFixedIncome',
-  'treasuryDirect',
-  'variableIncome',
-  'mutualFunds',
-  'pension',
-  'structured',
-  'others',
-] as const;
-
-const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
-  variableIncome: [
-    'STOCK',
-    'STOCK_RIGHTS',
-    'BDR',
-    'REAL_ESTATE_FUND',
-    'AGRIBUSINESS_FUND',
-    'ETF',
-    'ETF_INTERNATIONAL',
-  ],
-  bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG', 'ETF_FIXED_INCOME'],
-  creditFixedIncome: ['DEBENTURES', 'CRI', 'CRA'],
-  treasuryDirect: ['TREASURY'],
-  mutualFunds: ['MUTUAL_FUND', 'FIXED_INCOME_FUND', 'EQUITY_FUND', 'MULTI_MARKET_FUND', 'FOREX_FUND'],
-  pension: ['PGBL', 'VGBL'],
-  structured: ['COE'],
-  others: ['CRYPTO', 'OPTION', 'DERIVATIVES', 'OTHER'],
-};
-
-const VALUE_ORIGIN_RELIABILITY_ORDER: Record<ValueOriginLabel, number> = {
-  sincronizado_provider: 1,
-  importado: 2,
-  externo: 3,
-  mercado_app: 4,
-  calculado_app: 4,
-  manual: 5,
-  estimado_app: 6,
-  indisponivel: 7,
-};
-
-function pickGroupValueOrigin(holdings: HoldingRow[]): ValueOriginLabel | null {
-  const valued = holdings.filter((h) => typeof h.grossValue === 'number');
-  if (valued.length === 0) return null;
-
-  const origins = valued.map((h) =>
-    getHoldingValueOrigin({
-      valuationSource: h.valuationSource,
-      source: h.source,
-    }),
-  );
-
-  const unique = new Set(origins);
-  if (unique.size === 1) return origins[0] ?? null;
-
-  let picked: ValueOriginLabel | null = null;
-  let maxScore = -Infinity;
-  unique.forEach((origin) => {
-    const score = VALUE_ORIGIN_RELIABILITY_ORDER[origin] ?? 0;
-    if (score > maxScore) {
-      picked = origin;
-      maxScore = score;
-    }
-  });
-  return picked;
+function formatQuantity(value: unknown, locale: string): string {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+  return new Intl.NumberFormat(locale, { maximumFractionDigits: 8 }).format(value);
 }
 
-function getAssetGroupKey(assetType: string | null | undefined): AssetGroupKey {
-  if (!assetType) return 'others';
-
-  const normalized = String(assetType);
-  const match = ASSET_GROUP_ORDER.find((groupKey) => ASSET_TYPES_BY_GROUP[groupKey].includes(normalized));
-  return match || 'others';
+function computePrincipal(holding: HoldingRow): number | null {
+  if (typeof holding.averageCost !== 'number' || typeof holding.quantity !== 'number') return null;
+  return holding.averageCost * holding.quantity;
 }
 
-function getCurrentLocale(): string {
-  return i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || 'pt-BR';
-}
-
-function formatCurrency(value: number | null | undefined, currencyCode = 'BRL', locale = getCurrentLocale()): string {
-  if (value == null) return '—';
-  return new Intl.NumberFormat(locale, { style: 'currency', currency: currencyCode }).format(value);
-}
-
-function formatDate(value: unknown, locale = getCurrentLocale()): string {
-  if (!value) return '—';
-
-  const raw = String(value);
-  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (localDateMatch) {
-    const [, year, month, day] = localDateMatch;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return date.toLocaleDateString(locale);
-  }
-
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return '—';
-  return date.toLocaleDateString(locale);
-}
-
-function formatAssetType(assetType: string, t: (key: string, options?: Record<string, unknown>) => string): string {
-  return t(`investments.assetTypes.${assetType}` as string);
-}
-
-function formatIndexer(holding: HoldingRow, locale = getCurrentLocale()): string {
-  if (!holding.indexer) return '—';
-
-  if (holding.indexer === Indexer.PreFixado) {
-    if (holding.fixedAnnualRate == null) return INDEXER_LABELS[Indexer.PreFixado] || 'Prefixado';
-    const annualRate = holding.fixedAnnualRate * 100;
-    return `${annualRate.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.`;
-  }
-
-  const label = INDEXER_LABELS[holding.indexer] || holding.indexer;
-  if (holding.indexerPercentage == null) return label;
-
-  // `indexerPercentage` comes as a fraction (e.g. 1.2 == 120%). Show at least 1 decimal digit.
-  const percentValue = holding.indexerPercentage * 100;
-  if (!Number.isFinite(percentValue)) return label;
-
-  const formattedPercent = percentValue.toLocaleString(locale, { minimumFractionDigits: 1, maximumFractionDigits: 2 });
-  return `${label} ${formattedPercent}%`;
-}
-
-function formatIssuerLabel(holding: HoldingRow): string {
-  const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
-  return consolidated.financialAccount?.issuer?.name ?? consolidated.financialAccount?.name ?? '—';
-}
-
-function getHoldingAvatarProps(holding: HoldingRow) {
-  const assetName = holding.asset?.name ?? holding.asset?.ticker ?? '';
-  const assetLogoUrl = holding.asset?.logoAsset?.publicUrl ?? undefined;
-  if (assetLogoUrl) {
-    return {
-      src: assetLogoUrl,
-      alt: assetName || undefined,
-      label: assetName ? assetName.slice(0, 1).toUpperCase() : '—',
-      backgroundColor: 'grey.100',
-    };
-  }
-
-  const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
-  const financialAccount = consolidated.financialAccount;
-  const name = financialAccount?.name ?? '';
-
-  return {
-    src: financialAccount?.issuer?.logoAsset?.publicUrl ?? undefined,
-    alt: name || undefined,
-    label: name ? name.slice(0, 1).toUpperCase() : '—',
-    backgroundColor: financialAccount?.themeColor ?? 'grey.300',
-  };
-}
-
-export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuery }: InvestmentTableProps) {
+export function InvestmentTable({
+  selectedAccountId,
+  bankAccounts,
+  onRecordHolding: _onRecordHolding,
+  searchQuery,
+}: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const locale = getCurrentLocale();
@@ -292,6 +128,8 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
   const [editDrawerFinancialAccountId, setEditDrawerFinancialAccountId] = React.useState<string | null>(null);
   const [detailHoldingId, setDetailHoldingId] = React.useState<string | null>(null);
   const [detailDrawerKind, setDetailDrawerKind] = React.useState<InvestmentHoldingDetailKind | null>(null);
+  const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
+  const [maturityConfirmHolding, setMaturityConfirmHolding] = React.useState<MaturityDrawerHolding | null>(null);
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
   const deleting = deletingHolding;
@@ -363,6 +201,11 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
     setEditDrawerKind('equity');
   };
 
+  const closeMaturityConfirmDrawer = () => {
+    setMaturityConfirmOpen(false);
+    setMaturityConfirmHolding(null);
+  };
+
   const handleOpenEdit = async (holding: HoldingRow) => {
     const tx = await resolveLatestManualTransaction(holding.id);
     if (!tx) return;
@@ -376,6 +219,27 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
     setEditDrawerKind(kind);
     setEditDrawerFinancialAccountId(resolveFinancialAccountId(holding));
   };
+
+  const handleOpenMaturityConfirmDrawer = React.useCallback((holding: HoldingRow) => {
+    if (!holding.asset?.id) return;
+
+    setMaturityConfirmHolding({
+      id: holding.id,
+      maturityDate: holding.maturityDate ? String(holding.maturityDate) : null,
+      grossValue: holding.grossValue ?? null,
+      netValue: holding.netValue ?? null,
+      incomeTax: 'incomeTax' in holding ? ((holding as unknown as { incomeTax?: number | null }).incomeTax ?? null) : null,
+      iof: 'iof' in holding ? ((holding as unknown as { iof?: number | null }).iof ?? null) : null,
+      issuerName:
+        (holding.asset as unknown as { issuerName?: string | null; issuer?: { name?: string | null } | null }).issuerName ??
+        (holding.asset as unknown as { issuerName?: string | null; issuer?: { name?: string | null } | null }).issuer?.name ??
+        null,
+      issuerLogoUrl:
+        (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null }).logoAsset?.publicUrl ?? null,
+      asset: { id: holding.asset.id, name: holding.asset.name },
+    });
+    setMaturityConfirmOpen(true);
+  }, []);
 
   const accountHoldingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
     variables: { financialAccountId: selectedAccountId || '' },
@@ -626,7 +490,7 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
             const indexerColSx = { width: isFixedIncomeGroup ? fixedIncomeIndexerColWidth : colWidth };
 
             return (
-              <AssetGroupCard
+              <InvestmentGroupSection
                 key={group.key}
                 expanded={isExpanded}
                 onToggle={(expanded) =>
@@ -645,485 +509,222 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
                 allocationPercent={group.allocationPercent}
                 appliedLabel={t('investments.table.appliedValue')}
                 appliedValue={group.appliedTotal}
-              >
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-                  <Table
-                    sx={{
-                      width: '100%',
-                      tableLayout: 'fixed',
-                      borderCollapse: 'collapse',
-                      ...FINANCE_TABLE_TYPOGRAPHY_SX,
-                      '& .MuiTableCell-root': {
-                        px: 1.5,
-                        pb: 0.75,
-                        borderBottom: 'none',
-                        bgcolor: 'transparent',
-                      },
-                    }}
-                    aria-label="investments table header"
-                  >
-                    <TableHead>
-                      <TableRow>
-                        <TableCell sx={assetColSx}>
-                          <Label>{t('investments.table.columns.asset')}</Label>
-                        </TableCell>
-                        {isFixedIncomeGroup ? (
-                          <TableCell sx={indexerColSx}>
-                            <Label>{t('investments.table.columns.indexer')}</Label>
-                          </TableCell>
-                        ) : (
-                          <TableCell sx={{ width: colWidth }}>
-                            <Label>{t('investments.table.columns.type')}</Label>
-                          </TableCell>
-                        )}
-                        {isFundGroup ? (
-                          <>
-                            <TableCell align="right" sx={{ width: colWidth }}>
-                              <Label>{t('investments.table.columns.gain')}</Label>
-                            </TableCell>
-                            <TableCell align="right" sx={{ width: colWidth }}>
-                              <Label>{t('investments.table.columns.grossValue')}</Label>
-                            </TableCell>
-                          </>
-                        ) : (
-                          <>
-                            {isVariableIncomeGroup ? (
-                              <>
-                                <TableCell sx={maturityColSx}>
-                                  <Label>{t('investments.table.columns.quantity')}</Label>
-                                </TableCell>
-                                <TableCell align="right" sx={{ width: colWidth }}>
-                                  <Label>{t('investments.table.columns.averagePrice')}</Label>
-                                </TableCell>
-                                <TableCell align="right" sx={{ width: colWidth }}>
-                                  <Label>{t('investments.table.columns.priceD1')}</Label>
-                                </TableCell>
-                              </>
-                            ) : (
-                              <TableCell sx={maturityColSx}>
-                                <Label>{t('investments.table.columns.maturityDate')}</Label>
-                              </TableCell>
-                            )}
-                            <TableCell align="right" sx={gainColSx}>
-                              <Label>{t('investments.table.columns.gain')}</Label>
-                            </TableCell>
-                            <TableCell align="right" sx={grossValueColSx}>
-                              <Label>{t('investments.table.columns.grossValue')}</Label>
-                            </TableCell>
-                          </>
-                        )}
-                        <TableCell align="center" sx={{ width: actionColWidth }} />
-                      </TableRow>
-                    </TableHead>
-                  </Table>
-
-                  <Box
-                    sx={{
-                      borderRadius: `${tableRadius}px`,
-                      overflow: 'hidden',
-                      bgcolor: 'background.paper',
-                    }}
-                  >
-                    <Table
-                      sx={{
-                        width: '100%',
-                        tableLayout: 'fixed',
-                        borderCollapse: 'collapse',
-                        ...FINANCE_TABLE_TYPOGRAPHY_SX,
-                        '& .MuiTableCell-root': {
-                          px: 1.5,
+                headerCells={[
+                  {
+                    key: 'asset',
+                    sx: assetColSx,
+                    content: <Label>{t('investments.table.columns.asset')}</Label>,
+                  },
+                  ...(isFixedIncomeGroup
+                    ? [
+                        {
+                          key: 'indexer',
+                          sx: indexerColSx,
+                          content: <Label>{t('investments.table.columns.indexer')}</Label>,
                         },
+                      ]
+                    : [
+                        {
+                          key: 'type',
+                          sx: { width: colWidth },
+                          content: <Label>{t('investments.table.columns.type')}</Label>,
+                        },
+                      ]),
+                  ...(isFundGroup
+                    ? [
+                        {
+                          key: 'gain',
+                          align: 'right' as const,
+                          sx: { width: colWidth },
+                          content: <Label>{t('investments.table.columns.gain')}</Label>,
+                        },
+                        {
+                          key: 'grossValue',
+                          align: 'right' as const,
+                          sx: { width: colWidth },
+                          content: <Label>{t('investments.table.columns.grossValue')}</Label>,
+                        },
+                      ]
+                    : [
+                        ...(isVariableIncomeGroup
+                          ? [
+                              {
+                                key: 'quantity',
+                                sx: maturityColSx,
+                                content: <Label>{t('investments.table.columns.quantity')}</Label>,
+                              },
+                              {
+                                key: 'averagePrice',
+                                align: 'right' as const,
+                                sx: { width: colWidth },
+                                content: <Label>{t('investments.table.columns.averagePrice')}</Label>,
+                              },
+                              {
+                                key: 'priceD1',
+                                align: 'right' as const,
+                                sx: { width: colWidth },
+                                content: <Label>{t('investments.table.columns.priceD1')}</Label>,
+                              },
+                            ]
+                          : [
+                              {
+                                key: 'maturityDate',
+                                sx: maturityColSx,
+                                content: <Label>{t('investments.table.columns.maturityDate')}</Label>,
+                              },
+                            ]),
+                        {
+                          key: 'gain',
+                          align: 'right' as const,
+                          sx: gainColSx,
+                          content: <Label>{t('investments.table.columns.gain')}</Label>,
+                        },
+                        {
+                          key: 'grossValue',
+                          align: 'right' as const,
+                          sx: grossValueColSx,
+                          content: <Label>{t('investments.table.columns.grossValue')}</Label>,
+                        },
+                      ])]
+                }
+                actionColWidth={actionColWidth}
+                tableRadius={tableRadius}
+              >
+                {group.holdings.map((holding) => {
+                  const assetType = holding.asset?.assetType ?? null;
+                  const assetTypeLabel =
+                    assetType != null ? (t(`investments.assetTypes.${assetType}` as string) as string) : '—';
+                  const issuerLabel = holding.asset?.issuerName ?? '—';
+                  const maturityLabel = holding.maturityDate ? formatTableDate(String(holding.maturityDate), locale) : '—';
+
+                  const principal = computePrincipal(holding);
+                  const gross = typeof holding.grossValue === 'number' ? holding.grossValue : null;
+                  const gain = gross != null && principal != null ? gross - principal : null;
+                  const gainPercent = gross != null && principal != null && principal > 0 ? (gross - principal) / principal : null;
+
+                  const isExpiredPending = Boolean((holding as any).isExpiredPending);
+                  const isExpired = Boolean((holding as any).isExpired);
+                  const showMaturityBadge = isFixedIncomeGroup && (isExpiredPending || isExpired);
+                  const maturityBadgeLabel = isExpiredPending
+                    ? t('investments.table.maturityPendingBadge')
+                    : t('investments.table.expiredBadge');
+
+                  const handleRowClick = () => handleOpenDetail(holding);
+
+                  return (
+                    <Box
+                      key={holding.id}
+                      role="row"
+                      onClick={handleRowClick}
+                      sx={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        px: 2,
+                        py: 1.5,
+                        borderTop: `1px solid ${divider}`,
+                        cursor: 'pointer',
+                        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) },
                       }}
-                      aria-label="investments table"
                     >
-                      <TableBody>
-                    {group.holdings.map((holding) => {
-                      const isExpired = holding.isExpired;
-                      const currencyCode = holding.asset?.currencyCode ?? 'BRL';
+                      <Box sx={{ ...assetColSx, minWidth: 0 }}>
+                        <Typography variant="body2" noWrap>
+                          {holding.asset?.name ?? '—'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          {issuerLabel}
+                        </Typography>
+                      </Box>
 
-                      const valueUnavailable = typeof holding.grossValue !== 'number';
-                      const valueOriginKey = getHoldingValueOrigin({
-                        valuationSource: holding.valuationSource,
-                        source: holding.source,
-                      });
-                      const valueOriginTitle = t(`investments.table.valueOrigin.labels.${valueOriginKey}`);
-                      const valueOriginDescription = t(`investments.table.valueOrigin.descriptions.${valueOriginKey}`);
-                      const valueOriginAriaLabel = t('investments.table.valueOrigin.ariaLabel');
+                      {isFixedIncomeGroup ? (
+                        <Box sx={{ ...indexerColSx, minWidth: 0 }}>
+                          <Typography variant="body2" noWrap>
+                            {holding.indexer ?? '—'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" noWrap>
+                            {holding.indexerPercentage != null ? `${holding.indexerPercentage}%` : holding.fixedAnnualRate != null ? `${holding.fixedAnnualRate}%` : '—'}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box sx={{ width: colWidth, minWidth: 0 }}>
+                          <Typography variant="body2" noWrap>
+                            {assetTypeLabel}
+                          </Typography>
+                        </Box>
+                      )}
 
-                      const principal = holding.averageCost * holding.quantity;
-                      const grossVal = typeof holding.grossValue === 'number' ? holding.grossValue : null;
-                      const absolute = principal > 0 && grossVal != null ? grossVal - principal : null;
-                      const growthRatio = absolute != null && principal > 0 ? absolute / principal : null;
-                      const gainUnavailable = grossVal == null;
-                      const canMutate = holding.source === InvestmentSource.Manual;
-                      const issuerLabel = formatIssuerLabel(holding);
-                      const maturityDateStr = holding.maturityDate ? formatDate(holding.maturityDate, locale) : '';
-                      const expiredNudge =
-                        isExpired && maturityDateStr
-                          ? (t('investments.table.expiredNudge', { maturityDate: maturityDateStr }) as string)
-                          : null;
-                      const assetSecondaryLabel = isVariableIncomeGroup
-                        ? holding.asset?.name ?? '—'
-                        : expiredNudge
-                        ? `${issuerLabel} • ${expiredNudge}`
-                        : issuerLabel;
-                      const gainPercentNode =
-                        growthRatio != null && principal > 0 && absolute != null ? (
-                          <PercentageGain value={growthRatio} locale={locale} />
-                        ) : null;
-
-                      return (
-                        <TableRow
-                          key={holding.id}
-                          sx={{
-                            '& td': { borderBottom: `1px solid ${divider}`, pt: 2.5, pb: 1.5 },
-                            '&:last-of-type td': { borderBottom: 'none' },
-                          }}
-                        >
-                          <TableCell sx={assetColSx}>
-                            <Box
-                              sx={{
-                                display: 'grid',
-                                gridTemplateColumns: '32px minmax(0, 1fr)',
-                                gridTemplateRows: 'auto auto',
-                                columnGap: 1,
-                                alignItems: 'center',
-                                minWidth: 0,
-                              }}
-                            >
-                              {(() => {
-                                const avatar = getHoldingAvatarProps(holding);
-                                return (
-                                  <Avatar
-                                    src={avatar.src}
-                                    alt={avatar.alt}
-                                    variant="rounded"
-                                    sx={{
-                                      width: 32,
-                                      height: 32,
-                                      bgcolor: avatar.src ? 'transparent' : avatar.backgroundColor,
-                                      borderRadius: '.3rem',
-                                      fontSize: '0.75rem',
-                                      gridRow: '1 / span 2',
-                                      alignSelf: 'center',
-                                      '& img': { objectFit: 'contain' },
-                                    }}
-                                  >
-                                    {!avatar.src && avatar.label}
-                                  </Avatar>
-                                );
-                              })()}
-                              <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                                {(() => {
-                                  const name = holding.asset?.name ?? '—';
-                                  if (!isFixedIncomeGroup) {
-                                    if (isVariableIncomeGroup) {
-                                      const ticker = holding.asset?.ticker ?? null;
-                                      return ticker || name;
-                                    }
-                                    return name;
-                                  }
-                                  const typeLabel = holding.asset ? formatAssetType(holding.asset.assetType, t) : '—';
-                                  return `${name} • ${typeLabel}`;
-                                })()}
-                              </Typography>
-                              <Typography variant="caption" color="text.secondary" noWrap sx={{ mt: 0.25, minWidth: 0 }}>
-                                {assetSecondaryLabel}
-                              </Typography>
-                            </Box>
-                          </TableCell>
-                          {isFundGroup ? (
-                            <TableCell sx={{ width: colWidth }}>
-                              <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                                {holding.asset ? (
-                                  <AssetTypeChip assetType={holding.asset.assetType} size="small" />
-                                ) : (
-                                  <Typography variant="body2" noWrap>—</Typography>
-                                )}
-                                <Typography variant="caption" color="text.secondary" noWrap sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                  {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
-                                </Typography>
-                              </Box>
-                            </TableCell>
-                          ) : (
-                            isFixedIncomeGroup ? (
-                              <TableCell sx={indexerColSx}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, minWidth: 0 }}>
-                                  <Typography variant="body2" noWrap>
-                                    {formatIndexer(holding, locale)}
-                                  </Typography>
-                                  <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                    —
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                            ) : (
-                              <TableCell sx={{ width: colWidth }}>
-                                {holding.asset ? (
-                                  <AssetTypeChip assetType={holding.asset.assetType} size="small" />
-                                ) : (
-                                  <Typography variant="body2">—</Typography>
-                                )}
-                              </TableCell>
-                            )
-                          )}
-                          {isFundGroup ? (
-                            <>
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'flex-end',
-                                    justifyContent: 'center',
-                                    gap: 0.25,
-                                  }}
-                                >
-                                  {gainUnavailable ? (
-                                    <>
-                                      <Typography variant="body2">—</Typography>
-                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                        —
-                                      </Typography>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                          {absolute != null ? (
-                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
-                                          ) : (
-                                            <Typography variant="body2">—</Typography>
-                                          )}
-                                      </Box>
-                                      {gainPercentNode ? (
-                                        <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
-                                      ) : (
-                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                          —
-                                        </Typography>
-                                      )}
-                                    </>
-                                  )}
-                                </Box>
-                              </TableCell>
-                              <TableCell align="right" sx={{ width: colWidth }}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
-                                  <Box
-                                    sx={{
-                                      position: 'relative',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'flex-end',
-                                      width: '100%',
-                                      overflow: 'visible',
-                                    }}
-                                  >
-                                    {valueUnavailable ? (
-                                      <Typography variant="body2" component="span" fontWeight="medium">—</Typography>
-                                    ) : (
-                                      <Amount value={holding.grossValue as number} currency={currencyCode} locale={locale} tone="neutral" />
-                                    )}
-                                    <ValueOriginIndicator
-                                      origin={valueOriginKey}
-                                      title={valueOriginTitle}
-                                      description={valueOriginDescription}
-                                      ariaLabel={valueOriginAriaLabel}
-                                      offsetPx={18}
-                                    />
-                                  </Box>
-                                  <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                    —
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                            </>
-                          ) : (
-                            <>
-                              {isVariableIncomeGroup ? (
-                                <>
-                                  <TableCell sx={{ ...maturityColSx, verticalAlign: 'top' }}>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, minWidth: 0 }}>
-                                      <Typography variant="body2" sx={{ fontVariantNumeric: 'tabular-nums' }}>
-                                        {holding.quantity.toLocaleString(locale, { maximumFractionDigits: 6 })}
-                                      </Typography>
-                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                        —
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell align="right" sx={{ width: colWidth, verticalAlign: 'top' }}>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
-                                      <Typography variant="body2" sx={{ visibility: 'hidden', fontVariantNumeric: 'tabular-nums' }}>
-                                        —
-                                      </Typography>
-                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                        —
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                  <TableCell align="right" sx={{ width: colWidth, verticalAlign: 'top' }}>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
-                                      <Typography variant="body2" sx={{ visibility: 'hidden', fontVariantNumeric: 'tabular-nums' }}>
-                                        —
-                                      </Typography>
-                                      <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                        —
-                                      </Typography>
-                                    </Box>
-                                  </TableCell>
-                                </>
-                              ) : (
-                                <TableCell sx={{ ...maturityColSx, verticalAlign: 'top' }}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.25, minWidth: 0 }}>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexWrap: 'wrap', minWidth: 0 }}>
-                                      <Typography variant="body2">{formatDate(holding.maturityDate, locale)}</Typography>
-                                      {isExpired && (
-                                        <Chip
-                                          size="small"
-                                          label={
-                                            <Typography
-                                              variant="body2"
-                                              sx={{ fontSize: FINANCE_TABLE_BODY_FONT_SIZE, lineHeight: FINANCE_TABLE_BODY_LINE_HEIGHT, opacity: 0.7 }}
-                                            >
-                                              {t('investments.table.expiredBadge')}
-                                            </Typography>
-                                          }
-                                          sx={{
-                                            height: 28,
-                                            bgcolor: 'action.selected',
-                                            borderColor: 'divider',
-                                            '& .MuiChip-label': { px: 1 },
-                                          }}
-                                          color="default"
-                                          variant="outlined"
-                                        />
-                                      )}
-                                    </Box>
-                                    <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                      —
-                                    </Typography>
-                                  </Box>
-                                </TableCell>
-                              )}
-
-                              {isFixedIncomeGroup ? (
-                                <TableCell align="right" sx={gainColSx}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.25 }}>
-                                    {gainUnavailable ? (
-                                      <>
-                                        <Typography variant="body2">—</Typography>
-                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                          —
-                                        </Typography>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                          {absolute != null ? (
-                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
-                                          ) : (
-                                            <Typography variant="body2">—</Typography>
-                                          )}
-                                        </Box>
-                                        {gainPercentNode ? (
-                                          <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
-                                        ) : (
-                                          <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                            —
-                                          </Typography>
-                                        )}
-                                      </>
-                                    )}
-                                  </Box>
-                                </TableCell>
-                              ) : (
-                                <TableCell align="right" sx={gainColSx}>
-                                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', justifyContent: 'center', gap: 0.25 }}>
-                                    {gainUnavailable ? (
-                                      <>
-                                        <Typography variant="body2">—</Typography>
-                                        <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                          —
-                                        </Typography>
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.25 }}>
-                                          {absolute != null ? (
-                                            <Amount value={absolute} currency={currencyCode} locale={locale} />
-                                          ) : (
-                                            <Typography variant="body2">—</Typography>
-                                          )}
-                                        </Box>
-                                        {gainPercentNode ? (
-                                          <Box sx={{ mt: 0.25 }}>{gainPercentNode}</Box>
-                                        ) : (
-                                          <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                            —
-                                          </Typography>
-                                        )}
-                                      </>
-                                    )}
-                                  </Box>
-                                </TableCell>
-                              )}
-                              <TableCell align="right" sx={grossValueColSx}>
-                                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.25 }}>
-                                  <Box
-                                    sx={{
-                                      position: 'relative',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'flex-end',
-                                      width: '100%',
-                                      overflow: 'visible',
-                                    }}
-                                  >
-                                    {valueUnavailable ? (
-                                      <Typography variant="body2" component="span" fontWeight="medium">—</Typography>
-                                    ) : (
-                                      <Amount value={holding.grossValue as number} currency={currencyCode} locale={locale} tone="neutral" />
-                                    )}
-                                    <ValueOriginIndicator
-                                      origin={valueOriginKey}
-                                      title={valueOriginTitle}
-                                      description={valueOriginDescription}
-                                      ariaLabel={valueOriginAriaLabel}
-                                      offsetPx={18}
-                                    />
-                                  </Box>
-                                  <Typography variant="caption" sx={{ mt: 0.25, visibility: 'hidden' }}>
-                                    —
-                                  </Typography>
-                                </Box>
-                              </TableCell>
-                            </>
-                          )}
-                          <TableCell align="center" sx={{ width: actionColWidth, verticalAlign: 'middle' }}>
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.5, height: '100%' }}>
-                              <IconButton
-                                size="small"
+                      {isFundGroup ? null : isVariableIncomeGroup ? (
+                        <>
+                          <Box sx={{ ...maturityColSx, minWidth: 0 }}>
+                            <Typography variant="body2" noWrap>
+                              {formatQuantity(holding.quantity, locale)}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ width: colWidth, minWidth: 0, textAlign: 'right' }}>
+                            <Typography variant="body2" noWrap>
+                              {holding.averageCost != null && holding.asset?.currencyCode
+                                ? formatCurrency(holding.averageCost, holding.asset.currencyCode, locale)
+                                : '—'}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ width: colWidth, minWidth: 0, textAlign: 'right' }}>
+                            <Typography variant="body2" noWrap>
+                              —
+                            </Typography>
+                          </Box>
+                        </>
+                      ) : (
+                        <Box sx={{ ...maturityColSx, minWidth: 0 }}>
+                          <Typography variant="body2" noWrap>
+                            {maturityLabel}
+                          </Typography>
+                          {showMaturityBadge ? (
+                            <Box sx={{ mt: 0.5 }}>
+                              <Box
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (!canMutate) return;
-                                  setActionMenuAnchorEl(e.currentTarget);
-                                  setActionMenuHolding(holding);
+                                  handleOpenMaturityConfirmDrawer(holding);
                                 }}
-                                aria-label={t('investments.table.rowActions.ariaLabel')}
-                                disabled={!canMutate}
+                                sx={{ display: 'inline-flex' }}
                               >
-                                <MoreVertIcon fontSize="small" />
-                              </IconButton>
+                                <Label>{maturityBadgeLabel}</Label>
+                              </Box>
                             </Box>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                      </TableBody>
-                    </Table>
-                  </Box>
-                </Box>
-              </AssetGroupCard>
+                          ) : null}
+                        </Box>
+                      )}
+
+                      <Box sx={{ ...gainColSx, minWidth: 0, textAlign: 'right' }}>
+                        <Typography variant="body2" noWrap>
+                          {gain != null && holding.asset?.currencyCode ? formatCurrency(gain, holding.asset.currencyCode, locale) : '—'}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" noWrap>
+                          {gainPercent != null ? `${(gainPercent * 100).toFixed(2)}%` : '—'}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ ...grossValueColSx, minWidth: 0, textAlign: 'right' }}>
+                        <Typography variant="body2" noWrap>
+                          {gross != null && holding.asset?.currencyCode ? formatCurrency(gross, holding.asset.currencyCode, locale) : '—'}
+                        </Typography>
+                      </Box>
+
+                      <Box sx={{ width: actionColWidth, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+                        <IconButton
+                          size="small"
+                          aria-label={t('investments.table.rowActions.ariaLabel')}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActionMenuAnchorEl(e.currentTarget);
+                            setActionMenuHolding(holding);
+                          }}
+                        >
+                          <MoreVertIcon fontSize="small" />
+                        </IconButton>
+                      </Box>
+                    </Box>
+                  );
+                })}
+              </InvestmentGroupSection>
             );
           })}
         </Box>
@@ -1137,56 +738,38 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <MenuItem
+          disabled={deleting}
           onClick={() => {
             const holding = actionMenuHolding;
             closeActionMenu();
             if (!holding) return;
             handleOpenDetail(holding);
           }}
-          disabled={deleting}
         >
-          <ListItemIcon>
-            <QueryStatsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.viewDetails')}</ListItemText>
+          {t('investments.table.rowActions.viewDetails')}
         </MenuItem>
         <MenuItem
+          disabled={deleting}
           onClick={async () => {
             const holding = actionMenuHolding;
             closeActionMenu();
             if (!holding) return;
             await handleOpenEdit(holding);
           }}
-          disabled={deleting}
         >
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.edit')}</ListItemText>
+          {t('investments.table.rowActions.edit')}
         </MenuItem>
-        {isActionMenuFixedIncome && <Divider />}
         <MenuItem
+          disabled={deleting}
           onClick={() => {
             const holding = actionMenuHolding;
             closeActionMenu();
             if (!holding) return;
             setHoldingToRemove(holding);
           }}
-          sx={{
-            color: 'error.main',
-            ...(isActionMenuFixedIncome
-              ? {
-                  '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08) },
-                  '&.Mui-focusVisible': { bgcolor: alpha(theme.palette.error.main, 0.12) },
-                }
-              : {}),
-          }}
-          disabled={deleting}
+          sx={isActionMenuFixedIncome ? { borderTop: (theme) => `1px solid ${alpha(theme.palette.divider, 0.7)}` } : undefined}
         >
-          <ListItemIcon sx={{ color: 'inherit' }}>
-            <DeleteOutlineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.remove')}</ListItemText>
+          {t('investments.table.rowActions.remove')}
         </MenuItem>
       </Menu>
 
@@ -1211,6 +794,17 @@ export function InvestmentTable({ selectedAccountId, onRecordHolding, searchQuer
         initialLogoUrl={detailHolding?.asset?.logoAsset?.publicUrl ?? null}
         initialIssuerLogoUrl={detailHoldingIssuerLogoUrl}
         onClose={closeDetailDrawer}
+      />
+
+      <MaturityConfirmDrawer
+        open={maturityConfirmOpen}
+        onClose={closeMaturityConfirmDrawer}
+        holding={maturityConfirmHolding}
+        bankAccounts={bankAccounts}
+        onSuccess={async () => {
+          if (selectedAccountId) await accountHoldingsQuery.refetch();
+          else await consolidatedHoldingsQuery.refetch();
+        }}
       />
 
       <RecordFixedIncomeDrawer

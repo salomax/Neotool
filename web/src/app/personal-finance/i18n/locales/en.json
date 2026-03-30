@@ -60,6 +60,28 @@
       "recordFund": "Record fund",
       "recordEquity": "Record stock / FII"
     },
+    "pendingActions": {
+      "panelTitle": "Pending actions",
+      "registerMaturity": "Record maturity",
+      "markSeen": "Mark as seen",
+      "maturityDrawer": {
+        "step1Title": "Confirm maturity",
+        "step2Title": "Credit to bank account",
+        "step2Hint": "Was the net amount credited to an account?",
+        "confirmContinue": "Confirm and continue",
+        "registerCredit": "Record credit",
+        "skipCredit": "Skip",
+        "cancel": "Cancel",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Income tax",
+        "iof": "IOF",
+        "closeReason": "Close reason",
+        "bankAccount": "Bank account",
+        "creditDate": "Credit date",
+        "back": "Back"
+      }
+    },
     "assetTypes": {
       "STOCK": "Stocks",
       "STOCK_RIGHTS": "Stock rights",
@@ -180,6 +202,7 @@
         }
       },
       "expiredBadge": "Expired",
+      "maturityPendingBadge": "Maturity pending",
       "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
       "groupTotalEstimated": "Part of this total uses estimated valuation or tax data.",
       "total": "Total",

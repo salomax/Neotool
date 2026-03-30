@@ -1020,6 +1020,69 @@ enum InvestmentSource {
   FILE_IMPORT
 }
 
+enum HoldingCloseReason {
+  MATURED
+  REDEEMED_EARLY
+  TRANSFERRED
+}
+
+enum PendingActionType {
+  INVESTMENT_MATURED
+  INVESTMENT_POSITION_MISSING
+  CORPORATE_EVENT
+  INVESTMENT_INCOME
+  INFORMATIONAL
+}
+
+enum PendingActionSeverity {
+  INFO
+  WARNING
+  ACTION_REQUIRED
+}
+
+enum PendingActionStatus {
+  PENDING
+  COMPLETED
+  DISMISSED
+  CANCELLED
+}
+
+type AccountPendingAction {
+  id: ID!
+  type: PendingActionType!
+  severity: PendingActionSeverity!
+  status: PendingActionStatus!
+  entityType: String
+  entityId: ID
+  relatedHolding: InvestmentHolding
+  payload: JSON!
+  createdAt: DateTime!
+  expiresAt: DateTime
+}
+
+input MaturityCashMovementInput {
+  financialAccountId: ID!
+  amount: Float!
+  date: Date!
+}
+
+input ConfirmHoldingMaturityInput {
+  holdingId: ID!
+  maturityDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float
+  iof: Float
+  closeReason: HoldingCloseReason!
+  cashMovement: MaturityCashMovementInput
+}
+
+type ConfirmHoldingMaturityResult {
+  maturityTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction!
+}
+
 enum HoldingPricingMode {
   MANUAL
   MARKET_DATA
@@ -1116,8 +1179,17 @@ type InvestmentHolding {
   valuationSource: ValuationSource!
   "Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE)."
   valuationReferenceDate: Date
-  "Whether the holding has passed its maturity date. Computed as maturityDate != null && maturityDate < today."
+  """
+  Whether the holding is on or past its maturity date.
+  Computed as maturityDate != null && !maturityDate.isAfter(today).
+  """
   isExpired: Boolean!
+  """True when the holding was closed with an explicit reason (maturity, early redemption, transfer)."""
+  isClosed: Boolean!
+  """True when the holding is past maturity, still open (qty > 0), and not yet closed with a reason."""
+  isExpiredPending: Boolean!
+  closedAt: Date
+  closeReason: HoldingCloseReason
   source: InvestmentSource!
   """Attached files (corretagem, contracts, etc.). Max 3."""
   attachments: [HoldingAttachment!]!
@@ -1502,6 +1574,8 @@ extend type Query {
     resolution: HoldingPerformanceResolution
     includeProjection: Boolean
   ): HoldingPerformance
+  """Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation)."""
+  pendingActions(status: PendingActionStatus): [AccountPendingAction!]!
 }
 
 # ============================================================================
@@ -1608,19 +1682,15 @@ extend type Mutation {
 
   """Remove an attachment from a holding and delete the underlying asset."""
   removeHoldingAttachment(attachmentId: ID!): Boolean!
+
+  """Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit."""
+  confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
+  """Dismiss a pending action (e.g. mark informational item as seen)."""
+  dismissPendingAction(id: ID!): AccountPendingAction!
 }
 
 """Result of a bulk operation (e.g. bulkCategorize)."""
 type BulkOperationResult {
   affectedCount: Int!
   errors: [String!]!
-  """
-  Records an investment transaction and updates the holding's quantity and averageCost.
-  Creates the holding automatically on the first PURCHASE of an asset.
-  """
-  recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
-  """Soft-deletes a MANUAL investment holding and all of its MANUAL transactions."""
-  deleteInvestmentHolding(id: ID!): Boolean!
-  """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
-  deleteInvestmentTransaction(id: ID!): Boolean!
 }
