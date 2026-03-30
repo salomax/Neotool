@@ -12,7 +12,9 @@ import jakarta.persistence.Enumerated
 import jakarta.persistence.Id
 import jakarta.persistence.Table
 import org.hibernate.annotations.Generated
+import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.generator.EventType
+import org.hibernate.type.SqlTypes
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -117,6 +119,12 @@ open class TransactionEntity(
     open var importFingerprint: String? = null,
     @Column(name = "import_job_id")
     open var importJobId: UUID? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "source_data", columnDefinition = "jsonb")
+    open var sourceData: String? = null,
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "applied_rule_ids", columnDefinition = "jsonb")
+    open var appliedRuleIds: String? = null,
     // Soft delete + audit
     @Column(name = "deleted_at")
     open var deletedAt: Instant? = null,

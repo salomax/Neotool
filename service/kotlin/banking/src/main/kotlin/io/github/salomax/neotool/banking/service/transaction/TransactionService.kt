@@ -1,13 +1,18 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
@@ -37,6 +42,7 @@ open class TransactionService(
     private val accountMembershipValidationPort: AccountMembershipValidationPort,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
+    private val accountPreferencesService: AccountPreferencesService,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionService::class.java)
     // ── Categories ───────────────────────────────────────────────────────────
@@ -93,6 +99,7 @@ open class TransactionService(
         financialAccountId: UUID?,
         belongsToUserId: UUID?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: UUID?,
         categoryId: UUID?,
@@ -122,6 +129,7 @@ open class TransactionService(
                 financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserId,
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billId,
                 categoryId = categoryId,
@@ -209,7 +217,8 @@ open class TransactionService(
 
     /**
      * Returns category totals for the given filter, mirroring the same filter semantics as
-     * [listTransactions]. Transactions without a category are excluded from the breakdown.
+     * [listTransactions]. Uncategorized transactions are surfaced as an explicit row with
+     * category = null and uncategorized = true.
      *
      * [applicableTo] narrows to INCOME (CREDIT) or EXPENSE (DEBIT) transactions only.
      */
@@ -218,6 +227,7 @@ open class TransactionService(
         financialAccountId: UUID?,
         belongsToUserId: UUID?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: UUID?,
         categoryId: UUID?,
@@ -238,6 +248,7 @@ open class TransactionService(
                 financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserId,
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billId,
                 categoryId = categoryId,
@@ -278,6 +289,7 @@ open class TransactionService(
         financialAccountId: UUID?,
         belongsToUserId: UUID?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: UUID?,
         categoryId: UUID?,
@@ -299,6 +311,7 @@ open class TransactionService(
                 financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserId,
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billId,
                 categoryId = categoryId,
@@ -338,6 +351,7 @@ open class TransactionService(
         financialAccountId: UUID?,
         belongsToUserId: UUID?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: UUID?,
         categoryId: UUID?,
@@ -350,8 +364,12 @@ open class TransactionService(
         offset: Int,
     ): TransactionListQuery? {
         val normalizedBelongsToName = belongsToName?.trim()
+        val normalizedSearch = search?.trim()
         require(normalizedBelongsToName?.isNotEmpty() != false) {
             "belongsToName must not be blank"
+        }
+        require(normalizedSearch?.isNotEmpty() != false) {
+            "search must not be blank"
         }
         require(!(belongsToUserId != null && normalizedBelongsToName != null)) {
             "Only one of belongsToUserId or belongsToName can be provided"
@@ -394,6 +412,7 @@ open class TransactionService(
             financialAccountId = effectiveFinancialAccountId,
             belongsToUserId = belongsToUserId,
             belongsToName = normalizedBelongsToName,
+            search = normalizedSearch,
             tags = normalizedTagFilter,
             billId = billId,
             categoryIds = categoryIds,
@@ -415,11 +434,11 @@ open class TransactionService(
             ?: throw NoSuchElementException("Transaction $id not found")
 
     @Transactional
-    open fun create(
+    open fun createTransactionOutcome(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
-    ): Transaction {
+    ): CreateTransactionOutcome {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         validateCreateCommand(command)
         validateDateWithinMovingWindow(command.date)
@@ -428,6 +447,7 @@ open class TransactionService(
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
         }
         val normalizedTags = normalizeTags(command.tags)
+        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -439,31 +459,50 @@ open class TransactionService(
                 }
 
         val ruleSuggestion =
-            if (command.categoryId == null || command.merchantId == null) {
+            if (mode == RuleApplicationMode.NEVER) {
+                null
+            } else {
                 try {
-                    transactionRuleEngine.suggest(accountId, command.description, command.creditDebitType)
+                    suggestRuleForTransaction(
+                        accountId = accountId,
+                        description = command.description,
+                        creditDebitType = command.creditDebitType,
+                    )
                 } catch (e: Exception) {
                     logger.warn(
                         "Rule engine suggestion failed; continuing without suggestion (accountId={}, txType={}, descriptionLength={})",
                         accountId,
                         command.creditDebitType,
-                        command.description?.length,
+                        command.description.length,
                         e,
                     )
                     null
                 }
-            } else {
-                null
             }
 
-        val finalCategoryId = command.categoryId ?: ruleSuggestion?.categoryId
+        val isManualSource = true
+        val finalCategoryId =
+            if (isManualSource && command.categoryId != null) {
+                command.categoryId
+            } else {
+                command.categoryId ?: ruleSuggestion?.categoryId
+            }
+
         val finalCategorySource =
             when {
                 command.categoryId != null -> CategorySource.MANUAL
                 ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 else -> null
             }
-        val finalMerchantId = command.merchantId ?: ruleSuggestion?.merchantId
+
+        val finalMerchantId = ruleSuggestion?.merchantId ?: command.merchantId
+        val finalDescription = command.description
+        val finalTags =
+            if (isManualSource && normalizedTags.isNotEmpty()) {
+                normalizedTags
+            } else {
+                ruleSuggestion?.tagsOverride ?: normalizedTags
+            }
 
         val now = Instant.now()
         val transaction =
@@ -480,9 +519,9 @@ open class TransactionService(
                 amount = command.amount,
                 currencyCode = command.currencyCode,
                 date = command.date,
-                description = command.description,
+                description = finalDescription,
                 notes = command.notes,
-                tags = normalizedTags,
+                tags = finalTags,
                 categoryId = finalCategoryId,
                 categorySource = finalCategorySource,
                 merchantId = finalMerchantId,
@@ -497,6 +536,7 @@ open class TransactionService(
                 totalInstallments = command.totalInstallments,
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
+                appliedRuleIds = ruleSuggestion?.appliedRuleIds ?: emptyList(),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -520,8 +560,22 @@ open class TransactionService(
             fromYear = saved.date.year,
             fromMonth = saved.date.monthValue,
         )
-        return saved
+        val appliedRuleIds =
+            if (mode == RuleApplicationMode.ALWAYS_PROMPT) {
+                ruleSuggestion?.appliedRuleIds ?: emptyList()
+            } else {
+                emptyList()
+            }
+        return CreateTransactionOutcome(transaction = saved, appliedRuleIds = appliedRuleIds)
     }
+
+    @Transactional
+    open fun create(
+        command: CreateTransactionCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): Transaction =
+        createTransactionOutcome(command, accountId, userId).transaction
 
     @Transactional
     open fun update(
@@ -554,9 +608,9 @@ open class TransactionService(
                 existing.billId
             }
 
-        val categoryChanged = command.categoryId != null && command.categoryId != existing.categoryId
+        val categoryChanged = command.categoryIdProvided && command.categoryId != existing.categoryId
         val merchantChanged = command.merchantIdProvided && command.merchantId != existing.merchantId
-        if (categoryChanged || merchantChanged) {
+        if ((categoryChanged || merchantChanged) && existing.source == TransactionSource.MANUAL) {
             try {
                 transactionRuleEngine.learnFromManualAssignment(
                     accountId = accountId,
@@ -585,10 +639,11 @@ open class TransactionService(
                 status = command.status ?: existing.status,
                 notes = command.notes ?: existing.notes,
                 tags = updatedTags,
-                categoryId = command.categoryId ?: existing.categoryId,
+                categoryId = if (command.categoryIdProvided) command.categoryId else existing.categoryId,
                 categorySource =
                     when {
-                        command.categoryId != null -> CategorySource.MANUAL
+                        command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
+                        command.categoryIdProvided -> null
                         else -> existing.categorySource
                     },
                 merchantId = if (command.merchantIdProvided) command.merchantId else existing.merchantId,
@@ -606,7 +661,55 @@ open class TransactionService(
                 updatedAt = Instant.now(),
             )
 
-        require(updated.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
+        var enriched = updated
+        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        if (mode != RuleApplicationMode.NEVER) {
+            val canApplyCategory = !command.categoryIdProvided
+            val canApplyMerchant = !command.merchantIdProvided
+            val canApplyDescription = command.description == null
+            val canApplyTags = !command.tagsProvided
+
+            if (canApplyCategory || canApplyMerchant || canApplyDescription || canApplyTags) {
+                val descriptionForRules = command.description ?: existing.baseDescription()
+                val suggestion =
+                    try {
+                        suggestRuleForTransaction(
+                            accountId = accountId,
+                            description = descriptionForRules,
+                            creditDebitType = enriched.creditDebitType,
+                        )
+                    } catch (e: Exception) {
+                        logger.warn(
+                            "Rule engine suggestion failed; continuing without enrichment (accountId={}, txType={}, descriptionLength={})",
+                            accountId,
+                            enriched.creditDebitType,
+                            descriptionForRules.length,
+                            e,
+                        )
+                        null
+                    }
+
+                if (suggestion != null) {
+                    if (canApplyCategory && suggestion.categoryId != null) {
+                        enriched = enriched.copy(
+                            categoryId = suggestion.categoryId,
+                            categorySource = CategorySource.RULE,
+                        )
+                    }
+                    if (canApplyMerchant && suggestion.merchantId != null) {
+                        enriched = enriched.copy(merchantId = suggestion.merchantId)
+                    }
+                    if (canApplyDescription && suggestion.descriptionOverride != null) {
+                        enriched = enriched.copy(description = suggestion.descriptionOverride)
+                    }
+                    if (canApplyTags && suggestion.tagsOverride != null) {
+                        enriched = enriched.copy(tags = suggestion.tagsOverride)
+                    }
+                }
+            }
+        }
+
+        require(enriched.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
 
         if (command.date != null) {
             validateDateWithinMovingWindow(command.date)
@@ -623,7 +726,7 @@ open class TransactionService(
             }
         }
 
-        val saved = transactionRepository.update(updated)
+        val saved = transactionRepository.update(enriched)
 
         // If the transaction moved to a different bill, recompute both the old and new bill.
         if (existing.billId != null && existing.billId != saved.billId) {
@@ -640,6 +743,109 @@ open class TransactionService(
             fromMonth = fromDate.monthValue,
         )
         return saved
+    }
+
+    fun previewSimilarTransactionEdit(
+        id: UUID,
+        accountId: UUID,
+    ): SimilarTransactionEditPreview {
+        val existing =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
+        val baseDescription = existing.baseDescription()
+        if (existing.source == TransactionSource.MANUAL) {
+            return SimilarTransactionEditPreview(
+                similarCount = 0,
+                matchDescription = baseDescription,
+                supportsFuturePropagation = false,
+            )
+        }
+        val count =
+            transactionRepository.countSimilarNonManualTransactions(
+                accountId = accountId,
+                excludeTransactionId = id,
+                baseDescription = baseDescription,
+                creditDebitType = existing.creditDebitType,
+            )
+        return SimilarTransactionEditPreview(
+            similarCount = count,
+            matchDescription = baseDescription,
+            supportsFuturePropagation = true,
+        )
+    }
+
+    @Transactional
+    open fun applyEditToSimilarTransactions(
+        id: UUID,
+        matchDescription: String,
+        command: UpdateTransactionCommand,
+        applyToFuture: Boolean,
+        applyToExisting: Boolean = true,
+        accountId: UUID,
+    ): SimilarTransactionEditResult {
+        val current =
+            transactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("Transaction $id not found")
+        if (current.source == TransactionSource.MANUAL) {
+            return SimilarTransactionEditResult(affectedCount = 0, futureRuleCreated = false)
+        }
+
+        val baseDescription = current.baseDescription()
+
+        val similar =
+            if (applyToExisting) {
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId = accountId,
+                    excludeTransactionId = id,
+                    baseDescription = baseDescription,
+                    creditDebitType = current.creditDebitType,
+                )
+            } else {
+                emptyList()
+            }
+
+        similar.forEach { tx ->
+            transactionRepository.update(
+                tx.copy(
+                    description = if (command.description != null) current.description else tx.description,
+                    tags = if (command.tagsProvided) current.tags else tx.tags,
+                    categoryId = if (command.categoryIdProvided) current.categoryId else tx.categoryId,
+                    categorySource =
+                        when {
+                            command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
+                            command.categoryIdProvided -> null
+                            else -> tx.categorySource
+                        },
+                    updatedAt = Instant.now(),
+                ),
+            )
+        }
+
+        val futureRuleCreated =
+            if (applyToFuture && shouldCreateFuturePropagationRule(command)) {
+                transactionRuleEngine.learnFromManualAssignment(
+                    accountId = accountId,
+                    description = baseDescription,
+                    categoryId =
+                        if (command.categoryIdProvided && command.categoryId != null) {
+                            current.categoryId
+                        } else {
+                            null
+                        },
+                    merchantId = null,
+                    descriptionOverride = command.description?.let { current.description },
+                    tagsOverride = if (command.tagsProvided) current.tags else null,
+                    tagsOverrideProvided = command.tagsProvided,
+                )
+                true
+            } else {
+                false
+            }
+
+        return SimilarTransactionEditResult(
+            affectedCount = similar.size,
+            futureRuleCreated = futureRuleCreated,
+        )
     }
 
     @Transactional
@@ -862,6 +1068,21 @@ open class TransactionService(
         return normalized.distinct()
     }
 
+    private fun suggestRuleForTransaction(
+        accountId: UUID,
+        description: String?,
+        creditDebitType: CreditDebitType,
+    ): RuleSuggestion? =
+        transactionRuleEngine.suggest(accountId, description, creditDebitType)
+
+    private fun Transaction.baseDescription(): String =
+        descriptionRaw?.trim()?.takeIf { it.isNotEmpty() } ?: description
+
+    private fun shouldCreateFuturePropagationRule(command: UpdateTransactionCommand): Boolean =
+        (command.categoryIdProvided && command.categoryId != null) ||
+            command.description != null ||
+            command.tagsProvided
+
     private fun isCategoryAccessible(
         category: TransactionCategory,
         accountId: UUID,
@@ -889,4 +1110,15 @@ open class TransactionService(
 data class BulkCategorizeResult(
     val affectedCount: Int,
     val errors: List<String>,
+)
+
+data class SimilarTransactionEditPreview(
+    val similarCount: Int,
+    val matchDescription: String,
+    val supportsFuturePropagation: Boolean,
+)
+
+data class SimilarTransactionEditResult(
+    val affectedCount: Int,
+    val futureRuleCreated: Boolean,
 )

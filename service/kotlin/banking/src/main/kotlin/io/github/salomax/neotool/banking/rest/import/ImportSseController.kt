@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.rest.import
 
 import io.github.salomax.neotool.banking.service.import.ImportJobService
-import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
-import io.github.salomax.neotool.banking.domain.importevent.ImportJobStatusPayload
-import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.service.import.ImportEventBus
+import io.github.salomax.neotool.banking.service.import.ImportJobStatusPayload
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider

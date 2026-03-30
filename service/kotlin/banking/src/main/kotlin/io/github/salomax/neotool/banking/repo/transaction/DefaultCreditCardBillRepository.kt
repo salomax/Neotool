@@ -2,12 +2,13 @@ package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
-import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.model.transaction.CreditCardBillMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -65,7 +66,10 @@ open class DefaultCreditCardBillRepository(
         val entity =
             entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(billId, accountId)
                 ?: throw NoSuchElementException("CreditCardBill $billId not found")
-        val newStatus = computeStatus(entity.closingDate, entity.dueDate, entity.status)
+        // Compute the new total before updating so computeStatus can use it to decide whether
+        // a previously-PAID bill should revert (e.g. when a payment transaction is deleted).
+        val newTotal = entityRepository.computeCurrentTotal(billId)
+        val newStatus = computeStatus(entity.closingDate, entity.dueDate, entity.status, newTotal)
         entityRepository.updateTotalAndStatus(
             billId = billId,
             status = newStatus.name,
@@ -91,8 +95,11 @@ open class DefaultCreditCardBillRepository(
         closingDate: LocalDate,
         dueDate: LocalDate,
         current: BillStatus,
+        newTotal: BigDecimal,
     ): BillStatus {
-        if (current == BillStatus.PAID) return BillStatus.PAID
+        // Preserve PAID only when the bill remains fully covered (credits >= debits, i.e. net <= 0).
+        // If the total is positive, a payment was removed and the bill must revert to date-based status.
+        if (current == BillStatus.PAID && newTotal <= BigDecimal.ZERO) return BillStatus.PAID
         val today = LocalDate.now()
         return when {
             closingDate >= today -> BillStatus.OPEN

@@ -17,13 +17,13 @@ import {
   IconButton,
   Stack,
   alpha,
-  Avatar,
   Tooltip,
   Menu,
   MenuItem,
   Divider,
   ListItemIcon,
   ListItemText,
+  ButtonBase,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
@@ -41,12 +41,15 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { FilePreviewDialog, type PreviewAttachment } from '../../components/FilePreviewDialog';
+import { Logo } from '@/shared/components/ui/primitives';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
-import { CategoryIcon } from '../category/CategoryIcon';
+import { SimilarEditDialog } from './SimilarEditDialog';
+import { CategoryChip } from '../category/CategoryChip';
 import { CategoryPicker } from '../category/CategoryPicker';
-import { useMutation } from '@apollo/client/react';
-import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { useLazyQuery, useMutation } from '@apollo/client/react';
+import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION, APPLY_TRANSACTION_EDIT_TO_SIMILAR } from '@/lib/graphql/operations/banking/mutations';
+import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
@@ -72,6 +75,28 @@ type DateParts = {
   day: number;
   dateKey: string;
   sortKey: number;
+};
+
+type SimilarEditPreview = {
+  similarCount: number;
+  matchDescription: string;
+  supportsFuturePropagation: boolean;
+};
+
+type PendingSimilarEditPrompt = {
+  transactionId: string;
+  similarCount: number;
+  matchDescription: string;
+  input: {
+    categoryId?: string;
+  };
+};
+
+type ApplySimilarEditResult = {
+  applyTransactionEditToSimilar: {
+    affectedCount: number;
+    futureRuleCreated: boolean;
+  };
 };
 
 const TAG_COLORS = [
@@ -115,6 +140,11 @@ function parseDateParts(value: string): DateParts | null {
   return { year, month, day, dateKey, sortKey: year * 10000 + month * 100 + day };
 }
 
+function shouldPromptForImportedCategoryEdit(transaction: Transaction | null, categoryId: string | null): boolean {
+  if (!transaction) return false;
+  return (transaction.category?.id ?? null) !== categoryId && categoryId !== null;
+}
+
 export function TransactionTable({ 
   transactions,
   financialAccounts,
@@ -153,14 +183,22 @@ export function TransactionTable({
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [previewTransactionId, setPreviewTransactionId] = useState<string | null>(null);
   const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
+  const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
   const showHeaderProgress = loading || busyCount > 0;
+  const actionMenuId = 'finance-transactions-transaction-actions-menu';
 
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
   const [removeTransactionAttachment] = useMutation(REMOVE_TRANSACTION_ATTACHMENT);
+  const [loadSimilarEditPreview] = useLazyQuery<{ similarTransactionEditPreview: SimilarEditPreview }>(
+    SIMILAR_TRANSACTION_EDIT_PREVIEW,
+    { fetchPolicy: 'no-cache' },
+  );
+  const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
+    useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
 
   useEffect(() => {
     transactionsRef.current = transactions;
@@ -305,7 +343,7 @@ export function TransactionTable({
     });
   };
 
-  const handleSelectCategory = (categoryId: string | null) => {
+  const handleSelectCategory = async (categoryId: string | null) => {
     const tx = categoryPickerTransaction;
     closeCategoryPicker();
     if (!tx) return;
@@ -322,47 +360,97 @@ export function TransactionTable({
     }
 
     setUpdatingCategoryTransactionId(tx.id);
-    beginBusy();
-    updateTransaction({
-      variables: {
-        id: tx.id,
-        input: { categoryId },
-      },
-    })
-      .then(() => {
-        toast.success('Categoria atualizada');
-        onSuccessCreate?.();
+    try {
+      beginBusy();
+      const shouldPrompt = shouldPromptForImportedCategoryEdit(tx, categoryId);
+      const previewResult =
+        shouldPrompt
+          ? await loadSimilarEditPreview({
+              variables: { id: tx.id },
+            })
+          : undefined;
 
-        if (categoryId === null) {
-          window.setTimeout(() => {
-            setForceNoCategoryByTransactionId((prev) => {
-              if (!prev[tx.id]) return prev;
-              const latest = transactionsRef.current.find((t) => t.id === tx.id);
-              if (latest?.category) {
-                const next = { ...prev };
-                delete next[tx.id];
-                return next;
-              }
-              return prev;
-            });
-          }, 2500);
-        }
-      })
-      .catch((err) => {
-        if (categoryId === null) {
+      await updateTransaction({
+        variables: {
+          id: tx.id,
+          input: { categoryId },
+        },
+      });
+
+      toast.success('Categoria atualizada');
+      onSuccessCreate?.();
+
+      const preview = previewResult?.data?.similarTransactionEditPreview;
+      if (preview && preview.supportsFuturePropagation && categoryId) {
+        setPendingSimilarEditPrompt({
+          transactionId: tx.id,
+          similarCount: preview.similarCount,
+          matchDescription: preview.matchDescription,
+          input: { categoryId },
+        });
+      }
+
+      if (categoryId === null) {
+        window.setTimeout(() => {
           setForceNoCategoryByTransactionId((prev) => {
             if (!prev[tx.id]) return prev;
-            const next = { ...prev };
-            delete next[tx.id];
-            return next;
+            const latest = transactionsRef.current.find((t) => t.id === tx.id);
+            if (latest?.category) {
+              const next = { ...prev };
+              delete next[tx.id];
+              return next;
+            }
+            return prev;
           });
-        }
-        toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
-      })
-      .finally(() => {
-        setUpdatingCategoryTransactionId(null);
-        endBusy();
+        }, 2500);
+      }
+    } catch (err) {
+      if (categoryId === null) {
+        setForceNoCategoryByTransactionId((prev) => {
+          if (!prev[tx.id]) return prev;
+          const next = { ...prev };
+          delete next[tx.id];
+          return next;
+        });
+      }
+      toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
+    } finally {
+      setUpdatingCategoryTransactionId(null);
+      endBusy();
+    }
+  };
+
+  const handleConfirmSimilarEdit = async (applyToExisting: boolean, applyToFuture: boolean) => {
+    if (!pendingSimilarEditPrompt) return;
+
+    try {
+      beginBusy();
+      const result = await applyTransactionEditToSimilar({
+        variables: {
+          id: pendingSimilarEditPrompt.transactionId,
+          matchDescription: pendingSimilarEditPrompt.matchDescription,
+          input: pendingSimilarEditPrompt.input,
+          applyToFuture,
+          applyToExisting,
+        },
       });
+      const affectedCount = result.data?.applyTransactionEditToSimilar?.affectedCount ?? pendingSimilarEditPrompt.similarCount;
+      toast.success(
+        t('financeTransactions.similarEditPrompt.success', {
+          count: affectedCount,
+        }),
+      );
+      setPendingSimilarEditPrompt(null);
+      onSuccessCreate?.();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, 'Não foi possível aplicar a alteração às transações semelhantes'));
+    } finally {
+      endBusy();
+    }
+  };
+
+  const handleDismissSimilarEditPrompt = () => {
+    setPendingSimilarEditPrompt(null);
   };
 
   const groupedTransactions = useMemo(() => {
@@ -485,6 +573,7 @@ export function TransactionTable({
   };
 
   const isCardAccount = (account: FinancialAccount) => {
+    if (account.type === FinancialAccountType.Bank) return false;
     if (account.cardData) return true;
     return (
       account.subtype === FinancialAccountSubtype.CreditCard ||
@@ -518,15 +607,10 @@ export function TransactionTable({
     if (logoUrl) {
       return (
         <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
-          <Avatar
+          <Logo
             src={logoUrl}
             alt={merchant?.name ?? ''}
-            variant="rounded"
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: '.3rem',
-            }}
+            size="lg"
           />
           {typeProps && (
             <Box
@@ -588,6 +672,7 @@ export function TransactionTable({
       ref={containerRef}
       component={Paper}
       elevation={0}
+      data-testid="transaction-table"
       sx={{
         bgcolor: 'transparent',
         background: 'transparent !important',
@@ -615,7 +700,10 @@ export function TransactionTable({
           }}
         />
       </Box>
-      <Table sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }} aria-label="transactions table">
+      <Table
+        sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }}
+        aria-label={t('financeTransactions.transactionTable.ariaLabel')}
+      >
         <TableHead ref={tableHeadRef}>
           <TableRow>
             <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
@@ -705,7 +793,8 @@ export function TransactionTable({
                 return (
                   <Fragment key={transaction.id}>
                     <TableRow
-                      sx={{ 
+                      data-testid={`transaction-row-${transaction.id}`}
+                      sx={{
                         '&:last-child td, &:last-child th': { border: 0 },
                         opacity: isDeleting ? 0 : (isEditing && isEditFormOpen ? 0.5 : 1),
                         pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
@@ -761,6 +850,10 @@ export function TransactionTable({
                                 aria-valuemin={1}
                                 aria-valuemax={totalInstallments}
                                 aria-valuenow={Math.min(Math.max(installmentNumber, 1), totalInstallments)}
+                                aria-label={t('financeTransactions.transactionTable.installments.progressAriaLabel', {
+                                  current: installmentNumber,
+                                  total: totalInstallments,
+                                })}
                                 sx={{
                                   display: 'flex',
                                   gap: '2px',
@@ -802,103 +895,17 @@ export function TransactionTable({
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <Box
-                          component="span"
-                          sx={{
-                            display: 'inline-block',
-                            maxWidth: '100%',
-                            '& .MuiChip-root': {
-                              maxWidth: '100%',
-                            },
-                          }}
-                        >
-                          {displayedCategory ? (
-                            <Chip
-                              clickable
-                              disabled={updatingCategoryTransactionId === transaction.id}
-                              onClick={(e) => handleOpenCategoryPicker(e, transaction)}
-                              icon={
-                                updatingCategoryTransactionId === transaction.id
-                                  ? <CircularProgress size={14} />
-                                  : undefined
-                              }
-                              label={
-                                <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                                  <CategoryIcon
-                                    iconName={displayedCategory.icon}
-                                    color={displayedCategory.color ?? undefined}
-                                    size={18}
-                                    sx={{ flexShrink: 0 }}
-                                  />
-                                  <Typography
-                                    variant="body2"
-                                    title={displayedCategory.name}
-                                    sx={{
-                                      fontSize: tableBodyLabelFontSize,
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis',
-                                      whiteSpace: 'nowrap',
-                                      minWidth: 0,
-                                      maxWidth: '22ch',
-                                    }}
-                                  >
-                                    {displayedCategory.name}
-                                  </Typography>
-                                </Stack>
-                              }
-                              variant="filled"
-                              sx={{
-                                height: 28,
-                                color: displayedCategory.color || 'text.primary',
-                                bgcolor: displayedCategory.color
-                                  ? alpha(displayedCategory.color, 0.1)
-                                  : 'action.selected',
-                                borderColor: displayedCategory.color
-                                  ? alpha(displayedCategory.color, 0.3)
-                                  : 'divider',
-                                borderWidth: 1,
-                                borderStyle: 'solid',
-                                '&:hover': {
-                                  bgcolor: displayedCategory.color
-                                    ? alpha(displayedCategory.color, 0.2)
-                                    : 'action.hover',
-                                },
-                                transition: 'background-color 0.15s ease',
-                                '& .MuiChip-label': { minWidth: 0, maxWidth: '100%' },
-                              }}
-                            />
-                          ) : (
-                            <Chip
-                              clickable
-                              disabled={updatingCategoryTransactionId === transaction.id}
-                              onClick={(e) => handleOpenCategoryPicker(e, transaction)}
-                              icon={
-                                updatingCategoryTransactionId === transaction.id
-                                  ? <CircularProgress size={14} />
-                                  : undefined
-                              }
-                              label={
-                                <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
-                                  {t('financeTransactions.category')}
-                                </Typography>
-                              }
-                              variant="outlined"
-                              sx={{
-                                height: 28,
-                                borderStyle: 'dashed',
-                                color: 'text.secondary',
-                                bgcolor: alpha(theme.palette.text.primary, 0.02),
-                                boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.text.primary, 0.06)}`,
-                                '&:hover': {
-                                  borderColor: 'primary.main',
-                                  color: 'primary.main',
-                                  bgcolor: alpha(theme.palette.primary.main, 0.05),
-                                },
-                                transition: 'background-color 0.15s ease',
-                              }}
-                            />
-                          )}
-                        </Box>
+                        <CategoryChip
+                          category={displayedCategory}
+                          disabled={updatingCategoryTransactionId === transaction.id}
+                          loading={updatingCategoryTransactionId === transaction.id}
+                          onClick={(e) => handleOpenCategoryPicker(e, transaction)}
+                          placeholder={
+                            <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
+                              {t('financeTransactions.category')}
+                            </Typography>
+                          }
+                        />
                       </TableCell>
                       <TableCell>
                         <Stack direction="row" spacing={0.5} alignItems="center">
@@ -935,18 +942,25 @@ export function TransactionTable({
                               }
                               arrow
                             >
-                              <Typography 
-                                variant="caption" 
-                                color="primary" 
-                                sx={{ 
-                                  cursor: 'pointer',
+                              <ButtonBase
+                                sx={{
+                                  px: 0.5,
+                                  borderRadius: borderRadius,
                                   fontSize: '0.7rem',
-                                  fontWeight: 'medium',
-                                  '&:hover': { textDecoration: 'underline' }
+                                  fontWeight: 600,
+                                  color: theme.palette.primary.main,
+                                  '&:hover': { textDecoration: 'underline' },
+                                  '&:focus-visible': {
+                                    outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                                    outlineOffset: 2,
+                                  },
                                 }}
+                                aria-label={t('financeTransactions.transactionTable.tags.moreAriaLabel', {
+                                  count: transaction.tags.length - 2,
+                                })}
                               >
                                 +{transaction.tags.length - 2}
-                              </Typography>
+                              </ButtonBase>
                             </Tooltip>
                           )}
                         </Stack>
@@ -956,34 +970,35 @@ export function TransactionTable({
                           {account && (() => {
                             const issuer = account.issuer;
                             const logoUrl = issuer?.logoAsset?.publicUrl;
-                            const last4 = isCardAccount(account) ? getCardLastFourDigits(account, transaction) : null;
+                            const showCardDetails = isCardAccount(account);
+                            const last4 = showCardDetails ? getCardLastFourDigits(account, transaction) : null;
 
                             return (
                               <Stack direction="row" spacing={1} alignItems="center">
-                                <Avatar 
+                                <Logo
                                   src={logoUrl || undefined}
-                                  sx={{ 
-                                    width: 26, 
-                                    height: 26,
+                                  size="sm"
+                                  sx={{
                                     fontSize: '0.75rem',
                                     bgcolor: logoUrl ? 'transparent' : theme.palette.grey[300],
-                                    borderRadius: borderRadius
                                   }}
                                 >
                                   {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardNetworkIcon network={account.cardData?.cardNetwork} size={16} />)}
-                                </Avatar>
+                                </Logo>
                                 <Stack spacing={0} sx={{ minWidth: 0 }}>
                                   <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }} noWrap>
                                     {account.name}
                                   </Typography>
-                                  <Stack direction="row" spacing={0.5} alignItems="center">
-                                    <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
-                                    {last4 && (
-                                      <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                        •••• {last4}
-                                      </Typography>
-                                    )}
-                                  </Stack>
+                                  {showCardDetails && (
+                                    <Stack direction="row" spacing={0.5} alignItems="center">
+                                      <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
+                                      {last4 && (
+                                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                                          •••• {last4}
+                                        </Typography>
+                                      )}
+                                    </Stack>
+                                  )}
                                 </Stack>
                               </Stack>
                             );
@@ -1018,7 +1033,7 @@ export function TransactionTable({
                                 setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
                               }
                             }}
-                            aria-label="Ver anexo"
+                            aria-label={t('financeTransactions.transactionTable.attachments.ariaLabel')}
                           >
                             <AttachFileIcon sx={{ fontSize: 16 }} />
                           </IconButton>
@@ -1057,7 +1072,15 @@ export function TransactionTable({
                             setActionMenuAnchorEl(e.currentTarget);
                             setActionMenuTransaction(transaction);
                           }}
+                          id={`transaction-actions-button-${transaction.id}`}
                           aria-label={t('financeTransactions.transactionTable.rowActions.ariaLabel')}
+                          aria-haspopup="menu"
+                          aria-expanded={
+                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? 'true' : undefined
+                          }
+                          aria-controls={
+                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? actionMenuId : undefined
+                          }
                         >
                           <MoreVertIcon fontSize="small" />
                         </IconButton>
@@ -1090,11 +1113,15 @@ export function TransactionTable({
       </Table>
 
       <Menu
+        id={actionMenuId}
         open={Boolean(actionMenuAnchorEl)}
         anchorEl={actionMenuAnchorEl}
         onClose={closeActionMenu}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        MenuListProps={{
+          'aria-labelledby': actionMenuAnchorEl?.id,
+        }}
       >
         <MenuItem
           onClick={() => {
@@ -1105,6 +1132,7 @@ export function TransactionTable({
             setIsEditFormOpen(true);
           }}
           disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+          data-testid="transaction-action-edit"
         >
           <ListItemIcon>
             <EditIcon fontSize="small" />
@@ -1123,7 +1151,7 @@ export function TransactionTable({
                 <SwapHorizIcon color="info" fontSize="small" />
               )}
             </ListItemIcon>
-            <ListItemText>Marcar como transferência interna</ListItemText>
+            <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsTransfer')}</ListItemText>
           </MenuItem>
         )}
         <Divider />
@@ -1134,6 +1162,7 @@ export function TransactionTable({
             if (!tx) return;
             setTransactionToRemove(tx);
           }}
+          data-testid="transaction-action-delete"
           sx={{
             color: 'error.main',
             '&:hover': {
@@ -1176,6 +1205,14 @@ export function TransactionTable({
         confirmText={t('actions.delete')}
         confirmColor="error"
         loading={removing}
+      />
+
+      <SimilarEditDialog
+        open={Boolean(pendingSimilarEditPrompt)}
+        onClose={handleDismissSimilarEditPrompt}
+        onConfirm={handleConfirmSimilarEdit}
+        similarCount={pendingSimilarEditPrompt?.similarCount ?? 0}
+        loading={applyingSimilarEdit}
       />
       
       {hasMore && (

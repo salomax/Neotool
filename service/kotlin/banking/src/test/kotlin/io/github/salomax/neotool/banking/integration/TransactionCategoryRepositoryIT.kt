@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.integration
 
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat

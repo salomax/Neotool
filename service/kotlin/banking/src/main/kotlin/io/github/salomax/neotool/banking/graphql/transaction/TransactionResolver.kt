@@ -7,7 +7,9 @@ import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCom
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -16,15 +18,21 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.graphql.transaction.CategoryTotalDTO
 import io.github.salomax.neotool.banking.graphql.transaction.CreditCardBillDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.transaction.MonthSummaryDTO
 import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
+import io.github.salomax.neotool.banking.graphql.transaction.SimilarTransactionEditPreviewDTO
+import io.github.salomax.neotool.banking.graphql.transaction.SimilarTransactionEditResultDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionBelongsToOptionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionConnectionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
+import io.github.salomax.neotool.banking.graphql.transaction.CreateTransactionPayloadDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TagTotalDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionTagOptionDTO
@@ -45,6 +53,9 @@ class TransactionResolver(
     private val monthSummaryQueryService: MonthSummaryQueryService,
     private val creditCardBillService: CreditCardBillService,
     private val merchantRepository: MerchantRepository,
+    private val transactionRuleEngine: TransactionRuleEngine,
+    private val transactionCategoryRepository: TransactionCategoryRepository,
+    private val accountPreferencesService: AccountPreferencesService,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
 
@@ -75,6 +86,7 @@ class TransactionResolver(
         financialAccountId: String?,
         belongsToUserId: String?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: String?,
         categoryId: String?,
@@ -100,6 +112,7 @@ class TransactionResolver(
                 financialAccountId = financialAccountId,
                 belongsToUserId = belongsToUserUuid,
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billUuid,
                 categoryId = categoryUuid,
@@ -175,6 +188,19 @@ class TransactionResolver(
         return tx.toDTO(category, merchant)
     }
 
+    fun similarTransactionEditPreview(
+        id: String,
+        principal: RequestPrincipal,
+    ): SimilarTransactionEditPreviewDTO {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val preview = service.previewSimilarTransactionEdit(UUID.fromString(id), accountId)
+        return SimilarTransactionEditPreviewDTO(
+            similarCount = preview.similarCount,
+            matchDescription = preview.matchDescription,
+            supportsFuturePropagation = preview.supportsFuturePropagation,
+        )
+    }
+
     fun monthSummary(
         financialAccountId: String?,
         year: Int?,
@@ -220,6 +246,7 @@ class TransactionResolver(
         financialAccountId: String?,
         belongsToUserId: String?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: String?,
         categoryId: String?,
@@ -237,6 +264,7 @@ class TransactionResolver(
                 financialAccountId = financialAccountId?.let { UUID.fromString(it) },
                 belongsToUserId = belongsToUserId?.let { UUID.fromString(it) },
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billId?.let { UUID.fromString(it) },
                 categoryId = categoryId?.let { UUID.fromString(it) },
@@ -252,6 +280,7 @@ class TransactionResolver(
         financialAccountId: String?,
         belongsToUserId: String?,
         belongsToName: String?,
+        search: String?,
         tags: List<String>?,
         billId: String?,
         categoryId: String?,
@@ -269,6 +298,7 @@ class TransactionResolver(
                 financialAccountId = financialAccountId?.let { UUID.fromString(it) },
                 belongsToUserId = belongsToUserId?.let { UUID.fromString(it) },
                 belongsToName = belongsToName,
+                search = search,
                 tags = tags,
                 billId = billId?.let { UUID.fromString(it) },
                 categoryId = categoryId?.let { UUID.fromString(it) },
@@ -303,15 +333,41 @@ class TransactionResolver(
     fun createTransaction(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
-    ): TransactionDTO {
+    ): CreateTransactionPayloadDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
         val command = input.toCreateCommand()
-        val saved = service.create(command, accountId, userId)
+        val statusDefault = accountPreferencesService.get(accountId).defaultTransactionStatus
+        val commandWithDefaultStatus =
+            if ((input["status"] as? String?) != null) {
+                command
+            } else {
+                command.copy(status = statusDefault)
+            }
+
+        val outcome = service.createTransactionOutcome(commandWithDefaultStatus, accountId, userId)
+        val saved = outcome.transaction
         val category = service.findAccessibleCategory(saved.categoryId, accountId)
         val merchant = saved.merchantId?.let { loadMerchantDTO(it) }
-        return saved.toDTO(category, merchant)
+
+        val appliedRules =
+            outcome.appliedRuleIds.takeIf { it.isNotEmpty() }?.let { ids ->
+                val rulesById =
+                    transactionRuleEngine.preloadRules(accountId)
+                        .filter { it.id != null }
+                        .associateBy { requireNotNull(it.id) }
+                ids.mapNotNull { id ->
+                    val rule = rulesById[id] ?: return@mapNotNull null
+                    val position = ids.indexOf(id) + 1
+                    rule.toRuleDTO(position)
+                }
+            }
+
+        return CreateTransactionPayloadDTO(
+            transaction = saved.toDTO(category, merchant),
+            appliedRules = appliedRules,
+        )
     }
 
     fun updateTransaction(
@@ -346,6 +402,30 @@ class TransactionResolver(
         val ids = transactionIds.map { UUID.fromString(it) }
         val categoryUuid = UUID.fromString(categoryId)
         return service.bulkCategorize(ids, categoryUuid, accountId)
+    }
+
+    fun applyTransactionEditToSimilar(
+        id: String,
+        matchDescription: String,
+        input: Map<String, Any?>,
+        applyToFuture: Boolean,
+        applyToExisting: Boolean,
+        principal: RequestPrincipal,
+    ): SimilarTransactionEditResultDTO {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val result =
+            service.applyEditToSimilarTransactions(
+                id = UUID.fromString(id),
+                matchDescription = matchDescription,
+                command = input.toUpdateCommand(),
+                applyToFuture = applyToFuture,
+                applyToExisting = applyToExisting,
+                accountId = accountId,
+            )
+        return SimilarTransactionEditResultDTO(
+            affectedCount = result.affectedCount,
+            futureRuleCreated = result.futureRuleCreated,
+        )
     }
 
     fun payBill(
@@ -389,9 +469,33 @@ class TransactionResolver(
             sortOrder = sortOrder,
         )
 
+    private fun TransactionRule.toRuleDTO(position: Int): TransactionRuleDTO {
+        val category = categoryId?.let { transactionCategoryRepository.findById(it) }
+        val merchant = merchantId?.let { loadMerchantDTO(it) }
+        return TransactionRuleDTO(
+            id = requireNotNull(id),
+            categoryId = categoryId,
+            category = category?.toDTO(),
+            merchantId = merchantId,
+            merchant = merchant,
+            descriptionOverride = descriptionOverride,
+            tagsOverride = tagsOverride,
+            pattern = pattern,
+            patternType = patternType,
+            applicableTo = applicableTo,
+            priority = priority,
+            isSystem = isSystem,
+            isImplicit = isImplicit,
+            matchCount = matchCount,
+            position = position,
+            createdAt = createdAt,
+        )
+    }
+
     private fun CategoryTotal.toCategoryTotalDTO(): CategoryTotalDTO =
         CategoryTotalDTO(
-            category = category.toDTO(),
+            category = category?.toDTO(),
+            uncategorized = uncategorized,
             totalAmount = totalAmount.toDouble(),
             transactionCount = transactionCount,
             percentage = percentage,
@@ -441,6 +545,7 @@ class TransactionResolver(
             cardIdentifier = cardIdentifier,
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
+            appliedRuleIds = appliedRuleIds,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
@@ -538,6 +643,7 @@ class TransactionResolver(
             tags = (this["tags"] as? List<*>)?.map { it as String },
             tagsProvided = this.containsKey("tags"),
             categoryId = (this["categoryId"] as? String)?.let { UUID.fromString(it) },
+            categoryIdProvided = this.containsKey("categoryId"),
             merchantId = (this["merchantId"] as? String)?.let { UUID.fromString(it) },
             merchantIdProvided = this.containsKey("merchantId"),
             belongsToUserId = (this["belongsToUserId"] as? String)?.let { UUID.fromString(it) },

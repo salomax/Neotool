@@ -2,17 +2,19 @@ package io.github.salomax.neotool.banking.service.billimport
 
 import io.github.salomax.neotool.banking.domain.billimport.*
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -34,6 +36,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 
 private const val MAX_PDF_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 private const val RECORD_TYPE_CARD_SUMMARY = "PDF_CARD_SUMMARY"
@@ -46,6 +49,7 @@ open class BillImportService(
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
     private val categorizationService: TransactionRuleEngine,
+    private val accountPreferencesService: AccountPreferencesService,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -244,7 +248,10 @@ open class BillImportService(
     ): BillImportReview? =
         runCatching { parsePdfReviewPayload(reviewPayload, accountId) }
             .getOrNull()
-            ?.let { enrichReviewPayloadWithCategorizationSuggestions(it, accountId) }
+            ?.let {
+                val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+                enrichReviewPayloadWithCategorizationSuggestions(it, accountId, mode)
+            }
 
     @Transactional
     open fun confirmBillImport(
@@ -278,7 +285,13 @@ open class BillImportService(
                 .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
         val reviewPayload = parsePdfReviewPayload(job.reviewPayload, accountId)
         val preparedCommit = billImportCommitPreparer.prepare(command, tenantAccountsById, reviewPayload)
-        val categorizationRules = categorizationService.preloadRules(accountId)
+        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val categorizationRules =
+            if (mode == RuleApplicationMode.NEVER) {
+                emptyList()
+            } else {
+                categorizationService.preloadRules(accountId)
+            }
 
         val importingJob =
             repository.update(
@@ -417,19 +430,23 @@ open class BillImportService(
                             if (duplicate) return@forEach
 
                             val suggestion =
-                                when {
-                                    tx.categoryId == null ->
-                                        categorizationService.suggestFromRulesRecordingMatch(
-                                            categorizationRules,
-                                            tx.description,
-                                            tx.creditDebitType,
-                                        )
-                                    else ->
-                                        categorizationService.suggestFromRules(
-                                            categorizationRules,
-                                            tx.description,
-                                            tx.creditDebitType,
-                                        )
+                                if (mode == RuleApplicationMode.NEVER) {
+                                    null
+                                } else {
+                                    when {
+                                        tx.categoryId == null ->
+                                            categorizationService.suggestFromRulesRecordingMatch(
+                                                categorizationRules,
+                                                tx.description,
+                                                tx.creditDebitType,
+                                            )
+                                        else ->
+                                            categorizationService.suggestFromRules(
+                                                categorizationRules,
+                                                tx.description,
+                                                tx.creditDebitType,
+                                            )
+                                    }
                                 }
                             val (effectiveCategoryId, effectiveCategorySource, shouldLearnImplicitRule) =
                                 when {
@@ -485,13 +502,14 @@ open class BillImportService(
                                         amount = tx.amount,
                                         currencyCode = "BRL",
                                         date = transactionDate,
-                                        description = tx.description.trim(),
+                                        description = suggestion?.descriptionOverride ?: tx.description.trim(),
                                         billId = billId,
                                         installmentNumber = tx.installment?.current,
                                         totalInstallments = tx.installment?.total,
                                         cardIdentifier = normalizedCardIdentifier(reviewCard?.lastFourDigits),
                                         importFingerprint = fingerprint,
                                         importJobId = command.jobId,
+                                        tags = suggestion?.tagsOverride ?: emptyList(),
                                         categoryId = effectiveCategoryId,
                                         categorySource = effectiveCategorySource,
                                         merchantId = suggestion?.merchantId,
@@ -700,9 +718,15 @@ open class BillImportService(
     private fun enrichReviewPayloadWithCategorizationSuggestions(
         payload: BillImportReview,
         accountId: UUID,
+        mode: RuleApplicationMode,
     ): BillImportReview {
         // Load rules once per preview call (avoid N+1 rule loading).
-        val rules = categorizationService.preloadRules(accountId)
+        val rules =
+            if (mode == RuleApplicationMode.NEVER) {
+                emptyList()
+            } else {
+                categorizationService.preloadRules(accountId)
+            }
 
         return payload.copy(
             cards =

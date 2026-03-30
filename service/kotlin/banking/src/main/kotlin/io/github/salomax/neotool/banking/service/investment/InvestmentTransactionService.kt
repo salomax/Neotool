@@ -7,6 +7,10 @@ import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActi
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSeverity
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.INFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.OUTFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.AMORTIZATION

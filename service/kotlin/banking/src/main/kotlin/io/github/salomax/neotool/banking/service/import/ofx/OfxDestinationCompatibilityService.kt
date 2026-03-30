@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.ofx
 
 import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.service.import.parser.OfxStatementIntent
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService

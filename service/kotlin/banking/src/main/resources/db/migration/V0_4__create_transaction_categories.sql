@@ -117,7 +117,8 @@ FROM banking.transaction_categories,
              ('IPTU',       30),
              ('Água',       40),
              ('Luz',        50),
-             ('Gás',        60)) AS sub(name, ord)
+             ('Gás',        60),
+             ('Faxina',     70)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Moradia'
   AND is_system = true AND account_id IS NULL;
 
@@ -249,7 +250,8 @@ SELECT id, sub.name, 'TRANSFER', true, sub.ord
 FROM banking.transaction_categories,
      (VALUES ('PIX',                 10),
              ('TED',                 20),
-             ('Entre contas próprias', 30)) AS sub(name, ord)
+             ('Entre contas próprias', 30),
+             ('Pagamento de fatura', 40)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Transferência enviada'
   AND is_system = true AND account_id IS NULL;
 
@@ -260,7 +262,8 @@ FROM banking.transaction_categories,
      (VALUES ('Renda Fixa',  10),
              ('Fundos',      20),
              ('Ações',       30),
-             ('Previdência', 40)) AS sub(name, ord)
+             ('Previdência', 40),
+             ('Criptomoeda', 50)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Investimento aplicado'
   AND is_system = true AND account_id IS NULL;
 
@@ -281,6 +284,7 @@ UPDATE transaction_categories SET icon = 'ramen_dining' WHERE name = 'Restaurant
 UPDATE transaction_categories SET icon = 'delivery_dining' WHERE name = 'Delivery'            AND is_system = true;
 UPDATE transaction_categories SET icon = 'local_cafe'   WHERE name = 'Lanchonete'             AND is_system = true;
 UPDATE transaction_categories SET icon = 'home'         WHERE name = 'Moradia'                AND is_system = true;
+UPDATE transaction_categories SET icon = 'cleaning_services' WHERE name = 'Faxina'            AND is_system = true;
 UPDATE transaction_categories SET icon = 'key'          WHERE name = 'Aluguel'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'apartment'    WHERE name = 'Condomínio'             AND is_system = true;
 UPDATE transaction_categories SET icon = 'bolt'         WHERE name = 'Conta de luz'           AND is_system = true;

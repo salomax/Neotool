@@ -75,6 +75,7 @@ export const TRANSACTIONS = gql`
     $year: Int
     $tags: [String!]
     $categoryId: ID
+    $uncategorized: Boolean
     $creditDebitType: CreditDebitType
     $first: Int
     $after: String
@@ -86,6 +87,7 @@ export const TRANSACTIONS = gql`
       year: $year
       tags: $tags
       categoryId: $categoryId
+      uncategorized: $uncategorized
       creditDebitType: $creditDebitType
       first: $first
       after: $after
@@ -94,6 +96,7 @@ export const TRANSACTIONS = gql`
         node {
           id
           description
+          source
           category {
             id
             name
@@ -167,6 +170,7 @@ export const TRANSACTIONS_BY_CATEGORY = gql`
       year: $year
       applicableTo: $applicableTo
     ) {
+      uncategorized
       category {
         id
         name
@@ -242,6 +246,16 @@ export const TRANSACTION_TAGS = gql`
   }
 `;
 
+export const SIMILAR_TRANSACTION_EDIT_PREVIEW = gql`
+  query SimilarTransactionEditPreview($id: ID!) {
+    similarTransactionEditPreview(id: $id) {
+      similarCount
+      matchDescription
+      supportsFuturePropagation
+    }
+  }
+`;
+
 /** Single transaction import job by ID (includes duplicate candidates for review). */
 export const TRANSACTION_IMPORT = gql`
   query TransactionImport($id: ID!) {
@@ -313,6 +327,7 @@ export const MONTH_SUMMARY = gql`
       isCurrentMonth
       isFutureMonth
       expensesByCategory {
+        uncategorized
         category {
           id
           name
@@ -324,6 +339,7 @@ export const MONTH_SUMMARY = gql`
         percentage
       }
       incomeByCategory {
+        uncategorized
         category {
           id
           name
@@ -559,6 +575,88 @@ export const BILL_IMPORT_JOB = gql`
 `;
 
 /** Transactions belonging to a specific credit card bill (Bill mode). */
+/** All merchants (system + user-created) available to the authenticated account. */
+export const MERCHANTS = gql`
+  query Merchants {
+    merchants {
+      id
+      name
+      domain
+      isSystem
+      logoAsset {
+        id
+        publicUrl
+      }
+    }
+  }
+`;
+
+// ── Transaction rules ─────────────────────────────────────────────────────────
+
+/** Fragment reused by all rule queries and mutations. */
+export const TRANSACTION_RULE_FIELDS = gql`
+  fragment TransactionRuleFields on TransactionRule {
+    id
+    pattern
+    patternType
+    applicableTo
+    priority
+    isSystem
+    isImplicit
+    matchCount
+    createdAt
+    descriptionOverride
+    tagsOverride
+    categoryId
+    category {
+      id
+      name
+      icon
+      color
+      applicableTo
+    }
+    merchantId
+    merchant {
+      id
+      name
+      domain
+      logoAsset {
+        id
+        publicUrl
+      }
+    }
+  }
+`;
+
+/** Transaction rules filtered by ownership (manual/user vs automatic/system). */
+export const TRANSACTION_RULES = gql`
+  ${TRANSACTION_RULE_FIELDS}
+  query TransactionRules($isSystem: Boolean, $search: String, $first: Int, $after: String) {
+    transactionRules(isSystem: $isSystem, search: $search, first: $first, after: $after) {
+      edges {
+        node {
+          ...TransactionRuleFields
+        }
+        cursor
+      }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
+    }
+  }
+`;
+
+/** Tests whether a pattern matches a sample string. */
+export const PREVIEW_TRANSACTION_RULE = gql`
+  query PreviewTransactionRule($pattern: String!, $patternType: PatternType!, $sample: String!) {
+    previewTransactionRule(pattern: $pattern, patternType: $patternType, sample: $sample)
+  }
+`;
+
 export const TRANSACTIONS_BY_BILL = gql`
   query GetTransactionsByBill($billId: ID!, $first: Int, $after: String) {
     transactions(billId: $billId, first: $first, after: $after) {

@@ -29,6 +29,7 @@ import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { FinancialAccount } from '@/lib/graphql/types/__generated__/graphql';
 import Link from '@/shared/components/ui/navigation/Link';
 import { cleanErrorMessage, extractErrorCode, extractErrorParameters, extractErrorMessage } from '@/shared/utils/error';
+import { publishTransactionsImported } from '../events';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -139,6 +140,7 @@ export function ImportTransactionsDrawer({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<Step>('account');
   const [targetAccountId, setTargetAccountId] = useState<string | null>(selectedAccountId);
+  const latestTargetAccountIdRef = useRef<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
@@ -154,6 +156,7 @@ export function ImportTransactionsDrawer({
     if (reviewJobId) {
       setJobId(reviewJobId);
       setStep('review');
+      setTargetAccountId(selectedAccountId);
       return;
     }
     setTargetAccountId(canUseSelectedImportableAccount ? selectedAccountId : null);
@@ -165,6 +168,10 @@ export function ImportTransactionsDrawer({
     setErrorMessage(null);
     setErrorDetails(null);
   }, [open, reviewJobId, selectedAccountId, canUseSelectedImportableAccount]);
+
+  React.useEffect(() => {
+    latestTargetAccountIdRef.current = targetAccountId ?? selectedAccountId ?? null;
+  }, [selectedAccountId, targetAccountId]);
 
   const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
@@ -217,6 +224,7 @@ export function ImportTransactionsDrawer({
     onEvent: setLastEvent,
     onCompleted: () => {
       setStep('result');
+      publishTransactionsImported({ source: 'file', financialAccountId: latestTargetAccountIdRef.current });
       onImportCompleted?.();
     },
     onReviewRequired: () => {
@@ -275,17 +283,20 @@ export function ImportTransactionsDrawer({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = '';
     if (!f) return;
-    setFileError(validateFile(f));
-    setFile(validateFile(f) ? null : f);
+    const err = validateFile(f);
+    setFileError(err);
+    setFile(err ? null : f);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     const f = e.dataTransfer.files?.[0];
     if (!f) return;
-    setFileError(validateFile(f));
-    setFile(validateFile(f) ? null : f);
+    const err = validateFile(f);
+    setFileError(err);
+    setFile(err ? null : f);
   };
 
   const handleDragOver = (e: React.DragEvent) => e.preventDefault();
@@ -396,6 +407,12 @@ export function ImportTransactionsDrawer({
               {t('financeTransactions.import.accountStep.createAccount')}
           </Link>
         </Box>
+        <Divider sx={{ my: 2 }} />
+        <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Drawer.CancelButton onClick={handleClose}>
+            {t('financeTransactions.actions.cancel')}
+          </Drawer.CancelButton>
+        </Box>
       </Box>
     );
   };
@@ -405,6 +422,17 @@ export function ImportTransactionsDrawer({
       return (
         <Box sx={{ p: 1 }}>
           <Alert severity="info">{t('financeTransactions.import.uploadStep.selectAccount')}</Alert>
+          <Divider sx={{ my: 2 }} />
+          <Drawer.ActionButtons
+            cancelText={t('financeTransactions.actions.cancel')}
+            submitText={t('financeTransactions.import.button')}
+            submittingText={t('financeTransactions.actions.saving')}
+            onCancel={handleCancelFromUpload}
+            onSubmit={handleSubmit}
+            submitDisabled
+            submitting={mutating}
+            submitTestId="import-transactions-submit-button"
+          />
         </Box>
       );
     }
@@ -428,7 +456,12 @@ export function ImportTransactionsDrawer({
         <Box
           onDrop={handleDrop}
           onDragOver={handleDragOver}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => {
+            if (fileInputRef.current) {
+              fileInputRef.current.value = '';
+              fileInputRef.current.click();
+            }
+          }}
           sx={{
             border: '3px dashed',
             borderColor: fileError ? 'error.main' : 'divider',
@@ -486,6 +519,17 @@ export function ImportTransactionsDrawer({
         {fileError && (
           <Alert severity="error" sx={{ mt: 2 }}>{fileError}</Alert>
         )}
+        <Divider sx={{ my: 2 }} />
+        <Drawer.ActionButtons
+          cancelText={t('financeTransactions.actions.cancel')}
+          submitText={t('financeTransactions.import.button')}
+          submittingText={t('financeTransactions.actions.saving')}
+          onCancel={handleCancelFromUpload}
+          onSubmit={handleSubmit}
+          submitDisabled={!file || mutating || !targetAccountId}
+          submitting={mutating}
+          submitTestId="import-transactions-submit-button"
+        />
       </Box>
     );
   };
@@ -510,7 +554,7 @@ export function ImportTransactionsDrawer({
   const renderResultStep = () => (
     <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>{t('financeTransactions.import.resultStep.title')}</Typography>
-      <Alert severity="success" sx={{ mb: 2 }}>
+      <Alert severity="success" sx={{ mb: 2 }} data-testid="import-result-summary">
         {t('financeTransactions.import.resultStep.summary', {
           imported: lastEvent?.importedCount ?? 0,
           skipped: lastEvent?.skippedCount ?? 0,
@@ -526,7 +570,10 @@ export function ImportTransactionsDrawer({
     jobId ? (
       <ImportDuplicateReview
         jobId={jobId}
-        onComplete={onImportCompleted}
+        onComplete={() => {
+          publishTransactionsImported({ source: 'file', financialAccountId: latestTargetAccountIdRef.current });
+          onImportCompleted?.();
+        }}
         onClose={handleClose}
       />
     ) : null;
@@ -534,7 +581,7 @@ export function ImportTransactionsDrawer({
   const renderErrorStep = () => (
     <Box sx={{ p: 1 }}>
       <Typography variant="h6" sx={{ mb: 2 }}>{t('financeTransactions.import.errorStep.title')}</Typography>
-      <Alert severity="error" sx={{ mb: 2 }}>
+      <Alert severity="error" sx={{ mb: 2 }} data-testid="import-error-message">
         {errorMessage ?? t('financeTransactions.import.errorStep.message')}
         {errorDetails && (
           <Typography variant="caption" component="div" sx={{ mt: 1 }}>{errorDetails}</Typography>
@@ -555,38 +602,14 @@ export function ImportTransactionsDrawer({
     step === 'review' ? renderReviewStep() :
     renderErrorStep();
 
-  const footer =
-    step === "account" ? (
-      <Drawer.Footer>
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Drawer.CancelButton onClick={handleClose}>
-            {t("financeTransactions.actions.cancel")}
-          </Drawer.CancelButton>
-        </Box>
-      </Drawer.Footer>
-    ) : step === "upload" ? (
-      <Drawer.Footer>
-        <Drawer.ActionButtons
-          cancelText={t("financeTransactions.actions.cancel")}
-          submitText={t("financeTransactions.import.button")}
-          submittingText={t("financeTransactions.actions.saving")}
-          onCancel={handleCancelFromUpload}
-          onSubmit={handleSubmit}
-          submitDisabled={!file || mutating}
-          submitting={mutating}
-          submitTestId="import-transactions-submit-button"
-        />
-      </Drawer.Footer>
-    ) : null;
-
   return (
     <Drawer open={open} onClose={handleClose} anchor="right" size="md">
       <Drawer.Header
         title={t('financeTransactions.import.title')}
         showCloseButton
+        closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>{body}</Drawer.Body>
-      {footer}
     </Drawer>
   );
 }

@@ -8,7 +8,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryDepthExceede
 import io.github.salomax.neotool.banking.service.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateCategoryNameException
 import io.github.salomax.neotool.banking.domain.transaction.SystemCategoryNotEditableException
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject

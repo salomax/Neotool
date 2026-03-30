@@ -33,6 +33,8 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.UUID
+import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleConnectionDTO
 
 @DisplayName("BankingWiringFactory permissions")
 class BankingWiringFactoryTest {
@@ -156,6 +158,32 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_VIEW))
+        }
+
+        @Test
+        fun `transactionRules forwards optional isSystem argument to resolver`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["transactionRules"]!!
+            whenever(transactionCategoryResolver.transactionRules(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())).thenReturn(
+                TransactionRuleConnectionDTO(
+                    edges = emptyList(),
+                    pageInfo = PageInfoDTO(false, false, null, null),
+                    totalCount = 0,
+                ),
+            )
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "isSystem" to true,
+                            "first" to 20,
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(transactionCategoryResolver).transactionRules(eq(true), eq(null), eq(20), eq(null), any())
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_CATEGORY_VIEW))
         }
     }
 

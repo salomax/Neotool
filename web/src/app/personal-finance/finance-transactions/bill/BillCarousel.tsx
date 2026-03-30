@@ -67,7 +67,12 @@ export function BillCarousel({ bills, selectedBillId, onSelectBill }: BillCarous
     <Box sx={{ width: 'fit-content' }}>
       <Stack direction="row" alignItems="center" spacing={2}>
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <IconButton onClick={handlePrev} size="small" disabled={isFirst}>
+          <IconButton
+            onClick={handlePrev}
+            size="small"
+            disabled={isFirst}
+            aria-label={t('financeTransactions.billCarousel.prevAriaLabel')}
+          >
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
           <Box sx={{ minWidth: 200, textAlign: 'center' }}>
@@ -86,7 +91,12 @@ export function BillCarousel({ bills, selectedBillId, onSelectBill }: BillCarous
           }}
         />
           </Box>
-          <IconButton onClick={handleNext} size="small" disabled={isLast}>
+          <IconButton
+            onClick={handleNext}
+            size="small"
+            disabled={isLast}
+            aria-label={t('financeTransactions.billCarousel.nextAriaLabel')}
+          >
             <ChevronRightIcon fontSize="small" />
           </IconButton>
         </Stack>

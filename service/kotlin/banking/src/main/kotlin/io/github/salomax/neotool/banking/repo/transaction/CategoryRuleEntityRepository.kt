@@ -31,6 +31,17 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
     )
     fun findUserRulesForAccount(accountId: UUID): List<CategoryRuleEntity>
 
+    @Query(
+        """
+        SELECT r FROM io.github.salomax.neotool.banking.model.transaction.CategoryRuleEntity r
+        WHERE r.deletedAt IS NULL
+          AND r.isSystem = true
+          AND r.accountId IS NULL
+        ORDER BY r.priority ASC, r.matchCount DESC, r.createdAt DESC
+        """,
+    )
+    fun findSystemRules(): List<CategoryRuleEntity>
+
     fun findByIdAndDeletedAtIsNull(id: UUID): CategoryRuleEntity?
 
     fun findByAccountIdAndPatternAndIsImplicitAndDeletedAtIsNull(
@@ -63,6 +74,20 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
     )
     fun incrementMatchCount(
         id: UUID,
+        now: Instant,
+    )
+
+    @Query(
+        """
+        UPDATE banking.transaction_rules
+        SET priority = :priority, updated_at = :now
+        WHERE id = :id AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun updatePriority(
+        id: UUID,
+        priority: Int,
         now: Instant,
     )
 }

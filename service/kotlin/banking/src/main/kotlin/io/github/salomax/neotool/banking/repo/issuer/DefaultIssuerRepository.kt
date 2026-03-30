@@ -2,7 +2,7 @@ package io.github.salomax.neotool.banking.repo.issuer
 
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
-import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.model.issuer.IssuerMapper
 import jakarta.inject.Singleton
 import java.util.UUID

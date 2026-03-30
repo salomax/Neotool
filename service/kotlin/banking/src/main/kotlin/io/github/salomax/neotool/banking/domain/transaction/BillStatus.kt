@@ -7,6 +7,7 @@ package io.github.salomax.neotool.banking.domain.transaction
  *   OPEN    → closingDate >= today (bill still accepting charges)
  *   CLOSED  → closingDate < today and dueDate >= today (awaiting payment)
  *   OVERDUE → dueDate < today and not paid
- *   PAID    → terminal state; only reversed if a payment transaction is deleted
+ *   PAID    → set explicitly when full payment is registered; reverts to CLOSED/OVERDUE
+ *             if the payment transaction is deleted (net total becomes positive again)
  */
 enum class BillStatus { OPEN, CLOSED, PAID, OVERDUE }

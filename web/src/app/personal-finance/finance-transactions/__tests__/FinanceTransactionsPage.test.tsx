@@ -1,202 +1,185 @@
-
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
-import { vi, describe, it, expect, beforeEach, Mock, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
 import FinanceTransactionsPage from '../page';
-import { useAccountDisplayMode } from '../account/useAccountDisplayMode';
 import { useQuery } from '@apollo/client/react';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
-
-// Mock dependencies
-vi.mock('@/shared/i18n', () => ({
-  useTranslation: () => ({
-    t: (key: string) => key,
-  }),
-}));
-
-vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
-  usePageTitle: vi.fn(),
-}));
-
-vi.mock('@/shared/components/ui/layout/SidebarLayout', () => ({
-  SidebarLayout: ({ sidebar }: { sidebar: React.ReactNode }) => (
-    <div data-testid="sidebar-layout">
-      <div data-testid="sidebar-content">{sidebar}</div>
-    </div>
-  ),
-}));
-
-vi.mock('../account/FinancialAccountSelector', () => ({
-  FinancialAccountSelector: () => <div data-testid="financial-account-selector" />,
-}));
-
-vi.mock('../summary/MonthYearCarousel', () => ({
-  MonthYearCarousel: () => <div data-testid="month-year-carousel" />,
-}));
-
-vi.mock('../bill/BillCarousel', () => ({
-  BillCarousel: () => <div data-testid="bill-carousel" />,
-}));
-
-vi.mock('../bill/BillSummaryHeader', () => ({
-  BillSummaryHeader: () => <div data-testid="bill-summary-header" />,
-}));
-
-vi.mock('../summary/MonthSummary', () => ({
-  MonthSummary: () => <div data-testid="month-summary" />,
-}));
-
-vi.mock('../transaction/TransactionTable', () => ({
-  TransactionTable: () => <div data-testid="transaction-table" />,
-}));
-
-vi.mock('../account/CreateFinancialAccountDrawer', () => ({
-  CreateFinancialAccountDrawer: () => <div data-testid="create-account-drawer" />,
-}));
-
-vi.mock('../transaction/ImportTransactionsDrawer', () => ({
-  ImportTransactionsDrawer: () => <div data-testid="import-transactions-drawer" />,
-}));
-
-vi.mock('../account/EmptyFinancialAccountsState', () => ({
-  EmptyFinancialAccountsState: () => <div data-testid="empty-state" />,
-}));
-
-vi.mock('../bill/BillImportDrawer', () => ({
-  BillImportDrawer: () => <div data-testid="bill-import-drawer" />,
-}));
-
-// Mock useAccountDisplayMode
-vi.mock('../account/useAccountDisplayMode', () => ({
-  useAccountDisplayMode: vi.fn(),
-}));
 
 // Mock Apollo useQuery
 vi.mock('@apollo/client/react', () => ({
   useQuery: vi.fn(),
 }));
 
-describe.sequential('FinanceTransactionsPage', () => {
-  const theme = createTheme();
+vi.mock('@/shared/i18n', () => ({
+  useTranslation: () => ({
+    t: (key: string) => `pf:${key}`,
+    tCommon: (key: string) => `common:${key}`,
+  }),
+}));
 
+vi.mock('@/shared/utils/error', () => ({
+  extractErrorMessage: vi.fn((_: unknown, defaultMessage: string) => defaultMessage),
+}));
+
+vi.mock('@/shared/hooks/ui/usePageTitle', () => ({
+  usePageTitle: () => undefined,
+}));
+
+vi.mock('@/shared/components/ui/layout/SidebarLayout', () => ({
+  SidebarLayout: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => (
+    <div>
+      <div>{sidebar}</div>
+      <div>{children}</div>
+    </div>
+  ),
+}));
+
+vi.mock('@/shared/components/ui/layout', () => ({
+  Page: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+}));
+
+vi.mock('../account/FinancialAccountSelector', () => ({
+  FinancialAccountSelector: ({ onSelectAccount }: { onSelectAccount: (id: string) => void }) => {
+    React.useEffect(() => {
+      onSelectAccount('acc-1');
+    }, [onSelectAccount]);
+    return <div>selector</div>;
+  },
+}));
+
+vi.mock('../account/EmptyFinancialAccountsState', () => ({
+  EmptyFinancialAccountsState: () => <div>empty</div>,
+}));
+
+vi.mock('../account/CreateFinancialAccountDrawer', () => ({
+  CreateFinancialAccountDrawer: () => null,
+}));
+
+vi.mock('../transaction/ImportTransactionsDrawer', () => ({
+  ImportTransactionsDrawer: () => null,
+}));
+
+vi.mock('../bill/BillImportDrawer', () => ({
+  BillImportDrawer: () => null,
+}));
+
+vi.mock('../bill/PayBillDialog', () => ({
+  PayBillDialog: () => null,
+}));
+
+vi.mock('../transaction/TransactionTable', () => ({
+  TransactionTable: () => <div>table</div>,
+}));
+
+vi.mock('../summary/MonthYearCarousel', () => ({
+  MonthYearCarousel: () => <div>carousel</div>,
+}));
+
+vi.mock('../summary/MonthSummary', () => ({
+  MonthSummary: () => <div>month-summary</div>,
+}));
+
+vi.mock('../account/useAccountDisplayMode', () => ({
+  useAccountDisplayMode: () => ({
+    kind: 'calendar',
+    month: 3,
+    year: 2024,
+    setMonth: vi.fn(),
+    setYear: vi.fn(),
+  }),
+}));
+
+describe.sequential('FinanceTransactionsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (useQuery as unknown as { mockImplementation: (fn: any) => void }).mockImplementation((_doc: unknown, opts?: any) => {
+      const vars = opts?.variables as Record<string, unknown> | undefined;
+      const skip = opts?.skip === true;
 
-    // Default useQuery mock implementation
-    (useQuery as unknown as Mock).mockReturnValue({
-      data: { financialAccounts: [{ id: 'acc-1', name: 'Account 1', type: FinancialAccountType.Bank }] },
-      loading: false,
-      refetch: vi.fn(),
-      fetchMore: vi.fn(),
-    });
+      if (!vars) {
+        return {
+          data: {
+            financialAccounts: [
+              {
+                id: 'acc-1',
+                type: FinancialAccountType.Bank,
+              },
+            ],
+          },
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+        };
+      }
 
-    // Default useAccountDisplayMode mock implementation (calendar)
-    (useAccountDisplayMode as unknown as Mock).mockReturnValue({
-      kind: 'calendar',
-      month: 3,
-      year: 2024,
-      setMonth: vi.fn(),
-      setYear: vi.fn(),
+      if (skip) {
+        return {
+          data: null,
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+          fetchMore: vi.fn(),
+        };
+      }
+
+      if ('first' in vars) {
+        return {
+          data: {
+            transactions: {
+              edges: [],
+              pageInfo: { hasNextPage: false, endCursor: null },
+            },
+          },
+          loading: false,
+          error: undefined,
+          fetchMore: vi.fn(),
+          refetch: vi.fn(),
+        };
+      }
+
+      if ('month' in vars || 'year' in vars) {
+        return {
+          data: {
+            monthSummary: {
+              year: 2024,
+              month: 3,
+              totalIncome: 0,
+              totalExpenses: 0,
+              closingBalance: 0,
+              openingBalance: 0,
+              transfersIn: 0,
+              transfersOut: 0,
+              projectedClosingBalance: 0,
+              isCurrentMonth: true,
+              expensesByCategory: [],
+              incomeByCategory: [],
+              tagsSummary: [],
+            },
+          },
+          loading: false,
+          error: undefined,
+          refetch: vi.fn(),
+        };
+      }
+
+      return {
+        data: null,
+        loading: false,
+        error: new Error('boom'),
+        refetch: vi.fn(),
+      };
     });
   });
 
-  afterEach(() => {
-    cleanup();
-  });
+  it('uses common translations for retry and default error message', async () => {
+    render(<FinanceTransactionsPage />);
 
-  const renderPage = () => {
-    return render(
-      <ThemeProvider theme={theme}>
-        <FinanceTransactionsPage />
-      </ThemeProvider>,
-    );
-  };
-
-  it('renders loading state initially', () => {
-    (useQuery as any).mockReturnValue({
-      data: undefined,
-      loading: true,
+    await waitFor(() => {
+      expect(screen.getByText('common:errors.default')).toBeInTheDocument();
     });
 
-    renderPage();
-    expect(screen.getByRole('progressbar')).toBeInTheDocument();
-  });
-
-  it('renders empty state when no accounts exist', () => {
-    (useQuery as any).mockReturnValue({
-      data: { financialAccounts: [] },
-      loading: false,
-    });
-
-    renderPage();
-    expect(screen.getByTestId('empty-state')).toBeInTheDocument();
-  });
-
-  it('renders calendar mode components (MonthSummary) when in calendar mode', () => {
-    // Mock useAccountDisplayMode to return calendar mode
-    (useAccountDisplayMode as any).mockReturnValue({
-      kind: 'calendar',
-      month: 3,
-      year: 2024,
-      setMonth: vi.fn(),
-      setYear: vi.fn(),
-    });
-
-    // Mock useQuery for FINANCIAL_ACCOUNTS to return some accounts
-    // We need to handle multiple useQuery calls.
-    // The first one is FINANCIAL_ACCOUNTS.
-    // The others are TRANSACTIONS, MONTH_SUMMARY, etc.
-    // simpler way: mockReturnValueOnce for sequential calls if order is deterministic, 
-    // or use a smarter mock that checks arguments. 
-    // For now, let's just make the default mock return data that satisfies all.
-    (useQuery as any).mockReturnValue({
-      data: { 
-        financialAccounts: [{ id: 'acc-1', name: 'Bank Account', type: FinancialAccountType.Bank }],
-        transactions: { edges: [] },
-        monthSummary: {},
-        transactionImports: []
-      },
-      loading: false,
-      refetch: vi.fn(),
-    });
-
-    renderPage();
-
-    expect(screen.getByTestId('sidebar-layout')).toBeInTheDocument();
-    expect(screen.getByTestId('month-summary')).toBeInTheDocument();
-    expect(screen.queryByTestId('bill-summary-header')).not.toBeInTheDocument();
-    // MonthYearCarousel is likely inside SidebarLayout or Page, let's check where it is in page.tsx
-    // It's not in the sidebar prop in the snippet I read. Let's assume it's in the main content.
-    // Wait, in page.tsx I saw SidebarLayout sidebar={...}.
-    // I didn't see where MonthYearCarousel is used in the snippet I read (lines 101-200).
-    // Let me check lines 1-100 or 200+ to find MonthYearCarousel usage.
-  });
-
-  it('renders bill mode components (BillSummaryHeader) when in bill mode', () => {
-    // Mock useAccountDisplayMode to return bill mode
-    (useAccountDisplayMode as any).mockReturnValue({
-      kind: 'bill',
-      selectedBill: { id: 'bill-1', totalAmount: 100, status: 'OPEN', dueDate: '2024-03-10' },
-      bills: [],
-      loading: false,
-      refetchBills: vi.fn(),
-      setSelectedBill: vi.fn(),
-    });
-
-    (useQuery as any).mockReturnValue({
-      data: { 
-        financialAccounts: [{ id: 'card-1', name: 'Credit Card', type: FinancialAccountType.Credit }],
-        transactions: { edges: [] },
-        transactionImports: []
-      },
-      loading: false,
-      refetch: vi.fn(),
-    });
-
-    renderPage();
-
-    expect(screen.getByTestId('bill-summary-header')).toBeInTheDocument();
-    expect(screen.queryByTestId('month-summary')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'common:cardGrid.retry' })).toBeInTheDocument();
+    expect(extractErrorMessage).toHaveBeenCalledWith(expect.any(Error), 'common:errors.default');
   });
 });

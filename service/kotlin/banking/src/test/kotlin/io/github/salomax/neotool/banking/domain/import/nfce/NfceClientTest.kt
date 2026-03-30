@@ -117,6 +117,65 @@ class NfceClientTest {
         }
 
         @Test
+        fun `parses extended fields from det prod nodes`() {
+            val xmlWithExtended =
+                """
+                <nfe>
+                  <infNFe>
+                    <chNFe>12345678901234567890123456789012345678901234</chNFe>
+                    <ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>
+                    <total><ICMSTot><vNF>45.80</vNF></ICMSTot></total>
+                    <emit><CNPJ>12345678000199</CNPJ></emit>
+                    <det nItem="1"><prod><xProd>ARROZ TIPO 1</xProd><cEAN>7891234567890</cEAN><cProd>000123</cProd><vProd>22.90</vProd><vUnCom>22.90</vUnCom><vDesc>2.00</vDesc><qCom>1</qCom><uCom>UN</uCom><NCM>10063021</NCM></prod></det>
+                    <det nItem="2"><prod><xProd>FEIJAO PRETO</xProd><cEAN>SEM GTIN</cEAN><vProd>22.90</vProd><qCom>2</qCom><uCom>KG</uCom><NCM>07133319</NCM></prod></det>
+                  </infNFe>
+                </nfe>
+                """.trimIndent()
+            whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xmlWithExtended))
+
+            val result = client.fetch(qrCodeUrl)
+
+            assertThat(result.items).hasSize(2)
+            val item1 = result.items[0]
+            assertThat(item1.cEAN).isEqualTo("7891234567890")
+            assertThat(item1.cProd).isEqualTo("000123")
+            assertThat(item1.vUnCom).isEqualByComparingTo(BigDecimal("22.90"))
+            assertThat(item1.vDesc).isEqualByComparingTo(BigDecimal("2.00"))
+            assertThat(item1.nItem).isEqualTo(1)
+
+            val item2 = result.items[1]
+            assertThat(item2.cEAN).isNull() // SEM GTIN filtered out
+            assertThat(item2.cProd).isNull()
+            assertThat(item2.vUnCom).isNull()
+            assertThat(item2.vDesc).isNull()
+            assertThat(item2.nItem).isEqualTo(2)
+        }
+
+        @Test
+        fun `parses CPF destinatario and tributos from XML`() {
+            val xmlWithCpfAndTrib =
+                """
+                <nfe>
+                  <infNFe>
+                    <chNFe>12345678901234567890123456789012345678901234</chNFe>
+                    <ide><dhEmi>2024-01-15T10:30:00-03:00</dhEmi></ide>
+                    <total><ICMSTot><vNF>100.00</vNF><vTotTrib>15.30</vTotTrib></ICMSTot></total>
+                    <emit><CNPJ>12345678000199</CNPJ></emit>
+                    <dest><CPF>32167209851</CPF></dest>
+                    <det nItem="1"><prod><xProd>Item A</xProd><vProd>100.00</vProd><qCom>1</qCom><uCom>UN</uCom><NCM>1234</NCM></prod><imposto><vTotTrib>15.30</vTotTrib></imposto></det>
+                  </infNFe>
+                </nfe>
+                """.trimIndent()
+            whenever(httpFetcher.fetch(any())).thenReturn(NfceHttpResponse(200, xmlWithCpfAndTrib))
+
+            val result = client.fetch(qrCodeUrl)
+
+            assertThat(result.cpfDestinatario).isEqualTo("32167209851")
+            assertThat(result.vTotTrib).isEqualByComparingTo(BigDecimal("15.30"))
+            assertThat(result.items[0].vTribItem).isEqualByComparingTo(BigDecimal("15.30"))
+        }
+
+        @Test
         fun `accepts cStat 100 and 150`() {
             val xml100 =
                 "<nfe><infNFe><cStat>100</cStat><chNFe>12345678901234567890123456789012345678901234</chNFe>" +

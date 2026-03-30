@@ -35,6 +35,13 @@ export type AccountPendingAction = {
   type: PendingActionType;
 };
 
+export type AccountPreferences = {
+  __typename: 'AccountPreferences';
+  defaultTransactionStatus: TransactionStatus;
+  ruleApplicationMode: RuleApplicationMode;
+};
+};
+
 /** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
 export enum AnbimaCategory {
   Acoes = 'ACOES',
@@ -530,11 +537,14 @@ export enum CategorySource {
 /** Category total for a period (expense/income breakdown). Percentage of period total. */
 export type CategoryTotal = {
   __typename: 'CategoryTotal';
-  category: TransactionCategory;
+  /** Null when this row represents the special uncategorized bucket. */
+  category: Maybe<TransactionCategory>;
   /** Percentage of the period total (0–100). */
   percentage: Scalars['Float']['output'];
   totalAmount: Scalars['Float']['output'];
   transactionCount: Scalars['Int']['output'];
+  /** True when the row aggregates transactions with no category assigned. */
+  uncategorized: Scalars['Boolean']['output'];
 };
 
 export type ChatInput = {
@@ -794,13 +804,22 @@ export type CreateTransactionInput = {
   type: TransactionType;
 };
 
+export type CreateTransactionPayload = {
+  __typename: 'CreateTransactionPayload';
+  /** Only populated when account.ruleApplicationMode = ALWAYS_PROMPT. */
+  appliedRules: Maybe<Array<TransactionRule>>;
+  transaction: Transaction;
+};
+
 export type CreateTransactionRuleInput = {
   applicableTo: CategoryApplicableTo;
   categoryId?: InputMaybe<Scalars['ID']['input']>;
+  descriptionOverride?: InputMaybe<Scalars['String']['input']>;
   merchantId?: InputMaybe<Scalars['ID']['input']>;
   pattern: Scalars['String']['input'];
   patternType: PatternType;
   priority?: InputMaybe<Scalars['Int']['input']>;
+  tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 /**
@@ -1626,6 +1645,11 @@ export enum IssuerCategory {
   Payment = 'PAYMENT'
 }
 
+export enum Language {
+  English = 'ENGLISH',
+  Portuguese = 'PORTUGUESE'
+}
+
 export type ListedAsset = {
   __typename: 'ListedAsset';
   assetType: Scalars['String']['output'];
@@ -1767,6 +1791,7 @@ export type MonthSummary = {
 export type Mutation = {
   __typename: 'Mutation';
   _bankingService: Maybe<Scalars['String']['output']>;
+  applyTransactionEditToSimilar: SimilarTransactionEditResult;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -1869,7 +1894,7 @@ export type Mutation = {
   createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
-  createTransaction: Transaction;
+  createTransaction: CreateTransactionPayload;
   /** Create a new custom transaction category for the authenticated account. */
   createTransactionCategory: TransactionCategory;
   /** Create a transaction rule for auto-categorization and/or merchant suggestion. Invalid REGEX pattern returns a validation error. */
@@ -1920,6 +1945,11 @@ export type Mutation = {
   removeRoleFromGroup: Group;
   /** Remove an attachment from a transaction and delete the underlying asset. */
   removeTransactionAttachment: Scalars['Boolean']['output'];
+  /**
+   * Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
+   * All IDs must belong to the authenticated account. Returns the full updated rule list.
+   */
+  reorderTransactionRules: Array<TransactionRule>;
   requestEmailSend: EmailSendResult;
   requestPasswordReset: RequestPasswordResetPayload;
   resendVerificationEmail: ResendVerificationEmailPayload;
@@ -1930,6 +1960,8 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  /** Updates current account preferences (account owner only). */
+  updateAccountPreferences: AccountPreferences;
   updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
   updateRole: Role;
@@ -1940,7 +1972,17 @@ export type Mutation = {
   /** Update a user-owned transaction rule. */
   updateTransactionRule: TransactionRule;
   updateUser: User;
+  updateUserPreferences: UserPreferences;
   verifyEmailWithToken: VerifyEmailPayload;
+};
+
+
+export type MutationApplyTransactionEditToSimilarArgs = {
+  applyToExisting?: InputMaybe<Scalars['Boolean']['input']>;
+  applyToFuture?: InputMaybe<Scalars['Boolean']['input']>;
+  id: Scalars['ID']['input'];
+  input: UpdateTransactionInput;
+  matchDescription: Scalars['String']['input'];
 };
 
 
@@ -2185,6 +2227,11 @@ export type MutationRemoveTransactionAttachmentArgs = {
 };
 
 
+export type MutationReorderTransactionRulesArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
 export type MutationRequestEmailSendArgs = {
   input: EmailSendRequestInput;
 };
@@ -2230,6 +2277,11 @@ export type MutationSubmitBillImportArgs = {
 };
 
 
+export type MutationUpdateAccountPreferencesArgs = {
+  input: UpdateAccountPreferencesInput;
+};
+
+
 export type MutationUpdateFinancialAccountArgs = {
   id: Scalars['ID']['input'];
   input: UpdateFinancialAccountInput;
@@ -2269,6 +2321,11 @@ export type MutationUpdateTransactionRuleArgs = {
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateUserPreferencesArgs = {
+  input: UpdateUserPreferencesInput;
 };
 
 
@@ -2444,6 +2501,8 @@ export type Query = {
   __typename: 'Query';
   _bankingService: Maybe<Scalars['String']['output']>;
   _empty: Maybe<Scalars['String']['output']>;
+  /** Current account (tenant) preferences (defaults when no row exists). */
+  accountPreferences: AccountPreferences;
   /** All holdings across all custodian accounts for the tenant (for net worth). */
   allInvestmentHoldings: Array<InvestmentHolding>;
   /**
@@ -2519,6 +2578,11 @@ export type Query = {
   pendingReviewImports: Array<TransactionImport>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
+  /**
+   * Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
+   * Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
+   */
+  previewTransactionRule: Scalars['Boolean']['output'];
   prompt: Maybe<Prompt>;
   promptVersions: Array<PromptVersion>;
   prompts: Array<Prompt>;
@@ -2529,6 +2593,7 @@ export type Query = {
   searchInvestmentAssetsAutocomplete: ListedAssetAutocompleteConnection;
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
+  similarTransactionEditPreview: SimilarTransactionEditPreview;
   /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
   topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
@@ -2539,8 +2604,13 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
-  /** All user-defined transaction rules (explicit + implicit) for auto-categorization and merchant suggestion. System rules are not returned. */
-  transactionRules: Array<TransactionRule>;
+  /**
+   * Transaction rules for auto-categorization and merchant suggestion.
+   * - isSystem omitted: returns all rules (user + system)
+   * - isSystem false: returns only user rules
+   * - isSystem true: returns only system rules
+   */
+  transactionRules: TransactionRuleConnection;
   /** Distinct tags used in transactions for the authenticated account. */
   transactionTags: Array<TransactionTagOption>;
   /**
@@ -2563,6 +2633,8 @@ export type Query = {
    */
   transactionsByTag: Array<TagTotal>;
   user: Maybe<User>;
+  /** Current user's preferences (defaults when no row exists). */
+  userPreferences: UserPreferences;
   users: UserConnection;
 };
 
@@ -2764,6 +2836,13 @@ export type QueryPopularInstitutionsArgs = {
 };
 
 
+export type QueryPreviewTransactionRuleArgs = {
+  pattern: Scalars['String']['input'];
+  patternType: PatternType;
+  sample: Scalars['String']['input'];
+};
+
+
 export type QueryPromptArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2816,6 +2895,11 @@ export type QueryServiceUsageArgs = {
 };
 
 
+export type QuerySimilarTransactionEditPreviewArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
 export type QueryTopMerchantsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -2839,6 +2923,14 @@ export type QueryTransactionImportsArgs = {
 };
 
 
+export type QueryTransactionRulesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  isSystem?: InputMaybe<Scalars['Boolean']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryTransactionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   belongsToName?: InputMaybe<Scalars['String']['input']>;
@@ -2849,6 +2941,7 @@ export type QueryTransactionsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   first?: InputMaybe<Scalars['Int']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   types?: InputMaybe<Array<TransactionType>>;
   uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
@@ -2864,6 +2957,7 @@ export type QueryTransactionsByCategoryArgs = {
   categoryId?: InputMaybe<Scalars['ID']['input']>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
@@ -2878,6 +2972,7 @@ export type QueryTransactionsByTagArgs = {
   categoryId?: InputMaybe<Scalars['ID']['input']>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
@@ -3062,6 +3157,12 @@ export enum RoleOrderField {
   Name = 'NAME'
 }
 
+export enum RuleApplicationMode {
+  Always = 'ALWAYS',
+  AlwaysPrompt = 'ALWAYS_PROMPT',
+  Never = 'NEVER'
+}
+
 export type SetBudgetInput = {
   alertThreshold: Scalars['Float']['input'];
   limitAmount: Scalars['Float']['input'];
@@ -3104,6 +3205,19 @@ export type SignUpPayload = {
   user: User;
 };
 
+export type SimilarTransactionEditPreview = {
+  __typename: 'SimilarTransactionEditPreview';
+  matchDescription: Scalars['String']['output'];
+  similarCount: Scalars['Int']['output'];
+  supportsFuturePropagation: Scalars['Boolean']['output'];
+};
+
+export type SimilarTransactionEditResult = {
+  __typename: 'SimilarTransactionEditResult';
+  affectedCount: Scalars['Int']['output'];
+  futureRuleCreated: Scalars['Boolean']['output'];
+};
+
 export type SubmitBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
@@ -3132,6 +3246,12 @@ export type TagTotal = {
   totalAmount: Scalars['Float']['output'];
   transactionCount: Scalars['Int']['output'];
 };
+
+export enum Theme {
+  Dark = 'DARK',
+  Light = 'LIGHT',
+  System = 'SYSTEM'
+}
 
 export type TokenUsage = {
   __typename: 'TokenUsage';
@@ -3191,6 +3311,8 @@ export type Transaction = {
   amount: Scalars['Float']['output'];
   /** BRL equivalent for FX transactions (null for BRL). */
   amountBrl: Maybe<Scalars['Float']['output']>;
+  /** IDs of rules that contributed to transaction enrichment. */
+  appliedRuleIds: Array<Scalars['ID']['output']>;
   attachments: Array<TransactionAttachment>;
   belongsToName: Maybe<Scalars['String']['output']>;
   belongsToUserId: Maybe<Scalars['ID']['output']>;
@@ -3309,7 +3431,7 @@ export type TransactionImport = {
 
 /**
  * Auto-assignment rule that maps a description pattern to a category and/or merchant.
- * Explicit or implicit. System rules are not exposed; only user rules are returned.
+ * Explicit or implicit.
  */
 export type TransactionRule = {
   __typename: 'TransactionRule';
@@ -3317,6 +3439,7 @@ export type TransactionRule = {
   category: Maybe<TransactionCategory>;
   categoryId: Maybe<Scalars['ID']['output']>;
   createdAt: Scalars['DateTime']['output'];
+  descriptionOverride: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
   isImplicit: Scalars['Boolean']['output'];
   isSystem: Scalars['Boolean']['output'];
@@ -3325,15 +3448,39 @@ export type TransactionRule = {
   merchantId: Maybe<Scalars['ID']['output']>;
   pattern: Scalars['String']['output'];
   patternType: PatternType;
+  /** 1-based evaluation order position (same order used by the rule engine). */
+  position: Scalars['Int']['output'];
   priority: Scalars['Int']['output'];
+  tagsOverride: Maybe<Array<Scalars['String']['output']>>;
+};
+
+/** Relay connection for paginated transaction rules. */
+export type TransactionRuleConnection = {
+  __typename: 'TransactionRuleConnection';
+  edges: Array<TransactionRuleEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+/** Edge in a TransactionRuleConnection. */
+export type TransactionRuleEdge = {
+  __typename: 'TransactionRuleEdge';
+  cursor: Scalars['String']['output'];
+  node: TransactionRule;
 };
 
 /** How the transaction entered the system. */
 export enum TransactionSource {
+  Csv = 'CSV',
   Manual = 'MANUAL',
+  NfcE = 'NFC_E',
+  Ofx = 'OFX',
   OpenFinance = 'OPEN_FINANCE',
+  Pdf = 'PDF',
   PdfBill = 'PDF_BILL',
-  Pluggy = 'PLUGGY'
+  /**  @deprecated — legacy values kept for backward compatibility  */
+  Pluggy = 'PLUGGY',
+  ReceiptOcr = 'RECEIPT_OCR'
 }
 
 /**
@@ -3376,6 +3523,11 @@ export enum TransactionType {
   Transfer = 'TRANSFER',
   Withdrawal = 'WITHDRAWAL'
 }
+
+export type UpdateAccountPreferencesInput = {
+  defaultTransactionStatus?: InputMaybe<TransactionStatus>;
+  ruleApplicationMode?: InputMaybe<RuleApplicationMode>;
+};
 
 export type UpdateCategoryInput = {
   color?: InputMaybe<Scalars['String']['input']>;
@@ -3435,15 +3587,25 @@ export type UpdateTransactionInput = {
 };
 
 export type UpdateTransactionRuleInput = {
+  applicableTo?: InputMaybe<CategoryApplicableTo>;
   categoryId?: InputMaybe<Scalars['ID']['input']>;
+  descriptionOverride?: InputMaybe<Scalars['String']['input']>;
   merchantId?: InputMaybe<Scalars['ID']['input']>;
   pattern?: InputMaybe<Scalars['String']['input']>;
   patternType?: InputMaybe<PatternType>;
   priority?: InputMaybe<Scalars['Int']['input']>;
+  tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
 export type UpdateUserInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateUserPreferencesInput = {
+  blurBalances?: InputMaybe<Scalars['Boolean']['input']>;
+  firstDayOfWeek?: InputMaybe<Scalars['Int']['input']>;
+  language?: InputMaybe<Language>;
+  theme?: InputMaybe<Theme>;
 };
 
 export type UsageBudget = {
@@ -3517,6 +3679,14 @@ export enum UserOrderField {
   DisplayName = 'DISPLAY_NAME',
   Email = 'EMAIL'
 }
+
+export type UserPreferences = {
+  __typename: 'UserPreferences';
+  blurBalances: Scalars['Boolean']['output'];
+  firstDayOfWeek: Scalars['Int']['output'];
+  language: Language;
+  theme: Theme;
+};
 
 /** Indicates the origin and reliability of a holding's current value. */
 export enum ValuationSource {

@@ -126,6 +126,17 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         SELECT MIN(date)
           FROM banking.transactions
          WHERE financial_account_id = CAST(:financialAccountId AS uuid)
+           AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun findEarliestTransactionDate(financialAccountId: String): LocalDate?
+
+    @Query(
+        """
+        SELECT MIN(date)
+          FROM banking.transactions
+         WHERE financial_account_id = CAST(:financialAccountId AS uuid)
            AND type = 'BALANCE_ADJUSTMENT'
            AND deleted_at IS NULL
         """,

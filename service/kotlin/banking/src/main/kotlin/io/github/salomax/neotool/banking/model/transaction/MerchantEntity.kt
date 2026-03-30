@@ -21,7 +21,9 @@ open class MerchantEntity(
     @Generated(event = [EventType.INSERT])
     @Column(columnDefinition = "uuid", insertable = false, updatable = false)
     override val id: UUID? = null,
-    @Column(nullable = false, length = 200)
+    @Column(name = "merchant_name", nullable = false, length = 200)
+    open var merchantName: String,
+    @Column(name = "display_name", nullable = false, length = 200)
     open var name: String,
     @Column(length = 200)
     open var domain: String? = null,

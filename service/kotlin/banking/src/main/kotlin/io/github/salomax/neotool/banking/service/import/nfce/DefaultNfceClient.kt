@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.nfce
 
-import io.github.salomax.neotool.banking.domain.import.nfce.*
-import io.github.salomax.neotool.banking.domain.import.*
+import io.github.salomax.neotool.banking.client.import.nfce.*
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
 import jakarta.inject.Singleton
 import org.w3c.dom.Node
 import org.xml.sax.InputSource
@@ -15,14 +16,14 @@ private val CHNFE_PATTERN = Regex("""\d{44}""")
 private val DH_EMI_FORMAT = DateTimeFormatter.ISO_DATE_TIME
 
 /**
- * Fetches NFC-e XML from a QR code URL and parses it into [NfceData].
- * Timeout 5s; throws [NfceUnavailableException] on timeout or non-200;
- * throws [NfceInvalidException] on malformed XML or cancelled NF-e.
+ * XML-based NFC-e parser. Handles states that return XML from QR code URLs.
+ * Used as the default/fallback fetcher by [NfceFetcherRouter].
  */
 @Singleton
 open class DefaultNfceClient(
     private val httpFetcher: NfceHttpFetcher,
-) : NfceClient {
+) : NfceFetcher {
+    override fun supportedUfCodes(): Set<String> = emptySet() // fallback — no specific UF
     override fun fetch(qrCodeUrl: String): NfceData {
         val chNFeFromUrl = CHNFE_PATTERN.find(qrCodeUrl)?.value
 
@@ -107,10 +108,21 @@ open class DefaultNfceClient(
         val municipio = textContent(enderEmit, "xMun") ?: ""
         val uf = textContent(enderEmit, "UF") ?: ""
 
+        // CPF do destinatário
+        val dest = firstElementByLocalName(infNFe, "dest")
+        val cpfDestinatario = textContent(dest, "CPF")
+
+        // Tributos totais (ICMSTot → vTotTrib)
+        val vTotTribStr = textContent(icmsTot, "vTotTrib")
+        val vTotTrib = vTotTribStr?.let {
+            runCatching { BigDecimal(it.trim()) }.getOrNull()
+        }
+
         val items = mutableListOf<NfceItem>()
         val detList = doc.getElementsByTagNameNS("*", "det")
         for (i in 0 until detList.length) {
             val det = detList.item(i)
+            val nItemAttr = (det as? org.w3c.dom.Element)?.getAttribute("nItem")
             val prod = firstElementByLocalName(det, "prod") ?: continue
             val xProd = textContent(prod, "xProd") ?: continue
             val vProdStr = textContent(prod, "vProd") ?: "0"
@@ -119,7 +131,26 @@ open class DefaultNfceClient(
             val qCom = BigDecimal(qComStr.trim().replace(",", "."))
             val uCom = textContent(prod, "uCom") ?: "UN"
             val ncm = textContent(prod, "NCM") ?: ""
-            items.add(NfceItem(xProd = xProd, vProd = vProd, qCom = qCom, uCom = uCom, ncm = ncm))
+            val cEAN = textContent(prod, "cEAN")?.takeIf { it != "SEM GTIN" }
+            val vUnComStr = textContent(prod, "vUnCom")
+            val vUnCom = vUnComStr?.let { BigDecimal(it.trim().replace(",", ".")) }
+            val vDescStr = textContent(prod, "vDesc")
+            val vDesc = vDescStr?.let { BigDecimal(it.trim().replace(",", ".")) }
+            val cProd = textContent(prod, "cProd")
+            val nItem = nItemAttr?.toIntOrNull()
+            // Valor aproximado dos tributos por item (Lei 12.741)
+            val imposto = firstElementByLocalName(det, "imposto")
+            val vTribItemStr = textContent(imposto, "vTotTrib") ?: textContent(det, "vTotTrib")
+            val vTribItem = vTribItemStr?.let {
+                runCatching { BigDecimal(it.trim().replace(",", ".")) }.getOrNull()
+            }
+            items.add(
+                NfceItem(
+                    xProd = xProd, vProd = vProd, qCom = qCom, uCom = uCom, ncm = ncm,
+                    cEAN = cEAN, vUnCom = vUnCom, vDesc = vDesc, cProd = cProd, nItem = nItem,
+                    vTribItem = vTribItem,
+                ),
+            )
         }
 
         return NfceData(
@@ -131,6 +162,8 @@ open class DefaultNfceClient(
             municipio = municipio,
             uf = uf,
             items = items,
+            cpfDestinatario = cpfDestinatario,
+            vTotTrib = vTotTrib,
         )
     }
 

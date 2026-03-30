@@ -1,6 +1,6 @@
 'use client';
 
-import { Box, IconButton, Stack, Typography, useTheme, Link } from '@mui/material';
+import { Box, IconButton, Stack, Typography, Link } from '@mui/material';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import dayjs from 'dayjs';
@@ -16,7 +16,6 @@ interface MonthYearCarouselProps {
 
 export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: MonthYearCarouselProps) {
   const { t } = useTranslation(personalFinanceTranslations);
-  const theme = useTheme();
 
   const handlePrevMonth = () => {
     if (selectedMonth === 1) {
@@ -45,38 +44,51 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
 
   return (
     <Box>
-      <Stack direction="row" alignItems="center" spacing={2}>
+      <Stack spacing={0.25} sx={{ width: 'fit-content', alignItems: 'stretch' }}>
+        {!isCurrentMonth && (
+          <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
+            <Link
+              component="button"
+              variant="body2"
+              onClick={handleReset}
+              sx={{ textTransform: 'none' }}
+              underline="hover"
+            >
+              {t('financeTransactions.backToCurrentMonth')}
+            </Link>
+          </Box>
+        )}
+
         <Stack direction="row" alignItems="center" spacing={0.5}>
-          <IconButton onClick={handlePrevMonth} size="small">
+          <IconButton
+            onClick={handlePrevMonth}
+            size="small"
+            aria-label={t('financeTransactions.monthYearCarousel.prevAriaLabel')}
+            data-testid="btn-prev-month"
+          >
             <ChevronLeftIcon fontSize="small" />
           </IconButton>
-          <Typography 
-            variant="body1" 
-            fontWeight="bold" 
-            sx={{ 
-              textTransform: 'capitalize', 
-              minWidth: 140, 
-              textAlign: 'center' 
+          <Typography
+            variant="body1"
+            fontWeight="bold"
+            data-testid="month-year-carousel-current"
+            sx={{
+              textTransform: 'capitalize',
+              minWidth: 140,
+              textAlign: 'center'
             }}
           >
             {currentDate.format('MMMM YYYY')}
           </Typography>
-          <IconButton onClick={handleNextMonth} size="small">
+          <IconButton
+            onClick={handleNextMonth}
+            size="small"
+            aria-label={t('financeTransactions.monthYearCarousel.nextAriaLabel')}
+            data-testid="btn-next-month"
+          >
             <ChevronRightIcon fontSize="small" />
           </IconButton>
         </Stack>
-
-        {!isCurrentMonth && (
-          <Link
-            component="button"
-            variant="body2"
-            onClick={handleReset}
-            sx={{ textTransform: 'none' }}
-            underline="hover"
-          >
-            {t('financeTransactions.backToCurrentMonth')}
-          </Link>
-        )}
       </Stack>
     </Box>
   );

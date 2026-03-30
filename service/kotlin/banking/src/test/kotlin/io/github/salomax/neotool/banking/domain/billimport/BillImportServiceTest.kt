@@ -5,7 +5,7 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
@@ -15,7 +15,7 @@ import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintS
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
-import io.github.salomax.neotool.banking.domain.transaction.CreditCardBillRepository
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -25,7 +25,7 @@ import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetUploadResult
@@ -44,6 +44,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doAnswer
 import org.mockito.kotlin.doReturn
@@ -828,7 +829,15 @@ class BillImportServiceTest {
             assertThat(txCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
             assertThat(txCaptor.firstValue.merchantId).isEqualTo(merchantId)
 
-            verify(categorizationService).learnFromManualAssignment(eq(accountId), eq(tx.description), eq(categoryId), eq(merchantId))
+            verify(categorizationService).learnFromManualAssignment(
+                eq(accountId),
+                eq(tx.description),
+                eq(categoryId),
+                eq(merchantId),
+                anyOrNull(),
+                anyOrNull(),
+                eq(false),
+            )
         }
 
         @Test

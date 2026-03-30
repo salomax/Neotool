@@ -9,9 +9,13 @@ import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -37,6 +41,7 @@ class ImportProcessorTest {
     private lateinit var crossSourceDedupService: CrossSourceDedupService
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categorizationService: TransactionRuleEngine
+    private lateinit var accountPreferencesService: AccountPreferencesService
     private lateinit var processor: ImportProcessor
 
     private lateinit var jobId: UUID
@@ -54,6 +59,7 @@ class ImportProcessorTest {
         crossSourceDedupService = mock()
         transactionRepository = mock()
         categorizationService = mock()
+        accountPreferencesService = mock()
         whenever(categorizationService.preloadRules(any())).thenReturn(emptyList())
         whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(null)
         processor =
@@ -63,6 +69,7 @@ class ImportProcessorTest {
                 crossSourceDedupService = crossSourceDedupService,
                 transactionRepository = transactionRepository,
                 categorizationService = categorizationService,
+                accountPreferencesService = accountPreferencesService,
             )
         jobId = UUID.randomUUID()
         financialAccountId = UUID.randomUUID()
@@ -80,12 +87,22 @@ class ImportProcessorTest {
                 createdAt = now,
                 updatedAt = now,
             )
+        whenever(accountPreferencesService.get(accountId)).thenReturn(
+            AccountPreferences(
+                accountId = accountId,
+                ruleApplicationMode = RuleApplicationMode.ALWAYS,
+                defaultTransactionStatus = TransactionStatus.POSTED,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
     }
 
     private fun parsedRow(
         providerId: String? = "fitid-1",
         amount: BigDecimal = BigDecimal("25.50"),
         description: String = "Coffee",
+        descriptionRaw: String? = null,
         date: LocalDate = today,
     ) = ParsedTransaction(
         providerTransactionId = providerId,
@@ -93,6 +110,7 @@ class ImportProcessorTest {
         amount = amount,
         date = date,
         description = description,
+        descriptionRaw = descriptionRaw,
         currencyCode = "BRL",
     )
 
@@ -186,6 +204,52 @@ class ImportProcessorTest {
             assertThat(result.imported).hasSize(1)
             assertThat(savedCaptor.firstValue.categoryId).isEqualTo(categoryId)
             assertThat(savedCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+        }
+
+        @Test
+        fun `applies description override from categorization when suggestion exists`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-desc")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            val ruleId = UUID.randomUUID()
+            whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(
+                RuleSuggestion(
+                    ruleId = ruleId,
+                    categoryId = null,
+                    merchantId = null,
+                    descriptionOverride = "iFood",
+                ),
+            )
+            val savedCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(savedCaptor.capture())).thenAnswer { invocation ->
+                invocation.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+
+            val result = processor.process(job, listOf(parsedRow(description = "IFOOD*123")))
+
+            assertThat(result.imported).hasSize(1)
+            assertThat(savedCaptor.firstValue.description).isEqualTo("iFood")
+        }
+
+        @Test
+        fun `matches rules using original description when descriptionRaw is present`() {
+            whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
+            whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-raw")
+            whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
+            whenever(crossSourceDedupService.findCandidates(any(), any(), any())).thenReturn(emptyList())
+            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
+
+            processor.process(
+                job,
+                listOf(parsedRow(description = "iFood", descriptionRaw = "IFOOD*123")),
+            )
+
+            verify(categorizationService).suggestFromRulesRecordingMatch(
+                any(),
+                eq("IFOOD*123"),
+                eq(CreditDebitType.DEBIT),
+            )
         }
 
         @Test

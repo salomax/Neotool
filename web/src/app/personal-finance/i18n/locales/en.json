@@ -652,9 +652,10 @@
   },
   "financeTransactions": {
     "title": "Finance Transactions",
-    "quickAdd": "New transaction",
+    "quickAdd": "Transaction",
     "credit": "Credit",
     "debit": "Debit",
+    "transfer": "Transfer",
     "amount": "Amount",
     "description": "Description",
     "date": "Date",
@@ -687,17 +688,90 @@
         "OVERDUE": "Overdue"
       }
     },
+    "payBillDialog": {
+      "title": "Pay Bill",
+      "amount": "Payment Amount",
+      "sourceAccount": "Debit Account (optional)",
+      "noSourceAccount": "None",
+      "invalidAmount": "Enter a valid amount greater than zero."
+    },
     "description": "Description",
     "backToCurrentMonth": "Back to current month",
     "actions": {
       "newAccountOrCard": "New account or card",
       "addAccount": "Add account",
       "addCard": "Add card",
+      "automation": "Automation",
       "edit": "Edit",
       "save": "Save",
       "saving": "Saving...",
       "cancel": "Cancel",
+      "back": "Back",
+      "close": "Close",
       "delete": "Delete"
+    },
+    "transactionRules": {
+      "tabs": {
+        "manual": "Manual Rules",
+        "automatic": "Automatic Rules"
+      },
+      "searchPlaceholder": "Search by pattern…",
+      "actions": {
+        "newRule": "New Rule"
+      },
+      "errors": {
+        "load": "Error loading rules."
+      },
+      "toast": {
+        "deleted": "Rule deleted."
+      },
+      "emptyState": {
+        "manual": "No manual rules created yet.",
+        "automatic": "No automatic rules yet."
+      },
+      "deleteDialog": {
+        "title": "Delete rule?",
+        "description": "This action cannot be undone."
+      },
+      "columns": {
+        "context": "Context",
+        "rule": "Rule",
+        "matchingText": "Matching text",
+        "newDescription": "New description",
+        "category": "Category",
+        "tags": "Tags",
+        "merchant": "Merchant",
+        "priority": "Priority"
+      }
+    },
+    "categoryPicker": {
+      "searchPlaceholder": "Search category...",
+      "noCategory": "No category",
+      "noResults": "No categories found",
+      "newCategory": "New category",
+      "backAriaLabel": "Back",
+      "deleteAriaLabel": "Delete category",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Groceries",
+      "created": "\"{{name}}\" created",
+      "deleteTitle": "Delete '{{name}}'?",
+      "deleteDescription": "Transactions using this category will keep the assignment in history. This action cannot be undone.",
+      "deleteChildrenTitle": "The following subcategories will also be deleted:"
+    },
+    "similarEditPrompt": {
+      "title": "Apply to similar transactions?",
+      "titleFutureOnly": "Create a rule for future imports?",
+      "description": "We found similar items. Choose how you want to proceed.",
+      "applyToExistingTitle_one": "Update {{count}} transaction",
+      "applyToExistingTitle_other": "Update {{count}} transactions",
+      "applyToExistingDescription": "Apply the changes to items with the same original description.",
+      "applyToFutureTitle": "Create automation rule",
+      "applyToFutureDescription": "Always apply this description for similar future imports.",
+      "confirmFull": "Apply Changes",
+      "confirm": "Apply",
+      "cancel": "No thanks",
+      "success_one": "Applied the change to {{count}} similar transaction.",
+      "success_other": "Applied the change to {{count}} similar transactions."
     },
     "selector": {
       "allAccounts": "All accounts",
@@ -913,6 +987,7 @@
         "optionalField": "Optional",
         "descriptionBase": "Base description",
         "descriptionBaseHint": "If you provide a description, it will be used as the base name when creating cards.",
+        "defaultBaseName": "Card",
         "previewLabel": "Name preview: {{name}}",
         "unassignedLastFour": "No last 4",
         "noLastFourPlaceholder": "No last 4",
@@ -993,6 +1068,7 @@
       "error": "Failed to import NFC-e"
     },
     "transactionTable": {
+      "ariaLabel": "Transactions table",
       "columns": {
         "description": "Description",
         "category": "Category",
@@ -1001,8 +1077,18 @@
         "currency": "Currency"
       },
       "emptyState": "No transactions found",
+      "attachments": {
+        "ariaLabel": "View attachments"
+      },
+      "tags": {
+        "moreAriaLabel": "View {{count}} more tags"
+      },
+      "installments": {
+        "progressAriaLabel": "Installment {{current}} of {{total}}"
+      },
       "rowActions": {
         "ariaLabel": "Transaction actions",
+        "markAsTransfer": "Mark as internal transfer",
         "edit": "Edit",
         "remove": "Remove"
       }
@@ -1012,10 +1098,16 @@
       "expenses": "Expenses",
       "balance": "Current Balance",
       "total": "of total",
+      "a11y": {
+        "filterByMetric": "Filter transactions by",
+        "filterByCategory": "Filter transactions by category",
+        "filterByTag": "Filter transactions by tag"
+      },
       "expensesByCategory": "Expenses by Category",
       "incomeByCategory": "Income by Category",
       "tagsSummary": "Tags",
       "seeAll": "See all",
+      "uncategorized": "Uncategorized",
       "noCategorizedExpenses": "No categorized expenses this month",
       "noCategorizedIncome": "No categorized income this month",
       "noTaggedTransactions": "No tagged transactions this month",
@@ -1030,6 +1122,20 @@
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"
+    },
+    "monthYearCarousel": {
+      "prevAriaLabel": "Previous month",
+      "nextAriaLabel": "Next month"
+    },
+    "billCarousel": {
+      "title": "Bill {{month}}",
+      "closes": "closes {{day}}",
+      "prevAriaLabel": "Previous bill",
+      "nextAriaLabel": "Next bill",
+      "statusOpen": "OPEN",
+      "statusClosed": "CLOSED",
+      "statusPaid": "PAID",
+      "statusOverdue": "OVERDUE"
     },
     "deleteConfirmation": {
       "title": "Delete transaction",

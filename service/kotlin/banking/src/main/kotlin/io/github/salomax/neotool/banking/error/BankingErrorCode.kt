@@ -159,6 +159,7 @@ enum class BankingErrorCode(
         422,
     ),
 
+<<<<<<< HEAD
     HOLDING_MATURITY_INVALID_STATE(
         "HOLDING_MATURITY_INVALID_STATE",
         "Holding cannot be confirmed as matured in the current state",
@@ -179,4 +180,11 @@ enum class BankingErrorCode(
         "Pending action is not in a state that allows this operation",
         409,
     ),
+=======
+    ACCOUNT_PREFERENCES_OWNER_REQUIRED(
+        "ACCOUNT_PREFERENCES_OWNER_REQUIRED",
+        "Only the account owner can update account preferences",
+        403,
+    ),
+>>>>>>> origin/feat/241-accountscards-management
 }

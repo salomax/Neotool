@@ -2,11 +2,14 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
@@ -16,6 +19,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -37,6 +41,7 @@ class TransactionServiceTest {
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
+    private lateinit var accountPreferencesService: AccountPreferencesService
     private lateinit var service: TransactionService
 
     private val accountId = UUID.randomUUID()
@@ -68,6 +73,8 @@ class TransactionServiceTest {
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
         creditCardBillService = mock()
+        accountPreferencesService = mock()
+        whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
         service =
             TransactionService(
                 transactionRepository = transactionRepository,
@@ -78,6 +85,7 @@ class TransactionServiceTest {
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
+                accountPreferencesService = accountPreferencesService,
             )
     }
 
@@ -143,6 +151,52 @@ class TransactionServiceTest {
             val result = service.create(command, accountId, userId)
 
             assertThat(result.status).isEqualTo(TransactionStatus.FUTURE)
+        }
+
+        @Test
+        fun `manual create applies rule engine suggestion`() {
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            whenever(accountPreferencesService.get(accountId)).thenReturn(
+                AccountPreferences(
+                    accountId = accountId,
+                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
+                    defaultTransactionStatus = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            val suggestedRuleId = UUID.randomUUID()
+            val suggestedCategoryId = UUID.randomUUID()
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
+                RuleSuggestion(
+                    ruleId = suggestedRuleId,
+                    categoryId = suggestedCategoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(suggestedRuleId),
+                ),
+            )
+            val saveCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.save(saveCaptor.capture())).thenAnswer {
+                saveCaptor.firstValue.copy(id = UUID.randomUUID())
+            }
+
+            service.create(
+                CreateTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Coffee",
+                ),
+                accountId,
+                userId,
+            )
+
+            assertThat(saveCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
+            assertThat(saveCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            assertThat(saveCaptor.firstValue.appliedRuleIds).containsExactly(suggestedRuleId)
+            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
         }
 
         @Test
@@ -681,6 +735,327 @@ class TransactionServiceTest {
 
             assertThat(updateCaptor.firstValue.tags).containsExactly("New", "Weekend")
         }
+
+        @Test
+        fun `clears category when categoryId is explicitly provided as null`() {
+            val txId = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "X",
+                    categoryId = categoryId,
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
+                accountId,
+            )
+
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+            assertThat(updateCaptor.firstValue.categorySource).isNull()
+        }
+
+        @Test
+        fun `does not learn implicit rule when updating non-manual transaction`() {
+            val txId = UUID.randomUUID()
+            val categoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Imported",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = categoryId),
+                accountId,
+            )
+
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
+        }
+
+        @Test
+        fun `manual update applies suggestion to untouched fields`() {
+            whenever(accountPreferencesService.get(accountId)).thenReturn(
+                AccountPreferences(
+                    accountId = accountId,
+                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
+                    defaultTransactionStatus = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Coffee",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val suggestedCategoryId = UUID.randomUUID()
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
+                RuleSuggestion(
+                    ruleId = UUID.randomUUID(),
+                    categoryId = suggestedCategoryId,
+                    merchantId = null,
+                ),
+            )
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(notes = "updated"),
+                accountId,
+            )
+
+            assertThat(updateCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
+            assertThat(updateCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
+        }
+    }
+
+    @Nested
+    @DisplayName("similar transaction edit propagation")
+    inner class SimilarTransactionEditPropagationTests {
+        @Test
+        fun `preview returns count for similar non-manual transactions`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("15.00"),
+                    date = today,
+                    description = "Renamed",
+                    descriptionRaw = "IFOOD*123",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(
+                transactionRepository.countSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(2)
+
+            val result = service.previewSimilarTransactionEdit(txId, accountId)
+
+            assertThat(result.similarCount).isEqualTo(2)
+            assertThat(result.matchDescription).isEqualTo("IFOOD*123")
+            assertThat(result.supportsFuturePropagation).isTrue()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions updates similar rows and creates future rule`() {
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "iFood",
+                    descriptionRaw = "IFOOD*123",
+                    tags = listOf("Delivery"),
+                    categoryId = UUID.randomUUID(),
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val similar =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("12.00"),
+                    date = today.minusDays(1),
+                    description = "IFOOD*123",
+                    tags = emptyList(),
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+            whenever(
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(listOf(similar))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result =
+                service.applyEditToSimilarTransactions(
+                    id = txId,
+                    matchDescription = "IFOOD*123",
+                    command =
+                        UpdateTransactionCommand(
+                            description = "iFood",
+                            categoryId = current.categoryId,
+                            categoryIdProvided = true,
+                            tags = listOf("Delivery"),
+                            tagsProvided = true,
+                        ),
+                    applyToFuture = true,
+                    accountId = accountId,
+                )
+
+            val updateCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository).update(updateCaptor.capture())
+            assertThat(updateCaptor.firstValue.description).isEqualTo("iFood")
+            assertThat(updateCaptor.firstValue.tags).containsExactly("Delivery")
+            assertThat(updateCaptor.firstValue.categoryId).isEqualTo(current.categoryId)
+            assertThat(updateCaptor.firstValue.categorySource).isEqualTo(CategorySource.MANUAL)
+            verify(transactionRuleEngine).learnFromManualAssignment(
+                eq(accountId),
+                eq("IFOOD*123"),
+                eq(current.categoryId),
+                eq(null),
+                eq("iFood"),
+                eq(listOf("Delivery")),
+                eq(true),
+            )
+            assertThat(result.affectedCount).isEqualTo(1)
+            assertThat(result.futureRuleCreated).isTrue()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions can clear category without creating future rule`() {
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("18.00"),
+                    date = today,
+                    description = "iFood",
+                    descriptionRaw = "IFOOD*123",
+                    categoryId = null,
+                    categorySource = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val similar =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    source = TransactionSource.OPEN_FINANCE,
+                    amount = BigDecimal("12.00"),
+                    date = today.minusDays(1),
+                    description = "IFOOD*123",
+                    categoryId = UUID.randomUUID(),
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+            whenever(
+                transactionRepository.findSimilarNonManualTransactions(
+                    accountId,
+                    txId,
+                    "IFOOD*123",
+                    CreditDebitType.DEBIT,
+                ),
+            ).thenReturn(listOf(similar))
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result =
+                service.applyEditToSimilarTransactions(
+                    id = txId,
+                    matchDescription = "IFOOD*123",
+                    command = UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
+                    applyToFuture = true,
+                    accountId = accountId,
+                )
+
+            val updateCaptor = argumentCaptor<Transaction>()
+            verify(transactionRepository).update(updateCaptor.capture())
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+            assertThat(updateCaptor.firstValue.categorySource).isNull()
+            verify(transactionRuleEngine, never()).learnFromManualAssignment(
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+                any(),
+            )
+            assertThat(result.affectedCount).isEqualTo(1)
+            assertThat(result.futureRuleCreated).isFalse()
+        }
     }
 
     @Nested
@@ -1199,6 +1574,7 @@ class TransactionServiceTest {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = "Partner",
+                        search = null,
                         tags = null,
                         billId = null,
                         categoryIds = null,
@@ -1219,6 +1595,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = "Partner",
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,
@@ -1275,6 +1652,7 @@ class TransactionServiceTest {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = null,
+                        search = null,
                         tags = setOf("Weekend", "Transport"),
                         billId = null,
                         categoryIds = null,
@@ -1295,6 +1673,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = listOf("Weekend", "Transport"),
                     billId = null,
                     categoryId = null,
@@ -1331,6 +1710,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = listOf("Weekend"),
                     billId = null,
                     categoryId = null,
@@ -1370,6 +1750,7 @@ class TransactionServiceTest {
                     financialAccountId = null,
                     belongsToUserId = null,
                     belongsToName = null,
+                    search = null,
                     tags = null,
                     billId = null,
                     categoryId = null,

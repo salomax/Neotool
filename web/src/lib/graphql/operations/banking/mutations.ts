@@ -149,22 +149,27 @@ export const DELETE_TRANSACTION = gql`
 export const CREATE_TRANSACTION = gql`
   mutation CreateTransaction($input: CreateTransactionInput!) {
     createTransaction(input: $input) {
-      id
-      financialAccountId
-      belongsToUserId
-      belongsToName
-      creditDebitType
-      type
-      status
-      amount
-      currencyCode
-      date
-      description
-      notes
-      tags
-      category {
+      transaction {
         id
-        name
+        financialAccountId
+        belongsToUserId
+        belongsToName
+        creditDebitType
+        type
+        status
+        amount
+        currencyCode
+        date
+        description
+        notes
+        tags
+        category {
+          id
+          name
+        }
+      }
+      appliedRules {
+        id
       }
     }
   }
@@ -250,6 +255,27 @@ export const UPDATE_TRANSACTION = gql`
         id
         name
       }
+    }
+  }
+`;
+
+export const APPLY_TRANSACTION_EDIT_TO_SIMILAR = gql`
+  mutation ApplyTransactionEditToSimilar(
+    $id: ID!
+    $matchDescription: String!
+    $input: UpdateTransactionInput!
+    $applyToFuture: Boolean
+    $applyToExisting: Boolean
+  ) {
+    applyTransactionEditToSimilar(
+      id: $id
+      matchDescription: $matchDescription
+      input: $input
+      applyToFuture: $applyToFuture
+      applyToExisting: $applyToExisting
+    ) {
+      affectedCount
+      futureRuleCreated
     }
   }
 `;
@@ -408,5 +434,55 @@ export const ATTACH_FILE_TO_HOLDING = gql`
 export const REMOVE_HOLDING_ATTACHMENT = gql`
   mutation RemoveHoldingAttachment($attachmentId: ID!) {
     removeHoldingAttachment(attachmentId: $attachmentId)
+  }
+`;
+
+// ── Transaction rules ─────────────────────────────────────────────────────────
+
+const RULE_RESPONSE_FIELDS = `
+  id
+  pattern
+  patternType
+  applicableTo
+  priority
+  isSystem
+  isImplicit
+  matchCount
+  createdAt
+  descriptionOverride
+  tagsOverride
+  categoryId
+  category { id name icon color applicableTo }
+  merchantId
+  merchant { id name domain logoAsset { id publicUrl } }
+`;
+
+export const CREATE_TRANSACTION_RULE = gql`
+  mutation CreateTransactionRule($input: CreateTransactionRuleInput!) {
+    createTransactionRule(input: $input) {
+      ${RULE_RESPONSE_FIELDS}
+    }
+  }
+`;
+
+export const UPDATE_TRANSACTION_RULE = gql`
+  mutation UpdateTransactionRule($id: ID!, $input: UpdateTransactionRuleInput!) {
+    updateTransactionRule(id: $id, input: $input) {
+      ${RULE_RESPONSE_FIELDS}
+    }
+  }
+`;
+
+export const DELETE_TRANSACTION_RULE = gql`
+  mutation DeleteTransactionRule($id: ID!) {
+    deleteTransactionRule(id: $id)
+  }
+`;
+
+export const REORDER_TRANSACTION_RULES = gql`
+  mutation ReorderTransactionRules($ids: [ID!]!) {
+    reorderTransactionRules(ids: $ids) {
+      ${RULE_RESPONSE_FIELDS}
+    }
   }
 `;

@@ -29,6 +29,8 @@ data class TransactionRuleDTO(
     val category: TransactionCategoryDTO?,
     val merchantId: UUID?,
     val merchant: MerchantDTO?,
+    val descriptionOverride: String?,
+    val tagsOverride: List<String>?,
     val pattern: String,
     val patternType: PatternType,
     val applicableTo: CategoryApplicableTo,
@@ -36,11 +38,24 @@ data class TransactionRuleDTO(
     val isSystem: Boolean,
     val isImplicit: Boolean,
     val matchCount: Int,
+    val position: Int,
     val createdAt: Instant,
 )
 
+data class TransactionRuleEdgeDTO(
+    val node: TransactionRuleDTO,
+    val cursor: String,
+)
+
+data class TransactionRuleConnectionDTO(
+    val edges: List<TransactionRuleEdgeDTO>,
+    val pageInfo: PageInfoDTO,
+    val totalCount: Int?,
+)
+
 data class CategoryTotalDTO(
-    val category: TransactionCategoryDTO,
+    val category: TransactionCategoryDTO?,
+    val uncategorized: Boolean,
     val totalAmount: Double,
     val transactionCount: Int,
     val percentage: Double,
@@ -91,6 +106,7 @@ data class TransactionDTO(
     val cardIdentifier: String?,
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,
+    val appliedRuleIds: List<UUID>,
     // Audit
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -124,4 +140,20 @@ data class TransactionConnectionDTO(
     val edges: List<TransactionEdgeDTO>,
     val pageInfo: PageInfoDTO,
     val totalCount: Int?,
+)
+
+data class SimilarTransactionEditPreviewDTO(
+    val similarCount: Int,
+    val matchDescription: String,
+    val supportsFuturePropagation: Boolean,
+)
+
+data class SimilarTransactionEditResultDTO(
+    val affectedCount: Int,
+    val futureRuleCreated: Boolean,
+)
+
+data class CreateTransactionPayloadDTO(
+    val transaction: TransactionDTO,
+    val appliedRules: List<TransactionRuleDTO>?,
 )

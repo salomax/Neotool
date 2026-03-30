@@ -47,7 +47,9 @@ import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
+import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
+import io.github.salomax.neotool.security.graphql.resolver.UserPreferencesResolver
 import jakarta.inject.Singleton
 import java.util.concurrent.CompletableFuture
 
@@ -56,6 +58,7 @@ import java.util.concurrent.CompletableFuture
  */
 @Singleton
 class SecurityWiringFactory(
+    private val userPreferencesResolver: UserPreferencesResolver,
     private val authResolver: SecurityAuthResolver,
     private val emailVerificationResolver: EmailVerificationResolver,
     private val authorizationResolver: io.github.salomax.neotool.security.graphql.resolver.AuthorizationResolver,
@@ -159,6 +162,12 @@ class SecurityWiringFactory(
                     val principal = env.principal()
                     val userId = principal.userId ?: throw IllegalArgumentException("User ID required")
                     emailVerificationResolver.myVerificationStatus(userId)
+                },
+            ).dataFetcher(
+                "userPreferences",
+                createValidatedDataFetcher(emptyList()) { env ->
+                    val principal = env.principal()
+                    userPreferencesResolver.userPreferences(principal)
                 },
             ).dataFetcher(
                 "checkPermission",
@@ -324,6 +333,15 @@ class SecurityWiringFactory(
                     val userId = principal.userId ?: throw IllegalArgumentException("User ID required")
                     val locale = env.getArgument<String>("locale") ?: "en"
                     emailVerificationResolver.resendVerificationEmail(userId, locale)
+                },
+            ).dataFetcher(
+                "updateUserPreferences",
+                createValidatedDataFetcher { env ->
+                    val principal = env.principal()
+                    val input =
+                        env.getArgument<Map<String, Any?>>("input")
+                            ?: throw IllegalArgumentException("input is required")
+                    userPreferencesResolver.updateUserPreferences(input, principal)
                 },
             ).dataFetcher(
                 "enableUser",
@@ -588,6 +606,31 @@ class SecurityWiringFactory(
                                     )
                             }
                         }
+                    },
+                )
+            }.type("UserPreferences") { type ->
+                type.dataFetcher(
+                    "language",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.language
+                    },
+                )
+                type.dataFetcher(
+                    "theme",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.theme
+                    },
+                )
+                type.dataFetcher(
+                    "blurBalances",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.blurBalances
+                    },
+                )
+                type.dataFetcher(
+                    "firstDayOfWeek",
+                    createValidatedDataFetcher { env ->
+                        env.getSource<UserPreferencesDTO>()?.firstDayOfWeek
                     },
                 )
             }.type("SignInPayload") { type ->

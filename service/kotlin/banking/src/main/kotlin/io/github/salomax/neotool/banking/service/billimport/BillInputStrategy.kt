@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.billimport
 
 import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.ImportTextDecoder

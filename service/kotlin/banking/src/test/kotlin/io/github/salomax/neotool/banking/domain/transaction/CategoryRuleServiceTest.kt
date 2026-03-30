@@ -49,6 +49,39 @@ class CategoryRuleServiceTest {
             assertThat(result).isEqualTo(rules)
             verify(ruleRepository).findUserRulesForAccount(accountId)
         }
+
+        @Test
+        fun `listRules with null filter returns all rules`() {
+            val rules = listOf(rule(pattern = "all"))
+            whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(rules)
+
+            val result = service.listRules(accountId, null)
+
+            assertThat(result).isEqualTo(rules)
+            verify(ruleRepository).findRulesForAccount(accountId)
+        }
+
+        @Test
+        fun `listRules with false filter returns only user rules`() {
+            val rules = listOf(rule(pattern = "user"))
+            whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(rules)
+
+            val result = service.listRules(accountId, false)
+
+            assertThat(result).isEqualTo(rules)
+            verify(ruleRepository).findUserRulesForAccount(accountId)
+        }
+
+        @Test
+        fun `listRules with true filter returns system rules`() {
+            val rules = listOf(rule(pattern = "system", accountId = null, isSystem = true))
+            whenever(ruleRepository.findSystemRules()).thenReturn(rules)
+
+            val result = service.listRules(accountId, true)
+
+            assertThat(result).isEqualTo(rules)
+            verify(ruleRepository).findSystemRules()
+        }
     }
 
     @Nested

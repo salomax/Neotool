@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.model.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
+import io.github.salomax.neotool.banking.service.transaction.TransactionDescriptionNormalizer
 
 object MerchantMapper {
 
@@ -19,6 +20,7 @@ object MerchantMapper {
     fun toEntity(domain: Merchant): MerchantEntity =
         MerchantEntity(
             id = null,
+            merchantName = TransactionDescriptionNormalizer.normalize(domain.name),
             name = domain.name,
             domain = domain.domain,
             sector = domain.sector,

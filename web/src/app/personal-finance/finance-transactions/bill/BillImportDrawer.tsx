@@ -52,6 +52,7 @@ import { NumericFormat } from 'react-number-format';
 import dayjs from 'dayjs';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
 import { CategorySelect } from '../category/CategorySelect';
+import { publishTransactionsImported } from '../events';
 
 const MAX_FILE_BYTES = 3 * 1024 * 1024; // 3 MB
 const ACCEPTED_EXTENSIONS = ['.ofx', '.csv', '.xlsx', '.xls', '.pdf'];
@@ -266,6 +267,7 @@ function buildDraftCardName(
   template: SharedCardTemplate,
   issuerLabel: string,
   lastFourDigitsPlaceholder: string,
+  fallbackBaseName: string,
 ): string {
   const customBase = template.descriptionBase.trim();
   if (customBase) {
@@ -279,7 +281,7 @@ function buildDraftCardName(
     template.subtype && template.subtype !== 'CREDIT_CARD' ? formatCardDescriptor(template.subtype) : '',
   ].filter(Boolean);
 
-  const baseName = parts.join(' ').trim() || 'Cartao';
+  const baseName = parts.join(' ').trim() || fallbackBaseName;
   return `${baseName} ${lastFourDigitsPlaceholder}`;
 }
 
@@ -347,6 +349,10 @@ export function BillImportDrawer({
     },
     [t],
   );
+
+  const defaultDraftCardBaseName = React.useMemo(() => {
+    return t('financeTransactions.billImport.cardMatchingStep.defaultBaseName');
+  }, [t]);
 
   // Sub-flow: inline card creation
   const [createCardForIndex, setCreateCardForIndex] = useState<number | null>(null);
@@ -800,8 +806,9 @@ export function BillImportDrawer({
 
   const templatePreviewName = buildDraftCardName(
     sharedCardTemplate,
-    selectedTemplateIssuerLabel || 'Cartao',
+    selectedTemplateIssuerLabel,
     'XXXX',
+    defaultDraftCardBaseName,
   );
 
   const handleTemplateFieldChange = useCallback(
@@ -885,8 +892,9 @@ export function BillImportDrawer({
           subtype: sharedCardTemplate.subtype,
           name: buildDraftCardName(
             sharedCardTemplate,
-            selectedTemplateIssuerLabel || 'Cartao',
+            selectedTemplateIssuerLabel,
             trimmedLastFour || t('financeTransactions.billImport.cardMatchingStep.noLastFourPlaceholder'),
+            defaultDraftCardBaseName,
           ),
           currencyCode: 'BRL',
           themeColor: DEFAULT_ACCOUNT_COLOR,
@@ -957,6 +965,7 @@ export function BillImportDrawer({
     }
   }, [
     createFinancialAccount,
+    defaultDraftCardBaseName,
     draftBucketSummaries,
     draftCards,
     duplicateDraftLastFourDigits.size,
@@ -1064,13 +1073,14 @@ export function BillImportDrawer({
       return t('financeTransactions.import.uploadStep.unsupportedType');
     }
     if (f.size > MAX_FILE_BYTES) {
-      return t('financeTransactions.import.uploadStep.fileTooLarge');
+      return t('financeTransactions.import.uploadStep.fileTooLarge', { maxMb: MAX_FILE_BYTES / (1024 * 1024) });
     }
     return null;
   };
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
+    e.target.value = '';
     if (!f) return;
     setPdfPassword('');
     setIsEncryptedPdf(false);
@@ -1250,6 +1260,7 @@ export function BillImportDrawer({
       const status = result.data?.confirmBillImport?.status;
       if (status === 'DONE' || status === 'COMPLETED') {
         setStep('result');
+        publishTransactionsImported({ source: 'bill' });
         onImportCompleted?.();
       } else {
         setErrorMessage(
@@ -1288,7 +1299,12 @@ export function BillImportDrawer({
       <Box
         onDrop={handleDrop}
         onDragOver={(e) => e.preventDefault()}
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+            fileInputRef.current.click();
+          }
+        }}
         sx={{
           border: '3px dashed',
           borderColor: fileError ? 'error.main' : 'divider',
@@ -2358,7 +2374,11 @@ export function BillImportDrawer({
   return (
     <>
       <Drawer open={open} onClose={handleClose} anchor="right" size="md">
-        <Drawer.Header title={stepTitles[step]} showCloseButton />
+        <Drawer.Header
+          title={stepTitles[step]}
+          showCloseButton
+          closeButtonAriaLabel={t('financeTransactions.actions.close')}
+        />
         <Drawer.Body>{body}</Drawer.Body>
         {footer && <Drawer.Footer>{footer}</Drawer.Footer>}
       </Drawer>

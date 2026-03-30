@@ -11,7 +11,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
-import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
 import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO

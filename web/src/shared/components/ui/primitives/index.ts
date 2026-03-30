@@ -1,6 +1,7 @@
 // Primitives - Basic UI building blocks
 export { Button } from './Button';
 export { Avatar } from './Avatar';
+export { Logo } from './Logo';
 export { Badge } from './Badge';
 export { Card, type CardProps } from './Card';
 export { Chip } from './Chip';

@@ -1,10 +1,8 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import {
   Autocomplete,
   TextField,
   Chip,
-  Box,
-  useTheme,
   alpha,
   Typography,
   TextFieldProps
@@ -18,6 +16,7 @@ interface TagsInputProps {
   label?: string;
   variant?: TextFieldProps['variant'];
   InputProps?: TextFieldProps['InputProps'];
+  size?: TextFieldProps['size'];
 }
 
 // Generate a random color based on string content to be consistent
@@ -45,10 +44,9 @@ export function TagsInput({
   placeholder,
   label,
   variant = 'outlined',
-  InputProps
+  InputProps,
+  size = 'small',
 }: TagsInputProps) {
-  const theme = useTheme();
-
   return (
     <Autocomplete
       multiple
@@ -90,13 +88,12 @@ export function TagsInput({
           variant={variant}
           label={label}
           placeholder={value.length === 0 ? placeholder : ''}
-          size="small"
+          size={size}
           fullWidth
           InputProps={{
             ...params.InputProps,
             ...InputProps,
             sx: {
-              ...(variant === 'outlined' ? { borderRadius: '0.3rem' } : {}),
               ...(InputProps?.sx || {})
             }
           }}

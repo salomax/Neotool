@@ -5,11 +5,13 @@ import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -55,7 +57,15 @@ private fun ImportSource.toTransactionSource(): TransactionSource =
     when (this) {
         ImportSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
         ImportSource.PLUGGY -> TransactionSource.OPEN_FINANCE
-        else -> TransactionSource.MANUAL
+        ImportSource.OFX -> TransactionSource.OFX
+        ImportSource.CSV_AUTO,
+        ImportSource.CSV_NUBANK,
+        ImportSource.CSV_ITAU,
+        ImportSource.CSV_BRADESCO,
+        ImportSource.CSV_SANTANDER -> TransactionSource.CSV
+        ImportSource.NFC_E -> TransactionSource.NFC_E
+        ImportSource.RECEIPT_OCR -> TransactionSource.RECEIPT_OCR
+        else -> TransactionSource.MANUAL // AUTO: format not yet determined
     }
 
 /**
@@ -69,6 +79,7 @@ open class ImportProcessor(
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
     private val categorizationService: TransactionRuleEngine,
+    private val accountPreferencesService: AccountPreferencesService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     /**
@@ -106,16 +117,22 @@ open class ImportProcessor(
         val sameSourceDuplicateCache = mutableMapOf<String, Boolean>()
         val fingerprintDuplicateCache = mutableMapOf<String, Boolean>()
 
+        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+
         val categorizationRules =
-            try {
-                categorizationService.preloadRules(accountId)
-            } catch (e: Exception) {
-                logger.warn(
-                    "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
-                    accountId,
-                    e,
-                )
+            if (mode == RuleApplicationMode.NEVER) {
                 emptyList()
+            } else {
+                try {
+                    categorizationService.preloadRules(accountId)
+                } catch (e: Exception) {
+                    logger.warn(
+                        "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
+                        accountId,
+                        e,
+                    )
+                    emptyList()
+                }
             }
 
         rows.forEachIndexed { index, parsed ->
@@ -202,21 +219,26 @@ open class ImportProcessor(
                         CreditDebitType.DEBIT -> TransactionType.OTHER_EXPENSE
                         CreditDebitType.CREDIT -> TransactionType.OTHER_INCOME
                     }
+                val ruleLookupDescription = parsed.descriptionRaw?.takeIf { it.isNotBlank() } ?: parsed.description
                 val categorySuggestion =
-                    try {
-                        categorizationService.suggestFromRulesRecordingMatch(
-                            categorizationRules,
-                            parsed.description,
-                            parsed.creditDebitType,
-                        )
-                    } catch (e: Exception) {
-                        logger.warn(
-                            "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
-                            accountId,
-                            index,
-                            e,
-                        )
+                    if (mode == RuleApplicationMode.NEVER) {
                         null
+                    } else {
+                        try {
+                            categorizationService.suggestFromRulesRecordingMatch(
+                                categorizationRules,
+                                ruleLookupDescription,
+                                parsed.creditDebitType,
+                            )
+                        } catch (e: Exception) {
+                            logger.warn(
+                                "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
+                                accountId,
+                                index,
+                                e,
+                            )
+                            null
+                        }
                     }
                 val transaction =
                     Transaction(
@@ -231,16 +253,19 @@ open class ImportProcessor(
                         currencyCode = parsed.currencyCode,
                         date = parsed.date,
                         transactionDatetime = parsed.transactionDatetime,
-                        description = parsed.description,
+                        description = categorySuggestion?.descriptionOverride ?: parsed.description,
                         descriptionRaw = parsed.descriptionRaw,
+                        tags = categorySuggestion?.tagsOverride ?: emptyList(),
                         counterpartyName = parsed.counterpartyName,
                         counterpartyDocument = parsed.counterpartyDocument,
                         providerTransactionId = parsed.providerTransactionId,
                         totalInstallments = parsed.totalInstallments,
                         importFingerprint = fingerprint,
                         importJobId = importJobId,
+                        sourceData = buildSourceData(parsed),
                         categoryId = categorySuggestion?.categoryId,
                         categorySource = categorySuggestion?.let { CategorySource.RULE },
+                        appliedRuleIds = categorySuggestion?.appliedRuleIds ?: emptyList(),
                         createdAt = now,
                         updatedAt = now,
                     )
@@ -258,4 +283,16 @@ open class ImportProcessor(
             errors = errors,
         )
     }
+
+    private fun buildSourceData(parsed: ParsedTransaction): Map<String, Any?> =
+        buildMap {
+            put("description", parsed.description)
+            parsed.descriptionRaw?.let { put("descriptionRaw", it) }
+            put("amount", parsed.amount)
+            put("currencyCode", parsed.currencyCode)
+            parsed.counterpartyName?.let { put("counterpartyName", it) }
+            parsed.counterpartyDocument?.let { put("counterpartyDocument", it) }
+            parsed.providerTransactionId?.let { put("providerTransactionId", it) }
+            parsed.totalInstallments?.let { put("totalInstallments", it) }
+        }
 }

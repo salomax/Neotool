@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.graphql.merchant
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
-import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO

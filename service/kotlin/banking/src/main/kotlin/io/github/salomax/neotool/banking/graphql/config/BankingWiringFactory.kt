@@ -5,7 +5,7 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
@@ -24,6 +24,7 @@ import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
+import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -40,6 +41,7 @@ class BankingWiringFactory(
     private val transactionResolver: TransactionResolver,
     private val transactionCategoryResolver: TransactionCategoryResolver,
     private val merchantResolver: MerchantResolver,
+    private val accountPreferencesResolver: AccountPreferencesResolver,
     private val investmentResolver: InvestmentResolver,
     private val pendingActionResolver: PendingActionResolver,
     private val investmentQueryService: InvestmentQueryService,
@@ -69,12 +71,21 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "accountPreferences",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        accountPreferencesResolver.accountPreferences(principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "transactions",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         val financialAccountId = env.getArgument<String?>("financialAccountId")
                         val belongsToUserId = env.getArgument<String?>("belongsToUserId")
                         val belongsToName = env.getArgument<String?>("belongsToName")
+                        val search = env.getArgument<String?>("search")
                         val tags = env.getArgument<List<String>?>("tags")
                         val billId = env.getArgument<String?>("billId")
                         val categoryId = env.getArgument<String?>("categoryId")
@@ -91,6 +102,7 @@ class BankingWiringFactory(
                             financialAccountId = financialAccountId,
                             belongsToUserId = belongsToUserId,
                             belongsToName = belongsToName,
+                            search = search,
                             tags = tags,
                             billId = billId,
                             categoryId = categoryId,
@@ -176,7 +188,36 @@ class BankingWiringFactory(
                 "transactionRules",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
-                        transactionCategoryResolver.transactionRules(principal)
+                        val isSystem = env.getArgument<Boolean?>("isSystem")
+                        val search = env.getArgument<String?>("search")
+                        val first = env.getArgument<Int?>("first")
+                        val after = env.getArgument<String?>("after")
+                        transactionCategoryResolver.transactionRules(isSystem, search, first, after, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "previewTransactionRule",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { _ ->
+                        val pattern = env.getArgument<String>("pattern")
+                            ?: throw IllegalArgumentException("pattern is required")
+                        val patternType = env.getArgument<String>("patternType")
+                            ?: throw IllegalArgumentException("patternType is required")
+                        val sample = env.getArgument<String>("sample")
+                            ?: throw IllegalArgumentException("sample is required")
+                        transactionCategoryResolver.previewTransactionRule(pattern, patternType, sample)
+                    }
+                },
+            )
+            .dataFetcher(
+                "similarTransactionEditPreview",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        transactionResolver.similarTransactionEditPreview(id, principal)
                     }
                 },
             )
@@ -188,6 +229,7 @@ class BankingWiringFactory(
                             financialAccountId = env.getArgument("financialAccountId"),
                             belongsToUserId = env.getArgument("belongsToUserId"),
                             belongsToName = env.getArgument("belongsToName"),
+                            search = env.getArgument("search"),
                             tags = env.getArgument("tags"),
                             billId = env.getArgument("billId"),
                             categoryId = env.getArgument("categoryId"),
@@ -208,6 +250,7 @@ class BankingWiringFactory(
                             financialAccountId = env.getArgument("financialAccountId"),
                             belongsToUserId = env.getArgument("belongsToUserId"),
                             belongsToName = env.getArgument("belongsToName"),
+                            search = env.getArgument("search"),
                             tags = env.getArgument("tags"),
                             billId = env.getArgument("billId"),
                             categoryId = env.getArgument("categoryId"),
@@ -406,6 +449,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "updateAccountPreferences",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        accountPreferencesResolver.updateAccountPreferences(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "createTransaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
@@ -454,6 +508,32 @@ class BankingWiringFactory(
                             env.getArgument<String>("categoryId")
                                 ?: throw IllegalArgumentException("categoryId is required")
                         transactionResolver.bulkCategorize(transactionIds, categoryId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "applyTransactionEditToSimilar",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val matchDescription =
+                            env.getArgument<String>("matchDescription")
+                                ?: throw IllegalArgumentException("matchDescription is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        val applyToFuture = env.getArgument<Boolean?>("applyToFuture") ?: true
+                        val applyToExisting = env.getArgument<Boolean?>("applyToExisting") ?: true
+                        transactionResolver.applyTransactionEditToSimilar(
+                            id = id,
+                            matchDescription = matchDescription,
+                            input = input,
+                            applyToFuture = applyToFuture,
+                            applyToExisting = applyToExisting,
+                            principal = principal,
+                        )
                     }
                 },
             )
@@ -670,6 +750,16 @@ class BankingWiringFactory(
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
                         transactionCategoryResolver.deleteTransactionRule(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "reorderTransactionRules",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val ids = env.getArgument<List<String>>("ids")
+                            ?: throw IllegalArgumentException("ids is required")
+                        transactionCategoryResolver.reorderTransactionRules(ids, principal)
                     }
                 },
             )

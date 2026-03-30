@@ -56,6 +56,7 @@ class TransactionMapperTest {
                 billPostDate = null,
                 providerTransactionId = "ofb-1",
                 providerAccountId = "acc-1",
+                appliedRuleIds = """["${UUID.randomUUID()}"]""",
                 deletedAt = null,
                 createdAt = now,
                 updatedAt = now,
@@ -86,6 +87,7 @@ class TransactionMapperTest {
         assertThat(domain.cardIdentifier).isEqualTo("****1234")
         assertThat(domain.providerTransactionId).isEqualTo("ofb-1")
         assertThat(domain.providerAccountId).isEqualTo("acc-1")
+        assertThat(domain.appliedRuleIds).hasSize(1)
         assertThat(domain.createdAt).isEqualTo(now)
         assertThat(domain.updatedAt).isEqualTo(now)
     }
@@ -110,6 +112,7 @@ class TransactionMapperTest {
                 categoryId = null,
                 installmentNumber = 1,
                 totalInstallments = 12,
+                appliedRuleIds = listOf(UUID.randomUUID()),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -128,6 +131,7 @@ class TransactionMapperTest {
         assertThat(entity.description).isEqualTo(domain.description)
         assertThat(entity.installmentNumber).isEqualTo(1.toShort())
         assertThat(entity.totalInstallments).isEqualTo(12.toShort())
+        assertThat(entity.appliedRuleIds).isNotBlank()
         assertThat(entity.createdAt).isEqualTo(now)
         assertThat(entity.updatedAt).isEqualTo(now)
     }

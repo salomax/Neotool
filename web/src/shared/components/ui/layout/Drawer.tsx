@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext } from "react";
+import React, { createContext, useContext, useId } from "react";
 import {
   Drawer as MUIDrawer,
   DrawerProps as MUIDrawerProps,
@@ -60,6 +60,9 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
   height?: number | string;
   /** If true, forces temporary variant on mobile devices. Default: true */
   forceMobileTemporary?: boolean;
+  ariaLabel?: string;
+  ariaLabelledBy?: string;
+  ariaDescribedBy?: string;
   children: React.ReactNode;
 }
 
@@ -70,12 +73,15 @@ export interface DrawerHeaderProps {
   locale?: string;
   /** Icon displayed before the title */
   icon?: React.ReactNode;
+  titleId?: string;
   /** Props forwarded to the title Typography component */
   titleTypographyProps?: TypographyProps;
   /** Show close button. Default: true */
   showCloseButton?: boolean;
+  closeButtonAriaLabel?: string;
   /** Show menu button. Default: false */
   showMenuButton?: boolean;
+  menuButtonAriaLabel?: string;
   /** Callback when menu button is clicked */
   onMenuClick?: () => void;
   /** Custom content for the header (overrides title if provided) */
@@ -238,12 +244,17 @@ const DrawerComponent: React.FC<DrawerProps> = ({
   width,
   height = '100%',
   forceMobileTemporary = true,
+  ariaLabel,
+  ariaLabelledBy,
+  ariaDescribedBy,
   children,
   sx,
+  PaperProps: paperProps,
   ...props
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const internalTitleId = useId();
 
   // Auto-adjust variant for mobile (unless explicitly disabled)
   const drawerVariant = isMobile && forceMobileTemporary ? 'temporary' : variant;
@@ -266,19 +277,23 @@ const DrawerComponent: React.FC<DrawerProps> = ({
   };
 
   // Extract subcomponents from children
-  let headerContent: React.ReactNode = null;
-  let bodyContent: React.ReactNode = null;
-  let footerContent: React.ReactNode = null;
+  let headerContent: React.ReactElement<DrawerHeaderProps> | null = null;
+  let bodyContent: React.ReactElement<DrawerBodyProps> | null = null;
+  let footerContent: React.ReactElement<DrawerFooterProps> | null = null;
   let otherChildren: React.ReactNode[] = [];
+  let headerTitle: string | undefined;
+  let headerHasCustomChildren = false;
 
   React.Children.forEach(children, (child) => {
     if (React.isValidElement(child)) {
       if (child.type === Header) {
-        headerContent = child;
+        headerContent = child as React.ReactElement<DrawerHeaderProps>;
+        headerTitle = (child.props as any).title;
+        headerHasCustomChildren = Boolean((child.props as any).children);
       } else if (child.type === Body) {
-        bodyContent = child;
+        bodyContent = child as React.ReactElement<DrawerBodyProps>;
       } else if (child.type === Footer) {
-        footerContent = child;
+        footerContent = child as React.ReactElement<DrawerFooterProps>;
       } else {
         otherChildren.push(child);
       }
@@ -290,6 +305,17 @@ const DrawerComponent: React.FC<DrawerProps> = ({
   // If no subcomponents are used, render children directly in body area
   const hasSubcomponents = headerContent || bodyContent || footerContent;
   const bodyToRender = bodyContent || (hasSubcomponents ? null : <Body>{children}</Body>);
+  const headerHasTitle = Boolean(headerTitle) && !headerHasCustomChildren;
+  const titleId = headerHasTitle ? (ariaLabelledBy ?? internalTitleId) : undefined;
+  const headerToRender = headerContent ? React.cloneElement(headerContent, { titleId }) : null;
+  const isModalDrawer = drawerVariant === 'temporary';
+  const mergedPaperProps = {
+    ...(isModalDrawer ? { role: 'dialog', 'aria-modal': true } : {}),
+    ...(ariaLabel ? { 'aria-label': ariaLabel } : {}),
+    ...(ariaDescribedBy ? { 'aria-describedby': ariaDescribedBy } : {}),
+    ...((ariaLabelledBy ?? titleId) ? { 'aria-labelledby': ariaLabelledBy ?? titleId } : {}),
+    ...paperProps,
+  };
 
   return (
     <MUIDrawer
@@ -298,6 +324,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
       variant={drawerVariant}
       anchor={anchor}
       sx={drawerSx}
+      PaperProps={mergedPaperProps}
       {...props}
     >
       <DrawerContext.Provider value={{ onClose }}>
@@ -305,7 +332,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
           {/* Header */}
           {headerContent && (
             <>
-              {headerContent}
+              {headerToRender}
               <Divider />
             </>
           )}
@@ -333,9 +360,12 @@ const Header: React.FC<DrawerHeaderProps> = ({
   title,
   locale,
   icon,
+  titleId,
   titleTypographyProps,
   showCloseButton = true,
+  closeButtonAriaLabel,
   showMenuButton = false,
+  menuButtonAriaLabel,
   onMenuClick,
   children,
 }) => {
@@ -388,7 +418,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
             onClick={onMenuClick || (() => {})}
             size="small"
             sx={{ mr: 1 }}
-            aria-label={title ? `${title} menu` : "Menu"}
+            aria-label={menuButtonAriaLabel ?? (title ? `${title} menu` : "Menu")}
             disabled={!onMenuClick}
           >
             <MenuIcon />
@@ -403,12 +433,12 @@ const Header: React.FC<DrawerHeaderProps> = ({
           <Typography 
             variant="h5"
             component="h2"
-            fontWeight={400}
             noWrap
             sx={[
               { flex: 1, minWidth: 0, letterSpacing: "0.05em", lineHeight: 1.15 },
               ...(Array.isArray(titleSx) ? titleSx : titleSx ? [titleSx] : []),
             ]}
+            id={titleId}
             {...restTitleTypographyProps}
           >
             {displayTitle}
@@ -420,7 +450,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
         <IconButton
           onClick={onClose}
           size="small"
-          aria-label={title ? `Close ${title}` : "Close drawer"}
+          aria-label={closeButtonAriaLabel ?? (title ? `Close ${title}` : "Close drawer")}
         >
           <CloseIcon />
         </IconButton>

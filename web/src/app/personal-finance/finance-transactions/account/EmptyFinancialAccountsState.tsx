@@ -12,7 +12,7 @@ export function EmptyFinancialAccountsState({ onSelectType }: EmptyFinancialAcco
   const { t } = useTranslation(personalFinanceTranslations);
 
   return (
-    <Container maxWidth="md" sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+    <Container maxWidth="md" data-testid="empty-accounts-state" sx={{ py: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
       <Box sx={{ mb: 6, maxWidth: 'sm', mx: 'auto' }}>
         <Typography 
             variant="h4" 

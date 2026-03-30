@@ -22,7 +22,3 @@ data class FundMarketSnapshot(
     val taxProfile: FundTaxProfile,
     val latestNav: FundMarketNav?,
 )
-
-interface FundMarketDataProvider {
-    fun getSnapshotsByCnpj(cnpjs: Set<String>): Map<String, FundMarketSnapshot>
-}

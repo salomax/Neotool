@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.model.transaction.TransactionCategoryEntity
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import jakarta.inject.Singleton

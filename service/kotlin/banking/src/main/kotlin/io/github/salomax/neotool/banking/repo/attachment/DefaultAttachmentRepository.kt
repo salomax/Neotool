@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.repo.attachment
 
 import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
-import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachmentRepository
+import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
-import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachmentRepository
+import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.model.attachment.HoldingAttachmentMapper
 import io.github.salomax.neotool.banking.model.attachment.TransactionAttachmentMapper
 import io.micronaut.transaction.annotation.Transactional

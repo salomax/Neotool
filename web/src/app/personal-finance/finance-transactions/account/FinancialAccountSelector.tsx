@@ -231,6 +231,7 @@ export function FinancialAccountSelector({
         elevation={0}
         variant="outlined"
         onClick={handleClick}
+        data-testid="account-selector"
         sx={{
           p: 2,
           minHeight: 80,
@@ -295,10 +296,11 @@ export function FinancialAccountSelector({
         variant="body1"
         underline="none"
         onClick={onNewAccount}
-        sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 1, 
+        data-testid="btn-new-account"
+        sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
             fontWeight: 'medium',
             mt: 2,
             justifyContent: 'center',

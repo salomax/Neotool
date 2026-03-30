@@ -28,6 +28,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
 import { useQuery, useMutation } from '@apollo/client/react';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '../../i18n';
 import { TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
 import {
   CREATE_TRANSACTION_CATEGORY,
@@ -50,7 +52,7 @@ export type CategoryPickerView = 'browse' | 'create' | 'confirm' | 'deleteConfir
 export interface CategoryPickerProps {
   value: string | null;
   onChange: (categoryId: string | null) => void;
-  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER';
+  creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER' | 'ANY';
   anchorEl: HTMLElement | null;
   onClose: () => void;
 }
@@ -103,6 +105,7 @@ export function CategoryPicker({
   onClose,
 }: CategoryPickerProps) {
   const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
   const [view, setView] = useState<CategoryPickerView>('browse');
   const [searchQuery, setSearchQuery] = useState('');
   const [createName, setCreateName] = useState('');
@@ -137,11 +140,20 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : null;
     const allowedApplicableTo = new Set<CategoryApplicableTo>(
-      mainApplicableTo === CategoryApplicableTo.Transfer
-        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
-        : [mainApplicableTo, CategoryApplicableTo.Any]
+      mainApplicableTo === null
+        ? [
+            CategoryApplicableTo.Any,
+            CategoryApplicableTo.Income,
+            CategoryApplicableTo.Expense,
+            CategoryApplicableTo.Transfer,
+          ]
+        : mainApplicableTo === CategoryApplicableTo.Transfer
+          ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+          : [mainApplicableTo, CategoryApplicableTo.Any]
     );
     const typeFiltered = allCategories.filter((c) => allowedApplicableTo.has(c.applicableTo));
     const idSet = new Set(typeFiltered.map((c) => c.id));
@@ -153,7 +165,7 @@ export function CategoryPicker({
   React.useEffect(() => {
     if (prevCreditDebitType.current === creditDebitType) return;
     prevCreditDebitType.current = creditDebitType;
-    if (value !== null) onChange(null);
+    if (creditDebitType !== 'ANY' && value !== null) onChange(null);
   }, [creditDebitType, value, onChange]);
 
   React.useEffect(() => {
@@ -166,34 +178,50 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : null;
     const allowedApplicableTo = new Set<CategoryApplicableTo>(
-      expectedApplicableTo === CategoryApplicableTo.Transfer
-        ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
-        : [expectedApplicableTo, CategoryApplicableTo.Any]
+      expectedApplicableTo === null
+        ? [
+            CategoryApplicableTo.Any,
+            CategoryApplicableTo.Income,
+            CategoryApplicableTo.Expense,
+            CategoryApplicableTo.Transfer,
+          ]
+        : expectedApplicableTo === CategoryApplicableTo.Transfer
+          ? [CategoryApplicableTo.Transfer, CategoryApplicableTo.Any]
+          : [expectedApplicableTo, CategoryApplicableTo.Any]
     );
     if (!allowedApplicableTo.has(selected.applicableTo)) onChange(null);
   }, [value, data?.transactionCategories, creditDebitType, onChange]);
 
   const searchLower = searchQuery.trim().toLowerCase();
-  const filteredRoots = useMemo(() => {
-    if (!searchLower) return roots;
-    return roots.filter((r) => r.name.toLowerCase().includes(searchLower));
-  }, [roots, searchLower]);
-
   const filteredChildren = useMemo(() => {
     if (!searchLower) return byParent;
     const out: Record<string, TransactionCategory[]> = {};
     roots.forEach((r) => {
       const id = r.id;
       if (!id) return;
-      const children = (byParent[id] ?? []).filter((c) =>
-        c.name.toLowerCase().includes(searchLower)
-      );
+      const rootMatches = r.name.toLowerCase().includes(searchLower);
+      const allChildren = byParent[id] ?? [];
+      const children = rootMatches
+        ? allChildren
+        : allChildren.filter((c) => c.name.toLowerCase().includes(searchLower));
       if (children.length > 0) out[id] = [...children].sort(compareCategoryForPicker);
     });
     return out;
   }, [roots, byParent, searchLower]);
+
+  const filteredRoots = useMemo(() => {
+    if (!searchLower) return roots;
+    return roots.filter((r) => {
+      if (r.name.toLowerCase().includes(searchLower)) return true;
+      const id = r.id;
+      if (!id) return false;
+      return (filteredChildren[id]?.length ?? 0) > 0;
+    });
+  }, [roots, filteredChildren, searchLower]);
 
 
   const handleSelect = useCallback(
@@ -225,7 +253,9 @@ export function CategoryPicker({
         ? CategoryApplicableTo.Expense
         : creditDebitType === 'CREDIT'
           ? CategoryApplicableTo.Income
-          : CategoryApplicableTo.Transfer;
+          : creditDebitType === 'TRANSFER'
+            ? CategoryApplicableTo.Transfer
+            : CategoryApplicableTo.Any;
     try {
       const { data: result } = await createCategory({
         variables: {
@@ -302,7 +332,7 @@ export function CategoryPicker({
         <TextField
           fullWidth
           size="small"
-          placeholder="Buscar categoria..."
+          placeholder={t('financeTransactions.categoryPicker.searchPlaceholder')}
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           InputProps={{
@@ -327,7 +357,7 @@ export function CategoryPicker({
           <ListItemIcon sx={{ minWidth: 40 }}>
             <CategoryIcon iconName="help_outline" color={theme.palette.text.secondary} size={22} />
           </ListItemIcon>
-          <ListItemText primary="Sem categoria" primaryTypographyProps={{ variant: 'body2' }} />
+          <ListItemText primary={t('financeTransactions.categoryPicker.noCategory')} primaryTypographyProps={{ variant: 'body2' }} />
         </ListItemButton>
 
         {filteredRoots.map((root) => {
@@ -366,7 +396,7 @@ export function CategoryPicker({
                     size="small"
                     onClick={handleDeleteClick(root)}
                     sx={{ opacity: 0, mr: 0.5, alignSelf: 'center' }}
-                    aria-label="Excluir"
+                    aria-label={t('financeTransactions.categoryPicker.deleteAriaLabel')}
                   >
                     <CloseIcon fontSize="small" />
                   </IconButton>
@@ -401,7 +431,7 @@ export function CategoryPicker({
                       size="small"
                       onClick={handleDeleteClick(child)}
                       sx={{ opacity: 0 }}
-                      aria-label="Excluir"
+                      aria-label={t('financeTransactions.categoryPicker.deleteAriaLabel')}
                     >
                       <CloseIcon fontSize="small" />
                     </IconButton>
@@ -415,7 +445,7 @@ export function CategoryPicker({
         {filteredRoots.length === 0 && (
           <ListItemButton disabled>
             <ListItemText
-              primary="Nenhuma categoria encontrada"
+              primary={t('financeTransactions.categoryPicker.noResults')}
               primaryTypographyProps={{
                 variant: 'body2',
                 color: 'text.secondary',
@@ -448,7 +478,7 @@ export function CategoryPicker({
           }}
         >
           <AddIcon fontSize="small" />
-          Nova categoria
+          {t('financeTransactions.categoryPicker.newCategory')}
         </Link>
       </Box>
     </>
@@ -471,13 +501,13 @@ export function CategoryPicker({
         <IconButton
           size="small"
           onClick={handleBackToBrowse}
-          aria-label="Voltar"
+          aria-label={t('financeTransactions.categoryPicker.backAriaLabel')}
           sx={{ mr: 0.5 }}
         >
           <ArrowBackIcon fontSize="small" />
         </IconButton>
         <Typography variant="subtitle1" fontWeight={600}>
-          Nova categoria
+          {t('financeTransactions.categoryPicker.newCategory')}
         </Typography>
       </Stack>
 
@@ -501,8 +531,8 @@ export function CategoryPicker({
           </Alert>
         )}
         <TextField
-          label="Nome"
-          placeholder="Ex.: Supermercado"
+          label={t('financeTransactions.categoryPicker.nameLabel')}
+          placeholder={t('financeTransactions.categoryPicker.namePlaceholder')}
           value={createName}
           onChange={(e) => setCreateName(e.target.value)}
           required
@@ -601,7 +631,7 @@ export function CategoryPicker({
           startIcon={createLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
           sx={{ height: 48, borderRadius: 0 }}
         >
-          {createLoading ? 'Salvando...' : 'Salvar'}
+          {createLoading ? t('financeTransactions.actions.saving') : t('financeTransactions.actions.save')}
         </Button>
       </Box>
     </Box>
@@ -611,7 +641,7 @@ export function CategoryPicker({
     <Box sx={{ p: 3, textAlign: 'center' }}>
       <CheckIcon sx={{ fontSize: 48, color: 'success.main', mb: 1 }} />
       <Typography variant="body1">
-        &quot;{confirmCreatedName}&quot; criada
+        {t('financeTransactions.categoryPicker.created', { name: confirmCreatedName ?? '' })}
       </Typography>
     </Box>
   );
@@ -639,12 +669,11 @@ export function CategoryPicker({
         </Box>
 
         <Typography variant="h6" sx={{ fontWeight: 700, mb: 1 }}>
-          Excluir &apos;{category.name}&apos;?
+          {t('financeTransactions.categoryPicker.deleteTitle', { name: category.name })}
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: hasChildren ? 1.5 : 3 }}>
-          As transações que usam esta categoria manterão a atribuição no histórico. Esta ação não
-          pode ser desfeita.
+          {t('financeTransactions.categoryPicker.deleteDescription')}
         </Typography>
 
         {deleteError ? (
@@ -667,7 +696,7 @@ export function CategoryPicker({
             }}
           >
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
-              As subcategorias a seguir também serão excluídas:
+              {t('financeTransactions.categoryPicker.deleteChildrenTitle')}
             </Typography>
             <Box component="ul" sx={{ m: 0, pl: 2 }}>
               {children.map((c) => (
@@ -700,7 +729,7 @@ export function CategoryPicker({
               },
             }}
           >
-            Cancelar
+            {t('financeTransactions.actions.cancel')}
           </Button>
           <Button
             variant="contained"
@@ -720,7 +749,7 @@ export function CategoryPicker({
             disabled={deleteLoading}
             startIcon={deleteLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
           >
-            Confirmar
+            {t('financeTransactions.actions.delete')}
           </Button>
         </Box>
       </Box>
