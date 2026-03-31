@@ -56,7 +56,24 @@
     "yes": "Sim",
     "no": "Não",
     "preferences": {
-      "title": "Preferências"
+      "title": "Preferências",
+      "loading": "Carregando preferências...",
+      "updateError": "Não foi possível salvar a preferência. Tente novamente.",
+      "ownerOnly": "Apenas o proprietário da conta pode alterar esta configuração",
+      "interface": "Interface",
+      "theme": "Tema da interface",
+      "themeHelper": "Escolha entre claro, escuro ou sistema.",
+      "themeLight": "Claro",
+      "themeDark": "Escuro",
+      "themeSystem": "Sistema",
+      "language": "Idioma",
+      "languageHelper": "Selecione seu idioma de preferência.",
+      "banking": "Regras de negócio",
+      "ruleApplicationMode": "Aplicar regras de transação",
+      "ruleApplicationModeHelper": "Defina quando as regras automáticas devem ser aplicadas.",
+      "ruleNever": "Nunca",
+      "ruleAlways": "Sempre",
+      "ruleAlwaysPrompt": "Sempre perguntar"
     }
   },
   "seo": {

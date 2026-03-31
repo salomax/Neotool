@@ -5,62 +5,67 @@ import Avatar from "@mui/material/Avatar";
 import Divider from "@mui/material/Divider";
 import FormControl from "@mui/material/FormControl";
 import FormHelperText from "@mui/material/FormHelperText";
-import InputLabel from "@mui/material/InputLabel";
 import MenuItem from "@mui/material/MenuItem";
 import Select from "@mui/material/Select";
 import Typography from "@mui/material/Typography";
+import RuleIcon from "@mui/icons-material/Rule";
+import ColorLensIcon from "@mui/icons-material/ColorLens";
 import { Page, Container, Paper, Stack } from "@/shared/components/ui/layout";
 import { Box } from "@/shared/components/ui/layout/Box";
+import { SegmentedControl } from "@/shared/components/ui/inputs";
+import { Label } from "@/shared/components/ui/primitives";
 import { useAuth, usePreferences, useToast } from "@/shared/providers";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { useTranslation } from "react-i18next";
-import { Language, RuleApplicationMode, Theme, TransactionStatus } from "@/lib/graphql/types/__generated__/graphql";
+import { Language, RuleApplicationMode, Theme } from "@/lib/graphql/types/__generated__/graphql";
 
 export default function ProfilePage() {
   const { t } = useTranslation("common");
   const { user } = useAuth();
-  const { userPreferences, accountPreferences, updateUserPreferences, updateAccountPreferences, isOwner, isLoading } = usePreferences();
+  const { userPreferences, accountPreferences, updateUserPreferences, updateAccountPreferences, canManageAccountPreferences, isLoading } = usePreferences();
   const toast = useToast();
 
   usePageTitle(t("routes.profile"));
 
   const displayName = user?.displayName || t("appHeader.defaultUser");
-  const ownerOnlyHelper = t(
-    "profile.preferences.ownerOnly",
-    "Only the account owner can change this setting",
-  );
+  const ownerOnlyHelper = t("profile.preferences.ownerOnly");
 
-  const onThemeChange = async (nextTheme: Theme) => {
+  const showUpdateError = React.useCallback(() => {
+    toast.error(t("profile.preferences.updateError"));
+  }, [t, toast]);
+
+  const onThemeChange = React.useCallback(async (nextTheme: Theme) => {
     try {
       await updateUserPreferences({ theme: nextTheme });
     } catch {
-      toast.error(t("profile.preferences.updateError", "Could not save preference. Please try again."));
+      showUpdateError();
     }
-  };
+  }, [showUpdateError, updateUserPreferences]);
 
-  const onLanguageChange = async (nextLanguage: Language) => {
+  const onLanguageChange = React.useCallback(async (nextLanguage: Language) => {
     try {
       await updateUserPreferences({ language: nextLanguage });
     } catch {
-      toast.error(t("profile.preferences.updateError", "Could not save preference. Please try again."));
+      showUpdateError();
     }
-  };
+  }, [showUpdateError, updateUserPreferences]);
 
-  const onRuleModeChange = async (nextMode: RuleApplicationMode) => {
+  const onRuleModeChange = React.useCallback(async (nextMode: RuleApplicationMode) => {
     try {
       await updateAccountPreferences({ ruleApplicationMode: nextMode });
     } catch {
-      toast.error(t("profile.preferences.updateError", "Could not save preference. Please try again."));
+      showUpdateError();
     }
-  };
+  }, [showUpdateError, updateAccountPreferences]);
 
-  const onDefaultStatusChange = async (nextStatus: TransactionStatus) => {
-    try {
-      await updateAccountPreferences({ defaultTransactionStatus: nextStatus });
-    } catch {
-      toast.error(t("profile.preferences.updateError", "Could not save preference. Please try again."));
-    }
-  };
+  const themeOptions = React.useMemo(
+    () => [
+      { value: Theme.Light, label: t("profile.preferences.themeLight") },
+      { value: Theme.Dark, label: t("profile.preferences.themeDark") },
+      { value: Theme.System, label: t("profile.preferences.themeSystem") },
+    ],
+    [t],
+  );
 
   return (
     <Page>
@@ -100,16 +105,16 @@ export default function ProfilePage() {
               >
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    {t("profile.emailVerified", "Email verified")}
+                    {t("profile.emailVerified")}
                   </Typography>
                   <Typography variant="body2">
-                    {user?.emailVerified ? t("profile.yes", "Yes") : t("profile.no", "No")}
+                    {user?.emailVerified ? t("profile.yes") : t("profile.no")}
                   </Typography>
                 </Box>
 
                 <Box>
                   <Typography variant="caption" color="text.secondary">
-                    {t("profile.plan", "Plan")}
+                    {t("profile.plan")}
                   </Typography>
                   <Typography variant="body2">{user?.plan || "—"}</Typography>
                 </Box>
@@ -121,101 +126,111 @@ export default function ProfilePage() {
               <Typography variant="h6">{t("profile.preferences.title")}</Typography>
               {isLoading ? (
                 <Typography variant="body2" color="text.secondary">
-                  {t("profile.preferences.loading", "Loading preferences...")}
+                  {t("profile.preferences.loading")}
                 </Typography>
               ) : (
                 <Stack gap={3}>
                   <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      {t("profile.preferences.appearance", "Appearance")}
-                    </Typography>
-                    <Stack gap={2}>
-                      <FormControl fullWidth>
-                        <InputLabel id="profile-theme-label">
-                          {t("profile.preferences.theme", "Theme")}
-                        </InputLabel>
-                        <Select
-                          labelId="profile-theme-label"
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <ColorLensIcon fontSize="small" />
+                      <Label sx={{ mb: 0 }}>{t("profile.preferences.interface")}</Label>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: "grid",
+                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                        gap: 2,
+                        py: 2,
+                      }}
+                    >
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          {t("profile.preferences.theme")}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                          {t("profile.preferences.themeHelper")}
+                        </Typography>
+                        <SegmentedControl
+                          fullWidth
                           value={userPreferences.theme}
-                          label={t("profile.preferences.theme", "Theme")}
-                          onChange={(event) => onThemeChange(event.target.value as Theme)}
-                        >
-                          <MenuItem value={Theme.Light}>
-                            {t("profile.preferences.themeLight", "Light")}
-                          </MenuItem>
-                          <MenuItem value={Theme.Dark}>
-                            {t("profile.preferences.themeDark", "Dark")}
-                          </MenuItem>
-                          <MenuItem value={Theme.System}>
-                            {t("profile.preferences.themeSystem", "System")}
-                          </MenuItem>
-                        </Select>
-                      </FormControl>
+                          aria-label={t("profile.preferences.theme")}
+                          onChange={(value) => {
+                            void onThemeChange(value as Theme);
+                          }}
+                          sx={{
+                            "& .MuiToggleButtonGroup-grouped": {
+                              height: 40,
+                            },
+                          }}
+                          options={themeOptions}
+                        />
+                      </Box>
 
-                      <FormControl fullWidth>
-                        <InputLabel id="profile-language-label">
-                          {t("profile.preferences.language", "Language")}
-                        </InputLabel>
-                        <Select
-                          labelId="profile-language-label"
-                          value={userPreferences.language}
-                          label={t("profile.preferences.language", "Language")}
-                          onChange={(event) => onLanguageChange(event.target.value as Language)}
-                        >
-                          <MenuItem value={Language.English}>English</MenuItem>
-                          <MenuItem value={Language.Portuguese}>Português</MenuItem>
-                        </Select>
-                      </FormControl>
-                    </Stack>
+                      <Box>
+                        <Typography variant="subtitle2" gutterBottom>
+                          {t("profile.preferences.language")}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                          {t("profile.preferences.languageHelper")}
+                        </Typography>
+                        <FormControl fullWidth>
+                          <Select
+                            value={userPreferences.language}
+                            onChange={(event) => {
+                              void onLanguageChange(event.target.value as Language);
+                            }}
+                            inputProps={{ "aria-label": t("profile.preferences.language") }}
+                          >
+                            <MenuItem value={Language.English}>{t("language.english")}</MenuItem>
+                            <MenuItem value={Language.Portuguese}>{t("language.portuguese")}</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Box>
+                    </Box>
                   </Box>
+                  <Divider />
 
                   <Box>
-                    <Typography variant="subtitle2" gutterBottom>
-                      {t("profile.preferences.banking", "Banking")}
-                    </Typography>
-                    <Stack gap={2}>
-                      <FormControl fullWidth disabled={!isOwner}>
-                        <InputLabel id="profile-rule-mode-label">
-                          {t("profile.preferences.ruleApplicationMode", "Apply transaction rules")}
-                        </InputLabel>
-                        <Select
-                          labelId="profile-rule-mode-label"
-                          value={accountPreferences.ruleApplicationMode}
-                          label={t("profile.preferences.ruleApplicationMode", "Apply transaction rules")}
-                          onChange={(event) => onRuleModeChange(event.target.value as RuleApplicationMode)}
-                        >
-                          <MenuItem value={RuleApplicationMode.Never}>
-                            {t("profile.preferences.ruleNever", "Never")}
-                          </MenuItem>
-                          <MenuItem value={RuleApplicationMode.Always}>
-                            {t("profile.preferences.ruleAlways", "Always")}
-                          </MenuItem>
-                          <MenuItem value={RuleApplicationMode.AlwaysPrompt}>
-                            {t("profile.preferences.ruleAlwaysPrompt", "Always ask")}
-                          </MenuItem>
-                        </Select>
-                        {!isOwner ? <FormHelperText>{ownerOnlyHelper}</FormHelperText> : null}
-                      </FormControl>
+                    <Stack gap={1}>
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <RuleIcon fontSize="small" />
+                        <Label sx={{ mb: 0 }}>{t("profile.preferences.banking")}</Label>
+                      </Box>
 
-                      <FormControl fullWidth disabled={!isOwner}>
-                        <InputLabel id="profile-default-status-label">
-                          {t("profile.preferences.defaultTransactionStatus", "Default transaction status")}
-                        </InputLabel>
-                        <Select
-                          labelId="profile-default-status-label"
-                          value={accountPreferences.defaultTransactionStatus}
-                          label={t("profile.preferences.defaultTransactionStatus", "Default transaction status")}
-                          onChange={(event) => onDefaultStatusChange(event.target.value as TransactionStatus)}
-                        >
-                          <MenuItem value={TransactionStatus.Posted}>
-                            {t("profile.preferences.statusPosted", "Posted")}
-                          </MenuItem>
-                          <MenuItem value={TransactionStatus.Pending}>
-                            {t("profile.preferences.statusPending", "Pending")}
-                          </MenuItem>
-                        </Select>
-                        {!isOwner ? <FormHelperText>{ownerOnlyHelper}</FormHelperText> : null}
-                      </FormControl>
+                      <Box
+                        sx={{
+                          display: "grid",
+                          gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                          gap: 2,
+                          py: 2,
+                        }}
+                      >
+                        <Box>
+                          <Typography variant="subtitle2" gutterBottom>
+                            {t("profile.preferences.ruleApplicationMode")}
+                          </Typography>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+                            {t("profile.preferences.ruleApplicationModeHelper")}
+                          </Typography>
+                          <FormControl fullWidth disabled={!canManageAccountPreferences}>
+                            <Select
+                              value={accountPreferences.ruleApplicationMode}
+                              onChange={(event) => {
+                                void onRuleModeChange(event.target.value as RuleApplicationMode);
+                              }}
+                              inputProps={{ "aria-label": t("profile.preferences.ruleApplicationMode") }}
+                            >
+                              <MenuItem value={RuleApplicationMode.Never}>{t("profile.preferences.ruleNever")}</MenuItem>
+                              <MenuItem value={RuleApplicationMode.Always}>{t("profile.preferences.ruleAlways")}</MenuItem>
+                              <MenuItem value={RuleApplicationMode.AlwaysPrompt}>
+                                {t("profile.preferences.ruleAlwaysPrompt")}
+                              </MenuItem>
+                            </Select>
+                            {!canManageAccountPreferences ? <FormHelperText>{ownerOnlyHelper}</FormHelperText> : null}
+                          </FormControl>
+                        </Box>
+                        <Box sx={{ display: { xs: "none", sm: "block" } }} />
+                      </Box>
                     </Stack>
                   </Box>
                 </Stack>

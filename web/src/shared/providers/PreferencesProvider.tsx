@@ -39,7 +39,7 @@ type PreferencesContextValue = {
   userPreferences: UserPreferencesState;
   accountPreferences: AccountPreferencesState;
   isLoading: boolean;
-  isOwner: boolean;
+  canManageAccountPreferences: boolean;
   updateUserPreferences: (patch: UpdateUserPreferencesInput) => Promise<void>;
   updateAccountPreferences: (patch: UpdateAccountPreferencesInput) => Promise<void>;
 };
@@ -87,17 +87,13 @@ function writeCachedUserPreferences(value: UserPreferencesState): void {
 }
 
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { setMode } = useThemeMode();
 
   const [userPreferences, setUserPreferences] = React.useState<UserPreferencesState>(() => readCachedUserPreferences() ?? defaultUserPreferences);
   const [accountPreferences, setAccountPreferences] = React.useState<AccountPreferencesState>(defaultAccountPreferences);
 
-  const isOwner = React.useMemo(() => {
-    const role = user?.role?.toUpperCase();
-    if (role === "OWNER") return true;
-    return (user?.roles ?? []).some((item) => item.name?.toUpperCase() === "OWNER");
-  }, [user?.role, user?.roles]);
+  const [canManageAccountPreferences, setCanManageAccountPreferences] = React.useState(true);
 
   const userPrefsQuery = useQuery<UserPreferencesQuery>(USER_PREFERENCES, { skip: !isAuthenticated });
   const accountPrefsQuery = useQuery<AccountPreferencesQuery>(ACCOUNT_PREFERENCES, { skip: !isAuthenticated });
@@ -209,6 +205,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       const result = await updateAccountPreferencesMutation({ variables: { input: patch } });
         const saved = result.data?.updateAccountPreferences;
         if (saved) {
+          setCanManageAccountPreferences(true);
           setAccountPreferences({
           ruleApplicationMode: saved.ruleApplicationMode ?? previous.ruleApplicationMode,
           defaultTransactionStatus: saved.defaultTransactionStatus ?? previous.defaultTransactionStatus,
@@ -216,6 +213,10 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
         }
       } catch (error) {
         setAccountPreferences(previous);
+        const serialized = JSON.stringify(error);
+        if (serialized.includes("ACCOUNT_PREFERENCES_OWNER_REQUIRED")) {
+          setCanManageAccountPreferences(false);
+        }
         throw error;
       }
     },
@@ -227,11 +228,11 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       userPreferences,
       accountPreferences,
       isLoading: (userPrefsQuery.loading || accountPrefsQuery.loading) && isAuthenticated,
-      isOwner,
+      canManageAccountPreferences,
       updateUserPreferences,
       updateAccountPreferences,
     }),
-    [accountPreferences, accountPrefsQuery.loading, isAuthenticated, isOwner, updateAccountPreferences, updateUserPreferences, userPreferences, userPrefsQuery.loading],
+    [accountPreferences, accountPrefsQuery.loading, canManageAccountPreferences, isAuthenticated, updateAccountPreferences, updateUserPreferences, userPreferences, userPrefsQuery.loading],
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;
