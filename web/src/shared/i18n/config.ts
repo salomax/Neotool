@@ -24,11 +24,6 @@ if (!i18n.isInitialized) {
     .catch((error) => {
       logger.error("Failed to initialize i18n:", error);
     });
-} else {
-  // If already initialized, ensure language is correct
-  if (i18n.language !== "pt") {
-    i18n.changeLanguage("pt");
-  }
 }
 
 export default i18n;

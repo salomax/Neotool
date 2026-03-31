@@ -97,6 +97,15 @@ export const UPDATE_FINANCIAL_ACCOUNT = gql`
   }
 `;
 
+export const UPDATE_ACCOUNT_PREFERENCES = gql`
+  mutation UpdateAccountPreferences($input: UpdateAccountPreferencesInput!) {
+    updateAccountPreferences(input: $input) {
+      ruleApplicationMode
+      defaultTransactionStatus
+    }
+  }
+`;
+
 /** Create an investment asset in the global catalog. */
 export const CREATE_INVESTMENT_ASSET = gql`
   mutation CreateInvestmentAsset($input: CreateInvestmentAssetInput!) {

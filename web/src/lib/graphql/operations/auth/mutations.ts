@@ -142,3 +142,14 @@ export const REFRESH_ACCESS_TOKEN = gql`
     }
   }
 `;
+
+export const UPDATE_USER_PREFERENCES = gql`
+  mutation UpdateUserPreferences($input: UpdateUserPreferencesInput!) {
+    updateUserPreferences(input: $input) {
+      language
+      theme
+      blurBalances
+      firstDayOfWeek
+    }
+  }
+`;

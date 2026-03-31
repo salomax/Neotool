@@ -20,3 +20,14 @@ export const CURRENT_USER = gql`
   }
 `;
 
+export const USER_PREFERENCES = gql`
+  query UserPreferences {
+    userPreferences {
+      language
+      theme
+      blurBalances
+      firstDayOfWeek
+    }
+  }
+`;
+

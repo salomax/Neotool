@@ -8,6 +8,8 @@ import {
   Box,
   CircularProgress,
   IconButton,
+  ListItemIcon,
+  ListItemText,
   Menu,
   MenuItem,
   Paper,
@@ -15,7 +17,10 @@ import {
   Typography,
   useTheme,
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
 import { useTranslation } from '@/shared/i18n';
 import { Logo } from '@/shared/components/ui/primitives';
 import { Label } from '@/shared/components/ui/primitives/Label';
@@ -797,7 +802,10 @@ export function InvestmentTable({
             handleOpenDetail(holding);
           }}
         >
-          {t('investments.table.rowActions.viewDetails')}
+          <ListItemIcon>
+            <VisibilityOutlinedIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.viewDetails')}</ListItemText>
         </MenuItem>
         <MenuItem
           disabled={deleting}
@@ -808,7 +816,10 @@ export function InvestmentTable({
             await handleOpenEdit(holding);
           }}
         >
-          {t('investments.table.rowActions.edit')}
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.edit')}</ListItemText>
         </MenuItem>
         <MenuItem
           disabled={deleting}
@@ -818,9 +829,21 @@ export function InvestmentTable({
             if (!holding) return;
             setHoldingToRemove(holding);
           }}
-          sx={isActionMenuFixedIncome ? { borderTop: (theme) => `1px solid ${alpha(theme.palette.divider, 0.7)}` } : undefined}
+          sx={{
+            ...(isActionMenuFixedIncome ? { borderTop: (theme) => `1px solid ${alpha(theme.palette.divider, 0.7)}` } : {}),
+            color: 'error.main',
+            '&:hover': {
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+            },
+            '&.Mui-focusVisible': {
+              bgcolor: alpha(theme.palette.error.main, 0.08),
+            },
+          }}
         >
-          {t('investments.table.rowActions.remove')}
+          <ListItemIcon sx={{ color: 'inherit' }}>
+            <DeleteOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.remove')}</ListItemText>
         </MenuItem>
       </Menu>
 
