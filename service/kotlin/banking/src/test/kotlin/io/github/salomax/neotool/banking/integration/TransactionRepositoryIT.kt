@@ -648,7 +648,7 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
     @DisplayName("findPage")
     inner class FindPageTests {
         @Test
-        fun `full text search filters rows and total count case insensitively`() {
+        fun `search filters rows and total count case insensitively including partial matches`() {
             transactionRepository.save(
                 Transaction(
                     financialAccountId = financialAccountId,
@@ -691,6 +691,20 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                     updatedAt = Instant.now(),
                 ),
             )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("39.90"),
+                    date = today,
+                    description = "Netflix",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
 
             val result =
                 transactionRepository.findPage(
@@ -699,7 +713,7 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                         financialAccountId = null,
                         belongsToUserId = null,
                         belongsToName = null,
-                        search = "MERCADO",
+                        search = "Net",
                         tags = null,
                         billId = null,
                         categoryIds = null,
@@ -714,7 +728,7 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
                 )
 
             assertThat(result.totalCount).isEqualTo(1)
-            assertThat(result.items.map { it.description }).containsExactly("Mercado Central")
+            assertThat(result.items.map { it.description }).containsExactly("Netflix")
         }
     }
 

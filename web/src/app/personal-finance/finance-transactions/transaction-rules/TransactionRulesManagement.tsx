@@ -34,6 +34,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 
 import { ManagementLayout } from '@/shared/components/management/ManagementLayout';
 import { ManagementHeaderActions, ManagementHeaderActionButton } from '@/shared/components/management/ManagementHeaderActions';
@@ -79,7 +80,11 @@ interface TransactionRulesVariables {
 type RulesTab = 'manual' | 'automatic';
 const RULES_PAGE_SIZE = 30;
 
-export const TransactionRulesManagement: React.FC = () => {
+export interface TransactionRulesManagementProps {
+  onOpenHelp?: () => void;
+}
+
+export const TransactionRulesManagement: React.FC<TransactionRulesManagementProps> = ({ onOpenHelp }) => {
   const theme = useTheme();
   const toast = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -116,7 +121,7 @@ export const TransactionRulesManagement: React.FC = () => {
     },
     onError: (err) =>
       toast.error(
-        extractErrorMessage(err, 'Não foi possível excluir a regra'),
+        extractErrorMessage(err, t('financeTransactions.transactionRules.errors.delete')),
       ),
   });
 
@@ -254,10 +259,70 @@ export const TransactionRulesManagement: React.FC = () => {
     >
       <ManagementLayout.Header>
         <Box sx={{ px: 3, mb: 2 }}>
+          <ManagementHeaderActions>
+            <Box sx={{ flex: 1, minWidth: 240, mb: 2 }}>
+                <TextField
+                  size="small"
+                  placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" />
+                      </InputAdornment>
+                    ),
+                    endAdornment: searchQuery.trim() ? (
+                      <InputAdornment position="end">
+                        <IconButton
+                          size="small"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setSearchQuery('')}
+                          aria-label={t('financeTransactions.transactionRules.actions.clearSearchAriaLabel')}
+                        >
+                          <ClearIcon fontSize="small" />
+                        </IconButton>
+                      </InputAdornment>
+                    ) : undefined,
+                  }}
+                  sx={{
+                  width: '100%',
+                    maxWidth: 520,
+                    '& .MuiInputBase-root': {
+                      height: '51px',
+                      borderRadius: `${(theme as any).custom?.radius?.md ?? theme.shape.borderRadius}px`,
+                    },
+                    '& .MuiInputBase-input': {
+                      py: 0,
+                    },
+                  }}
+                />
+            </Box>
+            <ManagementHeaderActionButton
+              variant="outlined"
+              startIcon={<InfoOutlinedIcon />}
+              onClick={() => onOpenHelp?.()}
+            >
+              {t('financeTransactions.transactionRules.helpBanner.title')}
+            </ManagementHeaderActionButton>
+            <ManagementHeaderActionButton
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={handleCreate}
+              sx={{
+                boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
+                '&:hover': {
+                  boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
+                },
+              }}
+            >
+              {t('financeTransactions.transactionRules.actions.newRule')}
+            </ManagementHeaderActionButton>
+          </ManagementHeaderActions>
           <Stack
             direction="row"
             spacing={2}
-            sx={{ width: '100%' }}
+            sx={{ width: '100%', mt: 1 }}
             alignItems="flex-end"
             flexWrap="wrap"
           >
@@ -289,59 +354,6 @@ export const TransactionRulesManagement: React.FC = () => {
                 <Tab value="automatic" label={t('financeTransactions.transactionRules.tabs.automatic')} />
               </Tabs>
             </Box>
-            <ManagementHeaderActions>
-              <Box sx={{ mb: 2 }}>
-                <TextField
-                  size="small"
-                  placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <SearchIcon fontSize="small" />
-                      </InputAdornment>
-                    ),
-                    endAdornment: searchQuery.trim() ? (
-                      <InputAdornment position="end">
-                        <IconButton
-                          size="small"
-                          onMouseDown={(e) => e.preventDefault()}
-                          onClick={() => setSearchQuery('')}
-                          aria-label="Limpar busca"
-                        >
-                          <ClearIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    ) : undefined,
-                  }}
-                  sx={{
-                    width: 360,
-                    maxWidth: '100%',
-                    '& .MuiInputBase-root': {
-                      height: '51px',
-                      borderRadius: `${(theme as any).custom?.radius?.md ?? theme.shape.borderRadius}px`,
-                    },
-                    '& .MuiInputBase-input': {
-                      py: 0,
-                    },
-                  }}
-                />
-              </Box>
-              <ManagementHeaderActionButton
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleCreate}
-                sx={{
-                  boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.28)}`,
-                  '&:hover': {
-                    boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.36)}`,
-                  },
-                }}
-              >
-                {t('financeTransactions.transactionRules.actions.newRule')}
-              </ManagementHeaderActionButton>
-            </ManagementHeaderActions>
           </Stack>
           <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }} />
         </Box>
@@ -495,7 +507,7 @@ export const TransactionRulesManagement: React.FC = () => {
               {isFetchingMore && (
                 <Box sx={{ py: 2, textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Carregando mais...
+                    {t('financeTransactions.transactionRules.loadingMore')}
                   </Typography>
                 </Box>
               )}
@@ -639,7 +651,7 @@ export const TransactionRulesManagement: React.FC = () => {
               {isFetchingMore && (
                 <Box sx={{ py: 2, textAlign: 'center' }}>
                   <Typography variant="body2" color="text.secondary">
-                    Carregando mais...
+                    {t('financeTransactions.transactionRules.loadingMore')}
                   </Typography>
                 </Box>
               )}

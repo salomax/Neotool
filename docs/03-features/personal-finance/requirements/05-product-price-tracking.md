@@ -2,8 +2,8 @@
 
 **Service:** Invistus Banking Service
 **Module:** Personal Finance — Product Price Tracking
-**Document date:** 2026-03-25
-**Status:** Draft — Design Phase
+**Document date:** 2026-03-31
+**Status:** Fase 0 em andamento — parser NFC-e concluído, persistência pendente
 
 ---
 
@@ -21,6 +21,39 @@ Product Price Tracking permite que o usuário acompanhe o preço dos produtos qu
 **Fase 2 — Inflação & Custo de Vida:**
 - Qual minha inflação pessoal (cesta pessoal vs IPCA)?
 - Se eu mudasse de cidade, qual seria meu custo de vida estimado?
+
+---
+
+## Status de Implementação
+
+### Fase 0 — Infraestrutura de Dados
+
+| Item | Status | Arquivo(s) |
+|---|---|---|
+| Strategy Pattern: `NfceFetcher` interface + `NfceFetcherRouter` | ✅ Concluído | `service/import/nfce/NfceFetcher.kt`, `NfceFetcherRouter.kt` |
+| `SpNfceFetcher` — scraper HTML SP (validado com NFC-e real, 46 itens) | ✅ Concluído | `service/import/nfce/SpNfceFetcher.kt`, `SpNfceHtmlParser.kt` |
+| `DefaultNfceClient` como fallback XML (implementa `NfceFetcher`) | ✅ Concluído | `service/import/nfce/DefaultNfceClient.kt` |
+| `NfceItem` com campos adicionais | ✅ Concluído | `cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`, `vTribItem` |
+| `NfceData` com `cpfDestinatario` e `vTotTrib` | ✅ Concluído | `domain/import/nfce/NfceData.kt` |
+| Testes unitários do parser SP e roteador | ✅ Concluído | `SpNfceHtmlParserTest`, `SpNfceFetcherTest`, `NfceFetcherRouterTest`, `NfceClientTest` |
+| **Fase 0.1** — `NfceData` com `cMunFG` (código IBGE do município) | 🔲 Pendente | — |
+| **Fase 0.2** — `SvrsNfceFetcher` (~19 estados) | ⏸ Adiado — ver Fase 1A | — |
+| **Fase 0.3** — Migration: todas as novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`) | 🔲 Pendente | — |
+| **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas | 🔲 Pendente | — |
+| **Fase 0.5** — `ImportJobService.importNfce()`: persistir `NfceDocument` + `PurchaseItem` com camadas 1-3 | 🔲 Pendente | `service/import/ImportJobService.kt` |
+| **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal) | 🔲 Pendente | — |
+
+### Fase 1A — Catálogo + Normalização Síncrona
+
+| Item | Status |
+|---|---|
+| CRUD de `Product` e `ProductVariant` | 🔲 Pendente |
+| GraphQL queries + mutations de produtos e itens | 🔲 Pendente |
+| Tela de itens não mapeados (revisão) | 🔲 Pendente |
+
+### Fase 1B, 1C, 1D, 2A, 2B
+
+Todas pendentes. Ver seção 9 — Faseamento.
 
 ---
 
@@ -904,50 +937,54 @@ ORDER BY total_spent DESC;
 
 ## 9. Faseamento de Implementação
 
-### Fase 0 — Infraestrutura de Dados (pré-requisito)
-1. Migration: criar tabelas `products`, `product_variants`, `product_alias`, `purchase_items`, `nfce_documents`
-2. Migration: criar tabela `ncm_codes` (lookup estático) e popular via seed (~14.000 linhas, dados públicos Receita Federal)
-3. Refatorar parser NFC-e para Strategy Pattern por estado (seção 6.3):
-   - Extrair interface `NfceFetcher` com roteamento por UF (2 primeiros dígitos do chNFe)
-   - Implementar `SpNfceFetcher` (scraper HTML + "Visualizar em Abas" para obter NCM/EAN)
-   - Implementar `SvrsNfceFetcher` (cobre ~19 estados)
-   - Implementar `GenericNfceFetcher` (fallback: extrai o que puder)
-4. Atualizar `NfceItem` domain model com campos adicionais (`cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`)
-5. Atualizar `NfceData` domain model com `cMunFG`
-6. Persistir `nfce_documents` e `purchase_items` no fluxo de import
+> Os tickets detalhados de cada fase estão na seção 13 — Backlog Detalhado.
+> Nomenclatura: **Fase 0.1**, **Fase 0.2** etc. = sub-tarefas da Fase 0; **Fase 1A.1** etc. = sub-tarefas da Fase 1A.
 
-### Fase 1A — Catálogo de Produtos + Normalização Síncrona
-1. CRUD de `Product` e `ProductVariant`
-2. Mapeamento manual: tela de itens não mapeados
-3. Normalização síncrona no import (camadas 1-3: EAN, alias, CNPJ+cProd)
-4. GraphQL queries e mutations básicas
+### Fase 0 — Infraestrutura de Dados (pré-requisito)
+
+- [x] Parser NFC-e refatorado para Strategy Pattern (`NfceFetcher`, `NfceFetcherRouter`)
+- [x] `SpNfceFetcher` (scraper HTML SP) implementado e validado com NFC-e real
+- [x] `DefaultNfceClient` como fallback XML
+- [x] `NfceItem` com campos adicionais (`cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`, `vTribItem`)
+- [x] `NfceData` com `cpfDestinatario` e `vTotTrib`
+- [ ] **Fase 0.1** — Adicionar `cMunFG` em `NfceData`
+- [ ] **Fase 0.3** — Migration: novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`)
+- [ ] **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas
+- [ ] **Fase 0.5** — Atualizar `ImportJobService.importNfce()` para persistir `NfceDocument` + `PurchaseItem` com resolução síncrona (camadas 1-3)
+- [ ] **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal)
+
+### Fase 1A — Catálogo de Produtos + Normalização Síncrona + Expansão de Estados
+- [ ] CRUD de `Product` e `ProductVariant`
+- [ ] Mapeamento manual: tela de itens não mapeados
+- [ ] GraphQL queries e mutations básicas (seção 7)
+- [ ] **Fase 0.2** (adiado) — `SvrsNfceFetcher` (~19 estados) ⚠️ requer investigação do formato SVRS
 
 ### Fase 1B — Job Batch D+1 + Heurísticas
-1. Job scheduled (diário) para itens pendentes
-2. Camada 4: heurísticas de texto (fuzzy match, regex, NCM+similaridade)
-3. Analytics por NCM (funciona desde aqui, sem normalização)
+- [ ] Job scheduled (diário) para itens pendentes
+- [ ] Camada 4: heurísticas de texto (fuzzy match, regex, NCM+similaridade)
+- [ ] Analytics por NCM (funciona desde aqui, sem normalização — ver seção 8.4)
 
 ### Fase 1C — Normalização AI-Assisted
-1. Camada 5: serviço de embeddings em batch
-2. Camada 6: LLM sob demanda na tela de revisão
-3. Fila de revisão com sugestões pendentes
-4. Aprendizado: aliases confirmados alimentam camadas 1-2 para futuras importações
+- [ ] Camada 5: serviço de embeddings em batch
+- [ ] Camada 6: LLM sob demanda na tela de revisão
+- [ ] Fila de revisão com sugestões pendentes
+- [ ] Aliases confirmados alimentam camadas 1-2 para futuras importações
 
 ### Fase 1D — Analytics de Preço
-1. Histórico de preço por produto/variante
-2. Tendência de consumo mensal
-3. Comparação entre estabelecimentos (mesmo usuário)
-4. Dashboard de produtos
+- [ ] Histórico de preço por produto/variante
+- [ ] Tendência de consumo mensal
+- [ ] Comparação entre estabelecimentos (mesmo usuário)
+- [ ] Dashboard de produtos
 
 ### Fase 2A — Deduplicação NFC-e ↔ Manual
-1. Matching por data + valor + conta
-2. UX de confirmação/vinculação
-3. Import granular (1 transação por item) como opção
+- [ ] Matching por data + valor + conta
+- [ ] UX de confirmação/vinculação
+- [ ] Import granular (1 transação por item) como opção
 
 ### Fase 2B — Inflação Pessoal & Custo de Vida
-1. Cálculo de índice de inflação pessoal (cesta do usuário vs IPCA)
-2. Integração com dados regionais (IBGE/POF)
-3. Simulação de custo de vida por município
+- [ ] Cálculo de índice de inflação pessoal (cesta do usuário vs IPCA)
+- [ ] Integração com dados regionais (IBGE/POF)
+- [ ] Simulação de custo de vida por município
 
 ---
 
@@ -964,6 +1001,7 @@ ORDER BY total_spent DESC;
 | 7 | Parser por estado | **Strategy Pattern.** SP = scraper HTML; SVRS = ~19 estados; demais incrementais. |
 | 8 | CPF destinatário | **Importar.** CPF do comprador armazenado em `nfce_documents.buyer_cpf` para analytics de BI. |
 | 9 | Tributos | **Importar ambos.** Total por NF (`vTotTrib` em `nfce_documents`) e por item (`vTribItem` em `purchase_items`). Permite analytics de carga tributária por categoria/produto. |
+| 10 | Cobertura de estados na Fase 0 | **SP only.** `SpNfceFetcher` já implementado e validado. `SvrsNfceFetcher` (~19 estados) adiado para Fase 1A — depende de investigação prévia do formato de resposta do portal SVRS, e a base de usuários inicial é SP. |
 
 ## 11. Questões em Aberto
 
@@ -974,3 +1012,509 @@ ORDER BY total_spent DESC;
 ## 12. Questões Resolvidas
 
 1. **~~Scraper SP — "Visualizar em Abas"~~:** Validado com sucesso. Postback ASP.NET funciona via 2 requisições HTTP simples (sem headless browser, sem CAPTCHA). Requer headers de browser. Ver seção 6.3.
+
+---
+
+## 13. Backlog Detalhado — Fase 0
+
+Tickets detalhados para todas as sub-tarefas da Fase 0, na mesma nomenclatura usada na seção 9.
+Itens paralelos podem ser desenvolvidos simultaneamente.
+
+> **Contexto para implementação:**
+> - Framework: **Micronaut** (não Spring Boot). Usar `@Singleton`, `@Repository`, `@Transactional` de `jakarta.*`.
+> - JPA: `JpaRepository<Entity, UUID>`. Queries customizadas via `@Query(nativeQuery = true)`.
+> - IDs: gerados pelo banco via `uuidv7()` — usar `@Generated(event = [EventType.INSERT])` com `insertable = false`.
+> - Padrão arquitetural: interface de domínio em `repo/<subpacote>/` → implementação `Default*` no mesmo pacote → `*EntityRepository` (JPA). Ver `CreditCardBillRepository` + `DefaultCreditCardBillRepository` + `CreditCardBillEntityRepository` como referência canônica.
+> - Padrão de entity: ver `CreditCardBillEntity` — `open class`, extends `BaseEntity<UUID?>`, campos `open var`.
+> - Padrão de mapper: ver `CreditCardBillMapper` — `object` com `toDomain(entity)`.
+> - Testes unitários: JUnit 5 + Mockito-Kotlin + AssertJ. Testes de integração estendem `BankingPostgresIntegrationTest`.
+
+---
+
+### Fase 0.1 — Adicionar `cMunFG` em `NfceData`
+
+**Dependências:** nenhuma | **Paralelo com Fase 0.2, 0.3, 0.6**
+
+#### Escopo
+
+Adicionar o código IBGE do município emissor (`cMunFG`) ao domínio e aos dois parsers existentes.
+
+#### Como implementar
+
+**`domain/import/nfce/NfceData.kt`**
+```kotlin
+val cMunFG: String? = null,   // Código IBGE do município emissor (ex: "3547809")
+```
+
+**`service/import/nfce/DefaultNfceClient.kt`** — no bloco de extração do XML:
+```kotlin
+val cMunFG = doc.getElementsByTagName("cMunFG").item(0)?.textContent?.trim()
+```
+Adicionar ao construtor do `NfceData` retornado.
+
+**`service/import/nfce/SpNfceHtmlParser.kt`** — a string de município já chega como `"3547809 - Santo Andre"`. Extrair apenas a parte numérica antes do `-`:
+```kotlin
+val cMunFG = extractMunicipio(html)
+    ?.let { raw -> raw.substringBefore("-").trim().takeIf { it.isNotEmpty() } }
+```
+Onde `extractMunicipio` retorna a string raw do campo. Ajustar a extração para retornar o código e o nome separadamente, ou criar `extractMunicipioCodigo` e `extractMunicipioNome`.
+
+#### Critérios de aceite
+
+- [ ] `NfceData.cMunFG` compilado sem quebrar chamadores existentes (campo nullable com default null).
+- [ ] `DefaultNfceClientTest` (já existente): adicionar caso com XML que contém `<cMunFG>3547809</cMunFG>` → assertar `nfceData.cMunFG == "3547809"`.
+- [ ] `SpNfceHtmlParserTest` (já existente): adicionar assert em `minimalSpHtml(municipio = "3547809 - Santo Andre")` → `nfceData.cMunFG == "3547809"`.
+- [ ] Quando `<cMunFG>` ausente do XML → `cMunFG == null` (não lançar exceção).
+
+---
+
+### Fase 0.2 — `SvrsNfceFetcher` (~19 estados)
+
+**Dependências:** nenhuma | **Paralelo com Fase 0.1, 0.3, 0.6**
+
+> ⚠️ **Pré-requisito de investigação:** Este ticket só pode ser implementado após verificar o formato de resposta real do portal SVRS. Fazer uma requisição HTTP à URL de um QR code de NFC-e de RS, RJ ou BA e inspecionar a resposta antes de codificar.
+
+#### Escopo
+
+Criar `SvrsNfceFetcher` cobrindo ~19 estados que usam o portal `dfe-portal.svrs.rs.gov.br`.
+
+**Estados UF codes:** 43 (RS), 33 (RJ), 29 (BA), 23 (CE), 53 (DF), 32 (ES), 21 (MA), 15 (PA), 25 (PB), 22 (PI), 24 (RN), 11 (RO), 14 (RR), 42 (SC), 28 (SE), 17 (TO), 12 (AC), 16 (AP), 27 (AL)
+
+#### Como implementar
+
+**Caminho A — SVRS retorna XML** (mais provável):
+
+Criar `SvrsNfceFetcher` que apenas repassa para `DefaultNfceClient` internamente:
+```kotlin
+@Singleton
+class SvrsNfceFetcher(private val defaultNfceClient: DefaultNfceClient) : NfceFetcher {
+    override fun supportedUfCodes() = setOf("43", "33", "29", "23", "53", "32", "21",
+        "15", "25", "22", "24", "11", "14", "42", "28", "17", "12", "16", "27")
+
+    override fun fetch(qrCodeUrl: String): NfceData = defaultNfceClient.fetch(qrCodeUrl)
+}
+```
+
+**Caminho B — SVRS retorna HTML:**
+
+Implementar `SvrsNfceHtmlParser` análogo ao `SpNfceHtmlParser`, adaptando os seletores CSS/regex para o HTML do SVRS.
+
+#### Critérios de aceite
+
+- [ ] `SvrsNfceFetcher.supportedUfCodes()` retorna os 19 códigos UF listados acima.
+- [ ] `NfceFetcherRouterTest`: adicionar caso com URL cujo chNFe começa com `43` (RS) → roteia para `SvrsNfceFetcher`.
+- [ ] Teste unitário com HTML ou XML de amostra real do SVRS (capturar e salvar como fixture em `test/resources`).
+- [ ] Caminho A: `SvrsNfceFetcherTest` verifica que `fetch()` delega para `DefaultNfceClient`.
+- [ ] Caminho B: parser extrai `xProd`, `vProd`, `qCom`, `uCom`, `ncm`, `cEAN` corretamente da amostra.
+
+---
+
+### Fase 0.3 — Migration: novas tabelas
+
+**Dependências:** nenhuma | **Paralelo com Fase 0.1, 0.2, 0.6**
+
+**Arquivo:** `service/kotlin/banking/src/main/resources/db/migration/V0_11__create_product_price_tracking_tables.sql`
+
+#### Escopo
+
+Criar as 6 tabelas no schema `banking` com todos os índices. Próxima migration disponível é V0_11 (V0_10 já existe).
+
+#### DDL completo
+
+```sql
+-- nfce_documents: metadados da NF-e (1:1 com transactions)
+CREATE TABLE banking.nfce_documents (
+    id                UUID PRIMARY KEY DEFAULT uuidv7(),
+    transaction_id    UUID NOT NULL REFERENCES banking.transactions(id),
+    account_id        UUID NOT NULL,
+    access_key        CHAR(44) NOT NULL,
+    issuer_cnpj       CHAR(14) NOT NULL,
+    issuer_name       TEXT NOT NULL,
+    emission_date     TIMESTAMPTZ NOT NULL,
+    total_value       NUMERIC(18,4) NOT NULL,
+    total_tax         NUMERIC(18,4),
+    buyer_cpf         TEXT,
+    municipality_code TEXT,
+    municipality      TEXT,
+    state             CHAR(2) NOT NULL,
+    xml_url           TEXT,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_nfce_documents_account_key UNIQUE (account_id, access_key)
+);
+
+-- products: produto canônico por tenant
+CREATE TABLE banking.products (
+    id           UUID PRIMARY KEY DEFAULT uuidv7(),
+    account_id   UUID NOT NULL,
+    name         TEXT NOT NULL,
+    ncm_code     CHAR(8),
+    default_unit TEXT,
+    category     TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_products_account_name UNIQUE (account_id, name)
+);
+
+-- product_variants: apresentação específica (marca + tamanho + embalagem)
+CREATE TABLE banking.product_variants (
+    id                        UUID PRIMARY KEY DEFAULT uuidv7(),
+    product_id                UUID NOT NULL REFERENCES banking.products(id),
+    account_id                UUID NOT NULL,
+    name                      TEXT NOT NULL,
+    brand                     TEXT,
+    ean                       TEXT,
+    quantity_value            NUMERIC(12,4),
+    quantity_unit             TEXT,
+    normalized_quantity_value NUMERIC(12,4),
+    normalized_quantity_unit  TEXT,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_product_variants_ean UNIQUE (ean) -- EAN é globalmente único entre todos os tenants
+);
+
+-- product_alias: mapeamento raw_description → variant
+-- Cross-tenant: qualquer usuário pode ter um alias para a mesma raw_description
+-- account_id é por tenant; confirmed=true significa que o usuário validou
+CREATE TABLE banking.product_alias (
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
+    product_variant_id  UUID NOT NULL REFERENCES banking.product_variants(id),
+    account_id          UUID NOT NULL,
+    raw_description     TEXT NOT NULL,
+    source              TEXT NOT NULL CHECK (source IN ('MANUAL','AI_SUGGESTED','EAN_MATCH','HEURISTIC')),
+    confidence          NUMERIC(3,2),
+    confirmed           BOOLEAN NOT NULL DEFAULT false,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT uq_product_alias_account_description UNIQUE (account_id, raw_description)
+);
+
+-- purchase_items: itens individuais de cada NFC-e importada
+CREATE TABLE banking.purchase_items (
+    id                  UUID PRIMARY KEY DEFAULT uuidv7(),
+    transaction_id      UUID NOT NULL REFERENCES banking.transactions(id),
+    account_id          UUID NOT NULL,
+    product_variant_id  UUID REFERENCES banking.product_variants(id),
+    sequence            INT NOT NULL,
+    raw_description     TEXT NOT NULL,
+    ncm_code            CHAR(8),
+    ean                 TEXT,
+    issuer_product_code TEXT,
+    quantity            NUMERIC(12,4) NOT NULL,
+    unit                TEXT NOT NULL,
+    unit_price          NUMERIC(18,4) NOT NULL,
+    total_price         NUMERIC(18,4) NOT NULL,   -- vProd (bruto, sem desconto)
+    discount            NUMERIC(18,4),             -- vDesc
+    effective_price     NUMERIC(18,4) NOT NULL,    -- vProd - vDesc
+    tax_amount          NUMERIC(18,4),             -- vTribItem (Lei 12.741)
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ncm_codes: referência estática (dados Receita Federal)
+CREATE TABLE banking.ncm_codes (
+    code        TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    depth       INT  NOT NULL CHECK (depth BETWEEN 1 AND 4)
+);
+```
+
+**Índices:**
+```sql
+CREATE INDEX idx_nfce_documents_transaction  ON banking.nfce_documents(transaction_id);
+CREATE INDEX idx_nfce_documents_account_date ON banking.nfce_documents(account_id, emission_date DESC);
+
+CREATE INDEX idx_purchase_items_transaction  ON banking.purchase_items(transaction_id);
+CREATE INDEX idx_purchase_items_account      ON banking.purchase_items(account_id);
+CREATE INDEX idx_purchase_items_variant_date ON banking.purchase_items(product_variant_id, created_at DESC)
+    WHERE product_variant_id IS NOT NULL;
+CREATE INDEX idx_purchase_items_unmapped     ON banking.purchase_items(account_id)
+    WHERE product_variant_id IS NULL;
+CREATE INDEX idx_purchase_items_ncm          ON banking.purchase_items(account_id, ncm_code)
+    WHERE ncm_code IS NOT NULL;
+
+CREATE INDEX idx_product_alias_variant       ON banking.product_alias(product_variant_id);
+CREATE INDEX idx_product_alias_description   ON banking.product_alias(raw_description); -- cross-tenant EAN/alias lookup
+CREATE INDEX idx_product_variants_product    ON banking.product_variants(product_id);
+CREATE INDEX idx_product_variants_ean        ON banking.product_variants(ean)
+    WHERE ean IS NOT NULL;
+```
+
+#### Critérios de aceite
+
+- [ ] Migration aplica sem erros no Docker local (`./gradlew :banking:testIntegration` sobe o container).
+- [ ] Todas as constraints UNIQUE e CHECK foram criadas.
+- [ ] `product_variants.ean` é globalmente único (sem `account_id` na constraint) — refletindo que EAN identifica o produto independente de tenant.
+- [ ] Flyway não reclama de checksum ou conflito com migrations existentes.
+
+---
+
+### Fase 0.4 — JPA Entities + Mappers + Repositories
+
+**Dependências:** Fase 0.3
+
+#### Escopo
+
+Criar a camada de infraestrutura para `nfce_documents` e `purchase_items`. As tabelas `products`, `product_variants` e `product_alias` são criadas pela migration B0-3 mas suas entidades JPA completas (com CRUD) ficam para a Fase 1A — aqui criar apenas o mínimo necessário para o B0-5.
+
+#### Padrão a seguir
+
+Seguir exatamente o padrão de `CreditCardBill*`:
+- Entity: `model/transaction/CreditCardBillEntity.kt`
+- Mapper: `model/transaction/CreditCardBillMapper.kt`
+- Domain interface: `repo/transaction/CreditCardBillRepository.kt`
+- JPA repo: `repo/transaction/CreditCardBillEntityRepository.kt`
+- Default impl: `repo/transaction/DefaultCreditCardBillRepository.kt`
+
+#### Arquivos a criar
+
+**Pacote `model/import/nfce/`:**
+
+`NfceDocumentEntity.kt`
+```kotlin
+@Entity
+@Table(name = "nfce_documents", schema = "banking")
+open class NfceDocumentEntity(
+    @Id @Generated(event = [EventType.INSERT])
+    @Column(columnDefinition = "uuid", insertable = false, updatable = false)
+    override val id: UUID? = null,
+    @Column(name = "transaction_id", nullable = false) open var transactionId: UUID,
+    @Column(name = "account_id",     nullable = false) open var accountId: UUID,
+    @Column(name = "access_key",     nullable = false) open var accessKey: String,
+    @Column(name = "issuer_cnpj",    nullable = false) open var issuerCnpj: String,
+    @Column(name = "issuer_name",    nullable = false) open var issuerName: String,
+    @Column(name = "emission_date",  nullable = false) open var emissionDate: Instant,
+    @Column(name = "total_value",    nullable = false, precision = 18, scale = 4) open var totalValue: BigDecimal,
+    @Column(name = "total_tax",      precision = 18, scale = 4) open var totalTax: BigDecimal? = null,
+    @Column(name = "buyer_cpf")      open var buyerCpf: String? = null,
+    @Column(name = "municipality_code") open var municipalityCode: String? = null,
+    @Column(name = "municipality")   open var municipality: String? = null,
+    @Column(name = "state",          nullable = false) open var state: String,
+    @Column(name = "xml_url")        open var xmlUrl: String? = null,
+    @Column(name = "created_at",     nullable = false) open var createdAt: Instant = Instant.now(),
+) : BaseEntity<UUID?>(id)
+```
+
+`NfceDocumentMapper.kt` — `object NfceDocumentMapper` com `toDomain(entity)` e `toEntity(domain)`.
+
+`PurchaseItemEntity.kt` — campos conforme DDL da B0-3. Mesmo padrão de `NfceDocumentEntity`.
+
+`PurchaseItemMapper.kt` — `object PurchaseItemMapper` com `toDomain(entity)`.
+
+**Pacote `repo/import/nfce/`:**
+
+`NfceDocumentRepository.kt` — interface de domínio:
+```kotlin
+interface NfceDocumentRepository {
+    fun findByAccountKeyAndAccountId(accessKey: String, accountId: UUID): NfceDocument?
+    fun save(document: NfceDocument): NfceDocument
+}
+```
+
+`NfceDocumentEntityRepository.kt` — JPA:
+```kotlin
+@Repository
+interface NfceDocumentEntityRepository : JpaRepository<NfceDocumentEntity, UUID> {
+    fun findByAccessKeyAndAccountId(accessKey: String, accountId: UUID): NfceDocumentEntity?
+}
+```
+
+`DefaultNfceDocumentRepository.kt` — `@Singleton`, delega para `NfceDocumentEntityRepository`.
+
+`PurchaseItemRepository.kt` — interface de domínio:
+```kotlin
+interface PurchaseItemRepository {
+    fun saveAll(items: List<PurchaseItem>): List<PurchaseItem>
+    fun findByTransactionId(transactionId: UUID, accountId: UUID): List<PurchaseItem>
+}
+```
+
+`PurchaseItemEntityRepository.kt` — JPA com `saveAll` herdado do `JpaRepository`.
+
+`DefaultPurchaseItemRepository.kt` — `@Singleton`.
+
+#### Critérios de aceite
+
+- [ ] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
+- [ ] `NfceDocumentRepository.save()` persiste e retorna com `id` preenchido (gerado pelo banco).
+- [ ] `NfceDocumentEntityRepository.findByAccessKeyAndAccountId()` retorna null quando não existe.
+- [ ] `PurchaseItemRepository.saveAll()` persiste todos os itens em batch.
+- [ ] Nenhum campo nullable na entity usa tipo primitivo (usar `BigDecimal?`, `String?`, não `BigDecimal`, `String` para opcionais).
+
+---
+
+### Fase 0.5 — Atualizar `ImportJobService.importNfce()`
+
+**Dependências:** Fase 0.4
+
+#### Escopo
+
+Após criar a `Transaction` (fluxo existente, linhas 160-201 de `ImportJobService.kt`), persistir `NfceDocument` e `PurchaseItem[]` com resolução síncrona das camadas 1-3.
+
+#### Como implementar
+
+**Injetar via construtor:**
+```kotlin
+private val nfceDocumentRepository: NfceDocumentRepository,
+private val purchaseItemRepository: PurchaseItemRepository,
+```
+
+**No método `importNfce()`, após `transactionRepository.save(transaction)` (linha 191):**
+
+```kotlin
+// 1. Persistir NfceDocument
+val nfceDocument = nfceDocumentRepository.save(
+    NfceDocument(
+        transactionId  = requireNotNull(savedTransaction.id),
+        accountId      = accountId,
+        accessKey      = nfce.chNFe,
+        issuerCnpj     = nfce.cnpjEmitente,
+        issuerName     = nfce.nomeEmitente,
+        emissionDate   = nfce.dhEmi,
+        totalValue     = nfce.vNF,
+        totalTax       = nfce.vTotTrib,
+        buyerCpf       = nfce.cpfDestinatario,
+        municipalityCode = nfce.cMunFG,
+        municipality   = nfce.municipio,
+        state          = nfce.uf,
+        xmlUrl         = qrCodeUrl,
+        createdAt      = now,
+    )
+)
+
+// 2. Mapear itens com resolução síncrona (camadas 1-3)
+val purchaseItems = nfce.items.mapIndexed { index, item ->
+    val resolvedVariantId = resolveProductVariant(item, nfce.cnpjEmitente, accountId)
+    PurchaseItem(
+        transactionId      = requireNotNull(savedTransaction.id),
+        accountId          = accountId,
+        productVariantId   = resolvedVariantId,
+        sequence           = item.nItem ?: (index + 1),
+        rawDescription     = item.xProd,
+        ncmCode            = item.ncm.takeIf { it.isNotBlank() },
+        ean                = item.cEAN,                         // parser já filtra "SEM GTIN" → null
+        issuerProductCode  = item.cProd,
+        quantity           = item.qCom,
+        unit               = item.uCom,
+        unitPrice          = item.vUnCom ?: (item.vProd / item.qCom), // fallback: calcular
+        totalPrice         = item.vProd,
+        discount           = item.vDesc,
+        effectivePrice     = item.vProd - (item.vDesc ?: BigDecimal.ZERO),
+        taxAmount          = item.vTribItem,
+        createdAt          = now,
+    )
+}
+purchaseItemRepository.saveAll(purchaseItems)
+```
+
+**Método privado `resolveProductVariant()`** — camadas 1-3 síncronas:
+```kotlin
+private fun resolveProductVariant(
+    item: NfceItem,
+    issuerCnpj: String,
+    accountId: UUID,
+): UUID? {
+    // Camada 1: EAN lookup (cross-tenant — EAN é globalmente único)
+    if (item.cEAN != null) {
+        val byEan = productVariantEntityRepository.findByEan(item.cEAN)
+        if (byEan != null) return byEan.id
+    }
+    // Camada 2: Alias por raw_description (scoped por tenant)
+    val byAlias = productAliasEntityRepository
+        .findByAccountIdAndRawDescription(accountId, item.xProd)
+    if (byAlias != null) return byAlias.productVariantId
+    // Camada 3: Mesmo CNPJ + cProd (scoped por tenant)
+    if (item.cProd != null) {
+        val byCnpjProd = purchaseItemEntityRepository
+            .findFirstResolvedByCnpjAndProduct(accountId, issuerCnpj, item.cProd)
+        if (byCnpjProd != null) return byCnpjProd.productVariantId
+    }
+    return null
+}
+```
+
+**Queries nativas necessárias (adicionar em `PurchaseItemEntityRepository`):**
+```kotlin
+@Query("""
+    SELECT pi.* FROM banking.purchase_items pi
+    JOIN banking.nfce_documents nd ON nd.transaction_id = pi.transaction_id
+    WHERE pi.account_id = :accountId
+      AND nd.issuer_cnpj = :issuerCnpj
+      AND pi.issuer_product_code = :issuerProductCode
+      AND pi.product_variant_id IS NOT NULL
+    LIMIT 1
+""", nativeQuery = true)
+fun findFirstResolvedByCnpjAndProduct(
+    accountId: UUID,
+    issuerCnpj: String,
+    issuerProductCode: String,
+): PurchaseItemEntity?
+```
+
+**Dedup:** O dedup existente (linha 162-165) via `sameSourceDedupService.isDuplicate(chNFe)` **permanece como está** — ele protege a `transactions` table. A constraint `uq_nfce_documents_account_key` é um safety net adicional no banco, mas não adicionar dedup em código no B0-5.
+
+#### Critérios de aceite
+
+- [ ] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
+- [ ] Teste de integração: `importNfce()` com NFC-e de 3 itens persiste 1 `NfceDocument` + 3 `PurchaseItems` na mesma transação DB.
+- [ ] Teste de integração: re-import da mesma NFC-e (mesmo `chNFe`) retorna job existente sem criar duplicatas.
+- [ ] `NfceDocument.totalValue`, `emissionDate`, `issuerCnpj` batem com os dados do `NfceData`.
+- [ ] `PurchaseItem.effectivePrice = vProd - vDesc` para item com desconto.
+- [ ] `PurchaseItem.effectivePrice = vProd` para item sem desconto (`vDesc = null`).
+- [ ] `PurchaseItem.productVariantId = null` quando nenhuma camada 1-3 resolve.
+- [ ] Camada 1: item com EAN que já existe em `product_variants` → `productVariantId` preenchido.
+- [ ] Camada 2: item com `raw_description` já em `product_alias` → `productVariantId` preenchido.
+- [ ] Falha no `purchaseItemRepository.saveAll()` faz rollback de `NfceDocument` e `Transaction` (tudo na mesma `@Transactional`).
+
+---
+
+### Fase 0.6 — Seed `ncm_codes`
+
+**Dependências:** Fase 0.3 | **Paralelo com Fase 0.4 e 0.5**
+
+#### Escopo
+
+Popular a tabela `banking.ncm_codes` com os ~14.000 códigos NCM da Receita Federal, nos 4 níveis hierárquicos.
+
+#### Estratégia
+
+Usar **migration Flyway separada** `V0_12__seed_ncm_codes.sql`. Apesar do volume (~14K linhas), é a abordagem mais simples e garante que todo ambiente (dev, staging, prod) receba os dados automaticamente no deploy.
+
+**Fonte dos dados:** Download da tabela NCM no site da Receita Federal:
+- URL: https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/tabela-ncm
+- Formato: XLS/XLSX, exportar para CSV
+
+**Formato de cada linha no SQL:**
+```sql
+INSERT INTO banking.ncm_codes (code, description, depth) VALUES
+('01',      'Animais vivos',                                      1),
+('0101',    'Cavalos, asininos e muares, vivos',                  2),
+('010110',  'Reprodutores de raca pura',                          3),
+('01011010','Cavalos reprodutores de raca pura',                  4),
+-- ...
+;
+```
+
+**Acentos:** Usar UTF-8 sem acentos para evitar problemas de encoding em diferentes ambientes, ou garantir que o arquivo SQL declare `SET client_encoding = 'UTF8'` no início.
+
+**Script de conversão:** Criar um script Python/Node auxiliar (fora do projeto, descartável) para converter o CSV da Receita Federal no SQL de INSERT. Não commitar o script no repositório.
+
+#### Critérios de aceite
+
+- [ ] Migration V0_12 aplica sem erros.
+- [ ] `SELECT COUNT(*) FROM banking.ncm_codes` ≥ 10.000 após migration.
+- [ ] Todos os 4 valores de `depth` presentes: `SELECT DISTINCT depth FROM banking.ncm_codes` = {1, 2, 3, 4}.
+- [ ] Código NCM de arroz (`1006`) existe com descrição correta.
+- [ ] Código de 8 dígitos `01011010` existe com `depth = 4`.
+
+---
+
+### Resumo de dependências
+
+```
+Fase 0.1 (cMunFG)  ─────────────────────────────────────────────────────────────┐
+Fase 0.3 (Migration DDL) ──→ Fase 0.4 (JPA/Repos) ──→ Fase 0.5 (ImportJobService) ─→ Fase 0 completa
+Fase 0.6 (Seed NCM) ────────── (após 0.3, paralelo com 0.4/0.5) ───────────────┘
+
+Fase 0.2 (SvrsNfceFetcher) ── ⏸ adiado para Fase 1A
+```
+
+Fase 0.1, 0.3 e 0.6 podem ser iniciados imediatamente em paralelo.
+Fase 0.4 depende de 0.3. Fase 0.5 depende de 0.4.
