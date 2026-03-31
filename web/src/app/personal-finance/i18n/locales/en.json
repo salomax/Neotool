@@ -715,16 +715,32 @@
         "manual": "Manual Rules",
         "automatic": "Automatic Rules"
       },
+      "helpBanner": {
+        "title": "Learn how rules work",
+        "actionLabel": "See how automation organizes your transactions"
+      },
+        "helpDrawer": {
+          "title": "Learn how rules work",
+          "intro": "Rules help organize your finances automatically. They match transaction descriptions and assign new values to make tracking easier.",
+          "items": {
+            "item1": "When a transaction’s description matches the text defined in the rule, the app automatically applies a new description, a category, tags, and a merchant.",
+            "item2": "The app checks for a manual rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
+            "item3": "For manual transactions, category and tags are only assigned if you left them blank when creating the entry."
+          }
+        },
       "searchPlaceholder": "Search by pattern…",
       "actions": {
-        "newRule": "New Rule"
+        "newRule": "New Rule",
+        "clearSearchAriaLabel": "Clear search"
       },
       "errors": {
-        "load": "Error loading rules."
+        "load": "Error loading rules.",
+        "delete": "Could not delete the rule."
       },
       "toast": {
         "deleted": "Rule deleted."
       },
+      "loadingMore": "Loading more...",
       "emptyState": {
         "manual": "No manual rules created yet.",
         "automatic": "No automatic rules yet."

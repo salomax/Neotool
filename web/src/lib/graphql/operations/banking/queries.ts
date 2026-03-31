@@ -73,6 +73,7 @@ export const TRANSACTIONS = gql`
     $billId: ID
     $month: Int
     $year: Int
+    $search: String
     $tags: [String!]
     $categoryId: ID
     $uncategorized: Boolean
@@ -85,6 +86,7 @@ export const TRANSACTIONS = gql`
       billId: $billId
       month: $month
       year: $year
+      search: $search
       tags: $tags
       categoryId: $categoryId
       uncategorized: $uncategorized

@@ -29,12 +29,15 @@ export function AppHeader() {
   const { mode, toggle } = useThemeMode();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
   const { isAuthenticated, user, signOut } = useAuth();
   const router = useRouter();
   const pageTitle = usePageTitleValue();
   const isAssistantEnabled = useFeatureFlagEnabled("assistant-enable");
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const [contentHeight, setContentHeight] = React.useState<number | null>(null);
 
   const handleChatIconClick = () => {
     setChatDrawerOpen(true);
@@ -62,6 +65,28 @@ export function AppHeader() {
     [t]
   );
 
+  React.useLayoutEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+  }, []);
+
+  React.useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+    };
+
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <Box
       component="header"
@@ -76,42 +101,52 @@ export function AppHeader() {
         borderColor: "divider",
         backdropFilter: "blur(6px)",
         display: { xs: "none", md: "block" }, // Hide on mobile as requested
+        height: contentHeight ? `${contentHeight}px` : "auto",
+        overflow: "hidden",
+        transition: prefersReducedMotion
+          ? "none"
+          : theme.transitions.create("height", {
+              duration: theme.transitions.duration.shorter,
+              easing: theme.transitions.easing.easeInOut,
+            }),
+        willChange: prefersReducedMotion ? undefined : "height",
       }}
     >
-      <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: { xs: 1, md: 2 },
-          }}
-        >
-          {/* Left Section: Logo (Mobile) + Page Title */}
+      <Box ref={contentRef}>
+        <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              gap: 1.5,
-              flex: "0 1 auto",
-              minWidth: 0,
+              justifyContent: "space-between",
+              gap: { xs: 1, md: 2 },
             }}
           >
-            {/* Mobile Logo */}
-            <Box sx={{ display: { xs: "block", md: "none" } }}>
-              <Logo size="small" />
-            </Box>
+            {/* Left Section: Logo (Mobile) + Page Title */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1.5,
+                flex: "0 1 auto",
+                minWidth: 0,
+              }}
+            >
+              {/* Mobile Logo */}
+              <Box sx={{ display: { xs: "block", md: "none" } }}>
+                <Logo size="small" />
+              </Box>
 
-            {/* Page Title and Breadcrumb */}
-            {pageTitle && (
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.5,
-                  minWidth: 0, // Allow text truncation
-                }}
-              >
+              {/* Page Title and Breadcrumb */}
+              {pageTitle && (
+                <Box
+                  sx={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 0.5,
+                    minWidth: 0, // Allow text truncation
+                  }}
+                >
                 <Typography
                   variant={isMobile ? "h6" : "h4"}
                   component="h1"
@@ -124,7 +159,7 @@ export function AppHeader() {
                 >
                   {pageTitle}
                 </Typography>
-                <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+                <Box sx={{ display: { xs: "none", md: "block" } }}>
                   <Breadcrumb
                     homeLabel={t("routes.home")}
                     routeConfig={breadcrumbRouteConfig}
@@ -145,17 +180,17 @@ export function AppHeader() {
             }}
           >
             <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
-              <IconButton 
-                aria-label="toggle theme" 
+              <IconButton
+                aria-label="toggle theme"
                 onClick={toggle}
-                sx={{ display: { xs: 'none', md: 'inline-flex' } }}
+                sx={{ display: { xs: "none", md: "inline-flex" } }}
               >
                 {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
               </IconButton>
             </Tooltip>
             <HeaderPendingActionsBadge />
             {isAssistantEnabled && (
-              <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
+              <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
                 <Tooltip title={t("appHeader.aiAssistant")}>
                   <IconButton
                     aria-label="Open AI assistant"
@@ -187,8 +222,9 @@ export function AppHeader() {
               </Button>
             )}
           </Box>
-        </Box>
-      </Container>
+          </Box>
+        </Container>
+      </Box>
       {isAssistantEnabled && (
         <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
       )}

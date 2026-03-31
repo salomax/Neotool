@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import FinanceTransactionsPage from '../page';
 import { useQuery } from '@apollo/client/react';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -16,6 +16,9 @@ vi.mock('@/shared/i18n', () => ({
     t: (key: string) => `pf:${key}`,
     tCommon: (key: string) => `common:${key}`,
   }),
+  i18n: {
+    language: 'pt-BR',
+  },
 }));
 
 vi.mock('@/shared/utils/error', () => ({
@@ -181,5 +184,25 @@ describe.sequential('FinanceTransactionsPage', () => {
 
     expect(screen.getByRole('button', { name: 'common:cardGrid.retry' })).toBeInTheDocument();
     expect(extractErrorMessage).toHaveBeenCalledWith(expect.any(Error), 'common:errors.default');
+  });
+
+  it('passes the search text to the transactions query', async () => {
+    render(<FinanceTransactionsPage />);
+
+    fireEvent.change(
+      screen.getByPlaceholderText('pf:financeTransactions.transactionRules.searchPlaceholder'),
+      { target: { value: 'rent' } },
+    );
+
+    await waitFor(() => {
+      expect(useQuery).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            search: 'rent',
+          }),
+        }),
+      );
+    });
   });
 });

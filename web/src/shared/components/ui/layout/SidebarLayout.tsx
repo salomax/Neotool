@@ -132,7 +132,7 @@ export const SidebarLayout = React.forwardRef<HTMLDivElement, SidebarLayoutProps
   
   // Sidebar styles
   const sidebarStyles: React.CSSProperties = React.useMemo(() => {
-    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: `${RAIL_W}px` };
+    const edgePosition: Partial<React.CSSProperties> = isLeft ? { left: `${RAIL_W}px` } : { right: 0 };
     
     return {
       position: 'fixed',

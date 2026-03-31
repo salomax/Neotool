@@ -701,7 +701,7 @@
       "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
-      "automation": "Automatização",
+      "automation": "Automação",
       "edit": "Editar",
       "save": "Salvar",
       "saving": "Salvando...",
@@ -715,16 +715,32 @@
         "manual": "Regras Manuais",
         "automatic": "Regras Automáticas"
       },
+      "helpBanner": {
+        "title": "Entenda como funcionam as regras",
+        "actionLabel": "Saiba como a automação organiza suas movimentações"
+      },
+        "helpDrawer": {
+          "title": "Entenda como funcionam as regras",
+          "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
+          "items": {
+            "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
+            "item2": "O app verifica se há uma regra manual, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
+            "item3": "Para movimentações manuais, categoria e tags apenas são atribuídas caso o usuário tenha deixado em branco durante o cadastro."
+          }
+        },
       "searchPlaceholder": "Buscar...",
       "actions": {
-        "newRule": "Nova Regra"
+        "newRule": "Nova Regra",
+        "clearSearchAriaLabel": "Limpar busca"
       },
       "errors": {
-        "load": "Erro ao carregar regras."
+        "load": "Erro ao carregar regras.",
+        "delete": "Não foi possível excluir a regra."
       },
       "toast": {
         "deleted": "Regra excluída."
       },
+      "loadingMore": "Carregando mais...",
       "emptyState": {
         "manual": "Nenhuma regra manual criada ainda.",
         "automatic": "Nenhuma regra automática ainda."

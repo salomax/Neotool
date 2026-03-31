@@ -66,7 +66,7 @@ describe.sequential('SidebarLayout', () => {
 
       // Check sidebar is fixed to right
       const sidebar = screen.getByTestId('sidebarlayout-sidebar');
-      expect(sidebar).toHaveStyle({ right: `${RAIL_W}px` });
+      expect(sidebar).toHaveStyle({ right: '0px' });
       expect(sidebar).toHaveStyle({ position: 'fixed' });
 
       // Check content has marginRight to account for sidebar (default md size is 600px)

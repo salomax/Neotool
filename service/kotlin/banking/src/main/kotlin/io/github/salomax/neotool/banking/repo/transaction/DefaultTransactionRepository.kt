@@ -758,9 +758,13 @@ open class DefaultTransactionRepository(
         }
         query.search?.let {
             params["searchQuery"] = it
+            params["searchLikePattern"] = "%${escapeLikePattern(it)}%"
             conditions +=
                 """
-                to_tsvector('simple', t.description) @@ websearch_to_tsquery('simple', :searchQuery)
+                (
+                    to_tsvector('simple', t.description) @@ websearch_to_tsquery('simple', :searchQuery)
+                    OR t.description ILIKE :searchLikePattern ESCAPE '\'
+                )
                 """.trimIndent()
         }
         if (query.uncategorizedOnly) {
@@ -824,6 +828,12 @@ open class DefaultTransactionRepository(
         params.forEach { (name, value) -> query.setParameter(name, value) }
         return query
     }
+
+    private fun escapeLikePattern(value: String): String =
+        value
+            .replace("\\", "\\\\")
+            .replace("%", "\\%")
+            .replace("_", "\\_")
 
     private fun mapCategoryBreakdownRow(row: Array<Any?>): CategoryBreakdownRow =
         CategoryBreakdownRow(

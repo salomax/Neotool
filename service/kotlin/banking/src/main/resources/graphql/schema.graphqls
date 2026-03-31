@@ -1530,7 +1530,7 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
-    """Full-text search over transaction descriptions."""
+    """Text search over transaction descriptions with full-text and partial substring matching."""
     search: String
     tags: [String!]
     billId: ID
@@ -1552,7 +1552,7 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
-    """Full-text search over transaction descriptions."""
+    """Text search over transaction descriptions with full-text and partial substring matching."""
     search: String
     tags: [String!]
     billId: ID
@@ -1583,7 +1583,7 @@ extend type Query {
     financialAccountId: ID
     belongsToUserId: ID
     belongsToName: String
-    """Full-text search over transaction descriptions."""
+    """Text search over transaction descriptions with full-text and partial substring matching."""
     search: String
     tags: [String!]
     billId: ID
