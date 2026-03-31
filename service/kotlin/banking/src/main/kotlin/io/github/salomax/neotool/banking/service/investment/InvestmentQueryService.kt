@@ -16,7 +16,6 @@ import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketPrice

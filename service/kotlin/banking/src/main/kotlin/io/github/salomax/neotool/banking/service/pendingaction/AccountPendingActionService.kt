@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.service.pendingaction
 
-import io.github.salomax.neotool.banking.domain.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus

@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS financial_data.asset_brand (
     logo_asset_id UUID,
 
     -- Provenance and review metadata
-    source TEXT NOT NULL DEFAULT 'LOGO_DEV_SEARCH',
+    source TEXT NOT NULL DEFAULT 'BRANDFETCH_ISIN',
     confidence NUMERIC(5, 4),
     status TEXT NOT NULL DEFAULT 'PENDING',
     raw_search_payload TEXT,
@@ -30,7 +30,7 @@ CREATE TABLE IF NOT EXISTS financial_data.asset_brand (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
     CONSTRAINT ck_asset_brand_source
-        CHECK (source IN ('LOGO_DEV_SEARCH', 'MANUAL')),
+        CHECK (source IN ('LOGO_DEV_SEARCH', 'BRANDFETCH_ISIN', 'MANUAL')),
     CONSTRAINT ck_asset_brand_status
         CHECK (status IN ('PENDING', 'AUTO_APPROVED', 'VERIFIED', 'REJECTED')),
     CONSTRAINT ck_asset_brand_confidence
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS financial_data.investment_asset_brand_match (
 
     query_used TEXT,
     candidate_rank INT,
-    match_source TEXT NOT NULL DEFAULT 'LOGO_DEV_SEARCH',
+    match_source TEXT NOT NULL DEFAULT 'BRANDFETCH_ISIN',
     match_confidence NUMERIC(5, 4),
     status TEXT NOT NULL DEFAULT 'PENDING',
     raw_match_payload TEXT,
@@ -93,7 +93,7 @@ CREATE TABLE IF NOT EXISTS financial_data.investment_asset_brand_match (
         UNIQUE (investment_asset_id, asset_brand_id),
 
     CONSTRAINT ck_investment_asset_brand_match_source
-        CHECK (match_source IN ('LOGO_DEV_SEARCH', 'MANUAL')),
+        CHECK (match_source IN ('LOGO_DEV_SEARCH', 'BRANDFETCH_ISIN', 'MANUAL')),
     CONSTRAINT ck_investment_asset_brand_match_status
         CHECK (status IN ('PENDING', 'AUTO_APPROVED', 'VERIFIED', 'REJECTED')),
     CONSTRAINT ck_investment_asset_brand_match_confidence

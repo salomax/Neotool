@@ -44,6 +44,7 @@ import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
 import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawer";
 import { PendingActionsPanel } from "./PendingActionsPanel";
+import { Label } from "@/shared/components/ui";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -248,44 +249,33 @@ export default function PersonalFinanceInvestmentsPage() {
                 <Button
                   variant="contained"
                   size="large"
-                  startIcon={<AddchartIcon />}
-                  sx={{ height: 48, minWidth: { xs: "100%", sm: 280 }, boxShadow: theme.shadows[4] }}
-                  onClick={() => setIsCreateAccountOpen(true)}
-                  data-testid="create-investment-account-empty-btn"
-                >
-                  {t("investments.emptyState.primaryAction")}
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="large"
                   startIcon={<AddIcon />}
-                  endIcon={<ArrowDropDownIcon />}
-                  onClick={openHoldingMenu}
-                  data-testid="record-holding-empty-btn"
                   sx={{
                     height: 48,
-                    minWidth: { xs: "100%", sm: 260 },
-                    boxShadow: (theme) => `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
+                    minWidth: { xs: "100%", sm: 280 },
+                    boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
                     "&:hover": {
-                      boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
+                      boxShadow: `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
                     },
                     "&:active": {
-                      boxShadow: (theme) => `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
+                      boxShadow: `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
                     },
                     "&.Mui-disabled": {
                       boxShadow: "none",
                     },
                   }}
+                  onClick={() => setIsCreateAccountOpen(true)}
+                  data-testid="create-investment-account-empty-btn"
                 >
-                  {t("investments.emptyState.secondaryAction")}
+                  {t("investments.emptyState.primaryAction")}
                 </Button>
               </Stack>
 
               <Box sx={{ width: "100%", maxWidth: 620, borderBottom: `1px solid ${alpha(theme.palette.divider, 0.7)}`, my: 3 }} />
 
-              <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: "0.18em", mb: 2 }}>
+              <Label sx={{ mb: 2 }}>
                 {t("investments.trackableAssets.title")}
-              </Typography>
+              </Label>
 
               <Stack
                 direction="row"
@@ -293,10 +283,11 @@ export default function PersonalFinanceInvestmentsPage() {
                 sx={{ justifyContent: "center", flexWrap: "wrap", rowGap: 3, color: "text.secondary" }}
               >
                 {[
+                  { icon: <AssetTypeIcon kind="FIXED_INCOME" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.fixedIncome") },
+                  { icon: <AssetTypeIcon kind="STOCK" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.stocks") },
+                  { icon: <AssetTypeIcon kind="FUND" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.funds") },
                   { icon: <AssetTypeIcon kind="CRYPTO" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.crypto") },
                   { icon: <AssetTypeIcon kind="REAL_ESTATE_FUND" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.reits") },
-                  { icon: <AssetTypeIcon kind="STOCK" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.stocks") },
-                  { icon: <AssetTypeIcon kind="FIXED_INCOME" sx={{ fontSize: 22 }} />, label: t("investments.trackableAssets.fixedIncome") },
                 ].map((item) => (
                   <Box key={item.label} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 0.75, minWidth: 96 }}>
                     <Box sx={{ opacity: 0.7 }}>{item.icon}</Box>

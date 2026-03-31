@@ -714,21 +714,18 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
       </Box>
       <Box sx={{ mb: 2 }}>
         <Label>{t('financeTransactions.monthSummary.balance')}</Label>
-        <Typography
-          variant="h3"
-          component="div"
-          data-testid="month-summary-closing-balance"
-          sx={{
-            fontWeight: 700,
-            mt: 0.5,
-            fontSize: '2.3rem',
-            color: theme.palette.text.primary,
-          }}
-        >
-          {loading && !summary ? (
-            <Skeleton width={200} />
-          ) : null}
-        </Typography>
+        {loading && !summary ? (
+          <Typography
+            variant="h3"
+            component="div"
+            data-testid="month-summary-closing-balance"
+            sx={{
+              fontWeight: 700,
+              mt: 0.5,
+              fontSize: '2.3rem',
+              color: theme.palette.text.primary,
+            }}
+          >
             <Skeleton width={200} />
           </Typography>
         ) : (
@@ -738,6 +735,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             locale={MONTH_SUMMARY_LOCALE}
             variant="h3"
             component="div"
+            data-testid="month-summary-closing-balance"
             sx={{
               fontWeight: 700,
               mt: 0.5,

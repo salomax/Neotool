@@ -6,6 +6,12 @@
     "defaultUser": "User",
     "aiAssistant": "AI Assistant",
     "pendingActions": "Pending actions",
+    "profile": {
+      "subtitle": "View and edit your account details"
+    },
+    "preferences": {
+      "subtitle": "Preferences, language and appearance"
+    },
     "theme": {
       "light": "Switch to light mode",
       "dark": "Switch to dark mode"
@@ -43,6 +49,15 @@
     "personalFinance": "Personal Finance",
     "investments": "Investments",
     "menu": "Menu"
+  },
+  "profile": {
+    "emailVerified": "Email verified",
+    "plan": "Plan",
+    "yes": "Yes",
+    "no": "No",
+    "preferences": {
+      "title": "Preferences"
+    }
   },
   "seo": {
     "default": {

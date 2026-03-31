@@ -30,8 +30,8 @@ Usage: $0 <subcommand> [options]
 
 Subcommands:
   $(log "sync" "$GREEN")
-    Interactive sync from service modules to contracts.
-    Prompts to select schema source and target subgraph.
+    Run full GraphQL workflow for all services:
+    sync schemas, validate consistency, and generate supergraph.
 
   $(log "validate" "$GREEN")
     Validate schema consistency between services and contracts.
@@ -40,7 +40,7 @@ Subcommands:
     Generate supergraph schema from subgraph schemas.
 
   $(log "all" "$GREEN")
-    Run sync, validate, and generate in sequence.
+    Alias of "sync" (kept for backwards compatibility).
 
 Options:
   --docker    Use Docker for rover (useful for CI/CD)
@@ -69,6 +69,11 @@ EOF
 
 # Execute sync command
 execute_sync() {
+    execute_all "$@"
+}
+
+# Execute sync-only step
+execute_sync_only() {
     if [[ ! -f "$SYNC_SCRIPT" ]]; then
         log_error "Error: sync-schemas.sh not found at $SYNC_SCRIPT"
         exit 1
@@ -154,11 +159,11 @@ execute_all() {
         fi
     done
     
-    log "\n🔄 Running full GraphQL schema management workflow...\n" "$BRIGHT"
+    log "\n🔄 Running full GraphQL schema management workflow for all services...\n" "$BRIGHT"
     
     # Sync
     log "Step 1/3: Syncing schemas..." "$BLUE"
-    execute_sync
+    execute_sync_only
     echo ""
     
     # Validate
@@ -207,7 +212,7 @@ main() {
     
     case "$subcommand" in
         sync)
-            execute_sync
+            execute_sync "$@"
             ;;
         validate)
             execute_validate

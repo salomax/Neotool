@@ -40,7 +40,6 @@ export type AccountPreferences = {
   defaultTransactionStatus: TransactionStatus;
   ruleApplicationMode: RuleApplicationMode;
 };
-};
 
 /** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
 export enum AnbimaCategory {

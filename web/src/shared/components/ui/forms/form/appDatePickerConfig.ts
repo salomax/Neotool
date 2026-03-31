@@ -5,6 +5,7 @@ import type { DatePickerProps } from "@mui/x-date-pickers/DatePicker";
 import type { DateView } from "@mui/x-date-pickers/models";
 import { monthCalendarClasses } from "@mui/x-date-pickers/MonthCalendar";
 import { pickersCalendarHeaderClasses } from "@mui/x-date-pickers/PickersCalendarHeader";
+import { yearCalendarClasses } from "@mui/x-date-pickers/YearCalendar";
 import { labelTypographySx } from "@/shared/components/ui/primitives/Label";
 
 /** App-wide date picker: day grid by default; year/month via header switch. */
@@ -21,17 +22,32 @@ export function appDatePickerDisplayFormatFromLanguageTag(lang: string | undefin
 }
 
 /** Calendar header + month grid match shared `<Label />` typography (`labelTypographySx`). */
+function appDatePickerLabelTypographySx(theme: Theme) {
+  return { ...labelTypographySx(theme), fontSize: "0.8rem" };
+}
+
 const appDatePickerCalendarSlotPropsDefined = {
   calendarHeader: {
     sx: (theme: Theme) => ({
       [`& .${pickersCalendarHeaderClasses.labelContainer}`]: {
-        ...labelTypographySx(theme),
+        ...appDatePickerLabelTypographySx(theme),
+      },
+      [`& .${pickersCalendarHeaderClasses.label}`]: {
+        fontSize: "0.8rem",
+      },
+    }),
+  },
+  yearButton: {
+    sx: (theme: Theme) => ({
+      ...appDatePickerLabelTypographySx(theme),
+      [`&.${yearCalendarClasses.selected}`]: {
+        color: theme.palette.primary.contrastText,
       },
     }),
   },
   monthButton: {
     sx: (theme: Theme) => ({
-      ...labelTypographySx(theme),
+      ...appDatePickerLabelTypographySx(theme),
       [`&.${monthCalendarClasses.selected}`]: {
         color: theme.palette.primary.contrastText,
       },
@@ -44,7 +60,7 @@ export const appDatePickerSlotProps =
 
 /**
  * Standard calendar `slotProps` plus optional extras (e.g. `textField`, `day`, `actionBar`).
- * Deep-merges `calendarHeader` and `monthButton` `sx` when the caller overrides those slots.
+ * Deep-merges `calendarHeader`, `yearButton` and `monthButton` `sx` when the caller overrides those slots.
  */
 export function mergeAppDatePickerSlotProps(
   extra?: DatePickerProps["slotProps"] | null,
@@ -54,8 +70,14 @@ export function mergeAppDatePickerSlotProps(
     return { ...appDatePickerSlotProps };
   }
 
-  const { calendarHeader: extraCal, monthButton: extraMonth, ...restExtra } = extra;
+  const {
+    calendarHeader: extraCal,
+    yearButton: extraYear,
+    monthButton: extraMonth,
+    ...restExtra
+  } = extra;
   const baseCal = base.calendarHeader as { sx?: unknown };
+  const baseYear = base.yearButton as { sx?: unknown };
   const baseMonth = base.monthButton as { sx?: unknown };
 
   return {
@@ -70,6 +92,15 @@ export function mergeAppDatePickerSlotProps(
           },
         }
       : {}),
+    ...(extraYear != null
+      ? {
+          yearButton: {
+            ...base.yearButton,
+            ...extraYear,
+            sx: [baseYear.sx, (extraYear as { sx?: unknown }).sx].filter(Boolean),
+          },
+        }
+      : {}),
     ...(extraMonth != null
       ? {
           monthButton: {
@@ -81,4 +112,3 @@ export function mergeAppDatePickerSlotProps(
       : {}),
   } as DatePickerProps["slotProps"];
 }
-

@@ -4,19 +4,13 @@ import { useRouter } from "next/navigation";
 import Box from "@mui/material/Box";
 import Container from "@mui/material/Container";
 import IconButton from "@mui/material/IconButton";
-import Avatar from "@mui/material/Avatar";
 import Tooltip from "@mui/material/Tooltip";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Divider from "@mui/material/Divider";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
 import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
 import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import LogoutIcon from "@mui/icons-material/Logout";
-import PersonIcon from "@mui/icons-material/Person";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
 import { useAuth } from "@/shared/providers";
@@ -26,8 +20,9 @@ import { Breadcrumb } from "@/shared/components/ui/navigation/Breadcrumb";
 import { useTranslation } from "react-i18next";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
-import { getInitials } from "@/shared/utils/user";
 import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingActionsBadge";
+import { UserProfileMenu } from "@/shared/ui/shell/UserProfileMenu";
+import type { RouteConfig } from "@/shared/components/ui/navigation/Breadcrumb";
 
 export function AppHeader() {
   const { t } = useTranslation();
@@ -36,8 +31,7 @@ export function AppHeader() {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
-  const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
-  const { isAuthenticated, user, signOut, isLoading } = useAuth();
+  const { isAuthenticated, user, signOut } = useAuth();
   const router = useRouter();
   const pageTitle = usePageTitleValue();
   const isAssistantEnabled = useFeatureFlagEnabled("assistant-enable");
@@ -50,24 +44,23 @@ export function AppHeader() {
     setChatDrawerOpen(false);
   };
 
-  const handleProfileMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleProfileMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   const handleSignIn = () => {
     router.push("/signin");
   };
 
-  const handleSignOut = () => {
-    handleProfileMenuClose();
-    signOut();
-  };
-
-  const open = Boolean(anchorEl);
+  const breadcrumbRouteConfig = React.useMemo<RouteConfig[]>(
+    () => [
+      { path: "/", label: t("routes.home") },
+      { path: "/financial-data", label: t("routes.financialData") },
+      { path: "/financial-data/bacen-institutions", label: t("routes.financialInstitutions") },
+      { path: "/investments", label: t("routes.investments") },
+      { path: "/personal-finance", label: t("routes.personalFinance") },
+      { path: "/personal-finance/investments", label: t("routes.investments") },
+      { path: "/profile", label: t("routes.profile") },
+      { path: "/settings", label: t("routes.settings") },
+    ],
+    [t]
+  );
 
   return (
     <Box
@@ -132,7 +125,10 @@ export function AppHeader() {
                   {pageTitle}
                 </Typography>
                 <Box sx={{ display: { xs: 'none', md: 'block' } }}>
-                  <Breadcrumb />
+                  <Breadcrumb
+                    homeLabel={t("routes.home")}
+                    routeConfig={breadcrumbRouteConfig}
+                  />
                 </Box>
               </Box>
             )}
@@ -160,30 +156,23 @@ export function AppHeader() {
             <HeaderPendingActionsBadge />
             {isAssistantEnabled && (
               <Box sx={{ display: { xs: 'none', md: 'inline-flex' } }}>
-                <Tooltip title="AI Assistant">
-                  <IconButton aria-label="Open AI assistant" onClick={handleChatIconClick}>
+                <Tooltip title={t("appHeader.aiAssistant")}>
+                  <IconButton
+                    aria-label="Open AI assistant"
+                    onClick={handleChatIconClick}
+                  >
                     <AutoAwesomeIcon />
                   </IconButton>
                 </Tooltip>
               </Box>
             )}
             {isAuthenticated ? (
-              <Tooltip title={t("appHeader.account")}>
-                <IconButton 
-                  aria-label="Account menu"
-                  onClick={handleProfileMenuOpen}
-                  aria-controls={open ? "profile-menu" : undefined}
-                  aria-haspopup="true"
-                  aria-expanded={open ? "true" : undefined}
-                >
-                  <Avatar
-                    sx={{ width: 32, height: 32 }}
-                    src={user?.avatarUrl || undefined}
-                  >
-                    {user ? getInitials(user) : <PersonIcon />}
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
+              <UserProfileMenu
+                user={user}
+                onSignOut={signOut}
+                onOpenProfile={() => router.push("/profile")}
+                t={t}
+              />
             ) : (
               <Button
                 variant="contained"
@@ -203,25 +192,6 @@ export function AppHeader() {
       {isAssistantEnabled && (
         <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
       )}
-      <Menu
-        id="profile-menu"
-        anchorEl={anchorEl}
-        open={open}
-        onClose={handleProfileMenuClose}
-        onClick={handleProfileMenuClose}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-      >
-        <MenuItem onClick={() => router.push("/profile")}>
-          <PersonIcon fontSize="small" sx={{ mr: 1.5 }} />
-          Profile
-        </MenuItem>
-        <Divider />
-        <MenuItem onClick={handleSignOut}>
-          <LogoutIcon fontSize="small" sx={{ mr: 1.5 }} />
-          Sign out
-        </MenuItem>
-      </Menu>
     </Box>
   );
 }

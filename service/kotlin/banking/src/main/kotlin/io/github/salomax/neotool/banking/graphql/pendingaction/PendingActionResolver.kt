@@ -182,6 +182,7 @@ class PendingActionResolver(
             cardIdentifier = cardIdentifier,
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
+            appliedRuleIds = appliedRuleIds,
             createdAt = createdAt,
             updatedAt = updatedAt,
         )

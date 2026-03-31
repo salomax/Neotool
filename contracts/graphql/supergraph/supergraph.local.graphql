@@ -42,7 +42,6 @@ type AccountPreferences
   ruleApplicationMode: RuleApplicationMode!
   defaultTransactionStatus: TransactionStatus!
 }
-}
 
 """
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).

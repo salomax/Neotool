@@ -6,6 +6,12 @@
     "defaultUser": "Usuário",
     "aiAssistant": "Assistente IA",
     "pendingActions": "Ações pendentes",
+    "profile": {
+      "subtitle": "Gerencie o perfil e as preferências da sua conta"
+    },
+    "preferences": {
+      "subtitle": "Preferências do app, idioma e aparência"
+    },
     "theme": {
       "light": "Alternar para modo claro",
       "dark": "Alternar para modo escuro"
@@ -43,6 +49,15 @@
     "personalFinance": "Finanças pessoais",
     "investments": "Investimentos",
     "menu": "Menu"
+  },
+  "profile": {
+    "emailVerified": "E-mail verificado",
+    "plan": "Plano",
+    "yes": "Sim",
+    "no": "Não",
+    "preferences": {
+      "title": "Preferências"
+    }
   },
   "seo": {
     "default": {

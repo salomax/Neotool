@@ -1072,10 +1072,6 @@ enum HoldingCloseReason {
 
 enum PendingActionType {
   INVESTMENT_MATURED
-  INVESTMENT_POSITION_MISSING
-  CORPORATE_EVENT
-  INVESTMENT_INCOME
-  INFORMATIONAL
 }
 
 enum PendingActionSeverity {

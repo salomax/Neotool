@@ -42,7 +42,6 @@ type AccountPreferences
   ruleApplicationMode: RuleApplicationMode!
   defaultTransactionStatus: TransactionStatus!
 }
-}
 
 """
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
@@ -2491,10 +2490,6 @@ enum PendingActionType
   @join__type(graph: BANKING)
 {
   INVESTMENT_MATURED @join__enumValue(graph: BANKING)
-  INVESTMENT_POSITION_MISSING @join__enumValue(graph: BANKING)
-  CORPORATE_EVENT @join__enumValue(graph: BANKING)
-  INVESTMENT_INCOME @join__enumValue(graph: BANKING)
-  INFORMATIONAL @join__enumValue(graph: BANKING)
 }
 
 type Permission

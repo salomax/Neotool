@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
 import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
+import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -34,7 +35,7 @@ class FinancialAccountResolver(
     private val issuerRepository: IssuerRepository,
 ) {
     fun listByAccount(principal: RequestPrincipal): List<FinancialAccountDTO> {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val accountId = principal.resolveAccountId()
         val accounts = service.listByAccount(accountId)
 
         val issuerIds = accounts.mapNotNull { it.issuerId }.toSet()
@@ -47,7 +48,7 @@ class FinancialAccountResolver(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
     ): FinancialAccountDTO {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val accountId = principal.resolveAccountId()
         val userId = requireNotNull(principal.userId) { "No user in token" }
 
         val command = input.toCommand()
@@ -61,7 +62,7 @@ class FinancialAccountResolver(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
     ): FinancialAccountDTO {
-        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val accountId = principal.resolveAccountId()
         val userId = requireNotNull(principal.userId) { "No user in token" }
         val financialAccountId = UUID.fromString(id)
 
@@ -128,6 +129,9 @@ class FinancialAccountResolver(
             category = category,
             logoAsset = logoKey?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
+
+    private fun RequestPrincipal.resolveAccountId(): UUID =
+        currentAccountId ?: accountIds.firstOrNull() ?: throw AuthenticationRequiredException("No active account in token")
 
     private fun getDate(
         map: Map<String, Any?>,

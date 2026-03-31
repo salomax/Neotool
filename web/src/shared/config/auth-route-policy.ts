@@ -12,6 +12,7 @@ export const AUTH_HINT_COOKIE_NAME = "auth_hint";
 /** Path prefixes for routes that require authentication (logged area). /investments and /financial-data are anonymous. */
 export const PROTECTED_ROUTE_PREFIXES = [
   "/personal-finance",
+  "/profile",
   "/settings",
 ] as const;
 
