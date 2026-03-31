@@ -62,13 +62,18 @@ export function UserProfileMenu({
           aria-controls={open ? "profile-menu" : undefined}
           aria-haspopup="true"
           aria-expanded={open ? "true" : undefined}
+          sx={(theme) => ({
+            p: 0,
+            borderRadius: `${theme.custom.radius.sm}px`,
+            overflow: "hidden",
+          })}
         >
           <Avatar
             variant="rounded"
             sx={(theme) => ({
               width: 32,
               height: 32,
-              borderRadius: theme.custom.radius.lg,
+              borderRadius: `${theme.custom.radius.md}px`,
             })}
             src={user?.avatarUrl || undefined}
           >

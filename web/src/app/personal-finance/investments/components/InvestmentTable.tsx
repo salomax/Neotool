@@ -615,9 +615,17 @@ export function InvestmentTable({
                       : null;
                   const indexerRateLabel =
                     typeof holding.indexerPercentage === 'number'
-                      ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(holding.indexerPercentage)
+                      ? new Intl.NumberFormat(locale, {
+                          style: 'percent',
+                          minimumFractionDigits: 0,
+                          maximumFractionDigits: 2,
+                        }).format(holding.indexerPercentage)
                       : typeof holding.fixedAnnualRate === 'number'
-                        ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(holding.fixedAnnualRate)
+                        ? new Intl.NumberFormat(locale, {
+                            style: 'percent',
+                            minimumFractionDigits: 0,
+                            maximumFractionDigits: 2,
+                          }).format(holding.fixedAnnualRate)
                         : null;
                   const indexerDisplay = [indexerLabel, indexerRateLabel].filter(Boolean).join(' ');
                   const assetLogoUrl =

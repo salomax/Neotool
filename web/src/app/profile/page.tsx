@@ -26,8 +26,14 @@ export default function ProfilePage() {
             <Stack gap={2}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 2, minWidth: 0 }}>
                 <Avatar
+                  variant="rounded"
                   src={user?.avatarUrl || undefined}
-                  sx={{ width: 64, height: 64, flexShrink: 0 }}
+                  sx={(theme) => ({
+                    width: 64,
+                    height: 64,
+                    flexShrink: 0,
+                    borderRadius: `${theme.custom.radius.lg}px`,
+                  })}
                 />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="h6" noWrap>
