@@ -63,7 +63,15 @@ export function UserProfileMenu({
           aria-haspopup="true"
           aria-expanded={open ? "true" : undefined}
         >
-          <Avatar sx={{ width: 32, height: 32 }} src={user?.avatarUrl || undefined}>
+          <Avatar
+            variant="rounded"
+            sx={(theme) => ({
+              width: 32,
+              height: 32,
+              borderRadius: theme.custom.radius.lg,
+            })}
+            src={user?.avatarUrl || undefined}
+          >
             {user ? (
               getInitials({ displayName: user.displayName, email: user.email ?? "" })
             ) : (

@@ -47,6 +47,7 @@ export function AssetGroupCard({
 }: AssetGroupCardProps) {
   const theme = useTheme();
   const dividerColor = alpha(theme.palette.divider, 0.7);
+  const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
 
   const parsedSummary = React.useMemo(() => {
     const normalized = summary.trim();
@@ -77,13 +78,13 @@ export function AssetGroupCard({
       sx={{
         overflow: 'visible',
         bgcolor: 'transparent',
-        borderRadius: 0,
+        borderRadius: `${tableRadius}px`,
         transition: 'none',
         '&:before': { display: 'none' },
         '&.Mui-expanded': {
           margin: 0,
           marginBottom: 5,
-          borderRadius: 0,
+          borderRadius: `${tableRadius}px`,
         },
       }}
     >
@@ -98,13 +99,13 @@ export function AssetGroupCard({
           border: 'none',
           borderBottom: `1px solid ${dividerColor}`,
           bgcolor: 'transparent',
-          borderRadius: 0,
+          borderRadius: `${tableRadius}px`,
           overflow: 'visible',
           transition: 'none',
           '&.Mui-expanded': {
             minHeight: 64,
             bgcolor: 'transparent',
-            borderRadius: 0,
+            borderRadius: `${tableRadius}px ${tableRadius}px 0 0`,
           },
           '&:hover': {
             bgcolor: alpha(theme.palette.primary.main, 0.05),

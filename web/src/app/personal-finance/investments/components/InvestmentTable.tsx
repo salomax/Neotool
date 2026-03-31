@@ -17,8 +17,9 @@ import {
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useTranslation } from '@/shared/i18n';
+import { Logo } from '@/shared/components/ui/primitives';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { ValueOriginIndicator } from '@/shared/components/ui/data-display';
+import { PercentageGain, ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
 import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -483,11 +484,11 @@ export function InvestmentTable({
             const fixedIncomeGainColWidth = 160;
             const fixedIncomeIndexerColWidth = 160;
             const actionColWidth = 88;
-            const assetColSx = isFixedIncomeGroup ? { width: 'auto' } : { width: colWidth };
-            const maturityColSx = { width: isFixedIncomeGroup ? fixedIncomeMaturityColWidth : colWidth };
-            const grossValueColSx = { width: isFixedIncomeGroup ? fixedIncomeGrossValueColWidth : colWidth };
-            const gainColSx = { width: isFixedIncomeGroup ? fixedIncomeGainColWidth : colWidth };
-            const indexerColSx = { width: isFixedIncomeGroup ? fixedIncomeIndexerColWidth : colWidth };
+            const assetColSx = isFixedIncomeGroup ? { flex: '1 1 0', minWidth: 240, pr: 1 } : { width: colWidth, flexShrink: 0 };
+            const maturityColSx = isFixedIncomeGroup ? { width: fixedIncomeMaturityColWidth, flexShrink: 0 } : { width: colWidth };
+            const grossValueColSx = isFixedIncomeGroup ? { width: fixedIncomeGrossValueColWidth, flexShrink: 0 } : { width: colWidth };
+            const gainColSx = isFixedIncomeGroup ? { width: fixedIncomeGainColWidth, flexShrink: 0 } : { width: colWidth };
+            const indexerColSx = isFixedIncomeGroup ? { width: fixedIncomeIndexerColWidth, flexShrink: 0 } : { width: colWidth };
 
             return (
               <InvestmentGroupSection
@@ -608,6 +609,25 @@ export function InvestmentTable({
                   const maturityBadgeLabel = isExpiredPending
                     ? t('investments.table.maturityPendingBadge')
                     : t('investments.table.expiredBadge');
+                  const indexerLabel =
+                    holding.indexer != null
+                      ? (t(`investments.recordHolding.indexers.${holding.indexer}` as string) as string)
+                      : null;
+                  const indexerRateLabel =
+                    typeof holding.indexerPercentage === 'number'
+                      ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(holding.indexerPercentage)
+                      : typeof holding.fixedAnnualRate === 'number'
+                        ? new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 2 }).format(holding.fixedAnnualRate)
+                        : null;
+                  const indexerDisplay = [indexerLabel, indexerRateLabel].filter(Boolean).join(' ');
+                  const assetLogoUrl =
+                    (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null })?.logoAsset?.publicUrl ??
+                    (
+                      holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number]
+                    )?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+                    undefined;
+                  const assetName = holding.asset?.name ?? '—';
+                  const secondaryRowSx = { mt: 0.25, minHeight: 16, display: 'flex', alignItems: 'center' } as const;
 
                   const handleRowClick = () => handleOpenDetail(holding);
 
@@ -621,28 +641,41 @@ export function InvestmentTable({
                         alignItems: 'center',
                         px: 2,
                         py: 1.5,
+                        bgcolor: 'background.paper',
                         borderTop: `1px solid ${divider}`,
                         cursor: 'pointer',
                         '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.035) },
                       }}
                     >
                       <Box sx={{ ...assetColSx, minWidth: 0 }}>
-                        <Typography variant="body2" noWrap>
-                          {holding.asset?.name ?? '—'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {issuerLabel}
-                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+                          <Logo
+                            src={assetLogoUrl}
+                            alt={assetName}
+                            size="lg"
+                            sx={{ flexShrink: 0 }}
+                          >
+                            {assetName.charAt(0).toUpperCase()}
+                          </Logo>
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography variant="body2" noWrap>
+                              {assetName}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2 }}>
+                              {issuerLabel}
+                            </Typography>
+                          </Box>
+                        </Box>
                       </Box>
 
                       {isFixedIncomeGroup ? (
                         <Box sx={{ ...indexerColSx, minWidth: 0 }}>
                           <Typography variant="body2" noWrap>
-                            {holding.indexer ?? '—'}
+                            {indexerDisplay || '—'}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" noWrap>
-                            {holding.indexerPercentage != null ? `${holding.indexerPercentage}%` : holding.fixedAnnualRate != null ? `${holding.fixedAnnualRate}%` : '—'}
-                          </Typography>
+                          <Box sx={secondaryRowSx}>
+                            {null}
+                          </Box>
                         </Box>
                       ) : (
                         <Box sx={{ width: colWidth, minWidth: 0 }}>
@@ -658,6 +691,7 @@ export function InvestmentTable({
                             <Typography variant="body2" noWrap>
                               {formatQuantity(holding.quantity, locale)}
                             </Typography>
+                            <Box sx={secondaryRowSx} />
                           </Box>
                           <Box sx={{ width: colWidth, minWidth: 0, textAlign: 'right' }}>
                             <Typography variant="body2" noWrap>
@@ -665,11 +699,13 @@ export function InvestmentTable({
                                 ? formatCurrency(holding.averageCost, holding.asset.currencyCode, locale)
                                 : '—'}
                             </Typography>
+                            <Box sx={{ ...secondaryRowSx, justifyContent: 'flex-end' }} />
                           </Box>
                           <Box sx={{ width: colWidth, minWidth: 0, textAlign: 'right' }}>
                             <Typography variant="body2" noWrap>
                               —
                             </Typography>
+                            <Box sx={{ ...secondaryRowSx, justifyContent: 'flex-end' }} />
                           </Box>
                         </>
                       ) : (
@@ -677,8 +713,8 @@ export function InvestmentTable({
                           <Typography variant="body2" noWrap>
                             {maturityLabel}
                           </Typography>
-                          {showMaturityBadge ? (
-                            <Box sx={{ mt: 0.5 }}>
+                          <Box sx={secondaryRowSx}>
+                            {showMaturityBadge ? (
                               <Box
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -688,8 +724,8 @@ export function InvestmentTable({
                               >
                                 <Label>{maturityBadgeLabel}</Label>
                               </Box>
-                            </Box>
-                          ) : null}
+                            ) : null}
+                          </Box>
                         </Box>
                       )}
 
@@ -697,15 +733,22 @@ export function InvestmentTable({
                         <Typography variant="body2" noWrap>
                           {gain != null && holding.asset?.currencyCode ? formatCurrency(gain, holding.asset.currencyCode, locale) : '—'}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" noWrap>
-                          {gainPercent != null ? `${(gainPercent * 100).toFixed(2)}%` : '—'}
-                        </Typography>
+                        <Box sx={{ ...secondaryRowSx, justifyContent: 'flex-end' }}>
+                          {gainPercent != null ? (
+                            <PercentageGain
+                              value={gainPercent}
+                              locale={locale}
+                              textSx={{ lineHeight: 1.2 }}
+                            />
+                          ) : null}
+                        </Box>
                       </Box>
 
                       <Box sx={{ ...grossValueColSx, minWidth: 0, textAlign: 'right' }}>
                         <Typography variant="body2" noWrap>
                           {gross != null && holding.asset?.currencyCode ? formatCurrency(gross, holding.asset.currencyCode, locale) : '—'}
                         </Typography>
+                        <Box sx={{ ...secondaryRowSx, justifyContent: 'flex-end' }} />
                       </Box>
 
                       <Box sx={{ width: actionColWidth, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>

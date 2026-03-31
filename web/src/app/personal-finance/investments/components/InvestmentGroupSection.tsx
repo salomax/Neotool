@@ -3,7 +3,6 @@
 import React from 'react';
 import { Box, type SxProps, type Theme } from '@mui/material';
 import { AssetGroupCard } from './AssetGroupCard';
-import { Label } from '@/shared/components/ui/primitives/Label';
 
 interface HeaderCell {
   key: string;
@@ -81,7 +80,7 @@ export function InvestmentGroupSection({
                 ...cell.sx,
               }}
             >
-              <Label>{cell.content}</Label>
+              {cell.content}
             </Box>
           ))}
           {/* Spacer matching action column */}
