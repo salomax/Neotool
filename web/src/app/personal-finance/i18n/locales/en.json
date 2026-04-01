@@ -72,7 +72,7 @@
         "step1Title": "Confirm maturity",
         "step2Title": "Credit to bank account",
         "step2Hint": "Was the net amount credited to an account?",
-        "confirmContinue": "Confirm and continue",
+        "confirmContinue": "Close",
         "registerCredit": "Record credit",
         "skipCredit": "Skip",
         "cancel": "Cancel",
