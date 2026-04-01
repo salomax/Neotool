@@ -1,3 +1,13 @@
+## 0.6.1 (2026-04-01)
+
+### 🩹 Fixes
+
+- Update FixedIncomeSimulatorForm and PrincipalInput components ([a48bc26a](https://github.com/invistus/invistus/commit/a48bc26a))
+
+### ❤️ Thank You
+
+- Marcos Salomão @salomax
+
 ## 0.6.0 (2026-03-05)
 
 ### 🚀 Features
