@@ -36,7 +36,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
-import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 
 private const val MAX_PDF_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 private const val RECORD_TYPE_CARD_SUMMARY = "PDF_CARD_SUMMARY"
@@ -49,7 +49,7 @@ open class BillImportService(
     private val transactionRepository: TransactionRepository,
     private val importFingerprintService: ImportFingerprintService,
     private val categorizationService: TransactionRuleEngine,
-    private val accountPreferencesService: AccountPreferencesService,
+    private val userRuleApplicationModeService: UserRuleApplicationModeService,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val billImportCommitPreparer: BillImportCommitPreparer,
@@ -245,11 +245,12 @@ open class BillImportService(
     open fun projectReviewPayload(
         reviewPayload: String?,
         accountId: UUID,
+        userId: UUID,
     ): BillImportReview? =
         runCatching { parsePdfReviewPayload(reviewPayload, accountId) }
             .getOrNull()
             ?.let {
-                val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+                val mode = userRuleApplicationModeService.get(userId)
                 enrichReviewPayloadWithCategorizationSuggestions(it, accountId, mode)
             }
 
@@ -285,7 +286,7 @@ open class BillImportService(
                 .associateBy { requireNotNull(it.id) { "FinancialAccount id is required" } }
         val reviewPayload = parsePdfReviewPayload(job.reviewPayload, accountId)
         val preparedCommit = billImportCommitPreparer.prepare(command, tenantAccountsById, reviewPayload)
-        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val mode = userRuleApplicationModeService.get(userId)
         val categorizationRules =
             if (mode == RuleApplicationMode.NEVER) {
                 emptyList()

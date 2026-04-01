@@ -6,8 +6,10 @@ import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -41,6 +43,7 @@ class TransactionCategorizationEngineTest {
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var accountPreferencesService: AccountPreferencesService
+    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
 
     private lateinit var service: TransactionService
 
@@ -72,7 +75,9 @@ class TransactionCategorizationEngineTest {
         snapshotComputationService = mock()
         creditCardBillService = mock()
         accountPreferencesService = mock()
+        userRuleApplicationModeService = mock()
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
+        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS_PROMPT)
 
         service =
             TransactionService(
@@ -85,6 +90,7 @@ class TransactionCategorizationEngineTest {
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 accountPreferencesService = accountPreferencesService,
+                userRuleApplicationModeService = userRuleApplicationModeService,
             )
     }
 
@@ -183,6 +189,7 @@ class TransactionCategorizationEngineTest {
                 id = txId,
                 command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
                 accountId = accountId,
+                userId = userId,
             )
 
             assertThat(updated.categoryId).isEqualTo(categoryAlimentacao)
@@ -243,6 +250,7 @@ class TransactionCategorizationEngineTest {
                 id = txId,
                 command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
                 accountId = accountId,
+                userId = userId,
             )
             val implicitAfterFirst =
                 ruleRepository.findImplicitByPattern(accountId, "padaria do ze")
@@ -256,6 +264,7 @@ class TransactionCategorizationEngineTest {
                 id = txId,
                 command = UpdateTransactionCommand(categoryId = categoryPadaria),
                 accountId = accountId,
+                userId = userId,
             )
 
             val implicitAfterSecond =
@@ -299,6 +308,7 @@ class TransactionCategorizationEngineTest {
                 id = txId,
                 command = UpdateTransactionCommand(categoryId = categoryDeleted),
                 accountId = accountId,
+                userId = userId,
             )
 
             assertThat(ruleRepository.findImplicitByPattern(accountId, "padaria do ze")).isNotNull
@@ -344,6 +354,7 @@ class TransactionCategorizationEngineTest {
                 id = txId,
                 command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
                 accountId = accountId,
+                userId = userId,
             )
 
             assertThat(ruleRepository.implicitRulesForAccount(accountId)).isEmpty()
@@ -429,6 +440,7 @@ class TransactionCategorizationEngineTest {
                     id = txId,
                     command = UpdateTransactionCommand(notes = "ajustada"),
                     accountId = accountId,
+                    userId = userId,
                 )
 
             assertThat(updated.categoryId).isEqualTo(systemCategoryId)

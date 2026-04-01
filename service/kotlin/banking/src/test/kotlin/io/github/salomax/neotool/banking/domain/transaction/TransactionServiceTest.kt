@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
@@ -42,6 +43,7 @@ class TransactionServiceTest {
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var accountPreferencesService: AccountPreferencesService
+    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
     private lateinit var service: TransactionService
 
     private val accountId = UUID.randomUUID()
@@ -74,7 +76,9 @@ class TransactionServiceTest {
         snapshotComputationService = mock()
         creditCardBillService = mock()
         accountPreferencesService = mock()
+        userRuleApplicationModeService = mock()
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
+        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS_PROMPT)
         service =
             TransactionService(
                 transactionRepository = transactionRepository,
@@ -86,6 +90,7 @@ class TransactionServiceTest {
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 accountPreferencesService = accountPreferencesService,
+                userRuleApplicationModeService = userRuleApplicationModeService,
             )
     }
 
@@ -156,15 +161,7 @@ class TransactionServiceTest {
         @Test
         fun `manual create applies rule engine suggestion`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
-            whenever(accountPreferencesService.get(accountId)).thenReturn(
-                AccountPreferences(
-                    accountId = accountId,
-                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
-                    defaultTransactionStatus = TransactionStatus.POSTED,
-                    createdAt = now,
-                    updatedAt = now,
-                ),
-            )
+            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
             val suggestedRuleId = UUID.randomUUID()
             val suggestedCategoryId = UUID.randomUUID()
             whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
@@ -561,7 +558,7 @@ class TransactionServiceTest {
                     notes = "New notes",
                     categoryId = updated.categoryId,
                 )
-            val result = service.update(txId, command, accountId)
+            val result = service.update(txId, command, accountId, userId)
 
             assertThat(result.description).isEqualTo("New desc")
             assertThat(result.amount).isEqualByComparingTo("20.00")
@@ -595,7 +592,7 @@ class TransactionServiceTest {
             val updateCaptor = argumentCaptor<Transaction>()
             whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
 
-            service.update(txId, UpdateTransactionCommand(description = "Only description"), accountId)
+            service.update(txId, UpdateTransactionCommand(description = "Only description"), accountId, userId)
 
             val passed = updateCaptor.firstValue
             assertThat(passed.description).isEqualTo("Only description")
@@ -612,7 +609,7 @@ class TransactionServiceTest {
 
             val ex =
                 assertThrows<NoSuchElementException> {
-                    service.update(txId, UpdateTransactionCommand(description = "X"), accountId)
+                    service.update(txId, UpdateTransactionCommand(description = "X"), accountId, userId)
                 }
             assertThat(ex.message).contains(txId.toString())
         }
@@ -637,7 +634,7 @@ class TransactionServiceTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
 
             assertThrows<IllegalArgumentException> {
-                service.update(txId, UpdateTransactionCommand(amount = BigDecimal.ZERO), accountId)
+                service.update(txId, UpdateTransactionCommand(amount = BigDecimal.ZERO), accountId, userId)
             }
         }
 
@@ -662,7 +659,7 @@ class TransactionServiceTest {
             val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
 
             assertThrows<ValidationException> {
-                service.update(txId, UpdateTransactionCommand(date = tooOldDate), accountId)
+                service.update(txId, UpdateTransactionCommand(date = tooOldDate), accountId, userId)
             }.also { ex ->
                 assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW)
                 assertThat(ex.field).isEqualTo("date")
@@ -699,6 +696,7 @@ class TransactionServiceTest {
                     belongsToProvided = true,
                 ),
                 accountId,
+                userId,
             )
 
             assertThat(updateCaptor.firstValue.belongsToUserId).isNull()
@@ -731,6 +729,7 @@ class TransactionServiceTest {
                 txId,
                 UpdateTransactionCommand(tags = listOf("New", "Weekend"), tagsProvided = true),
                 accountId,
+                userId,
             )
 
             assertThat(updateCaptor.firstValue.tags).containsExactly("New", "Weekend")
@@ -764,6 +763,7 @@ class TransactionServiceTest {
                 txId,
                 UpdateTransactionCommand(categoryId = null, categoryIdProvided = true),
                 accountId,
+                userId,
             )
 
             assertThat(updateCaptor.firstValue.categoryId).isNull()
@@ -796,6 +796,7 @@ class TransactionServiceTest {
                 txId,
                 UpdateTransactionCommand(categoryId = categoryId),
                 accountId,
+                userId,
             )
 
             verify(transactionRuleEngine, never()).learnFromManualAssignment(
@@ -811,15 +812,7 @@ class TransactionServiceTest {
 
         @Test
         fun `manual update applies suggestion to untouched fields`() {
-            whenever(accountPreferencesService.get(accountId)).thenReturn(
-                AccountPreferences(
-                    accountId = accountId,
-                    ruleApplicationMode = RuleApplicationMode.ALWAYS,
-                    defaultTransactionStatus = TransactionStatus.POSTED,
-                    createdAt = now,
-                    updatedAt = now,
-                ),
-            )
+            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
             val txId = UUID.randomUUID()
             val existing =
                 Transaction(
@@ -851,6 +844,7 @@ class TransactionServiceTest {
                 txId,
                 UpdateTransactionCommand(notes = "updated"),
                 accountId,
+                userId,
             )
 
             assertThat(updateCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
@@ -1470,7 +1464,7 @@ class TransactionServiceTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             whenever(transactionRepository.update(any())).thenReturn(updated)
 
-            service.update(txId, UpdateTransactionCommand(date = newDate), accountId)
+            service.update(txId, UpdateTransactionCommand(date = newDate), accountId, userId)
 
             // Should recompute from the earlier month (March, not May)
             verify(snapshotComputationService).recomputeChain(
@@ -1490,7 +1484,7 @@ class TransactionServiceTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             whenever(transactionRepository.update(any())).thenReturn(updated)
 
-            service.update(txId, UpdateTransactionCommand(description = "New desc"), accountId)
+            service.update(txId, UpdateTransactionCommand(description = "New desc"), accountId, userId)
 
             verify(snapshotComputationService).recomputeChain(
                 financialAccountId = financialAccountId,

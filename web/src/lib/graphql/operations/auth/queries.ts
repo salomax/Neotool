@@ -30,4 +30,3 @@ export const USER_PREFERENCES = gql`
     }
   }
 `;
-

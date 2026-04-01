@@ -156,7 +156,7 @@ export function MetricCard({
               onOpen();
             }}
             size="small"
-            aria-label={tCommon("actions.openDetails", "Open details")}
+            aria-label={tCommon("actions.openDetails")}
           >
             <OpenInNewIcon fontSize="small" />
           </IconButton>

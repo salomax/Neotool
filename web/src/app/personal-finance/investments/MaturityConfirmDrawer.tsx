@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useMutation } from "@apollo/client/react";
-import { Alert, Avatar, Box, Typography } from "@mui/material";
+import { Alert, Box, Divider, Typography } from "@mui/material";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -21,10 +21,11 @@ import {
 } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { DatePickerField, MoneyInput, SelectField } from "@/shared/components/ui/forms/form";
-import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
+import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
+import { HoldingIdentity } from "./components/HoldingIdentity";
 
 const step1Schema = z
   .object({
@@ -247,73 +248,72 @@ export function MaturityConfirmDrawer({
 
   if (!holding) return null;
 
-  const title = t("investments.pendingActions.maturityDrawer.closePositionTitle", {
-    defaultValue: "ENCERRAR POSIÇÃO",
-  });
+  const title = t("investments.pendingActions.maturityDrawer.closePositionTitle");
 
   return (
     <Drawer open={open} onClose={onClose} anchor="right" size="md">
       <Drawer.Header title={title} />
       <Drawer.Body>
         <FormProvider {...methods}>
-          <FormStack spacing={2} sx={{ maxWidth: 520 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-              <Avatar
-                variant="rounded"
-                src={holding.issuerLogoUrl ?? undefined}
-                alt={holding.issuerName ?? undefined}
-                sx={{ width: 36, height: 36 }}
-                slotProps={{ img: { style: { objectFit: "contain" } } }}
-              >
-                {(holding.issuerName ?? holding.asset.name ?? "—").slice(0, 1).toUpperCase()}
-              </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" noWrap>
-                  {holding.asset.name}
-                </Typography>
-                {holding.issuerName ? (
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {holding.issuerName}
-                  </Typography>
-                ) : null}
-              </Box>
-            </Box>
+          <FormStack spacing={2} >
+            <HoldingIdentity
+              assetName={holding.asset.name}
+              issuerName={holding.issuerName ?? undefined}
+              logoUrl={holding.issuerLogoUrl ?? undefined}
+              size={36}
+              sx={{ pb: 1 }}
+            />
 
             {step === 1 ? (
               <>
                 {step1Error ? <Alert severity="error">{step1Error}</Alert> : null}
 
-                <MoneyInput
-                  name="grossValue"
-                  label={t("investments.pendingActions.maturityDrawer.grossValue")}
-                  currency="BRL"
-                />
-                <MoneyInput
-                  name="netValue"
-                  label={t("investments.pendingActions.maturityDrawer.netValue")}
-                  currency="BRL"
-                />
-                <MoneyInput
-                  name="incomeTax"
-                  label={t("investments.pendingActions.maturityDrawer.incomeTax")}
-                  currency="BRL"
-                />
-                <MoneyInput
-                  name="iof"
-                  label={t("investments.pendingActions.maturityDrawer.iof")}
-                  currency="BRL"
-                />
+                <FormRowStack alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="grossValue"
+                      label={t("investments.pendingActions.maturityDrawer.grossValue")}
+                      currency="BRL"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="netValue"
+                      label={t("investments.pendingActions.maturityDrawer.netValue")}
+                      currency="BRL"
+                    />
+                  </Box>
+                </FormRowStack>
 
-                <DatePickerField
-                  name="maturityDate"
-                  label={t("investments.pendingActions.maturityDrawer.maturityDate", { defaultValue: "Data" })}
-                />
+                <FormRowStack alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="incomeTax"
+                      label={t("investments.pendingActions.maturityDrawer.incomeTax")}
+                      currency="BRL"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="iof"
+                      label={t("investments.pendingActions.maturityDrawer.iof")}
+                      currency="BRL"
+                    />
+                  </Box>
+                </FormRowStack>
 
-                <SelectField
-                  name="closeReason"
-                  label={t("investments.pendingActions.maturityDrawer.closeReason")}
-                  options={closeReasonOptions}
-                />
+                <FormRowStack alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <DatePickerField name="maturityDate" label={t("investments.pendingActions.maturityDrawer.maturityDate")} />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <SelectField
+                      name="closeReason"
+                      label={t("investments.pendingActions.maturityDrawer.closeReason")}
+                      options={closeReasonOptions}
+                    />
+                  </Box>
+                </FormRowStack>
               </>
             ) : (
               <>
@@ -327,51 +327,59 @@ export function MaturityConfirmDrawer({
                   options={selectableBanks.map((a) => ({ value: a.id, label: a.name }))}
                 />
 
-                <MoneyInput
-                  name="creditAmount"
-                  label={t("investments.pendingActions.maturityDrawer.netValue")}
-                  currency="BRL"
-                />
-
-                <DatePickerField
-                  name="creditDate"
-                  label={t("investments.pendingActions.maturityDrawer.creditDate")}
-                />
+                <FormRowStack alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="creditAmount"
+                      label={t("investments.pendingActions.maturityDrawer.netValue")}
+                      currency="BRL"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <DatePickerField
+                      name="creditDate"
+                      label={t("investments.pendingActions.maturityDrawer.creditDate")}
+                    />
+                  </Box>
+                </FormRowStack>
               </>
             )}
+          {step === 1 ? (
+            <>
+              <Divider sx={{ py: 1 }}/>
+              <Drawer.ActionButtons
+                cancelText={t("actions.cancel")}
+                submitText={t("investments.pendingActions.maturityDrawer.confirmContinue")}
+                onCancel={onClose}
+                onSubmit={handleStep1Next}
+                cancelDisabled={loading}
+                submitDisabled={loading}
+              />
+            </>
+          ) : (
+            <>
+              <Divider />
+              <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, flexWrap: "wrap" }}>
+                <Drawer.CancelButton onClick={() => setStep(1)} disabled={loading}>
+                  {t("investments.pendingActions.maturityDrawer.back")}
+                </Drawer.CancelButton>
+                <Drawer.CancelButton onClick={() => submit(false)} disabled={loading}>
+                  {t("investments.pendingActions.maturityDrawer.skipCredit")}
+                </Drawer.CancelButton>
+                <Drawer.SubmitButton
+                  onClick={() => submit(true)}
+                  disabled={loading || !watchedBankAccountId}
+                  loading={loading}
+                >
+                  {t("investments.pendingActions.maturityDrawer.submitClose", { defaultValue: "Encerrar" })}
+                </Drawer.SubmitButton>
+              </Box>
+            </>
+          )}
           </FormStack>
         </FormProvider>
       </Drawer.Body>
-      <Drawer.Footer>
-        {step === 1 ? (
-          <Drawer.ActionButtons
-            cancelText={t("actions.cancel")}
-            submitText={t("investments.pendingActions.maturityDrawer.confirmContinue")}
-            onCancel={onClose}
-            onSubmit={handleStep1Next}
-            cancelDisabled={loading}
-            submitDisabled={loading}
-          />
-        ) : (
-          <>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, flexWrap: "wrap" }}>
-              <Drawer.CancelButton onClick={() => setStep(1)} disabled={loading}>
-                {t("investments.pendingActions.maturityDrawer.back")}
-              </Drawer.CancelButton>
-              <Drawer.CancelButton onClick={() => submit(false)} disabled={loading}>
-                {t("investments.pendingActions.maturityDrawer.skipCredit")}
-              </Drawer.CancelButton>
-              <Drawer.SubmitButton
-                onClick={() => submit(true)}
-                disabled={loading || !watchedBankAccountId}
-                loading={loading}
-              >
-                {t("investments.pendingActions.maturityDrawer.submitClose", { defaultValue: "Encerrar" })}
-              </Drawer.SubmitButton>
-            </Box>
-          </>
-        )}
-      </Drawer.Footer>
+
     </Drawer>
   );
 }

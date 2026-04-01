@@ -85,11 +85,11 @@ export function RatingCard({ ratings, loading }: RatingCardProps) {
   // name: ratings.type.{name} -> e.g. ratings.type.NATIONAL_LONG_TERM_RATING
   
   const issuerName = currentRating.issuer?.code 
-    ? t(`ratings.issuer.${currentRating.issuer.code}`, { defaultValue: currentRating.issuer.name })
+    ? t(`ratings.issuer.${currentRating.issuer.code}`)
     : currentRating.issuer?.name;
 
   const ratingName = currentRating.name
-    ? t(`ratings.type.${currentRating.name}`, { defaultValue: currentRating.name.replace(/_/g, ' ') })
+    ? t(`ratings.type.${currentRating.name}`)
     : '';
 
   return (

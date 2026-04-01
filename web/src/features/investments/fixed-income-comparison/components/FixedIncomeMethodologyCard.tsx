@@ -117,7 +117,7 @@ export function FixedIncomeMethodologyCard({
               color: "text.secondary",
             }}
           >
-            {t(`${ns}.methodologyDayCountTitle`, "Convenção de Dias")}
+            {t(`${ns}.methodologyDayCountTitle`)}
           </Typography>
           <Typography
             variant="body2"

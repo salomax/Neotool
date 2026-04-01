@@ -162,13 +162,13 @@ class TransactionResolverTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
             val command = commandCaptor.firstValue
             assertThat(command.description).isEqualTo("Updated desc")
             assertThat(command.amount).isEqualByComparingTo("50.00")
@@ -202,13 +202,13 @@ class TransactionResolverTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
             assertThat(commandCaptor.firstValue.belongsToProvided).isTrue()
             assertThat(commandCaptor.firstValue.belongsToName).isEqualTo("Family")
             assertThat(commandCaptor.firstValue.belongsToUserId).isNull()
@@ -236,13 +236,13 @@ class TransactionResolverTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId))).thenReturn(updatedTx)
+            whenever(service.update(eq(txId), org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(updatedTx)
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.updateTransaction(txId.toString(), input, principal())
 
             val commandCaptor = argumentCaptor<UpdateTransactionCommand>()
-            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId))
+            verify(service).update(eq(txId), commandCaptor.capture(), eq(accountId), eq(userId))
             assertThat(commandCaptor.firstValue.tagsProvided).isTrue()
             assertThat(commandCaptor.firstValue.tags).containsExactly("Food", "Weekend")
         }

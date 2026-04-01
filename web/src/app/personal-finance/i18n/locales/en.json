@@ -64,7 +64,11 @@
       "panelTitle": "Pending actions",
       "registerMaturity": "Record maturity",
       "markSeen": "Mark as seen",
+      "emptyTitle": "No pending actions",
+      "emptyDescription": "You're all caught up.",
+      "informational": "Informational",
       "maturityDrawer": {
+        "closePositionTitle": "Close position",
         "step1Title": "Confirm maturity",
         "step2Title": "Credit to bank account",
         "step2Hint": "Was the net amount credited to an account?",
@@ -76,9 +80,20 @@
         "netValue": "Net value",
         "incomeTax": "Income tax",
         "iof": "IOF",
+        "maturityDate": "Maturity date",
         "closeReason": "Close reason",
+        "closeReasons": {
+          "Matured": "Matured",
+          "RedeemedEarly": "Redeemed early",
+          "Transferred": "Transferred",
+          "MATURED": "Matured",
+          "REDEEMED_EARLY": "Redeemed early",
+          "TRANSFERRED": "Transferred"
+        },
         "bankAccount": "Bank account",
         "creditDate": "Credit date",
+        "amountMustBePositive": "Amount must be greater than zero.",
+        "submitClose": "Close",
         "back": "Back"
       }
     },

@@ -53,8 +53,15 @@ export const FINANCIAL_ACCOUNTS = gql`
 export const ACCOUNT_PREFERENCES = gql`
   query AccountPreferences {
     accountPreferences {
-      ruleApplicationMode
       defaultTransactionStatus
+    }
+  }
+`;
+
+export const BANKING_USER_PREFERENCES = gql`
+  query BankingUserPreferences {
+    bankingUserPreferences {
+      ruleApplicationMode
     }
   }
 `;

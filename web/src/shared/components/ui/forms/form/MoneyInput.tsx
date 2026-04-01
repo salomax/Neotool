@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import {
-  Typography,
   TextField,
   InputAdornment,
   IconButton,
@@ -137,7 +136,7 @@ export function BaseMoneyInput({
         endAdornment: (
           <>
             {localValue && !disabled && (
-              <InputAdornment position="end">
+              <InputAdornment position="end" sx={{ ml: 0 }}>
                 <IconButton
                   size="small"
                   aria-label="clear"
@@ -146,9 +145,15 @@ export function BaseMoneyInput({
                     onChange(undefined);
                   }}
                   edge="end"
-                  sx={{ mr: -0.5 }}
+                  sx={(theme) => ({
+                    p: 0,
+                    ml: -0.25,
+                    mr: -0.75,
+                    color: theme.palette.action.disabled,
+                    "&:hover": { color: theme.palette.text.secondary },
+                  })}
                 >
-                  <CancelIcon fontSize="small" />
+                  <CancelIcon sx={{ fontSize: 16, mb: 0 }} />
                 </IconButton>
               </InputAdornment>
             )}

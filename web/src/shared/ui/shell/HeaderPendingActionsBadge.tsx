@@ -56,7 +56,7 @@ export function HeaderPendingActionsBadge() {
       <Tooltip title={t("appHeader.pendingActions")}>
         <IconButton
           aria-label={t("appHeader.pendingActions")}
-          onClick={() => router.push("/personal-finance/investments")}
+          onClick={() => router.push("/personal-finance/investments?pendingActions=1")}
         >
           <Badge badgeContent={total} color={badgeColor} max={99} invisible={total === 0}>
             <NotificationsOutlinedIcon />

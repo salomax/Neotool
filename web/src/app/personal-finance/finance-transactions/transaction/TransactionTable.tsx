@@ -50,10 +50,11 @@ import { CategoryPicker } from '../category/CategoryPicker';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
 import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION, APPLY_TRANSACTION_EDIT_TO_SIMILAR } from '@/lib/graphql/operations/banking/mutations';
 import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
-import { useToast } from '@/shared/providers';
+import { usePreferences, useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
 import { Amount } from '@/shared/components/ui/data-display';
+import { resolveSimilarEditBehavior } from './similarEditPreference';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -161,6 +162,7 @@ export function TransactionTable({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const toast = useToast();
+  const { bankingUserPreferences } = usePreferences();
   const loaderRef = useRef<HTMLDivElement>(null);
   const transactionsRef = useRef<Transaction[]>(transactions);
   const borderRadius = '.3rem';
@@ -381,7 +383,43 @@ export function TransactionTable({
       onSuccessCreate?.();
 
       const preview = previewResult?.data?.similarTransactionEditPreview;
-      if (preview && preview.supportsFuturePropagation && categoryId) {
+      const similarEditBehavior =
+        preview && categoryId
+          ? resolveSimilarEditBehavior(
+              bankingUserPreferences.ruleApplicationMode,
+              preview.supportsFuturePropagation,
+            )
+          : 'skip';
+
+      if (preview && similarEditBehavior === 'auto' && categoryId) {
+        try {
+          const result = await applyTransactionEditToSimilar({
+            variables: {
+              id: tx.id,
+              matchDescription: preview.matchDescription,
+              input: { categoryId },
+              applyToFuture: true,
+              applyToExisting: true,
+            },
+          });
+          const affectedCount = result.data?.applyTransactionEditToSimilar?.affectedCount ?? preview.similarCount;
+          toast.success(
+            t('financeTransactions.similarEditPrompt.success', {
+              count: affectedCount,
+            }),
+          );
+          onSuccessCreate?.();
+        } catch (propagationError) {
+          toast.error(
+            extractErrorMessage(
+              propagationError,
+              'A categoria foi atualizada, mas não foi possível aplicar a alteração às transações semelhantes',
+            ),
+          );
+        }
+      }
+
+      if (preview && similarEditBehavior === 'prompt' && categoryId) {
         setPendingSimilarEditPrompt({
           transactionId: tx.id,
           similarCount: preview.similarCount,

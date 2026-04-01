@@ -38,7 +38,6 @@ export type AccountPendingAction = {
 export type AccountPreferences = {
   __typename: 'AccountPreferences';
   defaultTransactionStatus: TransactionStatus;
-  ruleApplicationMode: RuleApplicationMode;
 };
 
 /** ANBIMA fund category. Required for correct tax treatment (come-cotas schedule). */
@@ -339,6 +338,11 @@ export type BankAccountDataInput = {
   checkDigit?: InputMaybe<Scalars['String']['input']>;
   maskedNumber?: InputMaybe<Scalars['String']['input']>;
   number?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type BankingUserPreferences = {
+  __typename: 'BankingUserPreferences';
+  ruleApplicationMode: RuleApplicationMode;
 };
 
 export type BillImportJob = {
@@ -805,7 +809,7 @@ export type CreateTransactionInput = {
 
 export type CreateTransactionPayload = {
   __typename: 'CreateTransactionPayload';
-  /** Only populated when account.ruleApplicationMode = ALWAYS_PROMPT. */
+  /** Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT. */
   appliedRules: Maybe<Array<TransactionRule>>;
   transaction: Transaction;
 };
@@ -1961,6 +1965,7 @@ export type Mutation = {
   submitBillImport: BillImportJob;
   /** Updates current account preferences (account owner only). */
   updateAccountPreferences: AccountPreferences;
+  updateBankingUserPreferences: BankingUserPreferences;
   updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
   updateRole: Role;
@@ -2281,6 +2286,11 @@ export type MutationUpdateAccountPreferencesArgs = {
 };
 
 
+export type MutationUpdateBankingUserPreferencesArgs = {
+  input: UpdateBankingUserPreferencesInput;
+};
+
+
 export type MutationUpdateFinancialAccountArgs = {
   id: Scalars['ID']['input'];
   input: UpdateFinancialAccountInput;
@@ -2513,6 +2523,8 @@ export type Query = {
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
   bacenInstitutions: BacenInstitutionConnection;
+  /** Current banking user preferences (defaults when no row exists). */
+  bankingUserPreferences: BankingUserPreferences;
   billImportJob: Maybe<BillImportJob>;
   billImportJobs: Array<BillImportJob>;
   checkPermission: AuthorizationResult;
@@ -3525,6 +3537,9 @@ export enum TransactionType {
 
 export type UpdateAccountPreferencesInput = {
   defaultTransactionStatus?: InputMaybe<TransactionStatus>;
+};
+
+export type UpdateBankingUserPreferencesInput = {
   ruleApplicationMode?: InputMaybe<RuleApplicationMode>;
 };
 

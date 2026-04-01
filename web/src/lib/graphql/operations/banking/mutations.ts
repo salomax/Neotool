@@ -100,8 +100,15 @@ export const UPDATE_FINANCIAL_ACCOUNT = gql`
 export const UPDATE_ACCOUNT_PREFERENCES = gql`
   mutation UpdateAccountPreferences($input: UpdateAccountPreferencesInput!) {
     updateAccountPreferences(input: $input) {
-      ruleApplicationMode
       defaultTransactionStatus
+    }
+  }
+`;
+
+export const UPDATE_BANKING_USER_PREFERENCES = gql`
+  mutation UpdateBankingUserPreferences($input: UpdateBankingUserPreferencesInput!) {
+    updateBankingUserPreferences(input: $input) {
+      ruleApplicationMode
     }
   }
 `;

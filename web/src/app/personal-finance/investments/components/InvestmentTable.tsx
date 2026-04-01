@@ -20,9 +20,11 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import VisibilityOutlinedIcon from '@mui/icons-material/VisibilityOutlined';
+import QueryStatsIcon from '@mui/icons-material/QueryStats';
 import { useTranslation } from '@/shared/i18n';
 import { Logo } from '@/shared/components/ui/primitives';
+import { HoldingIdentity } from './HoldingIdentity';
+import { Chip } from '@/shared/components/ui/primitives/Chip';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { PercentageGain, ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
@@ -61,6 +63,7 @@ import {
 } from './investmentTableHelpers';
 import type { MaturityDrawerHolding } from '../MaturityConfirmDrawer';
 import { formatTableDate } from '@/shared/utils/date';
+import { getHoldingValueOrigin } from '@/shared/utils/holdingValueOrigin';
 
 const InvestmentHoldingDetailDrawer = dynamic(
   () => import('./InvestmentHoldingDetailDrawer').then((mod) => ({ default: mod.InvestmentHoldingDetailDrawer })),
@@ -229,6 +232,13 @@ export function InvestmentTable({
   const handleOpenMaturityConfirmDrawer = React.useCallback((holding: HoldingRow) => {
     if (!holding.asset?.id) return;
 
+    const issuerLogoUrl =
+      (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null }).logoAsset?.publicUrl ??
+      (
+        holding as AllInvestmentHoldingsQuery["allInvestmentHoldings"][number]
+      )?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+      null;
+
     setMaturityConfirmHolding({
       id: holding.id,
       maturityDate: holding.maturityDate ? String(holding.maturityDate) : null,
@@ -240,8 +250,7 @@ export function InvestmentTable({
         (holding.asset as unknown as { issuerName?: string | null; issuer?: { name?: string | null } | null }).issuerName ??
         (holding.asset as unknown as { issuerName?: string | null; issuer?: { name?: string | null } | null }).issuer?.name ??
         null,
-      issuerLogoUrl:
-        (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null }).logoAsset?.publicUrl ?? null,
+      issuerLogoUrl,
       asset: { id: holding.asset.id, name: holding.asset.name },
     });
     setMaturityConfirmOpen(true);
@@ -607,6 +616,10 @@ export function InvestmentTable({
                   const gross = typeof holding.grossValue === 'number' ? holding.grossValue : null;
                   const gain = gross != null && principal != null ? gross - principal : null;
                   const gainPercent = gross != null && principal != null && principal > 0 ? (gross - principal) / principal : null;
+                  const valueOriginKey = getHoldingValueOrigin(holding);
+                  const valueOriginTitle = t(`investments.table.valueOrigin.labels.${valueOriginKey}`);
+                  const valueOriginDescription = t(`investments.table.valueOrigin.descriptions.${valueOriginKey}`);
+                  const valueOriginAriaLabel = t('investments.table.valueOrigin.ariaLabel');
 
                   const isExpiredPending = Boolean((holding as any).isExpiredPending);
                   const isExpired = Boolean((holding as any).isExpired);
@@ -661,24 +674,7 @@ export function InvestmentTable({
                       }}
                     >
                       <Box sx={{ ...assetColSx, minWidth: 0 }}>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
-                          <Logo
-                            src={assetLogoUrl}
-                            alt={assetName}
-                            size="lg"
-                            sx={{ flexShrink: 0 }}
-                          >
-                            {assetName.charAt(0).toUpperCase()}
-                          </Logo>
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography variant="body2" noWrap>
-                              {assetName}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2 }}>
-                              {issuerLabel}
-                            </Typography>
-                          </Box>
-                        </Box>
+                        <HoldingIdentity assetName={assetName} issuerName={issuerLabel} logoUrl={assetLogoUrl ?? undefined} size="lg" />
                       </Box>
 
                       {isFixedIncomeGroup ? (
@@ -728,15 +724,34 @@ export function InvestmentTable({
                           </Typography>
                           <Box sx={secondaryRowSx}>
                             {showMaturityBadge ? (
-                              <Box
+                              <Chip
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleOpenMaturityConfirmDrawer(holding);
                                 }}
-                                sx={{ display: 'inline-flex' }}
-                              >
-                                <Label>{maturityBadgeLabel}</Label>
-                              </Box>
+                                label={
+                                  <Typography
+                                    variant="body2"
+                                    sx={{
+                                      fontSize: '0.75rem',
+                                      lineHeight: 1.2,
+                                      opacity: 0.75,
+                                    }}
+                                  >
+                                    {maturityBadgeLabel}
+                                  </Typography>
+                                }
+                                size="small"
+                                variant="outlined"
+                                color="default"
+                                clickable
+                                sx={{
+                                  height: 28,
+                                  bgcolor: 'action.selected',
+                                  borderColor: 'divider',
+                                  '& .MuiChip-label': { px: 1 },
+                                }}
+                              />
                             ) : null}
                           </Box>
                         </Box>
@@ -758,9 +773,29 @@ export function InvestmentTable({
                       </Box>
 
                       <Box sx={{ ...grossValueColSx, minWidth: 0, textAlign: 'right' }}>
-                        <Typography variant="body2" noWrap>
-                          {gross != null && holding.asset?.currencyCode ? formatCurrency(gross, holding.asset.currencyCode, locale) : '—'}
-                        </Typography>
+                        <Box
+                          sx={{
+                            position: 'relative',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'flex-end',
+                            width: '100%',
+                            overflow: 'visible',
+                          }}
+                        >
+                          <Typography variant="body2" noWrap>
+                            {gross != null && holding.asset?.currencyCode ? formatCurrency(gross, holding.asset.currencyCode, locale) : '—'}
+                          </Typography>
+                          {gross != null ? (
+                            <ValueOriginIndicator
+                              origin={valueOriginKey}
+                              title={valueOriginTitle}
+                              description={valueOriginDescription}
+                              ariaLabel={valueOriginAriaLabel}
+                              offsetPx={18}
+                            />
+                          ) : null}
+                        </Box>
                         <Box sx={{ ...secondaryRowSx, justifyContent: 'flex-end' }} />
                       </Box>
 
@@ -803,7 +838,7 @@ export function InvestmentTable({
           }}
         >
           <ListItemIcon>
-            <VisibilityOutlinedIcon fontSize="small" />
+            <QueryStatsIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>{t('investments.table.rowActions.viewDetails')}</ListItemText>
         </MenuItem>

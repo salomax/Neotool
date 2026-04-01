@@ -64,7 +64,11 @@
       "panelTitle": "Ações pendentes",
       "registerMaturity": "Registrar vencimento",
       "markSeen": "Marcar como visto",
+      "emptyTitle": "Nenhuma ação pendente",
+      "emptyDescription": "Tudo em dia.",
+      "informational": "Informativo",
       "maturityDrawer": {
+        "closePositionTitle": "Encerrar posição",
         "step1Title": "Confirmar vencimento",
         "step2Title": "Crédito na conta",
         "step2Hint": "O valor líquido foi creditado em alguma conta?",
@@ -76,9 +80,20 @@
         "netValue": "Valor líquido",
         "incomeTax": "IR",
         "iof": "IOF",
+        "maturityDate": "Data do vencimento",
         "closeReason": "Motivo do encerramento",
+        "closeReasons": {
+          "Matured": "Vencido",
+          "RedeemedEarly": "Resgatado antecipadamente",
+          "Transferred": "Transferido",
+          "MATURED": "Vencido",
+          "REDEEMED_EARLY": "Resgatado antecipadamente",
+          "TRANSFERRED": "Transferido"
+        },
         "bankAccount": "Conta bancária",
         "creditDate": "Data do crédito",
+        "amountMustBePositive": "O valor precisa ser maior que zero.",
+        "submitClose": "Encerrar",
         "back": "Voltar"
       }
     },

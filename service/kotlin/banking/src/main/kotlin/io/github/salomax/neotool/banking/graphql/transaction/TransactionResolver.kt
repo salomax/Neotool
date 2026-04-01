@@ -376,10 +376,11 @@ class TransactionResolver(
         principal: RequestPrincipal,
     ): TransactionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val userId = requireNotNull(principal.userId) { "No user in token" }
         val txId = UUID.fromString(id)
 
         val command = input.toUpdateCommand()
-        val updated = service.update(txId, command, accountId)
+        val updated = service.update(txId, command, accountId, userId)
         val category = service.findAccessibleCategory(updated.categoryId, accountId)
         val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
         return updated.toDTO(category, merchant)

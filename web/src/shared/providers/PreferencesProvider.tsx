@@ -7,12 +7,12 @@ import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuth } from "./AuthProvider";
 import { USER_PREFERENCES } from "@/lib/graphql/operations/auth/queries";
 import { UPDATE_USER_PREFERENCES } from "@/lib/graphql/operations/auth/mutations";
-import { ACCOUNT_PREFERENCES } from "@/lib/graphql/operations/banking/queries";
-import { UPDATE_ACCOUNT_PREFERENCES } from "@/lib/graphql/operations/banking/mutations";
+import { ACCOUNT_PREFERENCES, BANKING_USER_PREFERENCES } from "@/lib/graphql/operations/banking/queries";
+import { UPDATE_ACCOUNT_PREFERENCES, UPDATE_BANKING_USER_PREFERENCES } from "@/lib/graphql/operations/banking/mutations";
 import type {
   UserPreferencesQuery,
 } from "@/lib/graphql/operations/auth/queries.generated";
-import type { AccountPreferencesQuery } from "@/lib/graphql/operations/banking/queries.generated";
+import type { AccountPreferencesQuery, BankingUserPreferencesQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import {
   Language,
   type Mutation,
@@ -20,6 +20,7 @@ import {
   Theme,
   TransactionStatus,
   type UpdateAccountPreferencesInput,
+  type UpdateBankingUserPreferencesInput,
   type UpdateUserPreferencesInput,
 } from "@/lib/graphql/types/__generated__/graphql";
 
@@ -30,21 +31,27 @@ type UserPreferencesState = {
   firstDayOfWeek: number;
 };
 
-type AccountPreferencesState = {
+type BankingUserPreferencesState = {
   ruleApplicationMode: RuleApplicationMode;
+};
+
+type AccountPreferencesState = {
   defaultTransactionStatus: TransactionStatus;
 };
 
 type PreferencesContextValue = {
   userPreferences: UserPreferencesState;
+  bankingUserPreferences: BankingUserPreferencesState;
   accountPreferences: AccountPreferencesState;
   isLoading: boolean;
   canManageAccountPreferences: boolean;
   updateUserPreferences: (patch: UpdateUserPreferencesInput) => Promise<void>;
+  updateBankingUserPreferences: (patch: UpdateBankingUserPreferencesInput) => Promise<void>;
   updateAccountPreferences: (patch: UpdateAccountPreferencesInput) => Promise<void>;
 };
 
 const USER_PREFS_CACHE_KEY = "@invistus/userPreferences";
+const BANKING_USER_PREFS_CACHE_KEY = "@invistus/bankingUserPreferences";
 
 const defaultUserPreferences: UserPreferencesState = {
   language: Language.Portuguese,
@@ -53,8 +60,11 @@ const defaultUserPreferences: UserPreferencesState = {
   firstDayOfWeek: 1,
 };
 
-const defaultAccountPreferences: AccountPreferencesState = {
+const defaultBankingUserPreferences: BankingUserPreferencesState = {
   ruleApplicationMode: RuleApplicationMode.AlwaysPrompt,
+};
+
+const defaultAccountPreferences: AccountPreferencesState = {
   defaultTransactionStatus: TransactionStatus.Posted,
 };
 
@@ -86,21 +96,47 @@ function writeCachedUserPreferences(value: UserPreferencesState): void {
   window.localStorage.setItem(USER_PREFS_CACHE_KEY, JSON.stringify(value));
 }
 
+function readCachedBankingUserPreferences(): BankingUserPreferencesState | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(BANKING_USER_PREFS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<BankingUserPreferencesState>;
+    if (!parsed.ruleApplicationMode) return null;
+    return {
+      ruleApplicationMode: parsed.ruleApplicationMode,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedBankingUserPreferences(value: BankingUserPreferencesState): void {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(BANKING_USER_PREFS_CACHE_KEY, JSON.stringify(value));
+}
+
 export function PreferencesProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
   const { setMode } = useThemeMode();
 
   const [userPreferences, setUserPreferences] = React.useState<UserPreferencesState>(() => readCachedUserPreferences() ?? defaultUserPreferences);
+  const [bankingUserPreferences, setBankingUserPreferences] = React.useState<BankingUserPreferencesState>(() => readCachedBankingUserPreferences() ?? defaultBankingUserPreferences);
   const [accountPreferences, setAccountPreferences] = React.useState<AccountPreferencesState>(defaultAccountPreferences);
 
   const [canManageAccountPreferences, setCanManageAccountPreferences] = React.useState(true);
 
   const userPrefsQuery = useQuery<UserPreferencesQuery>(USER_PREFERENCES, { skip: !isAuthenticated });
+  const bankingUserPrefsQuery = useQuery<BankingUserPreferencesQuery>(BANKING_USER_PREFERENCES, { skip: !isAuthenticated });
   const accountPrefsQuery = useQuery<AccountPreferencesQuery>(ACCOUNT_PREFERENCES, { skip: !isAuthenticated });
   const [updateUserPreferencesMutation] = useMutation<
     Pick<Mutation, "updateUserPreferences">,
     { input: UpdateUserPreferencesInput }
   >(UPDATE_USER_PREFERENCES);
+  const [updateBankingUserPreferencesMutation] = useMutation<
+    Pick<Mutation, "updateBankingUserPreferences">,
+    { input: UpdateBankingUserPreferencesInput }
+  >(UPDATE_BANKING_USER_PREFERENCES);
   const [updateAccountPreferencesMutation] = useMutation<
     Pick<Mutation, "updateAccountPreferences">,
     { input: UpdateAccountPreferencesInput }
@@ -120,10 +156,19 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }, [userPrefsQuery.data]);
 
   React.useEffect(() => {
+    const data = bankingUserPrefsQuery.data?.bankingUserPreferences;
+    if (!data) return;
+    const next: BankingUserPreferencesState = {
+      ruleApplicationMode: data.ruleApplicationMode,
+    };
+    setBankingUserPreferences(next);
+    writeCachedBankingUserPreferences(next);
+  }, [bankingUserPrefsQuery.data]);
+
+  React.useEffect(() => {
     const data = accountPrefsQuery.data?.accountPreferences;
     if (!data) return;
     setAccountPreferences({
-      ruleApplicationMode: data.ruleApplicationMode,
       defaultTransactionStatus: data.defaultTransactionStatus,
     });
   }, [accountPrefsQuery.data]);
@@ -134,6 +179,13 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       if (fallback) setUserPreferences(fallback);
     }
   }, [userPrefsQuery.error]);
+
+  React.useEffect(() => {
+    if (bankingUserPrefsQuery.error) {
+      const fallback = readCachedBankingUserPreferences();
+      if (fallback) setBankingUserPreferences(fallback);
+    }
+  }, [bankingUserPrefsQuery.error]);
 
   React.useEffect(() => {
     const nextLanguage = userPreferences.language === Language.English ? "en" : "pt";
@@ -172,14 +224,14 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       setUserPreferences(optimistic);
       writeCachedUserPreferences(optimistic);
       try {
-      const result = await updateUserPreferencesMutation({ variables: { input: patch } });
+        const result = await updateUserPreferencesMutation({ variables: { input: patch } });
         const saved = result.data?.updateUserPreferences;
         if (saved) {
           const next: UserPreferencesState = {
-          language: saved.language ?? previous.language,
-          theme: saved.theme ?? previous.theme,
-          blurBalances: saved.blurBalances ?? previous.blurBalances,
-          firstDayOfWeek: saved.firstDayOfWeek ?? previous.firstDayOfWeek,
+            language: saved.language ?? previous.language,
+            theme: saved.theme ?? previous.theme,
+            blurBalances: saved.blurBalances ?? previous.blurBalances,
+            firstDayOfWeek: saved.firstDayOfWeek ?? previous.firstDayOfWeek,
           };
           setUserPreferences(next);
           writeCachedUserPreferences(next);
@@ -193,22 +245,47 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
     [updateUserPreferencesMutation, userPreferences],
   );
 
+  const updateBankingUserPreferences = React.useCallback(
+    async (patch: UpdateBankingUserPreferencesInput) => {
+      const previous = bankingUserPreferences;
+      const optimistic: BankingUserPreferencesState = {
+        ruleApplicationMode: patch.ruleApplicationMode ?? previous.ruleApplicationMode,
+      };
+      setBankingUserPreferences(optimistic);
+      writeCachedBankingUserPreferences(optimistic);
+      try {
+        const result = await updateBankingUserPreferencesMutation({ variables: { input: patch } });
+        const saved = result.data?.updateBankingUserPreferences;
+        if (saved) {
+          const next: BankingUserPreferencesState = {
+            ruleApplicationMode: saved.ruleApplicationMode ?? previous.ruleApplicationMode,
+          };
+          setBankingUserPreferences(next);
+          writeCachedBankingUserPreferences(next);
+        }
+      } catch (error) {
+        setBankingUserPreferences(previous);
+        writeCachedBankingUserPreferences(previous);
+        throw error;
+      }
+    },
+    [bankingUserPreferences, updateBankingUserPreferencesMutation],
+  );
+
   const updateAccountPreferences = React.useCallback(
     async (patch: UpdateAccountPreferencesInput) => {
       const previous = accountPreferences;
       const optimistic: AccountPreferencesState = {
-        ruleApplicationMode: patch.ruleApplicationMode ?? previous.ruleApplicationMode,
         defaultTransactionStatus: patch.defaultTransactionStatus ?? previous.defaultTransactionStatus,
       };
       setAccountPreferences(optimistic);
       try {
-      const result = await updateAccountPreferencesMutation({ variables: { input: patch } });
+        const result = await updateAccountPreferencesMutation({ variables: { input: patch } });
         const saved = result.data?.updateAccountPreferences;
         if (saved) {
           setCanManageAccountPreferences(true);
           setAccountPreferences({
-          ruleApplicationMode: saved.ruleApplicationMode ?? previous.ruleApplicationMode,
-          defaultTransactionStatus: saved.defaultTransactionStatus ?? previous.defaultTransactionStatus,
+            defaultTransactionStatus: saved.defaultTransactionStatus ?? previous.defaultTransactionStatus,
           });
         }
       } catch (error) {
@@ -226,13 +303,15 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   const value = React.useMemo<PreferencesContextValue>(
     () => ({
       userPreferences,
+      bankingUserPreferences,
       accountPreferences,
-      isLoading: (userPrefsQuery.loading || accountPrefsQuery.loading) && isAuthenticated,
+      isLoading: (userPrefsQuery.loading || bankingUserPrefsQuery.loading || accountPrefsQuery.loading) && isAuthenticated,
       canManageAccountPreferences,
       updateUserPreferences,
+      updateBankingUserPreferences,
       updateAccountPreferences,
     }),
-    [accountPreferences, accountPrefsQuery.loading, canManageAccountPreferences, isAuthenticated, updateAccountPreferences, updateUserPreferences, userPreferences, userPrefsQuery.loading],
+    [accountPreferences, accountPrefsQuery.loading, bankingUserPreferences, bankingUserPrefsQuery.loading, canManageAccountPreferences, isAuthenticated, updateAccountPreferences, updateBankingUserPreferences, updateUserPreferences, userPreferences, userPrefsQuery.loading],
   );
 
   return <PreferencesContext.Provider value={value}>{children}</PreferencesContext.Provider>;

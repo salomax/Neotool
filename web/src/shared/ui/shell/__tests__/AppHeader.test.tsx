@@ -5,24 +5,27 @@ import userEvent from '@testing-library/user-event';
 import { AppHeader } from '../AppHeader';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
 
-// Mock react-i18next
-vi.mock('react-i18next', () => ({
-  useTranslation: () => ({
-    t: (key: string) => {
-      const translations: Record<string, string> = {
-        'appHeader.signIn': 'Sign In',
-        'appHeader.account': 'Account',
-        'appHeader.signOut': 'Sign Out',
-        'appHeader.defaultUser': 'User',
-        'appHeader.theme.light': 'Switch to light mode',
-        'appHeader.theme.dark': 'Switch to dark mode',
-        'appHeader.aiAssistant': 'AI Assistant',
-        'appHeader.pendingActions': 'Pending actions',
-      };
-      return translations[key] || key;
-    },
-  }),
-}));
+vi.mock("react-i18next", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("react-i18next")>();
+  return {
+    ...actual,
+    useTranslation: () => ({
+      t: (key: string) => {
+        const translations: Record<string, string> = {
+          "appHeader.signIn": "Sign In",
+          "appHeader.account": "Account",
+          "appHeader.signOut": "Sign Out",
+          "appHeader.defaultUser": "User",
+          "appHeader.theme.light": "Switch to light mode",
+          "appHeader.theme.dark": "Switch to dark mode",
+          "appHeader.aiAssistant": "AI Assistant",
+          "appHeader.pendingActions": "Pending actions",
+        };
+        return translations[key] || key;
+      },
+    }),
+  };
+});
 
 // Mock Next.js router and navigation
 const mockPush = vi.fn();

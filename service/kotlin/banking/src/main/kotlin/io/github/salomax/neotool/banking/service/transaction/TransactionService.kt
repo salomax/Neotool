@@ -13,6 +13,7 @@ import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
@@ -43,6 +44,7 @@ open class TransactionService(
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
     private val accountPreferencesService: AccountPreferencesService,
+    private val userRuleApplicationModeService: UserRuleApplicationModeService,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionService::class.java)
     // ── Categories ───────────────────────────────────────────────────────────
@@ -447,7 +449,7 @@ open class TransactionService(
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
         }
         val normalizedTags = normalizeTags(command.tags)
-        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val mode = userRuleApplicationModeService.get(userId)
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -582,6 +584,7 @@ open class TransactionService(
         id: UUID,
         command: UpdateTransactionCommand,
         accountId: UUID,
+        userId: UUID,
     ): Transaction {
         val existing =
             transactionRepository.findById(id, accountId)
@@ -662,7 +665,7 @@ open class TransactionService(
             )
 
         var enriched = updated
-        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val mode = userRuleApplicationModeService.get(userId)
         if (mode != RuleApplicationMode.NEVER) {
             val canApplyCategory = !command.categoryIdProvided
             val canApplyMerchant = !command.merchantIdProvided

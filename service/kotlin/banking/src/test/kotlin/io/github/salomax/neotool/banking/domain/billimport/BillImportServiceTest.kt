@@ -6,18 +6,20 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.PatternType
@@ -27,6 +29,7 @@ import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetUploadResult
 import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedEvent
@@ -76,6 +79,7 @@ class BillImportServiceTest {
     private lateinit var submittedProducer: PdfExtractorSubmittedProducer
     private lateinit var assistantRequestProducer: AssistantBankingReaderRequestedProducer
     private lateinit var categorizationService: TransactionRuleEngine
+    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
     private lateinit var service: BillImportService
 
     private val objectMapper = jacksonObjectMapper().registerModule(JavaTimeModule())
@@ -99,6 +103,8 @@ class BillImportServiceTest {
         billAssetStorage = mock()
         submittedProducer = mock()
         assistantRequestProducer = mock()
+        userRuleApplicationModeService = mock()
+        whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
         service =
             BillImportService(
                 repository = repository,
@@ -106,6 +112,7 @@ class BillImportServiceTest {
                 transactionRepository = transactionRepository,
                 importFingerprintService = importFingerprintService,
                 categorizationService = categorizationService,
+                userRuleApplicationModeService = userRuleApplicationModeService,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 billImportCommitPreparer = billImportCommitPreparer,

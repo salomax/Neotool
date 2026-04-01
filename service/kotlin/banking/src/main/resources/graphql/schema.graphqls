@@ -1465,13 +1465,19 @@ enum RuleApplicationMode {
   ALWAYS_PROMPT
 }
 
-type AccountPreferences {
+type BankingUserPreferences {
   ruleApplicationMode: RuleApplicationMode!
+}
+
+input UpdateBankingUserPreferencesInput {
+  ruleApplicationMode: RuleApplicationMode
+}
+
+type AccountPreferences {
   defaultTransactionStatus: TransactionStatus!
 }
 
 input UpdateAccountPreferencesInput {
-  ruleApplicationMode: RuleApplicationMode
   defaultTransactionStatus: TransactionStatus
 }
 
@@ -1488,6 +1494,8 @@ extend type Query {
   issuers(categories: [IssuerCategory!]): [Issuer!]!
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]!
+  """Current banking user preferences (defaults when no row exists)."""
+  bankingUserPreferences: BankingUserPreferences!
   """Current account (tenant) preferences (defaults when no row exists)."""
   accountPreferences: AccountPreferences!
   """
@@ -1643,7 +1651,7 @@ extend type Query {
 # Payload returned by `createTransaction`.
 type CreateTransactionPayload {
   transaction: Transaction!
-  """Only populated when account.ruleApplicationMode = ALWAYS_PROMPT."""
+  """Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT."""
   appliedRules: [TransactionRule!]
 }
 
@@ -1654,6 +1662,7 @@ type CreateTransactionPayload {
 extend type Mutation {
   _bankingService: String
 
+  updateBankingUserPreferences(input: UpdateBankingUserPreferencesInput!): BankingUserPreferences!
   """Updates current account preferences (account owner only)."""
   updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences!
   """
