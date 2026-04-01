@@ -74,7 +74,9 @@ function PrincipalInputInner({
         error={!!fieldState.error}
         helperText={fieldState.error?.message}
         value={localValue}
-        onValueChange={(values) => setLocalValue(values.value ?? "")}
+        onValueChange={(values) =>
+          setLocalValue(values.formattedValue ?? values.value ?? "")
+        }
         onBlur={() => {
           const parsed = parseLocal();
           setLocalValue(parsed === "" ? "" : String(parsed));

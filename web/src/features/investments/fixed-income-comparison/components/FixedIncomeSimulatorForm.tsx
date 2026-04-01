@@ -32,7 +32,6 @@ import type { FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphq
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
 
 const DEFAULT_PRINCIPAL = 50000;
-const DEFAULT_CONTRACTED_RATE = 115;
 
 function percentToBps(value: number): number {
   return Math.round(value * 100);
@@ -120,7 +119,7 @@ export function FixedIncomeSimulatorForm({
       productGroup: "TAXABLE_IR" as FixedIncomeProductGroup,
       principal: DEFAULT_PRINCIPAL,
       rateModel: "CDI" as FixedIncomeRateModel,
-      contractedRateValue: DEFAULT_CONTRACTED_RATE,
+      contractedRateValue: "",
       startDate: today,
       endDate: defaultEndDate(today),
       cdiAnnualPercent: 0,
