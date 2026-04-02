@@ -213,7 +213,6 @@ type NcmSpending
   itemCount: Int!
   months: [NcmMonthlySpending!]!
 }
-}
 
 """
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
@@ -557,6 +556,12 @@ input BankAccountDataInput
   number: String
   checkDigit: String
   maskedNumber: String
+}
+
+type BankingUserPreferences
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode!
 }
 
 type BillImportJob
@@ -3736,7 +3741,6 @@ input UpdateProductVariantInput
   quantityUnit: String
   normalizedQuantityValue: Float
   normalizedQuantityUnit: String
-}
 }
 
 input UpdateCategoryInput
