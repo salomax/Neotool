@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, type ReactNode } from 'react';
 import { useQuery } from '@apollo/client/react';
+import { useTranslation as useReactI18nTranslation } from 'react-i18next';
 import {
   Alert,
   Box,
@@ -19,6 +20,7 @@ import {
   Typography,
   alpha,
 } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -27,13 +29,13 @@ import StoreIcon from '@mui/icons-material/Store';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display/CurrencyAmountParts';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { useTranslation, i18n } from '@/shared/i18n';
+import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { formatDateTime } from '@/shared/utils/date';
 import { formatCnpj } from '@/lib/utils/formatCnpj';
-import { TaxLoadSummary } from './TaxLoadSummary';
+import { TaxLoadSummary, TaxPercentBar } from './TaxLoadSummary';
 import {
   NfceDocumentDocument,
   type NfceDocumentQuery,
@@ -63,12 +65,36 @@ function formatCep(value: string | null | undefined): string | null {
   return `${digits.slice(0, 5)}-${digits.slice(5, 8)}`;
 }
 
-function formatNumber(value: number | null | undefined): string {
+function formatNumber(value: number | null | undefined, locale: string): string {
   if (value == null) return '-';
-  return new Intl.NumberFormat(i18n.language, {
+  return new Intl.NumberFormat(locale, {
     minimumFractionDigits: value % 1 === 0 ? 0 : 2,
     maximumFractionDigits: 4,
   }).format(value);
+}
+
+function InfoField({
+  label,
+  value,
+  footer,
+  valueColor = 'text.primary',
+  sx,
+}: {
+  label: ReactNode;
+  value: ReactNode;
+  footer?: ReactNode;
+  valueColor?: 'text.primary' | 'text.secondary';
+  sx?: SxProps<Theme>;
+}) {
+  return (
+    <Stack spacing={0.25} sx={sx}>
+      <Label sx={{ mb: 0 }}>{label}</Label>
+      <Typography variant="body2" color={valueColor} sx={{ fontWeight: 600 }}>
+        {value}
+      </Typography>
+      {footer ?? null}
+    </Stack>
+  );
 }
 
 export function NfceDocumentDrawer({
@@ -77,6 +103,7 @@ export function NfceDocumentDrawer({
   transactionId,
 }: NfceDocumentDrawerProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
+  const { i18n } = useReactI18nTranslation();
   const toast = useToast();
   const currencyFormatter = useMemo(
     () =>
@@ -84,7 +111,7 @@ export function NfceDocumentDrawer({
         style: 'currency',
         currency: 'BRL',
       }),
-    [],
+    [i18n.language],
   );
   const formatCurrency = useCallback(
     (value: number | null | undefined) => currencyFormatter.format(Number(value ?? 0)),
@@ -203,113 +230,77 @@ export function NfceDocumentDrawer({
             </Stack>
 
 
-          <Stack sx={{ gap: 1,  }}>
+          <Stack sx={{ gap: 1 }}>
             <Stack direction="row" alignItems="center" sx={{ px: 2 }}>
               <Label sx={{ mb: 0, mt: 2 }} icon={<ShoppingCartIcon fontSize="small" />}>
                 {t('financeTransactions.nfceDocument.itemsSection')}
               </Label>
-              <Label
-                sx={{ ml: 'auto',  mb: -3 }}
-              >
+              <Label sx={{ ml: 'auto', mb: -3 }}>
                 {t('financeTransactions.nfceDocument.itemsCount', { count: items.length })}
               </Label>
             </Stack>
-                <Stack spacing={2}>
-                  <List disablePadding>
-                    {items.map((item, index) => {
-                      const taxPercent =
-                        item.taxAmount != null && item.totalPrice > 0
-                          ? Math.max(0, Math.min(100, (item.taxAmount / item.totalPrice) * 100))
-                          : null;
-                      return (
-                        <ListItem
-                          key={item.id}
-                          disablePadding
-                          sx={{
-                            display: 'block',
-                            px: 3,
-                            py: 2.5,
-                            mb: index < items.length - 1 ? 1.5 : 0,
-                            borderRadius: 1.5,
-                            border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: 'background.paper',
-                          }}
-                        >
-                            <Stack spacing={1}>
-                              <Stack direction="row" alignItems="flex-start">
-                                <Typography
-                                  variant="subtitle2"
-                                  sx={{ fontWeight: 700, textTransform: 'uppercase', flex: 1, pr: 2 }}
-                                >
-                                  {item.rawDescription}
-                                </Typography>
-                                <CurrencyAmountParts
-                                  value={item.totalPrice}
-                                  currency="BRL"
-                                  locale={i18n.language}
-                                  variant="subtitle1"
-                                  sx={{ fontWeight: 700, whiteSpace: 'nowrap', fontSize: '1.8em', lineHeight: 1 }}
-                                />
-                              </Stack>
+            <Stack spacing={2}>
+              <List disablePadding>
+                {items.map((item, index) => {
+                  const taxPercent =
+                    item.taxAmount != null && item.totalPrice > 0
+                      ? Math.max(0, Math.min(100, (item.taxAmount / item.totalPrice) * 100))
+                      : null;
 
-                              <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap alignItems="flex-start">
-                                <Stack spacing={0.25}>
-                                  <Label sx={{ mb: 0 }}>{t('financeTransactions.nfceDocument.quantity')}</Label>
-                                  <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
-                                    {formatNumber(item.quantity)} {String(item.unit).toUpperCase()}
-                                  </Typography>
-                                </Stack>
-                                <Stack spacing={0.25}>
-                                  <Label sx={{ mb: 0 }}>{t('financeTransactions.nfceDocument.unitPrice')}</Label>
-                                  <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
-                                    {formatCurrency(item.unitPrice)}
-                                  </Typography>
-                                </Stack>
-                                <Stack spacing={0.25} sx={{ minWidth: 160 }}>
-                                  <Label sx={{ mb: 0 }}>{t('financeTransactions.nfceDocument.totalTax')}</Label>
-                                  <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
-                                    {item.taxAmount != null ? formatCurrency(item.taxAmount) : '—'}
-                                  </Typography>
-                                  {taxPercent != null ? (
-                                    <Box sx={{ position: 'relative', width: '100%', mt: 0.25 }}>
-                                      <Typography
-                                        variant="caption"
-                                        sx={{
-                                          position: 'absolute',
-                                          right: 0,
-                                          top: 0,
-                                          transform: 'translateY(-100%)',
-                                          color: 'warning.main',
-                                          fontWeight: 700,
-                                          lineHeight: 1,
-                                          fontVariantNumeric: 'tabular-nums',
-                                        }}
-                                      >
-                                        {`${Math.round(taxPercent)}%`}
-                                      </Typography>
-                                      <Box
-                                        sx={{
-                                          width: '100%',
-                                          height: 6,
-                                          borderRadius: 999,
-                                          overflow: 'hidden',
-                                          display: 'flex',
-                                        }}
-                                      >
-                                        <Box sx={{ width: `${100 - taxPercent}%`, bgcolor: 'action.disabledBackground' }} />
-                                        <Box sx={{ width: `${taxPercent}%`, bgcolor: 'warning.main' }} />
-                                      </Box>
-                                    </Box>
-                                  ) : null}
-                                </Stack>
-                              </Stack>
-                            </Stack>
-                        </ListItem>
-                      );
-                    })}
-                  </List>
-                </Stack>
+                  return (
+                    <ListItem
+                      key={item.id}
+                      disablePadding
+                      sx={{
+                        display: 'block',
+                        px: 3,
+                        py: 2.5,
+                        mb: index < items.length - 1 ? 1.5 : 0,
+                        borderRadius: 1.5,
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        bgcolor: 'background.paper',
+                      }}
+                    >
+                      <Stack spacing={1}>
+                        <Stack direction="row" alignItems="flex-start">
+                          <Typography
+                            variant="subtitle2"
+                            sx={{ fontWeight: 700, textTransform: 'uppercase', flex: 1, pr: 2 }}
+                          >
+                            {item.rawDescription}
+                          </Typography>
+                          <CurrencyAmountParts
+                            value={item.totalPrice}
+                            currency="BRL"
+                            locale={i18n.language}
+                            variant="subtitle1"
+                            sx={{ fontWeight: 700, whiteSpace: 'nowrap', fontSize: '1.8em', lineHeight: 1 }}
+                          />
+                        </Stack>
+
+                        <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap alignItems="flex-start">
+                          <InfoField
+                            label={t('financeTransactions.nfceDocument.quantity')}
+                            value={`${formatNumber(item.quantity, i18n.language)} ${String(item.unit).toUpperCase()}`}
+                          />
+                          <InfoField
+                            label={t('financeTransactions.nfceDocument.unitPrice')}
+                            value={formatCurrency(item.unitPrice)}
+                          />
+                          <InfoField
+                            label={t('financeTransactions.nfceDocument.totalTax')}
+                            value={item.taxAmount != null ? formatCurrency(item.taxAmount) : '—'}
+                            footer={taxPercent != null ? <TaxPercentBar percent={taxPercent} /> : null}
+                            sx={{ minWidth: 160 }}
+                          />
+                        </Stack>
+                      </Stack>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </Stack>
 
           </Stack>
 
@@ -323,22 +314,19 @@ export function NfceDocumentDrawer({
                 <CardContent>
                   <Stack spacing={4}>
                     <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap alignItems="flex-start">
-                      <Stack spacing={0.25}>
-                        <Label sx={{ mb: 0 }}>{t('financeTransactions.nfceDocument.emissionDate')}</Label>
-                        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
-                          {formatDateTime(
-                            String(document.emissionDate),
-                            i18n.language,
-                            Intl.DateTimeFormat().resolvedOptions().timeZone,
-                          )}
-                        </Typography>
-                      </Stack>
+                      <InfoField
+                        label={t('financeTransactions.nfceDocument.emissionDate')}
+                        value={formatDateTime(
+                          String(document.emissionDate),
+                          i18n.language,
+                          Intl.DateTimeFormat().resolvedOptions().timeZone,
+                        )}
+                      />
                       {totalTaxValue != null ? (
                         <TaxLoadSummary
                           percent={totalTaxPercent}
                           amount={totalTaxValue}
-                          label="CARGA TRIBUTÁRIA"
-                          size={56}
+                          label={t('financeTransactions.nfceDocument.taxLoadLabel')}
                         />
                       ) : null}
                       <CurrencyAmountParts
@@ -350,17 +338,13 @@ export function NfceDocumentDrawer({
                       />
                     </Stack>
                     {document.buyerCpf ? (
-                      <Stack spacing={0.25}>
-                        <Label sx={{ mb: 0 }}>CPF do comprador</Label>
-                        <Typography variant="body2" color="text.primary" sx={{ fontWeight: 600 }}>
-                          {formatCpf(document.buyerCpf)}
-                        </Typography>
-                      </Stack>
+                      <InfoField
+                        label={t('financeTransactions.nfceDocument.buyerCpf')}
+                        value={formatCpf(document.buyerCpf)}
+                      />
                     ) : null}
                     <Stack spacing={1}>
-                      <Label>
-                        {t('financeTransactions.nfceDocument.accessKey')}
-                      </Label>
+                      <Label sx={{ mb: 0 }}>{t('financeTransactions.nfceDocument.accessKey')}</Label>
                       <Box
                         sx={(theme) => ({
                           display: 'flex',
@@ -369,11 +353,12 @@ export function NfceDocumentDrawer({
                           px: 2,
                           py: 1.5,
                           borderRadius: 1,
-                          bgcolor: alpha(theme.palette.text.primary, 0.02)
+                          bgcolor: alpha(theme.palette.text.primary, 0.02),
                         })}
                       >
                         <Typography
                           variant="body2"
+                          title={formatAccessKey(document.accessKey)}
                           sx={{
                             flex: 1,
                             minWidth: 0,
@@ -410,7 +395,7 @@ export function NfceDocumentDrawer({
                                 whiteSpace: 'nowrap',
                               }}
                             >
-                              Ver na SEFAZ
+                              {t('financeTransactions.nfceDocument.viewOnSefaz')}
                               <OpenInNewOutlinedIcon fontSize="small" />
                             </Link>
                           </>

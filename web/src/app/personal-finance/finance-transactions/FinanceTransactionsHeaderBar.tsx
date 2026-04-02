@@ -40,12 +40,15 @@ type ActionButtonsRevealSxOptions = {
   hasEndIcon?: boolean;
 };
 
-interface FinanceTransactionsHeaderBarProps {
-  importsError?: unknown;
-  effectiveSelectedAccountId: string | null;
-  onRetryImports: () => void;
+interface ImportAlertState {
+  error?: unknown;
+  accountId: string | null;
+  onRetry: () => void;
   reviewRequiredJob: { id: string; duplicateReviewCount: number } | null;
   onOpenReviewJob: (jobId: string) => void;
+}
+
+interface NavigationState {
   isCalendarMode: boolean;
   selectedMonth: number;
   selectedYear: number;
@@ -53,35 +56,30 @@ interface FinanceTransactionsHeaderBarProps {
   bills: CreditCardBill[];
   selectedBillId: string | null;
   onSelectBill: (billId: string) => void;
-  searchQuery: string;
-  onSearchQueryChange: (query: string) => void;
+}
+
+interface TransactionActions {
   onOpenNfceImport: () => void;
   onOpenImportTransactions: () => void;
   onOpenImportBill: () => void;
   onCreateTransaction: () => void;
-  isCreatingTransaction: boolean;
+  isCreating: boolean;
+}
+
+interface FinanceTransactionsHeaderBarProps {
+  importAlerts: ImportAlertState;
+  navigation: NavigationState;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  actions: TransactionActions;
 }
 
 export function FinanceTransactionsHeaderBar({
-  importsError,
-  effectiveSelectedAccountId,
-  onRetryImports,
-  reviewRequiredJob,
-  onOpenReviewJob,
-  isCalendarMode,
-  selectedMonth,
-  selectedYear,
-  onDateChange,
-  bills,
-  selectedBillId,
-  onSelectBill,
+  importAlerts: { error: importsError, accountId: effectiveSelectedAccountId, onRetry: onRetryImports, reviewRequiredJob, onOpenReviewJob },
+  navigation: { isCalendarMode, selectedMonth, selectedYear, onDateChange, bills, selectedBillId, onSelectBill },
   searchQuery,
   onSearchQueryChange,
-  onOpenNfceImport,
-  onOpenImportTransactions,
-  onOpenImportBill,
-  onCreateTransaction,
-  isCreatingTransaction,
+  actions: { onOpenNfceImport, onOpenImportTransactions, onOpenImportBill, onCreateTransaction, isCreating: isCreatingTransaction },
 }: FinanceTransactionsHeaderBarProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();

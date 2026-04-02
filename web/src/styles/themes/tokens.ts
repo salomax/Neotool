@@ -89,6 +89,7 @@ export interface DesignTokens {
     thresholdBad: string;
     thresholdRegular: string;
     thresholdGood: string;
+    tax: string;
   };
 }
 
@@ -143,6 +144,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       secondaryContrast: "#ffffff",
       success: "#16a34a",
       warning: "#f59e0b",
+      tax: "#9984c7ff",
       error: "#dc2626",
       errorLightBg: "#FDEFF0",
       successLightBg: "#EFF9F3",
@@ -218,6 +220,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       secondaryContrast: "#0b1220",
       success: "#22c55e",
       warning: "#fbbf24",
+      tax: "#a78bfa",
       error: "#ef4444",
       errorLightBg: "rgba(239, 68, 68, 0.16)",
       successLightBg: "rgba(34, 197, 94, 0.16)",

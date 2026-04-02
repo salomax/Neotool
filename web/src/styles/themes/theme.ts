@@ -17,6 +17,7 @@ type CustomPaletteTokens = Pick<
   | "thresholdBad"
   | "thresholdRegular"
   | "thresholdGood"
+  | "tax"
 >;
 
 declare module "@mui/material/styles" {
@@ -244,6 +245,7 @@ export const createAppTheme = (mode: Mode) => {
         thresholdBad: t.palette.thresholdBad,
         thresholdRegular: t.palette.thresholdRegular,
         thresholdGood: t.palette.thresholdGood,
+        tax: t.palette.tax,
       },
     },
   };

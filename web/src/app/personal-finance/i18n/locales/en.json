@@ -1155,6 +1155,8 @@
       "emissionDate": "Emission date",
       "totalValue": "Total",
       "totalTax": "Taxes",
+      "taxLoadLabel": "Tax load",
+      "buyerCpf": "Buyer CPF",
       "accessKey": "Access key",
       "copyAccessKey": "Copy key",
       "accessKeyCopied": "Key copied",
