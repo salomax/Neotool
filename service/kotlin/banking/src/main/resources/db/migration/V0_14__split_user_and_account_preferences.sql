@@ -1,4 +1,4 @@
-CREATE TABLE banking.user_preferences (
+CREATE TABLE IF NOT EXISTS banking.user_preferences (
     user_id                UUID        PRIMARY KEY,
     rule_application_mode  TEXT NOT NULL DEFAULT 'ALWAYS_PROMPT'
                            CHECK (rule_application_mode IN ('NEVER', 'ALWAYS', 'ALWAYS_PROMPT')),
