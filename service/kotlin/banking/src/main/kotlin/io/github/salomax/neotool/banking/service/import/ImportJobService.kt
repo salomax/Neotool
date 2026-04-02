@@ -5,9 +5,18 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.ProductAliasEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.ProductVariantEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemRepository
+import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
 import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
+import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
 import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
@@ -29,6 +38,7 @@ import org.hibernate.exception.ConstraintViolationException
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
 import java.security.MessageDigest
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -38,6 +48,10 @@ private const val DEFAULT_MIME = "application/octet-stream"
 private const val DUPLICATE_FILE_HASH_CONSTRAINT = "uq_document_import_jobs_transaction_account_hash"
 private const val DEFAULT_TRANSACTION_IMPORT_DOCUMENT_TYPE = "BANK_STATEMENT"
 
+private data class NfceReviewMetadata(
+    val qrCodeUrl: String,
+)
+
 @Singleton
 open class ImportJobService(
     private val importJobRepository: ImportJobRepository,
@@ -46,9 +60,15 @@ open class ImportJobService(
     private val nfceClient: NfceClient,
     private val importProcessor: ImportProcessor,
     private val financialAccountRepository: FinancialAccountRepository,
+    private val crossSourceDedupService: CrossSourceDedupService,
     private val sameSourceDedupService: SameSourceDedupService,
     private val transactionRepository: TransactionRepository,
     private val snapshotComputationService: SnapshotComputationService,
+    private val nfceDocumentRepository: NfceDocumentRepository,
+    private val purchaseItemRepository: PurchaseItemRepository,
+    private val productVariantEntityRepository: ProductVariantEntityRepository,
+    private val productAliasEntityRepository: ProductAliasEntityRepository,
+    private val purchaseItemEntityRepository: PurchaseItemEntityRepository,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
     private val objectMapper = jacksonObjectMapper().apply { registerModule(JavaTimeModule()) }
@@ -158,13 +178,58 @@ open class ImportJobService(
     ): ImportJob {
         validateFinancialAccountOwnership(financialAccountId, accountId)
         val nfce = nfceClient.fetch(qrCodeUrl)
+        val existingJob = importJobRepository.findByFileHash(financialAccountId, nfce.chNFe)
+        if (existingJob != null) return existingJob
 
         if (sameSourceDedupService.isDuplicate(financialAccountId, nfce.chNFe, TransactionSource.MANUAL)) {
-            val existingJob = importJobRepository.findByFileHash(financialAccountId, nfce.chNFe)
-            return existingJob ?: createSkippedNfceJob(financialAccountId, accountId, userId, nfce.chNFe)
+            return createSkippedNfceJob(financialAccountId, accountId, userId, nfce.chNFe)
         }
 
         val now = Instant.now()
+        val nfceDate = LocalDate.ofInstant(nfce.dhEmi, ZoneId.systemDefault())
+        val manualCandidates =
+            crossSourceDedupService.findManualNfceCandidates(
+                financialAccountId = financialAccountId,
+                amount = nfce.vNF,
+                referenceDate = nfceDate,
+            )
+        if (manualCandidates.isNotEmpty()) {
+            val reviewJob =
+                ImportJob(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileName = null,
+                    fileHash = nfce.chNFe,
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    extractionMetadata = objectMapper.writeValueAsString(NfceReviewMetadata(qrCodeUrl)),
+                    totalRows = 1,
+                    importedCount = 0,
+                    skippedCount = 0,
+                    duplicateReviewCount = 1,
+                    errorCount = 0,
+                    reviewPayload =
+                        ImportReviewPayloadMapper.toJson(
+                            objectMapper = objectMapper,
+                            duplicateCandidates =
+                                listOf(
+                                    ImportDuplicateCandidate(
+                                        rowIndex = 0,
+                                        parsed = nfceToParsedTransaction(nfce),
+                                        candidates = manualCandidates,
+                                    ),
+                                ),
+                            gate = mapOf("kind" to "nfce_manual_link"),
+                        ),
+                    dateFrom = nfceDate,
+                    dateTo = nfceDate,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            return importJobRepository.save(reviewJob)
+        }
+
         val job =
             ImportJob(
                 financialAccountId = financialAccountId,
@@ -173,30 +238,42 @@ open class ImportJobService(
                 source = ImportSource.NFC_E,
                 fileName = null,
                 fileHash = nfce.chNFe,
-                status = ImportJobStatus.COMPLETED,
-                totalRows = 1,
-                importedCount = 1,
+                status = ImportJobStatus.PENDING,
+                totalRows = 0,
+                importedCount = 0,
                 skippedCount = 0,
                 duplicateReviewCount = 0,
                 errorCount = 0,
-                completedAt = now,
+                extractionMetadata = objectMapper.writeValueAsString(NfceReviewMetadata(qrCodeUrl)),
+                dateFrom = nfceDate,
+                dateTo = nfceDate,
                 createdAt = now,
                 updatedAt = now,
             )
-        val savedJob = importJobRepository.save(job)
-        val jobId = requireNotNull(savedJob.id) { "ImportJob must have id after save" }
-
-        val transaction = nfceToTransaction(nfce, financialAccountId, accountId, userId, jobId, now)
-        transactionRepository.save(transaction)
+        val pendingJob = importJobRepository.save(job)
+        val savedTransaction = createNfceTransaction(pendingJob, nfce, qrCodeUrl, now)
+        val savedJob =
+            importJobRepository.update(
+                pendingJob.copy(
+                    status = ImportJobStatus.COMPLETED,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now,
+                    updatedAt = now,
+                ),
+            )
         try {
             snapshotComputationService.recomputeChain(
                 financialAccountId = financialAccountId,
                 accountId = accountId,
-                fromYear = transaction.date.year,
-                fromMonth = transaction.date.monthValue,
+                fromYear = savedTransaction.date.year,
+                fromMonth = savedTransaction.date.monthValue,
             )
         } catch (e: Exception) {
-            log.warn("Snapshot recompute failed after NFC-e import; sweeper will heal: jobId={}", jobId, e)
+            log.warn("Snapshot recompute failed after NFC-e import; sweeper will heal: jobId={}", savedJob.id, e)
         }
         return savedJob
     }
@@ -263,43 +340,76 @@ open class ImportJobService(
             "Import job must be in REVIEW_REQUIRED status, got ${job.status}"
         }
         val payload = job.reviewPayload ?: throw IllegalStateException("Job has no review payload")
-        val candidates = ImportReviewPayloadMapper.duplicateCandidates(objectMapper, payload)
+        val reviewPayload =
+            ImportReviewPayloadMapper.fromJson(objectMapper, payload)
+                ?: throw IllegalStateException("Job review payload is invalid")
+        val candidates = reviewPayload.duplicateCandidates
         require(candidates.isNotEmpty()) { "Job review payload has no duplicate candidates" }
         val index = candidates.indexOfFirst { it.rowIndex == incomingId }
         require(index >= 0) { "Duplicate candidate not found for rowIndex: $incomingId" }
         val candidate = candidates[index]
+        val isNfceReview = job.source == ImportSource.NFC_E
+        var nfceCache: NfceData? = null
+        fun loadNfceIfNeeded(): NfceData {
+            check(isNfceReview) { "NFC-e review data requested for non-NFC-e job" }
+            return nfceCache ?: loadNfceReviewData(job).also { nfceCache = it }
+        }
 
         when (resolution) {
             DuplicateResolution.USE_INCOMING -> {
-                candidate.candidates.forEach { existing ->
-                    requireNotNull(existing.id) { "Existing transaction must have id" }
-                    val deleted = transactionRepository.softDelete(existing.id, accountId)
-                    require(deleted) { "Failed to delete existing transaction ${existing.id}" }
-                }
-                val result =
-                    importProcessor.process(
+                if (isNfceReview) {
+                    val existing =
+                        candidate.candidates.firstOrNull()
+                            ?: throw IllegalStateException("NFC-e review candidate must contain one existing transaction")
+                    linkNfceToExistingTransaction(
                         job = job,
-                        rows = listOf(candidate.parsed),
-                        allowCrossSourceDuplicates = true,
+                        existing = existing,
+                        nfce = loadNfceIfNeeded(),
+                        qrCodeUrl = loadNfceReviewMetadata(job).qrCodeUrl,
+                        now = Instant.now(),
                     )
-                require(result.imported.size == 1) { "Expected one imported transaction" }
+                } else {
+                    candidate.candidates.forEach { existing ->
+                        requireNotNull(existing.id) { "Existing transaction must have id" }
+                        val deleted = transactionRepository.softDelete(existing.id, accountId)
+                        require(deleted) { "Failed to delete existing transaction ${existing.id}" }
+                    }
+                    val result =
+                        importProcessor.process(
+                            job = job,
+                            rows = listOf(candidate.parsed),
+                            allowCrossSourceDuplicates = true,
+                        )
+                    require(result.imported.size == 1) { "Expected one imported transaction" }
+                }
             }
             DuplicateResolution.KEEP_BOTH -> {
-                val result =
-                    importProcessor.process(
+                if (isNfceReview) {
+                    createNfceTransaction(
                         job = job,
-                        rows = listOf(candidate.parsed),
-                        allowCrossSourceDuplicates = true,
+                        nfce = loadNfceIfNeeded(),
+                        qrCodeUrl = loadNfceReviewMetadata(job).qrCodeUrl,
+                        now = Instant.now(),
                     )
-                require(result.imported.size == 1) { "Expected one imported transaction" }
+                } else {
+                    val result =
+                        importProcessor.process(
+                            job = job,
+                            rows = listOf(candidate.parsed),
+                            allowCrossSourceDuplicates = true,
+                        )
+                    require(result.imported.size == 1) { "Expected one imported transaction" }
+                }
             }
             DuplicateResolution.KEEP_EXISTING -> { /* no insert, no delete */ }
         }
 
         if (resolution != DuplicateResolution.KEEP_EXISTING) {
             val fromDate =
-                when (resolution) {
-                    DuplicateResolution.USE_INCOMING ->
+                when {
+                    isNfceReview ->
+                        (candidate.candidates.map { it.date } + LocalDate.ofInstant(loadNfceIfNeeded().dhEmi, ZoneId.systemDefault())).min()
+                    resolution == DuplicateResolution.USE_INCOMING ->
                         (candidate.candidates.map { it.date } + candidate.parsed.date).min()
                     else -> candidate.parsed.date
                 }
@@ -316,6 +426,7 @@ open class ImportJobService(
             ImportReviewPayloadMapper.toJson(
                 objectMapper = objectMapper,
                 duplicateCandidates = remaining,
+                gate = reviewPayload.gate,
             )
         val newDuplicateReviewCount = (job.duplicateReviewCount ?: 0) - 1
         val newImportedCount =
@@ -615,4 +726,190 @@ open class ImportJobService(
             updatedAt = now,
         )
     }
+
+    private fun nfceToParsedTransaction(nfce: NfceData): ParsedTransaction =
+        ParsedTransaction(
+            providerTransactionId = nfce.chNFe,
+            creditDebitType = CreditDebitType.DEBIT,
+            amount = nfce.vNF,
+            date = LocalDate.ofInstant(nfce.dhEmi, ZoneId.systemDefault()),
+            transactionDatetime = nfce.dhEmi,
+            description = nfce.nomeEmitente,
+            descriptionRaw = nfce.nomeEmitente,
+            counterpartyName = nfce.nomeEmitente,
+            counterpartyDocument = nfce.cnpjEmitente.filter(Char::isDigit),
+            currencyCode = "BRL",
+        )
+
+    private fun createNfceTransaction(
+        job: ImportJob,
+        nfce: NfceData,
+        qrCodeUrl: String,
+        now: Instant,
+    ): Transaction {
+        val jobId = requireNotNull(job.id) { "ImportJob must have id after save" }
+        val transaction = nfceToTransaction(nfce, job.financialAccountId, job.accountId, job.createdByUserId, jobId, now)
+        val savedTransaction = transactionRepository.save(transaction)
+        val transactionId = requireNotNull(savedTransaction.id) { "Transaction must have id after save" }
+        try {
+            persistNfceArtifacts(
+                transactionId = transactionId,
+                accountId = job.accountId,
+                nfce = nfce,
+                qrCodeUrl = qrCodeUrl,
+                now = now,
+            )
+        } catch (e: Exception) {
+            log.error(
+                "Failed to persist NFC-e artifacts: financialAccountId={}, accountId={}, transactionId={}, accessKey={}",
+                job.financialAccountId,
+                job.accountId,
+                transactionId,
+                nfce.chNFe,
+                e,
+            )
+            throw IllegalStateException("Failed to persist NFC-e artifacts for accessKey=${nfce.chNFe}", e)
+        }
+        return savedTransaction
+    }
+
+    private fun linkNfceToExistingTransaction(
+        job: ImportJob,
+        existing: Transaction,
+        nfce: NfceData,
+        qrCodeUrl: String,
+        now: Instant,
+    ): Transaction {
+        val existingId = requireNotNull(existing.id) { "Existing transaction must have id" }
+        check(nfceDocumentRepository.findByTransactionId(existingId, job.accountId) == null) {
+            "Transaction $existingId already has an NFC-e document linked"
+        }
+        val updated =
+            existing.copy(
+                amount = nfce.vNF,
+                date = LocalDate.ofInstant(nfce.dhEmi, ZoneId.systemDefault()),
+                transactionDatetime = nfce.dhEmi,
+                counterpartyName = nfce.nomeEmitente,
+                counterpartyDocument = nfce.cnpjEmitente.filter(Char::isDigit),
+                providerTransactionId = nfce.chNFe,
+                importJobId = requireNotNull(job.id),
+                sourceData =
+                    (existing.sourceData ?: emptyMap()) + mapOf(
+                        "nfce" to mapOf(
+                            "accessKey" to nfce.chNFe,
+                            "qrCodeUrl" to qrCodeUrl,
+                        ),
+                    ),
+                updatedAt = now,
+            )
+        val saved = transactionRepository.update(updated)
+        persistNfceArtifacts(
+            transactionId = existingId,
+            accountId = job.accountId,
+            nfce = nfce,
+            qrCodeUrl = qrCodeUrl,
+            now = now,
+        )
+        return saved
+    }
+
+    private fun persistNfceArtifacts(
+        transactionId: UUID,
+        accountId: UUID,
+        nfce: NfceData,
+        qrCodeUrl: String,
+        now: Instant,
+    ) {
+        nfceDocumentRepository.save(
+            NfceDocument(
+                transactionId = transactionId,
+                accountId = accountId,
+                accessKey = nfce.chNFe,
+                issuerCnpj = nfce.cnpjEmitente.filter(Char::isDigit),
+                issuerName = nfce.nomeEmitente,
+                issuerTradeName = nfce.nomeFantasiaEmitente,
+                issuerStateRegistration = nfce.inscricaoEstadualEmitente,
+                issuerAddress = nfce.enderecoEmitente,
+                issuerPostalCode = nfce.cepEmitente,
+                emissionDate = nfce.dhEmi,
+                totalValue = nfce.vNF,
+                totalTax = nfce.vTotTrib,
+                buyerCpf = nfce.cpfDestinatario,
+                municipalityCode = nfce.cMunFG,
+                municipality = nfce.municipio.takeIf { it.isNotBlank() },
+                state = nfce.uf,
+                countryCode = "BR",
+                sourceData = mapOf("url" to qrCodeUrl),
+                createdAt = now,
+            ),
+        )
+        val savedItems =
+            purchaseItemRepository.saveAll(
+                nfce.items.mapIndexed { index, item ->
+                PurchaseItem(
+                    transactionId = transactionId,
+                    accountId = accountId,
+                    productVariantId = resolveProductVariant(item, nfce.cnpjEmitente, accountId),
+                    sequence = item.nItem ?: (index + 1),
+                    rawDescription = item.xProd,
+                    ncmCode = item.ncm.takeIf { it.isNotBlank() },
+                    ean = item.cEAN,
+                    issuerProductCode = item.cProd,
+                    quantity = item.qCom,
+                    unit = item.uCom,
+                    unitPrice = resolveUnitPrice(item),
+                    totalPrice = item.vProd,
+                    discount = item.vDesc,
+                    effectivePrice = item.vProd - (item.vDesc ?: java.math.BigDecimal.ZERO),
+                    taxAmount = item.vTribItem,
+                    createdAt = now,
+                )
+                },
+            )
+
+        check(nfceDocumentRepository.findByTransactionId(transactionId, accountId) != null) {
+            "NFC-e document was not persisted for transactionId=$transactionId accessKey=${nfce.chNFe}"
+        }
+        check(savedItems.size == nfce.items.size) {
+            "NFC-e purchase items were not fully persisted for transactionId=$transactionId accessKey=${nfce.chNFe}: expected=${nfce.items.size}, actual=${savedItems.size}"
+        }
+    }
+
+    private fun loadNfceReviewMetadata(job: ImportJob): NfceReviewMetadata {
+        val raw = job.extractionMetadata ?: throw IllegalStateException("NFC-e review job has no extraction metadata")
+        return objectMapper.readValue(raw, NfceReviewMetadata::class.java)
+    }
+
+    private fun loadNfceReviewData(job: ImportJob): NfceData =
+        nfceClient.fetch(loadNfceReviewMetadata(job).qrCodeUrl)
+
+    private fun resolveProductVariant(
+        item: NfceItem,
+        issuerCnpj: String,
+        accountId: UUID,
+    ): UUID? {
+        item.cEAN?.let { ean ->
+            productVariantEntityRepository.findByEan(ean)?.id?.let { return it }
+        }
+
+        productAliasEntityRepository.findByAccountIdAndRawDescription(accountId, item.xProd)?.productVariantId?.let { return it }
+
+        item.cProd?.let { issuerProductCode ->
+            purchaseItemEntityRepository.findFirstResolvedByCnpjAndProduct(
+                accountId = accountId,
+                issuerCnpj = issuerCnpj.filter(Char::isDigit),
+                issuerProductCode = issuerProductCode,
+            )?.productVariantId?.let { return it }
+        }
+
+        return null
+    }
+
+    private fun resolveUnitPrice(item: NfceItem) =
+        item.vUnCom
+            ?: if (item.qCom.compareTo(java.math.BigDecimal.ZERO) == 0) {
+                item.vProd
+            } else {
+                item.vProd.divide(item.qCom, 4, RoundingMode.HALF_UP)
+            }
 }

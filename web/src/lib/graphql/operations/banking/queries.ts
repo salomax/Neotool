@@ -115,6 +115,7 @@ export const TRANSACTIONS = gql`
           id
           description
           source
+          hasNfceDocument
           category {
             id
             name
@@ -274,11 +275,190 @@ export const SIMILAR_TRANSACTION_EDIT_PREVIEW = gql`
   }
 `;
 
+export const PRODUCTS = gql`
+  query Products($search: String, $category: String) {
+    products(search: $search, category: $category) {
+      id
+      name
+      ncmCode
+      defaultUnit
+      category
+      averagePrice
+      totalSpent
+      purchaseCount
+      variants {
+        id
+        productId
+        name
+        brand
+        ean
+        quantityValue
+        quantityUnit
+        normalizedQuantityValue
+        normalizedQuantityUnit
+        averageUnitPrice
+      }
+    }
+  }
+`;
+
+export const PRODUCT_VARIANTS = gql`
+  query ProductVariants($search: String, $productId: ID, $limit: Int) {
+    productVariants(search: $search, productId: $productId, limit: $limit) {
+      id
+      productId
+      name
+      brand
+      ean
+      quantityValue
+      quantityUnit
+      normalizedQuantityValue
+      normalizedQuantityUnit
+      averageUnitPrice
+    }
+  }
+`;
+
+export const PRODUCT_PRICE_HISTORY = gql`
+  query ProductPriceHistory($productId: ID!, $variantId: ID, $startDate: Date, $endDate: Date) {
+    productPriceHistory(productId: $productId, variantId: $variantId, startDate: $startDate, endDate: $endDate) {
+      date
+      unitPrice
+      storeName
+      municipality
+      state
+    }
+  }
+`;
+
+export const PRODUCT_CONSUMPTION_TREND = gql`
+  query ProductConsumptionTrend($productId: ID!, $periodMonths: Int) {
+    productConsumptionTrend(productId: $productId, periodMonths: $periodMonths) {
+      productId
+      periodMonths
+      totalQuantity
+      totalSpent
+      purchaseCount
+      months {
+        month
+        totalQuantity
+        totalSpent
+        purchaseCount
+      }
+    }
+  }
+`;
+
+export const PRODUCT_STORE_COMPARISON = gql`
+  query ProductStoreComparison($productId: ID!, $startDate: Date, $endDate: Date) {
+    productStoreComparison(productId: $productId, startDate: $startDate, endDate: $endDate) {
+      storeName
+      municipality
+      state
+      averageUnitPrice
+      purchaseCount
+      lastPurchaseDate
+    }
+  }
+`;
+
+export const SPENDING_BY_NCM = gql`
+  query SpendingByNcm($depth: Int, $startDate: Date, $endDate: Date) {
+    spendingByNcm(depth: $depth, startDate: $startDate, endDate: $endDate) {
+      ncmCode
+      ncmDescription
+      totalSpent
+      itemCount
+      months {
+        month
+        totalSpent
+        itemCount
+      }
+    }
+  }
+`;
+
+export const UNMAPPED_ITEMS = gql`
+  query UnmappedItems($limit: Int) {
+    unmappedItems(limit: $limit) {
+      rawDescription
+      count
+      sampleItems {
+        id
+        transactionId
+        rawDescription
+        quantity
+        unit
+        unitPrice
+        totalPrice
+        discount
+        effectivePrice
+        ncmCode
+        ean
+        issuerProductCode
+        createdAt
+      }
+    }
+  }
+`;
+
+export const NFCE_DOCUMENT = gql`
+  query NfceDocument($transactionId: ID!) {
+    nfceDocument(transactionId: $transactionId) {
+      id
+      transactionId
+      accessKey
+      issuerCnpj
+      issuerName
+      issuerTradeName
+      issuerStateRegistration
+      issuerAddress
+      issuerPostalCode
+      emissionDate
+      totalValue
+      totalTax
+      buyerCpf
+      municipalityCode
+      municipality
+      state
+      countryCode
+      sourceUrl
+      createdAt
+      items {
+        id
+        sequence
+        rawDescription
+        ncmCode
+        ean
+        issuerProductCode
+        quantity
+        unit
+        unitPrice
+        totalPrice
+        discount
+        effectivePrice
+        normalizedUnitPrice
+        taxAmount
+        productVariant {
+          id
+          name
+          brand
+          quantityValue
+          quantityUnit
+          normalizedQuantityValue
+          normalizedQuantityUnit
+        }
+      }
+    }
+  }
+`;
+
 /** Single transaction import job by ID (includes duplicate candidates for review). */
 export const TRANSACTION_IMPORT = gql`
   query TransactionImport($id: ID!) {
     transactionImport(id: $id) {
       id
+      source
       status
       errorDetails
       importedCount

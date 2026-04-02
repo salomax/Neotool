@@ -64,9 +64,23 @@ object SpNfceHtmlParser {
         val nomeEmitente = extractLabelValue(html, "Nome / Raz.o Social")
             ?: extractLabelValue(html, "Raz.o Social")
             ?: ""
+        val nomeFantasiaEmitente = extractLabelValue(html, "Nome Fantasia")
+        val inscricaoEstadualEmitente = extractLabelValue(html, "Inscri(?:ção|cao) Estadual")
 
-        val municipio = extractMunicipio(html)
+        val municipioField = extractMunicipioField(html)
+        val municipio = municipioField.name
         val uf = extractLabelValue(html, """\bUF""") ?: "SP"
+        val cepEmitente = extractLabelValue(html, "CEP")?.normalizePostalCode()
+        val enderecoEmitente =
+            buildIssuerAddress(
+                rawAddress = extractLabelValue(html, "Endere.o"),
+                street = extractLabelValue(html, "Logradouro"),
+                number = extractLabelValue(html, "N.mero"),
+                complement = extractLabelValue(html, "Complemento"),
+                neighborhood = extractLabelValue(html, "Bairro / Distrito") ?: extractLabelValue(html, "Bairro"),
+                municipality = municipioField.name,
+                state = uf,
+            )
 
         // CPF do destinatário (comprador)
         val cpfDestinatario = extractLabelValue(html, "CPF")
@@ -86,9 +100,14 @@ object SpNfceHtmlParser {
             vNF = vNF,
             cnpjEmitente = cnpjEmitente,
             nomeEmitente = nomeEmitente.trim(),
+            nomeFantasiaEmitente = nomeFantasiaEmitente?.trim(),
+            inscricaoEstadualEmitente = inscricaoEstadualEmitente?.trim(),
+            enderecoEmitente = enderecoEmitente,
+            cepEmitente = cepEmitente,
             municipio = municipio.trim(),
             uf = uf.trim(),
             items = items,
+            cMunFG = municipioField.code,
             cpfDestinatario = cpfDestinatario,
             vTotTrib = vTotTrib,
         )
@@ -170,20 +189,79 @@ object SpNfceHtmlParser {
         return value.takeIf { it.isNotEmpty() }
     }
 
+    private fun buildIssuerAddress(
+        rawAddress: String?,
+        street: String?,
+        number: String?,
+        complement: String?,
+        neighborhood: String?,
+        municipality: String?,
+        state: String?,
+    ): String? {
+        val normalizedRawAddress = rawAddress?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedStreet = street?.trim()?.takeIf { it.isNotEmpty() }
+        val normalizedNumber = number?.trim()?.takeIf { it.isNotEmpty() && it != "S/N" }
+        val streetLine =
+            normalizedStreet?.let { streetValue ->
+                listOfNotNull(
+                    streetValue,
+                    normalizedNumber,
+                ).joinToString(", ").takeIf { it.isNotBlank() }
+            } ?: normalizedStreet
+        val locality =
+            listOfNotNull(
+                municipality?.trim()?.takeIf { it.isNotEmpty() },
+                state?.trim()?.takeIf { it.isNotEmpty() },
+            ).takeIf { it.isNotEmpty() }
+                ?.joinToString(" - ")
+        val baseAddress =
+            listOfNotNull(
+                streetLine ?: normalizedRawAddress,
+                complement?.trim()?.takeIf { it.isNotEmpty() },
+                neighborhood?.trim()?.takeIf { it.isNotEmpty() },
+            ).joinToString(" • ").takeIf { it.isNotBlank() }
+                ?: normalizedRawAddress
+
+        val shouldAppendLocality =
+            !locality.isNullOrBlank() && (
+                baseAddress.isNullOrBlank() ||
+                    (!baseAddress.contains(municipality.orEmpty(), ignoreCase = true) ||
+                        !baseAddress.contains(state.orEmpty(), ignoreCase = true))
+                )
+
+        return listOfNotNull(
+            baseAddress,
+            locality?.takeIf { shouldAppendLocality },
+        ).joinToString(" • ").takeIf { it.isNotBlank() }
+    }
+
     /**
      * SP SEFAZ returns municipality as "IBGE_CODE - CityName" or just "CityName".
      * Extract only the city name part.
      */
-    private fun extractMunicipio(block: String): String {
-        val raw = extractLabelValue(block, "Munic.pio") ?: return ""
-        // Format may be "3547809\n-\nSanto Andre" → extract part after "-"
+    private fun extractMunicipioField(block: String): MunicipioField {
+        val raw =
+            extractLabelValue(block, "Munic.pio")
+                ?: return MunicipioField(code = null, name = "")
+        // Format may be "3547809\n-\nSanto Andre" → split code/name.
         val parts = raw.split(Regex("""\s*-\s*"""), limit = 2)
         return if (parts.size == 2 && parts[0].matches(Regex("""\d+"""))) {
-            parts[1].trim()
+            MunicipioField(
+                code = parts[0].trim(),
+                name = parts[1].trim(),
+            )
         } else {
-            raw
+            MunicipioField(
+                code = null,
+                name = raw.trim(),
+            )
         }
     }
+
+    private data class MunicipioField(
+        val code: String?,
+        val name: String,
+    )
 
     internal fun parseBrDecimal(str: String): BigDecimal? {
         val cleaned = str.trim()
@@ -191,4 +269,7 @@ object SpNfceHtmlParser {
             .replace(",", ".")   // decimal separator
         return cleaned.toBigDecimalOrNull()
     }
+
+    private fun String.normalizePostalCode(): String? =
+        filter(Char::isDigit).takeIf { it.length == 8 }
 }

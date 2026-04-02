@@ -42,10 +42,177 @@ type AccountPreferences
   defaultTransactionStatus: TransactionStatus!
 }
 
-type BankingUserPreferences
+enum ProductAliasSource
   @join__type(graph: BANKING)
 {
-  ruleApplicationMode: RuleApplicationMode!
+  MANUAL @join__enumValue(graph: BANKING)
+  AI_SUGGESTED @join__enumValue(graph: BANKING)
+  EAN_MATCH @join__enumValue(graph: BANKING)
+  HEURISTIC @join__enumValue(graph: BANKING)
+}
+
+type Product
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+  variants: [ProductVariant!]!
+  averagePrice: Float
+  totalSpent: Float!
+  purchaseCount: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductVariant
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+  averageUnitPrice: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductAlias
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  productVariantId: ID!
+  productVariant: ProductVariant
+  rawDescription: String!
+  source: ProductAliasSource!
+  confidence: Float
+  confirmed: Boolean!
+  createdAt: DateTime!
+}
+
+type PurchaseItem
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  productVariantId: ID
+  productVariant: ProductVariant
+  sequence: Int!
+  rawDescription: String!
+  ncmCode: String
+  ean: String
+  issuerProductCode: String
+  quantity: Float!
+  unit: String!
+  unitPrice: Float!
+  totalPrice: Float!
+  discount: Float
+  effectivePrice: Float!
+  normalizedUnitPrice: Float
+  taxAmount: Float
+  createdAt: DateTime!
+}
+
+type NfceDocument
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  transactionId: ID!
+  accessKey: String!
+  issuerCnpj: String!
+  issuerName: String!
+  issuerTradeName: String
+  issuerStateRegistration: String
+  issuerAddress: String
+  issuerPostalCode: String
+  emissionDate: DateTime!
+  totalValue: Float!
+  totalTax: Float
+  buyerCpf: String
+  municipalityCode: String
+  municipality: String
+  state: String!
+  countryCode: String!
+  sourceUrl: String
+  items: [PurchaseItem!]!
+  createdAt: DateTime!
+}
+
+type UnmappedItemGroup
+  @join__type(graph: BANKING)
+{
+  rawDescription: String!
+  count: Int!
+  suggestedVariant: ProductVariant
+  confidence: Float
+  sampleItems: [PurchaseItem!]!
+}
+
+type PricePoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  unitPrice: Float!
+  storeName: String
+  municipality: String
+  state: String
+}
+
+type ConsumptionTrendPoint
+  @join__type(graph: BANKING)
+{
+  month: Date!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+}
+
+type ConsumptionTrend
+  @join__type(graph: BANKING)
+{
+  productId: ID!
+  periodMonths: Int!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+  months: [ConsumptionTrendPoint!]!
+}
+
+type StorePriceComparison
+  @join__type(graph: BANKING)
+{
+  storeName: String
+  municipality: String
+  state: String
+  averageUnitPrice: Float
+  purchaseCount: Int!
+  lastPurchaseDate: Date
+}
+
+type NcmMonthlySpending
+  @join__type(graph: BANKING)
+{
+  month: Date!
+  totalSpent: Float!
+  itemCount: Int!
+}
+
+type NcmSpending
+  @join__type(graph: BANKING)
+{
+  ncmCode: String!
+  ncmDescription: String
+  totalSpent: Float!
+  itemCount: Int!
+  months: [NcmMonthlySpending!]!
+}
 }
 
 """
@@ -2401,6 +2568,12 @@ type Mutation
 
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
+  createProduct(input: CreateProductInput!): Product! @join__field(graph: BANKING)
+  updateProduct(id: ID!, input: UpdateProductInput!): Product! @join__field(graph: BANKING)
+  createProductVariant(input: CreateProductVariantInput!): ProductVariant! @join__field(graph: BANKING)
+  updateProductVariant(id: ID!, input: UpdateProductVariantInput!): ProductVariant! @join__field(graph: BANKING)
+  mapItemToVariant(rawDescription: String!, variantId: ID!): ProductAlias! @join__field(graph: BANKING)
+  unmapItem(aliasId: ID!): Boolean! @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
   signIn(input: SignInInput!): SignInPayload! @join__field(graph: SECURITY)
   signInWithOAuth(input: SignInWithOAuthInput!): SignInPayload! @join__field(graph: SECURITY)
@@ -2844,6 +3017,16 @@ type Query
   Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation).
   """
   pendingActions(status: PendingActionStatus): [AccountPendingAction!]! @join__field(graph: BANKING)
+  products(search: String, category: String): [Product!]! @join__field(graph: BANKING)
+  product(id: ID!): Product @join__field(graph: BANKING)
+  productVariants(search: String, productId: ID, limit: Int): [ProductVariant!]! @join__field(graph: BANKING)
+  purchaseItems(transactionId: ID!): [PurchaseItem!]! @join__field(graph: BANKING)
+  nfceDocument(transactionId: ID!): NfceDocument @join__field(graph: BANKING)
+  unmappedItems(limit: Int): [UnmappedItemGroup!]! @join__field(graph: BANKING)
+  productPriceHistory(productId: ID!, variantId: ID, startDate: Date, endDate: Date): [PricePoint!]! @join__field(graph: BANKING)
+  productConsumptionTrend(productId: ID!, periodMonths: Int = 6): ConsumptionTrend! @join__field(graph: BANKING)
+  productStoreComparison(productId: ID!, startDate: Date, endDate: Date): [StorePriceComparison!]! @join__field(graph: BANKING)
+  spendingByNcm(depth: Int = 4, startDate: Date, endDate: Date): [NcmSpending!]! @join__field(graph: BANKING)
   _empty: String @join__field(graph: COMMS)
   searchBacenInstitutionsAutocomplete(query: String!, anoMes: String): BacenInstitutionAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   bacenInstitutions(query: String, anoMes: String, first: Int, after: String): BacenInstitutionConnection! @join__field(graph: FINANCIALDATA)
@@ -3256,6 +3439,7 @@ type Transaction
   type: TransactionType!
   status: TransactionStatus!
   source: TransactionSource!
+  hasNfceDocument: Boolean!
   amount: Float!
   currencyCode: String!
 
@@ -3508,6 +3692,51 @@ input UpdateBankingUserPreferencesInput
   @join__type(graph: BANKING)
 {
   ruleApplicationMode: RuleApplicationMode
+}
+
+input CreateProductInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input UpdateProductInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input CreateProductVariantInput
+  @join__type(graph: BANKING)
+{
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
+
+input UpdateProductVariantInput
+  @join__type(graph: BANKING)
+{
+  productId: ID
+  name: String
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
 }
 
 input UpdateCategoryInput

@@ -28,13 +28,17 @@ class NfceClientTest {
         dhEmi: String = "2024-01-15T10:30:00-03:00",
         vNF: String = "100.50",
         cnpj: String = "12345678000199",
+        cMunFG: String? = null,
+        tradeName: String? = null,
+        stateRegistration: String? = null,
+        addressXml: String = "<xMun>São Paulo</xMun><UF>SP</UF>",
     ) = """
         <nfe>
           <infNFe>
             <chNFe>$chNFe</chNFe>
-            <ide><dhEmi>$dhEmi</dhEmi></ide>
+            <ide><dhEmi>$dhEmi</dhEmi>${cMunFG?.let { "<cMunFG>$it</cMunFG>" } ?: ""}</ide>
             <total><ICMSTot><vNF>$vNF</vNF></ICMSTot></total>
-            <emit><CNPJ>$cnpj</CNPJ><xNome>Store</xNome><enderEmit><xMun>São Paulo</xMun><UF>SP</UF></enderEmit></emit>
+            <emit><CNPJ>$cnpj</CNPJ><xNome>Store</xNome>${tradeName?.let { "<xFant>$it</xFant>" } ?: ""}${stateRegistration?.let { "<IE>$it</IE>" } ?: ""}<enderEmit>$addressXml</enderEmit></emit>
           </infNFe>
         </nfe>
         """.trimIndent()
@@ -63,7 +67,56 @@ class NfceClientTest {
             assertThat(result.municipio).isEqualTo("São Paulo")
             assertThat(result.uf).isEqualTo("SP")
             assertThat(result.items).isEmpty()
+            assertThat(result.cMunFG).isNull()
             verify(httpFetcher).fetch(qrCodeUrl)
+        }
+
+        @Test
+        fun `parses cMunFG when present and keeps null when absent`() {
+            whenever(httpFetcher.fetch(eq(qrCodeUrl)))
+                .thenReturn(NfceHttpResponse(200, minimalValidNfceXml(cMunFG = "3547809")))
+
+            val withMunicipalityCode = client.fetch(qrCodeUrl)
+
+            assertThat(withMunicipalityCode.cMunFG).isEqualTo("3547809")
+
+            whenever(httpFetcher.fetch(eq(qrCodeUrl)))
+                .thenReturn(NfceHttpResponse(200, minimalValidNfceXml(cMunFG = null)))
+
+            val withoutMunicipalityCode = client.fetch(qrCodeUrl)
+
+            assertThat(withoutMunicipalityCode.cMunFG).isNull()
+        }
+
+        @Test
+        fun `parses issuer trade name state registration and full address`() {
+            whenever(httpFetcher.fetch(eq(qrCodeUrl)))
+                .thenReturn(
+                    NfceHttpResponse(
+                        200,
+                        minimalValidNfceXml(
+                            tradeName = "Mercado Exemplo",
+                            stateRegistration = "123456789112",
+                            addressXml =
+                                """
+                                <xLgr>Rua das Flores</xLgr>
+                                <nro>123</nro>
+                                <xCpl>Loja 4</xCpl>
+                                <xBairro>Centro</xBairro>
+                                <xMun>São Paulo</xMun>
+                                <UF>SP</UF>
+                                <CEP>01234000</CEP>
+                                """.trimIndent(),
+                        ),
+                    ),
+                )
+
+            val result = client.fetch(qrCodeUrl)
+
+            assertThat(result.nomeFantasiaEmitente).isEqualTo("Mercado Exemplo")
+            assertThat(result.inscricaoEstadualEmitente).isEqualTo("123456789112")
+            assertThat(result.enderecoEmitente).isEqualTo("Rua das Flores, 123 • Loja 4 • Centro • São Paulo - SP")
+            assertThat(result.cepEmitente).isEqualTo("01234000")
         }
 
         @Test

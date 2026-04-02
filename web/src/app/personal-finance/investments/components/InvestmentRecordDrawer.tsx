@@ -1,10 +1,9 @@
 "use client";
 
 import React, { useEffect } from "react";
-import IconButton from "@mui/material/IconButton";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, IconButton } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { FinancialAccount } from "@/lib/graphql/types/__generated__/graphql";
 import { IssuerSelection } from "./IssuerSelection";
@@ -67,7 +66,7 @@ export function InvestmentRecordDrawer({
                 component="h2"
                 fontWeight={400}
                 noWrap
-                sx={{ letterSpacing: "0.05em", lineHeight: 1.15 }}
+                sx={{ letterSpacing: "0.05em", lineHeight: 1.15, color: "action.active" }}
               >
                 {title.toLocaleUpperCase(locale)}
               </Typography>

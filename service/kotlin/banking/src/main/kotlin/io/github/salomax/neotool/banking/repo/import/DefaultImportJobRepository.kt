@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.model.import.TransactionImportEntity
 import io.github.salomax.neotool.banking.model.import.TransactionImportMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import jakarta.persistence.EntityManager
+import jakarta.persistence.PersistenceContext
 import java.util.UUID
 
 /**
@@ -16,6 +18,7 @@ import java.util.UUID
 @Singleton
 open class DefaultImportJobRepository(
     private val entityRepository: TransactionImportEntityRepository,
+    @PersistenceContext private val entityManager: EntityManager,
 ) : ImportJobRepository {
     private val jobKind = TransactionImportEntity.JOB_KIND
 
@@ -81,6 +84,7 @@ open class DefaultImportJobRepository(
     override fun save(job: ImportJob): ImportJob {
         val entity = TransactionImportMapper.toEntity(job)
         val saved = entityRepository.save(entity)
+        entityManager.flush()
         return TransactionImportMapper.toDomain(saved)
     }
 
@@ -91,7 +95,7 @@ open class DefaultImportJobRepository(
             entityRepository.findByIdAndAccountIdAndJobKind(id, job.accountId, jobKind)
                 ?: throw NoSuchElementException("ImportJob $id not found")
         TransactionImportMapper.updateEntity(entity, job)
-        val saved = entityRepository.update(entity)
-        return TransactionImportMapper.toDomain(saved)
+        entityManager.flush()
+        return TransactionImportMapper.toDomain(entity)
     }
 }

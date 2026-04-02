@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import jakarta.inject.Singleton
+import java.math.BigDecimal
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -34,5 +36,18 @@ open class CrossSourceDedupService(
             date = parsed.date,
             amount = parsed.amount,
             incomingSource = incomingSource.name,
+        ).map(TransactionMapper::toDomain)
+
+    fun findManualNfceCandidates(
+        financialAccountId: UUID,
+        amount: BigDecimal,
+        referenceDate: LocalDate,
+    ): List<Transaction> =
+        transactionEntityRepository.findManualNfceLinkCandidates(
+            financialAccountId = financialAccountId,
+            amount = amount,
+            startDate = referenceDate.minusDays(1),
+            endDate = referenceDate.plusDays(1),
+            referenceDate = referenceDate,
         ).map(TransactionMapper::toDomain)
 }

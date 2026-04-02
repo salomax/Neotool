@@ -22,6 +22,7 @@ import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingAct
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.product.ProductResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
@@ -50,6 +51,7 @@ class BankingWiringFactory(
     private val importResolver: ImportResolver,
     private val billImportResolver: BillImportResolver,
     private val attachmentResolver: AttachmentResolver,
+    private val productResolver: ProductResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -430,6 +432,127 @@ class BankingWiringFactory(
                     }
                 },
             )
+            .dataFetcher(
+                "products",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        productResolver.products(
+                            search = env.getArgument("search"),
+                            category = env.getArgument("category"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "product",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val id = env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id is required")
+                        productResolver.product(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "productVariants",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        productResolver.productVariants(
+                            search = env.getArgument("search"),
+                            productId = env.getArgument("productId"),
+                            limit = env.getArgument("limit"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "purchaseItems",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val transactionId = env.getArgument<String>("transactionId")
+                            ?: throw IllegalArgumentException("transactionId is required")
+                        productResolver.purchaseItems(transactionId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "nfceDocument",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val transactionId = env.getArgument<String>("transactionId")
+                            ?: throw IllegalArgumentException("transactionId is required")
+                        productResolver.nfceDocument(transactionId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "unmappedItems",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        productResolver.unmappedItems(env.getArgument("limit"), principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "productPriceHistory",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val productId = env.getArgument<String>("productId")
+                            ?: throw IllegalArgumentException("productId is required")
+                        productResolver.productPriceHistory(
+                            productId = productId,
+                            variantId = env.getArgument("variantId"),
+                            startDate = env.getArgument("startDate"),
+                            endDate = env.getArgument("endDate"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "productConsumptionTrend",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val productId = env.getArgument<String>("productId")
+                            ?: throw IllegalArgumentException("productId is required")
+                        productResolver.productConsumptionTrend(
+                            productId = productId,
+                            periodMonths = env.getArgument("periodMonths"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "productStoreComparison",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val productId = env.getArgument<String>("productId")
+                            ?: throw IllegalArgumentException("productId is required")
+                        productResolver.productStoreComparison(
+                            productId = productId,
+                            startDate = env.getArgument("startDate"),
+                            endDate = env.getArgument("endDate"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "spendingByNcm",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        productResolver.spendingByNcm(
+                            depth = env.getArgument("depth"),
+                            startDate = env.getArgument("startDate"),
+                            endDate = env.getArgument("endDate"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
 
     override fun registerMutationResolvers(type: TypeRuntimeWiring.Builder): TypeRuntimeWiring.Builder =
         type
@@ -724,6 +847,76 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
                         transactionCategoryResolver.updateTransactionCategory(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createProduct",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        productResolver.createProduct(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateProduct",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id = env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        productResolver.updateProduct(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createProductVariant",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        productResolver.createProductVariant(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateProductVariant",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id = env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        productResolver.updateProductVariant(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "mapItemToVariant",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val rawDescription = env.getArgument<String>("rawDescription")
+                            ?: throw IllegalArgumentException("rawDescription is required")
+                        val variantId = env.getArgument<String>("variantId")
+                            ?: throw IllegalArgumentException("variantId is required")
+                        productResolver.mapItemToVariant(rawDescription, variantId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "unmapItem",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val aliasId = env.getArgument<String>("aliasId")
+                            ?: throw IllegalArgumentException("aliasId is required")
+                        productResolver.unmapItem(aliasId, principal)
                     }
                 },
             )

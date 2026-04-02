@@ -151,6 +151,7 @@ object TransactionMapper {
         entity: TransactionEntity,
         domain: Transaction,
     ) {
+        entity.source = domain.source
         entity.creditDebitType = domain.creditDebitType
         entity.type = domain.type
         entity.status = domain.status
@@ -160,6 +161,7 @@ object TransactionMapper {
         entity.date = domain.date
         entity.transactionDatetime = domain.transactionDatetime
         entity.description = domain.description
+        entity.descriptionRaw = domain.descriptionRaw
         entity.notes = domain.notes
         entity.categoryId = domain.categoryId
         entity.categorySource = domain.categorySource?.name
@@ -171,13 +173,19 @@ object TransactionMapper {
         entity.counterpartyBankCode = domain.counterpartyBankCode
         entity.counterpartyAccountNumber = domain.counterpartyAccountNumber
         entity.paymentReason = domain.paymentReason
+        entity.transferPeerTransactionId = domain.transferPeerTransactionId
         entity.installmentNumber = domain.installmentNumber?.toShort()
         entity.totalInstallments = domain.totalInstallments?.toShort()
         entity.billId = domain.billId
         entity.payeeMcc = domain.payeeMcc
         entity.cardIdentifier = domain.cardIdentifier
+        entity.providerTransactionId = domain.providerTransactionId
+        entity.providerAccountId = domain.providerAccountId
         entity.importFingerprint = domain.importFingerprint
         entity.importJobId = domain.importJobId
+        entity.sourceData =
+            domain.sourceData
+                ?.let { source -> objectMapper.writeValueAsString(source) }
         entity.appliedRuleIds =
             domain.appliedRuleIds
                 .takeIf { it.isNotEmpty() }

@@ -100,7 +100,7 @@ function HoldingDetailDrawerShell({
       <Drawer.Header>
         <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%", gap: 2 }}>
           <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <Typography variant="h5" fontWeight={400} noWrap sx={{ letterSpacing: "0.05em", lineHeight: 1.15 }}>
+            <Typography variant="h5" fontWeight={400} noWrap sx={{ letterSpacing: "0.05em", lineHeight: 1.15, color: "action.active" }}>
               {title.toLocaleUpperCase(locale)}
             </Typography>
           </Box>

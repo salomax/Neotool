@@ -20,8 +20,13 @@ class SpNfceHtmlParserTest {
         vNF: String = "100,50",
         cnpj: String = "12.345.678/0001-99",
         nomeEmitente: String = "Supermercado Teste",
+        nomeFantasia: String? = null,
+        inscricaoEstadual: String? = null,
+        enderecoHtml: String = "",
         municipio: String = "São Paulo",
         uf: String = "SP",
+        municipioCode: String? = null,
+        cep: String? = null,
         cpf: String? = null,
         vTotTrib: String? = null,
         itemsHtml: String = "",
@@ -43,11 +48,17 @@ class SpNfceHtmlParserTest {
         <label>Nome / Razão Social</label>
         <span class="nome">$nomeEmitente</span>
 
+        ${nomeFantasia?.let { """<label>Nome Fantasia</label><span class="fantasia">$it</span>""" } ?: ""}
+        ${inscricaoEstadual?.let { """<label>Inscrição Estadual</label><span class="ie">$it</span>""" } ?: ""}
+        $enderecoHtml
+
         <label>Município</label>
-        <span class="mun">$municipio</span>
+        <span class="mun">${municipioCode?.let { "$it - $municipio" } ?: municipio}</span>
 
         <label>UF</label>
         <span class="uf">$uf</span>
+
+        ${cep?.let { """<label>CEP</label><span class="cep">$it</span>""" } ?: ""}
 
         ${cpf?.let { """<label>CPF</label><span class="cpf">$it</span>""" } ?: ""}
         ${vTotTrib?.let { """<label>Tributos Totais Incidentes (Lei Federal 12.741/2012) R$</label><span class="totalNumb txtObs">$it</span>""" } ?: ""}
@@ -97,7 +108,18 @@ class SpNfceHtmlParserTest {
             assertThat(result.nomeEmitente).isEqualTo("Supermercado Teste")
             assertThat(result.municipio).isEqualTo("São Paulo")
             assertThat(result.uf).isEqualTo("SP")
+            assertThat(result.cMunFG).isNull()
             assertThat(result.items).isEmpty()
+        }
+
+        @Test
+        fun `parses municipality code when municipio includes IBGE prefix`() {
+            val html = minimalSpHtml(municipioCode = "3547809", municipio = "Santo Andre")
+
+            val result = SpNfceHtmlParser.parse(html, chNFe)
+
+            assertThat(result.cMunFG).isEqualTo("3547809")
+            assertThat(result.municipio).isEqualTo("Santo Andre")
         }
 
         @Test
@@ -146,6 +168,70 @@ class SpNfceHtmlParserTest {
             val result = SpNfceHtmlParser.parse(html, chNFe)
 
             assertThat(result.vTotTrib).isEqualByComparingTo(BigDecimal("44.17"))
+        }
+
+        @Test
+        fun `parses issuer trade name state registration and complete address`() {
+            val html =
+                minimalSpHtml(
+                    nomeFantasia = "Mercado Bairro",
+                    inscricaoEstadual = "123.456.789.112",
+                    enderecoHtml =
+                        """
+                        <label>Logradouro</label><span class="logradouro">Rua das Flores</span>
+                        <label>Número</label><span class="numero">123</span>
+                        <label>Complemento</label><span class="complemento">Loja 4</span>
+                        <label>Bairro</label><span class="bairro">Centro</span>
+                        """.trimIndent(),
+                    municipio = "Santo André",
+                    uf = "SP",
+                    cep = "09015-120",
+                )
+
+            val result = SpNfceHtmlParser.parse(html, chNFe)
+
+            assertThat(result.nomeFantasiaEmitente).isEqualTo("Mercado Bairro")
+            assertThat(result.inscricaoEstadualEmitente).isEqualTo("123.456.789.112")
+            assertThat(result.enderecoEmitente).isEqualTo("Rua das Flores, 123 • Loja 4 • Centro • Santo André - SP")
+            assertThat(result.cepEmitente).isEqualTo("09015120")
+        }
+
+        @Test
+        fun `prefers endereco field over isolated numero and reads bairro distrito`() {
+            val html =
+                minimalSpHtml(
+                    enderecoHtml =
+                        """
+                        <label>Endereço</label><span class="endereco">Av. Industrial, 19635</span>
+                        <label>Número</label><span class="numero">19635</span>
+                        <label>Bairro / Distrito</label><span class="bairro">Campestre</span>
+                        """.trimIndent(),
+                    municipio = "Santo André",
+                    uf = "SP",
+                )
+
+            val result = SpNfceHtmlParser.parse(html, chNFe)
+
+            assertThat(result.enderecoEmitente).isEqualTo("Av. Industrial, 19635 • Campestre • Santo André - SP")
+        }
+
+        @Test
+        fun `ignores isolated numero when endereco and logradouro are absent`() {
+            val html =
+                minimalSpHtml(
+                    enderecoHtml =
+                        """
+                        <label>Número</label><span class="numero">19635</span>
+                        <label>Bairro / Distrito</label><span class="bairro">Campestre</span>
+                        """.trimIndent(),
+                    municipio = "Santo André",
+                    uf = "SP",
+                    cep = "09080-501",
+                )
+
+            val result = SpNfceHtmlParser.parse(html, chNFe)
+
+            assertThat(result.enderecoEmitente).isEqualTo("Campestre • Santo André - SP")
         }
     }
 

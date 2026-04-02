@@ -23,7 +23,7 @@ export default function TransactionRulesPage() {
           <TransactionRulesManagement onOpenHelp={() => setHelpOpen(true)} />
         </Container>
       </Page>
-      <Drawer open={helpOpen} onClose={() => setHelpOpen(false)} anchor="right" size="sm">
+      <Drawer open={helpOpen} onClose={() => setHelpOpen(false)} anchor="right" size="md">
         <Drawer.Header title={t('financeTransactions.transactionRules.helpDrawer.title')} showCloseButton={true} />
         <Drawer.Body>
           <Box>

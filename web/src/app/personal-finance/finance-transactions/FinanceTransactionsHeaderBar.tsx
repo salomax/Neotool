@@ -21,6 +21,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import Link from 'next/link';
@@ -39,12 +40,15 @@ type ActionButtonsRevealSxOptions = {
   hasEndIcon?: boolean;
 };
 
-interface FinanceTransactionsHeaderBarProps {
-  importsError?: unknown;
-  effectiveSelectedAccountId: string | null;
-  onRetryImports: () => void;
+interface ImportAlertState {
+  error?: unknown;
+  accountId: string | null;
+  onRetry: () => void;
   reviewRequiredJob: { id: string; duplicateReviewCount: number } | null;
   onOpenReviewJob: (jobId: string) => void;
+}
+
+interface NavigationState {
   isCalendarMode: boolean;
   selectedMonth: number;
   selectedYear: number;
@@ -52,33 +56,30 @@ interface FinanceTransactionsHeaderBarProps {
   bills: CreditCardBill[];
   selectedBillId: string | null;
   onSelectBill: (billId: string) => void;
-  searchQuery: string;
-  onSearchQueryChange: (query: string) => void;
+}
+
+interface TransactionActions {
+  onOpenNfceImport: () => void;
   onOpenImportTransactions: () => void;
   onOpenImportBill: () => void;
   onCreateTransaction: () => void;
-  isCreatingTransaction: boolean;
+  isCreating: boolean;
+}
+
+interface FinanceTransactionsHeaderBarProps {
+  importAlerts: ImportAlertState;
+  navigation: NavigationState;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
+  actions: TransactionActions;
 }
 
 export function FinanceTransactionsHeaderBar({
-  importsError,
-  effectiveSelectedAccountId,
-  onRetryImports,
-  reviewRequiredJob,
-  onOpenReviewJob,
-  isCalendarMode,
-  selectedMonth,
-  selectedYear,
-  onDateChange,
-  bills,
-  selectedBillId,
-  onSelectBill,
+  importAlerts: { error: importsError, accountId: effectiveSelectedAccountId, onRetry: onRetryImports, reviewRequiredJob, onOpenReviewJob },
+  navigation: { isCalendarMode, selectedMonth, selectedYear, onDateChange, bills, selectedBillId, onSelectBill },
   searchQuery,
   onSearchQueryChange,
-  onOpenImportTransactions,
-  onOpenImportBill,
-  onCreateTransaction,
-  isCreatingTransaction,
+  actions: { onOpenNfceImport, onOpenImportTransactions, onOpenImportBill, onCreateTransaction, isCreating: isCreatingTransaction },
 }: FinanceTransactionsHeaderBarProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -271,8 +272,8 @@ export function FinanceTransactionsHeaderBar({
               width: actionButtonsRevealCollapsedWidth,
               transition: actionButtonsRevealButtonTransition,
               '& .MuiOutlinedInput-root': {
-                height: '56px',
-                minHeight: '56px',
+                height: '48px',
+                minHeight: '48px',
                 boxSizing: 'border-box',
                 borderRadius: actionButtonsBorderRadiusPx,
                 transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
@@ -303,7 +304,7 @@ export function FinanceTransactionsHeaderBar({
               '& .MuiInputAdornment-positionStart': {
                 flex: 1,
                 mr: '0 !important',
-                ml: 2,
+                ml: 3,
                 justifyContent: 'center',
                 transition: actionButtonsRevealStartIconTransition,
               },
@@ -339,7 +340,6 @@ export function FinanceTransactionsHeaderBar({
                   borderColor: theme.palette.primary.main,
                   borderWidth: 1,
                 },
-                backgroundColor: theme.palette.background.paper,
               },
               '&:hover, &:focus-within': {
                 width: actionButtonsRevealSearchExpandedWidth,
@@ -412,6 +412,17 @@ export function FinanceTransactionsHeaderBar({
           onClose={() => setImportMenuAnchor(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         >
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null);
+              onOpenNfceImport();
+            }}
+          >
+            <ListItemIcon>
+              <QrCode2Icon fontSize="small" />
+            </ListItemIcon>
+            {t('financeTransactions.nfce.button')}
+          </MenuItem>
           <MenuItem
             onClick={() => {
               setImportMenuAnchor(null);

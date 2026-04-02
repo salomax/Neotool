@@ -5,8 +5,9 @@ import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDr
 import { ImportTransactionsDrawer } from './transaction/ImportTransactionsDrawer';
 import { BillImportDrawer } from './bill/BillImportDrawer';
 import { PayBillDialog } from './bill/PayBillDialog';
+import { NfceImportDrawer } from './transaction/NfceImportDrawer';
+import { NfceDocumentDrawer } from './transaction/NfceDocumentDrawer';
 import { CreditCardBill } from './account/useAccountDisplayMode';
-
 interface FinanceTransactionsDialogsProps {
   isDrawerOpen: boolean;
   onCloseDrawer: () => void;
@@ -23,6 +24,10 @@ interface FinanceTransactionsDialogsProps {
   reviewJobId?: string;
   isImportBillDrawerOpen: boolean;
   onCloseImportBillDrawer: () => void;
+  isNfceImportDrawerOpen: boolean;
+  onCloseNfceImportDrawer: () => void;
+  nfceDocumentTransactionId: string | null;
+  onCloseNfceDocumentDrawer: () => void;
   isPayBillDialogOpen: boolean;
   selectedBill: CreditCardBill | null;
   bankAccounts: FinancialAccount[];
@@ -46,6 +51,10 @@ export function FinanceTransactionsDialogs({
   reviewJobId,
   isImportBillDrawerOpen,
   onCloseImportBillDrawer,
+  isNfceImportDrawerOpen,
+  onCloseNfceImportDrawer,
+  nfceDocumentTransactionId,
+  onCloseNfceDocumentDrawer,
   isPayBillDialogOpen,
   selectedBill,
   bankAccounts,
@@ -75,6 +84,17 @@ export function FinanceTransactionsDialogs({
         open={isImportBillDrawerOpen}
         onClose={onCloseImportBillDrawer}
         onImportCompleted={onImportCompleted}
+      />
+      <NfceImportDrawer
+        open={isNfceImportDrawerOpen}
+        onClose={onCloseNfceImportDrawer}
+        selectedAccountId={selectedAccountId}
+        onImportCompleted={onImportCompleted}
+      />
+      <NfceDocumentDrawer
+        open={Boolean(nfceDocumentTransactionId)}
+        onClose={onCloseNfceDocumentDrawer}
+        transactionId={nfceDocumentTransactionId}
       />
       <PayBillDialog
         open={isPayBillDialogOpen}

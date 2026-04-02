@@ -48,6 +48,8 @@ export default function FinanceTransactionsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImportDrawerOpen, setIsImportDrawerOpen] = useState(false);
   const [isImportBillDrawerOpen, setIsImportBillDrawerOpen] = useState(false);
+  const [isNfceImportDrawerOpen, setIsNfceImportDrawerOpen] = useState(false);
+  const [nfceDocumentTransactionId, setNfceDocumentTransactionId] = useState<string | null>(null);
   const [isCreateDrawerFromImport, setIsCreateDrawerFromImport] = useState(false);
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -86,7 +88,11 @@ export default function FinanceTransactionsPage() {
   );
 
   const effectiveSelectedAccountId = useMemo(() => {
-    return selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : null;
+    if (selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId)) {
+      return selectedAccountId;
+    }
+
+    return transactionAccounts.length === 1 ? transactionAccounts[0]?.id ?? null : null;
   }, [selectedAccountId, transactionAccounts]);
 
   const selectedAccount = useMemo(() => {
@@ -497,6 +503,10 @@ export default function FinanceTransactionsPage() {
     handleOpenDrawer(type);
   };
 
+  const handleOpenNfceImport = useCallback(() => setIsNfceImportDrawerOpen(true), []);
+  const handleOpenImportBill = useCallback(() => setIsImportBillDrawerOpen(true), []);
+  const handleCreateTransaction = useCallback(() => setIsCreatingTransaction(true), []);
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
@@ -532,6 +542,11 @@ export default function FinanceTransactionsPage() {
     );
   }
 
+  const headerNavMonth = displayMode.kind === 'calendar' ? displayMode.month : calendarMonth ?? 1;
+  const headerNavYear = displayMode.kind === 'calendar' ? displayMode.year : calendarYear ?? new Date().getFullYear();
+  const headerNavBills = displayMode.kind === 'bill' ? displayMode.bills : [];
+  const headerNavSelectedBillId = displayMode.kind === 'bill' ? (displayMode.selectedBill?.id ?? null) : null;
+
   return (
     <SidebarLayout
       side="left"
@@ -542,24 +557,31 @@ export default function FinanceTransactionsPage() {
       <Page>
         <Container maxWidth="xl" sx={{ py: 4 }}>
           <FinanceTransactionsHeaderBar
-            importsError={importsError}
-            effectiveSelectedAccountId={effectiveSelectedAccountId}
-            onRetryImports={refetchImports}
-            reviewRequiredJob={reviewRequiredJob ?? null}
-            onOpenReviewJob={handleOpenReviewJob}
-            isCalendarMode={displayMode.kind === 'calendar'}
-            selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : calendarMonth ?? 1}
-            selectedYear={displayMode.kind === 'calendar' ? displayMode.year : calendarYear ?? new Date().getFullYear()}
-            onDateChange={handleDateChange}
-            bills={displayMode.kind === 'bill' ? displayMode.bills : []}
-            selectedBillId={displayMode.kind === 'bill' ? displayMode.selectedBill?.id ?? null : null}
-            onSelectBill={handleSelectBill}
+            importAlerts={{
+              error: importsError,
+              accountId: effectiveSelectedAccountId,
+              onRetry: refetchImports,
+              reviewRequiredJob: reviewRequiredJob ?? null,
+              onOpenReviewJob: handleOpenReviewJob,
+            }}
+            navigation={{
+              isCalendarMode: displayMode.kind === 'calendar',
+              selectedMonth: headerNavMonth,
+              selectedYear: headerNavYear,
+              onDateChange: handleDateChange,
+              bills: headerNavBills,
+              selectedBillId: headerNavSelectedBillId,
+              onSelectBill: handleSelectBill,
+            }}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
-            onOpenImportTransactions={handleOpenImportTransactions}
-            onOpenImportBill={() => setIsImportBillDrawerOpen(true)}
-            onCreateTransaction={() => setIsCreatingTransaction(true)}
-            isCreatingTransaction={isCreatingTransaction}
+            actions={{
+              onOpenNfceImport: handleOpenNfceImport,
+              onOpenImportTransactions: handleOpenImportTransactions,
+              onOpenImportBill: handleOpenImportBill,
+              onCreateTransaction: handleCreateTransaction,
+              isCreating: isCreatingTransaction,
+            }}
           />
           {displayMode.kind === 'calendar' && (
             <FinanceTransactionsActiveFilters
@@ -594,6 +616,7 @@ export default function FinanceTransactionsPage() {
               refetchTransactions();
               refetchSummary();
             }}
+            onOpenNfceDocument={setNfceDocumentTransactionId}
             selectedAccountId={effectiveSelectedAccountId}
             selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
             selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
@@ -616,6 +639,10 @@ export default function FinanceTransactionsPage() {
         reviewJobId={reviewJobId ?? undefined}
         isImportBillDrawerOpen={isImportBillDrawerOpen}
         onCloseImportBillDrawer={() => setIsImportBillDrawerOpen(false)}
+        isNfceImportDrawerOpen={isNfceImportDrawerOpen}
+        onCloseNfceImportDrawer={() => setIsNfceImportDrawerOpen(false)}
+        nfceDocumentTransactionId={nfceDocumentTransactionId}
+        onCloseNfceDocumentDrawer={() => setNfceDocumentTransactionId(null)}
         isPayBillDialogOpen={isPayBillDialogOpen}
         selectedBill={displayMode.kind === 'bill' ? displayMode.selectedBill : null}
         bankAccounts={bankAccounts}

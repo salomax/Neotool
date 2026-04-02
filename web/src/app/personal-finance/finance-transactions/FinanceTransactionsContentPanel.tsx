@@ -20,6 +20,7 @@ interface FinanceTransactionsContentPanelProps {
   isCreatingTransaction: boolean;
   onCancelCreate: () => void;
   onSuccessCreate: () => void;
+  onOpenNfceDocument: (transactionId: string) => void;
   selectedAccountId: string | null;
   selectedMonth?: number;
   selectedYear?: number;
@@ -37,6 +38,7 @@ export function FinanceTransactionsContentPanel({
   isCreatingTransaction,
   onCancelCreate,
   onSuccessCreate,
+  onOpenNfceDocument,
   selectedAccountId,
   selectedMonth,
   selectedYear,
@@ -75,6 +77,7 @@ export function FinanceTransactionsContentPanel({
         isCreating={isCreatingTransaction}
         onCancelCreate={onCancelCreate}
         onSuccessCreate={onSuccessCreate}
+        onOpenNfceDocument={onOpenNfceDocument}
         selectedAccountId={selectedAccountId}
         selectedMonth={selectedMonth}
         selectedYear={selectedYear}

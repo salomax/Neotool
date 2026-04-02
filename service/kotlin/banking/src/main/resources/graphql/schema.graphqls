@@ -445,6 +445,7 @@ type Transaction {
   type: TransactionType!
   status: TransactionStatus!
   source: TransactionSource!
+  hasNfceDocument: Boolean!
 
   # Amount
   amount: Float!
@@ -1477,8 +1478,190 @@ type AccountPreferences {
   defaultTransactionStatus: TransactionStatus!
 }
 
+enum ProductAliasSource {
+  MANUAL
+  AI_SUGGESTED
+  EAN_MATCH
+  HEURISTIC
+}
+
+type Product {
+  id: ID!
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+  variants: [ProductVariant!]!
+  averagePrice: Float
+  totalSpent: Float!
+  purchaseCount: Int!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductVariant {
+  id: ID!
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+  averageUnitPrice: Float
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+type ProductAlias {
+  id: ID!
+  productVariantId: ID!
+  productVariant: ProductVariant
+  rawDescription: String!
+  source: ProductAliasSource!
+  confidence: Float
+  confirmed: Boolean!
+  createdAt: DateTime!
+}
+
+type PurchaseItem {
+  id: ID!
+  transactionId: ID!
+  productVariantId: ID
+  productVariant: ProductVariant
+  sequence: Int!
+  rawDescription: String!
+  ncmCode: String
+  ean: String
+  issuerProductCode: String
+  quantity: Float!
+  unit: String!
+  unitPrice: Float!
+  totalPrice: Float!
+  discount: Float
+  effectivePrice: Float!
+  normalizedUnitPrice: Float
+  taxAmount: Float
+  createdAt: DateTime!
+}
+
+type NfceDocument {
+  id: ID!
+  transactionId: ID!
+  accessKey: String!
+  issuerCnpj: String!
+  issuerName: String!
+  issuerTradeName: String
+  issuerStateRegistration: String
+  issuerAddress: String
+  issuerPostalCode: String
+  emissionDate: DateTime!
+  totalValue: Float!
+  totalTax: Float
+  buyerCpf: String
+  municipalityCode: String
+  municipality: String
+  state: String!
+  countryCode: String!
+  sourceUrl: String
+  items: [PurchaseItem!]!
+  createdAt: DateTime!
+}
+
+type UnmappedItemGroup {
+  rawDescription: String!
+  count: Int!
+  suggestedVariant: ProductVariant
+  confidence: Float
+  sampleItems: [PurchaseItem!]!
+}
+
+type PricePoint {
+  date: Date!
+  unitPrice: Float!
+  storeName: String
+  municipality: String
+  state: String
+}
+
+type ConsumptionTrendPoint {
+  month: Date!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+}
+
+type ConsumptionTrend {
+  productId: ID!
+  periodMonths: Int!
+  totalQuantity: Float!
+  totalSpent: Float!
+  purchaseCount: Int!
+  months: [ConsumptionTrendPoint!]!
+}
+
+type StorePriceComparison {
+  storeName: String
+  municipality: String
+  state: String
+  averageUnitPrice: Float
+  purchaseCount: Int!
+  lastPurchaseDate: Date
+}
+
+type NcmMonthlySpending {
+  month: Date!
+  totalSpent: Float!
+  itemCount: Int!
+}
+
+type NcmSpending {
+  ncmCode: String!
+  ncmDescription: String
+  totalSpent: Float!
+  itemCount: Int!
+  months: [NcmMonthlySpending!]!
+}
+
 input UpdateAccountPreferencesInput {
   defaultTransactionStatus: TransactionStatus
+}
+
+input CreateProductInput {
+  name: String!
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input UpdateProductInput {
+  name: String
+  ncmCode: String
+  defaultUnit: String
+  category: String
+}
+
+input CreateProductVariantInput {
+  productId: ID!
+  name: String!
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
+}
+
+input UpdateProductVariantInput {
+  productId: ID
+  name: String
+  brand: String
+  ean: String
+  quantityValue: Float
+  quantityUnit: String
+  normalizedQuantityValue: Float
+  normalizedQuantityUnit: String
 }
 
 # ============================================================================
@@ -1646,6 +1829,17 @@ extend type Query {
   ): HoldingPerformance
   """Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation)."""
   pendingActions(status: PendingActionStatus): [AccountPendingAction!]!
+  """Product catalog for the authenticated account."""
+  products(search: String, category: String): [Product!]!
+  product(id: ID!): Product
+  productVariants(search: String, productId: ID, limit: Int): [ProductVariant!]!
+  purchaseItems(transactionId: ID!): [PurchaseItem!]!
+  nfceDocument(transactionId: ID!): NfceDocument
+  unmappedItems(limit: Int): [UnmappedItemGroup!]!
+  productPriceHistory(productId: ID!, variantId: ID, startDate: Date, endDate: Date): [PricePoint!]!
+  productConsumptionTrend(productId: ID!, periodMonths: Int = 6): ConsumptionTrend!
+  productStoreComparison(productId: ID!, startDate: Date, endDate: Date): [StorePriceComparison!]!
+  spendingByNcm(depth: Int = 4, startDate: Date, endDate: Date): [NcmSpending!]!
 }
 
 # Payload returned by `createTransaction`.
@@ -1722,6 +1916,12 @@ extend type Mutation {
   Update a custom transaction category for the authenticated account.
   """
   updateTransactionCategory(id: ID!, input: UpdateCategoryInput!): TransactionCategory!
+  createProduct(input: CreateProductInput!): Product!
+  updateProduct(id: ID!, input: UpdateProductInput!): Product!
+  createProductVariant(input: CreateProductVariantInput!): ProductVariant!
+  updateProductVariant(id: ID!, input: UpdateProductVariantInput!): ProductVariant!
+  mapItemToVariant(rawDescription: String!, variantId: ID!): ProductAlias!
+  unmapItem(aliasId: ID!): Boolean!
 
   """
   Soft-delete a custom transaction category (and its subcategories when deleting a root).

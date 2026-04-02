@@ -170,6 +170,7 @@ class PendingActionResolver(
             category = null,
             categorySource = categorySource,
             merchant = null,
+            hasNfceDocument = false,
             counterpartyName = counterpartyName,
             counterpartyDocument = counterpartyDocument,
             counterpartyBankCode = counterpartyBankCode,

@@ -10,12 +10,14 @@ type CustomPaletteTokens = Pick<
   | "infoLightBg"
   | "sidebarBg"
   | "sidebarIcon"
+  | "labelIcon"
   | "currencyPositive"
   | "currencyNegative"
   | "currencyNeutral"
   | "thresholdBad"
   | "thresholdRegular"
   | "thresholdGood"
+  | "tax"
 >;
 
 declare module "@mui/material/styles" {
@@ -234,6 +236,7 @@ export const createAppTheme = (mode: Mode) => {
         infoLightBg: t.palette.infoLightBg,
         sidebarBg: t.palette.sidebarBg,
         sidebarIcon: t.palette.sidebarIcon,
+        labelIcon: t.palette.labelIcon,
         // Currency-specific colors
         currencyPositive: t.palette.currencyPositive,
         currencyNegative: t.palette.currencyNegative,
@@ -242,6 +245,7 @@ export const createAppTheme = (mode: Mode) => {
         thresholdBad: t.palette.thresholdBad,
         thresholdRegular: t.palette.thresholdRegular,
         thresholdGood: t.palette.thresholdGood,
+        tax: t.palette.tax,
       },
     },
   };

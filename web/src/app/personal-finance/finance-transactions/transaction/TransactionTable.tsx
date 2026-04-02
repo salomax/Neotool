@@ -28,6 +28,7 @@ import {
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
@@ -65,6 +66,7 @@ interface TransactionTableProps {
   isCreating?: boolean;
   onCancelCreate?: () => void;
   onSuccessCreate?: () => void;
+  onOpenNfceDocument?: (transactionId: string) => void;
   selectedAccountId?: string | null;
   selectedMonth?: number;
   selectedYear?: number;
@@ -155,6 +157,7 @@ export function TransactionTable({
   isCreating = false,
   onCancelCreate,
   onSuccessCreate,
+  onOpenNfceDocument,
   selectedAccountId = null,
   selectedMonth,
   selectedYear,
@@ -1043,39 +1046,60 @@ export function TransactionTable({
                           })()}
                         </TableCell>
                       )}
-                      <TableCell align="center" padding="none" sx={{ width: 32, maxWidth: 32 }}>
-                        {!!transaction.attachments?.length && (
-                          <IconButton
-                            size="small"
-                            sx={{
-                              p: 0.25,
-                              color: 'text.secondary',
-                              '&:hover': {
-                                bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                color: 'primary.main',
-                              },
-                            }}
-                            onClick={() => {
-                              const list = (transaction.attachments ?? []).map((att) => ({
-                                id: att.id,
-                                assetId: att.assetId,
-                                filename: (att as any).originalFilename ?? att.filename ?? null,
-                                mimeType: att.mimeType ?? null,
-                                downloadUrl: att.downloadUrl ?? null,
-                              }));
-                              if (list.length > 0) {
-                                const firstWithUrlIndex = list.findIndex((a) => !!a.downloadUrl);
-                                setRemovingAttachmentId(null);
-                                setPreviewTransactionId(transaction.id);
-                                setPreviewAttachments(list);
-                                setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
-                              }
-                            }}
-                            aria-label={t('financeTransactions.transactionTable.attachments.ariaLabel')}
-                          >
-                            <AttachFileIcon sx={{ fontSize: 16 }} />
-                          </IconButton>
-                        )}
+                      <TableCell align="center" padding="none" sx={{ width: 56, maxWidth: 56 }}>
+                        <Stack direction="row" spacing={0.25} justifyContent="center" alignItems="center">
+                          {transaction.hasNfceDocument && onOpenNfceDocument ? (
+                            <Tooltip title={t('financeTransactions.transactionTable.rowActions.viewNfce')}>
+                              <IconButton
+                                size="small"
+                                sx={{
+                                  p: 0.25,
+                                  color: 'text.secondary',
+                                  '&:hover': {
+                                    bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                    color: 'primary.main',
+                                  },
+                                }}
+                                onClick={() => onOpenNfceDocument(transaction.id)}
+                                aria-label={t('financeTransactions.transactionTable.rowActions.viewNfce')}
+                              >
+                                <ReceiptLongOutlinedIcon sx={{ fontSize: 16 }} />
+                              </IconButton>
+                            </Tooltip>
+                          ) : null}
+                          {!!transaction.attachments?.length && (
+                            <IconButton
+                              size="small"
+                              sx={{
+                                p: 0.25,
+                                color: 'text.secondary',
+                                '&:hover': {
+                                  bgcolor: alpha(theme.palette.primary.main, 0.08),
+                                  color: 'primary.main',
+                                },
+                              }}
+                              onClick={() => {
+                                const list = (transaction.attachments ?? []).map((att) => ({
+                                  id: att.id,
+                                  assetId: att.assetId,
+                                  filename: (att as any).originalFilename ?? att.filename ?? null,
+                                  mimeType: att.mimeType ?? null,
+                                  downloadUrl: att.downloadUrl ?? null,
+                                }));
+                                if (list.length > 0) {
+                                  const firstWithUrlIndex = list.findIndex((a) => !!a.downloadUrl);
+                                  setRemovingAttachmentId(null);
+                                  setPreviewTransactionId(transaction.id);
+                                  setPreviewAttachments(list);
+                                  setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
+                                }
+                              }}
+                              aria-label={t('financeTransactions.transactionTable.attachments.ariaLabel')}
+                            >
+                              <AttachFileIcon sx={{ fontSize: 16 }} />
+                            </IconButton>
+                          )}
+                        </Stack>
                       </TableCell>
                       <TableCell align="right">
                         <Amount

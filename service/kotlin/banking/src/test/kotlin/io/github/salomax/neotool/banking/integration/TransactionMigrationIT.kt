@@ -64,15 +64,14 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                             "0.11",
                             "0.12",
                             "0.13",
-                            "0.14",
-                            "0.15",
                         )
                 }
                 conn.createStatement().executeQuery(
                     "SELECT table_name FROM information_schema.tables " +
                         "WHERE table_schema = 'banking' AND table_name IN " +
                         "('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags', " +
-                        "'document_import_jobs', 'transaction_rules', 'merchants')",
+                        "'document_import_jobs', 'transaction_rules', 'merchants', 'purchase_documents', " +
+                        "'purchase_items', 'products', 'product_variants', 'product_alias', 'ncm_codes')",
                 ).use { rs ->
                     val tables = mutableListOf<String>()
                     while (rs.next()) tables.add(rs.getString("table_name"))
@@ -86,7 +85,37 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "document_import_jobs",
                         "transaction_rules",
                         "merchants",
+                        "purchase_documents",
+                        "purchase_items",
+                        "products",
+                        "product_variants",
+                        "product_alias",
+                        "ncm_codes",
                     )
+                }
+            }
+        }
+
+        @Test
+        fun `ncm seed loads current official hierarchy levels`() {
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().executeQuery("SELECT COUNT(*) AS cnt FROM banking.ncm_codes").use { rs ->
+                    rs.next()
+                    assertThat(rs.getInt("cnt")).isGreaterThanOrEqualTo(10000)
+                }
+                conn.createStatement().executeQuery("SELECT COUNT(*) FROM banking.ncm_codes WHERE code = '1006'").use { rs ->
+                    rs.next()
+                    assertThat(rs.getInt(1)).isEqualTo(1)
+                }
+                conn.createStatement().executeQuery("SELECT depth FROM banking.ncm_codes WHERE code = '01012100'").use { rs ->
+                    rs.next()
+                    assertThat(rs.getInt(1)).isEqualTo(4)
+                }
+                conn.createStatement().executeQuery("SELECT COUNT(DISTINCT depth) FROM banking.ncm_codes").use { rs ->
+                    rs.next()
+                    assertThat(rs.getInt(1)).isEqualTo(4)
                 }
             }
         }

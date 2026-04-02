@@ -3,7 +3,7 @@
 **Service:** Invistus Banking Service
 **Module:** Personal Finance — Product Price Tracking
 **Document date:** 2026-03-31
-**Status:** Fase 0 em andamento — parser NFC-e concluído, persistência pendente
+**Status:** Fases 0, 1A, 1B e 2A concluídas — infraestrutura, catálogo, normalização síncrona, analytics de preço e deduplicação NFC-e ↔ manual entregues; expansão SVRS permanece adiada
 
 ---
 
@@ -36,24 +36,32 @@ Product Price Tracking permite que o usuário acompanhe o preço dos produtos qu
 | `NfceItem` com campos adicionais | ✅ Concluído | `cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`, `vTribItem` |
 | `NfceData` com `cpfDestinatario` e `vTotTrib` | ✅ Concluído | `domain/import/nfce/NfceData.kt` |
 | Testes unitários do parser SP e roteador | ✅ Concluído | `SpNfceHtmlParserTest`, `SpNfceFetcherTest`, `NfceFetcherRouterTest`, `NfceClientTest` |
-| **Fase 0.1** — `NfceData` com `cMunFG` (código IBGE do município) | 🔲 Pendente | — |
-| **Fase 0.2** — `SvrsNfceFetcher` (~19 estados) | ⏸ Adiado — ver Fase 1A | — |
-| **Fase 0.3** — Migration: todas as novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`) | 🔲 Pendente | — |
-| **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas | 🔲 Pendente | — |
-| **Fase 0.5** — `ImportJobService.importNfce()`: persistir `NfceDocument` + `PurchaseItem` com camadas 1-3 | 🔲 Pendente | `service/import/ImportJobService.kt` |
-| **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal) | 🔲 Pendente | — |
+| **Fase 0.1** — `NfceData` com `cMunFG` (código IBGE do município) | ✅ Concluído | `domain/import/nfce/NfceData.kt`, `service/import/nfce/DefaultNfceClient.kt`, `service/import/nfce/SpNfceHtmlParser.kt` |
+| **Fase 0.2** — `SvrsNfceFetcher` (~19 estados) | ⏸ Adiado — fora do escopo atual | — |
+| **Fase 0.3** — Migration: todas as novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`) | ✅ Concluído | `db/migration/V0_12__create_product_price_tracking_tables.sql` |
+| **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas | ✅ Concluído | `model/import/nfce/*`, `repo/import/nfce/*` |
+| **Fase 0.5** — `ImportJobService.importNfce()`: persistir `NfceDocument` + `PurchaseItem` com camadas 1-3 | ✅ Concluído | `service/import/ImportJobService.kt` |
+| **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal) | ✅ Concluído | `db/migration/V0_13__seed_ncm_codes.sql` |
 
 ### Fase 1A — Catálogo + Normalização Síncrona
 
-| Item | Status |
-|---|---|
-| CRUD de `Product` e `ProductVariant` | 🔲 Pendente |
-| GraphQL queries + mutations de produtos e itens | 🔲 Pendente |
-| Tela de itens não mapeados (revisão) | 🔲 Pendente |
+| Item | Status | Arquivo(s) |
+|---|---|---|
+| CRUD de `Product` e `ProductVariant` | ✅ Concluído | `service/import/nfce/ProductCatalogService.kt`, `graphql/product/ProductResolver.kt` |
+| GraphQL queries + mutations de produtos e itens | ✅ Concluído | `resources/graphql/schema.graphqls`, `graphql/product/*`, `web/src/lib/graphql/operations/banking/*` |
+| Tela de itens não mapeados (revisão) | ✅ Concluído | `web/src/app/personal-finance/finance-transactions/transaction/UnmappedItemsDrawer.tsx`, `FinanceTransactionsHeaderBar.tsx`, `FinanceTransactionsDialogs.tsx` |
+| Expansão SVRS (~19 estados) | ⏸ Adiado — fora da Fase 1A atual | — |
 
 ### Fase 1B, 1C, 1D, 2A, 2B
 
-Todas pendentes. Ver seção 9 — Faseamento.
+| Fase | Status | Escopo |
+|---|---|---|
+| Fase 1B | ✅ Concluído | Analytics de preço por produto/variante, tendência de consumo, comparação entre estabelecimentos, dashboard e analytics por NCM |
+| Fase 1C | 🔲 Pendente | Normalização automática em batch + AI |
+| Fase 1D | ✅ Concluído | Drawer de import NFC-e (frontend): upload de imagem com QR code ou entrada de URL |
+| Fase 1E | ✅ Concluído | Drawer de visualização da NF-e: todos os dados do documento e itens, acessível a partir da transação |
+| Fase 2A | ✅ Concluído | Matching por conta + valor + janela de 1 dia e UX de revisão/vinculação da NFC-e com transação manual existente |
+| Fase 2B | 🔲 Pendente | Inflação pessoal e custo de vida |
 
 ---
 
@@ -527,15 +535,6 @@ Itens com `product_variant_id = null` ou `confirmed = false` ficam acessíveis n
 - Não bloquear — transação manual é sempre permitida
 - Opcionalmente: mostrar aviso "Você já tem uma compra de R$ X no mesmo dia neste estabelecimento"
 
-### 5.4 Criação de Movimentação por Item (import granular)
-
-Para o cenário onde o usuário quer controle fino, oferecer opção de **importar por item**:
-
-- Em vez de 1 transação de R$ 350 no Supermercado, criar N transações (uma por item)
-- Cada transação filha vinculada ao `nfce_document`
-- Isso facilita categorização (item de limpeza vs alimento) e evita duplicidade granular
-- **Configurável por usuário** — nem todos vão querer isso
-
 ---
 
 ## 6. Parser NFC-e — Arquitetura por Estado
@@ -565,7 +564,7 @@ A maioria dos estados compartilha o sistema SVRS, o que reduz o número de parse
 | **AM** | AM | `nfce.sefaz.am.gov.br` | A verificar |
 | **PE** | PE | `nfce.sefaz.pe.gov.br` | A verificar |
 
-**Estratégia:** Implementar SP + SVRS primeiro cobre a grande maioria dos usuários. Os demais estados podem ser adicionados incrementalmente.
+**Estratégia:** rollout atual em SP primeiro. SVRS e os demais estados podem ser adicionados incrementalmente quando essa expansão voltar à prioridade.
 
 ### 6.3 SP — Scraper validado (2-step HTTP, sem CAPTCHA)
 
@@ -947,39 +946,42 @@ ORDER BY total_spent DESC;
 - [x] `DefaultNfceClient` como fallback XML
 - [x] `NfceItem` com campos adicionais (`cEAN`, `vUnCom`, `vDesc`, `cProd`, `nItem`, `vTribItem`)
 - [x] `NfceData` com `cpfDestinatario` e `vTotTrib`
-- [ ] **Fase 0.1** — Adicionar `cMunFG` em `NfceData`
-- [ ] **Fase 0.3** — Migration: novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`)
-- [ ] **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas
-- [ ] **Fase 0.5** — Atualizar `ImportJobService.importNfce()` para persistir `NfceDocument` + `PurchaseItem` com resolução síncrona (camadas 1-3)
-- [ ] **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal)
+- [x] **Fase 0.1** — Adicionar `cMunFG` em `NfceData`
+- [x] **Fase 0.3** — Migration: novas tabelas (`nfce_documents`, `purchase_items`, `products`, `product_variants`, `product_alias`, `ncm_codes`)
+- [x] **Fase 0.4** — JPA entities + mappers + repos para as novas tabelas
+- [x] **Fase 0.5** — Atualizar `ImportJobService.importNfce()` para persistir `NfceDocument` + `PurchaseItem` com resolução síncrona (camadas 1-3)
+- [x] **Fase 0.6** — Seed `ncm_codes` (~14.000 linhas Receita Federal)
 
-### Fase 1A — Catálogo de Produtos + Normalização Síncrona + Expansão de Estados
-- [ ] CRUD de `Product` e `ProductVariant`
-- [ ] Mapeamento manual: tela de itens não mapeados
-- [ ] GraphQL queries e mutations básicas (seção 7)
-- [ ] **Fase 0.2** (adiado) — `SvrsNfceFetcher` (~19 estados) ⚠️ requer investigação do formato SVRS
+### Fase 1A — Catálogo de Produtos + Normalização Síncrona
+- [x] CRUD de `Product` e `ProductVariant`
+- [x] Mapeamento manual: tela de itens não mapeados
+- [x] GraphQL queries e mutations básicas (seção 7)
+- [ ] Expansão de estados — `SvrsNfceFetcher` (~19 estados) permanece adiado fora do escopo atual
 
-### Fase 1B — Job Batch D+1 + Heurísticas
-- [ ] Job scheduled (diário) para itens pendentes
-- [ ] Camada 4: heurísticas de texto (fuzzy match, regex, NCM+similaridade)
-- [ ] Analytics por NCM (funciona desde aqui, sem normalização — ver seção 8.4)
+### Fase 1B — Analytics de Preço
 
-### Fase 1C — Normalização AI-Assisted
+> **Por que antes do batch?** Analytics entrega valor imediato para quem já mapeou produtos manualmente na Fase 1A. O batch só é útil quando o catálogo tiver volume suficiente para que fuzzy match e embeddings gerem sugestões confiáveis — o que leva tempo de uso real para construir.
+
+- [x] Histórico de preço por produto/variante
+- [x] Tendência de consumo mensal
+- [x] Comparação entre estabelecimentos (mesmo usuário)
+- [x] Dashboard de produtos
+- [x] Analytics por NCM (sem normalização, automático — ver seção 8.4)
+
+### Fase 1C — Normalização Automática (Batch + AI)
+
+> **Pré-condição:** só faz sentido implementar quando a plataforma tiver usuários reais e catálogo populado suficiente para medir se as sugestões estão sendo aceitas.
+
+- [ ] Job scheduled (diário) para itens com `product_variant_id IS NULL`
+- [ ] Camada 4: heurísticas de texto (fuzzy match Jaro-Winkler, regex, NCM + similaridade)
 - [ ] Camada 5: serviço de embeddings em batch
 - [ ] Camada 6: LLM sob demanda na tela de revisão
-- [ ] Fila de revisão com sugestões pendentes
-- [ ] Aliases confirmados alimentam camadas 1-2 para futuras importações
-
-### Fase 1D — Analytics de Preço
-- [ ] Histórico de preço por produto/variante
-- [ ] Tendência de consumo mensal
-- [ ] Comparação entre estabelecimentos (mesmo usuário)
-- [ ] Dashboard de produtos
+- [ ] Fila de revisão com sugestões pendentes (confidence score)
+- [ ] Aliases confirmados retroagem via camadas 1-2 para futuras importações
 
 ### Fase 2A — Deduplicação NFC-e ↔ Manual
-- [ ] Matching por data + valor + conta
-- [ ] UX de confirmação/vinculação
-- [ ] Import granular (1 transação por item) como opção
+- [x] Matching por data + valor + conta
+- [x] UX de confirmação/vinculação
 
 ### Fase 2B — Inflação Pessoal & Custo de Vida
 - [ ] Cálculo de índice de inflação pessoal (cesta do usuário vs IPCA)
@@ -992,7 +994,7 @@ ORDER BY total_spent DESC;
 
 | # | Decisão | Resolução |
 |---|---|---|
-| 1 | Granularidade do import | **1 transação por NFC-e** (como hoje). Import por item é futuro (Fase 2A). |
+| 1 | Granularidade do import | **1 transação por NFC-e** (modelo definitivo). Granularidade por item existe em `purchase_items` — criar N transações para 1 NF-e quebraria saldo, fatura e extrato. |
 | 2 | Cross-tenant aliases | **Aliases compartilhados como sugestão** (confirmed=false). Catálogo de produtos canônicos é por tenant. Efeito de rede sem poluição. |
 | 3 | Retroatividade | **Sim, síncrono.** Ao criar alias, UPDATE imediato em todos `purchase_items` com mesma `raw_description` e `product_variant_id IS NULL`. |
 | 4 | NF-e modelo 55 | **Sim**, suportar. Estrutura XML similar; precisa de fetcher específico por estado. |
@@ -1001,12 +1003,13 @@ ORDER BY total_spent DESC;
 | 7 | Parser por estado | **Strategy Pattern.** SP = scraper HTML; SVRS = ~19 estados; demais incrementais. |
 | 8 | CPF destinatário | **Importar.** CPF do comprador armazenado em `nfce_documents.buyer_cpf` para analytics de BI. |
 | 9 | Tributos | **Importar ambos.** Total por NF (`vTotTrib` em `nfce_documents`) e por item (`vTribItem` em `purchase_items`). Permite analytics de carga tributária por categoria/produto. |
-| 10 | Cobertura de estados na Fase 0 | **SP only.** `SpNfceFetcher` já implementado e validado. `SvrsNfceFetcher` (~19 estados) adiado para Fase 1A — depende de investigação prévia do formato de resposta do portal SVRS, e a base de usuários inicial é SP. |
+| 10 | Cobertura de estados na Fase 0 | **SP only.** `SpNfceFetcher` já implementado e validado. `SvrsNfceFetcher` (~19 estados) segue adiado para fase futura — depende de investigação prévia do formato de resposta do portal SVRS, e a base de usuários inicial é SP. |
+| 11 | Ordem Fase 1B vs batch | **Analytics antes do batch.** Fase 1B = analytics de preço (entrega valor imediato). Batch D+1 e AI (antigas 1B/1C) movidos para Fase 1C — só fazem sentido quando o catálogo tiver volume real de uso para validar a qualidade das sugestões. |
 
 ## 11. Questões em Aberto
 
-1. **SVRS — formato de resposta:** Verificar se o portal SVRS retorna XML ou HTML. Se XML, o parser atual pode ser reaproveitado com poucas mudanças.
-2. **Cobertura de estados:** Priorizar SP + SVRS na v1. Mapear quais estados adicionais são necessários com base na distribuição de usuários.
+1. **SVRS — formato de resposta:** investigação permanece pendente e fora do escopo atual. Se o portal retornar XML, o parser atual pode ser reaproveitado com poucas mudanças.
+2. **Cobertura de estados:** rollout atual permanece em SP. Repriorizar SVRS e outros estados com base na distribuição real de usuários.
 3. **Índices no banco:** Definir índices adequados para `purchase_items` e `product_alias` antes de implementar, considerando os padrões de query das analytics (seção 8).
 
 ## 12. Questões Resolvidas
@@ -1061,10 +1064,10 @@ Onde `extractMunicipio` retorna a string raw do campo. Ajustar a extração para
 
 #### Critérios de aceite
 
-- [ ] `NfceData.cMunFG` compilado sem quebrar chamadores existentes (campo nullable com default null).
-- [ ] `DefaultNfceClientTest` (já existente): adicionar caso com XML que contém `<cMunFG>3547809</cMunFG>` → assertar `nfceData.cMunFG == "3547809"`.
-- [ ] `SpNfceHtmlParserTest` (já existente): adicionar assert em `minimalSpHtml(municipio = "3547809 - Santo Andre")` → `nfceData.cMunFG == "3547809"`.
-- [ ] Quando `<cMunFG>` ausente do XML → `cMunFG == null` (não lançar exceção).
+- [x] `NfceData.cMunFG` compilado sem quebrar chamadores existentes (campo nullable com default null).
+- [x] `DefaultNfceClientTest` (já existente): adicionar caso com XML que contém `<cMunFG>3547809</cMunFG>` → assertar `nfceData.cMunFG == "3547809"`.
+- [x] `SpNfceHtmlParserTest` (já existente): adicionar assert em `minimalSpHtml(municipio = "3547809 - Santo Andre")` → `nfceData.cMunFG == "3547809"`.
+- [x] Quando `<cMunFG>` ausente do XML → `cMunFG == null` (não lançar exceção).
 
 ---
 
@@ -1113,11 +1116,11 @@ Implementar `SvrsNfceHtmlParser` análogo ao `SpNfceHtmlParser`, adaptando os se
 
 **Dependências:** nenhuma | **Paralelo com Fase 0.1, 0.2, 0.6**
 
-**Arquivo:** `service/kotlin/banking/src/main/resources/db/migration/V0_11__create_product_price_tracking_tables.sql`
+**Arquivo:** `service/kotlin/banking/src/main/resources/db/migration/V0_12__create_product_price_tracking_tables.sql`
 
 #### Escopo
 
-Criar as 6 tabelas no schema `banking` com todos os índices. Próxima migration disponível é V0_11 (V0_10 já existe).
+Criar as 6 tabelas no schema `banking` com todos os índices. Próxima migration disponível é V0_12 (V0_11 já existe).
 
 #### DDL completo
 
@@ -1239,10 +1242,10 @@ CREATE INDEX idx_product_variants_ean        ON banking.product_variants(ean)
 
 #### Critérios de aceite
 
-- [ ] Migration aplica sem erros no Docker local (`./gradlew :banking:testIntegration` sobe o container).
-- [ ] Todas as constraints UNIQUE e CHECK foram criadas.
-- [ ] `product_variants.ean` é globalmente único (sem `account_id` na constraint) — refletindo que EAN identifica o produto independente de tenant.
-- [ ] Flyway não reclama de checksum ou conflito com migrations existentes.
+- [x] Migration aplica sem erros no Docker local (`./gradlew :banking:testIntegration` sobe o container).
+- [x] Todas as constraints UNIQUE e CHECK foram criadas.
+- [x] `product_variants.ean` é globalmente único (sem `account_id` na constraint) — refletindo que EAN identifica o produto independente de tenant.
+- [x] Flyway não reclama de checksum ou conflito com migrations existentes.
 
 ---
 
@@ -1332,11 +1335,11 @@ interface PurchaseItemRepository {
 
 #### Critérios de aceite
 
-- [ ] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
-- [ ] `NfceDocumentRepository.save()` persiste e retorna com `id` preenchido (gerado pelo banco).
-- [ ] `NfceDocumentEntityRepository.findByAccessKeyAndAccountId()` retorna null quando não existe.
-- [ ] `PurchaseItemRepository.saveAll()` persiste todos os itens em batch.
-- [ ] Nenhum campo nullable na entity usa tipo primitivo (usar `BigDecimal?`, `String?`, não `BigDecimal`, `String` para opcionais).
+- [x] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
+- [x] `NfceDocumentRepository.save()` persiste e retorna com `id` preenchido (gerado pelo banco).
+- [x] `NfceDocumentEntityRepository.findByAccessKeyAndAccountId()` retorna null quando não existe.
+- [x] `PurchaseItemRepository.saveAll()` persiste todos os itens em batch.
+- [x] Nenhum campo nullable na entity usa tipo primitivo (usar `BigDecimal?`, `String?`, não `BigDecimal`, `String` para opcionais).
 
 ---
 
@@ -1452,16 +1455,16 @@ fun findFirstResolvedByCnpjAndProduct(
 
 #### Critérios de aceite
 
-- [ ] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
-- [ ] Teste de integração: `importNfce()` com NFC-e de 3 itens persiste 1 `NfceDocument` + 3 `PurchaseItems` na mesma transação DB.
-- [ ] Teste de integração: re-import da mesma NFC-e (mesmo `chNFe`) retorna job existente sem criar duplicatas.
-- [ ] `NfceDocument.totalValue`, `emissionDate`, `issuerCnpj` batem com os dados do `NfceData`.
-- [ ] `PurchaseItem.effectivePrice = vProd - vDesc` para item com desconto.
-- [ ] `PurchaseItem.effectivePrice = vProd` para item sem desconto (`vDesc = null`).
-- [ ] `PurchaseItem.productVariantId = null` quando nenhuma camada 1-3 resolve.
-- [ ] Camada 1: item com EAN que já existe em `product_variants` → `productVariantId` preenchido.
-- [ ] Camada 2: item com `raw_description` já em `product_alias` → `productVariantId` preenchido.
-- [ ] Falha no `purchaseItemRepository.saveAll()` faz rollback de `NfceDocument` e `Transaction` (tudo na mesma `@Transactional`).
+- [x] `./gradlew :banking:compileKotlin` BUILD SUCCESS.
+- [x] Teste de integração: `importNfce()` com NFC-e de 3 itens persiste 1 `NfceDocument` + 3 `PurchaseItems` na mesma transação DB.
+- [x] Teste de integração: re-import da mesma NFC-e (mesmo `chNFe`) retorna job existente sem criar duplicatas.
+- [x] `NfceDocument.totalValue`, `emissionDate`, `issuerCnpj` batem com os dados do `NfceData`.
+- [x] `PurchaseItem.effectivePrice = vProd - vDesc` para item com desconto.
+- [x] `PurchaseItem.effectivePrice = vProd` para item sem desconto (`vDesc = null`).
+- [x] `PurchaseItem.productVariantId = null` quando nenhuma camada 1-3 resolve.
+- [x] Camada 1: item com EAN que já existe em `product_variants` → `productVariantId` preenchido.
+- [x] Camada 2: item com `raw_description` já em `product_alias` → `productVariantId` preenchido.
+- [x] Falha no `purchaseItemRepository.saveAll()` faz rollback de `NfceDocument` e `Transaction` (tudo na mesma `@Transactional`).
 
 ---
 
@@ -1475,7 +1478,7 @@ Popular a tabela `banking.ncm_codes` com os ~14.000 códigos NCM da Receita Fede
 
 #### Estratégia
 
-Usar **migration Flyway separada** `V0_12__seed_ncm_codes.sql`. Apesar do volume (~14K linhas), é a abordagem mais simples e garante que todo ambiente (dev, staging, prod) receba os dados automaticamente no deploy.
+Usar **migration Flyway separada** `V0_13__seed_ncm_codes.sql`. Apesar do volume (~14K linhas), é a abordagem mais simples e garante que todo ambiente (dev, staging, prod) receba os dados automaticamente no deploy.
 
 **Fonte dos dados:** Download da tabela NCM no site da Receita Federal:
 - URL: https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/tabela-ncm
@@ -1487,7 +1490,7 @@ INSERT INTO banking.ncm_codes (code, description, depth) VALUES
 ('01',      'Animais vivos',                                      1),
 ('0101',    'Cavalos, asininos e muares, vivos',                  2),
 ('010110',  'Reprodutores de raca pura',                          3),
-('01011010','Cavalos reprodutores de raca pura',                  4),
+('01012100','Reprodutores de raça pura',                          4),
 -- ...
 ;
 ```
@@ -1498,11 +1501,11 @@ INSERT INTO banking.ncm_codes (code, description, depth) VALUES
 
 #### Critérios de aceite
 
-- [ ] Migration V0_12 aplica sem erros.
-- [ ] `SELECT COUNT(*) FROM banking.ncm_codes` ≥ 10.000 após migration.
-- [ ] Todos os 4 valores de `depth` presentes: `SELECT DISTINCT depth FROM banking.ncm_codes` = {1, 2, 3, 4}.
-- [ ] Código NCM de arroz (`1006`) existe com descrição correta.
-- [ ] Código de 8 dígitos `01011010` existe com `depth = 4`.
+- [x] Migration V0_13 aplica sem erros.
+- [x] `SELECT COUNT(*) FROM banking.ncm_codes` ≥ 10.000 após migration.
+- [x] Todos os 4 valores de `depth` presentes: `SELECT DISTINCT depth FROM banking.ncm_codes` = {1, 2, 3, 4}.
+- [x] Código NCM de arroz (`1006`) existe com descrição correta.
+- [x] Código de 8 dígitos `01012100` existe com `depth = 4`.
 
 ---
 
@@ -1513,8 +1516,353 @@ Fase 0.1 (cMunFG)  ────────────────────�
 Fase 0.3 (Migration DDL) ──→ Fase 0.4 (JPA/Repos) ──→ Fase 0.5 (ImportJobService) ─→ Fase 0 completa
 Fase 0.6 (Seed NCM) ────────── (após 0.3, paralelo com 0.4/0.5) ───────────────┘
 
-Fase 0.2 (SvrsNfceFetcher) ── ⏸ adiado para Fase 1A
+Fase 0.2 (SvrsNfceFetcher) ── ⏸ adiado para fase futura
 ```
 
-Fase 0.1, 0.3 e 0.6 podem ser iniciados imediatamente em paralelo.
-Fase 0.4 depende de 0.3. Fase 0.5 depende de 0.4.
+Fase 0 concluída com 0.1, 0.3, 0.4, 0.5 e 0.6 entregues.
+Fase 1A concluída para catálogo e normalização síncrona.
+Fase 0.2 permanece explicitamente adiada para fase futura.
+
+---
+
+## 15. Backlog Detalhado — Fase 1E — Drawer de Visualização da NF-e (Frontend)
+
+### Contexto
+
+Após importar uma NF-e, o usuário vê a transação no extrato, mas não tem como visualizar os detalhes do cupom (itens, preços, tributos, emissor). Esta fase cria um drawer que exibe todos esses dados, acessível a partir da linha da transação.
+
+O backend está **completamente implementado**: a query `nfceDocument(transactionId: ID!)` retorna todos os campos necessários. Esta fase é inteiramente de frontend.
+
+### Backend disponível
+
+**Query GraphQL:**
+```graphql
+query NfceDocument($transactionId: ID!) {
+  nfceDocument(transactionId: $transactionId) {
+    id
+    transactionId
+    accessKey
+    issuerCnpj
+    issuerName
+    emissionDate
+    totalValue
+    totalTax
+    buyerCpf
+    municipalityCode
+    municipality
+    state
+    countryCode
+    sourceUrl
+    createdAt
+    items {
+      id
+      sequence
+      rawDescription
+      ncmCode
+      ean
+      issuerProductCode
+      quantity
+      unit
+      unitPrice
+      totalPrice
+      discount
+      effectivePrice
+      normalizedUnitPrice
+      taxAmount
+      productVariant {
+        id
+        name
+        brand
+        quantityValue
+        quantityUnit
+        normalizedQuantityValue
+        normalizedQuantityUnit
+        product {
+          id
+          name
+          category
+        }
+      }
+    }
+  }
+}
+```
+
+Adicionar esta query em `web/src/lib/graphql/operations/banking/queries.ts` como `NFCE_DOCUMENT`.
+
+### Arquivos relevantes
+
+| Arquivo | Papel |
+|---|---|
+| `web/src/app/personal-finance/finance-transactions/FinanceTransactionsDialogs.tsx` | Ponto de montagem dos drawers — adicionar `NfceDocumentDrawer` aqui |
+| `web/src/app/personal-finance/finance-transactions/page.tsx` | Controla estado dos drawers — adicionar `nfceDocumentTransactionId` |
+| `web/src/app/personal-finance/finance-transactions/transaction/TransactionTable.tsx` | Linha da transação — adicionar ícone/ação para abrir o drawer |
+| `web/src/lib/graphql/operations/banking/queries.ts` | Adicionar query `NFCE_DOCUMENT` |
+| `web/src/app/personal-finance/i18n/locales/pt.json` e `en.json` | Adicionar chaves em `financeTransactions.nfceDocument.*` |
+
+### Componente a criar
+
+**`web/src/app/personal-finance/finance-transactions/transaction/NfceDocumentDrawer.tsx`**
+
+```ts
+export interface NfceDocumentDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  transactionId: string | null;
+}
+```
+
+O drawer faz lazy loading: só executa a query quando `open === true && transactionId !== null`.
+
+### Layout do drawer (a definir pelo usuário)
+
+O usuário irá fornecer o layout visual. O componente deve ser construído de forma que o layout seja facilmente customizável após entrega — usar componentes MUI padrão (`Card`, `Stack`, `Divider`, `Table`/`List`) sem CSS customizado complexo.
+
+**Sugestão de estrutura de informação para orientar o layout:**
+
+**Seção 1 — Emissor**
+- Nome do emissor (`issuerName`)
+- CNPJ formatado (`issuerCnpj` — máscara XX.XXX.XXX/XXXX-XX)
+- Município + estado (`municipality`, `state`)
+- Data de emissão (`emissionDate` — formatada como data local)
+
+**Seção 2 — Itens**
+Tabela ou lista com cada item do cupom:
+- Número de sequência (`sequence`)
+- Descrição (`rawDescription`) — se `productVariant` vinculado, mostrar nome canônico abaixo como subtexto
+- Quantidade + unidade (`quantity`, `unit`)
+- Preço unitário (`unitPrice`)
+- Desconto (`discount`) — mostrar apenas se > 0
+- Preço efetivo (`effectivePrice`)
+- Se `normalizedUnitPrice` disponível → mostrar preço por unidade normalizada (ex: "R$ 4,50/kg")
+- NCM (`ncmCode`) — mostrar como chip pequeno ou tooltip
+
+**Seção 3 — Totais**
+- Total dos produtos (`totalValue`)
+- Total de tributos (`totalTax`) — mostrar apenas se presente
+- Chave de acesso (`accessKey`) — formatada em grupos de 4 dígitos, com botão de copiar
+- Link para SEFAZ (`sourceUrl`) — botão "Consultar na SEFAZ" que abre em nova aba
+
+### Ponto de entrada na transação
+
+Transações com `source === 'NFC_E'` devem exibir um ícone/botão na linha da tabela para abrir o drawer. Ver `TransactionTable.tsx` para o padrão de ações da linha.
+
+O estado deve ser controlado na `page.tsx`:
+```ts
+const [nfceDocumentTransactionId, setNfceDocumentTransactionId] = useState<string | null>(null);
+```
+
+Passar para `FinanceTransactionsDialogs` e `TransactionTable` via props, espelhando o padrão de outros drawers existentes.
+
+### Chaves i18n a adicionar
+
+Adicionar dentro de `financeTransactions.nfceDocument` em `pt.json` e `en.json`:
+
+| Key | pt | en |
+|---|---|---|
+| `drawerTitle` | `Nota Fiscal Eletrônica` | `Electronic Invoice` |
+| `issuerSection` | `Emissor` | `Issuer` |
+| `itemsSection` | `Itens` | `Items` |
+| `totalsSection` | `Totais` | `Totals` |
+| `totalValue` | `Total` | `Total` |
+| `totalTax` | `Tributos` | `Taxes` |
+| `accessKey` | `Chave de acesso` | `Access key` |
+| `copyAccessKey` | `Copiar chave` | `Copy key` |
+| `accessKeyCopied` | `Chave copiada` | `Key copied` |
+| `viewOnSefaz` | `Consultar na SEFAZ` | `View on SEFAZ` |
+| `noDocument` | `Nenhum documento fiscal vinculado a esta transação` | `No fiscal document linked to this transaction` |
+| `perUnit` | `por {{unit}}` | `per {{unit}}` |
+
+### Critérios de aceite
+
+- [ ] Ícone/botão visível na linha de transações com `source === 'NFC_E'`
+- [ ] Ao clicar, abre drawer com dados do documento correto para aquela transação
+- [ ] Dados do emissor exibidos corretamente (CNPJ formatado, município, estado)
+- [ ] Lista de itens exibe todos os campos relevantes; itens com variante vinculada mostram o nome canônico
+- [ ] `normalizedUnitPrice` exibido onde disponível com unidade normalizada
+- [ ] Totais com `totalTax` visível apenas se presente
+- [ ] Botão "Copiar chave de acesso" funcional
+- [ ] `sourceUrl` presente → botão "Consultar na SEFAZ" abre em nova aba
+- [ ] `nfceDocument` retorna `null` → exibir mensagem `noDocument`
+- [ ] Loading state durante a query (skeleton ou spinner)
+- [ ] Todas as strings via i18n
+- [ ] TypeScript sem erros
+
+---
+
+## 14. Backlog Detalhado — Fase 1D — Drawer de Import NFC-e (Frontend)
+
+### Contexto
+
+O backend de import NFC-e está completamente implementado. O frontend possui um shell vazio (`NfceImportDrawer.tsx`) já conectado à página e ao sistema de diálogos, mas sem implementação. Esta fase consiste em implementar esse drawer.
+
+### Stack e padrões do projeto
+
+- **Framework:** Next.js 14 (App Router), React, TypeScript estrito
+- **UI:** Material UI (MUI) v5 — ver `ImportTransactionsDrawer.tsx` como referência de estilo e padrão de componentes
+- **GraphQL:** Apollo Client — usar `useMutation` de `@apollo/client/react`
+- **i18n:** sistema próprio via `useTranslation(personalFinanceTranslations)` com keys em `web/src/app/personal-finance/i18n/locales/pt.json` e `en.json`
+- **SSE de status:** `useImportJobStatus` hook — usado no `ImportTransactionsDrawer` para receber eventos assíncronos do job; **não se aplica aqui** (NFC-e é síncrono — retorna `COMPLETED` ou `REVIEW_REQUIRED` imediatamente)
+
+### Arquivos relevantes
+
+| Arquivo | Papel |
+|---|---|
+| `web/src/app/personal-finance/finance-transactions/transaction/NfceImportDrawer.tsx` | **Alvo da implementação** — shell vazio |
+| `web/src/app/personal-finance/finance-transactions/transaction/ImportTransactionsDrawer.tsx` | Referência de padrão: steps, estados, error handling, MUI |
+| `web/src/app/personal-finance/finance-transactions/transaction/ImportDuplicateReview.tsx` | Componente existente para o step `review` — reusar sem modificação |
+| `web/src/lib/graphql/operations/banking/mutations.ts` | Mutation `IMPORT_NFCE` já definida |
+| `web/src/app/personal-finance/i18n/locales/pt.json` | Chaves i18n existentes em `financeTransactions.nfce.*` |
+| `web/src/app/personal-finance/i18n/locales/en.json` | Idem em inglês |
+| `web/src/app/personal-finance/finance-transactions/FinanceTransactionsDialogs.tsx` | Já monta o drawer com `open` e `onClose` |
+| `web/src/app/personal-finance/finance-transactions/page.tsx` | Controla `isNfceImportDrawerOpen` e passa `onImportCompleted` |
+
+### Mutation GraphQL disponível
+
+```graphql
+mutation ImportNfce($financialAccountId: ID!, $qrCodeUrl: String!) {
+  importNfce(financialAccountId: $financialAccountId, qrCodeUrl: $qrCodeUrl) {
+    import {
+      id
+      status        # "COMPLETED" | "REVIEW_REQUIRED"
+      importedCount
+      skippedCount
+    }
+  }
+}
+```
+
+Importar de `web/src/lib/graphql/operations/banking/mutations.ts` como `IMPORT_NFCE`.
+
+### Props do componente
+
+O `NfceImportDrawer` já recebe `open: boolean` e `onClose: () => void`. Adicionar:
+
+```ts
+export interface NfceImportDrawerProps {
+  open: boolean;
+  onClose: () => void;
+  selectedAccountId: string | null;           // conta financeira selecionada na página
+  onImportCompleted?: () => void;             // callback para recarregar o extrato após import
+}
+```
+
+Atualizar `FinanceTransactionsDialogs.tsx` e `page.tsx` para passar `selectedAccountId` e `onImportCompleted`, espelhando o que já existe para `ImportTransactionsDrawer`.
+
+### Fluxo de steps
+
+```
+input ──→ processing ──→ result
+                    ↘──→ review   (status === "REVIEW_REQUIRED")
+                    ↘──→ error
+```
+
+Não há step de seleção de conta — usar sempre `selectedAccountId` recebido via props (a conta ativa na página). Se `selectedAccountId` for nulo, mostrar `Alert severity="warning"` no step `input` e desabilitar o botão de submit.
+
+### Step `input` — dois modos em tabs
+
+O step inicial oferece dois modos de entrada via tabs MUI:
+
+**Tab 1 — Upload de imagem**
+
+- Drop zone (mesmo padrão visual do `ImportTransactionsDrawer`) aceitando imagens: `.jpg`, `.jpeg`, `.png`
+- Ao selecionar/soltar a imagem: decodificar o QR code client-side usando a lib `jsQR`
+- Instalar: `npm install jsqr` (única dependência nova)
+- Fluxo de decodificação:
+  1. Ler imagem com `FileReader.readAsDataURL`
+  2. Desenhar em `<canvas>` fora do DOM (criar via `document.createElement('canvas')`)
+  3. Chamar `jsQR(imageData.data, width, height)` — retorna `{ data: string } | null`
+  4. Se `null` → mostrar erro: `t('financeTransactions.nfce.qrNotFound')`
+  5. Se encontrado → validar a URL (ver validação abaixo) e avançar
+
+**Tab 2 — Entrada de URL manual**
+
+- Campo `TextField` com `label` e `placeholder` usando key `financeTransactions.nfce.urlPlaceholder`
+- Botão "Importar" que valida a URL e submete
+
+### Validação da URL
+
+Antes de chamar a mutation, validar que a URL pertence a um domínio SEFAZ conhecido:
+
+```ts
+const SEFAZ_DOMAINS = [
+  'nfce.fazenda.sp.gov.br',
+  'dfe-portal.svrs.rs.gov.br',
+  'nfe.fazenda.gov.br',
+];
+
+function isValidSefazUrl(url: string): boolean {
+  try {
+    const { hostname } = new URL(url);
+    return SEFAZ_DOMAINS.some((d) => hostname === d || hostname.endsWith(`.${d}`));
+  } catch {
+    return false;
+  }
+}
+```
+
+Se inválida → mostrar `Alert severity="error"` com key `financeTransactions.nfce.invalidUrl`.
+
+### Step `processing`
+
+Mostrar `CircularProgress` centralizado. A mutation é síncrona, então este step dura apenas o tempo do request HTTP — não usar `useImportJobStatus`.
+
+### Step `result`
+
+`Alert severity="success"` com key `financeTransactions.nfce.success`. Botão "Fechar" que chama `onClose()` e dispara `onImportCompleted?.()`.
+
+### Step `review`
+
+Quando `status === "REVIEW_REQUIRED"`, renderizar `<ImportDuplicateReview>` passando o `jobId` retornado pela mutation. Ao completar: chamar `onImportCompleted?.()` e `onClose()`.
+
+Assinatura de `ImportDuplicateReview` (não modificar):
+```tsx
+<ImportDuplicateReview
+  jobId={jobId}
+  onComplete={() => { onImportCompleted?.(); onClose(); }}
+  onClose={onClose}
+/>
+```
+
+### Step `error`
+
+`Alert severity="error"` com a mensagem do erro Apollo (usar `extractErrorMessage` de `@/shared/utils/error`). Botão "Tentar novamente" volta para o step `input`.
+
+### Chaves i18n — adicionar nas duas locales
+
+Adicionar as seguintes chaves dentro de `financeTransactions.nfce` em `pt.json` e `en.json` (manter as existentes):
+
+| Key | pt | en |
+|---|---|---|
+| `uploadTab` | `Upload de imagem` | `Upload image` |
+| `urlTab` | `Digitar URL` | `Enter URL` |
+| `uploadHint` | `Arraste ou clique para selecionar uma foto do QR code da NFC-e` | `Drag or click to select a photo of the NFC-e QR code` |
+| `qrNotFound` | `QR code não encontrado na imagem. Tente uma foto mais nítida.` | `QR code not found in the image. Try a clearer photo.` |
+| `invalidUrl` | `URL não reconhecida como NFC-e válida de SEFAZ` | `URL not recognized as a valid SEFAZ NFC-e` |
+| `processing` | `Consultando SEFAZ…` | `Fetching from SEFAZ…` |
+
+### Tratamento de erros do backend
+
+A mutation pode retornar erros GraphQL. Mapear via `extractErrorCode` / `tCommon`:
+
+| Código de erro | Descrição |
+|---|---|
+| `NFCE_ALREADY_IMPORTED` | Nota já importada — mostrar `Alert info` com key `financeTransactions.nfce.alreadyImported` e botão "Fechar" |
+| `SEFAZ_UNAVAILABLE` | SEFAZ indisponível — mostrar erro com retry |
+| demais | Mostrar mensagem genérica com retry |
+
+O código `NFCE_ALREADY_IMPORTED` **não é um erro de negócio fatal** — o job existente é retornado normalmente e o import é idempotente. O backend pode retornar `status = COMPLETED` com `importedCount = 0` nesse caso; checar se essa é a resposta real ou se vem como erro GraphQL.
+
+### Critérios de aceite
+
+- [ ] Tab "Upload de imagem": ao selecionar foto com QR code válido de NFC-e, extrai a URL automaticamente e habilita "Importar"
+- [ ] Tab "Upload de imagem": ao selecionar imagem sem QR code, exibe erro `qrNotFound`
+- [ ] Tab "Digitar URL": campo aceita URL e valida antes do submit
+- [ ] URL de domínio não-SEFAZ exibe erro `invalidUrl`
+- [ ] Submit chama mutation `IMPORT_NFCE` com `financialAccountId` e `qrCodeUrl` corretos
+- [ ] `status === "COMPLETED"`: exibe tela de sucesso e chama `onImportCompleted`
+- [ ] `status === "REVIEW_REQUIRED"`: renderiza `ImportDuplicateReview` com o `jobId`
+- [ ] Erro de rede ou GraphQL: exibe step de erro com opção de retry
+- [ ] Todas as strings via i18n (sem hardcode de texto português/inglês no componente)
+- [ ] TypeScript sem erros (`tsc --noEmit`)
+- [ ] Sem dependências novas além de `jsqr`

@@ -51,6 +51,7 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
   const { data, loading, error } = useQuery<{
     transactionImport: {
       id: string;
+      source: string;
       status: string;
       duplicateReviewCount: number;
       duplicateCandidates: Array<{
@@ -82,6 +83,7 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
 
   const job = data?.transactionImport;
   const candidates = React.useMemo(() => job?.duplicateCandidates ?? [], [job?.duplicateCandidates]);
+  const isNfceReview = job?.source === 'NFC_E';
   const count = candidates.length;
   const allResolved = count > 0 && candidates.every((c) => resolutions[c.rowIndex] != null);
   const canFinish = allResolved && !submitting;
@@ -175,7 +177,7 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
                     <Card variant="outlined" sx={{ flex: 1, bgcolor: 'action.hover' }}>
                       <CardContent>
                         <Typography variant="caption" color="text.secondary">
-                          {t('financeTransactions.duplicateReview.newLabel')}
+                          {t(isNfceReview ? 'financeTransactions.duplicateReview.newLabelNfce' : 'financeTransactions.duplicateReview.newLabel')}
                         </Typography>
                         <Typography variant="body2">{parsed.description}</Typography>
                         <Typography variant="body2" color="text.secondary">
@@ -219,7 +221,7 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
                       onClick={() => setResolution(cand.rowIndex, 'USE_INCOMING')}
                       color={resolution === 'USE_INCOMING' ? 'warning' : 'primary'}
                     >
-                      {t('financeTransactions.duplicateReview.useIncoming')}
+                      {t(isNfceReview ? 'financeTransactions.duplicateReview.useIncomingLink' : 'financeTransactions.duplicateReview.useIncoming')}
                     </Button>
                     <Button
                       size="small"
@@ -231,7 +233,11 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
                   </Stack>
                   {resolution === 'USE_INCOMING' && (
                     <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 1 }}>
-                      {t('financeTransactions.duplicateReview.useIncomingWarning')}
+                      {t(
+                        isNfceReview
+                          ? 'financeTransactions.duplicateReview.useIncomingLinkWarning'
+                          : 'financeTransactions.duplicateReview.useIncomingWarning',
+                      )}
                     </Typography>
                   )}
                 </Collapse>
