@@ -59,7 +59,7 @@ export async function createTestRole(
   description: string | null,
   adminToken: string
 ): Promise<TestRole> {
-  const role = await createRole(name, description, adminToken);
+  const role = await createRole(name, adminToken);
   return {
     id: role.id,
     name: role.name,

@@ -110,8 +110,8 @@ export function FinancialAccountSelector({
   const consolidatedViewText = consolidatedViewLabel || t('financeTransactions.selector.consolidatedView');
   const newAccountText = newAccountLabel || t('financeTransactions.actions.newAccountOrCard');
   const unknownIssuerText = unknownIssuerLabel || t('financeTransactions.selector.unknownIssuer');
-  const searchPlaceholderText = searchPlaceholder || t('financeTransactions.selector.searchPlaceholder', 'Search accounts...');
-  const noAccountsFoundText = noAccountsFoundLabel || t('financeTransactions.selector.noAccountsFound', 'No accounts found');
+  const searchPlaceholderText = searchPlaceholder || t('financeTransactions.selector.searchPlaceholder');
+  const noAccountsFoundText = noAccountsFoundLabel || t('financeTransactions.selector.noAccountsFound');
 
   const filteredAccounts = useMemo(() => {
     const accounts = scopedAccounts;

@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.service.preferences
 
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.repo.preferences.AccountPreferencesRepository
@@ -30,14 +29,13 @@ open class AccountPreferencesService(
     open fun update(
         accountId: UUID,
         principal: RequestPrincipal,
-        ruleApplicationMode: RuleApplicationMode?,
         defaultTransactionStatus: TransactionStatus?,
     ): AccountPreferences {
         if (!principal.isOwnerOfAccount(accountId)) {
             throw BusinessRuleException(BankingErrorCode.ACCOUNT_PREFERENCES_OWNER_REQUIRED)
         }
 
-        if (ruleApplicationMode == null && defaultTransactionStatus == null) {
+        if (defaultTransactionStatus == null) {
             throw ValidationException(CommonErrorCode.VALIDATION_ERROR, field = "input")
         }
 
@@ -59,7 +57,6 @@ open class AccountPreferencesService(
 
         val patched =
             base.copy(
-                ruleApplicationMode = ruleApplicationMode ?: base.ruleApplicationMode,
                 defaultTransactionStatus = defaultTransactionStatus ?: base.defaultTransactionStatus,
                 updatedAt = now,
             )
@@ -72,7 +69,6 @@ open class AccountPreferencesService(
                 val entity =
                     AccountPreferencesEntity(
                         accountId = accountId,
-                        ruleApplicationMode = patched.ruleApplicationMode,
                         defaultTransactionStatus = patched.defaultTransactionStatus,
                         createdAt = now,
                         updatedAt = now,
@@ -83,4 +79,3 @@ open class AccountPreferencesService(
         return mapper.toDomain(saved)
     }
 }
-

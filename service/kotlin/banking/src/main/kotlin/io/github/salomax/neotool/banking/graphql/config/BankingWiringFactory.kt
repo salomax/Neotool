@@ -11,6 +11,7 @@ import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
+import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
@@ -43,6 +44,7 @@ class BankingWiringFactory(
     private val transactionCategoryResolver: TransactionCategoryResolver,
     private val merchantResolver: MerchantResolver,
     private val accountPreferencesResolver: AccountPreferencesResolver,
+    private val bankingUserPreferencesResolver: BankingUserPreferencesResolver,
     private val investmentResolver: InvestmentResolver,
     private val pendingActionResolver: PendingActionResolver,
     private val investmentQueryService: InvestmentQueryService,
@@ -77,6 +79,14 @@ class BankingWiringFactory(
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
                         accountPreferencesResolver.accountPreferences(principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "bankingUserPreferences",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        bankingUserPreferencesResolver.bankingUserPreferences(principal)
                     }
                 },
             )
@@ -579,6 +589,17 @@ class BankingWiringFactory(
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
                         accountPreferencesResolver.updateAccountPreferences(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateBankingUserPreferences",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        bankingUserPreferencesResolver.updateBankingUserPreferences(input, principal)
                     }
                 },
             )

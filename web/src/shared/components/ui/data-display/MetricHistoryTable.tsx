@@ -77,7 +77,7 @@ export function MetricHistoryTable({
       case "12": qKey = "q4"; break;
       default: return `${month} ${year}`;
     }
-    return `${t(`calendar.quarters.${qKey}`, qKey.toUpperCase())} ${year}`;
+    return `${t(`calendar.quarters.${qKey}`)} ${year}`;
   };
 
   const defaultFormatPeriod = (value: string) => {
@@ -100,8 +100,8 @@ export function MetricHistoryTable({
   };
 
   const formatPeriod = onFormatPeriod || defaultFormatPeriod;
-  const displayTitle = title || t("summary", "Summary");
-  const displayPeriodLabel = periodLabel || t("quarter", "QUARTER");
+  const displayTitle = title || t("summary");
+  const displayPeriodLabel = periodLabel || t("quarter");
 
   // Helper to format value
   const formatValue = (val: number | null) => {
@@ -194,10 +194,10 @@ export function MetricHistoryTable({
               {displayPeriodLabel}
             </TableCell>
             <TableCell align="right" sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.75rem", textTransform: "uppercase" }}>
-              {t("value", "VALUE")}
+              {t("value")}
             </TableCell>
             <TableCell align="right" sx={{ color: "text.secondary", fontWeight: 600, fontSize: "0.75rem", textTransform: "uppercase" }}>
-              {valueType === "percentage" ? t("variation", "VARIAÇÃO") : t("evolution", "EVOLUÇÃO %")}
+              {valueType === "percentage" ? t("variation") : t("evolution")}
             </TableCell>
           </TableRow>
         </TableHead>

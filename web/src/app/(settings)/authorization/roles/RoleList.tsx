@@ -124,8 +124,8 @@ export const RoleList: React.FC<RoleListProps> = ({
             <PermissionGate require="security:role:view">
               <EditActionButton
                 onClick={() => onEdit(role)}
-                tooltipTitle={t("roleManagement.editRole", "Edit role")}
-                ariaLabel={`${t("roleManagement.editRole", "Edit role")} ${role.name}`}
+                tooltipTitle={t("roleManagement.editRole")}
+                ariaLabel={`${t("roleManagement.editRole")} ${role.name}`}
                 data-testid={`edit-role-${role.id}`}
                 size="small"
               />
@@ -134,8 +134,8 @@ export const RoleList: React.FC<RoleListProps> = ({
               <PermissionGate require="security:role:delete">
                 <DeleteActionButton
                   onClick={() => onDelete(role)}
-                  tooltipTitle={t("roleManagement.deleteRole", "Delete role")}
-                  ariaLabel={`${t("roleManagement.deleteRole", "Delete role")} ${role.name}`}
+                  tooltipTitle={t("roleManagement.deleteRole")}
+                  ariaLabel={`${t("roleManagement.deleteRole")} ${role.name}`}
                   data-testid={`delete-role-${role.id}`}
                   size="small"
                 />

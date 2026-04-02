@@ -264,13 +264,14 @@ class BillImportResolver(
             return null
         }
         val payload = job.reviewPayload ?: return null
+        val createdByUserId = job.createdByUserId
         val looksCanonical = payload.contains("\"schemaId\"") || payload.contains("\"schema_id\"")
         if (looksCanonical) {
-            return billImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
+            return billImportService.projectReviewPayload(payload, job.accountId, createdByUserId)?.toDTO()
         }
         // Always go through projectReviewPayload so we can enrich with categorization suggestions
         // (CAT-25) before the review screen is rendered.
-        return billImportService.projectReviewPayload(payload, job.accountId)?.toDTO()
+        return billImportService.projectReviewPayload(payload, job.accountId, createdByUserId)?.toDTO()
     }
 
     private fun BillImportReview.toDTO(): BillImportReviewDTO =

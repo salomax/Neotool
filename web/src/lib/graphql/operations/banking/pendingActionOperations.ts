@@ -33,6 +33,10 @@ export const GET_PENDING_ACTIONS = gql`
         asset {
           id
           name
+          issuerName
+          logoAsset {
+            publicUrl
+          }
         }
       }
     }

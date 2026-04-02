@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.model.preferences
 
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
@@ -17,9 +16,6 @@ open class AccountPreferencesEntity(
     @Id
     @Column(name = "account_id", nullable = false, columnDefinition = "uuid")
     open var accountId: UUID,
-    @Enumerated(EnumType.STRING)
-    @Column(name = "rule_application", nullable = false, length = 24)
-    open var ruleApplicationMode: RuleApplicationMode,
     @Enumerated(EnumType.STRING)
     @Column(name = "default_txn_status", nullable = false, length = 16)
     open var defaultTransactionStatus: TransactionStatus,

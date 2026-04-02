@@ -39,7 +39,6 @@ type AccountPendingAction
 type AccountPreferences
   @join__type(graph: BANKING)
 {
-  ruleApplicationMode: RuleApplicationMode!
   defaultTransactionStatus: TransactionStatus!
 }
 
@@ -557,6 +556,12 @@ input BankAccountDataInput
   number: String
   checkDigit: String
   maskedNumber: String
+}
+
+type BankingUserPreferences
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode!
 }
 
 type BillImportJob
@@ -1129,7 +1134,7 @@ type CreateTransactionPayload
 {
   transaction: Transaction!
 
-  """Only populated when account.ruleApplicationMode = ALWAYS_PROMPT."""
+  """Only populated when bankingUserPreferences.ruleApplicationMode = ALWAYS_PROMPT."""
   appliedRules: [TransactionRule!]
 }
 
@@ -2440,6 +2445,8 @@ type Mutation
   setUsageBudget(input: SetBudgetInput!): UsageBudget! @join__field(graph: ASSISTANT)
   _bankingService: String @join__field(graph: BANKING)
 
+  updateBankingUserPreferences(input: UpdateBankingUserPreferencesInput!): BankingUserPreferences! @join__field(graph: BANKING)
+
   """Updates current account preferences (account owner only)."""
   updateAccountPreferences(input: UpdateAccountPreferencesInput!): AccountPreferences! @join__field(graph: BANKING)
 
@@ -2824,6 +2831,9 @@ type Query
 
   """All financial accounts belonging to the authenticated user's account."""
   financialAccounts: [FinancialAccount!]! @join__field(graph: BANKING)
+
+  """Current banking user preferences (defaults when no row exists)."""
+  bankingUserPreferences: BankingUserPreferences! @join__field(graph: BANKING)
 
   """Current account (tenant) preferences (defaults when no row exists)."""
   accountPreferences: AccountPreferences! @join__field(graph: BANKING)
@@ -3680,8 +3690,13 @@ enum TransactionType
 input UpdateAccountPreferencesInput
   @join__type(graph: BANKING)
 {
-  ruleApplicationMode: RuleApplicationMode
   defaultTransactionStatus: TransactionStatus
+}
+
+input UpdateBankingUserPreferencesInput
+  @join__type(graph: BANKING)
+{
+  ruleApplicationMode: RuleApplicationMode
 }
 
 input CreateProductInput

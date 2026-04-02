@@ -13,9 +13,8 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -41,7 +40,7 @@ class ImportProcessorTest {
     private lateinit var crossSourceDedupService: CrossSourceDedupService
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var categorizationService: TransactionRuleEngine
-    private lateinit var accountPreferencesService: AccountPreferencesService
+    private lateinit var userRuleApplicationModeService: UserRuleApplicationModeService
     private lateinit var processor: ImportProcessor
 
     private lateinit var jobId: UUID
@@ -59,7 +58,7 @@ class ImportProcessorTest {
         crossSourceDedupService = mock()
         transactionRepository = mock()
         categorizationService = mock()
-        accountPreferencesService = mock()
+        userRuleApplicationModeService = mock()
         whenever(categorizationService.preloadRules(any())).thenReturn(emptyList())
         whenever(categorizationService.suggestFromRulesRecordingMatch(any(), any(), any())).thenReturn(null)
         processor =
@@ -69,7 +68,7 @@ class ImportProcessorTest {
                 crossSourceDedupService = crossSourceDedupService,
                 transactionRepository = transactionRepository,
                 categorizationService = categorizationService,
-                accountPreferencesService = accountPreferencesService,
+                userRuleApplicationModeService = userRuleApplicationModeService,
             )
         jobId = UUID.randomUUID()
         financialAccountId = UUID.randomUUID()
@@ -87,15 +86,7 @@ class ImportProcessorTest {
                 createdAt = now,
                 updatedAt = now,
             )
-        whenever(accountPreferencesService.get(accountId)).thenReturn(
-            AccountPreferences(
-                accountId = accountId,
-                ruleApplicationMode = RuleApplicationMode.ALWAYS,
-                defaultTransactionStatus = TransactionStatus.POSTED,
-                createdAt = now,
-                updatedAt = now,
-            ),
-        )
+        whenever(userRuleApplicationModeService.get(createdByUserId)).thenReturn(RuleApplicationMode.ALWAYS)
     }
 
     private fun parsedRow(

@@ -30,8 +30,6 @@ export function formatFundAssetType(
   assetType: CvmFundAssetType,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  return t(`investments.funds.assetTypes.${String(assetType)}` as string, {
-    defaultValue: String(assetType).replaceAll("_", " "),
-  });
+  return t(`investments.funds.assetTypes.${String(assetType)}` as string);
 }
 

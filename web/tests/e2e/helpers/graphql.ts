@@ -9,6 +9,20 @@ export interface GraphQLResponse<T = any> {
   errors?: Array<{ message: string; path?: string[] }>;
 }
 
+export interface AuthSessionUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  roles: Array<{ id: string; name: string }>;
+  permissions: Array<{ id: string; name: string }>;
+}
+
+export interface AuthSession {
+  token: string;
+  refreshToken: string | null;
+  user: AuthSessionUser;
+}
+
 /**
  * Execute a GraphQL query or mutation
  */
@@ -48,36 +62,62 @@ export async function executeGraphQL<T = any>(
 }
 
 /**
- * Sign in and get authentication token
+ * Sign in and return the session payload used by the frontend auth provider.
  */
-export async function signIn(email: string, password: string): Promise<string> {
+export async function signInWithSession(
+  email: string,
+  password: string,
+  rememberMe = true
+): Promise<AuthSession> {
   const mutation = `
     mutation SignIn($input: SignInInput!) {
       signIn(input: $input) {
         token
+        refreshToken
         user {
           id
           email
+          displayName
+          roles {
+            id
+            name
+          }
+          permissions {
+            id
+            name
+          }
         }
       }
     }
   `;
 
   const result = await executeGraphQL<{
-    signIn: { token: string; user: { id: string; email: string } };
+    signIn: AuthSession;
   }>(mutation, {
     input: {
       email,
       password,
-      rememberMe: false,
+      rememberMe,
     },
   });
 
-  if (result.errors || !result.data?.signIn?.token) {
+  if (result.errors || !result.data?.signIn?.token || !result.data?.signIn?.user) {
     throw new Error(`Sign in failed: ${result.errors?.[0]?.message || 'Unknown error'}`);
   }
 
-  return result.data.signIn.token;
+  return result.data.signIn;
+}
+
+/**
+ * Sign in and get only the access token.
+ */
+export async function signIn(
+  email: string,
+  password: string,
+  rememberMe = false
+): Promise<string> {
+  const session = await signInWithSession(email, password, rememberMe);
+  return session.token;
 }
 
 /**
@@ -165,7 +205,6 @@ export async function disableUser(userId: string, token: string): Promise<void> 
  */
 export async function createRole(
   name: string,
-  description: string | null,
   token: string
 ): Promise<{ id: string; name: string }> {
   const mutation = `

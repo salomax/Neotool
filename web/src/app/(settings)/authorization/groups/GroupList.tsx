@@ -145,8 +145,8 @@ export const GroupList: React.FC<GroupListProps> = ({
               <PermissionGate require="security:group:delete">
                 <DeleteActionButton
                   onClick={() => onDelete(group)}
-                  tooltipTitle={t("groupManagement.deleteGroup", "Delete group")}
-                  ariaLabel={`${t("groupManagement.deleteGroup", "Delete group")} ${group.name}`}
+                  tooltipTitle={t("groupManagement.deleteGroup")}
+                  ariaLabel={`${t("groupManagement.deleteGroup")} ${group.name}`}
                   data-testid={`delete-group-${group.id}`}
                   size="small"
                 />

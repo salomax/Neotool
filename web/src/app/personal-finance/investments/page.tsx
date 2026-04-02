@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
 import {
   alpha,
@@ -43,12 +44,14 @@ import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
 import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawer";
-import { PendingActionsPanel } from "./PendingActionsPanel";
+import { PendingActionsDrawer } from "./PendingActionsDrawer";
 import { Label } from "@/shared/components/ui";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const benefitAccountType = "BENEFIT" as unknown as FinancialAccountType;
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
   const [isRecordFixedIncomeOpen, setIsRecordFixedIncomeOpen] = React.useState(false);
@@ -96,6 +99,14 @@ export default function PersonalFinanceInvestmentsPage() {
     [accountsData?.financialAccounts],
   );
 
+  const pendingActionsOpen = searchParams.get("pendingActions") === "1";
+  const closePendingActions = () => {
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete("pendingActions");
+    const qs = params.toString();
+    router.replace(qs ? `/personal-finance/investments?${qs}` : "/personal-finance/investments");
+  };
+
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
 
   const sidebar = (
@@ -111,85 +122,6 @@ export default function PersonalFinanceInvestmentsPage() {
           newAccountLabel={t("investments.emptyState.primaryAction")}
         />
         <Divider sx={{ my: 3 }} />
-        <Box
-          sx={{
-            p: 2,
-            borderRadius: `${theme.custom.radius.button}px`,
-            border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
-            bgcolor: "background.paper",
-            boxShadow: theme.shadows[1],
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 1 }}>
-            <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.12em" }}>
-              {t("investments.sidebar.summaryTitle")}
-            </Typography>
-            <Box
-              sx={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                bgcolor: alpha(theme.palette.text.primary, 0.08),
-              }}
-            />
-          </Box>
-
-          <Typography variant="caption" color="text.secondary">
-            {t("investments.sidebar.totalLabel")}
-          </Typography>
-          <Typography variant="h6" fontWeight={900} sx={{ mb: 1 }}>
-            R$ 0,00
-          </Typography>
-
-          <Stack spacing={1.25} sx={{ mt: 2 }}>
-            {[
-              { label: t("investments.sidebar.metrics.contributions"), color: theme.palette.primary.main },
-              { label: t("investments.sidebar.metrics.returns"), color: theme.palette.success.main },
-            ].map((item) => (
-              <Box key={item.label} sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2 }}>
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      bgcolor: alpha(item.color, 0.9),
-                      flex: "0 0 auto",
-                    }}
-                  />
-                  <Typography variant="body2" color="text.secondary" noWrap>
-                    {item.label}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" fontWeight={700} noWrap>
-                  R$ 0,00 <Box component="span" sx={{ color: "text.secondary", fontWeight: 600 }}>(0%)</Box>
-                </Typography>
-              </Box>
-            ))}
-          </Stack>
-
-          <Box sx={{ mt: 2 }}>
-            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <Typography variant="caption" color="text.secondary" sx={{ letterSpacing: "0.12em" }}>
-                {t("investments.sidebar.allocation")}
-              </Typography>
-              <Typography variant="caption" color="text.secondary" fontWeight={700}>
-                0%
-              </Typography>
-            </Box>
-            <Box
-              sx={{
-                mt: 1,
-                height: 6,
-                borderRadius: 999,
-                bgcolor: alpha(theme.palette.primary.main, 0.12),
-                overflow: "hidden",
-              }}
-            >
-              <Box sx={{ width: "0%", height: "100%", bgcolor: "primary.main" }} />
-            </Box>
-          </Box>
-        </Box>
       </Box>
     </Box>
   );
@@ -399,7 +331,6 @@ export default function PersonalFinanceInvestmentsPage() {
                   {t("investments.actions.recordHolding")}
                 </Button>
               </Box>
-              <PendingActionsPanel bankAccounts={bankAccounts} />
               <Box sx={{ mt: 2 }}>
                 <InvestmentTable
                   selectedAccountId={selectedAccountId}
@@ -413,6 +344,8 @@ export default function PersonalFinanceInvestmentsPage() {
         </SidebarLayout>
       )}
 
+      <PendingActionsDrawer open={pendingActionsOpen} onClose={closePendingActions} bankAccounts={bankAccounts} />
+
       <CreateInvestmentAccountDrawer
         open={isCreateAccountOpen}
         onClose={() => setIsCreateAccountOpen(false)}
@@ -420,19 +353,19 @@ export default function PersonalFinanceInvestmentsPage() {
       />
 
       <Menu anchorEl={holdingMenuAnchor} open={isHoldingMenuOpen} onClose={closeHoldingMenu}>
-        <MenuItem onClick={handleSelectFixedIncome}>
+        <MenuItem onClick={handleSelectFixedIncome} data-testid="record-holding-option-fixed-income">
           <ListItemIcon>
             <AssetTypeIcon kind="FIXED_INCOME" fontSize="small" />
           </ListItemIcon>
           {t("investments.trackableAssets.fixedIncome")}
         </MenuItem>
-        <MenuItem onClick={handleSelectFund}>
+        <MenuItem onClick={handleSelectFund} data-testid="record-holding-option-fund">
           <ListItemIcon>
             <AssetTypeIcon kind="FUND" fontSize="small" />
           </ListItemIcon>
           {t("investments.table.groups.mutualFunds")}
         </MenuItem>
-        <MenuItem onClick={handleSelectEquity}>
+        <MenuItem onClick={handleSelectEquity} data-testid="record-holding-option-equity">
           <ListItemIcon>
             <AssetTypeIcon kind="STOCK" fontSize="small" />
           </ListItemIcon>

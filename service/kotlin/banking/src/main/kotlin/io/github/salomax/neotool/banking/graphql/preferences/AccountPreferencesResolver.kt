@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.graphql.preferences
 
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.graphql.parseEnumValue
 import io.github.salomax.neotool.banking.graphql.preferences.dto.AccountPreferencesDTO
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -23,23 +23,20 @@ class AccountPreferencesResolver(
         principal: RequestPrincipal,
     ): AccountPreferencesDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val ruleApplicationMode =
-            (input["ruleApplicationMode"] as? String)?.let { RuleApplicationMode.valueOf(it) }
         val defaultTransactionStatus =
-            (input["defaultTransactionStatus"] as? String)?.let { TransactionStatus.valueOf(it) }
+            (input["defaultTransactionStatus"] as? String)?.let {
+                parseEnumValue<TransactionStatus>("defaultTransactionStatus", it)
+            }
 
         return service.update(
             accountId = accountId,
             principal = principal,
-            ruleApplicationMode = ruleApplicationMode,
             defaultTransactionStatus = defaultTransactionStatus,
         ).toDTO()
     }
 
     private fun AccountPreferences.toDTO(): AccountPreferencesDTO =
         AccountPreferencesDTO(
-            ruleApplicationMode = ruleApplicationMode,
             defaultTransactionStatus = defaultTransactionStatus,
         )
 }
-

@@ -6,7 +6,6 @@ import java.util.UUID
 
 data class AccountPreferences(
     val accountId: UUID,
-    val ruleApplicationMode: RuleApplicationMode,
     val defaultTransactionStatus: TransactionStatus,
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -15,7 +14,6 @@ data class AccountPreferences(
         fun defaultsFor(accountId: UUID, now: Instant = Instant.now()): AccountPreferences =
             AccountPreferences(
                 accountId = accountId,
-                ruleApplicationMode = RuleApplicationMode.ALWAYS_PROMPT,
                 defaultTransactionStatus = TransactionStatus.POSTED,
                 createdAt = now,
                 updatedAt = now,

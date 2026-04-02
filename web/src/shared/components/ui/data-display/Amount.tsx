@@ -68,7 +68,7 @@ export const Amount: React.FC<AmountProps> = ({
     } catch {
       return (value as number).toLocaleString(resolvedLocale);
     }
-  }, [hasNumber, value, currency, resolvedLocale]);
+  }, [currency, hasNumber, resolvedLocale, value]);
 
   return (
     <Typography

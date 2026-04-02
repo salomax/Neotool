@@ -18,6 +18,11 @@ vi.mock('@apollo/client/react', () => ({
 
 vi.mock('@/shared/providers', () => ({
   useToast: () => mockToast,
+  usePreferences: () => ({
+    bankingUserPreferences: {
+      ruleApplicationMode: 'ALWAYS_PROMPT',
+    },
+  }),
 }));
 
 vi.mock('../../category/CategoryPicker', () => ({

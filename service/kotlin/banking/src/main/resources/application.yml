@@ -131,7 +131,7 @@ banking:
 kafka:
   enabled: ${KAFKA_ENABLED:true}
   bootstrap:
-    servers: ${KAFKA_BROKERS:}
+    servers: ${KAFKA_BROKERS}
   topics:
     import-file-requested: banking.import.file-requested
     import-file-requested-dlt: banking.import.file-requested.DLT
@@ -155,8 +155,8 @@ kafka:
       enabled: ${KAFKA_PDF_STATUS_ENABLED:true}
       group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-bill-import-status}
     bill-import-status:
-      enabled: ${KAFKA_BILL_IMPORT_STATUS_ENABLED:${kafka.consumers.pdf-status.enabled}}
-      group-id: ${KAFKA_BILL_IMPORT_STATUS_GROUP_ID:${kafka.consumers.pdf-status.group-id}}
+      enabled: ${KAFKA_BILL_IMPORT_STATUS_ENABLED:true}
+      group-id: ${KAFKA_BILL_IMPORT_STATUS_GROUP_ID:banking-service-bill-import-status}
   producers:
     default:
       acks: all

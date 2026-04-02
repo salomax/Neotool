@@ -34,7 +34,15 @@ open class UserPreferencesService(
         if (language == null && theme == null && blurBalances == null && firstDayOfWeek == null) {
             throw ValidationException(CommonErrorCode.VALIDATION_ERROR, field = "input")
         }
-        firstDayOfWeek?.let { require(it in 1..7) { "firstDayOfWeek must be between 1 and 7" } }
+        firstDayOfWeek?.let {
+            if (it !in 1..7) {
+                throw ValidationException(
+                    errorCode = CommonErrorCode.INVALID_INPUT,
+                    field = "firstDayOfWeek",
+                    parameters = mapOf("reason" to "must be between 1 and 7"),
+                )
+            }
+        }
 
         val now = Instant.now()
         val existing = repository.findById(userId).orElse(null)
@@ -47,8 +55,8 @@ open class UserPreferencesService(
 
         val patched =
             base.copy(
-                language = language?.let { Language.valueOf(it) } ?: base.language,
-                theme = theme?.let { Theme.valueOf(it) } ?: base.theme,
+                language = language?.let { parseEnumValue<Language>("language", it) } ?: base.language,
+                theme = theme?.let { parseEnumValue<Theme>("theme", it) } ?: base.theme,
                 blurBalances = blurBalances ?: base.blurBalances,
                 firstDayOfWeek = firstDayOfWeek ?: base.firstDayOfWeek,
                 updatedAt = now,
@@ -71,4 +79,15 @@ open class UserPreferencesService(
             }
         return mapper.toDomain(repository.save(entity))
     }
+
+    private inline fun <reified T : Enum<T>> parseEnumValue(
+        field: String,
+        rawValue: String,
+    ): T =
+        enumValues<T>().firstOrNull { it.name == rawValue }
+            ?: throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_INPUT,
+                field = field,
+                parameters = mapOf("value" to rawValue),
+            )
 }

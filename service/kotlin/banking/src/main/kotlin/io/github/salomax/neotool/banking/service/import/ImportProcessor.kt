@@ -8,13 +8,13 @@ import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupSer
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
@@ -79,7 +79,7 @@ open class ImportProcessor(
     private val crossSourceDedupService: CrossSourceDedupService,
     private val transactionRepository: TransactionRepository,
     private val categorizationService: TransactionRuleEngine,
-    private val accountPreferencesService: AccountPreferencesService,
+    private val userRuleApplicationModeService: UserRuleApplicationModeService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
     /**
@@ -117,7 +117,7 @@ open class ImportProcessor(
         val sameSourceDuplicateCache = mutableMapOf<String, Boolean>()
         val fingerprintDuplicateCache = mutableMapOf<String, Boolean>()
 
-        val mode = accountPreferencesService.get(accountId).ruleApplicationMode
+        val mode = userRuleApplicationModeService.get(createdByUserId)
 
         val categorizationRules =
             if (mode == RuleApplicationMode.NEVER) {

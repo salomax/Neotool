@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useMutation } from "@apollo/client/react";
-import { Alert, Avatar, Box, Typography } from "@mui/material";
+import { Alert, Box, Divider } from "@mui/material";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -20,11 +20,12 @@ import {
   HoldingCloseReason,
 } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { DatePickerField, MoneyInput, SelectField } from "@/shared/components/ui/forms/form";
-import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
+import { DatePickerField, MoneyInput, SelectField, ToggleField } from "@/shared/components/ui/forms/form";
+import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
+import { HoldingIdentity } from "./components/HoldingIdentity";
 
 const step1Schema = z
   .object({
@@ -76,6 +77,7 @@ type MaturityConfirmFormData = {
   iof: number | undefined;
   maturityDate: Date | null;
   closeReason: HoldingCloseReason;
+  shouldCreditToAccount: boolean;
   bankAccountId: string;
   creditAmount: number | undefined;
   creditDate: Date | null;
@@ -90,7 +92,6 @@ export function MaturityConfirmDrawer({
 }: MaturityConfirmDrawerProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
-  const [step, setStep] = React.useState<1 | 2>(1);
   const [step1Error, setStep1Error] = React.useState<string | null>(null);
 
   const [confirmMaturity, { loading }] = useMutation<
@@ -114,6 +115,7 @@ export function MaturityConfirmDrawer({
       iof: undefined,
       maturityDate: null,
       closeReason: HoldingCloseReason.Matured,
+      shouldCreditToAccount: false,
       bankAccountId: "",
       creditAmount: undefined,
       creditDate: null,
@@ -124,7 +126,6 @@ export function MaturityConfirmDrawer({
 
   React.useEffect(() => {
     if (!open || !holding) return;
-    setStep(1);
     setStep1Error(null);
     const g = holding.grossValue ?? 0;
     const n = holding.netValue ?? g;
@@ -136,6 +137,7 @@ export function MaturityConfirmDrawer({
       iof: holding.iof ?? undefined,
       maturityDate: defaultMaturityDate,
       closeReason: HoldingCloseReason.Matured,
+      shouldCreditToAccount: false,
       bankAccountId: selectableBanks[0]?.id ?? "",
       creditAmount: n,
       creditDate: defaultMaturityDate,
@@ -144,6 +146,7 @@ export function MaturityConfirmDrawer({
 
   const watchedBankAccountId = useWatch({ control: methods.control, name: "bankAccountId" });
   const watchedMaturityDate = useWatch({ control: methods.control, name: "maturityDate" });
+  const watchedShouldCreditToAccount = useWatch({ control: methods.control, name: "shouldCreditToAccount" });
 
   const maturityDateStr = React.useMemo(() => {
     if (watchedMaturityDate) return dayjs(watchedMaturityDate).format("YYYY-MM-DD");
@@ -164,26 +167,7 @@ export function MaturityConfirmDrawer({
     [t],
   );
 
-  const handleStep1Next = () => {
-    const values = methods.getValues();
-    const parsed = step1Schema.safeParse({
-      grossValue: values.grossValue,
-      netValue: values.netValue,
-      incomeTax: values.incomeTax,
-      iof: values.iof,
-      maturityDate: values.maturityDate,
-      closeReason: values.closeReason,
-    });
-    if (!parsed.success) {
-      const msg = parsed.error.issues[0]?.message || "Invalid";
-      setStep1Error(msg);
-      return;
-    }
-    setStep1Error(null);
-    setStep(2);
-  };
-
-  const submit = async (withCash: boolean) => {
+  const submit = async () => {
     if (!holding) return;
     const values = methods.getValues();
     const parsed = step1Schema.safeParse({
@@ -196,7 +180,6 @@ export function MaturityConfirmDrawer({
     });
 
     if (!parsed.success) {
-      setStep(1);
       setStep1Error(parsed.error.issues[0]?.message || "Invalid");
       return;
     }
@@ -207,7 +190,7 @@ export function MaturityConfirmDrawer({
     const cashMovementAmount = values.creditAmount ?? 0;
 
     const cashMovement =
-      withCash && values.bankAccountId
+      values.shouldCreditToAccount && values.bankAccountId
         ? {
             financialAccountId: values.bankAccountId,
             amount: cashMovementAmount,
@@ -215,7 +198,16 @@ export function MaturityConfirmDrawer({
           }
         : undefined;
 
-    if (withCash && cashMovement) {
+    if (values.shouldCreditToAccount && !values.bankAccountId) {
+      toast.error(
+        t("investments.pendingActions.maturityDrawer.selectBankAccount", {
+          defaultValue: "Selecione a conta para creditar",
+        }),
+      );
+      return;
+    }
+
+    if (values.shouldCreditToAccount && cashMovement) {
       if (!(cashMovementAmount > 0)) {
         toast.error(t("investments.pendingActions.maturityDrawer.amountMustBePositive"));
         return;
@@ -247,131 +239,120 @@ export function MaturityConfirmDrawer({
 
   if (!holding) return null;
 
-  const title = t("investments.pendingActions.maturityDrawer.closePositionTitle", {
-    defaultValue: "ENCERRAR POSIÇÃO",
-  });
+  const title = t("investments.pendingActions.maturityDrawer.closePositionTitle");
 
   return (
     <Drawer open={open} onClose={onClose} anchor="right" size="md">
       <Drawer.Header title={title} />
       <Drawer.Body>
         <FormProvider {...methods}>
-          <FormStack spacing={2} sx={{ maxWidth: 520 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
-              <Avatar
-                variant="rounded"
-                src={holding.issuerLogoUrl ?? undefined}
-                alt={holding.issuerName ?? undefined}
-                sx={{ width: 36, height: 36 }}
-                slotProps={{ img: { style: { objectFit: "contain" } } }}
-              >
-                {(holding.issuerName ?? holding.asset.name ?? "—").slice(0, 1).toUpperCase()}
-              </Avatar>
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" noWrap>
-                  {holding.asset.name}
-                </Typography>
-                {holding.issuerName ? (
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {holding.issuerName}
-                  </Typography>
-                ) : null}
-              </Box>
-            </Box>
+          <FormStack spacing={2} >
+            <HoldingIdentity
+              assetName={holding.asset.name}
+              issuerName={holding.issuerName ?? undefined}
+              logoUrl={holding.issuerLogoUrl ?? undefined}
+              size={36}
+              sx={{ pb: 1 }}
+            />
+            {step1Error ? <Alert severity="error">{step1Error}</Alert> : null}
 
-            {step === 1 ? (
-              <>
-                {step1Error ? <Alert severity="error">{step1Error}</Alert> : null}
-
+            <FormRowStack alignItems="flex-start">
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <MoneyInput
                   name="grossValue"
                   label={t("investments.pendingActions.maturityDrawer.grossValue")}
                   currency="BRL"
                 />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <MoneyInput
                   name="netValue"
                   label={t("investments.pendingActions.maturityDrawer.netValue")}
                   currency="BRL"
                 />
+              </Box>
+            </FormRowStack>
+
+            <FormRowStack alignItems="flex-start">
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <MoneyInput
                   name="incomeTax"
                   label={t("investments.pendingActions.maturityDrawer.incomeTax")}
                   currency="BRL"
                 />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <MoneyInput
                   name="iof"
                   label={t("investments.pendingActions.maturityDrawer.iof")}
                   currency="BRL"
                 />
+              </Box>
+            </FormRowStack>
 
-                <DatePickerField
-                  name="maturityDate"
-                  label={t("investments.pendingActions.maturityDrawer.maturityDate", { defaultValue: "Data" })}
-                />
-
+            <FormRowStack alignItems="flex-start">
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <DatePickerField name="maturityDate" label={t("investments.pendingActions.maturityDrawer.maturityDate")} />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <SelectField
                   name="closeReason"
                   label={t("investments.pendingActions.maturityDrawer.closeReason")}
                   options={closeReasonOptions}
                 />
-              </>
-            ) : (
-              <>
-                <Typography variant="body2">
-                  {t("investments.pendingActions.maturityDrawer.step2Hint")}
-                </Typography>
+              </Box>
+            </FormRowStack>
 
+            <ToggleField
+              name="shouldCreditToAccount"
+              label={t(
+                "investments.pendingActions.maturityDrawer.creditNetValueToAccount",
+                { defaultValue: "Creditar o valor liquido na conta?" },
+              )}
+              data-testid="maturity-credit-toggle"
+            />
+
+            {watchedShouldCreditToAccount ? (
+              <>
                 <SelectField
                   name="bankAccountId"
                   label={t("investments.pendingActions.maturityDrawer.bankAccount")}
                   options={selectableBanks.map((a) => ({ value: a.id, label: a.name }))}
                 />
 
-                <MoneyInput
-                  name="creditAmount"
-                  label={t("investments.pendingActions.maturityDrawer.netValue")}
-                  currency="BRL"
-                />
-
-                <DatePickerField
-                  name="creditDate"
-                  label={t("investments.pendingActions.maturityDrawer.creditDate")}
-                />
+                <FormRowStack alignItems="flex-start">
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <MoneyInput
+                      name="creditAmount"
+                      label={t("investments.pendingActions.maturityDrawer.netValue")}
+                      currency="BRL"
+                    />
+                  </Box>
+                  <Box sx={{ flex: 1, minWidth: 0 }}>
+                    <DatePickerField
+                      name="creditDate"
+                      label={t("investments.pendingActions.maturityDrawer.creditDate")}
+                    />
+                  </Box>
+                </FormRowStack>
               </>
-            )}
+            ) : null}
+            <Divider sx={{ pb: 1 }}/>
+            <Drawer.ActionButtons
+              cancelText={t("actions.cancel")}
+              submitText={t("investments.pendingActions.maturityDrawer.submitClose", { defaultValue: "Encerrar" })}
+              onCancel={onClose}
+              onSubmit={submit}
+              cancelDisabled={loading}
+              submitDisabled={loading || (watchedShouldCreditToAccount && !watchedBankAccountId)}
+              submitting={loading}
+              cancelTestId="maturity-confirm-cancel-btn"
+              submitTestId="maturity-confirm-submit-btn"
+            />
           </FormStack>
         </FormProvider>
       </Drawer.Body>
-      <Drawer.Footer>
-        {step === 1 ? (
-          <Drawer.ActionButtons
-            cancelText={t("actions.cancel")}
-            submitText={t("investments.pendingActions.maturityDrawer.confirmContinue")}
-            onCancel={onClose}
-            onSubmit={handleStep1Next}
-            cancelDisabled={loading}
-            submitDisabled={loading}
-          />
-        ) : (
-          <>
-            <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2, flexWrap: "wrap" }}>
-              <Drawer.CancelButton onClick={() => setStep(1)} disabled={loading}>
-                {t("investments.pendingActions.maturityDrawer.back")}
-              </Drawer.CancelButton>
-              <Drawer.CancelButton onClick={() => submit(false)} disabled={loading}>
-                {t("investments.pendingActions.maturityDrawer.skipCredit")}
-              </Drawer.CancelButton>
-              <Drawer.SubmitButton
-                onClick={() => submit(true)}
-                disabled={loading || !watchedBankAccountId}
-                loading={loading}
-              >
-                {t("investments.pendingActions.maturityDrawer.submitClose", { defaultValue: "Encerrar" })}
-              </Drawer.SubmitButton>
-            </Box>
-          </>
-        )}
-      </Drawer.Footer>
+
     </Drawer>
   );
 }

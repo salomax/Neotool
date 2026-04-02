@@ -44,6 +44,8 @@ import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 import { AttachmentSection } from '../../components/AttachmentSection';
+import { usePreferences } from '@/shared/providers';
+import { resolveSimilarEditBehavior } from './similarEditPreference';
 
 interface InlineTransactionFormProps {
   isOpen: boolean;
@@ -133,6 +135,7 @@ export function InlineTransactionForm({
   onBusyEnd
 }: InlineTransactionFormProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const { bankingUserPreferences } = usePreferences();
   const theme = useTheme();
   const borderRadius = '.3rem';
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
@@ -238,7 +241,30 @@ export function InlineTransactionForm({
         });
 
         const preview = previewResult?.data?.similarTransactionEditPreview;
-        if (preview && preview.supportsFuturePropagation) {
+        const similarEditBehavior = preview
+          ? resolveSimilarEditBehavior(
+              bankingUserPreferences.ruleApplicationMode,
+              preview.supportsFuturePropagation,
+            )
+          : 'skip';
+
+        if (preview && similarEditBehavior === 'auto') {
+          try {
+            await applyTransactionEditToSimilar({
+              variables: {
+                id: initialValues.id,
+                matchDescription: preview.matchDescription,
+                input: buildSimilarEditInput(initialValues, description, categoryId, tags),
+                applyToFuture: true,
+                applyToExisting: true,
+              },
+            });
+          } catch (error) {
+            console.error('Failed to auto-apply transaction edit to similar transactions:', error);
+          }
+        }
+
+        if (preview && similarEditBehavior === 'prompt') {
           onRefresh?.();
           setPendingSimilarEditPrompt({
             transactionId: initialValues.id,

@@ -32,11 +32,11 @@ export const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, latestV
   const chartId = React.useId().replace(/:/g, "_");
   
   // Use provided displayName or fallback to translation key or raw label
-  const label = displayName || t(`nationalIndicators.indicators.${indicator.label}.label`, { defaultValue: indicator.label });
+  const label = displayName || t(`nationalIndicators.indicators.${indicator.label}.label`);
   
   // Use provided displayDescription or fallback to translation key or raw description
-  const description = displayDescription || t(`nationalIndicators.indicators.${indicator.label}.description`, { defaultValue: indicator.description || undefined });
-  const issuer = t(`nationalIndicators.indicators.${indicator.label}.issuer`, { defaultValue: "" });
+  const description = displayDescription || t(`nationalIndicators.indicators.${indicator.label}.description`);
+  const issuer = t(`nationalIndicators.indicators.${indicator.label}.issuer`);
 
   const defaultVariation = indicator.variations.find(v => v.isDefault) || indicator.variations[0];
   const [selectedVariationId, setSelectedVariationId] = useState<string>(defaultVariation?.id || "");
@@ -102,7 +102,7 @@ export const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, latestV
       })
       .map(v => ({
         value: v.id,
-        label: t(`nationalIndicators.variations.${v.label}`, { defaultValue: v.label })
+        label: t(`nationalIndicators.variations.${v.label}`)
       }));
   }, [indicator.variations, t]);
 
@@ -148,7 +148,7 @@ export const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, latestV
           const quarter = Math.floor((date.getUTCMonth() + 3) / 3);
           const year = date.getUTCFullYear();
           const quarterKey = `q${quarter}`;
-          const quarterLabel = tCommon(`calendar.quarters.${quarterKey}`, { defaultValue: `Q${quarter}` });
+          const quarterLabel = tCommon(`calendar.quarters.${quarterKey}`);
 
           if (formatType === 'short') {
               return `${quarterLabel} ${String(year).slice(-2)}`;
@@ -329,7 +329,7 @@ export const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, latestV
         onClose={() => setDrawerOpen(false)}
         title={label}
         metric={{
-            label: t(`nationalIndicators.variations.${latestData?.variation}`, { defaultValue: latestData?.variation }),
+            label: t(`nationalIndicators.variations.${latestData?.variation}`),
             actualValue: displayValue,
             valueType,
             currency: currencyCode,
@@ -338,9 +338,9 @@ export const IndicatorCard: React.FC<IndicatorCardProps> = ({ indicator, latestV
         disablePercentageScaling={true}
         chartData={chartData}
         historyTablePeriodLabel={
-            isQuarterly ? tCommon("calendar.period.quarter", { defaultValue: "Trimestre" }) :
-            isMonthly ? tCommon("calendar.month", { defaultValue: "Mês" }) :
-            tCommon("date", { defaultValue: "Date" })
+            isQuarterly ? tCommon("calendar.period.quarter") :
+            isMonthly ? tCommon("calendar.month") :
+            tCommon("date")
         }
         chartXTickFormatter={chartXTickFormatter}
         onFormatHistoryPeriod={(isQuarterly || isMonthly) ? (value) => formatPeriod(value, 'full') : undefined}

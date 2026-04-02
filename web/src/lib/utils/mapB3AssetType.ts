@@ -30,7 +30,5 @@ export function formatB3AssetType(
   assetType: B3AssetType,
   t: (key: string, options?: Record<string, unknown>) => string,
 ): string {
-  return t(`investments.b3AssetTypes.${String(assetType)}` as string, {
-    defaultValue: String(assetType).replaceAll("_", " "),
-  });
+  return t(`investments.b3AssetTypes.${String(assetType)}` as string);
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import { alpha, Box, ButtonBase, Tooltip, Typography, useTheme } from '@mui/material';
+import { alpha, Box, Tooltip, Typography, useTheme } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import type { ValueOriginLabel } from '@/shared/utils/holdingValueOrigin';
 
@@ -48,7 +48,8 @@ export function ValueOriginIndicator({
   return (
     <Box sx={{ position: 'absolute', right: -offsetPx, top: '50%', transform: 'translateY(-50%)', ...(sx as any) }}>
       <Tooltip title={tooltipContent} arrow enterDelay={250}>
-        <ButtonBase
+        <Box
+          component="span"
           aria-label={ariaLabel}
           sx={{
             display: 'grid',
@@ -56,12 +57,10 @@ export function ValueOriginIndicator({
             width: sizePx + 12,
             height: sizePx + 12,
             borderRadius: 999,
+            cursor: 'help',
             '&:hover .ValueOriginIndicator-bullet': {
               bgcolor: hoverColor,
               boxShadow: `0 0 0 4px ${alpha(baseColor, 0.18)}`,
-            },
-            '&:focus-visible .ValueOriginIndicator-bullet': {
-              boxShadow: `0 0 0 4px ${alpha(baseColor, 0.22)}`,
             },
           }}
         >
@@ -79,7 +78,7 @@ export function ValueOriginIndicator({
               ...(bulletSx as any),
             }}
           />
-        </ButtonBase>
+        </Box>
       </Tooltip>
     </Box>
   );

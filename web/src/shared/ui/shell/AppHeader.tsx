@@ -8,10 +8,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import useMediaQuery from "@mui/material/useMediaQuery";
 import { useTheme } from "@mui/material/styles";
-import DarkModeRoundedIcon from "@mui/icons-material/DarkModeRounded";
-import LightModeRoundedIcon from "@mui/icons-material/LightModeRounded";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
-import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { ChatDrawer } from "@/shared/components/ui/feedback/Chat";
 import { useAuth } from "@/shared/providers";
 import { Button } from "@/shared/components/ui/primitives/Button";
@@ -22,15 +19,14 @@ import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
 import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingActionsBadge";
 import { UserProfileMenu } from "@/shared/ui/shell/UserProfileMenu";
+import { ThemeToggle } from "@/styles/themes/ThemeToggle";
 import type { RouteConfig } from "@/shared/components/ui/navigation/Breadcrumb";
 
 export function AppHeader() {
   const { t } = useTranslation();
-  const { mode, toggle } = useThemeMode();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
-  const isDark = mode === "dark";
   const [chatDrawerOpen, setChatDrawerOpen] = React.useState(false);
   const { isAuthenticated, user, signOut } = useAuth();
   const router = useRouter();
@@ -179,15 +175,9 @@ export function AppHeader() {
               flex: "0 0 auto", // Prevent actions from shrinking
             }}
           >
-            <Tooltip title={isDark ? t("appHeader.theme.light") : t("appHeader.theme.dark")}>
-              <IconButton
-                aria-label="toggle theme"
-                onClick={toggle}
-                sx={{ display: { xs: "none", md: "inline-flex" } }}
-              >
-                {isDark ? <LightModeRoundedIcon /> : <DarkModeRoundedIcon />}
-              </IconButton>
-            </Tooltip>
+            <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
+              <ThemeToggle />
+            </Box>
             <HeaderPendingActionsBadge />
             {isAssistantEnabled && (
               <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
