@@ -1,13 +1,11 @@
 'use client';
 
-import type { AllInvestmentHoldingsQuery, InvestmentHoldingsQuery } from '@/lib/graphql/operations/banking/queries.generated';
+import type { InvestmentHoldingsQuery } from '@/lib/graphql/operations/banking/queries.generated';
 import { formatCurrency as formatCurrencyBr } from '@/shared/components/ui/forms/components/masks/br';
 import { i18n } from '@/shared/i18n';
 import { getHoldingValueOrigin, type ValueOriginLabel } from '@/shared/utils/holdingValueOrigin';
 
-export type HoldingRow =
-  | InvestmentHoldingsQuery['investmentHoldings'][number]
-  | AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
+export type HoldingRow = InvestmentHoldingsQuery['investmentHoldings'][number];
 
 export type AssetGroupKey =
   | 'variableIncome'

@@ -1807,12 +1807,12 @@ extend type Query {
   """
   creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill
   """
-  All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
-  Zero-quantity (closed) positions are excluded.
+  Open holdings for investment/brokerage accounts.
+  When financialAccountId is provided, returns holdings for that account only.
+  When omitted, returns consolidated holdings across all accounts for the tenant.
+  Zero-quantity (closed) positions are always excluded.
   """
-  investmentHoldings(financialAccountId: ID!): [InvestmentHolding!]!
-  """All holdings across all custodian accounts for the tenant (for net worth)."""
-  allInvestmentHoldings: [InvestmentHolding!]!
+  investmentHoldings(financialAccountId: ID): [InvestmentHolding!]!
   """Single holding by id."""
   investmentHolding(id: ID!): InvestmentHolding
   """Full event history for a holding, ordered by tradeDate DESC."""

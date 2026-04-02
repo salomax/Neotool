@@ -23,7 +23,7 @@ import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 import { INVESTMENT_FUND_NAV } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
@@ -261,8 +261,8 @@ export function RecordFundHoldingDrawer({
     RecordInvestmentTransactionMutationVariables
   >(RECORD_INVESTMENT_TRANSACTION, {
     refetchQueries: [
-      { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId || "" } },
-      { query: ALL_INVESTMENT_HOLDINGS },
+      { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
+      { query: INVESTMENT_HOLDINGS },
     ],
     onCompleted: () => {
       success(t("investments.recordFund.success"));

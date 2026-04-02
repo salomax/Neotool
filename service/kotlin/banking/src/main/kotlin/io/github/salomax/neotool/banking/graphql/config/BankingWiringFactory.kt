@@ -351,18 +351,8 @@ class BankingWiringFactory(
                 "investmentHoldings",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
-                        val financialAccountId =
-                            env.getArgument<String>("financialAccountId")
-                                ?: throw IllegalArgumentException("financialAccountId is required")
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
                         investmentResolver.investmentHoldings(financialAccountId, principal)
-                    }
-                },
-            )
-            .dataFetcher(
-                "allInvestmentHoldings",
-                createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
-                        investmentResolver.allInvestmentHoldings(principal)
                     }
                 },
             )

@@ -2708,8 +2708,6 @@ export type Query = {
   _empty: Maybe<Scalars['String']['output']>;
   /** Current account (tenant) preferences (defaults when no row exists). */
   accountPreferences: AccountPreferences;
-  /** All holdings across all custodian accounts for the tenant (for net worth). */
-  allInvestmentHoldings: Array<InvestmentHolding>;
   /**
    * Get asset by ID.
    * Returns null if asset not found or user doesn't have access.
@@ -2756,8 +2754,10 @@ export type Query = {
   /** Single holding by id. */
   investmentHolding: Maybe<InvestmentHolding>;
   /**
-   * All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
-   * Zero-quantity (closed) positions are excluded.
+   * Open holdings for investment/brokerage accounts.
+   * When financialAccountId is provided, returns holdings for that account only.
+   * When omitted, returns consolidated holdings across all accounts for the tenant.
+   * Zero-quantity (closed) positions are always excluded.
    */
   investmentHoldings: Array<InvestmentHolding>;
   /** Single investment transaction by id. */
@@ -2994,7 +2994,7 @@ export type QueryInvestmentHoldingArgs = {
 
 
 export type QueryInvestmentHoldingsArgs = {
-  financialAccountId: Scalars['ID']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
 };
 
 

@@ -68,15 +68,14 @@ class InvestmentQueryService(
     private val logger = KotlinLogging.logger {}
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
-    fun getHoldingsByFinancialAccount(financialAccountId: UUID, accountId: UUID): List<InvestmentHoldingDTO> {
-        val holdings = holdingRepository.findByFinancialAccount(financialAccountId, accountId)
-            .filter { it.quantity > BigDecimal.ZERO }
-        return mapHoldingsToDTO(holdings, accountId)
-    }
-
-    fun getAllHoldings(accountId: UUID): List<InvestmentHoldingDTO> {
-        val holdings = holdingRepository.findByAccount(accountId)
-            .filter { it.quantity > BigDecimal.ZERO }
+    fun getHoldings(financialAccountId: UUID?, accountId: UUID): List<InvestmentHoldingDTO> {
+        val rawHoldings =
+            if (financialAccountId != null) {
+                holdingRepository.findByFinancialAccount(financialAccountId, accountId)
+            } else {
+                holdingRepository.findByAccount(accountId)
+            }
+        val holdings = rawHoldings.filter { it.quantity > BigDecimal.ZERO }
         return mapHoldingsToDTO(holdings, accountId)
     }
 

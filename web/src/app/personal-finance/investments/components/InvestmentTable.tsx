@@ -28,12 +28,11 @@ import { Chip } from '@/shared/components/ui/primitives/Chip';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { PercentageGain, ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
-import { ALL_INVESTMENT_HOLDINGS, INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
+import { INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_INVESTMENT_HOLDING,
 } from '@/lib/graphql/operations/banking/mutations';
 import {
-  AllInvestmentHoldingsQuery,
   FinancialAccountsQuery,
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
@@ -169,8 +168,7 @@ export function InvestmentTable({
 
   const resolveFinancialAccountId = (holding: HoldingRow) => {
     if (selectedAccountId) return selectedAccountId;
-    const consolidated = holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number];
-    return consolidated.financialAccount?.id ?? null;
+    return holding.financialAccount?.id ?? null;
   };
 
   const closeDetailDrawer = React.useCallback(() => {
@@ -196,8 +194,7 @@ export function InvestmentTable({
       await deleteInvestmentHolding({ variables: { id: holding.id } });
       setHoldingToRemove(null);
 
-      if (selectedAccountId) await accountHoldingsQuery.refetch();
-      else await consolidatedHoldingsQuery.refetch();
+      await holdingsQuery.refetch();
     } catch {
       setHoldingToRemove(null);
     }
@@ -234,9 +231,7 @@ export function InvestmentTable({
 
     const issuerLogoUrl =
       (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null }).logoAsset?.publicUrl ??
-      (
-        holding as AllInvestmentHoldingsQuery["allInvestmentHoldings"][number]
-      )?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+      holding.financialAccount?.issuer?.logoAsset?.publicUrl ??
       null;
 
     setMaturityConfirmHolding({
@@ -256,21 +251,12 @@ export function InvestmentTable({
     setMaturityConfirmOpen(true);
   }, []);
 
-  const accountHoldingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
-    variables: { financialAccountId: selectedAccountId || '' },
-    skip: !selectedAccountId,
+  const holdingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
+    variables: { financialAccountId: selectedAccountId ?? null },
     errorPolicy: 'all',
   });
 
-  const consolidatedHoldingsQuery = useQuery<AllInvestmentHoldingsQuery>(ALL_INVESTMENT_HOLDINGS, {
-    skip: Boolean(selectedAccountId),
-    errorPolicy: 'all',
-  });
-
-  const holdings = React.useMemo(() => {
-    if (selectedAccountId) return accountHoldingsQuery.data?.investmentHoldings ?? EMPTY_HOLDINGS;
-    return consolidatedHoldingsQuery.data?.allInvestmentHoldings ?? EMPTY_HOLDINGS;
-  }, [accountHoldingsQuery.data?.investmentHoldings, consolidatedHoldingsQuery.data?.allInvestmentHoldings, selectedAccountId]);
+  const holdings = holdingsQuery.data?.investmentHoldings ?? EMPTY_HOLDINGS;
 
   const normalizedSearchQuery = React.useMemo(() => (searchQuery ?? '').trim().toLowerCase(), [searchQuery]);
   const hasSearchQuery = Boolean(normalizedSearchQuery);
@@ -283,7 +269,7 @@ export function InvestmentTable({
       const ticker = holding.asset?.ticker ?? '';
       const issuerName = holding.asset?.issuerName ?? '';
       const assetType = holding.asset?.assetType ?? '';
-      const financialAccountName = (holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number]).financialAccount?.name ?? '';
+      const financialAccountName = holding.financialAccount?.name ?? '';
 
       const haystack = `${assetName} ${ticker} ${issuerName} ${assetType} ${financialAccountName}`.toLowerCase();
       return haystack.includes(normalizedSearchQuery);
@@ -300,8 +286,8 @@ export function InvestmentTable({
     return detailHolding.financialAccount?.issuer?.logoAsset?.publicUrl ?? null;
   }, [detailHolding]);
 
-  const loading = selectedAccountId ? accountHoldingsQuery.loading : consolidatedHoldingsQuery.loading;
-  const error = selectedAccountId ? accountHoldingsQuery.error : consolidatedHoldingsQuery.error;
+  const loading = holdingsQuery.loading;
+  const error = holdingsQuery.error;
 
   const groupedHoldings = React.useMemo(() => {
     const base = ASSET_GROUP_ORDER.reduce((acc, groupKey) => {
@@ -426,9 +412,8 @@ export function InvestmentTable({
   const isEditDrawerOpen = Boolean(editDrawerHolding && editDrawerTransaction);
 
   const handleEditRecorded = React.useCallback(async () => {
-    if (selectedAccountId) await accountHoldingsQuery.refetch();
-    else await consolidatedHoldingsQuery.refetch();
-  }, [accountHoldingsQuery, consolidatedHoldingsQuery, selectedAccountId]);
+    await holdingsQuery.refetch();
+  }, [holdingsQuery]);
 
   const isActionMenuFixedIncome = actionMenuHolding?.asset?.assetType
     ? FIXED_INCOME_GROUP_KEYS.has(getAssetGroupKey(actionMenuHolding.asset.assetType))
@@ -648,9 +633,7 @@ export function InvestmentTable({
                   const indexerDisplay = [indexerLabel, indexerRateLabel].filter(Boolean).join(' ');
                   const assetLogoUrl =
                     (holding.asset as unknown as { logoAsset?: { publicUrl?: string | null } | null })?.logoAsset?.publicUrl ??
-                    (
-                      holding as AllInvestmentHoldingsQuery['allInvestmentHoldings'][number]
-                    )?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+                    holding.financialAccount?.issuer?.logoAsset?.publicUrl ??
                     undefined;
                   const assetName = holding.asset?.name ?? '—';
                   const secondaryRowSx = { mt: 0.25, minHeight: 16, display: 'flex', alignItems: 'center' } as const;
@@ -911,8 +894,7 @@ export function InvestmentTable({
         holding={maturityConfirmHolding}
         bankAccounts={bankAccounts}
         onSuccess={async () => {
-          if (selectedAccountId) await accountHoldingsQuery.refetch();
-          else await consolidatedHoldingsQuery.refetch();
+          await holdingsQuery.refetch();
         }}
       />
 

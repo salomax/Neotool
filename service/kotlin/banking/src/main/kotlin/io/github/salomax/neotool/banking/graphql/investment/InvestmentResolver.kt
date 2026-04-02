@@ -42,16 +42,14 @@ class InvestmentResolver(
     // ── Queries ───────────────────────────────────────────────────────────────
 
     fun investmentHoldings(
-        financialAccountId: String,
+        financialAccountId: String?,
         principal: RequestPrincipal,
     ): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
-        return investmentQueryService.getHoldingsByFinancialAccount(UUID.fromString(financialAccountId), accountId)
-    }
-
-    fun allInvestmentHoldings(principal: RequestPrincipal): List<InvestmentHoldingDTO> {
-        val accountId = requireAccountId(principal)
-        return investmentQueryService.getAllHoldings(accountId)
+        return investmentQueryService.getHoldings(
+            financialAccountId = financialAccountId?.let(UUID::fromString),
+            accountId = accountId,
+        )
     }
 
     fun investmentHolding(

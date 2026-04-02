@@ -15,13 +15,17 @@ auth:bearer {
 }
 
 body:graphql {
-  query InvestmentHoldings($financialAccountId: ID!) {
+  query InvestmentHoldings($financialAccountId: ID) {
     investmentHoldings(financialAccountId: $financialAccountId) {
       id
       financialAccountId
       quantity
       averageCost
       source
+      financialAccount {
+        id
+        name
+      }
       asset {
         id
         ticker

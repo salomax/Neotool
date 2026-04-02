@@ -118,7 +118,7 @@ class InvestmentQueryServiceTest {
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
 
-        val result = service.getAllHoldings(accountId)
+        val result = service.getHoldings(financialAccountId = null, accountId = accountId)
 
         assertThat(result).hasSize(1)
         assertThat(result.first().grossValue).isEqualTo(1500.0)
@@ -190,7 +190,7 @@ class InvestmentQueryServiceTest {
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
 
-        val result = service.getAllHoldings(accountId)
+        val result = service.getHoldings(financialAccountId = null, accountId = accountId)
 
         assertThat(result).hasSize(1)
         assertThat(result.first().grossValue).isEqualTo(1500.0)
@@ -287,7 +287,7 @@ class InvestmentQueryServiceTest {
         whenever(indicatorRateProvider.getMonthlySeriesRange(Indexer.IPCA, LocalDate.of(2024, 9, 23), LocalDate.of(2025, 12, 2)))
             .thenReturn(emptyList())
 
-        val result = serviceWithRealValuation.getAllHoldings(accountId)
+        val result = serviceWithRealValuation.getHoldings(financialAccountId = null, accountId = accountId)
 
         assertThat(result).hasSize(1)
         assertThat(result.first().grossValue).isGreaterThan(10674.30)

@@ -592,11 +592,12 @@ export const CREDIT_CARD_BILL = gql`
   }
 `;
 
-/** Holdings for one investment account. */
+/** Holdings for one investment account, or consolidated across all accounts when financialAccountId is omitted. */
 export const INVESTMENT_HOLDINGS = gql`
-  query InvestmentHoldings($financialAccountId: ID!) {
+  query InvestmentHoldings($financialAccountId: ID) {
     investmentHoldings(financialAccountId: $financialAccountId) {
       id
+      financialAccountId
       quantity
       averageCost
       pricingMode
@@ -627,48 +628,6 @@ export const INVESTMENT_HOLDINGS = gql`
         downloadUrl
         createdAt
       }
-      asset {
-        id
-        name
-        assetType
-        ticker
-        issuerName
-        currencyCode
-        logoAsset {
-          id
-          publicUrl
-        }
-      }
-    }
-  }
-`;
-
-/** Holdings across all investment accounts (consolidated mode). */
-export const ALL_INVESTMENT_HOLDINGS = gql`
-  query AllInvestmentHoldings {
-    allInvestmentHoldings {
-      id
-      quantity
-      averageCost
-      pricingMode
-      grossValue
-      netValue
-      incomeTax
-      iof
-      valuationSource
-      valuationReferenceDate
-      isExpired
-      isClosed
-      isExpiredPending
-      closedAt
-      closeReason
-      indexer
-      indexerPercentage
-      fixedAnnualRate
-      issueDate
-      maturityDate
-      isTaxExempt
-      source
       financialAccount {
         id
         type
@@ -698,6 +657,8 @@ export const ALL_INVESTMENT_HOLDINGS = gql`
           publicUrl
         }
       }
+      createdAt
+      updatedAt
     }
   }
 `;

@@ -20,7 +20,7 @@ import {
 import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import { PendingActionSeverity, PendingActionStatus, PendingActionType } from "@/lib/graphql/types/__generated__/graphql";
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "./MaturityConfirmDrawer";
-import { ALL_INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
 
 const SEVERITY_ORDER: Record<PendingActionSeverity, number> = {
   [PendingActionSeverity.ActionRequired]: 0,
@@ -88,7 +88,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
   const refresh = React.useCallback(async () => {
     await refetchActions();
     await client.refetchQueries({
-      include: [PendingActionsCountDocument, ALL_INVESTMENT_HOLDINGS],
+      include: [PendingActionsCountDocument, INVESTMENT_HOLDINGS],
     });
   }, [client, refetchActions]);
 

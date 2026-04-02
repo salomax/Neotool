@@ -2993,15 +2993,12 @@ type Query
   creditCardBill(financialAccountId: ID!, closingDate: Date): CreditCardBill @join__field(graph: BANKING)
 
   """
-  All open holdings for a custodian account (type = INVESTMENT/BROKERAGE).
-  Zero-quantity (closed) positions are excluded.
+  Open holdings for investment/brokerage accounts.
+  When financialAccountId is provided, returns holdings for that account only.
+  When omitted, returns consolidated holdings across all accounts for the tenant.
+  Zero-quantity (closed) positions are always excluded.
   """
-  investmentHoldings(financialAccountId: ID!): [InvestmentHolding!]! @join__field(graph: BANKING)
-
-  """
-  All holdings across all custodian accounts for the tenant (for net worth).
-  """
-  allInvestmentHoldings: [InvestmentHolding!]! @join__field(graph: BANKING)
+  investmentHoldings(financialAccountId: ID): [InvestmentHolding!]! @join__field(graph: BANKING)
 
   """Single holding by id."""
   investmentHolding(id: ID!): InvestmentHolding @join__field(graph: BANKING)
