@@ -657,6 +657,8 @@ const isEdit = Boolean(editHolding && editTransaction);
                 cancelDisabled={isSubmitting}
                 submitDisabled={isSubmitting || !resolvedFinancialAccountId}
                 submitting={isSubmitting}
+                cancelTestId="record-fixed-income-cancel-btn"
+                submitTestId="record-fixed-income-submit-btn"
               />
             </FormStack>
           </form>

@@ -115,6 +115,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
               {sorted.map((row) => (
                 <Box
                   key={row.id}
+                  data-testid="pending-action-row"
                   sx={{
                     display: "flex",
                     flexWrap: "wrap",
@@ -134,6 +135,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
                       <Button
                         size="small"
                         variant="contained"
+                        data-testid="pending-action-register-maturity"
                         onClick={() => {
                           const related = row.relatedHolding;
                           if (!related) return;

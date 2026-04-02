@@ -353,19 +353,19 @@ export default function PersonalFinanceInvestmentsPage() {
       />
 
       <Menu anchorEl={holdingMenuAnchor} open={isHoldingMenuOpen} onClose={closeHoldingMenu}>
-        <MenuItem onClick={handleSelectFixedIncome}>
+        <MenuItem onClick={handleSelectFixedIncome} data-testid="record-holding-option-fixed-income">
           <ListItemIcon>
             <AssetTypeIcon kind="FIXED_INCOME" fontSize="small" />
           </ListItemIcon>
           {t("investments.trackableAssets.fixedIncome")}
         </MenuItem>
-        <MenuItem onClick={handleSelectFund}>
+        <MenuItem onClick={handleSelectFund} data-testid="record-holding-option-fund">
           <ListItemIcon>
             <AssetTypeIcon kind="FUND" fontSize="small" />
           </ListItemIcon>
           {t("investments.table.groups.mutualFunds")}
         </MenuItem>
-        <MenuItem onClick={handleSelectEquity}>
+        <MenuItem onClick={handleSelectEquity} data-testid="record-holding-option-equity">
           <ListItemIcon>
             <AssetTypeIcon kind="STOCK" fontSize="small" />
           </ListItemIcon>

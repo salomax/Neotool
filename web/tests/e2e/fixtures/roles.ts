@@ -35,7 +35,7 @@ export async function createTestRole(
   adminToken: string
 ): Promise<TestRoleData> {
   try {
-    const role = await createRole(name, description, adminToken);
+    const role = await createRole(name, adminToken);
     return {
       id: role.id,
       name: role.name,

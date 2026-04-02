@@ -2,7 +2,7 @@
  * Personal Finance fixtures for E2E tests.
  *
  * Design decisions:
- * - pfUser is worker-scoped (created once per worker) to avoid N sign-ups per test.
+ * - pfUser and its storageState are worker-scoped to avoid N sign-ups per test.
  * - bankAccount / creditCardAccount / transactions are test-scoped (created per test).
  * - No DELETE_FINANCIAL_ACCOUNT mutation exists — test data accumulates in the test
  *   environment. Accounts are named with unique timestamps to avoid collisions.
@@ -10,8 +10,9 @@
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
-import { test as base, Browser, BrowserContext } from '@playwright/test';
-import { signIn, createUser } from '../helpers/graphql';
+import { test as base, BrowserContext, type StorageState } from '@playwright/test';
+import { signInWithSession, createUser, type AuthSession } from '../helpers/graphql';
+import { buildAuthStorageState } from '../helpers/storage-state';
 import {
   createFinancialAccount,
   createTransaction,
@@ -27,6 +28,7 @@ export interface PfUser {
   email: string;
   password: string;
   token: string;
+  session: AuthSession;
 }
 
 export interface TwoTenants {
@@ -37,8 +39,6 @@ export interface TwoTenants {
 }
 
 export interface PfFixtures {
-  /** A unique user with a valid JWT token, scoped per worker for speed. */
-  pfUser: PfUser;
   /** A BANK/CONTA_CORRENTE account with R$ 1.000 initial balance. */
   bankAccount: FinancialAccount;
   /** A CREDIT/CREDIT_CARD account (closingDay=7, dueDay=15). */
@@ -49,6 +49,12 @@ export interface PfFixtures {
   postedIncome: Transaction;
   /** Two isolated browser contexts signed in as different users (for security tests). */
   twoTenants: TwoTenants;
+}
+
+interface PfWorkerFixtures {
+  /** A unique user with a valid JWT token, scoped per worker for speed. */
+  pfUser: PfUser;
+  workerStorageState: StorageState;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -69,30 +75,33 @@ async function createPfUser(): Promise<PfUser> {
   const email = uniqueEmail();
   const password = 'TestPassword123!';
   const user = await createUser(email, password, 'PF Test User');
-  const token = await signIn(email, password);
-  return { id: user.id, email, password, token };
-}
-
-/**
- * Signs a user into a browser context by injecting the JWT token into localStorage.
- * This avoids a full UI sign-in flow and is safe because auth.ts reads auth_token
- * from localStorage.
- */
-async function injectAuthToken(ctx: BrowserContext, token: string): Promise<void> {
-  await ctx.addInitScript((t) => {
-    localStorage.setItem('auth_token', t);
-  }, token);
+  const session = await signInWithSession(email, password, true);
+  return { id: user.id, email, password, token: session.token, session };
 }
 
 // ── Fixture definitions ───────────────────────────────────────────────────────
 
-export const test = base.extend<PfFixtures>({
+export const test = base.extend<PfFixtures, PfWorkerFixtures>({
+  /**
+   * Reuse one authenticated storage state per worker so every page starts logged in.
+   */
+  storageState: async ({ workerStorageState }, use) => {
+    await use(workerStorageState);
+  },
+
+  workerStorageState: [
+    async ({ pfUser }, use) => {
+      await use(buildAuthStorageState(pfUser.session));
+    },
+    { scope: 'worker' },
+  ],
+
   /**
    * One unique user per worker. Worker scope avoids creating N users for N tests
    * in the same worker process.
    */
   pfUser: [
-    async (_args, use) => {
+    async ({}, use) => {
       const user = await createPfUser();
       await use(user);
     },
@@ -185,16 +194,11 @@ export const test = base.extend<PfFixtures>({
    *
    * userA creates a financial account; userB attempts to access/modify it.
    */
-  twoTenants: async ({ browser }: { browser: Browser }, use) => {
+  twoTenants: async ({ browser }, use) => {
     const [userA, userB] = await Promise.all([createPfUser(), createPfUser()]);
 
-    const ctxA = await browser.newContext();
-    const ctxB = await browser.newContext();
-
-    await Promise.all([
-      injectAuthToken(ctxA, userA.token),
-      injectAuthToken(ctxB, userB.token),
-    ]);
+    const ctxA = await browser.newContext({ storageState: buildAuthStorageState(userA.session) });
+    const ctxB = await browser.newContext({ storageState: buildAuthStorageState(userB.session) });
 
     const tenants: TwoTenants = { userA, userB, ctxA, ctxB };
     await use(tenants);
