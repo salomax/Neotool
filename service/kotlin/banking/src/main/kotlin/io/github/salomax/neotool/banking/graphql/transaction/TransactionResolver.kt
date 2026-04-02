@@ -14,6 +14,7 @@ import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQuerySe
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
@@ -56,6 +57,7 @@ class TransactionResolver(
     private val transactionRuleEngine: TransactionRuleEngine,
     private val transactionCategoryRepository: TransactionCategoryRepository,
     private val accountPreferencesService: AccountPreferencesService,
+    private val nfceDocumentRepository: NfceDocumentRepository,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
 
@@ -131,13 +133,19 @@ class TransactionResolver(
         val categoriesFinishedAt = System.nanoTime()
         val merchantDTOs = buildMerchantDTOMap(connection.edges.mapNotNull { it.node.merchantId }.toSet())
         val merchantsFinishedAt = System.nanoTime()
+        val nfceLinkedTransactionIds =
+            nfceDocumentRepository.findLinkedTransactionIds(
+                accountId,
+                connection.edges.mapNotNull { it.node.id },
+            )
+        val nfceFinishedAt = System.nanoTime()
 
         val edges =
             connection.edges.map { edge ->
                 val tx = edge.node
                 val category = categories[tx.categoryId]
                 val merchant = merchantDTOs[tx.merchantId]
-                val dto = tx.toDTO(category, merchant)
+                val dto = tx.toDTO(category, merchant, nfceLinkedTransactionIds.contains(tx.id))
                 TransactionEdgeDTO(
                     node = dto,
                     cursor = edge.cursor,
@@ -155,14 +163,15 @@ class TransactionResolver(
         val responseFinishedAt = System.nanoTime()
         if (logger.isDebugEnabled) {
             logger.debug(
-                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} dtoMapMs={} responseMs={} totalMs={}",
+                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} nfceMs={} dtoMapMs={} responseMs={} totalMs={}",
                 accountId,
                 connection.edges.size,
                 connection.totalCount,
                 nanosToMillis(listFinishedAt - startedAt),
                 nanosToMillis(categoriesFinishedAt - listFinishedAt),
                 nanosToMillis(merchantsFinishedAt - categoriesFinishedAt),
-                nanosToMillis(mappingFinishedAt - merchantsFinishedAt),
+                nanosToMillis(nfceFinishedAt - merchantsFinishedAt),
+                nanosToMillis(mappingFinishedAt - nfceFinishedAt),
                 nanosToMillis(responseFinishedAt - mappingFinishedAt),
                 nanosToMillis(responseFinishedAt - startedAt),
             )
@@ -185,7 +194,8 @@ class TransactionResolver(
         val tx = service.findById(txId, accountId)
         val category = service.findAccessibleCategory(tx.categoryId, accountId)
         val merchant = tx.merchantId?.let { loadMerchantDTO(it) }
-        return tx.toDTO(category, merchant)
+        val hasNfceDocument = nfceDocumentRepository.findByTransactionId(txId, accountId) != null
+        return tx.toDTO(category, merchant, hasNfceDocument)
     }
 
     fun similarTransactionEditPreview(
@@ -365,7 +375,12 @@ class TransactionResolver(
             }
 
         return CreateTransactionPayloadDTO(
-            transaction = saved.toDTO(category, merchant),
+            transaction =
+                saved.toDTO(
+                    category,
+                    merchant,
+                    hasNfceDocument = false,
+                ),
             appliedRules = appliedRules,
         )
     }
@@ -382,7 +397,7 @@ class TransactionResolver(
         val updated = service.update(txId, command, accountId)
         val category = service.findAccessibleCategory(updated.categoryId, accountId)
         val merchant = updated.merchantId?.let { loadMerchantDTO(it) }
-        return updated.toDTO(category, merchant)
+        return updated.toDTO(category, merchant, false)
     }
 
     fun deleteTransaction(
@@ -512,6 +527,7 @@ class TransactionResolver(
     private fun Transaction.toDTO(
         category: TransactionCategory?,
         merchant: MerchantDTO?,
+        hasNfceDocument: Boolean,
     ): TransactionDTO =
         TransactionDTO(
             id = id!!,
@@ -522,6 +538,7 @@ class TransactionResolver(
             type = type,
             status = status,
             source = source,
+            hasNfceDocument = hasNfceDocument,
             amount = amount.toDouble(),
             currencyCode = currencyCode,
             amountBrl = amountBrl?.toDouble(),

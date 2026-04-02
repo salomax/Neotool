@@ -26,6 +26,10 @@
       "investmentsPortfolio": {
         "title": "Carteira de Investimentos",
         "description": "Gestão dos ativos"
+      },
+      "pricesConsumption": {
+        "title": "Preços & Consumo",
+        "description": "Acompanhe preços de produtos e gastos ao longo do tempo."
       }
     }
   },
@@ -632,6 +636,10 @@
       "investmentsPortfolio": {
         "title": "Carteira de Investimentos",
         "description": "Gestão dos ativos"
+      },
+      "pricesConsumption": {
+        "title": "Preços & Consumo",
+        "description": "Acompanhe preços de produtos e gastos ao longo do tempo."
       }
     }
   },
@@ -702,6 +710,7 @@
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
       "automation": "Automação",
+      "reviewItems": "Revisar itens",
       "edit": "Editar",
       "save": "Salvar",
       "saving": "Salvando...",
@@ -709,6 +718,42 @@
       "back": "Voltar",
       "close": "Fechar",
       "delete": "Excluir"
+    },
+    "unmappedItems": {
+      "title": "Itens não mapeados",
+      "empty": "Não há itens pendentes de normalização nesta conta.",
+      "currentGroup": "Descrição bruta",
+      "count": "{{count}} item(ns)",
+      "sample": {
+        "title": "Amostras recentes",
+        "noExtraData": "Sem NCM ou EAN disponível"
+      },
+      "searchTitle": "Mapear para uma variante existente",
+      "searchLabel": "Buscar variante",
+      "searchEmpty": "Nenhuma variante do catálogo corresponde à busca.",
+      "createTitle": "Criar produto e variante",
+      "form": {
+        "productName": "Produto canônico",
+        "variantName": "Nome da variante",
+        "category": "Categoria",
+        "defaultUnit": "Unidade padrão",
+        "brand": "Marca",
+        "ean": "EAN",
+        "quantityValue": "Quantidade",
+        "quantityUnit": "Unidade da embalagem"
+      },
+      "actions": {
+        "map": "Mapear",
+        "createAndMap": "Criar e mapear"
+      },
+      "feedback": {
+        "mapped": "Item mapeado com sucesso.",
+        "createdAndMapped": "Produto criado e item mapeado com sucesso.",
+        "mapError": "Não foi possível mapear o item agora.",
+        "createError": "Não foi possível criar o produto e mapear o item.",
+        "loadError": "Não foi possível carregar os itens pendentes.",
+        "validation": "Informe ao menos o produto e o nome da variante."
+      }
     },
     "transactionRules": {
       "tabs": {
@@ -720,7 +765,7 @@
         "actionLabel": "Saiba como a automação organiza suas movimentações"
       },
         "helpDrawer": {
-          "title": "Entenda como funcionam as regras",
+          "title": "Como funcionam as regras?",
           "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
           "items": {
             "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
@@ -1069,23 +1114,65 @@
     "duplicateReview": {
       "header": "{{count}} transação(ões) precisam de revisão",
       "newLabel": "Nova (importada)",
+      "newLabelNfce": "NFC-e",
       "existingLabel": "Existente",
       "keepBoth": "Manter ambas",
       "useIncoming": "Usar nova",
+      "useIncomingLink": "Vincular NFC-e",
       "keepExisting": "Manter existente",
       "useIncomingWarning": "A existente será substituída",
+      "useIncomingLinkWarning": "A transação existente será enriquecida com os dados da NFC-e",
       "finishReview": "Concluir revisão",
       "resolved": "Resolvido",
       "bannerAction": "Revisar"
     },
     "nfce": {
+      "drawerTitle": "Importar NFC-e",
       "button": "Escanear NFC-e",
+      "uploadTab": "Upload de imagem",
+      "urlTab": "Digitar URL",
+      "uploadHint": "Arraste ou clique para selecionar uma foto do QR code da NFC-e",
       "urlPlaceholder": "Cole a URL da NFC-e aqui",
+      "qrNotFound": "QR code não encontrado na imagem. Tente uma foto mais nítida.",
+      "invalidUrl": "URL não reconhecida como NFC-e válida",
+      "processing": "Consultando fornecedor...",
       "submit": "Importar",
       "success": "NFC-e importada com sucesso",
+      "reviewRequired": "Encontramos uma transação manual semelhante. Revise para vincular a NFC-e.",
       "alreadyImported": "Nota já importada",
-      "sefazUnavailable": "SEFAZ indisponível, tente novamente",
+      "sefazUnavailable": "URL indisponível, tente novamente",
       "error": "Falha ao importar NFC-e"
+    },
+    "nfceDocument": {
+      "drawerTitle": "Nota Fiscal Eletrônica",
+      "issuerSection": "Dados do Emissor",
+      "itemsSection": "Itens",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} itens",
+      "totalsSection": "Totais",
+      "cnpj": "CNPJ",
+      "legalName": "Razão social",
+      "tradeName": "Nome fantasia",
+      "stateRegistration": "Inscrição estadual",
+      "address": "Endereço",
+      "postalCode": "CEP",
+      "emissionDate": "Data de emissão",
+      "totalValue": "Total",
+      "totalTax": "Tributos",
+      "accessKey": "Chave de acesso",
+      "copyAccessKey": "Copiar chave",
+      "accessKeyCopied": "Chave copiada",
+      "viewOnSefaz": "Consultar na SEFAZ",
+      "noDocument": "Nenhum documento fiscal vinculado a esta transação",
+      "perUnit": "por {{unit}}",
+      "municipalityCode": "Município IBGE",
+      "countryCode": "País",
+      "canonicalProduct": "Produto",
+      "issuerProductCode": "Código do emissor",
+      "quantity": "Quantidade",
+      "unitPrice": "Preço unitário",
+      "discount": "Desconto",
+      "effectivePrice": "Preço efetivo"
     },
     "transactionTable": {
       "ariaLabel": "Tabela de transações",
@@ -1108,6 +1195,7 @@
       },
       "rowActions": {
         "ariaLabel": "Ações da transação",
+        "viewNfce": "Ver NFC-e",
         "markAsTransfer": "Marcar como transferência interna",
         "edit": "Editar",
         "remove": "Remover"

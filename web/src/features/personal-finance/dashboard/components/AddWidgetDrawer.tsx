@@ -40,7 +40,7 @@ export const AddWidgetDrawer: React.FC<AddWidgetDrawerProps> = ({ open, onClose 
       }}
     >
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6">Add Widget</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 400, color: 'action.active' }}>Add Widget</Typography>
         <IconButton onClick={onClose}>
           <CloseIcon />
         </IconButton>

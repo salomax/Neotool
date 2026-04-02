@@ -1,5 +1,7 @@
-import React from 'react';
-import { Typography, TypographyProps } from '@mui/material';
+import type { ElementType, FC, ReactNode } from 'react';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
+import type { TypographyProps } from '@mui/material/Typography';
 import type { SxProps, Theme } from '@mui/material/styles';
 
 /** Typography aligned with `<Label />` for reuse (e.g. MUI date picker month header and month grid). */
@@ -15,23 +17,40 @@ export function labelTypographySx(theme: Theme): SxProps<Theme> {
 }
 
 export interface LabelProps extends TypographyProps {
-  component?: React.ElementType;
+  children?: ReactNode;
+  component?: ElementType;
+  icon?: ReactNode;
 }
 
-export const Label: React.FC<LabelProps> = ({
-  children,
-  sx,
-  ...props
-}) => {
+export const Label: FC<LabelProps> = ({ children, icon, sx, ...props }) => {
   const sxMerged: SxProps<Theme> = [
     (theme) => ({
       ...labelTypographySx(theme),
       mb: 0.5,
+      ...(icon
+        ? {
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }
+        : null),
     }),
     ...(sx == null ? [] : Array.isArray(sx) ? sx : [sx]),
   ];
   return (
     <Typography variant="subtitle2" color="text.secondary" sx={sxMerged} {...props}>
+      {icon ? (
+        <Box
+          component="span"
+          sx={(theme) => ({
+            display: 'inline-flex',
+            alignItems: 'center',
+            color: theme.custom.palette.labelIcon ?? theme.palette.text.disabled,
+          })}
+        >
+          {icon}
+        </Box>
+      ) : null}
       {children}
     </Typography>
   );

@@ -234,6 +234,80 @@ export const RESOLVE_IMPORT_DUPLICATE = gql`
   }
 `;
 
+export const CREATE_PRODUCT = gql`
+  mutation CreateProduct($input: CreateProductInput!) {
+    createProduct(input: $input) {
+      id
+      name
+      ncmCode
+      defaultUnit
+      category
+    }
+  }
+`;
+
+export const UPDATE_PRODUCT = gql`
+  mutation UpdateProduct($id: ID!, $input: UpdateProductInput!) {
+    updateProduct(id: $id, input: $input) {
+      id
+      name
+      ncmCode
+      defaultUnit
+      category
+    }
+  }
+`;
+
+export const CREATE_PRODUCT_VARIANT = gql`
+  mutation CreateProductVariant($input: CreateProductVariantInput!) {
+    createProductVariant(input: $input) {
+      id
+      productId
+      name
+      brand
+      ean
+      quantityValue
+      quantityUnit
+      normalizedQuantityValue
+      normalizedQuantityUnit
+    }
+  }
+`;
+
+export const UPDATE_PRODUCT_VARIANT = gql`
+  mutation UpdateProductVariant($id: ID!, $input: UpdateProductVariantInput!) {
+    updateProductVariant(id: $id, input: $input) {
+      id
+      productId
+      name
+      brand
+      ean
+      quantityValue
+      quantityUnit
+      normalizedQuantityValue
+      normalizedQuantityUnit
+    }
+  }
+`;
+
+export const MAP_ITEM_TO_VARIANT = gql`
+  mutation MapItemToVariant($rawDescription: String!, $variantId: ID!) {
+    mapItemToVariant(rawDescription: $rawDescription, variantId: $variantId) {
+      id
+      productVariantId
+      rawDescription
+      source
+      confirmed
+    }
+  }
+`;
+
+export const UNMAP_ITEM = gql`
+  mutation UnmapItem($aliasId: ID!) {
+    unmapItem(aliasId: $aliasId)
+  }
+`;
+
 /** Update an existing transaction. */
 export const UPDATE_TRANSACTION = gql`
   mutation UpdateTransaction($id: ID!, $input: UpdateTransactionInput!) {

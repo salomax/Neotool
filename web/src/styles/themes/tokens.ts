@@ -75,6 +75,7 @@ export interface DesignTokens {
     bgPaper: string;
     text: string;
     textMuted: string;
+    labelIcon: string;
     divider: string;
     inputBorder: string;
     tabBorder: string;
@@ -151,6 +152,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       bgPaper: "#ffffff",
       text: "#0f172a",
       textMuted: "#475569",
+      labelIcon: "#94a3b8",
       divider: "#e2e8f0",
       inputBorder: "rgba(0, 0, 0, 0.23)",
       tabBorder: "rgba(0, 0, 0, 0.23)",
@@ -225,6 +227,7 @@ export const tokens: Record<Mode, DesignTokens> = {
       bgPaper: "#0f172a",
       text: "#f1f5f9",
       textMuted: "#94a3b8",
+      labelIcon: "#94a3b8",
       divider: "#1f2937",
       inputBorder: "rgba(255, 255, 255, 0.23)",
       tabBorder: "rgba(255, 255, 255, 0.23)",

@@ -6,12 +6,21 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.ProductAliasEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.ProductVariantEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceClient
+import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
+import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
-import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
+import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
+import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -31,6 +40,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -51,9 +61,15 @@ class ImportJobServiceTest {
     private lateinit var nfceClient: NfceClient
     private lateinit var importProcessor: ImportProcessor
     private lateinit var financialAccountRepository: FinancialAccountRepository
+    private lateinit var crossSourceDedupService: CrossSourceDedupService
     private lateinit var sameSourceDedupService: SameSourceDedupService
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var snapshotComputationService: SnapshotComputationService
+    private lateinit var nfceDocumentRepository: NfceDocumentRepository
+    private lateinit var purchaseItemRepository: PurchaseItemRepository
+    private lateinit var productVariantEntityRepository: ProductVariantEntityRepository
+    private lateinit var productAliasEntityRepository: ProductAliasEntityRepository
+    private lateinit var purchaseItemEntityRepository: PurchaseItemEntityRepository
     private lateinit var service: ImportJobService
 
     private lateinit var financialAccountId: UUID
@@ -70,9 +86,15 @@ class ImportJobServiceTest {
         nfceClient = mock()
         importProcessor = mock()
         financialAccountRepository = mock()
+        crossSourceDedupService = mock()
         sameSourceDedupService = mock()
         transactionRepository = mock()
         snapshotComputationService = mock()
+        nfceDocumentRepository = mock()
+        purchaseItemRepository = mock()
+        productVariantEntityRepository = mock()
+        productAliasEntityRepository = mock()
+        purchaseItemEntityRepository = mock()
         service =
             ImportJobService(
                 importJobRepository = importJobRepository,
@@ -81,9 +103,15 @@ class ImportJobServiceTest {
                 nfceClient = nfceClient,
                 importProcessor = importProcessor,
                 financialAccountRepository = financialAccountRepository,
+                crossSourceDedupService = crossSourceDedupService,
                 sameSourceDedupService = sameSourceDedupService,
                 transactionRepository = transactionRepository,
                 snapshotComputationService = snapshotComputationService,
+                nfceDocumentRepository = nfceDocumentRepository,
+                purchaseItemRepository = purchaseItemRepository,
+                productVariantEntityRepository = productVariantEntityRepository,
+                productAliasEntityRepository = productAliasEntityRepository,
+                purchaseItemEntityRepository = purchaseItemEntityRepository,
             )
         financialAccountId = UUID.randomUUID()
         accountId = UUID.randomUUID()
@@ -102,6 +130,7 @@ class ImportJobServiceTest {
                 ),
             ),
         )
+        whenever(crossSourceDedupService.findManualNfceCandidates(any(), any(), any())).thenReturn(emptyList())
     }
 
     @Nested
@@ -538,9 +567,15 @@ class ImportJobServiceTest {
                     nfceClient = nfceClient,
                     importProcessor = importProcessor,
                     financialAccountRepository = financialAccountRepository,
+                    crossSourceDedupService = crossSourceDedupService,
                     sameSourceDedupService = sameSourceDedupService,
                     transactionRepository = transactionRepository,
                     snapshotComputationService = snapshotComputationService,
+                    nfceDocumentRepository = nfceDocumentRepository,
+                    purchaseItemRepository = purchaseItemRepository,
+                    productVariantEntityRepository = productVariantEntityRepository,
+                    productAliasEntityRepository = productAliasEntityRepository,
+                    purchaseItemEntityRepository = purchaseItemEntityRepository,
                 )
             whenever(importJobRepository.findByFileHash(eq(financialAccountId), any())).thenReturn(null)
 
@@ -566,7 +601,7 @@ class ImportJobServiceTest {
     @DisplayName("importNfce")
     inner class ImportNfceTests {
         @Test
-        fun `synchronous import creates transaction and COMPLETED job`() {
+        fun `synchronous import creates transaction nfce document and purchase items`() {
             val qrCodeUrl = "https://sefaz.example/nfce?p=123"
             val chNFe = "35240112345678000199550010001234561123456789"
             val nfce =
@@ -574,6 +609,220 @@ class ImportJobServiceTest {
                     chNFe = chNFe,
                     dhEmi = now,
                     vNF = BigDecimal("99.99"),
+                    cnpjEmitente = "12345678000190",
+                    nomeEmitente = "Store Name",
+                    municipio = "São Paulo",
+                    uf = "SP",
+                    items =
+                        listOf(
+                            NfceItem(
+                                xProd = "ARROZ T1 5KG",
+                                vProd = BigDecimal("25.00"),
+                                qCom = BigDecimal("2"),
+                                uCom = "UN",
+                                ncm = "10063021",
+                                cEAN = "789123",
+                                cProd = "A1",
+                            ),
+                            NfceItem(
+                                xProd = "FEIJAO PRETO 1KG",
+                                vProd = BigDecimal("11.50"),
+                                qCom = BigDecimal("1"),
+                                uCom = "UN",
+                                ncm = "07133319",
+                                vUnCom = BigDecimal("11.50"),
+                                vDesc = BigDecimal("1.50"),
+                            ),
+                        ),
+                    cMunFG = "3550308",
+                    cpfDestinatario = "32167209851",
+                    vTotTrib = BigDecimal("12.34"),
+                )
+            whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
+            whenever(
+                sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)),
+            ).thenReturn(false)
+            whenever(importJobRepository.findByFileHash(any(), any())).thenReturn(null)
+            val jobId = UUID.randomUUID()
+            val pendingJob =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileHash = chNFe,
+                    status = ImportJobStatus.PENDING,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val completedJob =
+                pendingJob.copy(
+                    status = ImportJobStatus.COMPLETED,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.save(any())).thenReturn(pendingJob)
+            whenever(importJobRepository.update(any())).thenReturn(completedJob)
+            val savedTransactionId = UUID.randomUUID()
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = savedTransactionId)
+            }
+            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
+            whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+
+            val result = service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
+            val documentCaptor = argumentCaptor<NfceDocument>()
+            val itemsCaptor = argumentCaptor<List<PurchaseItem>>()
+
+            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            assertThat(result.importedCount).isEqualTo(1)
+            verify(transactionRepository).save(any())
+            verify(nfceDocumentRepository).save(documentCaptor.capture())
+            verify(purchaseItemRepository).saveAll(itemsCaptor.capture())
+            verify(nfceClient).fetch(qrCodeUrl)
+            assertThat(documentCaptor.firstValue.transactionId).isEqualTo(savedTransactionId)
+            assertThat(documentCaptor.firstValue.issuerCnpj).isEqualTo("12345678000190")
+            assertThat(documentCaptor.firstValue.totalTax).isEqualByComparingTo(BigDecimal("12.34"))
+            assertThat(documentCaptor.firstValue.buyerCpf).isEqualTo("32167209851")
+            assertThat(documentCaptor.firstValue.municipalityCode).isEqualTo("3550308")
+            assertThat(itemsCaptor.firstValue).hasSize(2)
+            assertThat(itemsCaptor.firstValue[0].unitPrice).isEqualByComparingTo(BigDecimal("12.5000"))
+            assertThat(itemsCaptor.firstValue[0].effectivePrice).isEqualByComparingTo(BigDecimal("25.00"))
+            assertThat(itemsCaptor.firstValue[1].unitPrice).isEqualByComparingTo(BigDecimal("11.50"))
+            assertThat(itemsCaptor.firstValue[1].effectivePrice).isEqualByComparingTo(BigDecimal("10.00"))
+        }
+
+        @Test
+        fun `synchronous import resolves product variant ids through layers 1 to 3`() {
+            val qrCodeUrl = "https://sefaz.example/nfce?p=123"
+            val chNFe = "35240112345678000199550010001234561123456789"
+            val eanVariantId = UUID.randomUUID()
+            val aliasVariantId = UUID.randomUUID()
+            val cnpjVariantId = UUID.randomUUID()
+            val nfce =
+                NfceData(
+                    chNFe = chNFe,
+                    dhEmi = now,
+                    vNF = BigDecimal("60.00"),
+                    cnpjEmitente = "12.345.678/0001-90",
+                    nomeEmitente = "Store Name",
+                    municipio = "São Paulo",
+                    uf = "SP",
+                    items =
+                        listOf(
+                            NfceItem("ITEM EAN", BigDecimal("10.00"), BigDecimal.ONE, "UN", "10063021", cEAN = "789111"),
+                            NfceItem("ITEM ALIAS", BigDecimal("20.00"), BigDecimal.ONE, "UN", "10063021"),
+                            NfceItem("ITEM CPROD", BigDecimal("30.00"), BigDecimal.ONE, "UN", "10063021", cProd = "CP-1"),
+                            NfceItem("ITEM NOVO", BigDecimal("0.00"), BigDecimal.ONE, "UN", ""),
+                        ),
+                )
+            whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
+            whenever(
+                sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)),
+            ).thenReturn(false)
+            whenever(importJobRepository.findByFileHash(any(), any())).thenReturn(null)
+            val pendingJob =
+                ImportJob(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileHash = chNFe,
+                    status = ImportJobStatus.PENDING,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(importJobRepository.save(any())).thenReturn(pendingJob)
+            whenever(importJobRepository.update(any())).thenReturn(
+                pendingJob.copy(
+                    status = ImportJobStatus.COMPLETED,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now,
+                    updatedAt = now,
+                ),
+            )
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument(0) }
+            whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+            whenever(productVariantEntityRepository.findByEan("789111")).thenReturn(
+                io.github.salomax.neotool.banking.model.import.nfce.ProductVariantEntity(
+                    id = eanVariantId,
+                    productId = UUID.randomUUID(),
+                    accountId = UUID.randomUUID(),
+                    name = "By EAN",
+                ),
+            )
+            whenever(productAliasEntityRepository.findByAccountIdAndRawDescription(accountId, "ITEM ALIAS")).thenReturn(
+                io.github.salomax.neotool.banking.model.import.nfce.ProductAliasEntity(
+                    id = UUID.randomUUID(),
+                    productVariantId = aliasVariantId,
+                    accountId = accountId,
+                    rawDescription = "ITEM ALIAS",
+                    source = "MANUAL",
+                ),
+            )
+            whenever(
+                purchaseItemEntityRepository.findFirstResolvedByCnpjAndProduct(
+                    accountId = accountId,
+                    issuerCnpj = "12345678000190",
+                    issuerProductCode = "CP-1",
+                ),
+            ).thenReturn(
+                io.github.salomax.neotool.banking.model.import.nfce.PurchaseItemEntity(
+                    id = UUID.randomUUID(),
+                    transactionId = UUID.randomUUID(),
+                    accountId = accountId,
+                    productVariantId = cnpjVariantId,
+                    sequence = 1,
+                    rawDescription = "ITEM CPROD",
+                    quantity = BigDecimal.ONE,
+                    unit = "UN",
+                    unitPrice = BigDecimal.ONE,
+                    totalPrice = BigDecimal.ONE,
+                    effectivePrice = BigDecimal.ONE,
+                ),
+            )
+
+            service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
+            val itemsCaptor = argumentCaptor<List<PurchaseItem>>()
+
+            verify(purchaseItemRepository).saveAll(itemsCaptor.capture())
+            assertThat(itemsCaptor.firstValue.map { it.productVariantId })
+                .containsExactly(eanVariantId, aliasVariantId, cnpjVariantId, null)
+        }
+
+        @Test
+        fun `does not mark job completed when NFC-e document persistence fails`() {
+            val qrCodeUrl = "https://sefaz.example/nfce?p=failure"
+            val chNFe = "35240112345678000199550010001234561123999999"
+            val nfce =
+                NfceData(
+                    chNFe = chNFe,
+                    dhEmi = now,
+                    vNF = BigDecimal("42.00"),
                     cnpjEmitente = "12.345.678/0001-90",
                     nomeEmitente = "Store Name",
                     municipio = "São Paulo",
@@ -585,34 +834,86 @@ class ImportJobServiceTest {
                 sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)),
             ).thenReturn(false)
             whenever(importJobRepository.findByFileHash(any(), any())).thenReturn(null)
-            val jobId = UUID.randomUUID()
-            val savedJob =
+            val pendingJob =
                 ImportJob(
-                    id = jobId,
+                    id = UUID.randomUUID(),
                     financialAccountId = financialAccountId,
                     accountId = accountId,
                     createdByUserId = userId,
                     source = ImportSource.NFC_E,
                     fileHash = chNFe,
-                    status = ImportJobStatus.COMPLETED,
-                    totalRows = 1,
-                    importedCount = 1,
-                    skippedCount = 0,
-                    duplicateReviewCount = 0,
-                    errorCount = 0,
-                    completedAt = now,
+                    status = ImportJobStatus.PENDING,
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(importJobRepository.save(any())).thenReturn(savedJob)
-            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument(0) }
+            whenever(importJobRepository.save(any())).thenReturn(pendingJob)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+            whenever(nfceDocumentRepository.save(any())).thenThrow(IllegalStateException("insert failed"))
+
+            assertThrows<IllegalStateException> {
+                service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
+            }
+
+            verify(importJobRepository, never()).update(any())
+            verify(purchaseItemRepository, never()).saveAll(any())
+        }
+
+        @Test
+        fun `manual match puts NFC-e import into review instead of creating a new transaction`() {
+            val qrCodeUrl = "https://sefaz.example/nfce?p=review"
+            val chNFe = "35240112345678000199550010001234561123450000"
+            val existingTx =
+                Transaction(
+                    id = UUID.randomUUID(),
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("157.32"),
+                    date = today,
+                    description = "Compra mercado",
+                    source = TransactionSource.MANUAL,
+                    status = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val nfce =
+                NfceData(
+                    chNFe = chNFe,
+                    dhEmi = now,
+                    vNF = BigDecimal("157.32"),
+                    cnpjEmitente = "12.345.678/0001-90",
+                    nomeEmitente = "Supermercado Exemplo",
+                    municipio = "São Paulo",
+                    uf = "SP",
+                    items = emptyList(),
+                )
+            whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
+            whenever(sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)))
+                .thenReturn(false)
+            whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(null)
+            whenever(
+                crossSourceDedupService.findManualNfceCandidates(
+                    financialAccountId = financialAccountId,
+                    amount = BigDecimal("157.32"),
+                    referenceDate = today,
+                ),
+            ).thenReturn(listOf(existingTx))
+            whenever(importJobRepository.save(any())).thenAnswer { invocation ->
+                invocation.getArgument<ImportJob>(0).copy(id = UUID.randomUUID())
+            }
 
             val result = service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
 
-            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
-            assertThat(result.importedCount).isEqualTo(1)
-            verify(transactionRepository).save(any())
-            verify(nfceClient).fetch(qrCodeUrl)
+            assertThat(result.status).isEqualTo(ImportJobStatus.REVIEW_REQUIRED)
+            assertThat(result.duplicateReviewCount).isEqualTo(1)
+            assertThat(result.reviewPayload).contains("nfce_manual_link")
+            verify(transactionRepository, never()).save(any())
+            verify(nfceDocumentRepository, never()).save(any())
+            verify(purchaseItemRepository, never()).saveAll(any())
         }
 
         @Test
@@ -650,6 +951,8 @@ class ImportJobServiceTest {
 
             assertThat(result.id).isEqualTo(existingJob.id)
             verify(transactionRepository, never()).save(any())
+            verify(nfceDocumentRepository, never()).save(any())
+            verify(purchaseItemRepository, never()).saveAll(any())
             verify(importJobRepository, never()).save(any())
         }
 
@@ -678,6 +981,8 @@ class ImportJobServiceTest {
             assertThat(result.importedCount).isEqualTo(0)
             assertThat(result.skippedCount).isEqualTo(1)
             verify(transactionRepository, never()).save(any())
+            verify(nfceDocumentRepository, never()).save(any())
+            verify(purchaseItemRepository, never()).saveAll(any())
         }
     }
 
@@ -881,6 +1186,107 @@ class ImportJobServiceTest {
             assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
             assertThat(result.duplicateReviewCount).isEqualTo(0)
             assertThat(result.reviewPayload).isNull()
+        }
+
+        @Test
+        fun `NFC-e USE_INCOMING links and enriches existing manual transaction`() {
+            val jobId = UUID.randomUUID()
+            val existingTxId = UUID.randomUUID()
+            val existingTx =
+                Transaction(
+                    id = existingTxId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("157.32"),
+                    date = today.minusDays(1),
+                    description = "Mercado manual",
+                    source = TransactionSource.MANUAL,
+                    status = TransactionStatus.POSTED,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val candidate =
+                ImportDuplicateCandidate(
+                    rowIndex = 0,
+                    parsed =
+                        ParsedTransaction(
+                            providerTransactionId = "35240112345678000199550010001234561123450000",
+                            creditDebitType = CreditDebitType.DEBIT,
+                            amount = BigDecimal("157.32"),
+                            date = today,
+                            description = "Supermercado Exemplo",
+                            currencyCode = "BRL",
+                        ),
+                    candidates = listOf(existingTx),
+                )
+            val job =
+                ImportJob(
+                    id = jobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileHash = "35240112345678000199550010001234561123450000",
+                    status = ImportJobStatus.REVIEW_REQUIRED,
+                    extractionMetadata = """{"qrCodeUrl":"https://sefaz.example/nfce?p=link"}""",
+                    totalRows = 1,
+                    importedCount = 0,
+                    duplicateReviewCount = 1,
+                    errorCount = 0,
+                    reviewPayload =
+                        ImportReviewPayloadMapper.toJson(
+                            objectMapper = objectMapper,
+                            duplicateCandidates = listOf(candidate),
+                            gate = mapOf("kind" to "nfce_manual_link"),
+                        ),
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val nfce =
+                NfceData(
+                    chNFe = job.fileHash,
+                    dhEmi = now,
+                    vNF = BigDecimal("157.32"),
+                    cnpjEmitente = "12.345.678/0001-90",
+                    nomeEmitente = "Supermercado Exemplo",
+                    municipio = "São Paulo",
+                    uf = "SP",
+                    items =
+                        listOf(
+                            NfceItem(
+                                xProd = "ARROZ 5KG",
+                                vProd = BigDecimal("30.00"),
+                                qCom = BigDecimal.ONE,
+                                uCom = "UN",
+                                ncm = "10063021",
+                            ),
+                        ),
+                )
+
+            whenever(importJobRepository.findById(jobId, accountId)).thenReturn(job)
+            whenever(nfceClient.fetch("https://sefaz.example/nfce?p=link")).thenReturn(nfce)
+            whenever(nfceDocumentRepository.findByTransactionId(existingTxId, accountId)).thenReturn(null)
+            whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
+            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument(0) }
+            whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+            whenever(importJobRepository.update(any())).thenAnswer { it.getArgument(0) }
+
+            val result = service.resolveImportDuplicate(jobId, 0, DuplicateResolution.USE_INCOMING, accountId)
+            val updatedCaptor = argumentCaptor<Transaction>()
+            val documentCaptor = argumentCaptor<NfceDocument>()
+
+            verify(transactionRepository).update(updatedCaptor.capture())
+            verify(nfceDocumentRepository).save(documentCaptor.capture())
+            verify(purchaseItemRepository).saveAll(any())
+            assertThat(updatedCaptor.firstValue.id).isEqualTo(existingTxId)
+            assertThat(updatedCaptor.firstValue.providerTransactionId).isEqualTo(job.fileHash)
+            assertThat(updatedCaptor.firstValue.counterpartyName).isEqualTo("Supermercado Exemplo")
+            assertThat(documentCaptor.firstValue.transactionId).isEqualTo(existingTxId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            assertThat(result.importedCount).isEqualTo(1)
         }
 
         @Test

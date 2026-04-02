@@ -15,9 +15,10 @@ open class DefaultNfceHttpFetcher : NfceHttpFetcher {
             .build()
 
     override fun fetch(url: String): NfceHttpResponse {
+        val sanitizedUrl = sanitizeNfceUrl(url)
         val request =
             HttpRequest.newBuilder()
-                .uri(URI.create(url))
+                .uri(URI.create(sanitizedUrl))
                 .timeout(Duration.ofSeconds(5))
                 .GET()
                 .build()

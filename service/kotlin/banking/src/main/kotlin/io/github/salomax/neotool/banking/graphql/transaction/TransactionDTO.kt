@@ -77,6 +77,7 @@ data class TransactionDTO(
     val type: TransactionType,
     val status: TransactionStatus,
     val source: TransactionSource,
+    val hasNfceDocument: Boolean,
     val amount: Double,
     val currencyCode: String,
     val amountBrl: Double?,

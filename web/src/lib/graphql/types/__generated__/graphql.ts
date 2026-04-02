@@ -657,6 +657,24 @@ export enum ConnectionStatus {
   Syncing = 'SYNCING'
 }
 
+export type ConsumptionTrend = {
+  __typename: 'ConsumptionTrend';
+  months: Array<ConsumptionTrendPoint>;
+  periodMonths: Scalars['Int']['output'];
+  productId: Scalars['ID']['output'];
+  purchaseCount: Scalars['Int']['output'];
+  totalQuantity: Scalars['Float']['output'];
+  totalSpent: Scalars['Float']['output'];
+};
+
+export type ConsumptionTrendPoint = {
+  __typename: 'ConsumptionTrendPoint';
+  month: Scalars['Date']['output'];
+  purchaseCount: Scalars['Int']['output'];
+  totalQuantity: Scalars['Float']['output'];
+  totalSpent: Scalars['Float']['output'];
+};
+
 export type Conversation = {
   __typename: 'Conversation';
   escalationReason: Maybe<Scalars['String']['output']>;
@@ -757,6 +775,24 @@ export type CreateMerchantInput = {
   domain?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   sector?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateProductInput = {
+  category?: InputMaybe<Scalars['String']['input']>;
+  defaultUnit?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  ncmCode?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateProductVariantInput = {
+  brand?: InputMaybe<Scalars['String']['input']>;
+  ean?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  normalizedQuantityUnit?: InputMaybe<Scalars['String']['input']>;
+  normalizedQuantityValue?: InputMaybe<Scalars['Float']['input']>;
+  productId: Scalars['ID']['input'];
+  quantityUnit?: InputMaybe<Scalars['String']['input']>;
+  quantityValue?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type CreatePromptInput = {
@@ -1890,6 +1926,8 @@ export type Mutation = {
    * System merchants cannot be created via this mutation.
    */
   createMerchant: Merchant;
+  createProduct: Product;
+  createProductVariant: ProductVariant;
   createPrompt: Prompt;
   createRole: Role;
   /** Create a new manual transaction. */
@@ -1927,6 +1965,7 @@ export type Mutation = {
   generateCompletion: CompletionResponse;
   importNfce: ImportResult;
   importTransactionsFile: ImportResult;
+  mapItemToVariant: ProductAlias;
   /**
    * Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
    * Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
@@ -1959,10 +1998,13 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  unmapItem: Scalars['Boolean']['output'];
   /** Updates current account preferences (account owner only). */
   updateAccountPreferences: AccountPreferences;
   updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
+  updateProduct: Product;
+  updateProductVariant: ProductVariant;
   updateRole: Role;
   /** Update an existing manual transaction. */
   updateTransaction: Transaction;
@@ -2074,6 +2116,16 @@ export type MutationCreateMerchantArgs = {
 };
 
 
+export type MutationCreateProductArgs = {
+  input: CreateProductInput;
+};
+
+
+export type MutationCreateProductVariantArgs = {
+  input: CreateProductVariantInput;
+};
+
+
 export type MutationCreatePromptArgs = {
   input: CreatePromptInput;
 };
@@ -2167,6 +2219,12 @@ export type MutationImportNfceArgs = {
 
 export type MutationImportTransactionsFileArgs = {
   input: ImportTransactionsFileInput;
+};
+
+
+export type MutationMapItemToVariantArgs = {
+  rawDescription: Scalars['String']['input'];
+  variantId: Scalars['ID']['input'];
 };
 
 
@@ -2276,6 +2334,11 @@ export type MutationSubmitBillImportArgs = {
 };
 
 
+export type MutationUnmapItemArgs = {
+  aliasId: Scalars['ID']['input'];
+};
+
+
 export type MutationUpdateAccountPreferencesArgs = {
   input: UpdateAccountPreferencesInput;
 };
@@ -2290,6 +2353,18 @@ export type MutationUpdateFinancialAccountArgs = {
 export type MutationUpdateGroupArgs = {
   groupId: Scalars['ID']['input'];
   input: UpdateGroupInput;
+};
+
+
+export type MutationUpdateProductArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateProductInput;
+};
+
+
+export type MutationUpdateProductVariantArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateProductVariantInput;
 };
 
 
@@ -2330,6 +2405,46 @@ export type MutationUpdateUserPreferencesArgs = {
 
 export type MutationVerifyEmailWithTokenArgs = {
   token: Scalars['String']['input'];
+};
+
+export type NcmMonthlySpending = {
+  __typename: 'NcmMonthlySpending';
+  itemCount: Scalars['Int']['output'];
+  month: Scalars['Date']['output'];
+  totalSpent: Scalars['Float']['output'];
+};
+
+export type NcmSpending = {
+  __typename: 'NcmSpending';
+  itemCount: Scalars['Int']['output'];
+  months: Array<NcmMonthlySpending>;
+  ncmCode: Scalars['String']['output'];
+  ncmDescription: Maybe<Scalars['String']['output']>;
+  totalSpent: Scalars['Float']['output'];
+};
+
+export type NfceDocument = {
+  __typename: 'NfceDocument';
+  accessKey: Scalars['String']['output'];
+  buyerCpf: Maybe<Scalars['String']['output']>;
+  countryCode: Scalars['String']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  emissionDate: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  issuerAddress: Maybe<Scalars['String']['output']>;
+  issuerCnpj: Scalars['String']['output'];
+  issuerName: Scalars['String']['output'];
+  issuerPostalCode: Maybe<Scalars['String']['output']>;
+  issuerStateRegistration: Maybe<Scalars['String']['output']>;
+  issuerTradeName: Maybe<Scalars['String']['output']>;
+  items: Array<PurchaseItem>;
+  municipality: Maybe<Scalars['String']['output']>;
+  municipalityCode: Maybe<Scalars['String']['output']>;
+  sourceUrl: Maybe<Scalars['String']['output']>;
+  state: Scalars['String']['output'];
+  totalTax: Maybe<Scalars['Float']['output']>;
+  totalValue: Scalars['Float']['output'];
+  transactionId: Scalars['ID']['output'];
 };
 
 export enum OrderDirection {
@@ -2434,6 +2549,65 @@ export type PopularInstitutionTopMetricItem = {
   rank: Scalars['Int']['output'];
 };
 
+export type PricePoint = {
+  __typename: 'PricePoint';
+  date: Scalars['Date']['output'];
+  municipality: Maybe<Scalars['String']['output']>;
+  state: Maybe<Scalars['String']['output']>;
+  storeName: Maybe<Scalars['String']['output']>;
+  unitPrice: Scalars['Float']['output'];
+};
+
+export type Product = {
+  __typename: 'Product';
+  averagePrice: Maybe<Scalars['Float']['output']>;
+  category: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  defaultUnit: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  ncmCode: Maybe<Scalars['String']['output']>;
+  purchaseCount: Scalars['Int']['output'];
+  totalSpent: Scalars['Float']['output'];
+  updatedAt: Scalars['DateTime']['output'];
+  variants: Array<ProductVariant>;
+};
+
+export type ProductAlias = {
+  __typename: 'ProductAlias';
+  confidence: Maybe<Scalars['Float']['output']>;
+  confirmed: Scalars['Boolean']['output'];
+  createdAt: Scalars['DateTime']['output'];
+  id: Scalars['ID']['output'];
+  productVariant: Maybe<ProductVariant>;
+  productVariantId: Scalars['ID']['output'];
+  rawDescription: Scalars['String']['output'];
+  source: ProductAliasSource;
+};
+
+export enum ProductAliasSource {
+  AiSuggested = 'AI_SUGGESTED',
+  EanMatch = 'EAN_MATCH',
+  Heuristic = 'HEURISTIC',
+  Manual = 'MANUAL'
+}
+
+export type ProductVariant = {
+  __typename: 'ProductVariant';
+  averageUnitPrice: Maybe<Scalars['Float']['output']>;
+  brand: Maybe<Scalars['String']['output']>;
+  createdAt: Scalars['DateTime']['output'];
+  ean: Maybe<Scalars['String']['output']>;
+  id: Scalars['ID']['output'];
+  name: Scalars['String']['output'];
+  normalizedQuantityUnit: Maybe<Scalars['String']['output']>;
+  normalizedQuantityValue: Maybe<Scalars['Float']['output']>;
+  productId: Scalars['ID']['output'];
+  quantityUnit: Maybe<Scalars['String']['output']>;
+  quantityValue: Maybe<Scalars['Float']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type Prompt = {
   __typename: 'Prompt';
   activeVersion: Maybe<PromptVersion>;
@@ -2477,6 +2651,28 @@ export enum PromptVersionStatus {
   Deprecated = 'DEPRECATED',
   Draft = 'DRAFT'
 }
+
+export type PurchaseItem = {
+  __typename: 'PurchaseItem';
+  createdAt: Scalars['DateTime']['output'];
+  discount: Maybe<Scalars['Float']['output']>;
+  ean: Maybe<Scalars['String']['output']>;
+  effectivePrice: Scalars['Float']['output'];
+  id: Scalars['ID']['output'];
+  issuerProductCode: Maybe<Scalars['String']['output']>;
+  ncmCode: Maybe<Scalars['String']['output']>;
+  normalizedUnitPrice: Maybe<Scalars['Float']['output']>;
+  productVariant: Maybe<ProductVariant>;
+  productVariantId: Maybe<Scalars['ID']['output']>;
+  quantity: Scalars['Float']['output'];
+  rawDescription: Scalars['String']['output'];
+  sequence: Scalars['Int']['output'];
+  taxAmount: Maybe<Scalars['Float']['output']>;
+  totalPrice: Scalars['Float']['output'];
+  transactionId: Scalars['ID']['output'];
+  unit: Scalars['String']['output'];
+  unitPrice: Scalars['Float']['output'];
+};
 
 export type QuarterRangeInput = {
   from?: InputMaybe<Scalars['String']['input']>;
@@ -2572,6 +2768,7 @@ export type Query = {
   monthSummary: MonthSummary;
   myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
+  nfceDocument: Maybe<NfceDocument>;
   /** Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation). */
   pendingActions: Array<AccountPendingAction>;
   pendingReviewImports: Array<TransactionImport>;
@@ -2582,9 +2779,16 @@ export type Query = {
    * Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
    */
   previewTransactionRule: Scalars['Boolean']['output'];
+  product: Maybe<Product>;
+  productConsumptionTrend: ConsumptionTrend;
+  productPriceHistory: Array<PricePoint>;
+  productStoreComparison: Array<StorePriceComparison>;
+  productVariants: Array<ProductVariant>;
+  products: Array<Product>;
   prompt: Maybe<Prompt>;
   promptVersions: Array<PromptVersion>;
   prompts: Array<Prompt>;
+  purchaseItems: Array<PurchaseItem>;
   ratingIssuers: Array<RatingIssuer>;
   role: Maybe<Role>;
   roles: RoleConnection;
@@ -2593,6 +2797,7 @@ export type Query = {
   searchInvestmentFundsAutocomplete: InvestmentFundAutocompleteConnection;
   serviceUsage: UsageStats;
   similarTransactionEditPreview: SimilarTransactionEditPreview;
+  spendingByNcm: Array<NcmSpending>;
   /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
   topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
@@ -2631,6 +2836,7 @@ export type Query = {
    * When financialAccountId is omitted, aggregates across all accounts.
    */
   transactionsByTag: Array<TagTotal>;
+  unmappedItems: Array<UnmappedItemGroup>;
   user: Maybe<User>;
   /** Current user's preferences (defaults when no row exists). */
   userPreferences: UserPreferences;
@@ -2813,6 +3019,11 @@ export type QueryMyUsageArgs = {
 };
 
 
+export type QueryNfceDocumentArgs = {
+  transactionId: Scalars['ID']['input'];
+};
+
+
 export type QueryPendingActionsArgs = {
   status?: InputMaybe<PendingActionStatus>;
 };
@@ -2842,6 +3053,45 @@ export type QueryPreviewTransactionRuleArgs = {
 };
 
 
+export type QueryProductArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryProductConsumptionTrendArgs = {
+  periodMonths?: InputMaybe<Scalars['Int']['input']>;
+  productId: Scalars['ID']['input'];
+};
+
+
+export type QueryProductPriceHistoryArgs = {
+  endDate?: InputMaybe<Scalars['Date']['input']>;
+  productId: Scalars['ID']['input'];
+  startDate?: InputMaybe<Scalars['Date']['input']>;
+  variantId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryProductStoreComparisonArgs = {
+  endDate?: InputMaybe<Scalars['Date']['input']>;
+  productId: Scalars['ID']['input'];
+  startDate?: InputMaybe<Scalars['Date']['input']>;
+};
+
+
+export type QueryProductVariantsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  productId?: InputMaybe<Scalars['ID']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryProductsArgs = {
+  category?: InputMaybe<Scalars['String']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryPromptArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2855,6 +3105,11 @@ export type QueryPromptVersionsArgs = {
 export type QueryPromptsArgs = {
   category?: InputMaybe<Scalars['String']['input']>;
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
+export type QueryPurchaseItemsArgs = {
+  transactionId: Scalars['ID']['input'];
 };
 
 
@@ -2896,6 +3151,13 @@ export type QueryServiceUsageArgs = {
 
 export type QuerySimilarTransactionEditPreviewArgs = {
   id: Scalars['ID']['input'];
+};
+
+
+export type QuerySpendingByNcmArgs = {
+  depth?: InputMaybe<Scalars['Int']['input']>;
+  endDate?: InputMaybe<Scalars['Date']['input']>;
+  startDate?: InputMaybe<Scalars['Date']['input']>;
 };
 
 
@@ -2975,6 +3237,11 @@ export type QueryTransactionsByTagArgs = {
   tags?: InputMaybe<Array<Scalars['String']['input']>>;
   uncategorized?: InputMaybe<Scalars['Boolean']['input']>;
   year?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
+export type QueryUnmappedItemsArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
 };
 
 
@@ -3217,6 +3484,16 @@ export type SimilarTransactionEditResult = {
   futureRuleCreated: Scalars['Boolean']['output'];
 };
 
+export type StorePriceComparison = {
+  __typename: 'StorePriceComparison';
+  averageUnitPrice: Maybe<Scalars['Float']['output']>;
+  lastPurchaseDate: Maybe<Scalars['Date']['output']>;
+  municipality: Maybe<Scalars['String']['output']>;
+  purchaseCount: Scalars['Int']['output'];
+  state: Maybe<Scalars['String']['output']>;
+  storeName: Maybe<Scalars['String']['output']>;
+};
+
 export type SubmitBillImportInput = {
   fileBase64: Scalars['String']['input'];
   fileName: Scalars['String']['input'];
@@ -3331,6 +3608,7 @@ export type Transaction = {
   date: Scalars['Date']['output'];
   description: Scalars['String']['output'];
   financialAccountId: Scalars['ID']['output'];
+  hasNfceDocument: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   installmentNumber: Maybe<Scalars['Int']['output']>;
   merchant: Maybe<Merchant>;
@@ -3523,6 +3801,15 @@ export enum TransactionType {
   Withdrawal = 'WITHDRAWAL'
 }
 
+export type UnmappedItemGroup = {
+  __typename: 'UnmappedItemGroup';
+  confidence: Maybe<Scalars['Float']['output']>;
+  count: Scalars['Int']['output'];
+  rawDescription: Scalars['String']['output'];
+  sampleItems: Array<PurchaseItem>;
+  suggestedVariant: Maybe<ProductVariant>;
+};
+
 export type UpdateAccountPreferencesInput = {
   defaultTransactionStatus?: InputMaybe<TransactionStatus>;
   ruleApplicationMode?: InputMaybe<RuleApplicationMode>;
@@ -3553,6 +3840,24 @@ export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+export type UpdateProductInput = {
+  category?: InputMaybe<Scalars['String']['input']>;
+  defaultUnit?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  ncmCode?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateProductVariantInput = {
+  brand?: InputMaybe<Scalars['String']['input']>;
+  ean?: InputMaybe<Scalars['String']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  normalizedQuantityUnit?: InputMaybe<Scalars['String']['input']>;
+  normalizedQuantityValue?: InputMaybe<Scalars['Float']['input']>;
+  productId?: InputMaybe<Scalars['ID']['input']>;
+  quantityUnit?: InputMaybe<Scalars['String']['input']>;
+  quantityValue?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type UpdateRoleInput = {

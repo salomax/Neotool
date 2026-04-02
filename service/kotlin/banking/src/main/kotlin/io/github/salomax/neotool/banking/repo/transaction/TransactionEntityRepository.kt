@@ -95,6 +95,33 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
 
     @Query(
         """
+        SELECT t.*
+          FROM banking.transactions t
+          LEFT JOIN banking.purchase_documents nd
+                 ON nd.transaction_id = t.id
+                AND nd.account_id = t.account_id
+         WHERE t.financial_account_id = :financialAccountId
+           AND t.source = 'MANUAL'
+           AND t.credit_debit_type = 'DEBIT'
+           AND t.amount = :amount
+           AND t.date BETWEEN :startDate AND :endDate
+           AND t.deleted_at IS NULL
+           AND nd.id IS NULL
+         ORDER BY ABS(t.date - :referenceDate), t.created_at DESC
+         LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findManualNfceLinkCandidates(
+        financialAccountId: UUID,
+        amount: BigDecimal,
+        startDate: LocalDate,
+        endDate: LocalDate,
+        referenceDate: LocalDate,
+    ): List<TransactionEntity>
+
+    @Query(
+        """
         UPDATE banking.transactions
            SET deleted_at = :deletedAt,
                updated_at = :deletedAt

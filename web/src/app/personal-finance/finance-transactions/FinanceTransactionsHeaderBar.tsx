@@ -21,6 +21,7 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import QrCode2Icon from '@mui/icons-material/QrCode2';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import Link from 'next/link';
@@ -54,6 +55,7 @@ interface FinanceTransactionsHeaderBarProps {
   onSelectBill: (billId: string) => void;
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
+  onOpenNfceImport: () => void;
   onOpenImportTransactions: () => void;
   onOpenImportBill: () => void;
   onCreateTransaction: () => void;
@@ -75,6 +77,7 @@ export function FinanceTransactionsHeaderBar({
   onSelectBill,
   searchQuery,
   onSearchQueryChange,
+  onOpenNfceImport,
   onOpenImportTransactions,
   onOpenImportBill,
   onCreateTransaction,
@@ -271,8 +274,8 @@ export function FinanceTransactionsHeaderBar({
               width: actionButtonsRevealCollapsedWidth,
               transition: actionButtonsRevealButtonTransition,
               '& .MuiOutlinedInput-root': {
-                height: '56px',
-                minHeight: '56px',
+                height: '48px',
+                minHeight: '48px',
                 boxSizing: 'border-box',
                 borderRadius: actionButtonsBorderRadiusPx,
                 transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
@@ -303,7 +306,7 @@ export function FinanceTransactionsHeaderBar({
               '& .MuiInputAdornment-positionStart': {
                 flex: 1,
                 mr: '0 !important',
-                ml: 2,
+                ml: 3,
                 justifyContent: 'center',
                 transition: actionButtonsRevealStartIconTransition,
               },
@@ -339,7 +342,6 @@ export function FinanceTransactionsHeaderBar({
                   borderColor: theme.palette.primary.main,
                   borderWidth: 1,
                 },
-                backgroundColor: theme.palette.background.paper,
               },
               '&:hover, &:focus-within': {
                 width: actionButtonsRevealSearchExpandedWidth,
@@ -412,6 +414,17 @@ export function FinanceTransactionsHeaderBar({
           onClose={() => setImportMenuAnchor(null)}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         >
+          <MenuItem
+            onClick={() => {
+              setImportMenuAnchor(null);
+              onOpenNfceImport();
+            }}
+          >
+            <ListItemIcon>
+              <QrCode2Icon fontSize="small" />
+            </ListItemIcon>
+            {t('financeTransactions.nfce.button')}
+          </MenuItem>
           <MenuItem
             onClick={() => {
               setImportMenuAnchor(null);

@@ -435,7 +435,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
             component="h2"
             noWrap
             sx={[
-              { flex: 1, minWidth: 0, letterSpacing: "0.05em", lineHeight: 1.15 },
+              { flex: 1, minWidth: 0, letterSpacing: "0.05em", lineHeight: 1.15, fontWeight: 400, color: "action.active" },
               ...(Array.isArray(titleSx) ? titleSx : titleSx ? [titleSx] : []),
             ]}
             id={titleId}

@@ -97,7 +97,7 @@ export function CategoryFormDrawer({
     >
       <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
-          <Typography variant="h6">
+          <Typography variant="h6" sx={{ fontWeight: 400, color: 'action.active' }}>
             {isEdit ? t('categories.form.editTitle') : t('categories.newCategory')}
           </Typography>
           <IconButton onClick={onClose} size="small" aria-label={t('actions.cancel')}>

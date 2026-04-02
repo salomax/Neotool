@@ -48,6 +48,8 @@ export default function FinanceTransactionsPage() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isImportDrawerOpen, setIsImportDrawerOpen] = useState(false);
   const [isImportBillDrawerOpen, setIsImportBillDrawerOpen] = useState(false);
+  const [isNfceImportDrawerOpen, setIsNfceImportDrawerOpen] = useState(false);
+  const [nfceDocumentTransactionId, setNfceDocumentTransactionId] = useState<string | null>(null);
   const [isCreateDrawerFromImport, setIsCreateDrawerFromImport] = useState(false);
   const [reviewJobId, setReviewJobId] = useState<string | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
@@ -86,7 +88,11 @@ export default function FinanceTransactionsPage() {
   );
 
   const effectiveSelectedAccountId = useMemo(() => {
-    return selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId) ? selectedAccountId : null;
+    if (selectedAccountId && transactionAccounts.some((account) => account.id === selectedAccountId)) {
+      return selectedAccountId;
+    }
+
+    return transactionAccounts.length === 1 ? transactionAccounts[0]?.id ?? null : null;
   }, [selectedAccountId, transactionAccounts]);
 
   const selectedAccount = useMemo(() => {
@@ -556,6 +562,7 @@ export default function FinanceTransactionsPage() {
             onSelectBill={handleSelectBill}
             searchQuery={searchQuery}
             onSearchQueryChange={setSearchQuery}
+            onOpenNfceImport={() => setIsNfceImportDrawerOpen(true)}
             onOpenImportTransactions={handleOpenImportTransactions}
             onOpenImportBill={() => setIsImportBillDrawerOpen(true)}
             onCreateTransaction={() => setIsCreatingTransaction(true)}
@@ -594,6 +601,7 @@ export default function FinanceTransactionsPage() {
               refetchTransactions();
               refetchSummary();
             }}
+            onOpenNfceDocument={setNfceDocumentTransactionId}
             selectedAccountId={effectiveSelectedAccountId}
             selectedMonth={displayMode.kind === 'calendar' ? displayMode.month : undefined}
             selectedYear={displayMode.kind === 'calendar' ? displayMode.year : undefined}
@@ -616,6 +624,10 @@ export default function FinanceTransactionsPage() {
         reviewJobId={reviewJobId ?? undefined}
         isImportBillDrawerOpen={isImportBillDrawerOpen}
         onCloseImportBillDrawer={() => setIsImportBillDrawerOpen(false)}
+        isNfceImportDrawerOpen={isNfceImportDrawerOpen}
+        onCloseNfceImportDrawer={() => setIsNfceImportDrawerOpen(false)}
+        nfceDocumentTransactionId={nfceDocumentTransactionId}
+        onCloseNfceDocumentDrawer={() => setNfceDocumentTransactionId(null)}
         isPayBillDialogOpen={isPayBillDialogOpen}
         selectedBill={displayMode.kind === 'bill' ? displayMode.selectedBill : null}
         bankAccounts={bankAccounts}

@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.graphql.import
 
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.salomax.neotool.banking.client.import.nfce.sanitizeNfceUrl
 import io.github.salomax.neotool.banking.domain.import.DuplicateResolution
 import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.service.import.ImportJobService
@@ -196,8 +197,8 @@ class ImportResolver(
 
     private fun isValidUrl(url: String): Boolean =
         try {
-            val uri = URI(url)
-            uri.isAbsolute && (uri.scheme == "http" || uri.scheme == "https")
+            val parsed = URI(sanitizeNfceUrl(url))
+            parsed.host?.isNotBlank() == true && (parsed.scheme == "http" || parsed.scheme == "https")
         } catch (_: Exception) {
             false
         }
@@ -260,6 +261,7 @@ class ImportResolver(
             type = type,
             status = status,
             source = source,
+            hasNfceDocument = false,
             amount = amount.toDouble(),
             currencyCode = currencyCode,
             amountBrl = amountBrl?.toDouble(),

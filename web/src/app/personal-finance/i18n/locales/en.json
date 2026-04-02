@@ -26,6 +26,10 @@
       "investmentsPortfolio": {
         "title": "Investment Portfolio",
         "description": "For consolidated asset management."
+      },
+      "pricesConsumption": {
+        "title": "Prices & consumption",
+        "description": "Track product prices and spending over time."
       }
     }
   },
@@ -632,6 +636,10 @@
       "investmentsPortfolio": {
         "title": "Investment Portfolio",
         "description": "For consolidated asset management."
+      },
+      "pricesConsumption": {
+        "title": "Prices & consumption",
+        "description": "Track product prices and spending over time."
       }
     }
   },
@@ -702,6 +710,7 @@
       "addAccount": "Add account",
       "addCard": "Add card",
       "automation": "Automation",
+      "reviewItems": "Review items",
       "edit": "Edit",
       "save": "Save",
       "saving": "Saving...",
@@ -709,6 +718,42 @@
       "back": "Back",
       "close": "Close",
       "delete": "Delete"
+    },
+    "unmappedItems": {
+      "title": "Unmapped items",
+      "empty": "There are no pending items to normalize in this account.",
+      "currentGroup": "Raw description",
+      "count": "{{count}} item(s)",
+      "sample": {
+        "title": "Recent samples",
+        "noExtraData": "No NCM or EAN available"
+      },
+      "searchTitle": "Map to an existing variant",
+      "searchLabel": "Search variant",
+      "searchEmpty": "No catalog variant matches this search.",
+      "createTitle": "Create product and variant",
+      "form": {
+        "productName": "Canonical product",
+        "variantName": "Variant name",
+        "category": "Category",
+        "defaultUnit": "Default unit",
+        "brand": "Brand",
+        "ean": "EAN",
+        "quantityValue": "Quantity",
+        "quantityUnit": "Package unit"
+      },
+      "actions": {
+        "map": "Map",
+        "createAndMap": "Create and map"
+      },
+      "feedback": {
+        "mapped": "Item mapped successfully.",
+        "createdAndMapped": "Product created and item mapped successfully.",
+        "mapError": "Could not map the item right now.",
+        "createError": "Could not create the product and map the item.",
+        "loadError": "Could not load pending items.",
+        "validation": "Provide at least the product and variant name."
+      }
     },
     "transactionRules": {
       "tabs": {
@@ -1065,23 +1110,65 @@
     "duplicateReview": {
       "header": "{{count}} transaction(s) need review",
       "newLabel": "New (imported)",
+      "newLabelNfce": "NFC-e",
       "existingLabel": "Existing",
       "keepBoth": "Keep both",
       "useIncoming": "Use new",
+      "useIncomingLink": "Link NFC-e",
       "keepExisting": "Keep existing",
       "useIncomingWarning": "Existing will be replaced",
+      "useIncomingLinkWarning": "The existing transaction will be enriched with NFC-e data",
       "finishReview": "Finish review",
       "resolved": "Resolved",
       "bannerAction": "Review"
     },
     "nfce": {
+      "drawerTitle": "Import NFC-e",
       "button": "Scan NFC-e",
+      "uploadTab": "Upload image",
+      "urlTab": "Enter URL",
+      "uploadHint": "Drag or click to select a photo of the NFC-e QR code",
       "urlPlaceholder": "Paste NFC-e URL here",
+      "qrNotFound": "QR code not found in the image. Try a clearer photo.",
+      "invalidUrl": "URL not recognized as a valid NFC-e",
+      "processing": "Fetching from NFC-e provider…",
       "submit": "Import",
       "success": "NFC-e imported successfully",
+      "reviewRequired": "We found a similar manual transaction. Review it to link the NFC-e.",
       "alreadyImported": "Invoice already imported",
-      "sefazUnavailable": "SEFAZ unavailable, please try again",
+      "sefazUnavailable": "Provider unavailable, please try again",
       "error": "Failed to import NFC-e"
+    },
+    "nfceDocument": {
+      "drawerTitle": "Electronic Invoice",
+      "issuerSection": "Issuer",
+      "itemsSection": "Items",
+      "itemsCount_one": "{{count}} item",
+      "itemsCount_other": "{{count}} items",
+      "totalsSection": "Totals",
+      "cnpj": "CNPJ",
+      "legalName": "Legal name",
+      "tradeName": "Trade name",
+      "stateRegistration": "State registration",
+      "address": "Address",
+      "postalCode": "Postal code",
+      "emissionDate": "Emission date",
+      "totalValue": "Total",
+      "totalTax": "Taxes",
+      "accessKey": "Access key",
+      "copyAccessKey": "Copy key",
+      "accessKeyCopied": "Key copied",
+      "viewOnSefaz": "View on SEFAZ",
+      "noDocument": "No fiscal document linked to this transaction",
+      "perUnit": "per {{unit}}",
+      "municipalityCode": "IBGE municipality",
+      "countryCode": "Country",
+      "canonicalProduct": "Product",
+      "issuerProductCode": "Issuer code",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price",
+      "discount": "Discount",
+      "effectivePrice": "Effective price"
     },
     "transactionTable": {
       "ariaLabel": "Transactions table",
@@ -1104,6 +1191,7 @@
       },
       "rowActions": {
         "ariaLabel": "Transaction actions",
+        "viewNfce": "View NFC-e",
         "markAsTransfer": "Mark as internal transfer",
         "edit": "Edit",
         "remove": "Remove"

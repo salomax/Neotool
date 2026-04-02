@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.import.nfce
 
 import io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException
 import io.github.salomax.neotool.banking.client.import.nfce.NfceUnavailableException
+import io.github.salomax.neotool.banking.client.import.nfce.sanitizeNfceUrl
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
 import jakarta.inject.Singleton
 import java.net.CookieManager
@@ -49,8 +50,9 @@ open class SpNfceFetcher : NfceFetcher {
     }
 
     internal fun fetchSummaryPage(qrCodeUrl: String): String {
+        val summaryPageUri = toSpSummaryPageUri(qrCodeUrl)
         val request = HttpRequest.newBuilder()
-            .uri(URI.create(qrCodeUrl))
+            .uri(summaryPageUri)
             .timeout(Duration.ofSeconds(10))
             .header("User-Agent", USER_AGENT)
             .header("Accept", ACCEPT)
@@ -83,7 +85,7 @@ open class SpNfceFetcher : NfceFetcher {
         val eventValidation = extractHiddenField(summaryHtml, "__EVENTVALIDATION") ?: ""
 
         // Derive the form action URL from the original URL
-        val baseUri = URI.create(originalUrl)
+        val baseUri = toSpSummaryPageUri(originalUrl)
         val formAction = extractFormAction(summaryHtml)
         val postUri = if (formAction != null) {
             baseUri.resolve(formAction)
@@ -107,7 +109,7 @@ open class SpNfceFetcher : NfceFetcher {
             .header("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8")
             .header("Content-Type", "application/x-www-form-urlencoded")
             .header("Origin", "${baseUri.scheme}://${baseUri.host}")
-            .header("Referer", originalUrl)
+            .header("Referer", baseUri.toString())
             .POST(HttpRequest.BodyPublishers.ofString(formData))
             .build()
 
@@ -130,13 +132,22 @@ open class SpNfceFetcher : NfceFetcher {
     }
 
     private fun extractHiddenField(html: String, fieldName: String): String? {
-        val pattern = Regex("""id="$fieldName"\s+value="([^"]*)"""")
+        val pattern = Regex("""id=['"]$fieldName['"]\s+value=['"]([^'"]*)['"]""", RegexOption.IGNORE_CASE)
         return pattern.find(html)?.groupValues?.get(1)
     }
 
     private fun extractFormAction(html: String): String? {
-        val pattern = Regex("""<form[^>]+action="([^"]+)"""")
+        val pattern = Regex("""<form[^>]+action=['"]([^'"]+)['"]""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL))
         return pattern.find(html)?.groupValues?.get(1)
+    }
+
+    private fun toSpSummaryPageUri(originalUrl: String): URI {
+        val sourceUri = URI.create(sanitizeNfceUrl(originalUrl))
+        val canonicalPath = "/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx"
+        val needsCanonicalPath = sourceUri.path.equals("/qrcode", ignoreCase = true)
+        val path = if (needsCanonicalPath) canonicalPath else sourceUri.path
+        val query = sourceUri.rawQuery?.let { "?$it" } ?: ""
+        return URI("${sourceUri.scheme}://${sourceUri.authority}$path$query")
     }
 
     private fun buildFormData(vararg pairs: Pair<String, String>): String =

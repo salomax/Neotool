@@ -23,6 +23,7 @@ import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 import Link from 'next/link';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
 interface DashboardControlsProps {
   onAddWidget: () => void;
@@ -175,7 +176,7 @@ export const DashboardControls: React.FC<DashboardControlsProps> = ({ onAddWidge
                 borderRadius: `${theme.custom.radius.button}px`,
                 textAlign: 'left',
                 '&:focus-visible .quick-action-card': {
-                  outline: `2px solid ${alpha(theme.palette.warning.main, 0.5)}`,
+                  outline: `2px solid ${alpha(theme.palette.success.main, 0.5)}`,
                   outlineOffset: 2,
                 },
               }}
@@ -183,7 +184,7 @@ export const DashboardControls: React.FC<DashboardControlsProps> = ({ onAddWidge
               <Box
                 className="quick-action-card"
                 sx={{
-                  ...getQuickActionCardSx(theme.palette.warning.main),
+                  ...getQuickActionCardSx(theme.palette.success.main),
                 }}
               >
                 <Box className="quick-action-content" sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
@@ -202,6 +203,45 @@ export const DashboardControls: React.FC<DashboardControlsProps> = ({ onAddWidge
                 </Box>
                 <Box className="quick-action-bg-icon">
                   <TrendingUpIcon sx={{ fontSize: 128 }} />
+                </Box>
+              </Box>
+            </ButtonBase>
+
+            <ButtonBase
+              component={Link}
+              href="/personal-finance/prices-consumption"
+              sx={{
+                flex: 1,
+                minWidth: isMobile ? '100%' : 340,
+                borderRadius: `${theme.custom.radius.button}px`,
+                textAlign: 'left',
+                '&:focus-visible .quick-action-card': {
+                  outline: `2px solid ${alpha(theme.palette.info.main, 0.5)}`,
+                  outlineOffset: 2,
+                },
+              }}
+            >
+              <Box
+                className="quick-action-card"
+                sx={{
+                  ...getQuickActionCardSx(theme.palette.info.main),
+                }}
+              >
+                <Box className="quick-action-content" sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography variant="subtitle1" fontWeight={700} noWrap>
+                      {t('dashboard.actions.pricesConsumption.title')}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" noWrap>
+                      {t('dashboard.actions.pricesConsumption.description')}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Box className="quick-action-arrow" sx={{ color: alpha(theme.palette.text.primary, 0.35), flex: '0 0 auto' }}>
+                  <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
+                </Box>
+                <Box className="quick-action-bg-icon">
+                  <ShoppingCartOutlinedIcon sx={{ fontSize: 128 }} />
                 </Box>
               </Box>
             </ButtonBase>

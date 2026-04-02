@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 import { Button } from '@/shared/components/ui/primitives/Button';
 import { SimilarEditDialog } from './SimilarEditDialog';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { DatePicker, Divider } from '@/shared/ui/mui-imports';
 import {
   APP_DATE_PICKER_VIEWS,
   appDatePickerDisplayFormatFromLanguageTag,
@@ -621,14 +621,16 @@ export function InlineTransactionForm({
                 />
               </Box>
             </Box>
+                
+          <Divider sx={{ mt: 1, mb: 0.5 }} />
 
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', p: 1, px: 2, alignItems: 'center', bgcolor: theme.custom.palette.infoLightBg, borderTop: 1, borderColor: 'divider' }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, px: 1, alignItems: 'center',  borderColor: 'divider' }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
               <DatePicker
                 format={appDatePickerDisplayFormatFromLanguageTag(i18n.language)}
                 views={[...APP_DATE_PICKER_VIEWS]}
                 value={date}
-                onChange={(newValue) => setDate(newValue)}
+                onChange={(newValue: dayjs.Dayjs | null) => setDate(newValue)}
                 minDate={minAllowedDate}
                 slotProps={mergeAppDatePickerSlotProps({
                   textField: {
@@ -655,7 +657,7 @@ export function InlineTransactionForm({
                       '& .MuiInputBase-input': {
                         textAlign: 'left',
                         fontSize: '0.875rem',
-                        p: '4px 0 5px',
+                        p: '0px 0 5px',
                       },
                     },
                   },
@@ -663,15 +665,65 @@ export function InlineTransactionForm({
               />
             </Box>
 
+            {initialValues && (
+              <Divider orientation="vertical" flexItem sx={{ mx: 2, alignSelf: 'stretch' }} />
+            )}
+
             {/* Attachments — only for existing transactions */}
             {initialValues && (
-              <Box sx={{ flex: 1, mx: 2 }}>
-                <AttachmentSection
-                  transactionId={initialValues.id}
-                  attachments={initialValues.attachments ?? []}
-                  onChanged={onRefresh ?? onSuccess}
-                  compact
-                />
+              <Box sx={{ flex: 1, display: 'flex' }}>
+                <Box
+                  sx={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    minHeight: 32,
+                    px: 0.75,
+                    borderRadius: 1,
+                    border: 1,
+                    borderColor: alpha(theme.palette.primary.main, 0.5),
+                    bgcolor: 'transparent',
+                    overflow: 'visible',
+                    '&:hover': {
+                      borderColor: 'primary.main',
+                      bgcolor: alpha(theme.palette.primary.main, 0.04),
+                    },
+                    '&:focus-within': {
+                      borderColor: 'primary.main',
+                      boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.16)}`,
+                    },
+                    '& .MuiChip-root': {
+                      position: 'absolute',
+                      left: '100%',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      ml: 1,
+                      width: 'max-content',
+                      maxWidth: 'none',
+                      borderRadius: `${(theme as any).custom?.radius?.sm ?? theme.shape.borderRadius}px`,
+                    },
+                    '& .MuiChip-label': {
+                      maxWidth: 'none',
+                    },
+                    '& .MuiChip-icon, & .MuiChip-icon svg': {
+                      color: 'primary.main',
+                    },
+                    '& .MuiStack-root > :not(style) + :not(style)': {
+                      marginLeft: '0 !important',
+                    },
+                    '& .MuiIconButton-root': {
+                      color: 'primary.main',
+                      marginLeft: '0 !important',
+                    },
+                  }}
+                >
+                  <AttachmentSection
+                    transactionId={initialValues.id}
+                    attachments={initialValues.attachments ?? []}
+                    onChanged={onRefresh ?? onSuccess}
+                    compact
+                  />
+                </Box>
               </Box>
             )}
 

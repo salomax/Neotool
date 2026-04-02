@@ -78,6 +78,7 @@ open class DefaultNfceClient(
         val dhEmiStr =
             textContent(ide, "dhEmi") ?: textContent(infNFeForCh, "dhEmi")
                 ?: throw NfceInvalidException("NFC-e dhEmi not found")
+        val cMunFG = textContent(ide, "cMunFG") ?: textContent(infNFeForCh, "cMunFG")
         val dhEmi =
             try {
                 Instant.from(DH_EMI_FORMAT.parse(dhEmiStr.replace(" ", "T")))
@@ -105,8 +106,20 @@ open class DefaultNfceClient(
             textContent(emit, "CNPJ") ?: textContent(infNFe, "CNPJ")
                 ?: throw NfceInvalidException("NFC-e emit CNPJ not found")
         val nomeEmitente = textContent(emit, "xNome") ?: ""
+        val nomeFantasiaEmitente = textContent(emit, "xFant")
+        val inscricaoEstadualEmitente = textContent(emit, "IE")
         val municipio = textContent(enderEmit, "xMun") ?: ""
         val uf = textContent(enderEmit, "UF") ?: ""
+        val cepEmitente = textContent(enderEmit, "CEP")?.normalizePostalCode()
+        val enderecoEmitente =
+            buildIssuerAddress(
+                street = textContent(enderEmit, "xLgr"),
+                number = textContent(enderEmit, "nro"),
+                complement = textContent(enderEmit, "xCpl"),
+                neighborhood = textContent(enderEmit, "xBairro"),
+                municipality = municipio,
+                state = uf,
+            )
 
         // CPF do destinatário
         val dest = firstElementByLocalName(infNFe, "dest")
@@ -159,13 +172,51 @@ open class DefaultNfceClient(
             vNF = vNF,
             cnpjEmitente = cnpjEmitente,
             nomeEmitente = nomeEmitente,
+            nomeFantasiaEmitente = nomeFantasiaEmitente,
+            inscricaoEstadualEmitente = inscricaoEstadualEmitente,
+            enderecoEmitente = enderecoEmitente,
+            cepEmitente = cepEmitente,
             municipio = municipio,
             uf = uf,
             items = items,
+            cMunFG = cMunFG,
             cpfDestinatario = cpfDestinatario,
             vTotTrib = vTotTrib,
         )
     }
+
+    private fun buildIssuerAddress(
+        street: String?,
+        number: String?,
+        complement: String?,
+        neighborhood: String?,
+        municipality: String?,
+        state: String?,
+    ): String? {
+        val streetLine =
+            listOfNotNull(
+                street?.trim()?.takeIf { it.isNotEmpty() },
+                number?.trim()?.takeIf { it.isNotEmpty() && it != "S/N" },
+            ).joinToString(", ").takeIf { it.isNotBlank() }
+                ?: street?.trim()?.takeIf { it.isNotEmpty() }
+                ?: number?.trim()?.takeIf { it.isNotEmpty() }
+        val locality =
+            listOfNotNull(
+                municipality?.trim()?.takeIf { it.isNotEmpty() },
+                state?.trim()?.takeIf { it.isNotEmpty() },
+            ).takeIf { it.isNotEmpty() }
+                ?.joinToString(" - ")
+
+        return listOfNotNull(
+            streetLine,
+            complement?.trim()?.takeIf { it.isNotEmpty() },
+            neighborhood?.trim()?.takeIf { it.isNotEmpty() },
+            locality,
+        ).joinToString(" • ").takeIf { it.isNotBlank() }
+    }
+
+    private fun String.normalizePostalCode(): String? =
+        filter(Char::isDigit).takeIf { it.length == 8 }
 
     private fun textContent(
         parent: Node?,

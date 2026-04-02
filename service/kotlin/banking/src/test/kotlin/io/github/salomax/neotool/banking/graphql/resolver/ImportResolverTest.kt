@@ -481,6 +481,35 @@ class ImportResolverTest {
         }
 
         @Test
+        fun `accepts sao paulo nfce qr code url with raw pipe separators`() {
+            val qrCodeUrl = "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260357508426001654650010000196351001874400|3|1"
+            val input =
+                mapOf(
+                    "financialAccountId" to financialAccountId.toString(),
+                    "qrCodeUrl" to qrCodeUrl,
+                )
+            val job = completedJob()
+            whenever(
+                importJobService.importNfce(
+                    eq(financialAccountId),
+                    eq(accountId),
+                    eq(userId),
+                    eq(qrCodeUrl),
+                ),
+            ).thenReturn(job)
+
+            val result = resolver.importNfce(input, principal())
+
+            assertThat(result.import.status).isEqualTo(ImportJobStatus.COMPLETED)
+            verify(importJobService).importNfce(
+                eq(financialAccountId),
+                eq(accountId),
+                eq(userId),
+                eq(qrCodeUrl),
+            )
+        }
+
+        @Test
         fun `throws ValidationException when qrCodeUrl is invalid`() {
             val input =
                 mapOf(
