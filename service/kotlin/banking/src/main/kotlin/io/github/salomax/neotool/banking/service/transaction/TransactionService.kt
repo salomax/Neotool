@@ -450,6 +450,7 @@ open class TransactionService(
         }
         val normalizedTags = normalizeTags(command.tags)
         val mode = userRuleApplicationModeService.get(userId)
+        val skipRuleEngine = command.investmentTransactionId != null || command.skipRuleEngine
 
         // Resolve bill for credit/charge card accounts (null for all other account types).
         // When command.billId is set (e.g. payBill), use it instead of resolving from date.
@@ -461,7 +462,7 @@ open class TransactionService(
                 }
 
         val ruleSuggestion =
-            if (mode == RuleApplicationMode.NEVER) {
+            if (skipRuleEngine || mode == RuleApplicationMode.NEVER) {
                 null
             } else {
                 try {
@@ -482,9 +483,9 @@ open class TransactionService(
                 }
             }
 
-        val isManualSource = true
+        val isManualEntry = command.transactionSource == TransactionSource.MANUAL
         val finalCategoryId =
-            if (isManualSource && command.categoryId != null) {
+            if (!skipRuleEngine && isManualEntry && command.categoryId != null) {
                 command.categoryId
             } else {
                 command.categoryId ?: ruleSuggestion?.categoryId
@@ -493,17 +494,17 @@ open class TransactionService(
         val finalCategorySource =
             when {
                 command.categoryId != null -> CategorySource.MANUAL
-                ruleSuggestion?.categoryId != null -> CategorySource.RULE
+                !skipRuleEngine && ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 else -> null
             }
 
         val finalMerchantId = ruleSuggestion?.merchantId ?: command.merchantId
         val finalDescription = command.description
         val finalTags =
-            if (isManualSource && normalizedTags.isNotEmpty()) {
-                normalizedTags
-            } else {
-                ruleSuggestion?.tagsOverride ?: normalizedTags
+            when {
+                skipRuleEngine -> normalizedTags
+                isManualEntry && normalizedTags.isNotEmpty() -> normalizedTags
+                else -> ruleSuggestion?.tagsOverride ?: normalizedTags
             }
 
         val now = Instant.now()
@@ -517,7 +518,7 @@ open class TransactionService(
                 creditDebitType = command.creditDebitType,
                 type = command.type,
                 status = command.status,
-                source = TransactionSource.MANUAL,
+                source = command.transactionSource,
                 amount = command.amount,
                 currencyCode = command.currencyCode,
                 date = command.date,
@@ -533,12 +534,19 @@ open class TransactionService(
                 counterpartyAccountNumber = command.counterpartyAccountNumber,
                 paymentReason = command.paymentReason,
                 transferPeerTransactionId = command.transferPeerTransactionId,
+                investmentTransactionId = command.investmentTransactionId,
                 billId = resolvedBillId,
                 installmentNumber = command.installmentNumber,
                 totalInstallments = command.totalInstallments,
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
-                appliedRuleIds = ruleSuggestion?.appliedRuleIds ?: emptyList(),
+                providerTransactionId = command.providerTransactionId,
+                appliedRuleIds =
+                    if (skipRuleEngine) {
+                        emptyList()
+                    } else {
+                        ruleSuggestion?.appliedRuleIds ?: emptyList()
+                    },
                 createdAt = now,
                 updatedAt = now,
             )

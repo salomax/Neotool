@@ -184,4 +184,45 @@ enum class BankingErrorCode(
         "Only the account owner can update account preferences",
         403,
     ),
+
+    INVESTMENT_MANUAL_CASH_INVALID_FINANCIAL_ACCOUNT(
+        "INVESTMENT_MANUAL_CASH_INVALID_FINANCIAL_ACCOUNT",
+        "Manual investment cash must be recorded on an investment or benefit custodian account",
+        422,
+    ),
+    INVESTMENT_MANUAL_CASH_ADJUSTMENT_REQUIRES_DESCRIPTION(
+        "INVESTMENT_MANUAL_CASH_ADJUSTMENT_REQUIRES_DESCRIPTION",
+        "Balance adjustment requires a non-empty description",
+        422,
+    ),
+    INVESTMENT_MANUAL_CASH_SYSTEM_CATEGORY_MISSING(
+        "INVESTMENT_MANUAL_CASH_SYSTEM_CATEGORY_MISSING",
+        "A required system transaction category is missing",
+        500,
+    ),
+    INVESTMENT_MANUAL_CASH_INVALID_PEER_ACCOUNT(
+        "INVESTMENT_MANUAL_CASH_INVALID_PEER_ACCOUNT",
+        "Peer account must be a checking/savings-style bank account in the same tenant",
+        422,
+    ),
+    INVESTMENT_MANUAL_CASH_PEER_NOT_ALLOWED_FOR_ADJUSTMENT(
+        "INVESTMENT_MANUAL_CASH_PEER_NOT_ALLOWED_FOR_ADJUSTMENT",
+        "Peer account and balance adjustment cannot be combined",
+        422,
+    ),
+    INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE(
+        "INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE",
+        "Manual investment cash transaction date cannot be after today",
+        422,
+    ),
+    INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND(
+        "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND",
+        "Investment cash ledger transaction not found",
+        404,
+    ),
+    INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE(
+        "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE",
+        "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here",
+        422,
+    ),
 }

@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach

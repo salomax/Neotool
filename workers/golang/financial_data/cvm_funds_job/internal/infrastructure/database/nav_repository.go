@@ -3,6 +3,7 @@ package database
 import (
 	"context"
 	"log/slog"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -71,4 +72,19 @@ func (r *NavRepository) UpsertNavBatch(ctx context.Context, params []domain.NavU
 		}
 	}
 	return inserted, unchanged, firstErr
+}
+
+func (r *NavRepository) FindCoverageRange(
+	ctx context.Context,
+	source string,
+) (minDate *time.Time, maxDate *time.Time, err error) {
+	err = r.pool.QueryRow(ctx, `
+		SELECT MIN(price_date), MAX(price_date)
+		FROM financial_data.asset_daily_price
+		WHERE source = $1
+	`, source).Scan(&minDate, &maxDate)
+	if err != nil {
+		return nil, nil, err
+	}
+	return minDate, maxDate, nil
 }

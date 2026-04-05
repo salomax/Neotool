@@ -49,7 +49,9 @@ import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionDisco
 import io.github.salomax.neotool.financialdata.graphql.resolver.InstitutionSearchResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InvestmentAssetResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.InvestmentFundResolver
+import io.github.salomax.neotool.financialdata.graphql.resolver.MarketDataSyncResolver
 import jakarta.inject.Singleton
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 
@@ -66,6 +68,7 @@ class FinancialDataWiringFactory(
     private val fixedIncomeComparisonResolver: FixedIncomeComparisonResolver,
     private val investmentFundResolver: InvestmentFundResolver,
     private val investmentAssetResolver: InvestmentAssetResolver,
+    private val marketDataSyncResolver: MarketDataSyncResolver,
     resolverRegistry: GraphQLResolverRegistry,
 ) : GraphQLWiringFactory() {
     init {
@@ -198,6 +201,21 @@ class FinancialDataWiringFactory(
                 },
             )
             .dataFetcher(
+                "fundDailyNavs",
+                createValidatedDataFetcher { env ->
+                    marketDataSyncResolver.fundDailyNavs(
+                        from = env.getArgument<LocalDate?>("from")
+                            ?: throw IllegalArgumentException("from is required"),
+                        to = env.getArgument<LocalDate?>("to")
+                            ?: throw IllegalArgumentException("to is required"),
+                        first = env.getArgument<Int?>("first"),
+                        after = env.getArgument<String?>("after"),
+                        updatedSince = env.getArgument<Instant?>("updatedSince"),
+                        cnpjs = env.getArgument<List<String>?>("cnpjs"),
+                    )
+                },
+            )
+            .dataFetcher(
                 "searchInvestmentAssetsAutocomplete",
                 createValidatedDataFetcher { env ->
                     val query: String = env.getArgument<String?>("query")
@@ -231,6 +249,53 @@ class FinancialDataWiringFactory(
                     val tickers: List<String> = env.getArgument<List<String>?>("tickers")
                         ?: throw IllegalArgumentException("tickers is required")
                     investmentAssetResolver.investmentAssetsByTickers(tickers)
+                },
+            )
+            .dataFetcher(
+                "listedAssetDailyPrices",
+                createValidatedDataFetcher { env ->
+                    marketDataSyncResolver.listedAssetDailyPrices(
+                        from = env.getArgument<LocalDate?>("from")
+                            ?: throw IllegalArgumentException("from is required"),
+                        to = env.getArgument<LocalDate?>("to")
+                            ?: throw IllegalArgumentException("to is required"),
+                        first = env.getArgument<Int?>("first"),
+                        after = env.getArgument<String?>("after"),
+                        updatedSince = env.getArgument<Instant?>("updatedSince"),
+                        tickers = env.getArgument<List<String>?>("tickers"),
+                    )
+                },
+            )
+            .dataFetcher(
+                "economicIndicatorVariationPoints",
+                createValidatedDataFetcher { env ->
+                    marketDataSyncResolver.economicIndicatorVariationPoints(
+                        from = env.getArgument<LocalDate?>("from")
+                            ?: throw IllegalArgumentException("from is required"),
+                        to = env.getArgument<LocalDate?>("to")
+                            ?: throw IllegalArgumentException("to is required"),
+                        first = env.getArgument<Int?>("first"),
+                        after = env.getArgument<String?>("after"),
+                        updatedSince = env.getArgument<Instant?>("updatedSince"),
+                        indicators = env.getArgument<List<String>?>("indicators"),
+                        variations = env.getArgument<List<String>?>("variations"),
+                    )
+                },
+            )
+            .dataFetcher(
+                "assetCorporateEvents",
+                createValidatedDataFetcher { env ->
+                    marketDataSyncResolver.assetCorporateEvents(
+                        from = env.getArgument<LocalDate?>("from")
+                            ?: throw IllegalArgumentException("from is required"),
+                        to = env.getArgument<LocalDate?>("to")
+                            ?: throw IllegalArgumentException("to is required"),
+                        first = env.getArgument<Int?>("first"),
+                        after = env.getArgument<String?>("after"),
+                        updatedSince = env.getArgument<Instant?>("updatedSince"),
+                        tickers = env.getArgument<List<String>?>("tickers"),
+                        isins = env.getArgument<List<String>?>("isins"),
+                    )
                 },
             )
     }

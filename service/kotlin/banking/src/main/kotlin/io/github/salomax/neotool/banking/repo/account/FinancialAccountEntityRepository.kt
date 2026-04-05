@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.account
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.model.account.FinancialAccountEntity
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
@@ -12,6 +13,8 @@ import java.util.UUID
 @Repository
 interface FinancialAccountEntityRepository : JpaRepository<FinancialAccountEntity, UUID> {
     fun findByAccountIdAndDeletedAtIsNull(accountId: UUID): List<FinancialAccountEntity>
+
+    fun findByTypeAndDeletedAtIsNull(type: FinancialAccountType): List<FinancialAccountEntity>
 
     fun findByIdAndAccountIdAndDeletedAtIsNull(
         id: UUID,

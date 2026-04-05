@@ -9,7 +9,7 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 import {
   RecordInvestmentTransactionMutation,
   RecordInvestmentTransactionMutationVariables,
@@ -165,6 +165,8 @@ export function RecordFixedIncomeRedemptionDrawer({
     refetchQueries: [
       { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: holding?.financialAccountId ?? null } },
       { query: INVESTMENT_HOLDINGS },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY, variables: { financialAccountId: holding?.financialAccountId ?? null } },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY },
       { query: FixedIncomeHoldingDetailDocument, variables: { holdingId: holding?.id ?? "" } },
     ],
     onCompleted: () => {

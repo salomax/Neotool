@@ -177,6 +177,7 @@ class PendingActionResolver(
             counterpartyAccountNumber = counterpartyAccountNumber,
             paymentReason = paymentReason,
             transferPeerTransactionId = transferPeerTransactionId,
+            investmentTransactionId = investmentTransactionId,
             installmentNumber = installmentNumber,
             totalInstallments = totalInstallments,
             billId = billId,

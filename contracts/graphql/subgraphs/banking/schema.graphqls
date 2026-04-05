@@ -310,6 +310,8 @@ type FinancialAccount {
   currencyCode: String!
   includeInNetWorth: Boolean!
   includeInDashboard: Boolean!
+  """When true, idle cash on this custodian account counts toward allocation % in investments UI."""
+  includeCashInAllocation: Boolean!
   themeColor: String
   """Linked issuer from the issuers seed list. Null when a custom institution is used."""
   issuer: Issuer
@@ -495,6 +497,8 @@ type Transaction {
 
   # Transfer
   transferPeerTransactionId: ID
+  """Set when this row is the cash leg linked to an investment transaction."""
+  investmentTransactionId: ID
 
   # Installments
   installmentNumber: Int
@@ -699,6 +703,7 @@ input CreateFinancialAccountInput {
   currencyCode: String
   includeInNetWorth: Boolean
   includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
   """Required when type = BANK."""
   bankData: BankAccountDataInput
   """Required when subtype is CREDIT_CARD, CHARGE_CARD, PREPAID_CARD, or VOUCHER_CARD."""
@@ -719,6 +724,7 @@ input UpdateFinancialAccountInput {
   currencyCode: String
   includeInNetWorth: Boolean
   includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
   bankData: BankAccountDataInput
   cardData: CardDataInput
 }
@@ -1073,6 +1079,8 @@ enum HoldingCloseReason {
 
 enum PendingActionType {
   INVESTMENT_MATURED
+  """Bank account balance went negative after a paired investment cash transfer (informational)."""
+  BANK_ACCOUNT_NEGATIVE_BALANCE
 }
 
 enum PendingActionSeverity {
@@ -1134,6 +1142,14 @@ enum HoldingPerformanceResolution {
   HOUR
   DAY
   MONTH
+}
+
+enum PerformancePeriod {
+  MTD
+  YTD
+  ONE_YEAR
+  THREE_YEARS
+  ALL
 }
 
 """
@@ -1339,6 +1355,70 @@ type HoldingPerformance {
   points: [HoldingPerformancePoint!]!
 }
 
+type BenchmarkPerformance {
+  code: String!
+  label: String!
+  twr: Float
+}
+
+type PortfolioPerformance {
+  twr: Float
+  twrSince: Date
+  twrAbsolute: Float
+  period: PerformancePeriod!
+  benchmarks: [BenchmarkPerformance!]!
+  hasEstimatedValues: Boolean!
+}
+
+type RecalculationStatus {
+  isCalculating: Boolean!
+  jobId: UUID
+  startedAt: DateTime
+  message: String
+}
+
+type InvestmentHoldingPerformance {
+  holdingId: ID!
+  xirr: Float
+  xirrSince: Date
+  totalReturn: Float!
+  totalReturnAbsolute: Float!
+  dividendsReceived: Float!
+}
+
+type AssetGroupSummary {
+  groupKey: String!
+  label: String!
+  count: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  grossGainPercent: Float
+  twr: Float
+  allocationPercent: Float!
+  isCash: Boolean!
+}
+
+type InvestmentPortfolioSummary {
+  totalHoldingsCount: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  totalNetValue: Float!
+  totalIncomeTax: Float!
+  totalIof: Float!
+  grossGain: Float!
+  grossGainPercent: Float!
+  netGain: Float!
+  netGainPercent: Float!
+  cashBalance: Float!
+  totalPortfolioValue: Float!
+  byAssetGroup: [AssetGroupSummary!]!
+  hasEstimatedValues: Boolean!
+  valuationReferenceDate: Date
+  currencyCode: String!
+  performance: PortfolioPerformance!
+  recalculationStatus: RecalculationStatus!
+}
+
 # ============================================================================
 # Investment Input Types
 # ============================================================================
@@ -1413,6 +1493,44 @@ input RecordInvestmentTransactionInput {
   providerInvestmentId: String
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
+}
+
+"""Manual cash movement on an investment/benefit custodian account (no asset / investment-transaction link)."""
+enum InvestmentCashTransactionType {
+  """Credit TRANSFER — external deposit into the custodian account."""
+  DEPOSIT
+  """Debit TRANSFER — withdrawal from the custodian account."""
+  WITHDRAWAL
+  """BALANCE_ADJUSTMENT — signed amount: positive credits, negative debits the custodian cash balance."""
+  ADJUSTMENT
+}
+
+input CreateInvestmentCashTransactionInput {
+  financialAccountId: ID!
+  type: InvestmentCashTransactionType!
+  """
+  For DEPOSIT and WITHDRAWAL must be > 0.
+  For ADJUSTMENT: use positive for credit and negative for debit (must be non-zero).
+  """
+  amount: Float!
+  date: Date!
+  """Required when type = ADJUSTMENT, or when registerAsBalanceAdjustment is true."""
+  description: String
+  """
+  Optional bank account for an atomic transfer pair (checking/savings-style only).
+  Not allowed with ADJUSTMENT or registerAsBalanceAdjustment.
+  """
+  peerFinancialAccountId: ID
+  """
+  When true with DEPOSIT or WITHDRAWAL, records BALANCE_ADJUSTMENT instead of TRANSFER (description required).
+  """
+  registerAsBalanceAdjustment: Boolean
+}
+
+input UpdateInvestmentCashTransactionInput {
+  amount: Float!
+  date: Date!
+  description: String
 }
 
 # ============================================================================
@@ -1828,6 +1946,23 @@ extend type Query {
   Zero-quantity (closed) positions are always excluded.
   """
   investmentHoldings(financialAccountId: ID): [InvestmentHolding!]!
+  """
+  Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
+  When financialAccountId is omitted, aggregates all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashBalance(financialAccountId: ID): Float!
+  """Investment portfolio summary for one investment account or the consolidated view."""
+  investmentPortfolioSummary(financialAccountId: ID, period: PerformancePeriod): InvestmentPortfolioSummary!
+  """
+  Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
+  Keyset cursor on (date, id), ordered by date DESC then id DESC.
+  When financialAccountId is omitted, includes all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashTransactions(
+    financialAccountId: ID
+    first: Int
+    after: String
+  ): TransactionConnection!
   """Single holding by id."""
   investmentHolding(id: ID!): InvestmentHolding
   """Full event history for a holding, ordered by tradeDate DESC."""
@@ -1842,6 +1977,8 @@ extend type Query {
     resolution: HoldingPerformanceResolution
     includeProjection: Boolean
   ): HoldingPerformance
+  """Annualized IRR and total return summary for a holding."""
+  investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance
   """Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation)."""
   pendingActions(status: PendingActionStatus): [AccountPendingAction!]!
   """Product catalog for the authenticated account."""
@@ -1911,8 +2048,21 @@ extend type Mutation {
   createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
   """Records an investment transaction and updates the holding's quantity and averageCost."""
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """
+  Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
+  Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.
+  """
+  createInvestmentCashTransaction(input: CreateInvestmentCashTransactionInput!): Transaction!
+  """
+  Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present).
+  """
+  updateInvestmentCashTransaction(id: ID!, input: UpdateInvestmentCashTransactionInput!): Transaction!
+  """Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present."""
+  deleteInvestmentCashTransaction(id: ID!): Boolean!
   """Soft-deletes a MANUAL investment holding and all of its MANUAL transactions."""
   deleteInvestmentHolding(id: ID!): Boolean!
+  """Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago."""
+  triggerPortfolioRecalculation(financialAccountId: ID, recalculateFrom: String): Boolean!
   """Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted."""
   deleteInvestmentTransaction(id: ID!): Boolean!
 

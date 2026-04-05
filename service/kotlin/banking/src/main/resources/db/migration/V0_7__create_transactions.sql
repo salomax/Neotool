@@ -47,6 +47,8 @@ CREATE TABLE banking.transactions (
 
     transfer_peer_transaction_id UUID,
 
+    investment_transaction_id    UUID,
+
     bill_id                      UUID REFERENCES banking.credit_card_bills(id),
     installment_number           SMALLINT CHECK (installment_number >= 1),
     total_installments           SMALLINT CHECK (total_installments >= 1),
@@ -113,6 +115,10 @@ CREATE INDEX idx_transactions_bill_id
 CREATE INDEX idx_transactions_transfer_peer
     ON banking.transactions(transfer_peer_transaction_id)
     WHERE transfer_peer_transaction_id IS NOT NULL;
+
+CREATE INDEX idx_transactions_investment_transaction
+    ON banking.transactions(investment_transaction_id)
+    WHERE investment_transaction_id IS NOT NULL;
 
 CREATE INDEX idx_transactions_provider
     ON banking.transactions(financial_account_id, provider_transaction_id)

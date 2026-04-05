@@ -58,11 +58,23 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         accountId: UUID,
     ): TransactionEntity?
 
+    fun findByIdInAndAccountIdAndDeletedAtIsNull(
+        ids: List<UUID>,
+        accountId: UUID,
+    ): List<TransactionEntity>
+
+    fun findByTransferPeerTransactionIdAndAccountIdAndDeletedAtIsNull(
+        transferPeerTransactionId: UUID,
+        accountId: UUID,
+    ): TransactionEntity?
+
     fun existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
         financialAccountId: UUID,
         providerTransactionId: String,
         source: TransactionSource,
     ): Boolean
+
+    fun existsByInvestmentTransactionIdAndDeletedAtIsNull(investmentTransactionId: UUID): Boolean
 
     fun existsByFinancialAccountIdAndImportFingerprintAndDeletedAtIsNull(
         financialAccountId: UUID,

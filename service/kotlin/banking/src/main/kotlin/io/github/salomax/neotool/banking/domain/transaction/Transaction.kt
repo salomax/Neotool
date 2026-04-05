@@ -59,6 +59,8 @@ data class Transaction(
     val paymentReason: String? = null,
     // Transfer between own accounts
     val transferPeerTransactionId: UUID? = null,
+    /** When set, this ledger row is the cash leg of an investment transaction (at most one banking row per investment tx). */
+    val investmentTransactionId: UUID? = null,
     // Credit card
     val billId: UUID? = null,
     val installmentNumber: Int? = null,

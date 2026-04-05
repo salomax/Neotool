@@ -16,12 +16,14 @@ import { Skeleton } from "@/shared/components/ui/primitives/Skeleton";
 import { buildFixedIncomeHoldingDetailViewModel } from "./fixedIncomeHoldingDetailAdapter";
 import type { FixedIncomeHoldingDetailQuery } from "./api/queries.generated";
 import { HoldingPerformanceChart } from "../performance/HoldingPerformanceChart";
+import { HoldingXirrCard } from "../performance/HoldingXirrCard";
 import { TimelineEvents } from "../TimelineEvents";
 
 interface FixedIncomeHoldingDetailContentProps {
   holding: FixedIncomeHoldingDetailQuery["investmentHolding"] | null | undefined;
   transactions: FixedIncomeHoldingDetailQuery["investmentTransactions"] | undefined;
   performance: FixedIncomeHoldingDetailQuery["holdingPerformance"] | null | undefined;
+  investmentHoldingPerformance: FixedIncomeHoldingDetailQuery["investmentHoldingPerformance"] | null | undefined;
   loading: boolean;
   error?: unknown;
   locale: string;
@@ -49,6 +51,7 @@ export function FixedIncomeHoldingDetailContent({
   holding,
   transactions,
   performance,
+  investmentHoldingPerformance,
   loading,
   error,
   locale,
@@ -58,8 +61,15 @@ export function FixedIncomeHoldingDetailContent({
 
   const viewModel = React.useMemo(() => {
     if (!holding) return null;
-    return buildFixedIncomeHoldingDetailViewModel(holding, transactions ?? [], performance, t, locale);
-  }, [holding, locale, performance, t, transactions]);
+    return buildFixedIncomeHoldingDetailViewModel(
+      holding,
+      transactions ?? [],
+      performance,
+      investmentHoldingPerformance,
+      t,
+      locale,
+    );
+  }, [holding, investmentHoldingPerformance, locale, performance, t, transactions]);
 
   const currencyFormatter = React.useMemo(() => {
     if (!viewModel?.currencyCode) return null;
@@ -128,6 +138,17 @@ export function FixedIncomeHoldingDetailContent({
       />
 
       <Divider sx={{ my: 3 }} />
+
+      <HoldingXirrCard
+        title={t("investments.detailDrawer.performance.xirr")}
+        tooltip={t("investments.detailDrawer.performance.xirrTooltip")}
+        sincePrefix={t("investments.detailDrawer.performance.since")}
+        sinceLabel={viewModel.xirrSinceLabel}
+        xirr={viewModel.xirr}
+        locale={locale}
+      />
+
+      {viewModel.xirr != null ? <Divider sx={{ my: 3 }} /> : null}
 
       <HoldingPerformanceChart
         points={viewModel.chartPoints}

@@ -23,6 +23,7 @@ import {
 import AddchartIcon from "@mui/icons-material/Addchart";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import AddIcon from "@mui/icons-material/Add";
+import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import SearchIcon from "@mui/icons-material/Search";
 import ClearIcon from "@mui/icons-material/Clear";
@@ -37,15 +38,17 @@ import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import {
   FinancialAccountsQuery,
 } from "@/lib/graphql/operations/banking/queries.generated";
-import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
+import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { InvestmentTable } from "./components/InvestmentTable";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
 import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawer";
+import { RecordCashDrawer } from "./components/RecordCashDrawer";
 import { PendingActionsDrawer } from "./PendingActionsDrawer";
 import { Label } from "@/shared/components/ui";
+import { InvestmentSummary } from "./components/InvestmentSummary";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -57,6 +60,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const [isRecordFixedIncomeOpen, setIsRecordFixedIncomeOpen] = React.useState(false);
   const [isRecordFundOpen, setIsRecordFundOpen] = React.useState(false);
   const [isRecordEquityOpen, setIsRecordEquityOpen] = React.useState(false);
+  const [isRecordCashOpen, setIsRecordCashOpen] = React.useState(false);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
   const [holdingMenuAnchor, setHoldingMenuAnchor] = React.useState<HTMLElement | null>(null);
   const isHoldingMenuOpen = Boolean(holdingMenuAnchor);
@@ -76,6 +80,10 @@ export default function PersonalFinanceInvestmentsPage() {
     closeHoldingMenu();
     setIsRecordEquityOpen(true);
   };
+  const handleSelectCash = () => {
+    closeHoldingMenu();
+    setIsRecordCashOpen(true);
+  };
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -85,12 +93,12 @@ export default function PersonalFinanceInvestmentsPage() {
     error: accountsError,
   } = useQuery<FinancialAccountsQuery>(FINANCIAL_ACCOUNTS, { errorPolicy: "all" });
 
-  const investmentAccounts = React.useMemo<FinancialAccount[]>(
+  const investmentAccounts = React.useMemo(
     () =>
       (accountsData?.financialAccounts ?? []).filter(
         (account) =>
           account.type === FinancialAccountType.Investment || account.type === benefitAccountType,
-      ) as FinancialAccount[],
+      ),
     [accountsData?.financialAccounts, benefitAccountType],
   );
 
@@ -122,6 +130,8 @@ export default function PersonalFinanceInvestmentsPage() {
           newAccountLabel={t("investments.emptyState.primaryAction")}
         />
         <Divider sx={{ my: 3 }} />
+        {!isEmpty ? <InvestmentSummary financialAccountId={selectedAccountId} /> : null}
+        {!isEmpty ? <Divider sx={{ my: 3 }} /> : null}
       </Box>
     </Box>
   );
@@ -335,6 +345,7 @@ export default function PersonalFinanceInvestmentsPage() {
                 <InvestmentTable
                   selectedAccountId={selectedAccountId}
                   bankAccounts={bankAccounts}
+                  investmentAccounts={investmentAccounts}
                   onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
                   searchQuery={holdingSearchQuery}
                 />
@@ -353,6 +364,12 @@ export default function PersonalFinanceInvestmentsPage() {
       />
 
       <Menu anchorEl={holdingMenuAnchor} open={isHoldingMenuOpen} onClose={closeHoldingMenu}>
+        <MenuItem onClick={handleSelectCash} data-testid="record-holding-option-cash">
+          <ListItemIcon>
+            <AccountBalanceWalletIcon fontSize="small" />
+          </ListItemIcon>
+          {t("investments.record.cash")}
+        </MenuItem>
         <MenuItem onClick={handleSelectFixedIncome} data-testid="record-holding-option-fixed-income">
           <ListItemIcon>
             <AssetTypeIcon kind="FIXED_INCOME" fontSize="small" />
@@ -392,6 +409,15 @@ export default function PersonalFinanceInvestmentsPage() {
         onClose={() => setIsRecordEquityOpen(false)}
         financialAccountId={selectedAccountId}
         financialAccounts={investmentAccounts}
+      />
+
+      <RecordCashDrawer
+        open={isRecordCashOpen}
+        onClose={() => setIsRecordCashOpen(false)}
+        financialAccountId={selectedAccountId}
+        financialAccounts={investmentAccounts}
+        bankAccounts={bankAccounts}
+        listContextAccountId={selectedAccountId}
       />
     </>
   );

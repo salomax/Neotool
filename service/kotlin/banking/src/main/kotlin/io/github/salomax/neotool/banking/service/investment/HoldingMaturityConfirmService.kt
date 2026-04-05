@@ -147,15 +147,31 @@ open class HoldingMaturityConfirmService(
                         parameters = mapOf("reason" to "Credit must go to a checking/savings-style bank account"),
                     )
                 }
+                val investmentAccountId = holding.financialAccountId
+                val outflow =
+                    transactionService.create(
+                        command =
+                            CreateTransactionCommand(
+                                financialAccountId = investmentAccountId,
+                                creditDebitType = CreditDebitType.DEBIT,
+                                type = TransactionType.TRANSFER,
+                                amount = cash.amount,
+                                date = cash.date,
+                                description = "Transferência para conta corrente — vencimento",
+                            ),
+                        accountId = accountId,
+                        userId = userId,
+                    )
                 transactionService.create(
                     command =
                         CreateTransactionCommand(
                             financialAccountId = cash.financialAccountId,
                             creditDebitType = CreditDebitType.CREDIT,
-                            type = TransactionType.INVESTMENT_RETURN,
+                            type = TransactionType.TRANSFER,
                             amount = cash.amount,
                             date = cash.date,
-                            description = "Resgate de investimento — vencimento",
+                            description = "Transferência recebida — resgate investimento (vencimento)",
+                            transferPeerTransactionId = requireNotNull(outflow.id),
                         ),
                     accountId = accountId,
                     userId = userId,

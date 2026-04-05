@@ -4,6 +4,8 @@ Go worker that imports daily equity, FII, and options prices from [B3's historic
 
 Data is sourced from the COTAHIST fixed-width flat files published by B3 (D+1 settlement). Annual files (`COTAHIST_A{YYYY}.ZIP`) are used for backfill; the current year's annual file is re-downloaded on each incremental run.
 
+**Downloads** use **headless Chromium** ([go-rod](https://github.com/go-rod/rod)): each file is fetched after a real navigation to B3’s series page (referer / cookie context), then navigation to the ZIP URL so TLS, redirects, and Cloudflare see a normal browser. Set `B3_CHROME_BIN` in containers to your system Chromium/Chrome binary (and install the package); if unset, Rod uses its default Chromium for the platform.
+
 ---
 
 ## What it does
@@ -82,7 +84,9 @@ The `import_job_control` table tracks `last_data_date` per job name (`b3_cotahis
 | `POSTGRES_POOL_MAX` | `10` | Max pool connections |
 | `POSTGRES_SSL_MODE` | `prefer` | TLS mode |
 | `B3_BASE_URL` | `http://bvmf.bmfbovespa.com.br/InstDados/SerHist` | Base URL for COTAHIST downloads |
-| `B3_TIMEOUT_SECONDS` | `300` | HTTP timeout per file (annual files can be ~100 MB) |
+| `B3_CHROME_BIN` | *(empty)* | Path to Chrome/Chromium; empty = Rod’s default browser |
+| `B3_TIMEOUT_SECONDS` | `300` | Per-file timeout for referer load + ZIP download (annual files can be ~100 MB) |
+| `B3_DOWNLOAD_INTERVAL_SECONDS` | `10` | Minimum delay between starting each browser download (reduces Cloudflare 520s) |
 | `B3_WORKERS` | `3` | Concurrent year tasks in the worker pool |
 | `B3_QUEUE_BUFFER` | `2` | Task queue buffer multiplier |
 | `B3_CHUNK_SIZE` | `500` | Rows per `pgx.Batch` commit |

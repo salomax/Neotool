@@ -13,6 +13,7 @@ type Translator = (key: string, options?: Record<string, unknown>) => string;
 type Holding = NonNullable<FundHoldingDetailQuery["investmentHolding"]>;
 type Transaction = FundHoldingDetailQuery["investmentTransactions"][number];
 type HoldingPerformance = NonNullable<FundHoldingDetailQuery["holdingPerformance"]>;
+type InvestmentHoldingPerformance = FundHoldingDetailQuery["investmentHoldingPerformance"];
 type PerformancePoint = HoldingPerformance["points"][number];
 
 export interface FundSummaryMetricViewModel {
@@ -50,6 +51,10 @@ export interface FundHoldingDetailViewModel {
   netGain: number | null;
   grossGainPercent: number | null;
   netGainPercent: number | null;
+  xirr: number | null;
+  xirrSinceLabel: string | null;
+  totalReturnAbsolute: number | null;
+  dividendsReceived: number | null;
   valueOrigin: ValueOriginLabel;
   summaryMetrics: FundSummaryMetricViewModel[];
   timelineItems: FundTimelineItemViewModel[];
@@ -97,6 +102,7 @@ export function buildFundHoldingDetailViewModel(
   holding: Holding,
   transactions: FundHoldingDetailQuery["investmentTransactions"],
   performance: HoldingPerformance | null | undefined,
+  investmentHoldingPerformance: InvestmentHoldingPerformance | null | undefined,
   t: Translator,
   locale: string,
 ): FundHoldingDetailViewModel {
@@ -113,6 +119,18 @@ export function buildFundHoldingDetailViewModel(
   const grossGainPercent = typeof summary?.grossGainPercent === "number" ? summary.grossGainPercent : null;
   const netGainPercent =
     typeof netGain === "number" && typeof principal === "number" && principal > 0 ? netGain / principal : null;
+  const xirr = typeof investmentHoldingPerformance?.xirr === "number" ? investmentHoldingPerformance.xirr : null;
+  const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
+    ? formatDate(investmentHoldingPerformance.xirrSince, locale)
+    : null;
+  const totalReturnAbsolute =
+    typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
+      ? investmentHoldingPerformance.totalReturnAbsolute
+      : null;
+  const dividendsReceived =
+    typeof investmentHoldingPerformance?.dividendsReceived === "number"
+      ? investmentHoldingPerformance.dividendsReceived
+      : null;
 
   const subtitle = formatAssetType(holding.asset.assetType, t);
   const issuerLabel = buildIssuerLabel(holding);
@@ -175,6 +193,10 @@ export function buildFundHoldingDetailViewModel(
     netGain,
     grossGainPercent,
     netGainPercent,
+    xirr,
+    xirrSinceLabel,
+    totalReturnAbsolute,
+    dividendsReceived,
     valueOrigin: getHoldingValueOrigin({
       valuationSource: performance?.valuationSource ?? holding.valuationSource,
       source: holding.source,

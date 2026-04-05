@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, waitFor, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AppHeader } from '../AppHeader';
 import { AppThemeProvider } from '@/styles/themes/AppThemeProvider';
@@ -16,8 +16,6 @@ vi.mock("react-i18next", async (importOriginal) => {
           "appHeader.account": "Account",
           "appHeader.signOut": "Sign Out",
           "appHeader.defaultUser": "User",
-          "appHeader.theme.light": "Switch to light mode",
-          "appHeader.theme.dark": "Switch to dark mode",
           "appHeader.aiAssistant": "AI Assistant",
           "appHeader.pendingActions": "Pending actions",
         };
@@ -35,21 +33,6 @@ vi.mock('next/navigation', () => ({
   }),
   usePathname: () => '/',
 }));
-
-// Mock theme mode hook
-const mockToggle = vi.fn();
-const mockUseThemeMode = vi.fn<[], { mode: 'light' | 'dark'; toggle: () => void }>(() => ({
-  mode: 'light' as const,
-  toggle: mockToggle,
-}));
-
-vi.mock('@/styles/themes/AppThemeProvider', async () => {
-  const actual = await vi.importActual('@/styles/themes/AppThemeProvider');
-  return {
-    ...actual,
-    useThemeMode: () => mockUseThemeMode(),
-  };
-});
 
 // Mock auth provider
 type User = {
@@ -136,10 +119,6 @@ const renderAppHeader = () => {
 describe.sequential('AppHeader', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseThemeMode.mockReturnValue({
-      mode: 'light' as const,
-      toggle: mockToggle,
-    });
     mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: null,
@@ -163,15 +142,6 @@ describe.sequential('AppHeader', () => {
       const headers = renderAppHeader().getAllByRole('banner');
       expect(headers.length).toBeGreaterThan(0);
       expect(headers[0]!).toBeInTheDocument();
-    });
-
-    it('renders theme toggle button', () => {
-      renderAppHeader();
-      
-      // Component may render multiple times, so get all instances
-      const themeButtons = renderAppHeader().getAllByLabelText('toggle theme');
-      expect(themeButtons.length).toBeGreaterThan(0);
-      expect(themeButtons[0]!).toBeInTheDocument();
     });
 
     it('renders AI assistant button', () => {
@@ -230,46 +200,6 @@ describe.sequential('AppHeader', () => {
       const accountButtons = renderAppHeader().getAllByLabelText('Account menu');
       expect(accountButtons.length).toBeGreaterThan(0);
       expect(accountButtons[0]!).toBeInTheDocument();
-    });
-  });
-
-  describe('Theme toggle', () => {
-    it('shows light mode icon when in dark mode', () => {
-      mockUseThemeMode.mockReturnValue({
-        mode: 'dark' as const,
-        toggle: mockToggle,
-      });
-
-      renderAppHeader();
-      
-      // Component may render multiple times, so get all instances
-      const themeButtons = renderAppHeader().getAllByLabelText('toggle theme');
-      expect(themeButtons.length).toBeGreaterThan(0);
-      expect(themeButtons[0]!).toBeInTheDocument();
-    });
-
-    it('shows dark mode icon when in light mode', () => {
-      mockUseThemeMode.mockReturnValue({
-        mode: 'light' as const,
-        toggle: mockToggle,
-      });
-
-      renderAppHeader();
-      
-      // Component may render multiple times, so get all instances
-      const themeButtons = renderAppHeader().getAllByLabelText('toggle theme');
-      expect(themeButtons.length).toBeGreaterThan(0);
-      expect(themeButtons[0]!).toBeInTheDocument();
-    });
-
-    it('calls toggle when theme button is clicked', async () => {
-      const user = userEvent.setup();
-      const view = renderAppHeader();
-      const themeButtons = view.getAllByLabelText('toggle theme');
-      for (const btn of themeButtons) {
-        await user.click(btn);
-      }
-      expect(mockToggle).toHaveBeenCalled();
     });
   });
 
@@ -780,9 +710,13 @@ describe.sequential('AppHeader', () => {
       expect(view.getByText('Page Title')).toBeInTheDocument();
       
       // Actions should still be present - component may render multiple times
-      const themeButtons = view.getAllByLabelText('toggle theme');
-      expect(themeButtons.length).toBeGreaterThan(0);
-      expect(themeButtons[0]!).toBeInTheDocument();
+      const chatButtons = view.getAllByLabelText('Open AI assistant');
+      expect(chatButtons.length).toBeGreaterThan(0);
+      expect(chatButtons[0]!).toBeInTheDocument();
+
+      const signInButtons = view.getAllByTestId('header-signin-button');
+      expect(signInButtons.length).toBeGreaterThan(0);
+      expect(signInButtons[0]!).toBeInTheDocument();
     });
 
     it('should maintain layout without title', () => {
@@ -796,9 +730,13 @@ describe.sequential('AppHeader', () => {
       expect(headers[0]).toBeInTheDocument();
       
       // Actions should still be present - component may render multiple times
-      const themeButtons = screen.getAllByLabelText('toggle theme');
-      expect(themeButtons.length).toBeGreaterThan(0);
-      expect(themeButtons[0]!).toBeInTheDocument();
+      const chatButtons = screen.getAllByLabelText('Open AI assistant');
+      expect(chatButtons.length).toBeGreaterThan(0);
+      expect(chatButtons[0]!).toBeInTheDocument();
+
+      const signInButtons = screen.getAllByTestId('header-signin-button');
+      expect(signInButtons.length).toBeGreaterThan(0);
+      expect(signInButtons[0]!).toBeInTheDocument();
     });
 
     it('should update title when pageTitle changes', () => {

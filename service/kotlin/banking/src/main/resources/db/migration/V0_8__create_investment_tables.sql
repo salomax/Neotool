@@ -364,6 +364,16 @@ CREATE INDEX idx_investment_transactions_type_date
     ON banking.investment_transactions(account_id, type, trade_date)
     WHERE deleted_at IS NULL;
 
+ALTER TABLE banking.transactions
+    ADD CONSTRAINT fk_transactions_investment_transaction
+    FOREIGN KEY (investment_transaction_id)
+    REFERENCES banking.investment_transactions(id)
+    ON DELETE SET NULL;
+
+CREATE UNIQUE INDEX uq_transactions_investment_transaction_id
+    ON banking.transactions(investment_transaction_id)
+    WHERE investment_transaction_id IS NOT NULL AND deleted_at IS NULL;
+
 
 -- ─── Broker Notes ─────────────────────────────────────────────────────────────
 -- 1:1 extension of investment_transactions for renda variável (STOCK, FII, ETF, BDR).

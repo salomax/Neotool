@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -16,10 +17,15 @@ import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketPrice
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
@@ -33,6 +39,7 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceRe
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceSummaryDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -43,7 +50,15 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.util.UUID
+
+data class InvestmentCashTransactionsSlice(
+    val items: List<Transaction>,
+    val hasNextPage: Boolean,
+    val startCursor: String?,
+    val endCursor: String?,
+)
 
 /**
  * Query service that orchestrates all holding read operations:
@@ -63,6 +78,7 @@ class InvestmentQueryService(
     private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
+    private val transactionRepository: TransactionRepository,
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     private val logger = KotlinLogging.logger {}
@@ -77,6 +93,94 @@ class InvestmentQueryService(
             }
         val holdings = rawHoldings.filter { it.quantity > BigDecimal.ZERO }
         return mapHoldingsToDTO(holdings, accountId)
+    }
+
+    /**
+     * Idle cash on custodian account(s): SUM(CREDIT) − SUM(DEBIT) on `banking.transactions` (POSTED/PENDING).
+     */
+    fun getInvestmentCashBalance(
+        financialAccountId: UUID?,
+        accountId: UUID,
+    ): BigDecimal {
+        val accounts = financialAccountRepository.findByAccountId(accountId)
+        val scopeIds: List<UUID> =
+            if (financialAccountId != null) {
+                val fa = accounts.find { it.id == financialAccountId } ?: return BigDecimal.ZERO
+                require(fa.type == FinancialAccountType.INVESTMENT || fa.type == FinancialAccountType.BENEFIT) {
+                    "financialAccountId must be an investment or benefit custodian account"
+                }
+                listOf(financialAccountId)
+            } else {
+                accounts
+                    .filter { it.type == FinancialAccountType.INVESTMENT || it.type == FinancialAccountType.BENEFIT }
+                    .mapNotNull { it.id }
+            }
+        return transactionRepository.sumLedgerBalance(accountId, scopeIds)
+    }
+
+    fun listInvestmentCashTransactions(
+        financialAccountId: UUID?,
+        accountId: UUID,
+        first: Int?,
+        after: String?,
+    ): InvestmentCashTransactionsSlice {
+        val pageSize = (first ?: 20).coerceIn(1, 50)
+        val scopedFaId =
+            financialAccountId?.let { id ->
+                val fa =
+                    financialAccountRepository.findById(id, accountId)
+                        ?: throw ValidationException(
+                            BankingErrorCode.INVESTMENT_MANUAL_CASH_INVALID_FINANCIAL_ACCOUNT,
+                            field = "financialAccountId",
+                            parameters = mapOf("reason" to "Financial account not found"),
+                        )
+                if (fa.type != FinancialAccountType.INVESTMENT && fa.type != FinancialAccountType.BENEFIT) {
+                    throw ValidationException(
+                        BankingErrorCode.INVESTMENT_MANUAL_CASH_INVALID_FINANCIAL_ACCOUNT,
+                        field = "financialAccountId",
+                    )
+                }
+                id
+            }
+        val (afterDate, afterId) =
+            when {
+                after.isNullOrBlank() -> Pair<LocalDate?, UUID?>(null, null)
+                else ->
+                    try {
+                        val p = InvestmentCashTransactionCursor.decode(after)
+                        p.first to p.second
+                    } catch (_: Exception) {
+                        throw ValidationException(
+                            CommonErrorCode.INVALID_INPUT,
+                            field = "after",
+                            parameters = mapOf("reason" to "Invalid cursor"),
+                        )
+                    }
+            }
+        val rows =
+            transactionRepository.findInvestmentCashTransactionsKeyset(
+                accountId = accountId,
+                financialAccountId = scopedFaId,
+                afterDate = afterDate,
+                afterId = afterId,
+                limit = pageSize + 1,
+            )
+        val hasNext = rows.size > pageSize
+        val page = rows.take(pageSize)
+        val startC =
+            page.firstOrNull()?.let { tx ->
+                InvestmentCashTransactionCursor.encode(tx.date, requireNotNull(tx.id))
+            }
+        val endC =
+            page.lastOrNull()?.let { tx ->
+                InvestmentCashTransactionCursor.encode(tx.date, requireNotNull(tx.id))
+            }
+        return InvestmentCashTransactionsSlice(
+            items = page,
+            hasNextPage = hasNext,
+            startCursor = startC,
+            endCursor = endC,
+        )
     }
 
     fun getHolding(id: UUID, accountId: UUID): InvestmentHoldingDTO? {
@@ -157,6 +261,45 @@ class InvestmentQueryService(
                     quantity = point.quantity?.toDouble(),
                 )
             },
+        )
+    }
+
+    fun getInvestmentHoldingPerformance(
+        id: UUID,
+        accountId: UUID,
+    ): InvestmentHoldingPerformanceDTO? {
+        val holding = holdingRepository.findById(id, accountId) ?: return null
+        val holdingSnapshot = getHolding(id, accountId) ?: return null
+        val transactions = investmentTransactionRepository.findByHolding(id, accountId).sortedBy { it.tradeDate }
+        val currentCostBasis = holding.quantity.multiply(holding.averageCost, mathContext).toDouble()
+        val currentValue = holdingSnapshot.grossValue ?: holdingSnapshot.netValue ?: currentCostBasis
+        val cashFlows = transactions.mapNotNull { it.toHoldingCashFlow() }
+        val totalInvested = transactions.sumOf { transaction ->
+            if (transaction.isCapitalContribution()) transaction.cashFlowAmountMagnitude() else 0.0
+        }
+        val totalReturnAbsolute = cashFlows.sumOf(HoldingCashFlow::amount) + currentValue
+        val totalReturnBase = totalInvested.takeIf { it > 0.0 } ?: currentCostBasis
+        val totalReturn = if (totalReturnBase > 0.0) totalReturnAbsolute / totalReturnBase else 0.0
+        val dividendsReceived = transactions.sumOf { it.dividendLikeAmount() }
+        val xirrSince = cashFlows.minOfOrNull(HoldingCashFlow::date)
+        val terminalCashFlows = cashFlows + HoldingCashFlow(clock(), currentValue)
+        val xirr =
+            if (
+                xirrSince != null &&
+                ChronoUnit.DAYS.between(xirrSince, clock()) >= MIN_XIRR_HISTORY_DAYS
+            ) {
+                calculateXirr(terminalCashFlows)
+            } else {
+                null
+            }
+
+        return InvestmentHoldingPerformanceDTO(
+            holdingId = id,
+            xirr = xirr,
+            xirrSince = xirrSince,
+            totalReturn = totalReturn,
+            totalReturnAbsolute = totalReturnAbsolute,
+            dividendsReceived = dividendsReceived,
         )
     }
 
@@ -699,6 +842,74 @@ class InvestmentQueryService(
     private fun InvestmentTransaction.isCapitalWithdrawal(): Boolean =
         direction == InvestmentTransactionDirection.OUTFLOW && type in CAPITAL_WITHDRAWAL_TYPES
 
+    private fun InvestmentTransaction.cashFlowAmountMagnitude(): Double =
+        (netValue ?: grossValue).abs().toDouble()
+
+    private fun InvestmentTransaction.dividendLikeAmount(): Double =
+        if (direction == InvestmentTransactionDirection.INFLOW && type in DIVIDEND_LIKE_TYPES) {
+            cashFlowAmountMagnitude()
+        } else {
+            0.0
+        }
+
+    private fun InvestmentTransaction.toHoldingCashFlow(): HoldingCashFlow? {
+        val amount =
+            when {
+                isCapitalContribution() -> -cashFlowAmountMagnitude()
+                isCapitalWithdrawal() -> cashFlowAmountMagnitude()
+                direction == InvestmentTransactionDirection.INFLOW && type in DIVIDEND_LIKE_TYPES -> cashFlowAmountMagnitude()
+                direction == InvestmentTransactionDirection.OUTFLOW && type in EXPENSE_LIKE_TYPES -> -cashFlowAmountMagnitude()
+                else -> null
+            } ?: return null
+        if (amount == 0.0) return null
+        return HoldingCashFlow(tradeDate, amount)
+    }
+
+    private fun calculateXirr(cashFlows: List<HoldingCashFlow>): Double? {
+        if (cashFlows.size < 2) return null
+        if (cashFlows.none { it.amount < 0.0 } || cashFlows.none { it.amount > 0.0 }) return null
+
+        val startDate = cashFlows.minOf(HoldingCashFlow::date)
+
+        fun npv(rate: Double): Double =
+            cashFlows.sumOf { flow ->
+                val years = ChronoUnit.DAYS.between(startDate, flow.date).toDouble() / DAYS_PER_YEAR
+                flow.amount / Math.pow(1.0 + rate, years)
+            }
+
+        var lower = MIN_XIRR_RATE
+        var upper = INITIAL_XIRR_UPPER_BOUND
+        var lowerValue = npv(lower)
+        var upperValue = npv(upper)
+        var expansions = 0
+
+        while (lowerValue * upperValue > 0.0 && expansions < MAX_XIRR_BOUND_EXPANSIONS) {
+            upper *= 2.0
+            upperValue = npv(upper)
+            expansions += 1
+        }
+
+        if (!lowerValue.isFinite() || !upperValue.isFinite() || lowerValue * upperValue > 0.0) {
+            return null
+        }
+
+        repeat(MAX_XIRR_ITERATIONS) {
+            val mid = (lower + upper) / 2.0
+            val midValue = npv(mid)
+            if (!midValue.isFinite()) return null
+            if (kotlin.math.abs(midValue) < XIRR_TOLERANCE) return mid
+
+            if (lowerValue * midValue <= 0.0) {
+                upper = mid
+            } else {
+                lower = mid
+                lowerValue = midValue
+            }
+        }
+
+        return (lower + upper) / 2.0
+    }
+
     private data class Valuation(
         val grossValue: Double?,
         val netValue: Double?,
@@ -711,6 +922,11 @@ class InvestmentQueryService(
     private data class DatedPerformancePoint(
         val date: LocalDate,
         val isProjected: Boolean,
+    )
+
+    private data class HoldingCashFlow(
+        val date: LocalDate,
+        val amount: Double,
     )
 
     private data class PerformancePoint(
@@ -813,6 +1029,7 @@ class InvestmentQueryService(
         currencyCode = currencyCode,
         includeInNetWorth = includeInNetWorth,
         includeInDashboard = includeInDashboard,
+        includeCashInAllocation = includeCashInAllocation,
         themeColor = themeColor,
         issuer = issuer?.let {
             IssuerDTO(
@@ -897,5 +1114,26 @@ class InvestmentQueryService(
                 InvestmentTransactionType.OWNERSHIP_TRANSFER,
                 InvestmentTransactionType.QUOTA_TRANSFER,
             )
+        private val DIVIDEND_LIKE_TYPES =
+            setOf(
+                InvestmentTransactionType.DIVIDEND,
+                InvestmentTransactionType.INTEREST_ON_EQUITY,
+                InvestmentTransactionType.INTEREST_PAYMENT,
+                InvestmentTransactionType.PRIZE,
+                InvestmentTransactionType.STOCK_LENDING,
+            )
+        private val EXPENSE_LIKE_TYPES =
+            setOf(
+                InvestmentTransactionType.WITHHOLDING_TAX,
+                InvestmentTransactionType.FINE,
+                InvestmentTransactionType.LATE_PAYMENT_INTEREST,
+            )
+        private const val DAYS_PER_YEAR = 365.0
+        private const val MIN_XIRR_HISTORY_DAYS = 30L
+        private const val MIN_XIRR_RATE = -0.9999
+        private const val INITIAL_XIRR_UPPER_BOUND = 1.0
+        private const val MAX_XIRR_BOUND_EXPANSIONS = 20
+        private const val MAX_XIRR_ITERATIONS = 100
+        private const val XIRR_TOLERANCE = 1e-7
     }
 }

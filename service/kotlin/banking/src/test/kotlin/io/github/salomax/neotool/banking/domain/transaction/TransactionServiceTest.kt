@@ -3,11 +3,15 @@ package io.github.salomax.neotool.banking.domain.transaction
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
+import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService

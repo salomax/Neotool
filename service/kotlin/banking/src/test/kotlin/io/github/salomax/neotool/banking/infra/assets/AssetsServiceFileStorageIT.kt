@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.client.assets
 
 import io.github.salomax.neotool.banking.client.assets.*
-import io.github.salomax.neotool.banking.domain.import.port.ImportFileStoragePort
+import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import okhttp3.mockwebserver.MockResponse

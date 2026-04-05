@@ -109,4 +109,22 @@ interface TransactionCategoryEntityRepository : JpaRepository<TransactionCategor
         accountId: UUID,
         now: Instant,
     )
+
+    @Query(
+        """
+        SELECT c.id
+        FROM banking.transaction_categories c
+        INNER JOIN banking.transaction_categories p ON c.parent_id = p.id
+        WHERE p.name = :parentName AND c.name = :childName
+          AND p.account_id IS NULL AND c.account_id IS NULL
+          AND p.is_system = TRUE AND c.is_system = TRUE
+          AND p.deleted_at IS NULL AND c.deleted_at IS NULL
+        LIMIT 1
+        """,
+        nativeQuery = true,
+    )
+    fun findSystemSubcategoryId(
+        parentName: String,
+        childName: String,
+    ): UUID?
 }

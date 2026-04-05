@@ -2,7 +2,9 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.AssetDailyPrice
+import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import io.github.salomax.neotool.financialdata.domain.ListedAsset
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -61,4 +63,13 @@ interface ListedAssetRepositoryCustom {
         to: LocalDate?,
         last: Int?,
     ): List<AssetDailyPrice>
+
+    fun getDailyPricesForSync(
+        from: LocalDate,
+        to: LocalDate,
+        tickers: Collection<String>?,
+        updatedSince: Instant?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<ListedAssetDailyPriceSyncItem>
 }

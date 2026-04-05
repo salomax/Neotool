@@ -5,21 +5,22 @@ import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.domain.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.domain.investment.FundMarketDataProvider
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
-import io.github.salomax.neotool.banking.domain.investment.IndicatorRateProvider
+import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
-import io.github.salomax.neotool.banking.domain.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
@@ -43,6 +44,7 @@ class InvestmentQueryServiceTest {
     private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider = mock()
     private val investmentTransactionRepository: InvestmentTransactionRepository = mock()
     private val indicatorRateProvider: IndicatorRateProvider = mock()
+    private val transactionRepository: TransactionRepository = mock()
 
     private val service =
         InvestmentQueryService(
@@ -56,6 +58,7 @@ class InvestmentQueryServiceTest {
             listedAssetMarketDataProvider = listedAssetMarketDataProvider,
             investmentTransactionRepository = investmentTransactionRepository,
             indicatorRateProvider = indicatorRateProvider,
+            transactionRepository = transactionRepository,
             clock = { LocalDate.of(2025, 12, 2) },
         )
 
@@ -128,6 +131,193 @@ class InvestmentQueryServiceTest {
         assertThat(result.first().valuationSource).isEqualTo(ValuationSource.MARKET_DATA)
         assertThat(result.first().valuationReferenceDate).isEqualTo(LocalDate.of(2025, 12, 1))
         assertThat(result.first().asset?.logoAsset).containsEntry("id", "asset-logo-petr4")
+    }
+
+    @Test
+    fun `investment holding performance computes xirr total return and dividends for equity holdings`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val assetId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        val now = Instant.parse("2025-12-02T12:00:00Z")
+
+        val holding =
+            Holding(
+                id = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = assetId,
+                quantity = BigDecimal("100"),
+                averageCost = BigDecimal("10.00"),
+                createdAt = now,
+                updatedAt = now,
+            )
+        val asset =
+            Asset(
+                id = assetId,
+                ticker = "PETR4",
+                name = "Petrobras PN",
+                assetType = AssetType.STOCK,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val financialAccount =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                type = FinancialAccountType.INVESTMENT,
+                subtype = FinancialAccountSubtype.BROKERAGE,
+                name = "Broker",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val purchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("100"),
+                unitPrice = BigDecimal("10.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 1, 1),
+                source = InvestmentSource.MANUAL,
+            )
+        val dividend =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.DIVIDEND,
+                grossValue = BigDecimal("50.00"),
+                tradeDate = LocalDate.of(2025, 6, 1),
+                source = InvestmentSource.MANUAL,
+            )
+
+        whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
+        whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
+        whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
+        whenever(assetRepository.findById(assetId)).thenReturn(asset)
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
+        whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
+            mapOf(
+                "PETR4" to ListedAssetMarketData(
+                    ticker = "PETR4",
+                    closePrice = BigDecimal("12.00"),
+                    referenceDate = LocalDate.of(2025, 12, 1),
+                    logoAssetId = null,
+                ),
+            ),
+        )
+        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase, dividend))
+        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(listOf(purchase, dividend))
+        whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
+        whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
+
+        val result = service.getInvestmentHoldingPerformance(holdingId, accountId)
+
+        assertThat(result).isNotNull
+        assertThat(result?.xirrSince).isEqualTo(LocalDate.of(2025, 1, 1))
+        assertThat(result?.dividendsReceived).isEqualTo(50.0)
+        assertThat(result?.totalReturnAbsolute).isEqualTo(250.0)
+        assertThat(result?.totalReturn).isEqualTo(0.25)
+        assertThat(result?.xirr).isNotNull
+        assertThat(result?.xirr).isCloseTo(0.28, org.assertj.core.data.Offset.offset(0.03))
+    }
+
+    @Test
+    fun `investment holding performance keeps xirr null when history is shorter than thirty days`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val assetId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        val now = Instant.parse("2025-12-02T12:00:00Z")
+
+        val holding =
+            Holding(
+                id = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                assetId = assetId,
+                quantity = BigDecimal("10"),
+                averageCost = BigDecimal("100.00"),
+                createdAt = now,
+                updatedAt = now,
+            )
+        val asset =
+            Asset(
+                id = assetId,
+                ticker = "VALE3",
+                name = "Vale ON",
+                assetType = AssetType.STOCK,
+                currencyCode = "BRL",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val financialAccount =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                type = FinancialAccountType.INVESTMENT,
+                subtype = FinancialAccountSubtype.BROKERAGE,
+                name = "Broker",
+                createdAt = now,
+                updatedAt = now,
+            )
+        val purchase =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = BigDecimal("10"),
+                unitPrice = BigDecimal("100.00"),
+                grossValue = BigDecimal("1000.00"),
+                tradeDate = LocalDate.of(2025, 11, 20),
+                source = InvestmentSource.MANUAL,
+            )
+
+        whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
+        whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
+        whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
+        whenever(assetRepository.findById(assetId)).thenReturn(asset)
+        whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
+        whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("VALE3"))).thenReturn(
+            mapOf(
+                "VALE3" to ListedAssetMarketData(
+                    ticker = "VALE3",
+                    closePrice = BigDecimal("120.00"),
+                    referenceDate = LocalDate.of(2025, 12, 1),
+                    logoAssetId = null,
+                ),
+            ),
+        )
+        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase))
+        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(listOf(purchase))
+        whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
+        whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
+
+        val result = service.getInvestmentHoldingPerformance(holdingId, accountId)
+
+        assertThat(result).isNotNull
+        assertThat(result?.xirrSince).isEqualTo(LocalDate.of(2025, 11, 20))
+        assertThat(result?.xirr).isNull()
+        assertThat(result?.totalReturnAbsolute).isEqualTo(200.0)
+        assertThat(result?.totalReturn).isEqualTo(0.2)
     }
 
     @Test
@@ -218,6 +408,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 investmentTransactionRepository = investmentTransactionRepository,
                 indicatorRateProvider = indicatorRateProvider,
+                transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 12, 2) },
             )
 
@@ -315,6 +506,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 investmentTransactionRepository = investmentTransactionRepository,
                 indicatorRateProvider = indicatorRateProvider,
+                transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2025, 12, 2) },
             )
 
@@ -405,6 +597,7 @@ class InvestmentQueryServiceTest {
                 listedAssetMarketDataProvider = listedAssetMarketDataProvider,
                 investmentTransactionRepository = investmentTransactionRepository,
                 indicatorRateProvider = indicatorRateProvider,
+                transactionRepository = transactionRepository,
                 clock = { LocalDate.of(2026, 3, 27) },
             )
 

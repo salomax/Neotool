@@ -200,6 +200,7 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
                             date = feb8,
                         ),
                     accountId = accountId,
+                    userId = userId,
                 )
 
             val newBillId = updated.billId!!

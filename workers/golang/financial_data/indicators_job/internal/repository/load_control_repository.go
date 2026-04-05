@@ -119,3 +119,16 @@ func (r *LoadControlRepository) UpdateCompletion(
 	)
 	return err
 }
+
+func (r *LoadControlRepository) GetMaxSuccessfulReferenceDate(ctx context.Context) (*time.Time, error) {
+	var lastRef *time.Time
+	err := r.pool.QueryRow(ctx, `
+		SELECT MAX(last_reference_date)
+		FROM financial_data.economic_indicator_load_control
+		WHERE status = 'SUCCESS'
+	`).Scan(&lastRef)
+	if err != nil {
+		return nil, err
+	}
+	return lastRef, nil
+}

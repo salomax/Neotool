@@ -14,7 +14,7 @@ import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.service.import.ImportValidationGate
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
-import io.github.salomax.neotool.banking.domain.importevent.ImportEventBus
+import io.github.salomax.neotool.banking.service.import.ImportEventBus
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat

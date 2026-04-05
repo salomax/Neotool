@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.config
 
-import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal

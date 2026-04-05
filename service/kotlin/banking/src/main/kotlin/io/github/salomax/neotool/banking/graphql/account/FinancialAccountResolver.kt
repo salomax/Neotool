@@ -83,6 +83,7 @@ class FinancialAccountResolver(
             currencyCode = currencyCode,
             includeInNetWorth = includeInNetWorth,
             includeInDashboard = includeInDashboard,
+            includeCashInAllocation = includeCashInAllocation,
             themeColor = themeColor,
             issuer = issuer?.toDTO(),
             issuerName = issuerName,
@@ -159,6 +160,7 @@ class FinancialAccountResolver(
             currencyCode = this["currencyCode"] as? String,
             includeInNetWorth = this["includeInNetWorth"] as? Boolean,
             includeInDashboard = this["includeInDashboard"] as? Boolean,
+            includeCashInAllocation = this["includeCashInAllocation"] as? Boolean,
             bankData =
                 bankDataInput?.let {
                     BankData(
@@ -200,6 +202,7 @@ class FinancialAccountResolver(
             currencyCode = this["currencyCode"] as? String,
             includeInNetWorth = this["includeInNetWorth"] as? Boolean,
             includeInDashboard = this["includeInDashboard"] as? Boolean,
+            includeCashInAllocation = this["includeCashInAllocation"] as? Boolean,
             bankData =
                 bankDataInput?.let {
                     BankData(

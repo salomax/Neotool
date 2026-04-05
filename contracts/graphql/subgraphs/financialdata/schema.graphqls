@@ -47,12 +47,16 @@ extend type Query {
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection!
   investmentFund(id: ID!): InvestmentFund
   investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]!
+  fundDailyNavs(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, cnpjs: [String!]): FundDailyNavConnection!
 
   # B3 investment asset queries (equities, FIIs, options)
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection!
   investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection!
   investmentAssetByTicker(ticker: String!): ListedAsset
   investmentAssetsByTickers(tickers: [String!]!): [ListedAsset!]!
+  listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection!
+  economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection!
+  assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection!
 }
 
 # Enums
@@ -334,6 +338,27 @@ type EconomicIndicatorPoint {
   value: Float!
 }
 
+type EconomicIndicatorPointConnection {
+  edges: [EconomicIndicatorPointEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type EconomicIndicatorPointEdge {
+  node: EconomicIndicatorPointNode!
+  cursor: String!
+}
+
+type EconomicIndicatorPointNode {
+  indicator: String!
+  variation: String!
+  unit: String
+  referenceDate: Date!
+  publicationDate: Date
+  value: Float!
+  updatedAt: DateTime!
+}
+
 # Flat list of latest value per indicator+variation (for banking valuation).
 type EconomicIndicatorLatestItem {
   indicator: String!
@@ -468,6 +493,25 @@ type FundDailyNav {
   totalNetAssets: Float
 }
 
+type FundDailyNavConnection {
+  edges: [FundDailyNavSyncEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type FundDailyNavSyncEdge {
+  node: FundDailyNavNode!
+  cursor: String!
+}
+
+type FundDailyNavNode {
+  cnpj: String!
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+  updatedAt: DateTime!
+}
+
 enum FundTaxProfile {
   COME_COTAS_LONG
   COME_COTAS_SHORT
@@ -535,6 +579,57 @@ type AssetDailyPrice {
   avgPrice: Float
   volume: Float
   trades: Int
+}
+
+type ListedAssetDailyPriceConnection {
+  edges: [ListedAssetDailyPriceEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetDailyPriceEdge {
+  node: ListedAssetDailyPriceNode!
+  cursor: String!
+}
+
+type ListedAssetDailyPriceNode {
+  ticker: String!
+  isinCode: String
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+  updatedAt: DateTime!
+}
+
+type AssetCorporateEventConnection {
+  edges: [AssetCorporateEventEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type AssetCorporateEventEdge {
+  node: AssetCorporateEventNode!
+  cursor: String!
+}
+
+type AssetCorporateEventNode {
+  ticker: String
+  isinCode: String!
+  eventType: String!
+  factor: Float
+  priceUnit: Float
+  tradingStart: Date
+  tradingEnd: Date
+  subscriptionDate: Date
+  lastDatePrior: Date!
+  approvedOn: Date!
+  remarks: String
+  updatedAt: DateTime!
 }
 
 type ListedAssetConnection {

@@ -179,12 +179,25 @@ function buildPerformance(): NonNullable<FixedIncomeHoldingDetailQuery["holdingP
   };
 }
 
+function buildInvestmentHoldingPerformance(): NonNullable<FixedIncomeHoldingDetailQuery["investmentHoldingPerformance"]> {
+  return {
+    __typename: "InvestmentHoldingPerformance",
+    holdingId: "holding-1",
+    xirr: 0.155,
+    xirrSince: "2025-01-10",
+    totalReturn: 0.12,
+    totalReturnAbsolute: 120,
+    dividendsReceived: 0,
+  };
+}
+
 describe("buildFixedIncomeHoldingDetailViewModel", () => {
   it("maps current valuation metrics from the holding snapshot", () => {
     const viewModel = buildFixedIncomeHoldingDetailViewModel(
       buildHolding(),
       buildTransactions(),
       buildPerformance(),
+      buildInvestmentHoldingPerformance(),
       t,
       "pt-BR",
     );
@@ -198,6 +211,9 @@ describe("buildFixedIncomeHoldingDetailViewModel", () => {
     expect(viewModel.netGain).toBe(101);
     expect(viewModel.grossGainPercent).toBeCloseTo(0.12);
     expect(viewModel.netGainPercent).toBeCloseTo(0.101);
+    expect(viewModel.xirr).toBeCloseTo(0.155);
+    expect(viewModel.xirrSinceLabel).toBeTruthy();
+    expect(viewModel.totalReturnAbsolute).toBe(120);
     expect(viewModel.indexerLabel).toBe("CDI 115,0%");
     expect(viewModel.valueOrigin).toBe("estimado_app");
     expect(viewModel.chartPoints).toHaveLength(3);
@@ -217,6 +233,7 @@ describe("buildFixedIncomeHoldingDetailViewModel", () => {
       holding,
       buildTransactions(),
       { ...performance, points },
+      buildInvestmentHoldingPerformance(),
       t,
       "pt-BR",
     );
@@ -230,6 +247,7 @@ describe("buildFixedIncomeHoldingDetailViewModel", () => {
       buildHolding(),
       buildTransactions(),
       buildPerformance(),
+      buildInvestmentHoldingPerformance(),
       t,
       "pt-BR",
     );

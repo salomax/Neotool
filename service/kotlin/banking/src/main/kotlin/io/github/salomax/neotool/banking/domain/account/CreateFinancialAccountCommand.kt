@@ -21,6 +21,7 @@ data class CreateFinancialAccountCommand(
     val currencyCode: String? = null,
     val includeInNetWorth: Boolean? = null,
     val includeInDashboard: Boolean? = null,
+    val includeCashInAllocation: Boolean? = null,
     val bankData: BankData? = null,
     val cardData: CardData? = null,
     /** Non-zero account balance on [initialBalanceDate]. Creates a BALANCE_ADJUSTMENT transaction when provided. */
@@ -43,6 +44,7 @@ data class UpdateFinancialAccountCommand(
     val currencyCode: String? = null,
     val includeInNetWorth: Boolean? = null,
     val includeInDashboard: Boolean? = null,
+    val includeCashInAllocation: Boolean? = null,
     val bankData: BankData? = null,
     val cardData: CardData? = null,
 )

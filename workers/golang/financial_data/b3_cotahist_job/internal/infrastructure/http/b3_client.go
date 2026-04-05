@@ -7,21 +7,30 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
+	"github.com/go-rod/rod/lib/proto"
 	"golang.org/x/time/rate"
 
 	"github.com/salomax/invistus/workers/golang/financial_data/b3-cotahist/internal/shared"
 )
 
+// B3 official series page — visited first so Chromium establishes a normal
+// browsing session (cookies, referrer context) before hitting the file CDN.
+const b3SeriesHistoricasReferer = "https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/"
+
 // ErrFileNotFound is returned when B3 returns HTTP 404 for a given date's file.
 // The caller (dispatcher) treats this as a skip, not a fatal error.
 var ErrFileNotFound = errors.New("b3: file not found (404)")
 
-// B3Client downloads COTAHIST ZIP files from the B3 historical data portal.
+// B3Client downloads COTAHIST ZIP files from the B3 historical data portal
+// using headless Chromium (real TLS, cookies, and navigation semantics).
 //
 // File name conventions:
 //
@@ -29,24 +38,32 @@ var ErrFileNotFound = errors.New("b3: file not found (404)")
 //	Daily:   COTAHIST_D{DDMMYYYY}.ZIP e.g. COTAHIST_D17032026.ZIP
 //
 // B3's CDN (Cloudflare) returns 520 errors when downloads are started too close
-// together. downloadLimiter enforces a minimum gap between consecutive HTTP
-// transfers — independently of the worker pool size — so processing (parse +
-// DB write) still runs fully in parallel, only the HTTP transfer phase is
-// rate-limited.
+// together. downloadLimiter enforces a minimum gap between consecutive transfers
+// — independently of the worker pool size — so processing (parse + DB write)
+// still runs fully in parallel, only the browser download phase is rate-limited.
 type B3Client struct {
 	baseURL         string
-	httpClient      *http.Client
+	timeout         time.Duration
 	retry           shared.RetryPolicy
-	downloadLimiter *rate.Limiter // one token consumed per download attempt
+	downloadLimiter *rate.Limiter
 	logger          *slog.Logger
+	chromeBin       string
+
+	browserMu sync.Mutex
+	launcher  *launcher.Launcher
+	browser   *rod.Browser
 }
 
-// NewB3Client creates a client with a rate-limited downloader.
+// NewB3Client creates a client that uses headless Chromium for downloads.
+//
+// chromeBin may be empty: Rod then uses its default Chromium (downloaded once
+// per platform) or the usual Chrome install. In Docker, set chromeBin to the
+// system chromium path (e.g. /usr/bin/chromium) and install the package.
 //
 // downloadIntervalSeconds is the minimum gap between consecutive download
-// starts. Use 0 to disable rate limiting (unlimited). Values of 10–15 s are
-// recommended for B3's Cloudflare-fronted CDN.
-func NewB3Client(baseURL string, timeoutSec, downloadIntervalSeconds int, logger *slog.Logger) *B3Client {
+// starts. Use 0 to disable rate limiting. Values of 10–15 s are recommended
+// for B3's Cloudflare-fronted CDN.
+func NewB3Client(baseURL string, timeoutSec, downloadIntervalSeconds int, chromeBin string, logger *slog.Logger) *B3Client {
 	var limiter *rate.Limiter
 	if downloadIntervalSeconds > 0 {
 		limiter = rate.NewLimiter(rate.Every(time.Duration(downloadIntervalSeconds)*time.Second), 1)
@@ -55,17 +72,33 @@ func NewB3Client(baseURL string, timeoutSec, downloadIntervalSeconds int, logger
 	}
 	return &B3Client{
 		baseURL:         strings.TrimRight(baseURL, "/"),
-		httpClient:      &http.Client{Timeout: time.Duration(timeoutSec) * time.Second},
+		timeout:         time.Duration(timeoutSec) * time.Second,
 		retry:           shared.B3DownloadRetryPolicy,
 		downloadLimiter: limiter,
 		logger:          logger,
+		chromeBin:       strings.TrimSpace(chromeBin),
+	}
+}
+
+// Close shuts down the Chromium process and launcher resources.
+// Safe to call multiple times.
+func (c *B3Client) Close() {
+	c.browserMu.Lock()
+	defer c.browserMu.Unlock()
+	if c.browser != nil {
+		_ = c.browser.Close()
+		c.browser = nil
+	}
+	if c.launcher != nil {
+		c.launcher.Cleanup()
+		c.launcher = nil
 	}
 }
 
 // DownloadAnnualToTempFile downloads COTAHIST_A{year}.ZIP to a temp file.
 // Returns the path and a cleanup func (os.Remove). Caller must always invoke cleanup.
 //
-// Annual files can be 30–150 MB compressed. The HTTP timeout should be set
+// Annual files can be 30–150 MB compressed. The timeout should be set
 // generously (300 s) to accommodate slow B3 servers.
 func (c *B3Client) DownloadAnnualToTempFile(ctx context.Context, year int) (string, func(), error) {
 	filename := fmt.Sprintf("COTAHIST_A%d.ZIP", year)
@@ -86,6 +119,40 @@ func (c *B3Client) DownloadDailyToTempFile(ctx context.Context, date time.Time) 
 	return c.downloadToTempFile(ctx, filename, fmt.Sprintf("b3-daily-%s-*.zip", date.Format("20060102")))
 }
 
+func (c *B3Client) ensureBrowser() error {
+	c.browserMu.Lock()
+	defer c.browserMu.Unlock()
+	if c.browser != nil {
+		return nil
+	}
+
+	l := launcher.New().
+		Headless(true).
+		Set("disable-gpu").
+		Set("no-sandbox").
+		Set("disable-setuid-sandbox").
+		Set("disable-dev-shm-usage")
+
+	if c.chromeBin != "" {
+		l = l.Bin(c.chromeBin)
+	}
+
+	wsURL, err := l.Launch()
+	if err != nil {
+		return fmt.Errorf("launching chromium: %w", err)
+	}
+
+	browser := rod.New().ControlURL(wsURL)
+	if err := browser.Connect(); err != nil {
+		l.Cleanup()
+		return fmt.Errorf("connecting to chromium: %w", err)
+	}
+
+	c.launcher = l
+	c.browser = browser
+	return nil
+}
+
 // downloadToTempFile downloads a file by name to a temp file and returns its path
 // plus a cleanup function. The download is retried on transient failures.
 //
@@ -99,80 +166,148 @@ func (c *B3Client) downloadToTempFile(ctx context.Context, filename, pattern str
 	}
 	tmpPath := tmp.Name()
 	removeFn := func() { _ = os.Remove(tmpPath) }
+	if err := tmp.Close(); err != nil {
+		removeFn()
+		return "", func() {}, fmt.Errorf("closing temp file: %w", err)
+	}
 
 	url := c.baseURL + "/" + filename
 
-	// Wait for a rate-limiter token before starting the HTTP transfer.
-	// This enforces a minimum gap between consecutive downloads, preventing
-	// Cloudflare 520 errors caused by too many parallel or rapid-fire requests.
 	if err := c.downloadLimiter.Wait(ctx); err != nil {
-		_ = tmp.Close()
 		removeFn()
 		return "", func() {}, ctx.Err()
 	}
 
+	if err := c.ensureBrowser(); err != nil {
+		removeFn()
+		return "", func() {}, err
+	}
+
 	downloadErr := shared.Retry(ctx, c.retry, func(ctx context.Context) error {
-		// Truncate on each retry so we start with a clean file.
-		if err := tmp.Truncate(0); err != nil {
-			return fmt.Errorf("truncating temp file: %w", err)
+		if err := os.Remove(tmpPath); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("removing temp file before retry: %w", err)
 		}
-		if _, err := tmp.Seek(0, io.SeekStart); err != nil {
-			return fmt.Errorf("seeking temp file: %w", err)
+		recreate, err := os.OpenFile(tmpPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+		if err != nil {
+			return fmt.Errorf("recreate temp file: %w", err)
+		}
+		_ = recreate.Close()
+
+		dlDir, err := os.MkdirTemp("", "b3-chrome-dl-*")
+		if err != nil {
+			return fmt.Errorf("mkdir download dir: %w", err)
+		}
+		defer func() { _ = os.RemoveAll(dlDir) }()
+
+		dlCtx, cancel := context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+
+		br := c.browser
+		if br == nil {
+			return errors.New("chromium browser not initialized")
 		}
 
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+		browser := br.Context(dlCtx)
+
+		page, err := browser.Page(proto.TargetCreateTarget{})
 		if err != nil {
+			return fmt.Errorf("new browser page: %w", err)
+		}
+		defer func() { _ = page.Close() }()
+
+		wait := browser.WaitDownload(dlDir)
+
+		page = page.Context(dlCtx).Timeout(c.timeout)
+
+		if err := page.Navigate(b3SeriesHistoricasReferer); err != nil {
+			return fmt.Errorf("navigate referer: %w", err)
+		}
+		if err := page.WaitLoad(); err != nil {
+			return fmt.Errorf("wait referer load: %w", err)
+		}
+
+		// Direct navigation to a ZIP often returns net::ERR_ABORTED: Chromium cancels
+		// the document load when the response is a download. That is not a failure;
+		// WaitDownload still receives the file if the transfer started.
+		if err := page.Navigate(url); err != nil && !isNavigateDownloadAbort(err) {
+			return fmt.Errorf("navigate file url: %w", err)
+		}
+
+		info := wait()
+		if info == nil {
+			if errors.Is(dlCtx.Err(), context.DeadlineExceeded) || errors.Is(dlCtx.Err(), context.Canceled) {
+				if ctx.Err() != nil {
+					return ctx.Err()
+				}
+			}
+			html, _ := page.HTML()
+			lower := strings.ToLower(html)
+			if strings.Contains(lower, "404") || strings.Contains(lower, "not found") ||
+				strings.Contains(lower, "não encontrado") || strings.Contains(lower, "http error 404") {
+				return fmt.Errorf("%w: %s", ErrFileNotFound, filename)
+			}
+			return fmt.Errorf("download did not complete for %s (timeout or blocked)", filename)
+		}
+
+		srcPath := filepath.Join(dlDir, info.GUID)
+		if err := copyFileToPath(srcPath, tmpPath); err != nil {
+			return fmt.Errorf("copy download to temp: %w", err)
+		}
+
+		if err := verifyZipHeader(tmpPath); err != nil {
 			return err
 		}
 
-		// Mimic a real Chrome browser so Cloudflare does not fingerprint and
-		// rate-limit the Go default user-agent.
-		req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36")
-		req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7")
-		req.Header.Set("Accept-Language", "pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7")
-		// Accept-Encoding is intentionally omitted: Go's transport adds it
-		// automatically and handles decompression transparently, which avoids
-		// receiving gzip-wrapped bytes when writing a binary ZIP to disk.
-		req.Header.Set("Referer", "https://www.b3.com.br/pt_br/market-data-e-indices/servicos-de-dados/market-data/historico/mercado-a-vista/series-historicas/")
-		req.Header.Set("Upgrade-Insecure-Requests", "1")
-		req.Header.Set("Sec-Fetch-Dest", "document")
-		req.Header.Set("Sec-Fetch-Mode", "navigate")
-		req.Header.Set("Sec-Fetch-Site", "same-site")
-		req.Header.Set("Sec-Fetch-User", "?1")
-		req.Header.Set("Sec-Ch-Ua", `"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"`)
-		req.Header.Set("Sec-Ch-Ua-Mobile", "?0")
-		req.Header.Set("Sec-Ch-Ua-Platform", `"Windows"`)
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			return fmt.Errorf("GET %s: %w", url, err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusNotFound {
-			// 404 is not retryable — return sentinel so caller can skip the date.
-			return fmt.Errorf("%w: %s", ErrFileNotFound, filename)
-		}
-		if resp.StatusCode != http.StatusOK {
-			return fmt.Errorf("GET %s: unexpected status %d", url, resp.StatusCode)
-		}
-
-		if _, err = io.Copy(tmp, resp.Body); err != nil {
-			return fmt.Errorf("writing ZIP to temp file: %w", err)
-		}
 		return nil
 	}, isRetryable, c.logger)
 
 	if downloadErr != nil {
-		_ = tmp.Close()
 		removeFn()
 		return "", func() {}, downloadErr
 	}
-	if err = tmp.Close(); err != nil {
-		removeFn()
-		return "", func() {}, fmt.Errorf("closing temp file: %w", err)
-	}
 	return tmpPath, removeFn, nil
+}
+
+func isNavigateDownloadAbort(err error) bool {
+	if err == nil {
+		return false
+	}
+	s := err.Error()
+	return strings.Contains(s, "ERR_ABORTED") || strings.Contains(s, "download is starting")
+}
+
+func copyFileToPath(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return err
+	}
+	_, copyErr := io.Copy(out, in)
+	closeErr := out.Close()
+	if copyErr != nil {
+		return copyErr
+	}
+	return closeErr
+}
+
+func verifyZipHeader(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	hdr := make([]byte, 4)
+	if _, err := io.ReadFull(f, hdr); err != nil {
+		return fmt.Errorf("reading downloaded file header: %w", err)
+	}
+	if hdr[0] != 'P' || hdr[1] != 'K' {
+		return fmt.Errorf("response is not a ZIP archive (expected PK header)")
+	}
+	return nil
 }
 
 // OpenTXTFromZip opens the first .TXT entry inside a COTAHIST ZIP file and

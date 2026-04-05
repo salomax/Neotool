@@ -5,15 +5,14 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, Typography, IconButton } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { FinancialAccount } from "@/lib/graphql/types/__generated__/graphql";
-import { IssuerSelection } from "./IssuerSelection";
+import { IssuerSelection, type IssuerSelectionAccount } from "./IssuerSelection";
 
 export interface InvestmentRecordDrawerProps {
   open: boolean;
   onClose: () => void;
   title: string;
   initialFinancialAccountId?: string | null;
-  financialAccounts?: FinancialAccount[];
+  financialAccounts?: IssuerSelectionAccount[];
   issuerSelection: {
     description: string;
     emptyState: string;

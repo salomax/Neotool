@@ -131,6 +131,38 @@ type Asset
   deletedAt: DateTime @join__field(graph: ASSETS)
 }
 
+type AssetCorporateEventConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [AssetCorporateEventEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type AssetCorporateEventEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: AssetCorporateEventNode!
+  cursor: String!
+}
+
+type AssetCorporateEventNode
+  @join__type(graph: FINANCIALDATA)
+{
+  ticker: String
+  isinCode: String!
+  eventType: String!
+  factor: Float
+  priceUnit: Float
+  tradingStart: Date
+  tradingEnd: Date
+  subscriptionDate: Date
+  lastDatePrior: Date!
+  approvedOn: Date!
+  remarks: String
+  updatedAt: DateTime!
+}
+
 type AssetDailyPrice
   @join__type(graph: FINANCIALDATA)
 {
@@ -142,6 +174,20 @@ type AssetDailyPrice
   avgPrice: Float
   volume: Float
   trades: Int
+}
+
+type AssetGroupSummary
+  @join__type(graph: BANKING)
+{
+  groupKey: String!
+  label: String!
+  count: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  grossGainPercent: Float
+  twr: Float
+  allocationPercent: Float!
+  isCash: Boolean!
 }
 
 """Asset upload lifecycle status."""
@@ -390,6 +436,14 @@ type BankingUserPreferences
   @join__type(graph: BANKING)
 {
   ruleApplicationMode: RuleApplicationMode!
+}
+
+type BenchmarkPerformance
+  @join__type(graph: BANKING)
+{
+  code: String!
+  label: String!
+  twr: Float
 }
 
 type BillImportJob
@@ -873,6 +927,7 @@ input CreateFinancialAccountInput
   currencyCode: String
   includeInNetWorth: Boolean
   includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
 
   """Required when type = BANK."""
   bankData: BankAccountDataInput
@@ -917,6 +972,36 @@ input CreateInvestmentAssetInput
 
   """Defaults to BRL when omitted."""
   currencyCode: String
+}
+
+input CreateInvestmentCashTransactionInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID!
+  type: InvestmentCashTransactionType!
+
+  """
+  For DEPOSIT and WITHDRAWAL must be > 0.
+  For ADJUSTMENT: use positive for credit and negative for debit (must be non-zero).
+  """
+  amount: Float!
+  date: Date!
+
+  """
+  Required when type = ADJUSTMENT, or when registerAsBalanceAdjustment is true.
+  """
+  description: String
+
+  """
+  Optional bank account for an atomic transfer pair (checking/savings-style only).
+  Not allowed with ADJUSTMENT or registerAsBalanceAdjustment.
+  """
+  peerFinancialAccountId: ID
+
+  """
+  When true with DEPOSIT or WITHDRAWAL, records BALANCE_ADJUSTMENT instead of TRANSFER (description required).
+  """
+  registerAsBalanceAdjustment: Boolean
 }
 
 input CreateMerchantInput
@@ -1167,6 +1252,33 @@ type EconomicIndicatorPoint
   value: Float!
 }
 
+type EconomicIndicatorPointConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [EconomicIndicatorPointEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type EconomicIndicatorPointEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: EconomicIndicatorPointNode!
+  cursor: String!
+}
+
+type EconomicIndicatorPointNode
+  @join__type(graph: FINANCIALDATA)
+{
+  indicator: String!
+  variation: String!
+  unit: String
+  referenceDate: Date!
+  publicationDate: Date
+  value: Float!
+  updatedAt: DateTime!
+}
+
 type EconomicIndicatorVariation
   @join__type(graph: FINANCIALDATA)
 {
@@ -1258,6 +1370,11 @@ type FinancialAccount
   currencyCode: String!
   includeInNetWorth: Boolean!
   includeInDashboard: Boolean!
+
+  """
+  When true, idle cash on this custodian account counts toward allocation % in investments UI.
+  """
+  includeCashInAllocation: Boolean!
   themeColor: String
 
   """
@@ -1460,6 +1577,31 @@ type FundDailyNav
   date: Date!
   closePrice: Float!
   totalNetAssets: Float
+}
+
+type FundDailyNavConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [FundDailyNavSyncEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type FundDailyNavNode
+  @join__type(graph: FINANCIALDATA)
+{
+  cnpj: String!
+  date: Date!
+  closePrice: Float!
+  totalNetAssets: Float
+  updatedAt: DateTime!
+}
+
+type FundDailyNavSyncEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: FundDailyNavNode!
+  cursor: String!
 }
 
 enum FundTaxProfile
@@ -1759,6 +1901,24 @@ type InvestmentAsset
   updatedAt: DateTime!
 }
 
+"""
+Manual cash movement on an investment/benefit custodian account (no asset / investment-transaction link).
+"""
+enum InvestmentCashTransactionType
+  @join__type(graph: BANKING)
+{
+  """Credit TRANSFER — external deposit into the custodian account."""
+  DEPOSIT @join__enumValue(graph: BANKING)
+
+  """Debit TRANSFER — withdrawal from the custodian account."""
+  WITHDRAWAL @join__enumValue(graph: BANKING)
+
+  """
+  BALANCE_ADJUSTMENT — signed amount: positive credits, negative debits the custodian cash balance.
+  """
+  ADJUSTMENT @join__enumValue(graph: BANKING)
+}
+
 type InvestmentFund
   @join__type(graph: FINANCIALDATA)
 {
@@ -1894,6 +2054,40 @@ type InvestmentHolding
   attachments: [HoldingAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+type InvestmentHoldingPerformance
+  @join__type(graph: BANKING)
+{
+  holdingId: ID!
+  xirr: Float
+  xirrSince: Date
+  totalReturn: Float!
+  totalReturnAbsolute: Float!
+  dividendsReceived: Float!
+}
+
+type InvestmentPortfolioSummary
+  @join__type(graph: BANKING)
+{
+  totalHoldingsCount: Int!
+  totalCostBasis: Float!
+  totalGrossValue: Float!
+  totalNetValue: Float!
+  totalIncomeTax: Float!
+  totalIof: Float!
+  grossGain: Float!
+  grossGainPercent: Float!
+  netGain: Float!
+  netGainPercent: Float!
+  cashBalance: Float!
+  totalPortfolioValue: Float!
+  byAssetGroup: [AssetGroupSummary!]!
+  hasEstimatedValues: Boolean!
+  valuationReferenceDate: Date
+  currencyCode: String!
+  performance: PortfolioPerformance!
+  recalculationStatus: RecalculationStatus!
 }
 
 """How an investment record entered the system."""
@@ -2086,6 +2280,37 @@ type ListedAssetConnection
   edges: [ListedAssetEdge!]!
   pageInfo: PageInfo!
   totalCount: Int
+}
+
+type ListedAssetDailyPriceConnection
+  @join__type(graph: FINANCIALDATA)
+{
+  edges: [ListedAssetDailyPriceEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int
+}
+
+type ListedAssetDailyPriceEdge
+  @join__type(graph: FINANCIALDATA)
+{
+  node: ListedAssetDailyPriceNode!
+  cursor: String!
+}
+
+type ListedAssetDailyPriceNode
+  @join__type(graph: FINANCIALDATA)
+{
+  ticker: String!
+  isinCode: String
+  date: Date!
+  openPrice: Float
+  highPrice: Float
+  lowPrice: Float
+  closePrice: Float!
+  avgPrice: Float
+  volume: Float
+  trades: Int
+  updatedAt: DateTime!
 }
 
 type ListedAssetEdge
@@ -2362,9 +2587,30 @@ type Mutation
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
 
   """
+  Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
+  Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.
+  """
+  createInvestmentCashTransaction(input: CreateInvestmentCashTransactionInput!): Transaction! @join__field(graph: BANKING)
+
+  """
+  Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present).
+  """
+  updateInvestmentCashTransaction(id: ID!, input: UpdateInvestmentCashTransactionInput!): Transaction! @join__field(graph: BANKING)
+
+  """
+  Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present.
+  """
+  deleteInvestmentCashTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
   Soft-deletes a MANUAL investment holding and all of its MANUAL transactions.
   """
   deleteInvestmentHolding(id: ID!): Boolean! @join__field(graph: BANKING)
+
+  """
+  Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago.
+  """
+  triggerPortfolioRecalculation(financialAccountId: ID, recalculateFrom: String): Boolean! @join__field(graph: BANKING)
 
   """
   Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted.
@@ -2589,6 +2835,21 @@ enum PendingActionType
   @join__type(graph: BANKING)
 {
   INVESTMENT_MATURED @join__enumValue(graph: BANKING)
+
+  """
+  Bank account balance went negative after a paired investment cash transfer (informational).
+  """
+  BANK_ACCOUNT_NEGATIVE_BALANCE @join__enumValue(graph: BANKING)
+}
+
+enum PerformancePeriod
+  @join__type(graph: BANKING)
+{
+  MTD @join__enumValue(graph: BANKING)
+  YTD @join__enumValue(graph: BANKING)
+  ONE_YEAR @join__enumValue(graph: BANKING)
+  THREE_YEARS @join__enumValue(graph: BANKING)
+  ALL @join__enumValue(graph: BANKING)
 }
 
 type Permission
@@ -2638,6 +2899,17 @@ type PopularInstitutionTopMetricItem
   rank: Int!
   institution: BacenInstitutionSummaryItem!
   metricValue: Float
+}
+
+type PortfolioPerformance
+  @join__type(graph: BANKING)
+{
+  twr: Float
+  twrSince: Date
+  twrAbsolute: Float
+  period: PerformancePeriod!
+  benchmarks: [BenchmarkPerformance!]!
+  hasEstimatedValues: Boolean!
 }
 
 type PricePoint
@@ -3004,6 +3276,24 @@ type Query
   """
   investmentHoldings(financialAccountId: ID): [InvestmentHolding!]! @join__field(graph: BANKING)
 
+  """
+  Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
+  When financialAccountId is omitted, aggregates all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashBalance(financialAccountId: ID): Float! @join__field(graph: BANKING)
+
+  """
+  Investment portfolio summary for one investment account or the consolidated view.
+  """
+  investmentPortfolioSummary(financialAccountId: ID, period: PerformancePeriod): InvestmentPortfolioSummary! @join__field(graph: BANKING)
+
+  """
+  Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
+  Keyset cursor on (date, id), ordered by date DESC then id DESC.
+  When financialAccountId is omitted, includes all INVESTMENT and BENEFIT accounts for the tenant.
+  """
+  investmentCashTransactions(financialAccountId: ID, first: Int, after: String): TransactionConnection! @join__field(graph: BANKING)
+
   """Single holding by id."""
   investmentHolding(id: ID!): InvestmentHolding @join__field(graph: BANKING)
 
@@ -3018,6 +3308,9 @@ type Query
 
   """Generic performance series and valuation summary for a holding."""
   holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
+
+  """Annualized IRR and total return summary for a holding."""
+  investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance @join__field(graph: BANKING)
 
   """
   Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation).
@@ -3049,10 +3342,14 @@ type Query
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
   investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
   investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]! @join__field(graph: FINANCIALDATA)
+  fundDailyNavs(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, cnpjs: [String!]): FundDailyNavConnection! @join__field(graph: FINANCIALDATA)
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection! @join__field(graph: FINANCIALDATA)
   investmentAssetByTicker(ticker: String!): ListedAsset @join__field(graph: FINANCIALDATA)
   investmentAssetsByTickers(tickers: [String!]!): [ListedAsset!]! @join__field(graph: FINANCIALDATA)
+  listedAssetDailyPrices(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!]): ListedAssetDailyPriceConnection! @join__field(graph: FINANCIALDATA)
+  economicIndicatorVariationPoints(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, indicators: [String!], variations: [String!]): EconomicIndicatorPointConnection! @join__field(graph: FINANCIALDATA)
+  assetCorporateEvents(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, tickers: [String!], isins: [String!]): AssetCorporateEventConnection! @join__field(graph: FINANCIALDATA)
   currentUser: User @join__field(graph: SECURITY)
   myVerificationStatus: VerificationStatus @join__field(graph: SECURITY)
   checkPermission(userId: ID!, permission: String!, resourceId: ID): AuthorizationResult! @join__field(graph: SECURITY)
@@ -3089,6 +3386,15 @@ type RatingIssuer
   name: String!
   website: String
   logoAssetId: String
+}
+
+type RecalculationStatus
+  @join__type(graph: BANKING)
+{
+  isCalculating: Boolean!
+  jobId: UUID
+  startedAt: DateTime
+  message: String
 }
 
 """
@@ -3484,6 +3790,9 @@ type Transaction
   counterpartyAccountNumber: String
   paymentReason: String
   transferPeerTransactionId: ID
+
+  """Set when this row is the cash leg linked to an investment transaction."""
+  investmentTransactionId: ID
   installmentNumber: Int
   totalInstallments: Int
   billId: ID
@@ -3744,6 +4053,7 @@ input UpdateFinancialAccountInput
   currencyCode: String
   includeInNetWorth: Boolean
   includeInDashboard: Boolean
+  includeCashInAllocation: Boolean
   bankData: BankAccountDataInput
   cardData: CardDataInput
 }
@@ -3754,6 +4064,14 @@ input UpdateGroupInput
   name: String!
   description: String
   userIds: [ID!]
+}
+
+input UpdateInvestmentCashTransactionInput
+  @join__type(graph: BANKING)
+{
+  amount: Float!
+  date: Date!
+  description: String
 }
 
 input UpdateProductInput

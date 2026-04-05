@@ -21,6 +21,14 @@ enum class HoldingPerformanceResolution {
     MONTH,
 }
 
+enum class PerformancePeriodDTO {
+    MTD,
+    YTD,
+    ONE_YEAR,
+    THREE_YEARS,
+    ALL,
+}
+
 // ── Asset ─────────────────────────────────────────────────────────────────────
 
 data class InvestmentAssetDTO(
@@ -170,4 +178,68 @@ data class HoldingPerformanceDTO(
     val capabilities: HoldingPerformanceCapabilitiesDTO,
     val summary: HoldingPerformanceSummaryDTO,
     val points: List<HoldingPerformancePointDTO>,
+)
+
+data class InvestmentHoldingPerformanceDTO(
+    val holdingId: UUID,
+    val xirr: Double?,
+    val xirrSince: LocalDate?,
+    val totalReturn: Double,
+    val totalReturnAbsolute: Double,
+    val dividendsReceived: Double,
+)
+
+data class BenchmarkPerformanceDTO(
+    val code: String,
+    val label: String,
+    val twr: Double?,
+)
+
+data class PortfolioPerformanceDTO(
+    val twr: Double?,
+    val twrSince: LocalDate?,
+    val twrAbsolute: Double?,
+    val period: PerformancePeriodDTO,
+    val benchmarks: List<BenchmarkPerformanceDTO>,
+    val hasEstimatedValues: Boolean,
+)
+
+data class RecalculationStatusDTO(
+    val isCalculating: Boolean,
+    val jobId: UUID?,
+    val startedAt: Instant?,
+    val message: String?,
+)
+
+data class AssetGroupSummaryDTO(
+    val groupKey: String,
+    val label: String,
+    val count: Int,
+    val totalCostBasis: Double,
+    val totalGrossValue: Double,
+    val grossGainPercent: Double?,
+    val twr: Double?,
+    val allocationPercent: Double,
+    val isCash: Boolean,
+)
+
+data class InvestmentPortfolioSummaryDTO(
+    val totalHoldingsCount: Int,
+    val totalCostBasis: Double,
+    val totalGrossValue: Double,
+    val totalNetValue: Double,
+    val totalIncomeTax: Double,
+    val totalIof: Double,
+    val grossGain: Double,
+    val grossGainPercent: Double,
+    val netGain: Double,
+    val netGainPercent: Double,
+    val cashBalance: Double,
+    val totalPortfolioValue: Double,
+    val byAssetGroup: List<AssetGroupSummaryDTO>,
+    val hasEstimatedValues: Boolean,
+    val valuationReferenceDate: LocalDate?,
+    val currencyCode: String,
+    val performance: PortfolioPerformanceDTO,
+    val recalculationStatus: RecalculationStatusDTO,
 )

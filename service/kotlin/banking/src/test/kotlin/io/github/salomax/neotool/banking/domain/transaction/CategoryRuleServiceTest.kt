@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.transaction.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

@@ -19,7 +19,6 @@ import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
 import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingActionsBadge";
 import { UserProfileMenu } from "@/shared/ui/shell/UserProfileMenu";
-import { ThemeToggle } from "@/styles/themes/ThemeToggle";
 import type { RouteConfig } from "@/shared/components/ui/navigation/Breadcrumb";
 
 export function AppHeader() {
@@ -175,9 +174,6 @@ export function AppHeader() {
               flex: "0 0 auto", // Prevent actions from shrinking
             }}
           >
-            <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
-              <ThemeToggle />
-            </Box>
             <HeaderPendingActionsBadge />
             {isAssistantEnabled && (
               <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>

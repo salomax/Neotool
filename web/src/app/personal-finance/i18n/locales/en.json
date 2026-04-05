@@ -64,6 +64,116 @@
       "recordFund": "Record fund",
       "recordEquity": "Record stock / FII"
     },
+    "record": {
+      "cash": "Cash in account"
+    },
+    "summary": {
+      "totalPortfolio": "Total portfolio",
+      "grossGain": "Accumulated gain",
+      "totalInvested": "Total invested",
+      "cashBalance": "Available cash",
+      "estimated": "estimated",
+      "allocation": "Allocation",
+      "viewAllGroups": "View all groups",
+      "performance": {
+        "title": "Performance",
+        "portfolioReturn": "Portfolio return",
+        "period": {
+          "MTD": "This month",
+          "YTD": "This year",
+          "ONE_YEAR": "1 year",
+          "THREE_YEARS": "3 years",
+          "ALL": "Since inception"
+        },
+        "absolute": "Current value gain",
+        "noHistory": "Not enough history to calculate",
+        "recalculating": "Recalculating performance history...",
+        "recalculatingDetail": "Return and comparisons will update in a few moments."
+      },
+      "drawer": {
+        "title": "Asset groups"
+      },
+      "error": {
+        "title": "We couldn't calculate the summary",
+        "description": "Check your connection and try again.",
+        "retry": "Retry"
+      }
+    },
+    "cash": {
+      "cardTitle": "Available cash",
+      "cardPreviewCaption": "Recent movements",
+      "cardSecondaryLabel": "Context",
+      "viewAll": "View movements",
+      "negativeBalanceHint": "Cash balance is negative. Review entries and adjustments.",
+      "registerAsBalanceAdjustment": "Record as balance adjustment",
+      "peerAccount": "Counterpart account (bank or brokerage)",
+      "peerAccountNone": "No linked account",
+      "peerAccountNoMatch": "No matching accounts",
+      "successPaired": "Transfer recorded on both accounts",
+      "drawer": {
+        "title": "Cash in account",
+        "selectAccount": {
+          "description": "Choose the investment account where this cash movement will be recorded.",
+          "emptyState": "No investment accounts available."
+        }
+      },
+      "movementTypeLabel": "Movement type",
+      "adjustmentDirectionLabel": "Adjustment direction",
+      "type": {
+        "deposit": "Deposit",
+        "withdrawal": "Withdrawal",
+        "adjustment": "Balance adjustment"
+      },
+      "adjustmentDirection": {
+        "credit": "Increase balance",
+        "debit": "Decrease balance"
+      },
+      "amount": "Amount",
+      "date": "Date",
+      "description": "Description",
+      "descriptionAdjustment": "Reason for adjustment",
+      "validation": {
+        "amountPositive": "Enter an amount greater than zero.",
+        "descriptionRequired": "Please describe the reason for this adjustment.",
+        "descriptionRequiredAdjustment": "Please describe the reason for this adjustment.",
+        "dateNotInFuture": "The date cannot be in the future."
+      },
+      "actions": {
+        "submit": "Save",
+        "submitting": "Saving..."
+      },
+      "success": "Cash movement saved",
+      "movements": {
+        "drawer": {
+          "listTitle": "Cash movements",
+          "recordTitle": "Record movement",
+          "register": "New movement"
+        },
+        "columns": {
+          "date": "Date",
+          "description": "Description",
+          "kind": "Type",
+          "amount": "Amount"
+        },
+        "kind": {
+          "adjustment": "Balance adjustment",
+          "return": "Income / distribution",
+          "transferIn": "In (transfer)",
+          "transferOut": "Out (transfer)"
+        },
+        "empty": "No cash movements yet.",
+        "loadError": "Could not load movements.",
+        "loadMore": "Load more",
+        "detailTitle": "Movement details",
+        "editTitle": "Edit movement",
+        "deleteConfirmation": {
+          "title": "Delete this movement?",
+          "message": "This removes the entry on this investment account and any linked transfer leg. This cannot be undone."
+        },
+        "successUpdated": "Movement updated",
+        "successDeleted": "Movement deleted"
+      }
+    },
     "pendingActions": {
       "panelTitle": "Pending actions",
       "registerMaturity": "Record maturity",
@@ -184,6 +294,7 @@
         "gain": "Gain/Loss"
       },
       "searchPlaceholder": "Search holdings...",
+      "cashInAccount": "Cash in account",
       "noMatches": "No holdings match your search.",
       "valuationTooltip": {
         "CALCULATED": "Value calculated from indicators and fixed income rules.",
@@ -225,7 +336,6 @@
       "expiredNudge": "This asset expired on {{maturityDate}}. Update or remove it.",
       "groupTotalEstimated": "Part of this total uses estimated valuation or tax data.",
       "total": "Total",
-      "appliedValue": "Invested amount",
       "groupSummary_one": "{{count}} asset · {{total}}",
       "groupSummary_other": "{{count}} assets · {{total}}",
       "rowActions": {
@@ -238,11 +348,11 @@
         "variableIncome": "Variable income",
         "bankFixedIncome": "Fixed income",
         "creditFixedIncome": "Credit fixed income",
-        "treasuryDirect": "Treasury Direct",
         "mutualFunds": "Investment funds",
         "pension": "Pension",
         "structured": "Structured",
-        "others": "Others"
+        "others": "Others",
+        "cash": "Cash"
       },
       "emptyState": "No holdings recorded in this account",
       "recordFirstHolding": "Record first holding",
@@ -261,6 +371,8 @@
         "grossTotal": "Gross total",
         "netTotal": "Net total",
         "grossEarnings": "Gross earnings",
+        "totalReturn": "Total return",
+        "dividendsReceived": "Income received",
         "incomeTax": "Income tax",
         "iof": "IOF",
         "netEarnings": "Net earnings"
@@ -274,6 +386,11 @@
         "iof": "IOF",
         "grossGain": "Gross gain",
         "grossGainPercent": "Gross return"
+      },
+      "performance": {
+        "xirr": "Annualized IRR",
+        "xirrTooltip": "Annualized internal rate of return considering the date and amount of each contribution.",
+        "since": "Since"
       },
       "chart": {
         "title": "Investment progression",
@@ -321,10 +438,21 @@
       },
       "transactionTypes": {
         "AMORTIZATION": "Amortization",
+        "BONUS_SHARES": "Bonus shares",
+        "CUSTODY_TRANSFER": "Custody transfer",
+        "DIVIDEND": "Dividend",
         "INTEREST_PAYMENT": "Interest payment",
+        "INTEREST_ON_EQUITY": "Interest on equity",
         "MATURITY": "Maturity",
+        "OWNERSHIP_TRANSFER": "Ownership transfer",
+        "PRIZE": "Prize",
         "PURCHASE": "Purchase",
-        "SALE": "Sale"
+        "QUOTA_TRANSFER": "Unit transfer",
+        "SALE": "Sale",
+        "STOCK_LENDING": "Stock lending",
+        "STOCK_SPLIT": "Stock split",
+        "SUBSCRIPTION": "Subscription",
+        "WITHHOLDING_TAX": "Withholding tax"
       }
     },
     "deleteConfirmation": {
@@ -467,6 +595,7 @@
       },
       "sections": {
         "fund": "Fund",
+        "listing": "How is this fund registered?",
         "manualFund": "Manual fund",
         "applicationData": "Application data",
         "values": "Values",
@@ -484,7 +613,7 @@
       "fields": {
         "fund": "Fund",
         "manualFundName": "Fund name",
-        "manualFundCnpj": "Fund CNPJ (optional)",
+        "manualFundCnpj": "Fund CNPJ",
         "manualFundCnpjHelper": "If provided, it must be a valid CNPJ to support future manual linking.",
         "manualAssetType": "Fund type",
         "quantity": "Fund units",

@@ -11,6 +11,7 @@ export const FINANCIAL_ACCOUNTS = gql`
       currencyCode
       includeInNetWorth
       includeInDashboard
+      includeCashInAllocation
       themeColor
       issuerName
       issuer {
@@ -40,6 +41,7 @@ export const FINANCIAL_ACCOUNTS = gql`
         minimumPaymentPercentage
         closingDay
         dueDay
+        linkedBankAccountId
       }
       connectionStatus
       consentExpiresAt
@@ -659,6 +661,99 @@ export const INVESTMENT_HOLDINGS = gql`
       }
       createdAt
       updatedAt
+    }
+  }
+`;
+
+/** Ledger cash balance (CREDIT − DEBIT, posted/pending) on investment custodian account(s). */
+export const INVESTMENT_CASH_BALANCE = gql`
+  query InvestmentCashBalance($financialAccountId: ID) {
+    investmentCashBalance(financialAccountId: $financialAccountId)
+  }
+`;
+
+/** Paginated cash-related ledger rows on investment/benefit custodian account(s). */
+export const INVESTMENT_CASH_TRANSACTIONS = gql`
+  query InvestmentCashTransactions($financialAccountId: ID, $first: Int, $after: String) {
+    investmentCashTransactions(financialAccountId: $financialAccountId, first: $first, after: $after) {
+      edges {
+        cursor
+        node {
+          id
+          date
+          description
+          type
+          creditDebitType
+          amount
+          currencyCode
+          financialAccountId
+          source
+          status
+          transferPeerTransactionId
+          investmentTransactionId
+          category {
+            id
+            name
+          }
+        }
+      }
+      pageInfo {
+        hasNextPage
+        endCursor
+        startCursor
+        hasPreviousPage
+      }
+    }
+  }
+`;
+
+export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
+  query InvestmentPortfolioSummary($financialAccountId: ID, $period: PerformancePeriod) {
+    investmentPortfolioSummary(financialAccountId: $financialAccountId, period: $period) {
+      totalHoldingsCount
+      totalCostBasis
+      totalGrossValue
+      totalNetValue
+      totalIncomeTax
+      totalIof
+      grossGain
+      grossGainPercent
+      netGain
+      netGainPercent
+      cashBalance
+      totalPortfolioValue
+      hasEstimatedValues
+      valuationReferenceDate
+      currencyCode
+      byAssetGroup {
+        groupKey
+        label
+        count
+        totalCostBasis
+        totalGrossValue
+        grossGainPercent
+        twr
+        allocationPercent
+        isCash
+      }
+      performance {
+        twr
+        twrSince
+        twrAbsolute
+        period
+        hasEstimatedValues
+        benchmarks {
+          code
+          label
+          twr
+        }
+      }
+      recalculationStatus {
+        isCalculating
+        jobId
+        startedAt
+        message
+      }
     }
   }
 `;

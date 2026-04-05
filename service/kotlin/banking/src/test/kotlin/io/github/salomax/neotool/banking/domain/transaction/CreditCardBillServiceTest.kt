@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.CardData
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount

@@ -60,6 +60,11 @@ type B3Config struct {
 	// B3's CDN (Cloudflare) returns 520 errors when requests arrive too close together.
 	// 10–15 s is sufficient; set to 0 to disable rate limiting.
 	DownloadIntervalSeconds int `env:"B3_DOWNLOAD_INTERVAL_SECONDS" envDefault:"10"`
+
+	// ChromeBin is the path to the Chromium/Chrome executable for headless downloads.
+	// Empty uses Rod's default (bundled Chromium or system discovery). In containers,
+	// set to e.g. /usr/bin/chromium and install the chromium package.
+	ChromeBin string `env:"B3_CHROME_BIN" envDefault:""`
 }
 
 type HealthCheckConfig struct {

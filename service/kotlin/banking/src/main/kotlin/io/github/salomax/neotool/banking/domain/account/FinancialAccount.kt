@@ -46,6 +46,8 @@ data class FinancialAccount(
     val currencyCode: String = "BRL",
     val includeInNetWorth: Boolean = true,
     val includeInDashboard: Boolean = true,
+    /** When true, custodian cash is included in investment allocation % for this account. */
+    val includeCashInAllocation: Boolean = true,
     // FK to banking.issuers; null = custom/unlisted institution
     val issuerId: UUID? = null,
     val themeColor: String? = null,

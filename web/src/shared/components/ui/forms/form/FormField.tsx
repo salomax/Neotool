@@ -8,6 +8,7 @@ export interface FormTextFieldProps extends Omit<TextFieldProps, "name"> {
 }
 export const FormTextField: React.FC<FormTextFieldProps> = ({
   name,
+  size = "small",
   ...props
 }) => {
   const { control } = useFormContext();
@@ -17,6 +18,7 @@ export const FormTextField: React.FC<FormTextFieldProps> = ({
       control={control}
       render={({ field, fieldState }) => (
         <TextField
+          size={size}
           {...props}
           {...field}
           error={!!fieldState.error}

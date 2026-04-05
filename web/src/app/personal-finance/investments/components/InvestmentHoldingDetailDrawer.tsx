@@ -220,7 +220,7 @@ export function InvestmentHoldingDetailDrawer({
   const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
 
   const shouldFetchFixedIncome = open && kind === "fixedIncome" && Boolean(holdingId);
-  const shouldFetchFund = open && kind === "fund" && Boolean(holdingId);
+  const shouldFetchFund = open && (kind === "fund" || kind === "equity") && Boolean(holdingId);
 
   const fixedIncomeQuery = useQuery(FixedIncomeHoldingDetailDocument, {
     variables: { holdingId: holdingId || "" },
@@ -253,7 +253,6 @@ export function InvestmentHoldingDetailDrawer({
     | "variableIncome"
     | "bankFixedIncome"
     | "creditFixedIncome"
-    | "treasuryDirect"
     | "mutualFunds"
     | "pension"
     | "structured"
@@ -269,9 +268,8 @@ export function InvestmentHoldingDetailDrawer({
       "ETF",
       "ETF_INTERNATIONAL",
     ],
-    bankFixedIncome: ["CDB", "RDB", "LCI", "LCA", "LC", "LF", "LIG", "ETF_FIXED_INCOME"],
+    bankFixedIncome: ["CDB", "RDB", "LCI", "LCA", "LC", "LF", "LIG", "ETF_FIXED_INCOME", "TREASURY"],
     creditFixedIncome: ["DEBENTURES", "CRI", "CRA"],
-    treasuryDirect: ["TREASURY"],
     mutualFunds: ["MUTUAL_FUND", "FIXED_INCOME_FUND", "EQUITY_FUND", "MULTI_MARKET_FUND", "FOREX_FUND"],
     pension: ["PGBL", "VGBL"],
     structured: ["COE"],
@@ -288,7 +286,7 @@ export function InvestmentHoldingDetailDrawer({
     return match || "others";
   }
 
-  const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(["bankFixedIncome", "creditFixedIncome", "treasuryDirect"]);
+  const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(["bankFixedIncome", "creditFixedIncome"]);
 
   const groupKey = getAssetGroupKey(resolvedAssetType);
   const groupDisplayKey =
@@ -312,10 +310,11 @@ export function InvestmentHoldingDetailDrawer({
       holding,
       fixedIncomeQuery.data?.investmentTransactions ?? [],
       fixedIncomeQuery.data?.holdingPerformance,
+      fixedIncomeQuery.data?.investmentHoldingPerformance,
       t,
       locale,
     );
-  }, [fixedIncomeQuery.data?.holdingPerformance, fixedIncomeQuery.data?.investmentHolding, fixedIncomeQuery.data?.investmentTransactions, kind, locale, t]);
+  }, [fixedIncomeQuery.data?.holdingPerformance, fixedIncomeQuery.data?.investmentHolding, fixedIncomeQuery.data?.investmentHoldingPerformance, fixedIncomeQuery.data?.investmentTransactions, kind, locale, t]);
 
   const fundViewModel = React.useMemo(() => {
     if (kind !== "fund") return null;
@@ -325,10 +324,11 @@ export function InvestmentHoldingDetailDrawer({
       holding,
       fundQuery.data?.investmentTransactions ?? [],
       fundQuery.data?.holdingPerformance,
+      fundQuery.data?.investmentHoldingPerformance,
       t,
       locale,
     );
-  }, [fundQuery.data?.holdingPerformance, fundQuery.data?.investmentHolding, fundQuery.data?.investmentTransactions, kind, locale, t]);
+  }, [fundQuery.data?.holdingPerformance, fundQuery.data?.investmentHolding, fundQuery.data?.investmentHoldingPerformance, fundQuery.data?.investmentTransactions, kind, locale, t]);
 
   const assetName = fixedIncomeViewModel?.title || fundViewModel?.title || initialTitle || "—";
   const logoUrl =
@@ -389,6 +389,7 @@ export function InvestmentHoldingDetailDrawer({
               holding={fixedIncomeQuery.data?.investmentHolding}
               transactions={fixedIncomeQuery.data?.investmentTransactions}
               performance={fixedIncomeQuery.data?.holdingPerformance}
+              investmentHoldingPerformance={fixedIncomeQuery.data?.investmentHoldingPerformance}
               loading={fixedIncomeQuery.loading}
               error={fixedIncomeQuery.error}
               locale={locale}
@@ -414,7 +415,7 @@ export function InvestmentHoldingDetailDrawer({
           summaryCards: [
             { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fixedIncomeViewModel?.principal ?? null },
             { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fixedIncomeViewModel?.grossValue ?? null },
-            { id: "grossEarnings", label: t("investments.detailDrawer.grid.grossEarnings"), value: fixedIncomeViewModel?.grossGain ?? null },
+            { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fixedIncomeViewModel?.totalReturnAbsolute ?? null },
             { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fixedIncomeViewModel?.incomeTax ?? null },
             { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fixedIncomeViewModel?.iof ?? null },
             { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fixedIncomeViewModel?.netGain ?? null },
@@ -428,6 +429,7 @@ export function InvestmentHoldingDetailDrawer({
               holding={fundQuery.data?.investmentHolding}
               transactions={fundQuery.data?.investmentTransactions}
               performance={fundQuery.data?.holdingPerformance}
+              investmentHoldingPerformance={fundQuery.data?.investmentHoldingPerformance}
               loading={fundQuery.loading}
               error={fundQuery.error}
               locale={locale}
@@ -447,7 +449,8 @@ export function InvestmentHoldingDetailDrawer({
             { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
             { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
             { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
-            { id: "grossEarnings", label: t("investments.detailDrawer.grid.grossEarnings"), value: fundViewModel?.grossGain ?? null },
+            { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
+            { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
             { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fundViewModel?.incomeTax ?? null },
             { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fundViewModel?.netGain ?? null },
           ],

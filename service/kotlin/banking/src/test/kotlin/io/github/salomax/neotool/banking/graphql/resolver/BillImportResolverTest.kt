@@ -201,7 +201,7 @@ class BillImportResolverTest {
                 updatedAt = now,
             )
         whenever(billImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
-        whenever(billImportService.projectReviewPayload(eq(awaiting.reviewPayload), eq(accountId))).thenReturn(
+        whenever(billImportService.projectReviewPayload(eq(awaiting.reviewPayload), eq(accountId), eq(userId))).thenReturn(
             io.github.salomax.neotool.banking.domain.billimport.BillImportReview(
                 cards =
                     listOf(
@@ -238,7 +238,7 @@ class BillImportResolverTest {
                 updatedAt = now,
             )
         whenever(billImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
-        whenever(billImportService.projectReviewPayload(any(), eq(accountId))).thenReturn(
+        whenever(billImportService.projectReviewPayload(any(), eq(accountId), eq(userId))).thenReturn(
             io.github.salomax.neotool.banking.domain.billimport.BillImportReview(
                 cards =
                     listOf(
@@ -252,7 +252,7 @@ class BillImportResolverTest {
         assertThat(result).isNotNull
         assertThat(result!!.reviewPayload).isNotNull
         assertThat(result.reviewPayload!!.reviewMode).isEqualTo(BillImportReviewMode.CARD_BUCKET_MATCHING)
-        verify(billImportService).projectReviewPayload(awaiting.reviewPayload, accountId)
+        verify(billImportService).projectReviewPayload(awaiting.reviewPayload, accountId, userId)
     }
 
     @Test

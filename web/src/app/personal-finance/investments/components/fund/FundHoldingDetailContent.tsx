@@ -11,12 +11,14 @@ import { Label } from "@/shared/components/ui/primitives/Label";
 import { buildFundHoldingDetailViewModel } from "./fundHoldingDetailAdapter";
 import type { FundHoldingDetailQuery } from "./api/queries.generated";
 import { HoldingPerformanceChart } from "../performance/HoldingPerformanceChart";
+import { HoldingXirrCard } from "../performance/HoldingXirrCard";
 import { RefreshIcon } from "@/shared/ui/mui-imports";
 
 interface FundHoldingDetailContentProps {
   holding: FundHoldingDetailQuery["investmentHolding"] | null | undefined;
   transactions: FundHoldingDetailQuery["investmentTransactions"] | undefined;
   performance: FundHoldingDetailQuery["holdingPerformance"] | null | undefined;
+  investmentHoldingPerformance: FundHoldingDetailQuery["investmentHoldingPerformance"] | null | undefined;
   loading: boolean;
   error?: unknown;
   locale: string;
@@ -27,6 +29,7 @@ export function FundHoldingDetailContent({
   holding,
   transactions,
   performance,
+  investmentHoldingPerformance,
   loading,
   error,
   locale,
@@ -36,8 +39,15 @@ export function FundHoldingDetailContent({
 
   const viewModel = React.useMemo(() => {
     if (!holding) return null;
-    return buildFundHoldingDetailViewModel(holding, transactions ?? [], performance, t, locale);
-  }, [holding, locale, performance, t, transactions]);
+    return buildFundHoldingDetailViewModel(
+      holding,
+      transactions ?? [],
+      performance,
+      investmentHoldingPerformance,
+      t,
+      locale,
+    );
+  }, [holding, investmentHoldingPerformance, locale, performance, t, transactions]);
 
   const currencyFormatter = React.useMemo(() => {
     if (!viewModel?.currencyCode) return null;
@@ -75,6 +85,14 @@ export function FundHoldingDetailContent({
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr" }, gap: 2 }}>
+      <HoldingXirrCard
+        title={t("investments.detailDrawer.performance.xirr")}
+        tooltip={t("investments.detailDrawer.performance.xirrTooltip")}
+        sincePrefix={t("investments.detailDrawer.performance.since")}
+        sinceLabel={viewModel.xirrSinceLabel}
+        xirr={viewModel.xirr}
+        locale={locale}
+      />
 
       <HoldingPerformanceChart
         points={viewModel.chartPoints}

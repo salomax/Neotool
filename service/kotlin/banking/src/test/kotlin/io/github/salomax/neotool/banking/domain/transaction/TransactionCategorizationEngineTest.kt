@@ -3,11 +3,14 @@ package io.github.salomax.neotool.banking.domain.transaction
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.domain.transaction.port.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import org.assertj.core.api.Assertions.assertThat
@@ -536,6 +539,15 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
                     .thenByDescending { it.createdAt },
             )
 
+    override fun findSystemRules(): List<TransactionRule> =
+        rules
+            .filter { it.deletedAt == null && it.accountId == null && it.isSystem }
+            .sortedWith(
+                compareBy<TransactionRule> { it.priority }
+                    .thenByDescending { it.matchCount }
+                    .thenByDescending { it.createdAt },
+            )
+
     override fun findById(id: UUID): TransactionRule? =
         rules.firstOrNull { it.deletedAt == null && it.id == id }
 
@@ -575,6 +587,17 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
         val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
         if (idx >= 0) {
             rules[idx] = rules[idx].copy(matchCount = rules[idx].matchCount + 1, updatedAt = Instant.now())
+        }
+    }
+
+    override fun updatePriority(
+        id: UUID,
+        priority: Int,
+        now: Instant,
+    ) {
+        val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
+        if (idx >= 0) {
+            rules[idx] = rules[idx].copy(priority = priority, updatedAt = now)
         }
     }
 

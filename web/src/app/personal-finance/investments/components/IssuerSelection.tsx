@@ -1,9 +1,11 @@
 import React from "react";
 import { Avatar, Box, List, ListItemButton, ListItemIcon, ListItemText, Paper, Stack, Typography, alpha, useTheme } from "@mui/material";
-import { FinancialAccount } from "@/lib/graphql/types/__generated__/graphql";
+import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
+
+export type IssuerSelectionAccount = NonNullable<FinancialAccountsQuery["financialAccounts"]>[number];
 
 export interface IssuerSelectionProps {
-  financialAccounts: FinancialAccount[];
+  financialAccounts: IssuerSelectionAccount[];
   description: React.ReactNode;
   emptyState: React.ReactNode;
   onSelect: (accountId: string) => void;

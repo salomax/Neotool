@@ -14,6 +14,7 @@ type Translator = (key: string, options?: Record<string, unknown>) => string;
 type Holding = NonNullable<FixedIncomeHoldingDetailQuery["investmentHolding"]>;
 type Transaction = FixedIncomeHoldingDetailQuery["investmentTransactions"][number];
 type HoldingPerformance = NonNullable<FixedIncomeHoldingDetailQuery["holdingPerformance"]>;
+type InvestmentHoldingPerformance = FixedIncomeHoldingDetailQuery["investmentHoldingPerformance"];
 
 const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
   [Indexer.Cdi]: "CDI",
@@ -63,6 +64,9 @@ export interface FixedIncomeHoldingDetailViewModel {
   netGain: number | null;
   grossGainPercent: number | null;
   netGainPercent: number | null;
+  xirr: number | null;
+  xirrSinceLabel: string | null;
+  totalReturnAbsolute: number | null;
   indexerLabel: string;
   issueDateLabel: string;
   gracePeriodDateLabel: string;
@@ -149,6 +153,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
   holding: Holding,
   transactions: FixedIncomeHoldingDetailQuery["investmentTransactions"],
   performance: HoldingPerformance | null | undefined,
+  investmentHoldingPerformance: InvestmentHoldingPerformance | null | undefined,
   t: Translator,
   locale = getCurrentLocale(),
 ): FixedIncomeHoldingDetailViewModel {
@@ -164,6 +169,14 @@ export function buildFixedIncomeHoldingDetailViewModel(
   const netGain = typeof summary?.netGain === "number" ? summary.netGain : null;
   const grossGainPercent = typeof summary?.grossGainPercent === "number" ? summary.grossGainPercent : null;
   const netGainPercent = typeof netGain === "number" && typeof principal === "number" && principal > 0 ? netGain / principal : null;
+  const xirr = typeof investmentHoldingPerformance?.xirr === "number" ? investmentHoldingPerformance.xirr : null;
+  const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
+    ? formatDate(investmentHoldingPerformance.xirrSince, locale)
+    : null;
+  const totalReturnAbsolute =
+    typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
+      ? investmentHoldingPerformance.totalReturnAbsolute
+      : null;
   const typeLabel = formatAssetType(holding.asset.assetType, t);
   const issuerLabel = buildIssuerLabel(holding);
   const accountLabel = buildAccountLabel(holding);
@@ -254,6 +267,9 @@ export function buildFixedIncomeHoldingDetailViewModel(
     netGain,
     grossGainPercent,
     netGainPercent,
+    xirr,
+    xirrSinceLabel,
+    totalReturnAbsolute,
     indexerLabel: formatIndexer(holding, locale),
     issueDateLabel: formatDate(holding.issueDate, locale),
     gracePeriodDateLabel: formatDate(holding.gracePeriodDate, locale),

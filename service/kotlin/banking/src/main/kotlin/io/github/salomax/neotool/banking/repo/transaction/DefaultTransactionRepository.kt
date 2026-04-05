@@ -94,6 +94,15 @@ open class DefaultTransactionRepository(
             ?.let(TransactionMapper::toDomain)
             ?.let { withTags(listOf(it), accountId).first() }
 
+    override fun findByTransferPeerTransactionId(
+        transferPeerTransactionId: UUID,
+        accountId: UUID,
+    ): Transaction? =
+        entityRepository
+            .findByTransferPeerTransactionIdAndAccountIdAndDeletedAtIsNull(transferPeerTransactionId, accountId)
+            ?.let(TransactionMapper::toDomain)
+            ?.let { withTags(listOf(it), accountId).first() }
+
     @Transactional
     override fun save(transaction: Transaction): Transaction {
         val entity = TransactionMapper.toEntity(transaction)
@@ -533,6 +542,94 @@ open class DefaultTransactionRepository(
                 .setParameter("creditDebitType", creditDebitType.name)
                 .resultList as List<TransactionEntity>
         return withTags(entities.map(TransactionMapper::toDomain), accountId)
+    }
+
+    @Transactional(readOnly = true)
+    override fun existsByInvestmentTransactionId(investmentTransactionId: UUID): Boolean =
+        entityRepository.existsByInvestmentTransactionIdAndDeletedAtIsNull(investmentTransactionId)
+
+    @Transactional(readOnly = true)
+    override fun findInvestmentCashTransactionsKeyset(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        afterDate: LocalDate?,
+        afterId: UUID?,
+        limit: Int,
+    ): List<Transaction> {
+        val sql =
+            StringBuilder(
+                """
+                SELECT t.id
+                FROM banking.transactions t
+                INNER JOIN banking.financial_accounts fa ON fa.id = t.financial_account_id AND fa.deleted_at IS NULL
+                WHERE t.account_id = CAST(:accountId AS uuid)
+                  AND t.deleted_at IS NULL
+                  AND fa.type IN ('INVESTMENT', 'BENEFIT')
+                  AND t.type IN ('TRANSFER', 'INVESTMENT_RETURN', 'BALANCE_ADJUSTMENT')
+                """.trimIndent(),
+            )
+        if (financialAccountId != null) {
+            sql.append(" AND t.financial_account_id = CAST(:faId AS uuid) ")
+        }
+        if (afterDate != null && afterId != null) {
+            sql.append(
+                " AND (t.date < CAST(:afterDate AS date) OR (t.date = CAST(:afterDate AS date) AND t.id < CAST(:afterId AS uuid))) ",
+            )
+        }
+        sql.append(" ORDER BY t.date DESC, t.id DESC LIMIT :lim ")
+        val q = entityManager.createNativeQuery(sql.toString())
+        q.setParameter("accountId", accountId.toString())
+        if (financialAccountId != null) {
+            q.setParameter("faId", financialAccountId.toString())
+        }
+        if (afterDate != null && afterId != null) {
+            q.setParameter("afterDate", afterDate.toString())
+            q.setParameter("afterId", afterId.toString())
+        }
+        q.setParameter("lim", limit)
+        @Suppress("UNCHECKED_CAST")
+        val rawIds = q.resultList as List<*>
+        val ids =
+            rawIds.mapNotNull { row ->
+                when (row) {
+                    is UUID -> row
+                    is String -> runCatching { UUID.fromString(row) }.getOrNull()
+                    else -> null
+                }
+            }
+        if (ids.isEmpty()) return emptyList()
+        val entities = entityRepository.findByIdInAndAccountIdAndDeletedAtIsNull(ids, accountId)
+        val byId = entities.associateBy { it.id }
+        val ordered = ids.mapNotNull { byId[it] }
+        return withTags(ordered.map(TransactionMapper::toDomain), accountId)
+    }
+
+    @Transactional(readOnly = true)
+    override fun sumLedgerBalance(
+        accountId: UUID,
+        financialAccountIds: Collection<UUID>,
+    ): BigDecimal {
+        val ids = financialAccountIds.toList()
+        if (ids.isEmpty()) return BigDecimal.ZERO
+        val placeholders = ids.indices.joinToString(",") { ":fid$it" }
+        val query =
+            entityManager.createNativeQuery(
+                """
+                SELECT COALESCE(SUM(
+                    CASE WHEN credit_debit_type = 'CREDIT' THEN amount ELSE -amount END
+                ), 0)
+                FROM banking.transactions
+                WHERE account_id = CAST(:accountId AS uuid)
+                  AND financial_account_id IN ($placeholders)
+                  AND deleted_at IS NULL
+                  AND status IN ('POSTED','PENDING')
+                """.trimIndent(),
+            )
+                .setParameter("accountId", accountId.toString())
+        ids.forEachIndexed { i, uuid ->
+            query.setParameter("fid$i", uuid)
+        }
+        return query.singleResult as BigDecimal
     }
 
     companion object {

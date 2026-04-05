@@ -9,7 +9,7 @@ import java.util.UUID
  *
  * Business rules enforced at service layer:
  *  - [amount] must be > 0.
- *  - For BALANCE_ADJUSTMENT: creditDebitType must be CREDIT.
+ *  - For BALANCE_ADJUSTMENT: use CREDIT or DEBIT with positive [amount] (reconciliation / manual correction).
  *  - For installments: both [installmentNumber] and [totalInstallments] must be provided together,
  *    and installmentNumber must be <= totalInstallments.
  */
@@ -44,6 +44,17 @@ data class CreateTransactionCommand(
     val billId: UUID? = null,
     /** Peer transaction ID for the other leg of a transfer (e.g. payBill bank leg). */
     val transferPeerTransactionId: UUID? = null,
+    /** Import/sync source for the row. Defaults to MANUAL for user-entered transactions. */
+    val transactionSource: TransactionSource = TransactionSource.MANUAL,
+    /** Links this cash movement to `banking.investment_transactions` (dedup / traceability). */
+    val investmentTransactionId: UUID? = null,
+    /**
+     * When true, skips rule-engine suggestion and uses [categoryId] / tags as provided.
+     * Use for manual investment cash (no [investmentTransactionId]) so rules do not override categories.
+     */
+    val skipRuleEngine: Boolean = false,
+    /** Optional provider id when [transactionSource] is not MANUAL. */
+    val providerTransactionId: String? = null,
 )
 
 /**

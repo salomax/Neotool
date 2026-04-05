@@ -6,10 +6,17 @@ import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActi
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSeverity
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.INFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.OUTFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.AMORTIZATION
@@ -33,10 +40,14 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.math.BigDecimal
 import java.math.RoundingMode.HALF_UP
 import java.time.Instant
+import java.time.LocalDate
 import java.util.UUID
 
 /**
@@ -61,7 +72,13 @@ open class InvestmentTransactionService(
     private val assetRepository: AssetRepository,
     private val financialAccountRepository: FinancialAccountRepository,
     private val pendingActionRepository: AccountPendingActionRepository,
+    private val transactionService: TransactionService,
+    private val transactionRepository: TransactionRepository,
+    private val transactionCategoryEntityRepository: TransactionCategoryEntityRepository,
+    private val portfolioFlowEventService: PortfolioFlowEventService,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     fun listByHolding(
@@ -98,9 +115,10 @@ open class InvestmentTransactionService(
      * 5. Save the holding (first, to obtain [Holding.id]).
      * 6. Save the transaction linked to the holding.
      *
-     * Steps 4–6 run inside a single `@Transactional` boundary in the repositories.
+     * Steps 4–7 run inside one `@Transactional` boundary (service + repositories).
      */
-    fun record(
+    @Transactional
+    open fun record(
         command: RecordInvestmentTransactionCommand,
         accountId: UUID,
         userId: UUID,
@@ -181,9 +199,166 @@ open class InvestmentTransactionService(
             )
 
         val savedTx = investmentTransactionRepository.save(transaction)
+        syncInvestmentCashLedger(
+            savedTx = savedTx,
+            command = command,
+            asset = asset,
+            accountId = accountId,
+            userId = userId,
+        )
         syncMaturityPendingAction(savedHolding, accountId)
+        syncPortfolioPerformance(savedHolding, savedTx, accountId)
         return savedTx
     }
+
+    /**
+     * Mirrors investment cash events into `banking.transactions` on the same custodian account,
+     * linked via [io.github.salomax.neotool.banking.domain.transaction.Transaction.investmentTransactionId].
+     *
+     * **Purchases / subscriptions** post a **DEBIT** (cash leaves the custodian) so that
+     * [PortfolioRecalculationService] sees `holdingsValue + cashBalance` ≈ NAV. Without this leg,
+     * deposited cash stays in the ledger while the position is also marked-to-market → double count
+     * and nonsensical TWR.
+     *
+     * Skips when a row already exists (Open Finance dedup) or amount is non-positive.
+     * Fails fast if the required system category is missing (seed data); logs a warn with context first.
+     */
+    private fun syncInvestmentCashLedger(
+        savedTx: InvestmentTransaction,
+        command: RecordInvestmentTransactionCommand,
+        asset: Asset,
+        accountId: UUID,
+        userId: UUID,
+    ) {
+        val linkId = savedTx.id ?: return
+        if (transactionRepository.existsByInvestmentTransactionId(linkId)) return
+
+        val cashAmount = savedTx.netValue ?: savedTx.grossValue
+        if (cashAmount.signum() <= 0) return
+
+        val assetName = asset.name
+
+        when (command.type) {
+            PURCHASE, SUBSCRIPTION -> {
+                val categoryChild = investmentAppliedLedgerCategoryChild(asset.assetType)
+                val categoryId =
+                    transactionCategoryEntityRepository.findSystemSubcategoryId(
+                        "Investimento aplicado",
+                        categoryChild,
+                    )
+                        ?: run {
+                            logger.warn {
+                                "Investment purchase cash leg: system category not found " +
+                                    "(parent=Investimento aplicado, child=$categoryChild); " +
+                                    "investmentTransactionId=$linkId, accountId=$accountId"
+                            }
+                            throw IllegalStateException(
+                                "System transaction category not found: '$categoryChild' under 'Investimento aplicado'. " +
+                                    "Cannot create banking cash leg for investment transaction $linkId (type=${command.type}). " +
+                                    "Run category seeds (e.g. V0_4__create_transaction_categories.sql).",
+                            )
+                        }
+                val description =
+                    when (command.type) {
+                        SUBSCRIPTION -> "Subscrição — $assetName"
+                        else -> "Compra / aplicação — $assetName"
+                    }
+                transactionService.create(
+                    CreateTransactionCommand(
+                        financialAccountId = command.financialAccountId,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        type = TransactionType.TRANSFER,
+                        amount = cashAmount,
+                        date = command.tradeDate,
+                        description = description,
+                        categoryId = categoryId,
+                        transactionSource = command.source.toLedgerTransactionSource(),
+                        investmentTransactionId = linkId,
+                    ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+            }
+            in CASH_LEDGER_TYPES -> {
+                val (categoryParent, categoryChild) =
+                    when (command.type) {
+                        DIVIDEND, INTEREST_ON_EQUITY -> "Renda Extra" to "Dividendos"
+                        SALE, MATURITY -> "Investimentos" to "Resgate"
+                        INTEREST_PAYMENT, AMORTIZATION -> "Investimentos" to "Rendimento"
+                        else ->
+                            error(
+                                "syncInvestmentCashLedger: type ${command.type} is in CASH_LEDGER_TYPES but has no category mapping",
+                            )
+                    }
+
+                val categoryId =
+                    transactionCategoryEntityRepository.findSystemSubcategoryId(categoryParent, categoryChild)
+                        ?: run {
+                            logger.warn {
+                                "Investment cash leg: system category not found (parent=$categoryParent, child=$categoryChild); " +
+                                    "investmentTransactionId=$linkId, investmentType=${command.type}, accountId=$accountId"
+                            }
+                            throw IllegalStateException(
+                                "System transaction category not found: '$categoryChild' under '$categoryParent'. " +
+                                    "Cannot create banking cash leg for investment transaction $linkId (type=${command.type}). " +
+                                    "Run category seeds (e.g. V0_4__create_transaction_categories.sql).",
+                            )
+                        }
+
+                val description =
+                    when (command.type) {
+                        DIVIDEND -> "Dividendos — $assetName"
+                        INTEREST_ON_EQUITY -> "JCP — $assetName"
+                        SALE -> "Resgate / venda — $assetName"
+                        MATURITY -> "Vencimento — $assetName"
+                        INTEREST_PAYMENT -> "Rendimento (juros) — $assetName"
+                        AMORTIZATION -> "Amortização — $assetName"
+                        else -> "Investimentos — $assetName"
+                    }
+
+                transactionService.create(
+                    CreateTransactionCommand(
+                        financialAccountId = command.financialAccountId,
+                        creditDebitType = CreditDebitType.CREDIT,
+                        type = TransactionType.INVESTMENT_RETURN,
+                        amount = cashAmount,
+                        date = command.tradeDate,
+                        description = description,
+                        categoryId = categoryId,
+                        transactionSource = command.source.toLedgerTransactionSource(),
+                        investmentTransactionId = linkId,
+                    ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+            }
+            else -> return
+        }
+    }
+
+    /** Child under system category "Investimento aplicado" (TRANSFER / custodian DEBIT). */
+    private fun investmentAppliedLedgerCategoryChild(assetType: AssetType): String =
+        when (assetType) {
+            in FIXED_INCOME_ASSET_TYPES,
+            AssetType.ETF_FIXED_INCOME,
+            -> "Renda Fixa"
+            AssetType.MUTUAL_FUND -> "Fundos"
+            AssetType.PGBL, AssetType.VGBL -> "Previdência"
+            AssetType.STOCK,
+            AssetType.STOCK_RIGHTS,
+            AssetType.BDR,
+            AssetType.REAL_ESTATE_FUND,
+            AssetType.AGRIBUSINESS_FUND,
+            AssetType.ETF,
+            AssetType.ETF_INTERNATIONAL,
+            AssetType.COE,
+            AssetType.OPTION,
+            AssetType.DERIVATIVES,
+            -> "Ações"
+            AssetType.CRYPTO -> "Criptomoeda"
+            AssetType.OTHER -> "Renda Fixa"
+            else -> "Renda Fixa"
+        }
 
     /**
      * Keeps the INVESTMENT_MATURED pending action in sync after every holding mutation.
@@ -266,6 +441,13 @@ open class InvestmentTransactionService(
         if (!deleted) return false
 
         recomputeHoldingAfterDelete(holding, accountId)
+        removePortfolioFlowSideEffects(tx)
+        portfolioFlowEventService.requestRecalculation(
+            financialAccountId = tx.financialAccountId,
+            accountId = accountId,
+            recalculateFrom = tx.tradeDate,
+            triggeredBy = "investment_tx_delete:$id",
+        )
         return true
     }
 
@@ -289,12 +471,23 @@ open class InvestmentTransactionService(
             val transactionId = requireNotNull(transaction.id) { "Investment transaction id must not be null" }
             val deleted = investmentTransactionRepository.softDelete(transactionId, accountId)
             check(deleted) { "Failed to delete investment transaction $transactionId for holding $id" }
+            removePortfolioFlowSideEffects(transaction)
         }
 
         pendingActionRepository.cancelByEntityAndType(
             entityType = "HOLDING",
             entityId = id,
             type = PendingActionType.INVESTMENT_MATURED,
+        )
+
+        val recalcFrom = transactions.minOfOrNull { it.tradeDate }
+            ?: holding.issueDate
+            ?: LocalDate.now()
+        portfolioFlowEventService.requestRecalculation(
+            financialAccountId = holding.financialAccountId,
+            accountId = accountId,
+            recalculateFrom = recalcFrom,
+            triggeredBy = "holding_delete:$id",
         )
 
         return holdingRepository.softDelete(id, accountId)
@@ -541,6 +734,45 @@ open class InvestmentTransactionService(
         syncMaturityPendingAction(saved, accountId)
     }
 
+    private fun syncPortfolioPerformance(
+        savedHolding: Holding,
+        savedTx: InvestmentTransaction,
+        accountId: UUID,
+    ) {
+        val sourceReferenceId = savedTx.id ?: return
+        val flowEventType = savedTx.toPortfolioFlowEventType()
+        if (flowEventType != null) {
+            portfolioFlowEventService.recordEvent(
+                financialAccountId = savedTx.financialAccountId,
+                accountId = accountId,
+                eventDate = savedTx.tradeDate,
+                eventType = flowEventType,
+                grossAmount = savedTx.netValue ?: savedTx.grossValue,
+                relatedHoldingId = savedHolding.id,
+                sourceReferenceId = sourceReferenceId,
+                sourceReferenceType = PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION,
+            )
+            return
+        }
+
+        portfolioFlowEventService.requestRecalculation(
+            financialAccountId = savedTx.financialAccountId,
+            accountId = accountId,
+            recalculateFrom = savedTx.tradeDate,
+            triggeredBy = "investment_tx:$sourceReferenceId",
+        )
+    }
+
+    private fun removePortfolioFlowSideEffects(transaction: InvestmentTransaction) {
+        val sourceReferenceId = transaction.id ?: return
+        if (transaction.toPortfolioFlowEventType() != null) {
+            portfolioFlowEventService.deleteEventBySourceReference(
+                sourceReferenceId = sourceReferenceId,
+                sourceReferenceType = PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION,
+            )
+        }
+    }
+
     private fun InvestmentTransaction.toReplayCommand(existingHolding: Holding) =
         RecordInvestmentTransactionCommand(
             financialAccountId = financialAccountId,
@@ -617,8 +849,39 @@ open class InvestmentTransactionService(
             AssetType.CRA,
             AssetType.TREASURY,
         )
+
+        private val CASH_LEDGER_TYPES: Set<InvestmentTransactionType> =
+            setOf(
+                DIVIDEND,
+                INTEREST_ON_EQUITY,
+                SALE,
+                MATURITY,
+                INTEREST_PAYMENT,
+                AMORTIZATION,
+            )
+
+        private const val PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION = "INVESTMENT_TRANSACTION"
     }
 }
+
+private fun InvestmentTransaction.toPortfolioFlowEventType(): PortfolioFlowEventType? =
+    when (type) {
+        DIVIDEND,
+        INTEREST_ON_EQUITY,
+        INTEREST_PAYMENT,
+        AMORTIZATION,
+        PRIZE,
+        -> PortfolioFlowEventType.DIVIDEND
+        WITHHOLDING_TAX -> PortfolioFlowEventType.INCOME_TAX
+        else -> null
+    }
+
+private fun InvestmentSource.toLedgerTransactionSource(): TransactionSource =
+    when (this) {
+        InvestmentSource.MANUAL -> TransactionSource.MANUAL
+        InvestmentSource.OPEN_FINANCE -> TransactionSource.OPEN_FINANCE
+        InvestmentSource.FILE_IMPORT -> TransactionSource.CSV
+    }
 
 private fun Holding.withMissingFixedIncomeTerms(command: RecordInvestmentTransactionCommand): Holding {
     val hasIncomingFixedIncomeTerms =

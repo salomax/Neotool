@@ -96,6 +96,8 @@ open class TransactionEntity(
     // Transfer
     @Column(name = "transfer_peer_transaction_id")
     open var transferPeerTransactionId: UUID? = null,
+    @Column(name = "investment_transaction_id")
+    open var investmentTransactionId: UUID? = null,
     // Credit card
     @Column(name = "bill_id")
     open var billId: UUID? = null,

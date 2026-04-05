@@ -134,9 +134,28 @@ function buildPerformance(): NonNullable<FundHoldingDetailQuery["holdingPerforma
   };
 }
 
+function buildInvestmentHoldingPerformance(): NonNullable<FundHoldingDetailQuery["investmentHoldingPerformance"]> {
+  return {
+    __typename: "InvestmentHoldingPerformance",
+    holdingId: "holding-fund-1",
+    xirr: 0.184,
+    xirrSince: "2025-06-01",
+    totalReturn: 0.23,
+    totalReturnAbsolute: 230,
+    dividendsReceived: 30,
+  };
+}
+
 describe("buildFundHoldingDetailViewModel", () => {
   it("maps basic fields including title, subtitle, currency, issuer, and account labels", () => {
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      [],
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.title).toBe("Fundo Exemplo");
     expect(viewModel.subtitle).toBe("investments.assetTypes.MUTUAL_FUND");
@@ -146,7 +165,14 @@ describe("buildFundHoldingDetailViewModel", () => {
   });
 
   it("maps performance summary fields including incomeTax, iof, and grossGainPercent", () => {
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      [],
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.principal).toBe(1000);
     expect(viewModel.currentCostBasis).toBe(1000);
@@ -161,7 +187,14 @@ describe("buildFundHoldingDetailViewModel", () => {
   });
 
   it("includes six summaryMetrics with incomeTax entry using negative tone", () => {
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      [],
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.summaryMetrics).toHaveLength(6);
     const taxMetric = viewModel.summaryMetrics.find((m) => m.id === "incomeTax");
@@ -170,7 +203,14 @@ describe("buildFundHoldingDetailViewModel", () => {
   });
 
   it("maps timeline direction, amounts, tax fields, and settlement date", () => {
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), buildTransactions(), buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      buildTransactions(),
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.timelineItems).toHaveLength(2);
     const sale = viewModel.timelineItems[0];
@@ -221,14 +261,21 @@ describe("buildFundHoldingDetailViewModel", () => {
         source: InvestmentSource.Manual,
       },
     ];
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), txs, buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      txs,
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.timelineItems[0]?.id).toBe("tx-new");
     expect(viewModel.timelineItems[1]?.id).toBe("tx-old");
   });
 
   it("returns null numeric summaries and empty chart when performance is missing", () => {
-    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], undefined, t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], undefined, undefined, t, "pt-BR");
 
     expect(viewModel.principal).toBeNull();
     expect(viewModel.currentCostBasis).toBeNull();
@@ -254,7 +301,14 @@ describe("buildFundHoldingDetailViewModel", () => {
         logoAsset: null,
       },
     });
-    const viewModel = buildFundHoldingDetailViewModel(holding, [], buildPerformance(), t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      holding,
+      [],
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.currencyCode).toBe("BRL");
   });
@@ -262,8 +316,31 @@ describe("buildFundHoldingDetailViewModel", () => {
   it("sets valueOrigin from getHoldingValueOrigin for holding and performance valuation", () => {
     const holding = buildHolding({ valuationSource: ValuationSource.Calculated });
     const perf = buildPerformance();
-    const viewModel = buildFundHoldingDetailViewModel(holding, [], perf, t, "pt-BR");
+    const viewModel = buildFundHoldingDetailViewModel(
+      holding,
+      [],
+      perf,
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
 
     expect(viewModel.valueOrigin).toBe("estimado_app");
+  });
+
+  it("maps xirr fields from individual performance", () => {
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      [],
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
+
+    expect(viewModel.xirr).toBeCloseTo(0.184);
+    expect(viewModel.xirrSinceLabel).toBeTruthy();
+    expect(viewModel.totalReturnAbsolute).toBe(230);
+    expect(viewModel.dividendsReceived).toBe(30);
   });
 });

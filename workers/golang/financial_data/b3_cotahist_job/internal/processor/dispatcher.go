@@ -56,7 +56,7 @@ func (s taskSpec) label() string {
 //
 // Downloads are strictly sequential: the next download starts only after the
 // previous file has been handed off to the worker pool. The rate limiter inside
-// B3Client enforces a minimum gap between HTTP transfers. Workers process chunks
+// B3Client enforces a minimum gap between browser downloads. Workers process chunks
 // of the current file fully in parallel while the next download is pending.
 type Dispatcher struct {
 	client           *b3http.B3Client

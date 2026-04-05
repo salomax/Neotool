@@ -5,7 +5,7 @@ import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
-import io.github.salomax.neotool.banking.domain.rbac.BankingPermissions
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
 import io.github.salomax.neotool.banking.graphql.import.ImportResolver
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
@@ -15,6 +15,9 @@ import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
+import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
+import io.github.salomax.neotool.banking.graphql.product.ProductResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -43,9 +46,12 @@ class BankingWiringFactoryTest {
     private lateinit var transactionResolver: TransactionResolver
     private lateinit var transactionCategoryResolver: TransactionCategoryResolver
     private lateinit var merchantResolver: MerchantResolver
+    private lateinit var accountPreferencesResolver: AccountPreferencesResolver
+    private lateinit var bankingUserPreferencesResolver: BankingUserPreferencesResolver
     private lateinit var importResolver: ImportResolver
     private lateinit var pdfImportResolver: BillImportResolver
     private lateinit var attachmentResolver: AttachmentResolver
+    private lateinit var productResolver: ProductResolver
     private lateinit var investmentResolver: InvestmentResolver
     private lateinit var pendingActionResolver: PendingActionResolver
     private lateinit var investmentQueryService: InvestmentQueryService
@@ -62,9 +68,12 @@ class BankingWiringFactoryTest {
         transactionResolver = mock()
         transactionCategoryResolver = mock()
         merchantResolver = mock()
+        accountPreferencesResolver = mock()
+        bankingUserPreferencesResolver = mock()
         importResolver = mock()
         pdfImportResolver = mock()
         attachmentResolver = mock()
+        productResolver = mock()
         investmentResolver = mock()
         pendingActionResolver = mock()
         investmentQueryService = mock()
@@ -90,12 +99,15 @@ class BankingWiringFactoryTest {
                 transactionResolver,
                 transactionCategoryResolver,
                 merchantResolver,
+                accountPreferencesResolver,
+                bankingUserPreferencesResolver,
                 investmentResolver,
                 pendingActionResolver,
                 investmentQueryService,
                 importResolver,
                 pdfImportResolver,
                 attachmentResolver,
+                productResolver,
                 requestPrincipalProvider,
                 authorizationChecker,
             )
@@ -158,6 +170,22 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_VIEW))
+        }
+
+        @Test
+        fun `investmentPortfolioSummary requires banking_investment_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["investmentPortfolioSummary"]!!
+
+            val env =
+                envWithToken(
+                    arguments = mapOf("financialAccountId" to UUID.randomUUID().toString()),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_VIEW))
+            verify(investmentResolver).investmentPortfolioSummary(anyOrNull(), anyOrNull(), any())
         }
 
         @Test
@@ -251,6 +279,30 @@ class BankingWiringFactoryTest {
                                 mapOf(
                                     "name" to "CDB Banco X 120 CDI",
                                     "assetType" to "CDB",
+                                ),
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_CREATE))
+        }
+
+        @Test
+        fun `createInvestmentCashTransaction requires banking_investment_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["createInvestmentCashTransaction"]!!
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "input" to
+                                mapOf(
+                                    "financialAccountId" to UUID.randomUUID().toString(),
+                                    "type" to "DEPOSIT",
+                                    "amount" to 100.0,
+                                    "date" to "2026-04-02",
                                 ),
                         ),
                 )

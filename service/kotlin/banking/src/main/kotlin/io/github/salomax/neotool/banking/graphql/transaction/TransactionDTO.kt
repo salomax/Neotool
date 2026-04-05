@@ -99,6 +99,7 @@ data class TransactionDTO(
     val paymentReason: String?,
     // Transfer
     val transferPeerTransactionId: UUID?,
+    val investmentTransactionId: UUID?,
     // Installments
     val installmentNumber: Int?,
     val totalInstallments: Int?,

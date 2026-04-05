@@ -121,6 +121,19 @@ export type AssetDailyPrice = {
   volume: Maybe<Scalars['Float']['output']>;
 };
 
+export type AssetGroupSummary = {
+  __typename: 'AssetGroupSummary';
+  allocationPercent: Scalars['Float']['output'];
+  count: Scalars['Int']['output'];
+  grossGainPercent: Maybe<Scalars['Float']['output']>;
+  groupKey: Scalars['String']['output'];
+  isCash: Scalars['Boolean']['output'];
+  label: Scalars['String']['output'];
+  totalCostBasis: Scalars['Float']['output'];
+  totalGrossValue: Scalars['Float']['output'];
+  twr: Maybe<Scalars['Float']['output']>;
+};
+
 /** Asset upload lifecycle status. */
 export enum AssetStatus {
   /** Asset deleted */
@@ -343,6 +356,13 @@ export type BankAccountDataInput = {
 export type BankingUserPreferences = {
   __typename: 'BankingUserPreferences';
   ruleApplicationMode: RuleApplicationMode;
+};
+
+export type BenchmarkPerformance = {
+  __typename: 'BenchmarkPerformance';
+  code: Scalars['String']['output'];
+  label: Scalars['String']['output'];
+  twr: Maybe<Scalars['Float']['output']>;
 };
 
 export type BillImportJob = {
@@ -737,6 +757,7 @@ export type CreateFinancialAccountInput = {
   cardData?: InputMaybe<CardDataInput>;
   /** ISO 4217 currency code. Defaults to BRL. */
   currencyCode?: InputMaybe<Scalars['String']['input']>;
+  includeCashInAllocation?: InputMaybe<Scalars['Boolean']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
   /** Non-zero account balance on initialBalanceDate. Creates a BALANCE_ADJUSTMENT transaction automatically. */
@@ -773,6 +794,26 @@ export type CreateInvestmentAssetInput = {
   issuerName?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   ticker?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type CreateInvestmentCashTransactionInput = {
+  /**
+   * For DEPOSIT and WITHDRAWAL must be > 0.
+   * For ADJUSTMENT: use positive for credit and negative for debit (must be non-zero).
+   */
+  amount: Scalars['Float']['input'];
+  date: Scalars['Date']['input'];
+  /** Required when type = ADJUSTMENT, or when registerAsBalanceAdjustment is true. */
+  description?: InputMaybe<Scalars['String']['input']>;
+  financialAccountId: Scalars['ID']['input'];
+  /**
+   * Optional bank account for an atomic transfer pair (checking/savings-style only).
+   * Not allowed with ADJUSTMENT or registerAsBalanceAdjustment.
+   */
+  peerFinancialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  /** When true with DEPOSIT or WITHDRAWAL, records BALANCE_ADJUSTMENT instead of TRANSFER (description required). */
+  registerAsBalanceAdjustment?: InputMaybe<Scalars['Boolean']['input']>;
+  type: InvestmentCashTransactionType;
 };
 
 export type CreateMerchantInput = {
@@ -1051,6 +1092,8 @@ export type FinancialAccount = {
   createdAt: Scalars['DateTime']['output'];
   currencyCode: Scalars['String']['output'];
   id: Scalars['ID']['output'];
+  /** When true, idle cash on this custodian account counts toward allocation % in investments UI. */
+  includeCashInAllocation: Scalars['Boolean']['output'];
   includeInDashboard: Scalars['Boolean']['output'];
   includeInNetWorth: Scalars['Boolean']['output'];
   /** Linked issuer from the issuers seed list. Null when a custom institution is used. */
@@ -1473,6 +1516,16 @@ export type InvestmentAsset = {
   updatedAt: Scalars['DateTime']['output'];
 };
 
+/** Manual cash movement on an investment/benefit custodian account (no asset / investment-transaction link). */
+export enum InvestmentCashTransactionType {
+  /** BALANCE_ADJUSTMENT — signed amount: positive credits, negative debits the custodian cash balance. */
+  Adjustment = 'ADJUSTMENT',
+  /** Credit TRANSFER — external deposit into the custodian account. */
+  Deposit = 'DEPOSIT',
+  /** Debit TRANSFER — withdrawal from the custodian account. */
+  Withdrawal = 'WITHDRAWAL'
+}
+
 export type InvestmentFund = {
   __typename: 'InvestmentFund';
   assetType: Scalars['String']['output'];
@@ -1587,6 +1640,38 @@ export type InvestmentHolding = {
   /** Date of the most recent indicator used in the calculation (null when source is PROVIDER or UNAVAILABLE). */
   valuationReferenceDate: Maybe<Scalars['Date']['output']>;
   valuationSource: ValuationSource;
+};
+
+export type InvestmentHoldingPerformance = {
+  __typename: 'InvestmentHoldingPerformance';
+  dividendsReceived: Scalars['Float']['output'];
+  holdingId: Scalars['ID']['output'];
+  totalReturn: Scalars['Float']['output'];
+  totalReturnAbsolute: Scalars['Float']['output'];
+  xirr: Maybe<Scalars['Float']['output']>;
+  xirrSince: Maybe<Scalars['Date']['output']>;
+};
+
+export type InvestmentPortfolioSummary = {
+  __typename: 'InvestmentPortfolioSummary';
+  byAssetGroup: Array<AssetGroupSummary>;
+  cashBalance: Scalars['Float']['output'];
+  currencyCode: Scalars['String']['output'];
+  grossGain: Scalars['Float']['output'];
+  grossGainPercent: Scalars['Float']['output'];
+  hasEstimatedValues: Scalars['Boolean']['output'];
+  netGain: Scalars['Float']['output'];
+  netGainPercent: Scalars['Float']['output'];
+  performance: PortfolioPerformance;
+  recalculationStatus: RecalculationStatus;
+  totalCostBasis: Scalars['Float']['output'];
+  totalGrossValue: Scalars['Float']['output'];
+  totalHoldingsCount: Scalars['Int']['output'];
+  totalIncomeTax: Scalars['Float']['output'];
+  totalIof: Scalars['Float']['output'];
+  totalNetValue: Scalars['Float']['output'];
+  totalPortfolioValue: Scalars['Float']['output'];
+  valuationReferenceDate: Maybe<Scalars['Date']['output']>;
 };
 
 /** How an investment record entered the system. */
@@ -1926,6 +2011,11 @@ export type Mutation = {
    */
   createInvestmentAsset: InvestmentAsset;
   /**
+   * Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
+   * Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.
+   */
+  createInvestmentCashTransaction: Transaction;
+  /**
    * Create a custom merchant for the authenticated account.
    * System merchants cannot be created via this mutation.
    */
@@ -1951,6 +2041,8 @@ export type Mutation = {
    */
   deleteAsset: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
+  /** Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present. */
+  deleteInvestmentCashTransaction: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment holding and all of its MANUAL transactions. */
   deleteInvestmentHolding: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
@@ -2008,6 +2100,8 @@ export type Mutation = {
   updateBankingUserPreferences: BankingUserPreferences;
   updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
+  /** Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present). */
+  updateInvestmentCashTransaction: Transaction;
   updateProduct: Product;
   updateProductVariant: ProductVariant;
   updateRole: Role;
@@ -2116,6 +2210,11 @@ export type MutationCreateInvestmentAssetArgs = {
 };
 
 
+export type MutationCreateInvestmentCashTransactionArgs = {
+  input: CreateInvestmentCashTransactionInput;
+};
+
+
 export type MutationCreateMerchantArgs = {
   input: CreateMerchantInput;
 };
@@ -2163,6 +2262,11 @@ export type MutationDeleteAssetArgs = {
 
 export type MutationDeleteGroupArgs = {
   groupId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteInvestmentCashTransactionArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2366,6 +2470,12 @@ export type MutationUpdateGroupArgs = {
 };
 
 
+export type MutationUpdateInvestmentCashTransactionArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateInvestmentCashTransactionInput;
+};
+
+
 export type MutationUpdateProductArgs = {
   id: Scalars['ID']['input'];
   input: UpdateProductInput;
@@ -2509,11 +2619,20 @@ export enum PendingActionStatus {
 }
 
 export enum PendingActionType {
+  BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
   CorporateEvent = 'CORPORATE_EVENT',
   Informational = 'INFORMATIONAL',
   InvestmentIncome = 'INVESTMENT_INCOME',
   InvestmentMatured = 'INVESTMENT_MATURED',
   InvestmentPositionMissing = 'INVESTMENT_POSITION_MISSING'
+}
+
+export enum PerformancePeriod {
+  All = 'ALL',
+  Mtd = 'MTD',
+  OneYear = 'ONE_YEAR',
+  ThreeYears = 'THREE_YEARS',
+  Ytd = 'YTD'
 }
 
 export type Permission = {
@@ -2557,6 +2676,16 @@ export type PopularInstitutionTopMetricItem = {
   institution: BacenInstitutionSummaryItem;
   metricValue: Maybe<Scalars['Float']['output']>;
   rank: Scalars['Int']['output'];
+};
+
+export type PortfolioPerformance = {
+  __typename: 'PortfolioPerformance';
+  benchmarks: Array<BenchmarkPerformance>;
+  hasEstimatedValues: Scalars['Boolean']['output'];
+  period: PerformancePeriod;
+  twr: Maybe<Scalars['Float']['output']>;
+  twrAbsolute: Maybe<Scalars['Float']['output']>;
+  twrSince: Maybe<Scalars['Date']['output']>;
 };
 
 export type PricePoint = {
@@ -2748,11 +2877,24 @@ export type Query = {
   investmentAssetByTicker: Maybe<ListedAsset>;
   investmentAssets: ListedAssetConnection;
   investmentAssetsByTickers: Array<ListedAsset>;
+  /**
+   * Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
+   * When financialAccountId is omitted, aggregates all INVESTMENT and BENEFIT accounts for the tenant.
+   */
+  investmentCashBalance: Scalars['Float']['output'];
+  /**
+   * Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
+   * Keyset cursor on (date, id), ordered by date DESC then id DESC.
+   * When financialAccountId is omitted, includes all INVESTMENT and BENEFIT accounts for the tenant.
+   */
+  investmentCashTransactions: TransactionConnection;
   investmentFund: Maybe<InvestmentFund>;
   investmentFundMarketSnapshots: Array<InvestmentFundMarketSnapshot>;
   investmentFunds: InvestmentFundConnection;
   /** Single holding by id. */
   investmentHolding: Maybe<InvestmentHolding>;
+  /** Annualized IRR and total return summary for a holding. */
+  investmentHoldingPerformance: Maybe<InvestmentHoldingPerformance>;
   /**
    * Open holdings for investment/brokerage accounts.
    * When financialAccountId is provided, returns holdings for that account only.
@@ -2760,6 +2902,8 @@ export type Query = {
    * Zero-quantity (closed) positions are always excluded.
    */
   investmentHoldings: Array<InvestmentHolding>;
+  /** Investment portfolio summary for one investment account or the consolidated view. */
+  investmentPortfolioSummary: InvestmentPortfolioSummary;
   /** Single investment transaction by id. */
   investmentTransaction: Maybe<InvestmentTransaction>;
   /** Full event history for a holding, ordered by tradeDate DESC. */
@@ -2969,6 +3113,18 @@ export type QueryInvestmentAssetsByTickersArgs = {
 };
 
 
+export type QueryInvestmentCashBalanceArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryInvestmentCashTransactionsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+};
+
+
 export type QueryInvestmentFundArgs = {
   id: Scalars['ID']['input'];
 };
@@ -2993,8 +3149,19 @@ export type QueryInvestmentHoldingArgs = {
 };
 
 
+export type QueryInvestmentHoldingPerformanceArgs = {
+  holdingId: Scalars['ID']['input'];
+};
+
+
 export type QueryInvestmentHoldingsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryInvestmentPortfolioSummaryArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  period?: InputMaybe<PerformancePeriod>;
 };
 
 
@@ -3287,6 +3454,14 @@ export type RatingIssuer = {
   logoAssetId: Maybe<Scalars['String']['output']>;
   name: Scalars['String']['output'];
   website: Maybe<Scalars['String']['output']>;
+};
+
+export type RecalculationStatus = {
+  __typename: 'RecalculationStatus';
+  isCalculating: Scalars['Boolean']['output'];
+  jobId: Maybe<Scalars['UUID']['output']>;
+  message: Maybe<Scalars['String']['output']>;
+  startedAt: Maybe<Scalars['DateTime']['output']>;
 };
 
 /**
@@ -3623,6 +3798,8 @@ export type Transaction = {
   hasNfceDocument: Scalars['Boolean']['output'];
   id: Scalars['ID']['output'];
   installmentNumber: Maybe<Scalars['Int']['output']>;
+  /** Set when this row is the cash leg linked to an investment transaction. */
+  investmentTransactionId: Maybe<Scalars['ID']['output']>;
   merchant: Maybe<Merchant>;
   notes: Maybe<Scalars['String']['output']>;
   payeeMcc: Maybe<Scalars['Int']['output']>;
@@ -3841,6 +4018,7 @@ export type UpdateFinancialAccountInput = {
   bankData?: InputMaybe<BankAccountDataInput>;
   cardData?: InputMaybe<CardDataInput>;
   currencyCode?: InputMaybe<Scalars['String']['input']>;
+  includeCashInAllocation?: InputMaybe<Scalars['Boolean']['input']>;
   includeInDashboard?: InputMaybe<Scalars['Boolean']['input']>;
   includeInNetWorth?: InputMaybe<Scalars['Boolean']['input']>;
   issuerId?: InputMaybe<Scalars['ID']['input']>;
@@ -3855,6 +4033,12 @@ export type UpdateGroupInput = {
   description?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
+};
+
+export type UpdateInvestmentCashTransactionInput = {
+  amount: Scalars['Float']['input'];
+  date: Scalars['Date']['input'];
+  description?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type UpdateProductInput = {

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
 
@@ -204,6 +205,39 @@ interface TransactionRepository {
         excludeTransactionId: UUID,
         baseDescription: String,
         creditDebitType: CreditDebitType,
+    ): List<Transaction>
+
+    /**
+     * Whether a non-deleted ledger row is already linked to this investment transaction (Open Finance dedup).
+     */
+    fun existsByInvestmentTransactionId(investmentTransactionId: UUID): Boolean
+
+    /**
+     * Net cash position: SUM(CREDIT amount) − SUM(DEBIT amount) for POSTED and PENDING rows across the given accounts.
+     */
+    fun sumLedgerBalance(
+        accountId: UUID,
+        financialAccountIds: Collection<UUID>,
+    ): BigDecimal
+
+    /**
+     * The other leg of a transfer: row where [Transaction.transferPeerTransactionId] equals [transferPeerTransactionId].
+     */
+    fun findByTransferPeerTransactionId(
+        transferPeerTransactionId: UUID,
+        accountId: UUID,
+    ): Transaction?
+
+    /**
+     * Investment custodian cash ledger rows: TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT on INVESTMENT/BENEFIT accounts.
+     * Ordered by date DESC, id DESC. Keyset: rows strictly before [(afterDate, afterId)] when both are non-null.
+     */
+    fun findInvestmentCashTransactionsKeyset(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        afterDate: LocalDate?,
+        afterId: UUID?,
+        limit: Int,
     ): List<Transaction>
 }
 

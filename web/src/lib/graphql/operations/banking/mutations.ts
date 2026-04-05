@@ -142,6 +142,24 @@ export const RECORD_INVESTMENT_TRANSACTION = gql`
   }
 `;
 
+/** Manual cash on an investment/benefit custodian account (aporte, saque, ajuste). */
+export const CREATE_INVESTMENT_CASH_TRANSACTION = gql`
+  mutation CreateInvestmentCashTransaction($input: CreateInvestmentCashTransactionInput!) {
+    createInvestmentCashTransaction(input: $input) {
+      id
+      financialAccountId
+      creditDebitType
+      type
+      amount
+      date
+      description
+      transferPeerTransactionId
+    }
+  }
+`;
+
+export { DELETE_INVESTMENT_CASH_TRANSACTION, UPDATE_INVESTMENT_CASH_TRANSACTION } from "./investmentCashMutations";
+
 export const DELETE_INVESTMENT_TRANSACTION = gql`
   mutation DeleteInvestmentTransaction($id: ID!) {
     deleteInvestmentTransaction(id: $id)

@@ -37,6 +37,7 @@ data class FinancialAccountDTO(
     val currencyCode: String,
     val includeInNetWorth: Boolean,
     val includeInDashboard: Boolean,
+    val includeCashInAllocation: Boolean,
     val themeColor: String?,
     val issuer: IssuerDTO?,
     val issuerName: String?,

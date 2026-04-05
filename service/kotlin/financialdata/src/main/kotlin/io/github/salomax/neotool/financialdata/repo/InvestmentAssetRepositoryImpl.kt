@@ -2,11 +2,14 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.AssetDailyPrice
+import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import io.github.salomax.neotool.financialdata.domain.ListedAsset
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import java.math.BigDecimal
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -411,6 +414,90 @@ open class ListedAssetRepositoryImpl(
                 avgPrice = row[5] as? BigDecimal,
                 volume = row[6] as? BigDecimal,
                 trades = (row[7] as? Number)?.toInt(),
+            )
+        }
+    }
+
+    @ReadOnly
+    override fun getDailyPricesForSync(
+        from: LocalDate,
+        to: LocalDate,
+        tickers: Collection<String>?,
+        updatedSince: Instant?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<ListedAssetDailyPriceSyncItem> {
+        val normalizedTickers = tickers?.map { it.trim().uppercase() }?.filter { it.isNotBlank() }?.distinct()
+        val hasTickers = !normalizedTickers.isNullOrEmpty()
+        val hasUpdatedSince = updatedSince != null
+        val hasCursor = after != null
+        val tickerPlaceholders = normalizedTickers?.indices?.joinToString(", ") { "?" }.orEmpty()
+
+        val sql = """
+            SELECT
+                ia.id::text,
+                ia.ticker,
+                ia.isin_code,
+                adp.price_date,
+                adp.open_price,
+                adp.high_price,
+                adp.low_price,
+                adp.close_price,
+                adp.avg_price,
+                adp.volume,
+                adp.trades,
+                adp.created_at
+            FROM financial_data.asset_daily_price adp
+            JOIN financial_data.investment_asset ia ON ia.id = adp.asset_id
+            WHERE ia.source = 'B3'
+              AND ia.ticker IS NOT NULL
+              AND adp.price_date >= ?
+              AND adp.price_date <= ?
+              ${if (hasTickers) "AND upper(ia.ticker) IN ($tickerPlaceholders)" else ""}
+              ${if (hasUpdatedSince) "AND adp.created_at >= ?" else ""}
+              ${
+            if (hasCursor) {
+                "AND (adp.price_date > ? OR (adp.price_date = ? AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))))"
+            } else {
+                ""
+            }
+        }
+            ORDER BY adp.price_date ASC, ia.ticker ASC, ia.id ASC
+        """.trimIndent()
+
+        val query = entityManager.createNativeQuery(sql)
+        var index = 1
+        query.setParameter(index++, from)
+        query.setParameter(index++, to)
+        normalizedTickers?.forEach { query.setParameter(index++, it) }
+        if (hasUpdatedSince) query.setParameter(index++, Timestamp.from(updatedSince))
+        if (hasCursor) {
+            val cursorDate = LocalDate.parse(after!!.fieldValues["date"] as String)
+            val cursorTicker = after.fieldValues["ticker"] as String
+            query.setParameter(index++, cursorDate)
+            query.setParameter(index++, cursorDate)
+            query.setParameter(index++, cursorTicker)
+            query.setParameter(index++, cursorTicker)
+            query.setParameter(index++, after.id)
+        }
+        query.setMaxResults(first)
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            ListedAssetDailyPriceSyncItem(
+                assetId = UUID.fromString(row[0] as String),
+                ticker = row[1] as String,
+                isinCode = row[2] as? String,
+                date = (row[3] as java.sql.Date).toLocalDate(),
+                openPrice = row[4] as? BigDecimal,
+                highPrice = row[5] as? BigDecimal,
+                lowPrice = row[6] as? BigDecimal,
+                closePrice = row[7] as BigDecimal,
+                avgPrice = row[8] as? BigDecimal,
+                volume = row[9] as? BigDecimal,
+                trades = (row[10] as? Number)?.toInt(),
+                updatedAt = (row[11] as Timestamp).toInstant(),
             )
         }
     }

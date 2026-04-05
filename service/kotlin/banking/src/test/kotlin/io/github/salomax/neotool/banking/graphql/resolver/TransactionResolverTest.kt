@@ -17,10 +17,14 @@ import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -48,6 +52,10 @@ class TransactionResolverTest {
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var merchantRepository: MerchantRepository
+    private lateinit var transactionRuleEngine: TransactionRuleEngine
+    private lateinit var transactionCategoryRepository: TransactionCategoryRepository
+    private lateinit var accountPreferencesService: AccountPreferencesService
+    private lateinit var nfceDocumentRepository: NfceDocumentRepository
     private lateinit var resolver: TransactionResolver
 
     private val accountId = UUID.randomUUID()
@@ -72,10 +80,24 @@ class TransactionResolverTest {
         monthSummaryQueryService = mock()
         creditCardBillService = mock()
         merchantRepository = mock()
+        transactionRuleEngine = mock()
+        transactionCategoryRepository = mock()
+        accountPreferencesService = mock()
+        nfceDocumentRepository = mock()
         whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
             .thenReturn(emptyMap())
         whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
-        resolver = TransactionResolver(service, monthSummaryQueryService, creditCardBillService, merchantRepository)
+        resolver =
+            TransactionResolver(
+                service = service,
+                monthSummaryQueryService = monthSummaryQueryService,
+                creditCardBillService = creditCardBillService,
+                merchantRepository = merchantRepository,
+                transactionRuleEngine = transactionRuleEngine,
+                transactionCategoryRepository = transactionCategoryRepository,
+                accountPreferencesService = accountPreferencesService,
+                nfceDocumentRepository = nfceDocumentRepository,
+            )
     }
 
     @Nested

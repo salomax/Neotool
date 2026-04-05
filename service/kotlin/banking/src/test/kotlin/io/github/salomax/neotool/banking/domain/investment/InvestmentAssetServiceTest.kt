@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.investment
 
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

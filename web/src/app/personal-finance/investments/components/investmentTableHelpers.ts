@@ -11,7 +11,6 @@ export type AssetGroupKey =
   | 'variableIncome'
   | 'bankFixedIncome'
   | 'creditFixedIncome'
-  | 'treasuryDirect'
   | 'mutualFunds'
   | 'pension'
   | 'structured'
@@ -27,9 +26,8 @@ const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
     'ETF',
     'ETF_INTERNATIONAL',
   ],
-  bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG', 'ETF_FIXED_INCOME'],
+  bankFixedIncome: ['CDB', 'RDB', 'LCI', 'LCA', 'LC', 'LF', 'LIG', 'ETF_FIXED_INCOME', 'TREASURY'],
   creditFixedIncome: ['DEBENTURES', 'CRI', 'CRA'],
-  treasuryDirect: ['TREASURY'],
   mutualFunds: ['MUTUAL_FUND', 'FIXED_INCOME_FUND', 'EQUITY_FUND', 'MULTI_MARKET_FUND', 'FOREX_FUND'],
   pension: ['PGBL', 'VGBL'],
   structured: ['COE'],
@@ -40,14 +38,13 @@ export const ASSET_GROUP_ORDER: AssetGroupKey[] = [
   'variableIncome',
   'bankFixedIncome',
   'creditFixedIncome',
-  'treasuryDirect',
   'mutualFunds',
   'pension',
   'structured',
   'others',
 ];
 
-export const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome', 'treasuryDirect']);
+export const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome', 'creditFixedIncome']);
 
 export const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 

@@ -11,6 +11,18 @@ import io.github.salomax.neotool.banking.service.investment.InvestmentAssetServi
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
+import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionConnectionDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionCursor
+import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
+import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
+import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
+import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
@@ -21,7 +33,10 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDT
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentPortfolioSummaryDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
+import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -37,7 +52,12 @@ class InvestmentResolver(
     private val investmentTransactionService: InvestmentTransactionService,
     private val investmentAssetService: InvestmentAssetService,
     private val investmentQueryService: InvestmentQueryService,
+    private val investmentPortfolioSummaryService: InvestmentPortfolioSummaryService,
     private val assetRepository: AssetRepository,
+    private val investmentCashService: InvestmentCashService,
+    private val transactionResolver: TransactionResolver,
+    private val portfolioFlowEventService: PortfolioFlowEventService,
+    private val financialAccountRepository: FinancialAccountRepository,
 ) {
     // ── Queries ───────────────────────────────────────────────────────────────
 
@@ -49,6 +69,72 @@ class InvestmentResolver(
         return investmentQueryService.getHoldings(
             financialAccountId = financialAccountId?.let(UUID::fromString),
             accountId = accountId,
+        )
+    }
+
+    fun investmentCashBalance(
+        financialAccountId: String?,
+        principal: RequestPrincipal,
+    ): Double {
+        val accountId = requireAccountId(principal)
+        return investmentQueryService
+            .getInvestmentCashBalance(
+                financialAccountId = financialAccountId?.let(UUID::fromString),
+                accountId = accountId,
+            )
+            .toDouble()
+    }
+
+    fun investmentPortfolioSummary(
+        financialAccountId: String?,
+        period: String?,
+        principal: RequestPrincipal,
+    ): InvestmentPortfolioSummaryDTO {
+        val accountId = requireAccountId(principal)
+        return investmentPortfolioSummaryService.getSummary(
+            financialAccountId = financialAccountId?.let(UUID::fromString),
+            accountId = accountId,
+            period = period?.let(PerformancePeriodDTO::valueOf) ?: PerformancePeriodDTO.YTD,
+        )
+    }
+
+    fun investmentCashTransactions(
+        financialAccountId: String?,
+        first: Int?,
+        after: String?,
+        principal: RequestPrincipal,
+    ): TransactionConnectionDTO {
+        val accountId = requireAccountId(principal)
+        val slice =
+            investmentQueryService.listInvestmentCashTransactions(
+                financialAccountId = financialAccountId?.let(UUID::fromString),
+                accountId = accountId,
+                first = first,
+                after = after,
+            )
+        val dtos = transactionResolver.toTransactionDTOBatch(slice.items, accountId)
+        val edges =
+            slice.items.indices.map { i ->
+                val tx = slice.items[i]
+                TransactionEdgeDTO(
+                    node = dtos[i],
+                    cursor =
+                        InvestmentCashTransactionCursor.encode(
+                            tx.date,
+                            requireNotNull(tx.id),
+                        ),
+                )
+            }
+        return TransactionConnectionDTO(
+            edges = edges,
+            pageInfo =
+                PageInfoDTO(
+                    hasNextPage = slice.hasNextPage,
+                    hasPreviousPage = !after.isNullOrBlank(),
+                    startCursor = slice.startCursor,
+                    endCursor = slice.endCursor,
+                ),
+            totalCount = null,
         )
     }
 
@@ -94,6 +180,14 @@ class InvestmentResolver(
         )
     }
 
+    fun investmentHoldingPerformance(
+        holdingId: String,
+        principal: RequestPrincipal,
+    ): InvestmentHoldingPerformanceDTO? {
+        val accountId = requireAccountId(principal)
+        return investmentQueryService.getInvestmentHoldingPerformance(UUID.fromString(holdingId), accountId)
+    }
+
     fun investmentAsset(id: String): InvestmentAssetDTO? =
         assetRepository.findById(UUID.fromString(id))?.toDTO()
 
@@ -132,6 +226,74 @@ class InvestmentResolver(
         return investmentTransactionService.record(command, accountId, userId).toDTO()
     }
 
+    fun createInvestmentCashTransaction(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransactionDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+        val type = InvestmentCashTransactionType.valueOf(input["type"] as String)
+        val financialAccountId = UUID.fromString(input["financialAccountId"] as String)
+        val amount = BigDecimal.valueOf((input["amount"] as Number).toDouble())
+        val date =
+            when (val raw = input["date"]) {
+                is LocalDate -> raw
+                is String -> LocalDate.parse(raw)
+                else -> error("date must be a LocalDate or ISO-8601 string")
+            }
+        val description = input["description"] as? String
+        val peerFinancialAccountId = (input["peerFinancialAccountId"] as? String)?.let(UUID::fromString)
+        val registerAsBalanceAdjustment = input["registerAsBalanceAdjustment"] as? Boolean ?: false
+        val saved =
+            investmentCashService.createManualCashTransaction(
+                financialAccountId = financialAccountId,
+                type = type,
+                amount = amount,
+                date = date,
+                description = description,
+                accountId = accountId,
+                userId = userId,
+                peerFinancialAccountId = peerFinancialAccountId,
+                registerAsBalanceAdjustment = registerAsBalanceAdjustment,
+            )
+        return transactionResolver.toTransactionDTO(saved, accountId)
+    }
+
+    fun updateInvestmentCashTransaction(
+        id: String,
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransactionDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+        val amount = BigDecimal.valueOf((input["amount"] as Number).toDouble())
+        val date =
+            when (val raw = input["date"]) {
+                is LocalDate -> raw
+                is String -> LocalDate.parse(raw)
+                else -> error("date must be a LocalDate or ISO-8601 string")
+            }
+        val description = input["description"] as? String
+        val saved =
+            investmentCashService.updateManualCashLedgerTransaction(
+                transactionId = UUID.fromString(id),
+                amount = amount,
+                date = date,
+                description = description,
+                accountId = accountId,
+                userId = userId,
+            )
+        return transactionResolver.toTransactionDTO(saved, accountId)
+    }
+
+    fun deleteInvestmentCashTransaction(
+        id: String,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = requireAccountId(principal)
+        return investmentCashService.deleteManualCashLedgerTransaction(UUID.fromString(id), accountId)
+    }
+
     fun deleteInvestmentTransaction(
         id: String,
         principal: RequestPrincipal,
@@ -146,6 +308,30 @@ class InvestmentResolver(
     ): Boolean {
         val accountId = requireAccountId(principal)
         return investmentTransactionService.deleteHolding(UUID.fromString(id), accountId)
+    }
+
+    fun triggerPortfolioRecalculation(
+        financialAccountId: String?,
+        recalculateFrom: String?,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = requireAccountId(principal)
+        val from = recalculateFrom?.let { LocalDate.parse(it) } ?: LocalDate.now().minusYears(10)
+        val accounts = if (financialAccountId != null) {
+            listOfNotNull(financialAccountRepository.findById(UUID.fromString(financialAccountId), accountId))
+        } else {
+            financialAccountRepository.findByAccountId(accountId)
+                .filter { account -> account.type == FinancialAccountType.INVESTMENT }
+        }
+        for (account in accounts) {
+            portfolioFlowEventService.requestRecalculation(
+                financialAccountId = account.id,
+                accountId = accountId,
+                recalculateFrom = from,
+                triggeredBy = "manual_trigger",
+            )
+        }
+        return true
     }
 
     // ── Mapping helpers ───────────────────────────────────────────────────────

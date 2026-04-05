@@ -64,6 +64,116 @@
       "recordFund": "Novo fundo",
       "recordEquity": "Nova Ação, FII ou opção"
     },
+    "record": {
+      "cash": "Dinheiro em conta"
+    },
+    "summary": {
+      "totalPortfolio": "Portfólio Total",
+      "grossGain": "Ganho acumulado",
+      "totalInvested": "Total investido",
+      "cashBalance": "Caixa disponível",
+      "estimated": "estimado",
+      "allocation": "Alocação",
+      "viewAllGroups": "Ver todos os grupos",
+      "performance": {
+        "title": "Performance",
+        "portfolioReturn": "Rendimento da carteira",
+        "period": {
+          "MTD": "Este mês",
+          "YTD": "Este ano",
+          "ONE_YEAR": "1 ano",
+          "THREE_YEARS": "3 anos",
+          "ALL": "Desde o início"
+        },
+        "absolute": "Ganho em valor atual",
+        "noHistory": "Histórico insuficiente para calcular",
+        "recalculating": "Recalculando histórico de performance...",
+        "recalculatingDetail": "O rendimento e comparativos serão atualizados em alguns instantes."
+      },
+      "drawer": {
+        "title": "Grupos de ativos"
+      },
+      "error": {
+        "title": "Não foi possível calcular o resumo",
+        "description": "Verifique sua conexão e tente novamente.",
+        "retry": "Tentar novamente"
+      }
+    },
+    "cash": {
+      "cardTitle": "Caixa disponível",
+      "cardPreviewCaption": "Movimentações recentes",
+      "cardSecondaryLabel": "Contexto",
+      "viewAll": "Ver movimentações",
+      "negativeBalanceHint": "O saldo de caixa está negativo. Revise lançamentos e ajustes.",
+      "registerAsBalanceAdjustment": "Registrar como ajuste de saldo",
+      "peerAccount": "Conta bancária de origem",
+      "peerAccountNone": "Sem conta vinculada",
+      "peerAccountNoMatch": "Nenhuma conta encontrada",
+      "successPaired": "Transferência registrada nas duas contas",
+      "drawer": {
+        "title": "Dinheiro em conta",
+        "selectAccount": {
+          "description": "Escolha a conta de investimento onde o dinheiro será registrado.",
+          "emptyState": "Nenhuma conta de investimento disponível."
+        }
+      },
+      "movementTypeLabel": "Tipo de movimentação",
+      "adjustmentDirectionLabel": "Direção do ajuste",
+      "type": {
+        "deposit": "Aporte",
+        "withdrawal": "Saque",
+        "adjustment": "Ajuste de saldo"
+      },
+      "adjustmentDirection": {
+        "credit": "Aumentar saldo",
+        "debit": "Reduzir saldo"
+      },
+      "amount": "Valor",
+      "date": "Data",
+      "description": "Descrição",
+      "descriptionAdjustment": "Motivo do ajuste",
+      "validation": {
+        "amountPositive": "Informe um valor maior que zero.",
+        "descriptionRequired": "Descreva o motivo do ajuste.",
+        "descriptionRequiredAdjustment": "Descreva o motivo do ajuste.",
+        "dateNotInFuture": "A data não pode ser futura."
+      },
+      "actions": {
+        "submit": "Salvar",
+        "submitting": "Salvando..."
+      },
+      "success": "Movimentação registrada",
+      "movements": {
+        "drawer": {
+          "listTitle": "Movimentações de caixa",
+          "recordTitle": "Registrar movimentação",
+          "register": "Nova movimentação"
+        },
+        "columns": {
+          "date": "Data",
+          "description": "Descrição",
+          "kind": "Tipo",
+          "amount": "Valor"
+        },
+        "kind": {
+          "adjustment": "Ajuste de saldo",
+          "return": "Rendimento / provento",
+          "transferIn": "Entrada (transferência)",
+          "transferOut": "Saída (transferência)"
+        },
+        "empty": "Nenhuma movimentação de caixa ainda.",
+        "loadError": "Não foi possível carregar as movimentações.",
+        "loadMore": "Carregar mais",
+        "detailTitle": "Detalhes da movimentação",
+        "editTitle": "Editar movimentação",
+        "deleteConfirmation": {
+          "title": "Excluir esta movimentação?",
+          "message": "Isso remove o lançamento nesta conta de investimento e a perna de transferência vinculada, se houver. Não é possível desfazer."
+        },
+        "successUpdated": "Movimentação atualizada",
+        "successDeleted": "Movimentação excluída"
+      }
+    },
     "pendingActions": {
       "panelTitle": "Ações pendentes",
       "registerMaturity": "Registrar vencimento",
@@ -184,6 +294,7 @@
         "gain": "Rentabilidade"
       },
       "searchPlaceholder": "Buscar ativos...",
+      "cashInAccount": "Caixa na conta",
       "noMatches": "Nenhum ativo corresponde à sua busca.",
       "valuationTooltip": {
         "CALCULATED": "Valor calculado com base em indicadores e regras de renda fixa.",
@@ -225,7 +336,6 @@
       "expiredNudge": "Este ativo venceu em {{maturityDate}}. Atualize ou remova-o.",
       "groupTotalEstimated": "Parte deste total usa valor ou impostos estimados.",
       "total": "Total",
-      "appliedValue": "Valor aplicado",
       "groupSummary_one": "{{count}} ativo · {{total}}",
       "groupSummary_other": "{{count}} ativos · {{total}}",
       "rowActions": {
@@ -238,11 +348,11 @@
         "variableIncome": "Renda Variável",
         "bankFixedIncome": "Renda Fixa",
         "creditFixedIncome": "Renda Fixa Crédito",
-        "treasuryDirect": "Tesouro Direto",
         "mutualFunds": "Fundos de Investimento",
         "pension": "Previdência Privada",
         "structured": "Estruturado",
-        "others": "Outros"
+        "others": "Outros",
+        "cash": "Caixa"
       },
       "emptyState": "Nenhum ativo registrado nesta conta",
       "recordFirstHolding": "Registrar primeiro ativo",
@@ -261,6 +371,8 @@
         "grossTotal": "Total Bruto",
         "netTotal": "Total Líquido",
         "grossEarnings": "Rendimento Bruto",
+        "totalReturn": "Retorno total",
+        "dividendsReceived": "Proventos",
         "incomeTax": "IR",
         "iof": "IOF",
         "netEarnings": "Rendimento Líquido"
@@ -274,6 +386,11 @@
         "iof": "IOF",
         "grossGain": "Ganho bruto",
         "grossGainPercent": "Rentabilidade bruta"
+      },
+      "performance": {
+        "xirr": "TIR anualizada",
+        "xirrTooltip": "Taxa Interna de Retorno anualizada considerando data e valor de cada aporte.",
+        "since": "Desde"
       },
       "chart": {
         "title": "Evolução do investimento",
@@ -321,10 +438,21 @@
       },
       "transactionTypes": {
         "AMORTIZATION": "Amortização",
+        "BONUS_SHARES": "Bonificação",
+        "CUSTODY_TRANSFER": "Transferência de custódia",
+        "DIVIDEND": "Dividendo",
         "INTEREST_PAYMENT": "Pagamento de juros",
+        "INTEREST_ON_EQUITY": "JCP",
         "MATURITY": "Vencimento",
+        "OWNERSHIP_TRANSFER": "Transferência de titularidade",
+        "PRIZE": "Prêmio",
         "PURCHASE": "Aplicação",
-        "SALE": "Resgate"
+        "QUOTA_TRANSFER": "Transferência de cotas",
+        "SALE": "Resgate",
+        "STOCK_LENDING": "Aluguel",
+        "STOCK_SPLIT": "Desdobramento",
+        "SUBSCRIPTION": "Subscrição",
+        "WITHHOLDING_TAX": "Imposto retido"
       }
     },
     "deleteConfirmation": {
@@ -467,6 +595,7 @@
       },
       "sections": {
         "fund": "Fundo",
+        "listing": "Como o fundo está cadastrado?",
         "manualFund": "Fundo manual",
         "applicationData": "Dados da aplicação",
         "values": "Valores",
@@ -484,7 +613,7 @@
       "fields": {
         "fund": "Fundo",
         "manualFundName": "Nome do fundo",
-        "manualFundCnpj": "CNPJ do fundo (opcional)",
+        "manualFundCnpj": "CNPJ do fundo",
         "manualFundCnpjHelper": "Se informado, deve ser um CNPJ válido para permitir vinculação manual futura.",
         "manualAssetType": "Tipo do fundo",
         "quantity": "Quantidade de cotas",

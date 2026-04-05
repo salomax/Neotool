@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.repo.account
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -39,6 +40,10 @@ open class DefaultFinancialAccountRepository(
         entityRepository
             .findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
             ?.let(FinancialAccountMapper::toDomain)
+
+    override fun findAllInvestmentAccounts(): List<FinancialAccount> =
+        entityRepository.findByTypeAndDeletedAtIsNull(FinancialAccountType.INVESTMENT)
+            .map(FinancialAccountMapper::toDomain)
 
     override fun findCardAccountsByLastFourDigits(
         accountId: UUID,

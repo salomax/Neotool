@@ -2,6 +2,7 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.FundDailyNav
+import io.github.salomax.neotool.financialdata.domain.FundDailyNavSyncItem
 import io.github.salomax.neotool.financialdata.domain.FundTaxProfile
 import io.github.salomax.neotool.financialdata.domain.InvestmentFund
 import io.github.salomax.neotool.financialdata.domain.InvestmentFundMarketSnapshot
@@ -9,6 +10,8 @@ import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import java.math.BigDecimal
+import java.sql.Timestamp
+import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
 
@@ -332,6 +335,78 @@ open class InvestmentFundRepositoryImpl(
                 } else {
                     null
                 },
+            )
+        }
+    }
+
+    @ReadOnly
+    override fun getDailyNavsForSync(
+        from: LocalDate,
+        to: LocalDate,
+        cnpjs: Collection<String>?,
+        updatedSince: Instant?,
+        first: Int,
+        after: CompositeCursor?,
+    ): List<FundDailyNavSyncItem> {
+        val normalizedCnpjs = cnpjs?.map { it.trim() }?.filter { it.isNotBlank() }?.distinct()
+        val hasCnpjs = !normalizedCnpjs.isNullOrEmpty()
+        val hasUpdatedSince = updatedSince != null
+        val hasCursor = after != null
+        val cnpjPlaceholders = normalizedCnpjs?.indices?.joinToString(", ") { "?" }.orEmpty()
+
+        val sql = """
+            SELECT
+                ia.id::text,
+                ia.fund_cnpj,
+                adp.price_date,
+                adp.close_price,
+                adp.volume,
+                adp.created_at
+            FROM financial_data.asset_daily_price adp
+            JOIN financial_data.investment_asset ia ON ia.id = adp.asset_id
+            WHERE ia.source = 'CVM'
+              AND ia.fund_cnpj IS NOT NULL
+              AND adp.price_date >= ?
+              AND adp.price_date <= ?
+              ${if (hasCnpjs) "AND ia.fund_cnpj IN ($cnpjPlaceholders)" else ""}
+              ${if (hasUpdatedSince) "AND adp.created_at >= ?" else ""}
+              ${
+            if (hasCursor) {
+                "AND (adp.price_date > ? OR (adp.price_date = ? AND (ia.fund_cnpj > ? OR (ia.fund_cnpj = ? AND ia.id::text > ?))))"
+            } else {
+                ""
+            }
+        }
+            ORDER BY adp.price_date ASC, ia.fund_cnpj ASC, ia.id ASC
+        """.trimIndent()
+
+        val query = entityManager.createNativeQuery(sql)
+        var index = 1
+        query.setParameter(index++, from)
+        query.setParameter(index++, to)
+        normalizedCnpjs?.forEach { query.setParameter(index++, it) }
+        if (hasUpdatedSince) query.setParameter(index++, Timestamp.from(updatedSince))
+        if (hasCursor) {
+            val cursorDate = LocalDate.parse(after!!.fieldValues["date"] as String)
+            val cursorCnpj = after.fieldValues["cnpj"] as String
+            query.setParameter(index++, cursorDate)
+            query.setParameter(index++, cursorDate)
+            query.setParameter(index++, cursorCnpj)
+            query.setParameter(index++, cursorCnpj)
+            query.setParameter(index++, after.id)
+        }
+        query.setMaxResults(first)
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            FundDailyNavSyncItem(
+                assetId = UUID.fromString(row[0] as String),
+                cnpj = row[1] as String,
+                date = (row[2] as java.sql.Date).toLocalDate(),
+                closePrice = row[3] as BigDecimal,
+                totalNetAssets = row[4] as? BigDecimal,
+                updatedAt = (row[5] as Timestamp).toInstant(),
             )
         }
     }

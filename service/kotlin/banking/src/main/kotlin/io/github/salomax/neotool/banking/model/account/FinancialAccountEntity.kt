@@ -46,6 +46,8 @@ open class FinancialAccountEntity(
     open var includeInNetWorth: Boolean = true,
     @Column(name = "include_in_dashboard", nullable = false)
     open var includeInDashboard: Boolean = true,
+    @Column(name = "include_cash_in_allocation", nullable = false)
+    open var includeCashInAllocation: Boolean = true,
     @Column(name = "issuer_id")
     open var issuerId: UUID? = null,
     @Column(name = "theme_color", length = 7)

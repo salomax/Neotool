@@ -20,8 +20,6 @@ interface InvestmentGroupSectionProps {
   summaryAdornment?: React.ReactNode;
   gainPercent?: number | null;
   allocationPercent?: number | null;
-  appliedLabel?: string;
-  appliedValue?: string;
   headerCells: HeaderCell[];
   actionColWidth: number;
   tableRadius: number;
@@ -37,8 +35,6 @@ export function InvestmentGroupSection({
   summaryAdornment,
   gainPercent,
   allocationPercent,
-  appliedLabel,
-  appliedValue,
   headerCells,
   actionColWidth,
   tableRadius,
@@ -54,8 +50,6 @@ export function InvestmentGroupSection({
       summaryAdornment={summaryAdornment}
       gainPercent={gainPercent}
       allocationPercent={allocationPercent}
-      appliedLabel={appliedLabel}
-      appliedValue={appliedValue}
     >
       <Box
         sx={{

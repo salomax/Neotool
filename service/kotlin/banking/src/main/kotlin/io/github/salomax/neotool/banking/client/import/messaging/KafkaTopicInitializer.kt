@@ -26,6 +26,10 @@ class KafkaTopicInitializer(
     private val importFileRequestedDlt: String,
     @Property(name = "kafka.topics.import-job-completed")
     private val importJobCompleted: String,
+    @Property(name = "kafka.topics.market-data-job-succeeded")
+    private val marketDataJobSucceeded: String,
+    @Property(name = "kafka.topics.portfolio-recalculation-requested")
+    private val portfolioRecalculationRequested: String,
     @Property(name = "kafka.topics.pdf.extractor-submitted")
     private val pdfExtractorSubmitted: String,
     @Property(name = "kafka.topics.pdf.extractor-extracted")
@@ -75,6 +79,20 @@ class KafkaTopicInitializer(
                             mapOf(
                                 // 24 hours
                                 TopicConfig.RETENTION_MS_CONFIG to (24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
+                        ),
+                    NewTopic(marketDataJobSucceeded, 6, 1)
+                        .configs(
+                            mapOf(
+                                TopicConfig.RETENTION_MS_CONFIG to (7L * 24 * 60 * 60 * 1000).toString(),
+                                TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
+                            ),
+                        ),
+                    NewTopic(portfolioRecalculationRequested, 6, 1)
+                        .configs(
+                            mapOf(
+                                TopicConfig.RETENTION_MS_CONFIG to (7L * 24 * 60 * 60 * 1000).toString(),
                                 TopicConfig.CLEANUP_POLICY_CONFIG to "delete",
                             ),
                         ),

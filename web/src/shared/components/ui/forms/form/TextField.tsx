@@ -40,17 +40,37 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
 }, ref) => {
   const [showPassword, setShowPassword] = useState(false);
 
-  // Handle custom 'large' size with styling
   const muiSize = size === 'large' ? 'medium' : size;
-  const largeSx = size === 'large' ? {
-    '& .MuiInputBase-root': {
-      fontSize: '1.125rem',
-      '& .MuiInputBase-input': {
-        padding: '16.5px 14px',
+  const isMultiline = !!props.multiline;
+  const inputPadding =
+    size === "small"
+      ? "10.5px 14px"
+      : size === "large"
+        ? "16.5px 14px"
+        : "14.5px 14px";
+
+  const baseSx = {
+    ...(size === "large" && {
+      "& .MuiInputBase-root": {
+        fontSize: "1.125rem",
       },
+    }),
+    ...(isMultiline && {
+      "& .MuiOutlinedInput-root.MuiOutlinedInput-multiline": {
+        padding: 0,
+      },
+    }),
+    "& .MuiOutlinedInput-input": {
+      padding: inputPadding,
     },
-    ...sx,
-  } : sx;
+    "& .MuiOutlinedInput-inputMultiline": {
+      padding: inputPadding,
+    },
+  } as const;
+
+  const mergedSx = sx
+    ? [baseSx, ...(Array.isArray(sx) ? sx : [sx])]
+    : baseSx;
 
   // Convert string icon names to icon components
   const startAdornment = startIcon ? (
@@ -134,7 +154,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
       size={muiSize}
       InputProps={mergedInputProps}
       inputProps={mergedInputPropsAttrs}
-      sx={largeSx}
+      sx={mergedSx}
       {...props}
     />
   );

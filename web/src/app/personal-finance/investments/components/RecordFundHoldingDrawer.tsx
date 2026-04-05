@@ -3,27 +3,12 @@
 import React, { useEffect } from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Avatar,
-  Box,
-  CircularProgress,
-  Divider,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-  alpha,
-  useTheme,
-} from "@mui/material";
+import { Box, Divider, Paper, Tab, Tabs, TextField, Typography, alpha, useTheme } from "@mui/material";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 import { INVESTMENT_FUND_NAV } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
@@ -35,29 +20,32 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import {
   AssetType,
-  FinancialAccount,
   HoldingPricingMode,
   InvestmentTransaction,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
 import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
+import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
+import { Label } from "@/shared/components/ui/primitives/Label";
 import { personalFinanceTranslations } from "../../i18n";
 import { FundAutocomplete, FundAutocompleteValue } from "./FundAutocomplete";
 import { mapCvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
+import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 
 interface RecordFundHoldingDrawerProps {
   open: boolean;
   onClose: () => void;
   financialAccountId?: string | null;
-  financialAccounts?: FinancialAccount[];
+  financialAccounts?: IssuerSelectionAccount[];
   onRecorded?: () => void;
   editHolding?: {
     id: string;
@@ -263,6 +251,8 @@ export function RecordFundHoldingDrawer({
     refetchQueries: [
       { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
       { query: INVESTMENT_HOLDINGS },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY },
     ],
     onCompleted: () => {
       success(t("investments.recordFund.success"));
@@ -480,189 +470,179 @@ export function RecordFundHoldingDrawer({
       {({ resolvedFinancialAccountId }) => (
         <FormProvider {...methods}>
           <form id="record-fund-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <Stack spacing={2}>
+            <FormStack spacing={2}>
               {mutationError && <FormErrorBanner message={mutationError.message} />}
 
-                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "flex-end", gap: 2, flexWrap: "wrap" }}>
-                  <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
-                    <SegmentedControl
-                      fullWidth
-                      value={listingMode}
-                      onChange={(v) => setListingMode(v as ListingMode)}
-                      disabled={isEdit}
-                      sx={{
-                        m: 0,
-                        p: 0,
-                        "& .MuiToggleButtonGroup-grouped": {
-                          fontSize: "0.75rem",
-                          height: 40,
-                          padding: "4px 12px",
-                          margin: 0,
-                        },
-                        "& .MuiToggleButtonGroup-grouped.Mui-selected": {
-                          backgroundColor: `${theme.palette.primary.main} !important`,
-                          color: `${theme.palette.primary.contrastText} !important`,
-                          boxShadow: "none",
-                          "&:hover": {
-                            backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
-                          },
-                        },
-                      }}
-                      options={[
-                        { value: "CVM", label: t("investments.recordFund.modes.cvmListed") },
-                        { value: "MANUAL", label: t("investments.recordFund.modes.notListed") },
-                      ]}
-                    />
-                  </Box>
-                </Box>
+              <FormStack spacing={0.5}>
+                <Label sx={{ mb: 0 }}>
+                  {t("investments.recordFund.sections.listing")}
+                </Label>
+                <Tabs
+                  value={listingMode}
+                  onChange={(_, next: ListingMode) => {
+                    setListingMode(next);
+                  }}
+                  sx={{
+                    "& .MuiTab-root": {
+                      textTransform: "none",
+                      fontWeight: theme.typography.button.fontWeight,
+                      fontSize: theme.typography.button.fontSize,
+                      letterSpacing: theme.typography.button.letterSpacing,
+                      lineHeight: theme.typography.button.lineHeight,
+                      px: 0,
+                      mr: 3,
+                      minHeight: 48,
+                      minWidth: "auto",
+                    },
+                    "& .MuiTabs-indicator": {
+                      height: 3,
+                      borderRadius: 2,
+                    },
+                  }}
+                >
+                  <Tab value="CVM" label={t("investments.recordFund.modes.cvmListed")} disabled={isEdit} />
+                  <Tab value="MANUAL" label={t("investments.recordFund.modes.notListed")} disabled={isEdit} />
+                </Tabs>
+                <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }} />
+              </FormStack>
 
-                {listingMode === "CVM" ? (
-                  <Stack spacing={1}>
-                    {isEdit ? (
-                      <TextField
-                        value={editHolding?.asset.name ?? ""}
-                        label={t("investments.recordFund.sections.fund")}
-                        disabled
-                        data-testid="record-fund-edit-fund-name"
-                      />
-                    ) : (
-                      <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
-                    )}
-                  </Stack>
+              {listingMode === "CVM" ? (
+                isEdit ? (
+                  <TextField
+                    value={editHolding?.asset.name ?? ""}
+                    label={t("investments.recordFund.sections.fund")}
+                    disabled
+                    data-testid="record-fund-edit-fund-name"
+                  />
                 ) : (
-                  <Stack spacing={2}>
+                  <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
+                )
+              ) : (
+                <FormStack spacing={1.5}>
+                  <Controller
+                    name="manualFundName"
+                    control={methods.control}
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        {...field}
+                        label={t("investments.recordFund.fields.manualFundName")}
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message}
+                        data-testid="record-fund-manual-name"
+                      />
+                    )}
+                  />
+                  <Controller
+                    name="manualFundCnpj"
+                    control={methods.control}
+                    render={({ field, fieldState }) => (
+                      <TextField
+                        {...field}
+                        label={t("investments.recordFund.fields.manualFundCnpj")}
+                        error={!!fieldState.error}
+                        helperText={fieldState.error?.message}
+                        data-testid="record-fund-manual-cnpj"
+                      />
+                    )}
+                  />
+                  <FormStack spacing={0.5}>
+                    <Label sx={{ mb: 0 }}>
+                      {t("investments.recordFund.fields.manualAssetType")}
+                    </Label>
                     <Controller
-                      name="manualFundName"
+                      name="manualAssetType"
                       control={methods.control}
-                      render={({ field, fieldState }) => (
-                        <TextField
-                          {...field}
-                          label={t("investments.recordFund.fields.manualFundName")}
-                          error={!!fieldState.error}
-                          helperText={fieldState.error?.message}
-                          data-testid="record-fund-manual-name"
+                      render={({ field }) => (
+                        <SegmentedControl
+                          fullWidth
+                          value={field.value ?? AssetType.MutualFund}
+                          onChange={(value) => field.onChange(value)}
+                          options={[
+                            { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
+                            { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
+                            { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
+                          ]}
                         />
                       )}
                     />
-                    <Controller
-                      name="manualFundCnpj"
-                      control={methods.control}
-                      render={({ field, fieldState }) => (
-                        <TextField
-                          {...field}
-                          label={t("investments.recordFund.fields.manualFundCnpj")}
-                          error={!!fieldState.error}
-                          helperText={fieldState.error?.message}
-                          data-testid="record-fund-manual-cnpj"
-                        />
-                      )}
-                    />
-                    <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-                      <Typography variant="caption" color="text.secondary" sx={{ minWidth: "fit-content" }}>
-                        {t("investments.recordFund.fields.manualAssetType")}
-                      </Typography>
-                      <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
-                        <Controller
-                          name="manualAssetType"
-                          control={methods.control}
-                          render={({ field }) => (
-                            <SegmentedControl
-                              fullWidth
-                              value={field.value ?? AssetType.MutualFund}
-                              onChange={(value) => field.onChange(value)}
-                              sx={{
-                                m: 0,
-                                p: 0,
-                                "& .MuiToggleButtonGroup-grouped": {
-                                  fontSize: "0.75rem",
-                                  height: 40,
-                                  padding: "4px 12px",
-                                  margin: 0,
-                                },
-                                "& .MuiToggleButtonGroup-grouped.Mui-selected": {
-                                  backgroundColor: `${theme.palette.primary.main} !important`,
-                                  color: `${theme.palette.primary.contrastText} !important`,
-                                  boxShadow: "none",
-                                  "&:hover": {
-                                    backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
-                                  },
-                                },
-                              }}
-                              options={[
-                                { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
-                                { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
-                                { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
-                              ]}
-                            />
-                          )}
-                        />
-                      </Box>
-                    </Box>
-                  </Stack>
-                )}
+                  </FormStack>
+                </FormStack>
+              )}
 
+              <Box sx={{ width: listingMode === "CVM" ? { xs: "100%", sm: "50%" } : "100%", minWidth: 0 }}>
                 <DatePickerField
                   name="tradeDate"
                   label={t("investments.recordFund.fields.tradeDate")}
                   data-testid="record-fund-trade-date"
                 />
+              </Box>
 
-                <Divider />
+              <Divider sx={{ pt: 2 }} />
 
-                <Box sx={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 2, flexWrap: "wrap" }}>
-                  <Typography variant="overline" color="text.secondary" sx={{ minWidth: "fit-content" }}>
-                    {t("investments.recordFund.sections.values")}
-                  </Typography>
-                  <Box sx={{ flexBasis: { xs: "100%", sm: "auto" }, minWidth: { sm: 280 } }}>
-                    <SegmentedControl
-                      fullWidth
-                      value={valueFlow}
-                      onChange={(v) => setValueFlow(v as ValueFlow)}
-                      sx={{
-                        m: 0,
-                        p: 0,
-                        "& .MuiToggleButtonGroup-grouped": {
-                          fontSize: "0.75rem",
-                          height: 40,
-                          padding: "4px 12px",
-                          margin: 0,
-                        },
-                        "& .MuiToggleButtonGroup-grouped.Mui-selected": {
-                          backgroundColor: `${theme.palette.primary.main} !important`,
-                          color: `${theme.palette.primary.contrastText} !important`,
-                          boxShadow: "none",
-                          "&:hover": {
-                            backgroundColor: `${(theme.palette.primary.dark ?? theme.palette.primary.main) as string} !important`,
-                          },
-                        },
-                      }}
-                      options={[
-                        { value: "BY_AMOUNT", label: t("investments.recordFund.flows.byAmount") },
-                        { value: "BY_QUANTITY", label: t("investments.recordFund.flows.byQuantity") },
-                      ]}
-                    />
-                  </Box>
-                </Box>
+              <FormStack spacing={1}>
+                <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
+                  {t("investments.recordFund.sections.values")}
+                </Typography>
+                <Tabs
+                  value={valueFlow}
+                  onChange={(_, next: ValueFlow) => {
+                    setValueFlow(next);
+                  }}
+                  sx={{
+                    "& .MuiTab-root": {
+                      textTransform: "none",
+                      fontWeight: theme.typography.button.fontWeight,
+                      fontSize: theme.typography.button.fontSize,
+                      letterSpacing: theme.typography.button.letterSpacing,
+                      lineHeight: theme.typography.button.lineHeight,
+                      px: 0,
+                      mr: 3,
+                      minHeight: 48,
+                      minWidth: "auto",
+                    },
+                    "& .MuiTabs-indicator": {
+                      height: 3,
+                      borderRadius: 2,
+                    },
+                  }}
+                >
+                  <Tab value="BY_AMOUNT" label={t("investments.recordFund.flows.byAmount")} />
+                  <Tab value="BY_QUANTITY" label={t("investments.recordFund.flows.byQuantity")} />
+                </Tabs>
+                <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }} />
+              </FormStack>
 
-                {valueFlow === "BY_AMOUNT" ? (
-                  <Stack spacing={2} sx={{ mt: 1 }}>
+              {valueFlow === "BY_AMOUNT" ? (
+                <FormStack spacing={1.5}>
+                  {listingMode !== "CVM" || !suggestedUnitPrice ? (
+                    <FormRowStack alignItems="flex-start">
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <MoneyInput
+                          name="grossValue"
+                          label={t("investments.recordFund.fields.grossValue")}
+                          currency="BRL"
+                          data-testid="record-fund-gross-value"
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <MoneyInput
+                          name="unitPrice"
+                          label={t("investments.recordFund.fields.unitPrice")}
+                          currency="BRL"
+                          data-testid="record-fund-unit-price"
+                        />
+                      </Box>
+                    </FormRowStack>
+                  ) : (
                     <MoneyInput
                       name="grossValue"
                       label={t("investments.recordFund.fields.grossValue")}
                       currency="BRL"
                       data-testid="record-fund-gross-value"
                     />
+                  )}
 
-                    {listingMode !== "CVM" || !suggestedUnitPrice ? (
-                      <MoneyInput
-                        name="unitPrice"
-                        label={t("investments.recordFund.fields.unitPrice")}
-                        currency="BRL"
-                        data-testid="record-fund-unit-price"
-                      />
-                    ) : null}
-
-                    <Paper
+                  <Paper
                       variant="outlined"
                       sx={{
                         p: 2,
@@ -695,10 +675,10 @@ export function RecordFundHoldingDrawer({
                             })
                           : "—"}
                       </Typography>
-                    </Paper>
-                  </Stack>
-                ) : (
-                  <Stack spacing={2} sx={{ mt: 1 }}>
+                  </Paper>
+                </FormStack>
+              ) : (
+                <FormStack spacing={1.5}>
                     <Box
                       sx={{
                         display: "grid",
@@ -741,45 +721,50 @@ export function RecordFundHoldingDrawer({
                         {computedTotalByQuantity != null ? currencyFormatter.format(computedTotalByQuantity) : "—"}
                       </Typography>
                     </Paper>
-                  </Stack>
-                )}
+                </FormStack>
+              )}
 
-                {listingMode === "MANUAL" ? (
-                  <>
-                    <Divider />
-                    <Stack spacing={2}>
-                      <Typography variant="overline" color="text.secondary">
-                        {t("investments.recordFund.sections.currentValue")}
-                      </Typography>
-                      <MoneyInput
-                        name="manualCurrentGrossValue"
-                        label={t("investments.recordFund.fields.manualCurrentGrossValue")}
-                        currency="BRL"
-                        data-testid="record-fund-manual-current-gross-value"
-                      />
-                      <DatePickerField
-                        name="manualValuedAt"
-                        label={t("investments.recordFund.fields.manualValuedAt")}
-                        data-testid="record-fund-manual-valued-at"
-                      />
-                    </Stack>
-                  </>
-                ) : null}
+              {listingMode === "MANUAL" ? (
+                <>
+                  <Divider sx={{ pt: 2 }} />
+                  <FormStack spacing={1}>
+                    <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
+                      {t("investments.recordFund.sections.currentValue")}
+                    </Typography>
+                    <FormRowStack alignItems="flex-start">
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <MoneyInput
+                          name="manualCurrentGrossValue"
+                          label={t("investments.recordFund.fields.manualCurrentGrossValue")}
+                          currency="BRL"
+                          data-testid="record-fund-manual-current-gross-value"
+                        />
+                      </Box>
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <DatePickerField
+                          name="manualValuedAt"
+                          label={t("investments.recordFund.fields.manualValuedAt")}
+                          data-testid="record-fund-manual-valued-at"
+                        />
+                      </Box>
+                    </FormRowStack>
+                  </FormStack>
+                </>
+              ) : null}
 
-                <Divider />
+              <Divider />
 
-                <Drawer.ActionButtons
-                  cancelText={t("actions.cancel")}
-                  submitText={t("investments.recordFund.actions.submit")}
-                  submittingText={t("investments.recordFund.actions.submitting")}
-                  onCancel={onClose}
-                  submitForm="record-fund-form"
-                  cancelDisabled={isSubmitting}
-                  submitDisabled={isSubmitting || !resolvedFinancialAccountId}
-                  submitting={isSubmitting}
-                />
-
-            </Stack>
+              <Drawer.ActionButtons
+                cancelText={t("actions.cancel")}
+                submitText={t("investments.recordFund.actions.submit")}
+                submittingText={t("investments.recordFund.actions.submitting")}
+                onCancel={onClose}
+                submitForm="record-fund-form"
+                cancelDisabled={isSubmitting}
+                submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+                submitting={isSubmitting}
+              />
+            </FormStack>
           </form>
         </FormProvider>
       )}

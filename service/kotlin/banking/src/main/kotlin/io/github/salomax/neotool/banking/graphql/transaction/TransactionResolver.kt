@@ -409,6 +409,39 @@ class TransactionResolver(
         return service.delete(UUID.fromString(id), accountId)
     }
 
+    /** Maps a persisted [Transaction] to the GraphQL DTO (e.g. after domain service create). */
+    fun toTransactionDTO(
+        transaction: Transaction,
+        accountId: UUID,
+    ): TransactionDTO {
+        val category = service.findAccessibleCategory(transaction.categoryId, accountId)
+        val merchant = transaction.merchantId?.let { loadMerchantDTO(it) }
+        return transaction.toDTO(category, merchant, hasNfceDocument = false)
+    }
+
+    /** Batch mapping for paginated lists (categories, merchants, NFC-e flags loaded once). */
+    fun toTransactionDTOBatch(
+        transactions: List<Transaction>,
+        accountId: UUID,
+    ): List<TransactionDTO> {
+        if (transactions.isEmpty()) return emptyList()
+        val categoryIds = transactions.mapNotNull { it.categoryId }.toSet()
+        val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
+        val merchantDTOs = buildMerchantDTOMap(transactions.mapNotNull { it.merchantId }.toSet())
+        val nfceLinked =
+            nfceDocumentRepository.findLinkedTransactionIds(
+                accountId,
+                transactions.mapNotNull { it.id },
+            )
+        return transactions.map { tx ->
+            tx.toDTO(
+                categories[tx.categoryId],
+                merchantDTOs[tx.merchantId],
+                nfceLinked.contains(tx.id),
+            )
+        }
+    }
+
     fun bulkCategorize(
         transactionIds: List<String>,
         categoryId: String,
@@ -557,6 +590,7 @@ class TransactionResolver(
             counterpartyAccountNumber = counterpartyAccountNumber,
             paymentReason = paymentReason,
             transferPeerTransactionId = transferPeerTransactionId,
+            investmentTransactionId = investmentTransactionId,
             installmentNumber = installmentNumber,
             totalInstallments = totalInstallments,
             billId = billId,

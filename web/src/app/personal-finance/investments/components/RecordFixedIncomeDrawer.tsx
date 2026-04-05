@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useMutation } from "@apollo/client/react";
+import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Avatar, Box, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typography, alpha, useTheme } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -9,7 +9,11 @@ import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import {
+  INVESTMENT_CASH_BALANCE,
+  INVESTMENT_HOLDINGS,
+  INVESTMENT_PORTFOLIO_SUMMARY,
+} from "@/lib/graphql/operations/banking/queries";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
@@ -20,7 +24,6 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import {
   AssetType,
-  FinancialAccount,
   Indexer,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
@@ -34,13 +37,14 @@ import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { personalFinanceTranslations } from "../../i18n";
+import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 
 interface RecordFixedIncomeDrawerProps {
   open: boolean;
   onClose: () => void;
   financialAccountId?: string | null;
-  financialAccounts?: FinancialAccount[];
+  financialAccounts?: IssuerSelectionAccount[];
   onRecorded?: () => void;
   editHolding?: {
     id: string;
@@ -113,6 +117,7 @@ export function RecordFixedIncomeDrawer({
   editTransaction,
 }: RecordFixedIncomeDrawerProps) {
   const theme = useTheme();
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -370,14 +375,16 @@ const isEdit = Boolean(editHolding && editTransaction);
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
   >(RECORD_INVESTMENT_TRANSACTION, {
-    refetchQueries: [
-      { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
-      { query: INVESTMENT_HOLDINGS },
-    ],
     onCompleted: () => {
-      success(t("investments.recordHolding.success"));
-      onRecorded?.();
-      onClose();
+      void apolloClient
+        .refetchQueries({
+          include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE],
+        })
+        .finally(() => {
+          success(t("investments.recordHolding.success"));
+          onRecorded?.();
+          onClose();
+        });
     },
   });
 

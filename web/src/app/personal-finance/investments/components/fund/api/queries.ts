@@ -90,5 +90,13 @@ export const FUND_HOLDING_DETAIL = gql`
         quantity
       }
     }
+    investmentHoldingPerformance(holdingId: $holdingId) {
+      holdingId
+      xirr
+      xirrSince
+      totalReturn
+      totalReturnAbsolute
+      dividendsReceived
+    }
   }
 `;

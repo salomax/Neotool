@@ -91,6 +91,7 @@ open class FinancialAccountService(
                 currencyCode = command.currencyCode?.takeIf { it.isNotBlank() } ?: "BRL",
                 includeInNetWorth = command.includeInNetWorth ?: true,
                 includeInDashboard = command.includeInDashboard ?: true,
+                includeCashInAllocation = command.includeCashInAllocation ?: true,
                 issuerId = command.issuerId,
                 themeColor = command.themeColor,
                 issuerName = issuer?.name ?: command.issuerName,
@@ -188,6 +189,7 @@ open class FinancialAccountService(
                 currencyCode = resolvedCurrency,
                 includeInNetWorth = command.includeInNetWorth ?: existing.includeInNetWorth,
                 includeInDashboard = command.includeInDashboard ?: existing.includeInDashboard,
+                includeCashInAllocation = command.includeCashInAllocation ?: existing.includeCashInAllocation,
                 issuerId =
                     when {
                         issuer != null -> issuer.id

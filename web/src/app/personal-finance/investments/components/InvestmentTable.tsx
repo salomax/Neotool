@@ -14,11 +14,13 @@ import {
   MenuItem,
   Paper,
   TableContainer,
+  Tooltip,
   Typography,
   useTheme,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
 import { useTranslation } from '@/shared/i18n';
@@ -28,26 +30,32 @@ import { Chip } from '@/shared/components/ui/primitives/Chip';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { PercentageGain, ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { personalFinanceTranslations } from '../../i18n';
-import { INVESTMENT_HOLDINGS, INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
+import {
+  INVESTMENT_CASH_BALANCE,
+  INVESTMENT_HOLDINGS,
+  INVESTMENT_PORTFOLIO_SUMMARY,
+  INVESTMENT_TRANSACTIONS,
+} from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_INVESTMENT_HOLDING,
 } from '@/lib/graphql/operations/banking/mutations';
 import {
   FinancialAccountsQuery,
+  InvestmentCashBalanceQuery,
+  InvestmentCashBalanceQueryVariables,
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import {
-  AssetType,
-  InvestmentSource,
-  InvestmentTransaction,
-} from '@/lib/graphql/types/__generated__/graphql';
+import { AssetType, InvestmentSource, InvestmentTransaction } from '@/lib/graphql/types/__generated__/graphql';
 import { AssetTypeIcon, type AssetTypeIconKind } from '@/shared/components/ui/icons/AssetTypeIcon';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { RecordFixedIncomeDrawer } from './RecordFixedIncomeDrawer';
 import { RecordFundHoldingDrawer } from './RecordFundHoldingDrawer';
 import { RecordEquityHoldingDrawer } from './RecordEquityHoldingDrawer';
 import type { InvestmentHoldingDetailKind } from './InvestmentHoldingDetailDrawer';
+import { AssetGroupCard } from './AssetGroupCard';
+import { CashMovementsInlineTable } from './CashMovementsInlineTable';
+import type { IssuerSelectionAccount } from './IssuerSelection';
 import { InvestmentGroupSection } from './InvestmentGroupSection';
 import {
   ASSET_GROUP_ORDER,
@@ -60,6 +68,43 @@ import {
   type AssetGroupKey,
   type HoldingRow,
 } from './investmentTableHelpers';
+
+const VALID_ASSET_GROUP_KEYS = new Set<AssetGroupKey>(ASSET_GROUP_ORDER);
+
+const CARDS_STORAGE_PREFIX = 'pf-investments-card-state';
+
+function investmentsCardStorageKey(selectedAccountId: string | null): string {
+  return `${CARDS_STORAGE_PREFIX}:${selectedAccountId ?? 'all'}`;
+}
+
+type PersistedInvestmentCards = {
+  expandedGroups: AssetGroupKey[];
+  cashExpanded: boolean;
+};
+
+function readPersistedInvestmentCards(selectedAccountId: string | null): {
+  expanded: Set<AssetGroupKey> | null;
+  cashExpanded: boolean | null;
+} {
+  if (typeof window === 'undefined') return { expanded: null, cashExpanded: null };
+  try {
+    const raw = window.localStorage.getItem(investmentsCardStorageKey(selectedAccountId));
+    if (!raw) return { expanded: null, cashExpanded: null };
+    const parsed = JSON.parse(raw) as Partial<PersistedInvestmentCards>;
+    if (parsed == null || typeof parsed !== 'object') return { expanded: null, cashExpanded: null };
+    let expanded: Set<AssetGroupKey> | null = null;
+    if (Array.isArray(parsed.expandedGroups)) {
+      const keys = parsed.expandedGroups.filter(
+        (k): k is AssetGroupKey => typeof k === 'string' && VALID_ASSET_GROUP_KEYS.has(k as AssetGroupKey),
+      );
+      expanded = new Set(keys);
+    }
+    const cashExpanded = typeof parsed.cashExpanded === 'boolean' ? parsed.cashExpanded : null;
+    return { expanded, cashExpanded };
+  } catch {
+    return { expanded: null, cashExpanded: null };
+  }
+}
 import type { MaturityDrawerHolding } from '../MaturityConfirmDrawer';
 import { formatTableDate } from '@/shared/utils/date';
 import { getHoldingValueOrigin } from '@/shared/utils/holdingValueOrigin';
@@ -79,6 +124,8 @@ type BankAccountRow = NonNullable<FinancialAccountsQuery['financialAccounts']>[n
 interface InvestmentTableProps {
   selectedAccountId: string | null;
   bankAccounts: BankAccountRow[];
+  /** Used to resolve display currency for consolidated vs single-account cash balance. */
+  investmentAccounts?: IssuerSelectionAccount[];
   onRecordHolding?: () => void;
   searchQuery?: string;
 }
@@ -90,7 +137,6 @@ type EditDrawerKind = 'fixedIncome' | 'fund' | 'equity';
 const ICON_KIND_BY_GROUP: Record<AssetGroupKey, AssetTypeIconKind> = {
   bankFixedIncome: 'FIXED_INCOME',
   creditFixedIncome: 'FIXED_INCOME',
-  treasuryDirect: 'FIXED_INCOME',
   variableIncome: 'STOCK',
   mutualFunds: 'FUND',
   pension: 'FUND',
@@ -118,6 +164,7 @@ function computePrincipal(holding: HoldingRow): number | null {
 export function InvestmentTable({
   selectedAccountId,
   bankAccounts,
+  investmentAccounts = [],
   onRecordHolding: _onRecordHolding,
   searchQuery,
 }: InvestmentTableProps) {
@@ -138,9 +185,24 @@ export function InvestmentTable({
   const [detailDrawerKind, setDetailDrawerKind] = React.useState<InvestmentHoldingDetailKind | null>(null);
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
   const [maturityConfirmHolding, setMaturityConfirmHolding] = React.useState<MaturityDrawerHolding | null>(null);
+  const [cashExpanded, setCashExpanded] = React.useState(true);
+  const ignoreNextCardPersistRef = React.useRef(false);
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
   const deleting = deletingHolding;
+
+  const cashQuery = useQuery<InvestmentCashBalanceQuery, InvestmentCashBalanceQueryVariables>(INVESTMENT_CASH_BALANCE, {
+    variables: { financialAccountId: selectedAccountId ?? undefined },
+    errorPolicy: 'all',
+  });
+
+  const displayCurrency = React.useMemo(() => {
+    if (selectedAccountId) {
+      return investmentAccounts.find((a) => a.id === selectedAccountId)?.currencyCode ?? 'BRL';
+    }
+    const codes = [...new Set(investmentAccounts.map((a) => a.currencyCode).filter(Boolean))];
+    return codes.length === 1 ? codes[0]! : 'BRL';
+  }, [investmentAccounts, selectedAccountId]);
 
   const closeActionMenu = () => {
     setActionMenuAnchorEl(null);
@@ -194,7 +256,11 @@ export function InvestmentTable({
       await deleteInvestmentHolding({ variables: { id: holding.id } });
       setHoldingToRemove(null);
 
-      await holdingsQuery.refetch();
+      await Promise.all([
+        holdingsQuery.refetch(),
+        cashQuery.refetch(),
+        apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] }),
+      ]);
     } catch {
       setHoldingToRemove(null);
     }
@@ -289,6 +355,14 @@ export function InvestmentTable({
   const loading = holdingsQuery.loading;
   const error = holdingsQuery.error;
 
+  const cashBalance = cashQuery.data?.investmentCashBalance;
+  const cashFormatted =
+    cashBalance != null && Number.isFinite(cashBalance) && displayCurrency
+      ? formatCurrency(cashBalance, displayCurrency, locale)
+      : null;
+  const showCashCard =
+    !cashQuery.loading && !cashQuery.error && cashBalance != null && Number.isFinite(cashBalance) && cashFormatted != null;
+
   const groupedHoldings = React.useMemo(() => {
     const base = ASSET_GROUP_ORDER.reduce((acc, groupKey) => {
       acc[groupKey] = [];
@@ -305,11 +379,21 @@ export function InvestmentTable({
     return base;
   }, [displayedHoldings]);
 
-  const groups = React.useMemo(() => {
-    let portfolioTotal = 0;
+  const { groups, cashAllocationPercent } = React.useMemo(() => {
+    let holdingsGrossTotal = 0;
     displayedHoldings.forEach((holding) => {
-      if (typeof holding.grossValue === 'number') portfolioTotal += holding.grossValue;
+      if (typeof holding.grossValue === 'number') holdingsGrossTotal += holding.grossValue;
     });
+
+    const portfolioDenominator =
+      showCashCard && cashBalance != null && Number.isFinite(cashBalance)
+        ? holdingsGrossTotal + cashBalance
+        : holdingsGrossTotal;
+
+    const cashAllocationPercent =
+      showCashCard && cashBalance != null && Number.isFinite(cashBalance) && portfolioDenominator > 0
+        ? cashBalance / portfolioDenominator
+        : null;
 
     const computed = ASSET_GROUP_ORDER.map((groupKey) => {
       const groupHoldings = groupedHoldings[groupKey] || [];
@@ -334,7 +418,7 @@ export function InvestmentTable({
       const currencyCode = currencyCodes.size === 1 ? Array.from(currencyCodes)[0] : null;
       const total = hasValue && currencyCode ? formatCurrency(sum, currencyCode, locale) : '—';
       const appliedTotal = hasPrincipal && currencyCode ? formatCurrency(principalSum, currencyCode, locale) : '—';
-      const allocationPercent = portfolioTotal > 0 && hasValue ? sum / portfolioTotal : null;
+      const allocationPercent = portfolioDenominator > 0 && hasValue ? sum / portfolioDenominator : null;
       const valueOriginKey = pickGroupValueOrigin(groupHoldings);
 
       return {
@@ -353,8 +437,50 @@ export function InvestmentTable({
         holdings: groupHoldings,
       };
     });
-    return computed.filter((group) => group.count > 0);
-  }, [displayedHoldings, groupedHoldings, locale, t]);
+    return {
+      groups: computed.filter((group) => group.count > 0),
+      cashAllocationPercent,
+    };
+  }, [cashBalance, displayedHoldings, groupedHoldings, locale, showCashCard, t]);
+
+  const applyPersistedCardState = React.useCallback((accountId: string | null) => {
+    const { expanded, cashExpanded: storedCash } = readPersistedInvestmentCards(accountId);
+    if (expanded !== null) {
+      setExpandedGroups(expanded);
+      didInitExpansionRef.current = true;
+    } else {
+      setExpandedGroups(new Set());
+      didInitExpansionRef.current = false;
+    }
+    if (storedCash !== null) {
+      setCashExpanded(storedCash);
+    } else {
+      setCashExpanded(true);
+    }
+  }, [setCashExpanded, setExpandedGroups]);
+
+  React.useEffect(() => {
+    if (hasSearchQuery) return;
+    ignoreNextCardPersistRef.current = true;
+    applyPersistedCardState(selectedAccountId);
+  }, [applyPersistedCardState, hasSearchQuery, selectedAccountId]);
+
+  React.useEffect(() => {
+    if (hasSearchQuery) return;
+    if (ignoreNextCardPersistRef.current) {
+      ignoreNextCardPersistRef.current = false;
+      return;
+    }
+    try {
+      const payload: PersistedInvestmentCards = {
+        expandedGroups: Array.from(expandedGroups),
+        cashExpanded,
+      };
+      window.localStorage.setItem(investmentsCardStorageKey(selectedAccountId), JSON.stringify(payload));
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [cashExpanded, expandedGroups, hasSearchQuery, selectedAccountId]);
 
   React.useEffect(() => {
     if (loading || error) return;
@@ -398,28 +524,40 @@ export function InvestmentTable({
     }
   }, [error, expandedGroups, groups, hasSearchQuery, loading]);
 
-  React.useEffect(() => {
-    setExpandedGroups(new Set());
-    didInitExpansionRef.current = false;
-  }, [selectedAccountId]);
-
-  React.useEffect(() => {
-    if (hasSearchQuery) return;
-    setExpandedGroups(new Set());
-    didInitExpansionRef.current = false;
-  }, [hasSearchQuery]);
-
   const isEditDrawerOpen = Boolean(editDrawerHolding && editDrawerTransaction);
 
   const handleEditRecorded = React.useCallback(async () => {
-    await holdingsQuery.refetch();
-  }, [holdingsQuery]);
+    await Promise.all([
+      holdingsQuery.refetch(),
+      cashQuery.refetch(),
+      apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] }),
+    ]);
+  }, [apolloClient, holdingsQuery, cashQuery]);
 
   const isActionMenuFixedIncome = actionMenuHolding?.asset?.assetType
     ? FIXED_INCOME_GROUP_KEYS.has(getAssetGroupKey(actionMenuHolding.asset.assetType))
     : false;
 
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
+
+  const cashAssetGroupCard = showCashCard ? (
+    <AssetGroupCard
+      expanded={cashExpanded}
+      onToggle={setCashExpanded}
+      title={t('investments.cash.cardTitle')}
+      summary={cashFormatted ?? ''}
+      allocationPercent={cashAllocationPercent}
+      summaryAdornment={
+        cashBalance != null && cashBalance < 0 ? (
+          <Tooltip title={t('investments.cash.negativeBalanceHint')}>
+            <InfoOutlinedIcon fontSize="small" color="warning" sx={{ ml: 0.5 }} />
+          </Tooltip>
+        ) : null
+      }
+    >
+      <CashMovementsInlineTable financialAccountId={selectedAccountId} />
+    </AssetGroupCard>
+  ) : null;
 
   return (
     <TableContainer
@@ -432,6 +570,10 @@ export function InvestmentTable({
       }}
       data-testid="investment-table"
     >
+      {showCashCard && (loading || error || displayedHoldings.length === 0) && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashAssetGroupCard}</Box>
+      )}
+
       {loading && (
         <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
           <CircularProgress size={20} />
@@ -456,6 +598,7 @@ export function InvestmentTable({
 
       {!loading && !error && displayedHoldings.length > 0 && (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+          {cashAssetGroupCard}
           {groups.map((group) => {
             const isExpanded = expandedGroups.has(group.key);
             const leadingIcon = (
@@ -507,8 +650,6 @@ export function InvestmentTable({
                 summaryAdornment={groupValueOrigin}
                 gainPercent={group.gainPercent}
                 allocationPercent={group.allocationPercent}
-                appliedLabel={t('investments.table.appliedValue')}
-                appliedValue={group.appliedTotal}
                 headerCells={[
                   {
                     key: 'asset',
@@ -894,7 +1035,11 @@ export function InvestmentTable({
         holding={maturityConfirmHolding}
         bankAccounts={bankAccounts}
         onSuccess={async () => {
-          await holdingsQuery.refetch();
+          await Promise.all([
+            holdingsQuery.refetch(),
+            cashQuery.refetch(),
+            apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] }),
+          ]);
         }}
       />
 

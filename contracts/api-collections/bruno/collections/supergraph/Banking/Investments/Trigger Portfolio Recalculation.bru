@@ -1,0 +1,31 @@
+meta {
+  name: Trigger Portfolio Recalculation
+  type: graphql
+  seq: 5
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  mutation TriggerPortfolioRecalculation {
+    triggerPortfolioRecalculation(
+      financialAccountId: "019d43b1-38c1-70ef-b824-6c10a1ae541f"
+      recalculateFrom: "2026-01-01"
+    )
+  }
+  
+}
+
+body:graphql:vars {
+  {
+    "recalculateFrom": "2025-01-01"
+  }
+}

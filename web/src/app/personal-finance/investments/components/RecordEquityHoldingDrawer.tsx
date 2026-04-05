@@ -23,7 +23,7 @@ import { FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
+import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 import { INVESTMENT_ASSET_PRICE } from "@/lib/graphql/operations/financial-data/queries";
 import {
   CreateInvestmentAssetMutation,
@@ -35,7 +35,6 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import {
   AssetType,
-  FinancialAccount,
   InvestmentTransaction,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
@@ -50,13 +49,14 @@ import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl
 import { personalFinanceTranslations } from "../../i18n";
 import { EquityAutocomplete, EquityAutocompleteValue } from "./EquityAutocomplete";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
+import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 
 interface RecordEquityHoldingDrawerProps {
   open: boolean;
   onClose: () => void;
   financialAccountId?: string | null;
-  financialAccounts?: FinancialAccount[];
+  financialAccounts?: IssuerSelectionAccount[];
   onRecorded?: () => void;
   editHolding?: {
     id: string;
@@ -260,6 +260,8 @@ export function RecordEquityHoldingDrawer({
     refetchQueries: [
       { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
       { query: INVESTMENT_HOLDINGS },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
+      { query: INVESTMENT_PORTFOLIO_SUMMARY },
     ],
     onCompleted: () => {
       success(t("investments.recordEquity.success"));

@@ -198,8 +198,9 @@ afterEvaluate {
                         "io.github.salomax.neotool.banking.domain.*Output*",
                         "io.github.salomax.neotool.banking.domain.*Data*",
                         "io.github.salomax.neotool.banking.domain.*Item*",
-                        "io.github.salomax.neotool.banking.domain.importevent.*",
-                        "io.github.salomax.neotool.banking.domain.rbac.*",
+                        "io.github.salomax.neotool.banking.service.import.ImportEventBus",
+                        "io.github.salomax.neotool.banking.service.import.ImportJobStatusPayload",
+                        "io.github.salomax.neotool.banking.shared.BankingPermissions",
                         "io.github.salomax.neotool.banking.domain.import.nfce.DefaultNfceHttpFetcher",
                     )
                 }

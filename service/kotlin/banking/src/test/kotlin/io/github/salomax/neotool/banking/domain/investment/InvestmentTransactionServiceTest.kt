@@ -2,7 +2,18 @@ package io.github.salomax.neotool.banking.domain.investment
 
 import io.github.salomax.neotool.banking.service.investment.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import org.assertj.core.api.Assertions.assertThat
@@ -14,6 +25,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
@@ -31,6 +43,11 @@ class InvestmentTransactionServiceTest {
     private lateinit var holdingRepository: HoldingRepository
     private lateinit var assetRepository: AssetRepository
     private lateinit var financialAccountRepository: FinancialAccountRepository
+    private lateinit var pendingActionRepository: AccountPendingActionRepository
+    private lateinit var transactionService: TransactionService
+    private lateinit var transactionRepository: TransactionRepository
+    private lateinit var transactionCategoryEntityRepository: TransactionCategoryEntityRepository
+    private lateinit var portfolioFlowEventService: PortfolioFlowEventService
     private lateinit var service: InvestmentTransactionService
 
     private val accountId = UUID.randomUUID()
@@ -123,11 +140,21 @@ class InvestmentTransactionServiceTest {
         holdingRepository = mock()
         assetRepository = mock()
         financialAccountRepository = mock()
+        pendingActionRepository = mock()
+        transactionService = mock()
+        transactionRepository = mock()
+        transactionCategoryEntityRepository = mock()
+        portfolioFlowEventService = mock()
         service = InvestmentTransactionService(
             investmentTransactionRepository,
             holdingRepository,
             assetRepository,
             financialAccountRepository,
+            pendingActionRepository,
+            transactionService,
+            transactionRepository,
+            transactionCategoryEntityRepository,
+            portfolioFlowEventService,
         )
 
         // Default stubs used by most tests
@@ -135,6 +162,12 @@ class InvestmentTransactionServiceTest {
             .thenReturn(listOf(custodyAccount))
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
+        whenever(transactionRepository.existsByInvestmentTransactionId(any())).thenReturn(false)
+        whenever(pendingActionRepository.cancelByEntityAndType(any(), any(), any(), any())).thenReturn(false)
+        whenever(pendingActionRepository.findPendingByEntityAndType(any(), any(), any())).thenReturn(null)
+        whenever(transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any()))
+            .thenReturn(UUID.randomUUID())
+        whenever(transactionService.create(any(), any(), any())).thenReturn(mock<Transaction>())
     }
 
     @Test
@@ -317,6 +350,127 @@ class InvestmentTransactionServiceTest {
             verify(investmentTransactionRepository).softDelete(txTwoId, accountId)
             verify(holdingRepository).softDelete(holdingId, accountId)
         }
+
+        @Test
+        fun `deleteHolding triggers recalculation from earliest transaction trade date`() {
+            val oldTxId = UUID.randomUUID()
+            val newTxId = UUID.randomUUID()
+            val oldTx = InvestmentTransaction(
+                id = oldTxId,
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                grossValue = BigDecimal("5000.00"),
+                tradeDate = today.minusMonths(6),
+                source = InvestmentSource.MANUAL,
+                createdAt = now,
+                updatedAt = now,
+            )
+            val newTx = InvestmentTransaction(
+                id = newTxId,
+                holdingId = holdingId,
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                grossValue = BigDecimal("2000.00"),
+                tradeDate = today.minusMonths(1),
+                source = InvestmentSource.MANUAL,
+                createdAt = now,
+                updatedAt = now,
+            )
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holdingWith("1", "5000.00"))
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(newTx, oldTx))
+            whenever(investmentTransactionRepository.softDelete(any(), any())).thenReturn(true)
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+            whenever(portfolioFlowEventService.requestRecalculation(any(), any(), any(), any())).thenReturn(
+                io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob(
+                    accountId = accountId,
+                    status = io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus.PENDING,
+                    recalculateFrom = today.minusMonths(6),
+                    triggeredBy = "test",
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            service.deleteHolding(holdingId, accountId)
+
+            val captor = argumentCaptor<java.time.LocalDate>()
+            verify(portfolioFlowEventService).requestRecalculation(
+                financialAccountId = org.mockito.kotlin.eq(financialAccountId),
+                accountId = org.mockito.kotlin.eq(accountId),
+                recalculateFrom = captor.capture(),
+                triggeredBy = org.mockito.kotlin.any(),
+            )
+            assertThat(captor.firstValue).isEqualTo(today.minusMonths(6))
+        }
+
+        @Test
+        fun `deleteHolding with no transactions triggers recalculation from holding issueDate`() {
+            // BUG FIX: holdings imported without PURCHASE transactions (e.g. via B3/XP Excel import)
+            // were leaving stale quotas because no recalculation was triggered.
+            val rfPreHolding = holdingWith("1", "3000.00").copy(
+                issueDate = LocalDate.of(2025, 1, 1),
+            )
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(rfPreHolding)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(emptyList())
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+            whenever(portfolioFlowEventService.requestRecalculation(any(), any(), any(), any())).thenReturn(
+                io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob(
+                    accountId = accountId,
+                    status = io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus.PENDING,
+                    recalculateFrom = LocalDate.of(2025, 1, 1),
+                    triggeredBy = "test",
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            service.deleteHolding(holdingId, accountId)
+
+            val captor = argumentCaptor<java.time.LocalDate>()
+            verify(portfolioFlowEventService).requestRecalculation(
+                financialAccountId = org.mockito.kotlin.eq(financialAccountId),
+                accountId = org.mockito.kotlin.eq(accountId),
+                recalculateFrom = captor.capture(),
+                triggeredBy = org.mockito.kotlin.any(),
+            )
+            assertThat(captor.firstValue).isEqualTo(LocalDate.of(2025, 1, 1))
+        }
+
+        @Test
+        fun `deleteHolding with no transactions and no issueDate triggers recalculation from today`() {
+            val holdingNoIssueDate = holdingWith("1", "3000.00").copy(issueDate = null)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holdingNoIssueDate)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(emptyList())
+            whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
+            whenever(portfolioFlowEventService.requestRecalculation(any(), any(), any(), any())).thenReturn(
+                io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob(
+                    accountId = accountId,
+                    status = io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus.PENDING,
+                    recalculateFrom = today,
+                    triggeredBy = "test",
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            service.deleteHolding(holdingId, accountId)
+
+            val captor = argumentCaptor<java.time.LocalDate>()
+            verify(portfolioFlowEventService).requestRecalculation(
+                financialAccountId = org.mockito.kotlin.eq(financialAccountId),
+                accountId = org.mockito.kotlin.eq(accountId),
+                recalculateFrom = captor.capture(),
+                triggeredBy = org.mockito.kotlin.any(),
+            )
+            assertThat(captor.firstValue).isEqualTo(today)
+        }
     }
 
     // ── PURCHASE — custo médio ponderado ─────────────────────────────────────
@@ -339,6 +493,23 @@ class InvestmentTransactionServiceTest {
             val saved = captor.firstValue
             assertThat(saved.quantity).isEqualByComparingTo("100")
             assertThat(saved.averageCost).isEqualByComparingTo("28.50")
+        }
+
+        @Test
+        fun `purchase writes a custodian DEBIT TRANSFER so NAV equals holdings plus cash for TWR`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            service.record(buyCommand("100", "28.50"), accountId, userId)
+
+            val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            val cmd = cmdCaptor.firstValue
+            assertThat(cmd.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(cmd.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(cmd.investmentTransactionId).isNotNull
+            verify(transactionCategoryEntityRepository).findSystemSubcategoryId("Investimento aplicado", "Ações")
         }
 
         @Test

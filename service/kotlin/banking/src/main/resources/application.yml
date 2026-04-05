@@ -136,6 +136,8 @@ kafka:
     import-file-requested: banking.import.file-requested
     import-file-requested-dlt: banking.import.file-requested.DLT
     import-job-completed: banking.import.job-completed
+    market-data-job-succeeded: financial-data.market-data.job-succeeded
+    portfolio-recalculation-requested: banking.portfolio-recalculation.requested
     pdf:
       extractor-submitted: ${KAFKA_TOPIC_PDF_EXTRACTOR_SUBMITTED:pdf-extractor.submitted}
       extractor-extracted: ${KAFKA_TOPIC_PDF_EXTRACTOR_EXTRACTED:pdf-extractor.extracted}
@@ -151,6 +153,12 @@ kafka:
       auto-offset-reset: earliest
     import-status:
       group-id: ${KAFKA_IMPORT_STATUS_GROUP_ID:banking-service-import-status}
+    market-data-sync:
+      enabled: ${KAFKA_MARKET_DATA_SYNC_ENABLED:true}
+      group-id: ${KAFKA_MARKET_DATA_SYNC_GROUP_ID:banking-market-data-sync}
+    portfolio-recalculation:
+      enabled: ${KAFKA_PORTFOLIO_RECALCULATION_ENABLED:true}
+      group-id: ${KAFKA_PORTFOLIO_RECALCULATION_GROUP_ID:banking-portfolio-recalculation}
     pdf-status:
       enabled: ${KAFKA_PDF_STATUS_ENABLED:true}
       group-id: ${KAFKA_PDF_STATUS_GROUP_ID:banking-service-bill-import-status}

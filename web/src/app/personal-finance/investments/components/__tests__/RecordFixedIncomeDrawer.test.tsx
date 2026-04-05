@@ -8,6 +8,7 @@ import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from '@/lib/gr
 const mockUseMutation = vi.fn();
 const mockCreateAsset = vi.fn();
 const mockRecordTransaction = vi.fn();
+const mockRefetchQueries = vi.fn().mockResolvedValue([]);
 const successMock = vi.fn();
 
 let createMutationState: { loading: boolean; error: Error | null };
@@ -15,6 +16,9 @@ let recordMutationState: { loading: boolean; error: Error | null };
 let recordOnCompleted: ((data: unknown) => void) | undefined;
 
 vi.mock('@apollo/client/react', () => ({
+  useApolloClient: () => ({
+    refetchQueries: mockRefetchQueries,
+  }),
   useMutation: (mutation: unknown, options?: { onCompleted?: (data: unknown) => void }) =>
     mockUseMutation(mutation, options),
 }));
@@ -306,6 +310,7 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRefetchQueries.mockResolvedValue([]);
 
     createMutationState = { loading: false, error: null };
     recordMutationState = { loading: false, error: null };
@@ -506,9 +511,15 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
       }),
     );
 
-    expect(successMock).toHaveBeenCalledWith('investments.recordHolding.success');
-    expect(onRecorded).toHaveBeenCalled();
-    expect(onClose).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(mockRefetchQueries).toHaveBeenCalled();
+    });
+
+    await waitFor(() => {
+      expect(successMock).toHaveBeenCalledWith('investments.recordHolding.success');
+      expect(onRecorded).toHaveBeenCalled();
+      expect(onClose).toHaveBeenCalled();
+    });
   });
 
   it('sends indexerPercentage as fraction for pt-BR decimals', async () => {
