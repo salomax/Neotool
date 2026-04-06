@@ -23,8 +23,9 @@ CREATE TABLE banking.financial_accounts (
 
     name                 TEXT NOT NULL,
     currency_code        CHAR(3) NOT NULL DEFAULT 'BRL',
-    include_in_net_worth BOOLEAN NOT NULL DEFAULT TRUE,
-    include_in_dashboard BOOLEAN NOT NULL DEFAULT TRUE,
+    include_in_net_worth         BOOLEAN NOT NULL DEFAULT TRUE,
+    include_in_dashboard         BOOLEAN NOT NULL DEFAULT TRUE,
+    include_cash_in_allocation   BOOLEAN NOT NULL DEFAULT TRUE,
     theme_color          TEXT,
     logo_key             TEXT,
 
@@ -59,6 +60,9 @@ CREATE INDEX idx_banking_financial_accounts_last4_active
     ON banking.financial_accounts(account_id, card_last_four_digits)
     WHERE deleted_at IS NULL
       AND card_last_four_digits IS NOT NULL;
+
+COMMENT ON COLUMN banking.financial_accounts.include_cash_in_allocation IS
+    'When true, idle cash on this investment/benefit custodian account counts toward allocation breakdown in the investments UI.';
 
 CREATE TABLE banking.financial_account_bank_data (
     financial_account_id UUID PRIMARY KEY

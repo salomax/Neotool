@@ -76,6 +76,7 @@ CREATE TABLE banking.investment_portfolio_flow_event (
 CREATE INDEX idx_portfolio_flow_account_date
     ON banking.investment_portfolio_flow_event(financial_account_id, event_date DESC);
 
+-- processing_node_id / last_heartbeat_at: distributed-safe recalculation (tryClaimJob + zombie reclaim).
 CREATE TABLE banking.investment_portfolio_recalculation_job (
     id                      UUID PRIMARY KEY DEFAULT uuidv7(),
     financial_account_id    UUID
@@ -87,6 +88,9 @@ CREATE TABLE banking.investment_portfolio_recalculation_job (
     triggered_by            VARCHAR(100) NOT NULL,
     days_processed          INT,
     error_details           TEXT,
+    error_code              VARCHAR(80),
+    processing_node_id      VARCHAR(255),
+    last_heartbeat_at       TIMESTAMPTZ,
     started_at              TIMESTAMPTZ,
     completed_at            TIMESTAMPTZ,
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -95,6 +99,10 @@ CREATE TABLE banking.investment_portfolio_recalculation_job (
 
 CREATE INDEX idx_recalculation_job_account_status
     ON banking.investment_portfolio_recalculation_job(account_id, status, created_at DESC);
+
+CREATE INDEX idx_recalculation_job_zombie
+    ON banking.investment_portfolio_recalculation_job(status, last_heartbeat_at)
+    WHERE status = 'PROCESSING';
 
 CREATE TABLE banking.market_benchmark_daily (
     benchmark_code  VARCHAR(10) NOT NULL

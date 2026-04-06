@@ -87,13 +87,14 @@ FROM banking.transaction_categories,
 WHERE banking.transaction_categories.name = 'Investimentos'
   AND is_system = true AND account_id IS NULL;
 
--- INCOME > Transferência recebida
+-- INCOME > Transferência recebida (includes "Entre contas próprias" to mirror TRANSFER > Transferência enviada)
 INSERT INTO banking.transaction_categories (parent_id, name, applicable_to, is_system, sort_order)
 SELECT id, sub.name, 'INCOME', true, sub.ord
 FROM banking.transaction_categories,
-     (VALUES ('PIX',    10),
-             ('TED',    20),
-             ('Outros', 30)) AS sub(name, ord)
+     (VALUES ('PIX',                   10),
+             ('TED',                   20),
+             ('Entre contas próprias', 25),
+             ('Outros',                30)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Transferência recebida'
   AND is_system = true AND account_id IS NULL;
 
