@@ -13,6 +13,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculation
 import io.github.salomax.neotool.banking.graphql.investment.BenchmarkPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
+import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
 import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -164,6 +165,7 @@ class PortfolioPerformanceQueryService(
                 isCalculating = true,
                 jobId = pendingJob.id,
                 startedAt = pendingJob.startedAt ?: pendingJob.createdAt,
+                errorCode = null,
                 message =
                     when (pendingJob.status) {
                         PortfolioRecalculationStatus.PENDING -> "Historical performance recalculation is queued."
@@ -174,12 +176,17 @@ class PortfolioPerformanceQueryService(
         }
 
         val latestJob = portfolioRecalculationJobRepository.findLatestByAccount(accountId)
+        val failed = latestJob?.takeIf { it.status == PortfolioRecalculationStatus.FAILED }
         return RecalculationStatusDTO(
             isCalculating = false,
             jobId = latestJob?.id,
             startedAt = latestJob?.startedAt,
+            errorCode = failed?.errorCode,
             message =
-                latestJob?.takeIf { it.status == PortfolioRecalculationStatus.FAILED }?.errorDetails,
+                failed?.let {
+                    StoredRecalculationFailure.displayMessage(it.errorCode, it.errorDetails)
+                },
+            errorDetails = failed?.errorDetails,
         )
     }
 

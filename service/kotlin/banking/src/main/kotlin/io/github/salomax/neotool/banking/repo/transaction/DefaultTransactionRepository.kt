@@ -549,6 +549,20 @@ open class DefaultTransactionRepository(
         entityRepository.existsByInvestmentTransactionIdAndDeletedAtIsNull(investmentTransactionId)
 
     @Transactional(readOnly = true)
+    override fun findByInvestmentTransactionIds(
+        investmentTransactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction> {
+        if (investmentTransactionIds.isEmpty()) return emptyList()
+        return entityRepository
+            .findByInvestmentTransactionIdInAndAccountIdAndDeletedAtIsNull(
+                investmentTransactionIds.distinct().toList(),
+                accountId,
+            )
+            .map(TransactionMapper::toDomain)
+    }
+
+    @Transactional(readOnly = true)
     override fun findInvestmentCashTransactionsKeyset(
         accountId: UUID,
         financialAccountId: UUID?,

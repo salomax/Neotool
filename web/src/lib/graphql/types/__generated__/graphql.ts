@@ -109,6 +109,35 @@ export type AssetDownloadUrlArgs = {
   ttlSeconds?: InputMaybe<Scalars['Int']['input']>;
 };
 
+export type AssetCorporateEventConnection = {
+  __typename: 'AssetCorporateEventConnection';
+  edges: Array<AssetCorporateEventEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type AssetCorporateEventEdge = {
+  __typename: 'AssetCorporateEventEdge';
+  cursor: Scalars['String']['output'];
+  node: AssetCorporateEventNode;
+};
+
+export type AssetCorporateEventNode = {
+  __typename: 'AssetCorporateEventNode';
+  approvedOn: Scalars['Date']['output'];
+  eventType: Scalars['String']['output'];
+  factor: Maybe<Scalars['Float']['output']>;
+  isinCode: Scalars['String']['output'];
+  lastDatePrior: Scalars['Date']['output'];
+  priceUnit: Maybe<Scalars['Float']['output']>;
+  remarks: Maybe<Scalars['String']['output']>;
+  subscriptionDate: Maybe<Scalars['Date']['output']>;
+  ticker: Maybe<Scalars['String']['output']>;
+  tradingEnd: Maybe<Scalars['Date']['output']>;
+  tradingStart: Maybe<Scalars['Date']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
 export type AssetDailyPrice = {
   __typename: 'AssetDailyPrice';
   avgPrice: Maybe<Scalars['Float']['output']>;
@@ -803,7 +832,7 @@ export type CreateInvestmentCashTransactionInput = {
    */
   amount: Scalars['Float']['input'];
   date: Scalars['Date']['input'];
-  /** Required when type = ADJUSTMENT, or when registerAsBalanceAdjustment is true. */
+  /** Optional for DEPOSIT/WITHDRAWAL. Required when type = ADJUSTMENT or registerAsBalanceAdjustment is true. */
   description?: InputMaybe<Scalars['String']['input']>;
   financialAccountId: Scalars['ID']['input'];
   /**
@@ -1007,6 +1036,30 @@ export type EconomicIndicatorPoint = {
   __typename: 'EconomicIndicatorPoint';
   referenceDate: Scalars['Date']['output'];
   value: Scalars['Float']['output'];
+};
+
+export type EconomicIndicatorPointConnection = {
+  __typename: 'EconomicIndicatorPointConnection';
+  edges: Array<EconomicIndicatorPointEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type EconomicIndicatorPointEdge = {
+  __typename: 'EconomicIndicatorPointEdge';
+  cursor: Scalars['String']['output'];
+  node: EconomicIndicatorPointNode;
+};
+
+export type EconomicIndicatorPointNode = {
+  __typename: 'EconomicIndicatorPointNode';
+  indicator: Scalars['String']['output'];
+  publicationDate: Maybe<Scalars['Date']['output']>;
+  referenceDate: Scalars['Date']['output'];
+  unit: Maybe<Scalars['String']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+  value: Scalars['Float']['output'];
+  variation: Scalars['String']['output'];
 };
 
 export type EconomicIndicatorVariation = {
@@ -1265,6 +1318,28 @@ export type FundDailyNav = {
   closePrice: Scalars['Float']['output'];
   date: Scalars['Date']['output'];
   totalNetAssets: Maybe<Scalars['Float']['output']>;
+};
+
+export type FundDailyNavConnection = {
+  __typename: 'FundDailyNavConnection';
+  edges: Array<FundDailyNavSyncEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type FundDailyNavNode = {
+  __typename: 'FundDailyNavNode';
+  closePrice: Scalars['Float']['output'];
+  cnpj: Scalars['String']['output'];
+  date: Scalars['Date']['output'];
+  totalNetAssets: Maybe<Scalars['Float']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+};
+
+export type FundDailyNavSyncEdge = {
+  __typename: 'FundDailyNavSyncEdge';
+  cursor: Scalars['String']['output'];
+  node: FundDailyNavNode;
 };
 
 export enum FundTaxProfile {
@@ -1815,6 +1890,34 @@ export type ListedAssetConnection = {
   totalCount: Maybe<Scalars['Int']['output']>;
 };
 
+export type ListedAssetDailyPriceConnection = {
+  __typename: 'ListedAssetDailyPriceConnection';
+  edges: Array<ListedAssetDailyPriceEdge>;
+  pageInfo: PageInfo;
+  totalCount: Maybe<Scalars['Int']['output']>;
+};
+
+export type ListedAssetDailyPriceEdge = {
+  __typename: 'ListedAssetDailyPriceEdge';
+  cursor: Scalars['String']['output'];
+  node: ListedAssetDailyPriceNode;
+};
+
+export type ListedAssetDailyPriceNode = {
+  __typename: 'ListedAssetDailyPriceNode';
+  avgPrice: Maybe<Scalars['Float']['output']>;
+  closePrice: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  highPrice: Maybe<Scalars['Float']['output']>;
+  isinCode: Maybe<Scalars['String']['output']>;
+  lowPrice: Maybe<Scalars['Float']['output']>;
+  openPrice: Maybe<Scalars['Float']['output']>;
+  ticker: Scalars['String']['output'];
+  trades: Maybe<Scalars['Int']['output']>;
+  updatedAt: Scalars['DateTime']['output'];
+  volume: Maybe<Scalars['Float']['output']>;
+};
+
 export type ListedAssetEdge = {
   __typename: 'ListedAssetEdge';
   cursor: Scalars['String']['output'];
@@ -2094,6 +2197,8 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  /** Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago. */
+  triggerPortfolioRecalculation: Scalars['Boolean']['output'];
   unmapItem: Scalars['Boolean']['output'];
   /** Updates current account preferences (account owner only). */
   updateAccountPreferences: AccountPreferences;
@@ -2443,6 +2548,12 @@ export type MutationSubmitBillImportArgs = {
 };
 
 
+export type MutationTriggerPortfolioRecalculationArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  recalculateFrom?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type MutationUnmapItemArgs = {
   aliasId: Scalars['ID']['input'];
 };
@@ -2619,12 +2730,9 @@ export enum PendingActionStatus {
 }
 
 export enum PendingActionType {
+  /** Bank account balance went negative after a paired investment cash transfer (informational). */
   BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
-  CorporateEvent = 'CORPORATE_EVENT',
-  Informational = 'INFORMATIONAL',
-  InvestmentIncome = 'INVESTMENT_INCOME',
-  InvestmentMatured = 'INVESTMENT_MATURED',
-  InvestmentPositionMissing = 'INVESTMENT_POSITION_MISSING'
+  InvestmentMatured = 'INVESTMENT_MATURED'
 }
 
 export enum PerformancePeriod {
@@ -2842,6 +2950,7 @@ export type Query = {
    * Returns null if asset not found or user doesn't have access.
    */
   asset: Maybe<Asset>;
+  assetCorporateEvents: AssetCorporateEventConnection;
   availableTools: Array<Tool>;
   bacenFinanceInstitution: Maybe<BacenFinanceInstitution>;
   bacenInstitutionSlugs: BacenInstitutionSlugConnection;
@@ -2863,10 +2972,12 @@ export type Query = {
    */
   creditCardBills: Array<CreditCardBill>;
   currentUser: Maybe<User>;
+  economicIndicatorVariationPoints: EconomicIndicatorPointConnection;
   economicIndicators: Array<EconomicIndicator>;
   /** All financial accounts belonging to the authenticated user's account. */
   financialAccounts: Array<FinancialAccount>;
   fixedIncomeComparison: FixedIncomeComparisonResult;
+  fundDailyNavs: FundDailyNavConnection;
   group: Maybe<Group>;
   groups: GroupConnection;
   /** Generic performance series and valuation summary for a holding. */
@@ -2914,6 +3025,7 @@ export type Query = {
    * When categories is omitted, returns all active issuers.
    */
   issuers: Array<Issuer>;
+  listedAssetDailyPrices: ListedAssetDailyPriceConnection;
   /** All merchants (system + user-created) available to the authenticated account. */
   merchants: Array<Merchant>;
   /**
@@ -2940,6 +3052,7 @@ export type Query = {
   productPriceHistory: Array<PricePoint>;
   productStoreComparison: Array<StorePriceComparison>;
   productVariants: Array<ProductVariant>;
+  /** Product catalog for the authenticated account. */
   products: Array<Product>;
   prompt: Maybe<Prompt>;
   promptVersions: Array<PromptVersion>;
@@ -3005,6 +3118,17 @@ export type QueryAssetArgs = {
 };
 
 
+export type QueryAssetCorporateEventsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+  from: Scalars['Date']['input'];
+  isins?: InputMaybe<Array<Scalars['String']['input']>>;
+  tickers?: InputMaybe<Array<Scalars['String']['input']>>;
+  to: Scalars['Date']['input'];
+  updatedSince?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+
 export type QueryBacenFinanceInstitutionArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
   id: Scalars['ID']['input'];
@@ -3059,6 +3183,17 @@ export type QueryCreditCardBillsArgs = {
 };
 
 
+export type QueryEconomicIndicatorVariationPointsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+  from: Scalars['Date']['input'];
+  indicators?: InputMaybe<Array<Scalars['String']['input']>>;
+  to: Scalars['Date']['input'];
+  updatedSince?: InputMaybe<Scalars['DateTime']['input']>;
+  variations?: InputMaybe<Array<Scalars['String']['input']>>;
+};
+
+
 export type QueryEconomicIndicatorsArgs = {
   label?: InputMaybe<Scalars['String']['input']>;
 };
@@ -3066,6 +3201,16 @@ export type QueryEconomicIndicatorsArgs = {
 
 export type QueryFixedIncomeComparisonArgs = {
   input: FixedIncomeComparisonInput;
+};
+
+
+export type QueryFundDailyNavsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  cnpjs?: InputMaybe<Array<Scalars['String']['input']>>;
+  first: Scalars['Int']['input'];
+  from: Scalars['Date']['input'];
+  to: Scalars['Date']['input'];
+  updatedSince?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 
@@ -3183,6 +3328,16 @@ export type QueryIsUserActiveMemberOfAccountArgs = {
 
 export type QueryIssuersArgs = {
   categories?: InputMaybe<Array<IssuerCategory>>;
+};
+
+
+export type QueryListedAssetDailyPricesArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first: Scalars['Int']['input'];
+  from: Scalars['Date']['input'];
+  tickers?: InputMaybe<Array<Scalars['String']['input']>>;
+  to: Scalars['Date']['input'];
+  updatedSince?: InputMaybe<Scalars['DateTime']['input']>;
 };
 
 
@@ -3458,8 +3613,13 @@ export type RatingIssuer = {
 
 export type RecalculationStatus = {
   __typename: 'RecalculationStatus';
+  /** Machine-readable error code for i18n when the latest job failed (errors.* keys). */
+  errorCode: Maybe<Scalars['String']['output']>;
+  /** Root-cause detail for support/debugging (exception class + message). Not intended for end-user display. */
+  errorDetails: Maybe<Scalars['String']['output']>;
   isCalculating: Scalars['Boolean']['output'];
   jobId: Maybe<Scalars['UUID']['output']>;
+  /** Fallback human-readable status; prefer translating errorCode on the client when present. */
   message: Maybe<Scalars['String']['output']>;
   startedAt: Maybe<Scalars['DateTime']['output']>;
 };

@@ -3,8 +3,11 @@ package io.github.salomax.neotool.banking.repo.portfolio
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioRecalculationJobMapper
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import java.time.Instant
 import java.util.UUID
 
 @Singleton
@@ -21,7 +24,11 @@ open class DefaultPortfolioRecalculationJobRepository(
         val id = requireNotNull(job.id) { "Portfolio recalculation job id is required for update" }
         val entity =
             entityRepository.findByKey(id)
-                ?: throw NoSuchElementException("Portfolio recalculation job $id not found")
+                ?: throw NotFoundException(
+                    CommonErrorCode.RESOURCE_NOT_FOUND,
+                    field = "portfolioRecalculationJobId",
+                    parameters = mapOf("resourceType" to "PortfolioRecalculationJob", "resourceId" to id.toString()),
+                )
         InvestmentPortfolioRecalculationJobMapper.updateEntity(entity, job)
         return entityRepository.update(entity)
             .let(InvestmentPortfolioRecalculationJobMapper::toDomain)
@@ -30,6 +37,15 @@ open class DefaultPortfolioRecalculationJobRepository(
     override fun findById(id: UUID): PortfolioRecalculationJob? =
         entityRepository.findByKey(id)
             ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
+
+    @Transactional
+    override fun tryClaimJob(jobId: UUID, nodeId: String): PortfolioRecalculationJob? =
+        entityRepository.tryClaimJob(jobId, nodeId)
+            ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
+
+    @Transactional
+    override fun releaseZombieJobs(staleThreshold: Instant): Int =
+        entityRepository.releaseZombieJobs(staleThreshold)
 
     override fun findPendingByAccount(accountId: UUID): PortfolioRecalculationJob? =
         entityRepository.findByAccountAndStatuses(

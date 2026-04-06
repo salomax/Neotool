@@ -225,4 +225,21 @@ enum class BankingErrorCode(
         "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here",
         422,
     ),
+
+    /** Async job: consolidated (no financial account) recalculation is not implemented. */
+    PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED(
+        "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED",
+        "Portfolio-wide performance recalculation is not available yet.",
+        501,
+    ),
+
+    /**
+     * Async job: unexpected failure during the day-by-day recalculation loop.
+     * [errorDetails] on the stored job contains the root cause class + message for support.
+     */
+    PORTFOLIO_RECALCULATION_FAILED(
+        "PORTFOLIO_RECALCULATION_FAILED",
+        "Portfolio recalculation failed due to an unexpected error.",
+        500,
+    ),
 }

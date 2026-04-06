@@ -2,7 +2,7 @@
 
 import React from "react";
 import { alpha, Box, LinearProgress, Typography, useTheme } from "@mui/material";
-import type { AssetGroupKey } from "./investmentTableHelpers";
+import type { AssetGroupKey } from "./table/investmentTableHelpers";
 
 export type SummaryGroupKey = AssetGroupKey | "cash";
 
@@ -53,8 +53,8 @@ export function GroupProgressRow({
         display: "flex",
         alignItems: "center",
         gap: 1.5,
-        px: 1,
-        py: 1,
+        px: 0,
+        py: 0.5,
         borderRadius: 1.5,
         cursor: interactive ? "pointer" : "default",
         bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : "transparent",
@@ -98,7 +98,7 @@ export function GroupProgressRow({
           variant="determinate"
           value={progressValue}
           sx={{
-            mt: 1,
+            mt: 0.75,
             height: 6,
             borderRadius: 2,
             bgcolor: trackBg,

@@ -34,8 +34,14 @@ open class InvestmentPortfolioRecalculationJobEntity(
     open var triggeredBy: String,
     @Column(name = "days_processed")
     open var daysProcessed: Int? = null,
+    @Column(name = "error_code", length = 80)
+    open var errorCode: String? = null,
     @Column(name = "error_details")
     open var errorDetails: String? = null,
+    @Column(name = "processing_node_id", length = 255)
+    open var processingNodeId: String? = null,
+    @Column(name = "last_heartbeat_at")
+    open var lastHeartbeatAt: Instant? = null,
     @Column(name = "started_at")
     open var startedAt: Instant? = null,
     @Column(name = "completed_at")

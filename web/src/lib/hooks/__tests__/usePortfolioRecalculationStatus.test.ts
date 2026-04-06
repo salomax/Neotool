@@ -70,6 +70,7 @@ describe.sequential('usePortfolioRecalculationStatus', () => {
       financialAccountId: 'fa-1',
       status: 'FAILED',
       recalculateFrom: '2026-04-01',
+      errorCode: 'INTERNAL_ERROR',
       errorDetails: 'boom',
     };
 

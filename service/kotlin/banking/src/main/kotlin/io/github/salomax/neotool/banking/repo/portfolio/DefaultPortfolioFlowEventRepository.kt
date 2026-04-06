@@ -22,6 +22,12 @@ open class DefaultPortfolioFlowEventRepository(
         sourceReferenceType: String,
     ): Int = entityRepository.deleteBySourceReference(sourceReferenceId, sourceReferenceType)
 
+    @Transactional
+    override fun deleteByFinancialAccountAndRelatedHoldingId(
+        financialAccountId: UUID,
+        relatedHoldingId: UUID,
+    ): Int = entityRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, relatedHoldingId)
+
     override fun findByAccountAndDateRange(
         financialAccountId: UUID,
         from: LocalDate,

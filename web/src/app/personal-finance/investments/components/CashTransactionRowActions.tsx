@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useMutation } from "@apollo/client/react";
+import { useApolloClient, useMutation } from "@apollo/client/react";
 import {
   alpha,
   Box,
@@ -35,35 +35,36 @@ import { Label } from "@/shared/components/ui/primitives/Label";
 import { useToast } from "@/shared/providers";
 import { formatTableDate } from "@/shared/utils/date";
 import { personalFinanceTranslations } from "../../i18n";
-import type { CashMovementRowNode } from "./cashMovementRowTypes";
-import { formatCashLedgerMovementLabel } from "./cashMovementLabels";
+import type { CashTransactionRowNode } from "./cashTransactionRowTypes";
+import { formatCashLedgerTransactionLabel } from "./cashTransactionLabels";
 import { EditCashForm } from "./EditCashForm";
-import { formatCurrency, getCurrentLocale } from "./investmentTableHelpers";
+import { formatCurrency, getCurrentLocale } from "./table/investmentTableHelpers";
 
-function isManualCashRowEditable(node: CashMovementRowNode): boolean {
+function isManualCashRowEditable(node: CashTransactionRowNode): boolean {
   return node.source === TransactionSource.Manual && node.investmentTransactionId == null;
 }
 
-export interface CashMovementRowActionsProps {
-  node: CashMovementRowNode;
+export interface CashTransactionRowActionsProps {
+  node: CashTransactionRowNode;
   listContextAccountId: string | null | undefined;
 }
 
 /**
  * MoreVert menu with view / edit / delete for a cash ledger row (manual rows only for edit/delete).
  */
-export function CashMovementRowActions({ node, listContextAccountId }: CashMovementRowActionsProps) {
+export function CashTransactionRowActions({ node, listContextAccountId }: CashTransactionRowActionsProps) {
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = getCurrentLocale();
   const theme = useTheme();
 
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
-  const [menuRow, setMenuRow] = React.useState<CashMovementRowNode | null>(null);
-  const [detailRow, setDetailRow] = React.useState<CashMovementRowNode | null>(null);
-  const [editRow, setEditRow] = React.useState<CashMovementRowNode | null>(null);
+  const [menuRow, setMenuRow] = React.useState<CashTransactionRowNode | null>(null);
+  const [detailRow, setDetailRow] = React.useState<CashTransactionRowNode | null>(null);
+  const [editRow, setEditRow] = React.useState<CashTransactionRowNode | null>(null);
   const [editResetSignal, setEditResetSignal] = React.useState(0);
-  const [deleteRow, setDeleteRow] = React.useState<CashMovementRowNode | null>(null);
+  const [deleteRow, setDeleteRow] = React.useState<CashTransactionRowNode | null>(null);
 
   React.useEffect(() => {
     if (editRow) setEditResetSignal((n) => n + 1);
@@ -102,6 +103,7 @@ export function CashMovementRowActions({ node, listContextAccountId }: CashMovem
   const handleConfirmDelete = async () => {
     if (!deleteRow) return;
     await deleteCash({ variables: { id: deleteRow.id } });
+    await apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] });
     success(t("investments.cash.movements.successDeleted"));
     setDeleteRow(null);
   };
@@ -192,7 +194,7 @@ export function CashMovementRowActions({ node, listContextAccountId }: CashMovem
               <Box>
                 <Label>{t("investments.cash.movements.columns.kind")}</Label>
                 <Typography variant="body2">
-                  {formatCashLedgerMovementLabel(detailRow.type, detailRow.creditDebitType, (k) => t(k as never))}
+                  {formatCashLedgerTransactionLabel(detailRow.type, detailRow.creditDebitType, (k) => t(k as never))}
                 </Typography>
               </Box>
               <Box>

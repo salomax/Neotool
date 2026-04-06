@@ -7,6 +7,8 @@ import { getHoldingValueOrigin, type ValueOriginLabel } from '@/shared/utils/hol
 
 export type HoldingRow = InvestmentHoldingsQuery['investmentHoldings'][number];
 
+export type HoldingKind = 'fixedIncome' | 'fund' | 'equity';
+
 export type AssetGroupKey =
   | 'variableIncome'
   | 'bankFixedIncome'
@@ -48,6 +50,19 @@ export const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['bankFixedIncome'
 
 export const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 
+export interface InvestmentHoldingGroup {
+  key: AssetGroupKey;
+  title: string;
+  count: number;
+  total: string;
+  appliedTotal: string;
+  valueOriginKey: ValueOriginLabel | null;
+  gainPercent: number | null;
+  allocationPercent: number | null;
+  summary: string;
+  holdings: HoldingRow[];
+}
+
 export function getAssetGroupKey(assetType: string | null | undefined): AssetGroupKey {
   if (!assetType) return 'others';
   const normalized = String(assetType);
@@ -56,6 +71,13 @@ export function getAssetGroupKey(assetType: string | null | undefined): AssetGro
       ASSET_TYPES_BY_GROUP[groupKey].includes(normalized),
     ) ?? null;
   return match ?? 'others';
+}
+
+export function getHoldingKind(assetType: string | null | undefined): HoldingKind {
+  const groupKey = getAssetGroupKey(assetType);
+  if (FIXED_INCOME_GROUP_KEYS.has(groupKey)) return 'fixedIncome';
+  if (FUND_GROUP_KEYS.has(groupKey)) return 'fund';
+  return 'equity';
 }
 
 export function getCurrentLocale(): string {

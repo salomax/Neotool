@@ -136,6 +136,14 @@ open class PortfolioFlowEventService(
         sourceReferenceType: String,
     ): Int = portfolioFlowEventRepository.deleteBySourceReference(sourceReferenceId, sourceReferenceType)
 
+    /** Removes any flow rows still keyed by [relatedHoldingId] (safety net after per-transaction deletes). */
+    @Transactional
+    open fun deleteEventsByRelatedHolding(
+        financialAccountId: UUID,
+        relatedHoldingId: UUID,
+    ): Int =
+        portfolioFlowEventRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, relatedHoldingId)
+
     private fun currentPortfolioValue(
         financialAccountId: UUID,
         accountId: UUID,

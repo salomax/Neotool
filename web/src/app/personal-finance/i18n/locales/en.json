@@ -71,6 +71,7 @@
       "totalPortfolio": "Total portfolio",
       "grossGain": "Accumulated gain",
       "totalInvested": "Total invested",
+      "totalContributed": "Total contributed",
       "cashBalance": "Available cash",
       "estimated": "estimated",
       "allocation": "Allocation",
@@ -153,6 +154,7 @@
           "date": "Date",
           "description": "Description",
           "kind": "Type",
+          "financialAccount": "Brokerage",
           "amount": "Amount"
         },
         "kind": {

@@ -12,6 +12,27 @@ export interface HoldingIdentityProps {
   sx?: any;
 }
 
+interface HoldingIdentitySource {
+  asset?: {
+    name?: string | null;
+    issuerName?: string | null;
+    logoAsset?: { publicUrl?: string | null } | null;
+  } | null;
+  financialAccount?: {
+    issuer?: {
+      logoAsset?: { publicUrl?: string | null } | null;
+    } | null;
+  } | null;
+}
+
+export function resolveHoldingIdentity(source: HoldingIdentitySource) {
+  return {
+    assetName: source.asset?.name ?? "—",
+    issuerName: source.asset?.issuerName ?? "—",
+    logoUrl: source.asset?.logoAsset?.publicUrl ?? source.financialAccount?.issuer?.logoAsset?.publicUrl ?? undefined,
+  };
+}
+
 export const HoldingIdentity: React.FC<HoldingIdentityProps> = ({ assetName, issuerName, logoUrl, size = 32, sx }) => {
   const fallback = (assetName ?? "—").slice(0, 1).toUpperCase();
   return (

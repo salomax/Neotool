@@ -8,14 +8,18 @@ import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSever
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
+import io.github.salomax.neotool.banking.service.investment.recalculation.PositionEvolutionInput
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.INFLOW
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection.OUTFLOW
@@ -45,7 +49,6 @@ import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
-import java.math.RoundingMode.HALF_UP
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -76,6 +79,7 @@ open class InvestmentTransactionService(
     private val transactionRepository: TransactionRepository,
     private val transactionCategoryEntityRepository: TransactionCategoryEntityRepository,
     private val portfolioFlowEventService: PortfolioFlowEventService,
+    private val holdingAttachmentRepository: HoldingAttachmentRepository,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -236,8 +240,6 @@ open class InvestmentTransactionService(
         val cashAmount = savedTx.netValue ?: savedTx.grossValue
         if (cashAmount.signum() <= 0) return
 
-        val assetName = asset.name
-
         when (command.type) {
             PURCHASE, SUBSCRIPTION -> {
                 val categoryChild = investmentAppliedLedgerCategoryChild(asset.assetType)
@@ -260,8 +262,8 @@ open class InvestmentTransactionService(
                         }
                 val description =
                     when (command.type) {
-                        SUBSCRIPTION -> "Subscrição — $assetName"
-                        else -> "Compra / aplicação — $assetName"
+                        SUBSCRIPTION -> "Subscrição"
+                        else -> "Compra / aplicação"
                     }
                 transactionService.create(
                     CreateTransactionCommand(
@@ -280,6 +282,7 @@ open class InvestmentTransactionService(
                 )
             }
             in CASH_LEDGER_TYPES -> {
+                val assetName = asset.name
                 val (categoryParent, categoryChild) =
                     when (command.type) {
                         DIVIDEND, INTEREST_ON_EQUITY -> "Renda Extra" to "Dividendos"
@@ -440,8 +443,9 @@ open class InvestmentTransactionService(
         val deleted = investmentTransactionRepository.softDelete(id, accountId)
         if (!deleted) return false
 
-        recomputeHoldingAfterDelete(holding, accountId)
         removePortfolioFlowSideEffects(tx)
+        removeCustodianLedgerLegsLinkedToInvestmentTransactions(listOf(id), accountId)
+        recomputeHoldingAfterDelete(holding, accountId)
         portfolioFlowEventService.requestRecalculation(
             financialAccountId = tx.financialAccountId,
             accountId = accountId,
@@ -451,6 +455,11 @@ open class InvestmentTransactionService(
         return true
     }
 
+    /**
+     * Soft-deletes the holding and all its manual transactions, removes portfolio flow events (including any
+     * `related_holding_id` orphans), **soft-deletes custodian ledger rows** linked via `investment_transaction_id`
+     * (reversing cash on the custodian account), deletes holding attachments, and requests quota recalculation.
+     */
     fun deleteHolding(
         id: UUID,
         accountId: UUID,
@@ -467,12 +476,23 @@ open class InvestmentTransactionService(
             "Only holdings with MANUAL transactions can be deleted as a whole"
         }
 
+        transactions.forEach { removePortfolioFlowSideEffects(it) }
+
+        val investmentTxIds = transactions.map { requireNotNull(it.id) { "Investment transaction id must not be null" } }
+        removeCustodianLedgerLegsLinkedToInvestmentTransactions(investmentTxIds, accountId)
+
         transactions.forEach { transaction ->
             val transactionId = requireNotNull(transaction.id) { "Investment transaction id must not be null" }
             val deleted = investmentTransactionRepository.softDelete(transactionId, accountId)
             check(deleted) { "Failed to delete investment transaction $transactionId for holding $id" }
-            removePortfolioFlowSideEffects(transaction)
         }
+
+        portfolioFlowEventService.deleteEventsByRelatedHolding(
+            financialAccountId = holding.financialAccountId,
+            relatedHoldingId = id,
+        )
+
+        holdingAttachmentRepository.deleteByHoldingIdAndAccountId(id, accountId)
 
         pendingActionRepository.cancelByEntityAndType(
             entityType = "HOLDING",
@@ -508,114 +528,70 @@ open class InvestmentTransactionService(
      *   OUTFLOW treated as SALE.
      * - **Income / tax / penalty events**: no quantity or cost change.
      */
+    private fun validateApplyEffectPreconditions(
+        command: RecordInvestmentTransactionCommand,
+        holding: Holding,
+    ) {
+        val qty = command.quantity
+        val price = command.unitPrice
+        when (command.type) {
+            PURCHASE, SUBSCRIPTION -> {
+                requireNotNull(qty) { "quantity is required for ${command.type}" }
+                requireNotNull(price) { "unitPrice is required for ${command.type}" }
+            }
+
+            SALE -> {
+                requireNotNull(qty) { "quantity is required for SALE" }
+                require(holding.quantity >= qty) {
+                    "Insufficient quantity for sale: have ${holding.quantity}, selling $qty"
+                }
+            }
+
+            MATURITY -> {
+                val closingQty = qty ?: holding.quantity
+                require(holding.quantity >= closingQty) {
+                    "Maturity quantity ($closingQty) exceeds current holding quantity (${holding.quantity})"
+                }
+            }
+
+            STOCK_SPLIT, BONUS_SHARES -> {
+                requireNotNull(qty) { "quantity (new shares received) is required for ${command.type}" }
+                require(qty > BigDecimal.ZERO) { "quantity must be positive for ${command.type}" }
+            }
+
+            REVERSE_SPLIT -> {
+                requireNotNull(qty) { "quantity (shares removed) is required for REVERSE_SPLIT" }
+                require(qty > BigDecimal.ZERO) { "quantity must be positive for REVERSE_SPLIT" }
+                require(holding.quantity >= qty) {
+                    "Reverse split quantity ($qty) exceeds current holding quantity (${holding.quantity})"
+                }
+            }
+
+            CUSTODY_TRANSFER, OWNERSHIP_TRANSFER, QUOTA_TRANSFER -> {
+                when {
+                    command.direction == INFLOW && qty != null && price != null -> Unit
+                    command.direction == OUTFLOW && qty != null -> {
+                        require(holding.quantity >= qty) {
+                            "Transfer quantity ($qty) exceeds current holding quantity (${holding.quantity})"
+                        }
+                    }
+                    else -> Unit
+                }
+            }
+
+            else -> Unit
+        }
+    }
+
     private fun applyEffect(
         holding: Holding,
         command: RecordInvestmentTransactionCommand,
         now: Instant,
     ): Holding {
         val effectiveHolding = holding.withMissingFixedIncomeTerms(command)
-        val qty = command.quantity
-        val price = command.unitPrice
-
-        return when (command.type) {
-            PURCHASE, SUBSCRIPTION -> {
-                requireNotNull(qty) { "quantity is required for ${command.type}" }
-                requireNotNull(price) { "unitPrice is required for ${command.type}" }
-                val newQty = effectiveHolding.quantity + qty
-                val newCost =
-                    if (effectiveHolding.quantity.signum() == 0) {
-                        price
-                    } else {
-                        (effectiveHolding.quantity * effectiveHolding.averageCost + qty * price)
-                            .divide(newQty, COST_SCALE, HALF_UP)
-                    }
-                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
-            }
-
-            SALE -> {
-                requireNotNull(qty) { "quantity is required for SALE" }
-                require(effectiveHolding.quantity >= qty) {
-                    "Insufficient quantity for sale: have ${effectiveHolding.quantity}, selling $qty"
-                }
-                // averageCost is NOT recalculated on sale (RFB custo médio rule)
-                effectiveHolding.copy(quantity = effectiveHolding.quantity - qty, updatedAt = now)
-            }
-
-            MATURITY -> {
-                // If quantity is provided, it's a partial maturity; null = full position matures
-                val closingQty = qty ?: effectiveHolding.quantity
-                require(effectiveHolding.quantity >= closingQty) {
-                    "Maturity quantity ($closingQty) exceeds current holding quantity (${effectiveHolding.quantity})"
-                }
-                effectiveHolding.copy(quantity = effectiveHolding.quantity - closingQty, updatedAt = now)
-            }
-
-            STOCK_SPLIT, BONUS_SHARES -> {
-                // Shares received at zero cost — total cost basis is preserved, spread across more shares
-                requireNotNull(qty) { "quantity (new shares received) is required for ${command.type}" }
-                require(qty > BigDecimal.ZERO) { "quantity must be positive for ${command.type}" }
-                val newQty = effectiveHolding.quantity + qty
-                val newCost =
-                    if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (effectiveHolding.quantity * effectiveHolding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
-                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
-            }
-
-            REVERSE_SPLIT -> {
-                // Shares consolidated — total cost basis is preserved, concentrated in fewer shares
-                requireNotNull(qty) { "quantity (shares removed) is required for REVERSE_SPLIT" }
-                require(qty > BigDecimal.ZERO) { "quantity must be positive for REVERSE_SPLIT" }
-                require(effectiveHolding.quantity >= qty) {
-                    "Reverse split quantity ($qty) exceeds current holding quantity (${effectiveHolding.quantity})"
-                }
-                val newQty = effectiveHolding.quantity - qty
-                val newCost =
-                    if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (effectiveHolding.quantity * effectiveHolding.averageCost).divide(newQty, COST_SCALE, HALF_UP)
-                effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
-            }
-
-            CUSTODY_TRANSFER, OWNERSHIP_TRANSFER, QUOTA_TRANSFER -> {
-                when {
-                    command.direction == INFLOW && qty != null && price != null -> {
-                        // Receiving transferred shares: treat as a purchase at the transferred basis
-                        val newQty = effectiveHolding.quantity + qty
-                        val newCost =
-                            if (effectiveHolding.quantity.signum() == 0) {
-                                price
-                            } else {
-                                (effectiveHolding.quantity * effectiveHolding.averageCost + qty * price)
-                                    .divide(newQty, COST_SCALE, HALF_UP)
-                            }
-                        effectiveHolding.copy(quantity = newQty, averageCost = newCost, updatedAt = now)
-                    }
-
-                    command.direction == OUTFLOW && qty != null -> {
-                        // Sending shares: treat as a sale (average cost unchanged)
-                        require(effectiveHolding.quantity >= qty) {
-                            "Transfer quantity ($qty) exceeds current holding quantity (${effectiveHolding.quantity})"
-                        }
-                        effectiveHolding.copy(quantity = effectiveHolding.quantity - qty, updatedAt = now)
-                    }
-
-                    else -> effectiveHolding.copy(updatedAt = now)
-                }
-            }
-
-            // Pure monetary events — no quantity or cost basis change
-            DIVIDEND,
-            INTEREST_ON_EQUITY,
-            INTEREST_PAYMENT,
-            AMORTIZATION,
-            PRIZE,
-            STOCK_LENDING,
-            WITHHOLDING_TAX,
-            FINE,
-            LATE_PAYMENT_INTEREST,
-            CANCELLATION,
-            OTHER,
-            -> effectiveHolding.copy(updatedAt = now)
-        }
+        validateApplyEffectPreconditions(command, effectiveHolding)
+        return HoldingPositionEvolution.evolve(effectiveHolding, PositionEvolutionInput.from(command))
+            .copy(updatedAt = now)
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -734,6 +710,11 @@ open class InvestmentTransactionService(
         syncMaturityPendingAction(saved, accountId)
     }
 
+    /**
+     * Keeps `investment_portfolio_flow_event` aligned with cash and income so [PortfolioQuotaCalculationService]
+     * can subtract external flows from daily returns. **PURCHASE/SUBSCRIPTION** use [PortfolioFlowEventType.DEPOSIT]
+     * so a second application does not look like pure performance.
+     */
     private fun syncPortfolioPerformance(
         savedHolding: Holding,
         savedTx: InvestmentTransaction,
@@ -771,6 +752,57 @@ open class InvestmentTransactionService(
                 sourceReferenceType = PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION,
             )
         }
+    }
+
+    /**
+     * Soft-deletes custodian ledger rows created for these investment transactions and removes any
+     * portfolio flow rows keyed by those banking transaction ids (TRANSFER legs). Reverses custodian cash
+     * as if the trades never posted to the ledger.
+     */
+    private fun removeCustodianLedgerLegsLinkedToInvestmentTransactions(
+        investmentTransactionIds: Collection<UUID>,
+        accountId: UUID,
+    ) {
+        if (investmentTransactionIds.isEmpty()) return
+        val ledgerRows = transactionRepository.findByInvestmentTransactionIds(investmentTransactionIds, accountId)
+        val removedBankingIds = mutableSetOf<UUID>()
+        for (ledgerTx in ledgerRows) {
+            val bankingId = requireNotNull(ledgerTx.id) { "banking transaction id must not be null" }
+            if (bankingId in removedBankingIds) continue
+            if (ledgerTx.type == TransactionType.TRANSFER) {
+                portfolioFlowEventService.deleteEventBySourceReference(
+                    bankingId,
+                    PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                )
+            }
+            transactionService.delete(bankingId, accountId)
+            removedBankingIds += bankingId
+            resolveLedgerPeerTransaction(ledgerTx, accountId)?.let { peer ->
+                val peerId = requireNotNull(peer.id) { "peer transaction id must not be null" }
+                if (peerId !in removedBankingIds) {
+                    if (peer.type == TransactionType.TRANSFER) {
+                        portfolioFlowEventService.deleteEventBySourceReference(
+                            peerId,
+                            PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                        )
+                    }
+                    transactionService.delete(peerId, accountId)
+                    removedBankingIds += peerId
+                }
+            }
+        }
+    }
+
+    private fun resolveLedgerPeerTransaction(
+        tx: Transaction,
+        accountId: UUID,
+    ): Transaction? {
+        val directPeerId = tx.transferPeerTransactionId
+        if (directPeerId != null) {
+            return transactionRepository.findById(directPeerId, accountId)
+        }
+        val selfId = tx.id ?: return null
+        return transactionRepository.findByTransferPeerTransactionId(selfId, accountId)
     }
 
     private fun InvestmentTransaction.toReplayCommand(existingHolding: Holding) =
@@ -827,9 +859,6 @@ open class InvestmentTransactionService(
     }
 
     companion object {
-        /** Scale for averageCost arithmetic — 8 decimal places to handle crypto and fractional shares. */
-        private const val COST_SCALE = 8
-
         /**
          * Asset types for which each contract is a unique, non-fungible instrument.
          * A second PURCHASE on an existing holding of these types is always a programming
@@ -861,11 +890,16 @@ open class InvestmentTransactionService(
             )
 
         private const val PORTFOLIO_EVENT_SOURCE_INVESTMENT_TRANSACTION = "INVESTMENT_TRANSACTION"
+
+        private const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"
     }
 }
 
 private fun InvestmentTransaction.toPortfolioFlowEventType(): PortfolioFlowEventType? =
     when (type) {
+        PURCHASE,
+        SUBSCRIPTION,
+        -> PortfolioFlowEventType.DEPOSIT
         DIVIDEND,
         INTEREST_ON_EQUITY,
         INTEREST_PAYMENT,

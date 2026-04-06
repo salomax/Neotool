@@ -28,15 +28,15 @@ import i18n from "i18next";
 import { useTranslation } from "@/shared/i18n";
 import { formatTableDate } from "@/shared/utils/date";
 import { personalFinanceTranslations } from "../../i18n";
-import { CashMovementRowActions } from "./CashMovementRowActions";
-import { formatCashLedgerMovementLabel } from "./cashMovementLabels";
-import { formatCurrency, getCurrentLocale } from "./investmentTableHelpers";
+import { CashTransactionRowActions } from "./CashTransactionRowActions";
+import { formatCashLedgerTransactionLabel } from "./cashTransactionLabels";
+import { formatCurrency, getCurrentLocale } from "./table/investmentTableHelpers";
 import { IssuerSelection } from "./IssuerSelection";
 import { RecordCashForm } from "./RecordCashForm";
 
 const PAGE_SIZE = 20;
 
-export interface CashMovementsDrawerProps {
+export interface CashTransactionsDrawerProps {
   open: boolean;
   onClose: () => void;
   financialAccountId: string | null;
@@ -47,14 +47,14 @@ export interface CashMovementsDrawerProps {
 
 type Step = "list" | "record";
 
-export function CashMovementsDrawer({
+export function CashTransactionsDrawer({
   open,
   onClose,
   financialAccountId,
   investmentAccounts,
   bankAccounts,
   listContextAccountId,
-}: CashMovementsDrawerProps) {
+}: CashTransactionsDrawerProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const locale = getCurrentLocale();
   const drawerLocale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -179,7 +179,7 @@ export function CashMovementsDrawer({
                           </TableCell>
                           <TableCell>
                             <Typography variant="body2" noWrap>
-                              {formatCashLedgerMovementLabel(node.type, node.creditDebitType, (k) => t(k as never))}
+                              {formatCashLedgerTransactionLabel(node.type, node.creditDebitType, (k) => t(k as never))}
                             </Typography>
                           </TableCell>
                           <TableCell align="right">
@@ -190,7 +190,7 @@ export function CashMovementsDrawer({
                             </Typography>
                           </TableCell>
                           <TableCell align="right" sx={{ width: 48, p: 0.5, verticalAlign: "middle" }}>
-                            <CashMovementRowActions
+                            <CashTransactionRowActions
                               node={node}
                               listContextAccountId={listContextAccountId ?? financialAccountId}
                             />

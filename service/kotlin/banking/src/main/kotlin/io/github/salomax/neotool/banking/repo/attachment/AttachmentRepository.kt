@@ -18,4 +18,7 @@ interface HoldingAttachmentRepository {
     fun countByHoldingId(holdingId: UUID, accountId: UUID): Int
     fun save(attachment: HoldingAttachment): HoldingAttachment
     fun delete(id: UUID, accountId: UUID): Boolean
+
+    /** Removes all attachments for the holding; returns number of rows deleted. */
+    fun deleteByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): Int
 }

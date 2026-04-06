@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useMutation } from "@apollo/client/react";
+import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Divider } from "@mui/material";
 import dayjs from "dayjs";
@@ -69,6 +69,7 @@ export function EditCashForm({
   cancelTestId,
   submitTestId,
 }: EditCashFormProps) {
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -178,6 +179,7 @@ export function EditCashForm({
         },
       },
     });
+    await apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] });
     success(t("investments.cash.movements.successUpdated"));
     onSuccess();
   };

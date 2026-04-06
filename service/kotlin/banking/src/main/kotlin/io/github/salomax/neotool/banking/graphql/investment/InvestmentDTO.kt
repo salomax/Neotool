@@ -208,7 +208,11 @@ data class RecalculationStatusDTO(
     val isCalculating: Boolean,
     val jobId: UUID?,
     val startedAt: Instant?,
+    /** Stable code for `errors.*` i18n keys; prefer over [message] for user-facing copy. */
+    val errorCode: String? = null,
     val message: String?,
+    /** Root-cause detail for support/debugging (exception class + message). Not intended for end-user display. */
+    val errorDetails: String? = null,
 )
 
 data class AssetGroupSummaryDTO(

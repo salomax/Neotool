@@ -12,6 +12,11 @@ interface PortfolioFlowEventRepository {
         sourceReferenceType: String,
     ): Int
 
+    fun deleteByFinancialAccountAndRelatedHoldingId(
+        financialAccountId: UUID,
+        relatedHoldingId: UUID,
+    ): Int
+
     fun findByAccountAndDateRange(
         financialAccountId: UUID,
         from: LocalDate,

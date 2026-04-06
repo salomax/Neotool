@@ -8,20 +8,28 @@ import {
   Button,
   CircularProgress,
   Divider,
-  Link,
   Skeleton,
   Stack,
   Tooltip,
   Typography,
   useTheme,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
-import { CurrencyAmountParts, PercentageGain, ValueOriginIndicator } from "@/shared/components/ui/data-display";
+import {
+  CurrencyAmountParts,
+  PercentageGain,
+  ValueOriginIndicator,
+} from "@/shared/components/ui/data-display";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { useTranslation } from "@/shared/i18n";
 import { usePortfolioRecalculationStatus } from "@/lib/hooks/usePortfolioRecalculationStatus";
 import { extractErrorMessage } from "@/shared/utils/error";
-import { getAuthToken, getCurrentAccountIdFromAccessToken } from "@/shared/utils/auth";
+import {
+  getAuthToken,
+  getCurrentAccountIdFromAccessToken,
+} from "@/shared/utils/auth";
 import { personalFinanceTranslations } from "../../i18n";
 import { INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 import type {
@@ -29,7 +37,12 @@ import type {
   InvestmentPortfolioSummaryQueryVariables,
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { GroupProgressRow, type SummaryGroupKey } from "./GroupProgressRow";
-import { getCurrentLocale } from "./investmentTableHelpers";
+import { getCurrentLocale } from "./table/investmentTableHelpers";
+import {
+  PERIOD_OPTIONS,
+  PeriodSelector,
+  type SummaryPeriod,
+} from "./PeriodSelector";
 
 interface InvestmentSummaryProps {
   financialAccountId?: string | null;
@@ -45,11 +58,10 @@ interface SummaryMetricRowProps {
   currencyCode: string;
   locale: string;
   loading?: boolean;
+  rowSx?: SxProps<Theme>;
 }
 
 const PERIOD_STORAGE_KEY = "investment-summary-period";
-const PERIOD_OPTIONS = ["MTD", "YTD", "ONE_YEAR", "THREE_YEARS", "ALL"] as const;
-type SummaryPeriod = (typeof PERIOD_OPTIONS)[number];
 
 function SummaryMetricRow({
   color,
@@ -59,9 +71,15 @@ function SummaryMetricRow({
   currencyCode,
   locale,
   loading = false,
+  rowSx,
 }: SummaryMetricRowProps) {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, py: 0.5 }}>
+    <Box
+      sx={[
+        { display: "flex", alignItems: "center", gap: 1.5, py: 0.5 },
+        ...(Array.isArray(rowSx) ? rowSx : rowSx ? [rowSx] : []),
+      ]}
+    >
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
           {label}
@@ -87,7 +105,11 @@ function SummaryMetricRow({
           loading ? (
             <Skeleton width={62} height={18} />
           ) : (
-            <PercentageGain value={percentage} locale={locale} showIcon={false} />
+            <PercentageGain
+              value={percentage}
+              locale={locale}
+              showIcon={false}
+            />
           )
         ) : null}
       </Stack>
@@ -104,7 +126,8 @@ export function InvestmentSummary({
   const theme = useTheme();
   const locale = React.useMemo(() => getCurrentLocale(), []);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [selectedPeriod, setSelectedPeriod] = React.useState<SummaryPeriod>("YTD");
+  const [selectedPeriod, setSelectedPeriod] =
+    React.useState<SummaryPeriod>("YTD");
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -125,7 +148,8 @@ export function InvestmentSummary({
   >(INVESTMENT_PORTFOLIO_SUMMARY, {
     variables: {
       financialAccountId: financialAccountId ?? undefined,
-      period: selectedPeriod as InvestmentPortfolioSummaryQueryVariables["period"],
+      period:
+        selectedPeriod as InvestmentPortfolioSummaryQueryVariables["period"],
     },
     errorPolicy: "all",
   });
@@ -135,18 +159,27 @@ export function InvestmentSummary({
   const groups = summary?.byAssetGroup ?? [];
   const inlineGroups = groups.slice(0, 5);
   const performance = summary?.performance;
+  const grossGainColor =
+    (summary?.grossGain ?? 0) > 0
+      ? theme.palette.success.main
+      : (summary?.grossGain ?? 0) < 0
+        ? theme.palette.error.main
+        : theme.palette.text.primary;
   const recalculationStatus = summary?.recalculationStatus;
   const isCalculating = Boolean(recalculationStatus?.isCalculating);
-  const selectedPeriodLabel = t(`investments.summary.performance.period.${selectedPeriod}`);
+  const selectedPeriodLabel = t(
+    `investments.summary.performance.period.${selectedPeriod}`,
+  );
   const workspaceAccountId = React.useMemo(
     () => getCurrentAccountIdFromAccessToken(getAuthToken()),
-    []
+    [],
   );
 
   usePortfolioRecalculationStatus(isCalculating ? workspaceAccountId : null, {
     onEvent: (payload) => {
       const matchesCurrentSummary =
-        financialAccountId == null || payload.financialAccountId === financialAccountId;
+        financialAccountId == null ||
+        payload.financialAccountId === financialAccountId;
       if (!matchesCurrentSummary) return;
       void refetch();
     },
@@ -157,23 +190,30 @@ export function InvestmentSummary({
   });
 
   const resolveGroupLabel = React.useCallback(
-    (groupKey: string, fallback: string) => t(`investments.table.groups.${groupKey}`, { defaultValue: fallback }),
+    (groupKey: string, fallback: string) =>
+      t(`investments.table.groups.${groupKey}`, { defaultValue: fallback }),
     [t],
   );
 
   return (
     <>
-      <Box
-        data-testid="investment-summary-section"
-        sx={{ width: "100%" }}
-      >
+      <Box data-testid="investment-summary-section" sx={{ width: "100%" }}>
         {error && !summary ? (
-          <Stack spacing={1.25} alignItems="center" sx={{ py: 4, textAlign: "center" }}>
+          <Stack
+            spacing={1.25}
+            alignItems="center"
+            sx={{ py: 4, textAlign: "center" }}
+          >
             <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
               {t("investments.summary.error.title")}
             </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 460 }}>
-              {extractErrorMessage(error) || t("investments.summary.error.description")}
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: 460 }}
+            >
+              {extractErrorMessage(error) ||
+                t("investments.summary.error.description")}
             </Typography>
             <Button variant="outlined" onClick={() => void refetch()}>
               {t("investments.summary.error.retry")}
@@ -181,27 +221,44 @@ export function InvestmentSummary({
           </Stack>
         ) : (
           <Stack spacing={2}>
-            <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
-              <Box sx={{ minWidth: 0 }}>
-                <Box sx={{ mb: 0.75 }}>
-                  <Label>{t("investments.summary.totalPortfolio")}</Label>
-                </Box>
+            <Stack
+              direction="row"
+              alignItems="center"
+              justifyContent="space-between"
+              spacing={2}
+            >
+              <Box>
+                <Label>{t("investments.summary.totalPortfolio")}</Label>
                 {loading ? (
                   <Skeleton width={260} height={58} />
                 ) : (
-                  <Box sx={{ position: "relative", display: "inline-flex", overflow: "visible" }}>
+                  <Box
+                    sx={{
+                      position: "relative",
+                      display: "inline-flex",
+                      overflow: "visible",
+                    }}
+                  >
                     <CurrencyAmountParts
                       value={summary?.totalPortfolioValue}
                       currency={currencyCode}
                       locale={locale}
                       variant="h3"
-                      sx={{ fontSize: "2.3rem", fontWeight: 700, lineHeight: 1.05 }}
+                      sx={{
+                        fontSize: "2.3rem",
+                        fontWeight: 700,
+                        lineHeight: 1.05,
+                      }}
                     />
                     {summary?.hasEstimatedValues ? (
                       <ValueOriginIndicator
                         origin="estimado_app"
-                        title={t("investments.table.valueOrigin.labels.estimado_app")}
-                        description={t("investments.table.valueOrigin.descriptions.estimado_app")}
+                        title={t(
+                          "investments.table.valueOrigin.labels.estimado_app",
+                        )}
+                        description={t(
+                          "investments.table.valueOrigin.descriptions.estimado_app",
+                        )}
                         ariaLabel={t("investments.table.valueOrigin.ariaLabel")}
                         offsetPx={16}
                         sizePx={7}
@@ -215,139 +272,127 @@ export function InvestmentSummary({
             <Divider />
 
             <Stack spacing={1}>
-              <Label>{t("investments.summary.performance.title")}</Label>
+              <Label>
+                {t("investments.summary.performance.portfolioReturn")}
+              </Label>
 
-              <Box
-                sx={{
-                  p: 2,
-                  borderRadius: 2,
-                  border: "1px solid",
-                  borderColor: "divider",
-                  bgcolor: alpha(theme.palette.primary.main, 0.02),
-                }}
-              >
-                <Stack spacing={1.5}>
-                  <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2 }}>
-                    <Box sx={{ minWidth: 0 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
-                        {`${t("investments.summary.performance.portfolioReturn")} (${selectedPeriodLabel})`}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("investments.summary.performance.absolute")}
-                      </Typography>
-                    </Box>
+              <Stack spacing={1.5}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    gap: 2,
+                    width: "100%",
+                  }}
+                >
+                  <PeriodSelector
+                    selectedPeriod={selectedPeriod}
+                    onSelectPeriod={setSelectedPeriod}
+                    getPeriodLabel={(period) =>
+                      t(`investments.summary.performance.period.${period}`)
+                    }
+                  />
+                </Box>
 
-                    {isCalculating ? (
-                      <CircularProgress size={18} />
-                    ) : performance?.twr != null ? (
-                      <PercentageGain
-                        value={performance.twr}
-                        locale={locale}
-                        textSx={{ fontWeight: 700 }}
-                        showIcon={false}
-                      />
-                    ) : (
-                      <Tooltip title={t("investments.summary.performance.noHistory")}>
-                        <Typography variant="subtitle2" color="text.secondary">
-                          —
-                        </Typography>
-                      </Tooltip>
-                    )}
-                  </Box>
-
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "flex-end",
+                    justifyContent: "space-between",
+                    gap: 1.5,
+                    width: "100%",
+                  }}
+                >
                   <CurrencyAmountParts
                     value={summary?.grossGain}
                     currency={currencyCode}
                     locale={locale}
-                    variant="h5"
-                    sx={{ fontWeight: 700 }}
+                    variant="h4"
+                    sx={{
+                      color: grossGainColor,
+                      fontSize: "2rem",
+                      fontWeight: 700,
+                      lineHeight: 1.05,
+                    }}
                   />
 
                   {isCalculating ? (
-                    <Box>
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                        {recalculationStatus?.message || t("investments.summary.performance.recalculating")}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {t("investments.summary.performance.recalculatingDetail")}
-                      </Typography>
+                    <CircularProgress size={18} sx={{ mb: 0.25 }} />
+                  ) : performance?.twr != null ? (
+                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                      <PercentageGain
+                        value={performance.twr}
+                        locale={locale}
+                        iconSize={18}
+                        textSx={{ fontWeight: 700, fontSize: "1.05rem" }}
+                      />
                     </Box>
-                  ) : performance?.twr == null ? (
-                    <Typography variant="caption" color="text.secondary">
-                      {t("investments.summary.performance.noHistory")}
-                    </Typography>
-                  ) : null}
+                  ) : (
+                    <Tooltip
+                      title={t("investments.summary.performance.noHistory")}
+                    >
+                      <Typography variant="subtitle2" color="text.secondary">
+                        —
+                      </Typography>
+                    </Tooltip>
+                  )}
+                </Box>
 
-                  <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                    {PERIOD_OPTIONS.map((period) => (
-                      <Link
-                        key={period}
-                        component="button"
-                        type="button"
-                        underline={selectedPeriod === period ? "always" : "hover"}
-                        onClick={() => setSelectedPeriod(period)}
-                        aria-current={selectedPeriod === period ? "page" : undefined}
-                        sx={{
-                          fontSize: "0.8125rem",
-                          fontWeight: selectedPeriod === period ? 700 : 600,
-                          color:
-                            selectedPeriod === period
-                              ? theme.palette.primary.main
-                              : theme.palette.text.secondary,
-                          textUnderlineOffset: 3,
-                          "&:hover": {
-                            color: theme.palette.primary.main,
-                          },
-                        }}
-                      >
-                        {t(`investments.summary.performance.period.${period}`)}
-                      </Link>
-                    ))}
-                  </Stack>
-                </Stack>
-              </Box>
+                {isCalculating ? (
+                  <Box>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: "block" }}
+                    >
+                      {(recalculationStatus?.errorCode
+                        ? t(`errors.${recalculationStatus.errorCode}`, {
+                            defaultValue: recalculationStatus?.message ?? "",
+                          })
+                        : recalculationStatus?.message) ||
+                        t("investments.summary.performance.recalculating")}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {t("investments.summary.performance.recalculatingDetail")}
+                    </Typography>
+                  </Box>
+                ) : performance?.twr == null ? (
+                  <Typography variant="caption" color="text.secondary">
+                    {t("investments.summary.performance.noHistory")}
+                  </Typography>
+                ) : null}
+              </Stack>
 
               <Divider sx={{ my: 1 }} />
-
-              <SummaryMetricRow
-                color={
-                  (summary?.grossGain ?? 0) > 0
-                    ? theme.palette.success.main
-                    : (summary?.grossGain ?? 0) < 0
-                      ? theme.palette.error.main
-                      : theme.palette.text.primary
-                }
-                label={t("investments.summary.grossGain")}
-                value={summary?.grossGain}
-                percentage={summary?.grossGainPercent}
-                currencyCode={currencyCode}
-                locale={locale}
-                loading={loading}
-              />
               <SummaryMetricRow
                 color={theme.palette.text.primary}
-                label={t("investments.summary.totalInvested")}
+                label={t("investments.summary.totalContributed")}
                 value={summary?.totalCostBasis}
                 currencyCode={currencyCode}
                 locale={locale}
                 loading={loading}
+                rowSx={{ pt: 2, pb: 0.25 }}
               />
               <SummaryMetricRow
-                color={(summary?.cashBalance ?? 0) < 0 ? theme.palette.error.main : theme.palette.text.primary}
+                color={
+                  (summary?.cashBalance ?? 0) < 0
+                    ? theme.palette.error.main
+                    : theme.palette.text.primary
+                }
                 label={t("investments.summary.cashBalance")}
                 value={summary?.cashBalance}
                 currencyCode={currencyCode}
                 locale={locale}
                 loading={loading}
+                rowSx={{ pt: 0.25 }}
               />
             </Stack>
 
             <Divider />
 
             <Stack spacing={1}>
-              <Label>
-                {t("investments.summary.allocation")}
-              </Label>
+              <Label>{t("investments.summary.allocation")}</Label>
 
               {loading
                 ? Array.from({ length: 4 }).map((_, index) => (
@@ -363,21 +408,35 @@ export function InvestmentSummary({
                       isCash={group.isCash}
                       locale={locale}
                       active={activeGroupFilter === group.groupKey}
-                      onClick={onGroupClick ? () => onGroupClick(group.groupKey) : undefined}
+                      onClick={
+                        onGroupClick
+                          ? () => onGroupClick(group.groupKey)
+                          : undefined
+                      }
                     />
                   ))}
 
               {!loading && groups.length > 5 ? (
-                <Box sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}>
-                  <Button onClick={() => setDrawerOpen(true)}>{t("investments.summary.viewAllGroups")}</Button>
+                <Box
+                  sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}
+                >
+                  <Button onClick={() => setDrawerOpen(true)}>
+                    {t("investments.summary.viewAllGroups")}
+                  </Button>
                 </Box>
               ) : null}
             </Stack>
+
           </Stack>
         )}
       </Box>
 
-      <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} anchor="right" size="sm">
+      <Drawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        anchor="right"
+        size="sm"
+      >
         <Drawer.Header title={t("investments.summary.drawer.title")} />
         <Drawer.Body>
           <Stack spacing={1}>

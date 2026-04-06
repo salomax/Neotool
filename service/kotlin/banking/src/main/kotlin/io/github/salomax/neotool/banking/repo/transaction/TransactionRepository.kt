@@ -213,6 +213,14 @@ interface TransactionRepository {
     fun existsByInvestmentTransactionId(investmentTransactionId: UUID): Boolean
 
     /**
+     * Custodian ledger rows linked to any of the given investment transactions (non-deleted).
+     */
+    fun findByInvestmentTransactionIds(
+        investmentTransactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction>
+
+    /**
      * Net cash position: SUM(CREDIT amount) − SUM(DEBIT amount) for POSTED and PENDING rows across the given accounts.
      */
     fun sumLedgerBalance(

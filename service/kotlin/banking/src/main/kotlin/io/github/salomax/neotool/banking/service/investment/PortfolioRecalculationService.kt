@@ -1,18 +1,15 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
-import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.Holding
-import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
@@ -20,14 +17,17 @@ import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepositor
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
+import io.github.salomax.neotool.banking.service.investment.recalculation.HistoricalHoldingTimeline
+import io.github.salomax.neotool.banking.service.investment.recalculation.mergeGroupValuations
+import io.github.salomax.neotool.common.error.DomainException
+import io.github.salomax.neotool.common.error.ErrorCode
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
-import java.math.MathContext
-import java.math.RoundingMode
+import java.net.InetAddress
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
+import java.util.TreeMap
 import java.util.UUID
 
 @Singleton
@@ -46,115 +46,89 @@ class PortfolioRecalculationService(
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     private val logger = KotlinLogging.logger {}
-    private val mathContext = MathContext(12, RoundingMode.HALF_UP)
+
+    /**
+     * Immutable inputs for the day-by-day simulation (everything except quota cursor state, which mutates per day).
+     * Date bounds live in [process] (`startDate`…`today`); not duplicated here.
+     */
+    private data class RecalculationSimulationInput(
+        val flowEventsByDate: Map<LocalDate, List<InvestmentPortfolioFlowEvent>>,
+        val rateMap: Map<Indexer, BigDecimal>,
+        val monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+        val timelines: List<HistoricalHoldingTimeline>,
+        val pricesByAsset: Map<UUID, TreeMap<LocalDate, InvestmentAssetDailyPrice>>,
+    )
 
     /**
      * Rebuilds TWR quota history for [jobId] from [PortfolioRecalculationJob.recalculateFrom] through today.
      *
-     * Outline: load holdings, trades, bank ledger, and flow events → anchor "previous day" quotas → delete stored
-     * rows from the start date → walk each calendar day: cash as of that date, simulated positions from trades,
-     * mark-to-market per holding → persist portfolio + per-asset-group quotas → mark job COMPLETED (or FAILED).
+     * The job stores the semantic [PortfolioRecalculationJob.recalculateFrom]; processing uses **startDate** =
+     * that date minus one day so the first rewritten row's "previous day" anchor is recomputed in the same universe
+     * (e.g. after a holding delete removes flows from D onward, D−1 must be rewritten too).
+     *
+     * Outline: load holdings, trades, and flow events → anchor quotas strictly before [startDate] → delete stored
+     * rows from [startDate] → walk each calendar day: simulated positions from trades, mark-to-market per holding →
+     * persist portfolio + per-asset-group quotas → mark job COMPLETED (or FAILED).
      */
     fun process(jobId: UUID) {
-        // Idempotency: skip unknown jobs, finished jobs, and duplicate Kafka deliveries while already running.
-        val job = portfolioRecalculationJobRepository.findById(jobId) ?: return
-        if (job.status == PortfolioRecalculationStatus.COMPLETED || job.status == PortfolioRecalculationStatus.PROCESSING) {
-            return
-        }
+        // Atomic claim: only the first pod to win the UPDATE proceeds; others see null and exit.
+        val claimed = portfolioRecalculationJobRepository.tryClaimJob(jobId, NODE_ID) ?: return
 
-        val financialAccountId = job.financialAccountId
+        val financialAccountId = claimed.financialAccountId
         if (financialAccountId == null) {
-            failJob(job, "Consolidated recalculation is not implemented yet.")
+            failJob(claimed, BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED)
             return
         }
 
-        val started =
-            portfolioRecalculationJobRepository.update(
-                job.copy(
-                    status = PortfolioRecalculationStatus.PROCESSING,
-                    startedAt = job.startedAt ?: Instant.now(),
-                    errorDetails = null,
-                    updatedAt = Instant.now(),
-                ),
-            )
-        portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(started))
+        // tryClaimJob already persisted PROCESSING — emit SSE without a redundant DB update.
+        portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(claimed))
 
+        // Entire execution is inside try so any failure — including early setup — is captured and persisted.
+        var daysProcessed = 0
         try {
             val today = clock()
+            val startDate = claimed.recalculateFrom.minusDays(1)
+            val anchorDate = startDate.minusDays(1)
 
-            // --- Load everything needed for a day-by-day simulation (no DB round-trips inside the inner loop) ---
-            val holdings = holdingRepository.findByFinancialAccount(financialAccountId, started.accountId)
-            val assetsById = assetRepository.findByIds(holdings.map { it.assetId }.toSet()).associateBy { it.id!! }
-            val transactionsByHolding =
-                investmentTransactionRepository.findByHoldingIds(holdings.mapNotNull { it.id }, started.accountId)
-                    .groupBy { it.holdingId }
-                    .mapValues { (_, value) -> value.sortedWith(compareBy({ it.tradeDate }, { it.createdAt })) }
-            val flowEventsByDate =
-                portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, started.recalculateFrom, today)
-                    .groupBy { it.eventDate }
-            val rateMap = safeGetIndicatorRates()
-            val monthlySeries = safeGetMonthlySeries(holdings, today)
-
-            // Last known quotas *before* the first day we rewrite — chain links to history outside the window.
-            var previousPortfolioQuota =
-                portfolioQuotaRepository.findLatestBefore(
-                    financialAccountId = financialAccountId,
-                    dimensionType = PortfolioDimensionType.PORTFOLIO,
-                    dimensionKey = null,
-                    date = started.recalculateFrom.minusDays(1),
-                )
-            val groupKeys = holdings.map { AssetGroupMapping.groupKeyFor(assetsById[it.assetId]?.assetType) }.toSet()
-            val previousGroupQuotas =
-                groupKeys.associateWith { groupKey ->
-                    portfolioQuotaRepository.findLatestBefore(
-                        financialAccountId = financialAccountId,
-                        dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                        dimensionKey = groupKey,
-                        date = started.recalculateFrom.minusDays(1),
-                    )
-                }.filterValues { it != null }
-                    .mapValues { it.value!! }
-                    .toMutableMap()
-
-            // Drop persisted rows in [recalculateFrom, ∞) so this run is the single writer for that range.
-            portfolioQuotaRepository.deleteFromDate(financialAccountId, started.recalculateFrom)
-
-            // One timeline per holding: replays investment transactions up to "current" day for quantity/cost, then prices.
-            val timelines = holdings.mapNotNull { holding ->
-                val asset = assetsById[holding.assetId] ?: return@mapNotNull null
-                HistoricalHoldingTimeline(
-                    baseHolding = holding,
-                    asset = asset,
-                    transactions = transactionsByHolding[holding.id].orEmpty(),
-                )
+            logger.info {
+                "Portfolio recalculation started: jobId=$jobId financialAccountId=$financialAccountId " +
+                    "node=$NODE_ID recalculateFrom=${claimed.recalculateFrom} startDate=$startDate today=$today"
             }
 
-            var daysProcessed = 0
-            var currentJob = started
+            val anchorQuotas = portfolioQuotaRepository.findLatestBeforeAllDimensions(financialAccountId, anchorDate)
+            var previousPortfolioQuota = anchorQuotas[PortfolioDimensionType.PORTFOLIO]?.get("")
+            val previousGroupQuotas =
+                anchorQuotas[PortfolioDimensionType.ASSET_GROUP]?.toMutableMap()
+                    ?: mutableMapOf()
 
-            var date = started.recalculateFrom
+            portfolioQuotaRepository.deleteFromDate(financialAccountId, startDate)
+
+            val simulationInput =
+                loadRecalculationSimulationInput(
+                    financialAccountId = financialAccountId,
+                    accountId = claimed.accountId,
+                    startDate = startDate,
+                    today = today,
+                )
+
+            logger.info {
+                "Portfolio recalculation context loaded: jobId=$jobId " +
+                    "holdings=${simulationInput.timelines.size} " +
+                    "days=${startDate.until(today, java.time.temporal.ChronoUnit.DAYS)}"
+            }
+
+            var currentJob = claimed
+            var date = startDate
             while (!date.isAfter(today)) {
-                // Holdings MTM for this day, rolled up by asset group (e.g. equity vs fixed income).
-                val holdingsValueByGroup = mutableMapOf<String, DailyGroupValuation>()
-                timelines.forEach { timeline ->
-                    timeline.advanceTo(date)
-                    val valuation = timeline.valueAt(date, rateMap, monthlySeries, assetDailyPriceRepository, fixedIncomeValuationService)
-                    if (valuation.totalValue <= BigDecimal.ZERO) return@forEach
+                val holdingsValueByGroup =
+                    mergeGroupValuations(
+                        timelines = simulationInput.timelines,
+                        date = date,
+                        rateMap = simulationInput.rateMap,
+                        monthlySeries = simulationInput.monthlySeries,
+                        pricesByAsset = simulationInput.pricesByAsset,
+                    )
 
-                    val groupKey = AssetGroupMapping.groupKeyFor(timeline.asset.assetType)
-                    val existing = holdingsValueByGroup[groupKey]
-                    holdingsValueByGroup[groupKey] =
-                        if (existing == null) {
-                            valuation
-                        } else {
-                            DailyGroupValuation(
-                                totalValue = existing.totalValue + valuation.totalValue,
-                                hasEstimatedValues = existing.hasEstimatedValues || valuation.hasEstimatedValues,
-                            )
-                        }
-                }
-
-                // TWR quota math: portfolio row uses flow events; group rows track sub-portfolio performance.
                 val dayQuotas =
                     portfolioQuotaCalculationService.calculateDayQuota(
                         financialAccountId = financialAccountId,
@@ -162,11 +136,10 @@ class PortfolioRecalculationService(
                         previousPortfolioQuota = previousPortfolioQuota,
                         previousGroupQuotas = previousGroupQuotas,
                         holdingsValueByGroup = holdingsValueByGroup,
-                        flowEvents = flowEventsByDate[date].orEmpty(),
+                        flowEvents = simulationInput.flowEventsByDate[date].orEmpty(),
                     )
 
-                dayQuotas.forEach { quota ->
-                    val saved = portfolioQuotaRepository.upsert(quota)
+                portfolioQuotaRepository.batchUpsert(dayQuotas).forEach { saved ->
                     if (saved.dimensionType == PortfolioDimensionType.PORTFOLIO) {
                         previousPortfolioQuota = saved
                     } else {
@@ -175,57 +148,131 @@ class PortfolioRecalculationService(
                 }
 
                 daysProcessed += 1
-                // Long backfills: heartbeat for SSE / UI without hammering the DB every day.
-                if (daysProcessed % 30 == 0) {
+                if (daysProcessed % HEARTBEAT_INTERVAL_DAYS == 0) {
                     currentJob =
-                        portfolioRecalculationJobRepository.update(
+                        updateJobAndEmit(
                             currentJob.copy(
                                 daysProcessed = daysProcessed,
+                                lastHeartbeatAt = Instant.now(),
                                 updatedAt = Instant.now(),
                             ),
                         )
-                    portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(currentJob))
                 }
 
                 date = date.plusDays(1)
             }
 
-            val completed =
-                portfolioRecalculationJobRepository.update(
-                    currentJob.copy(
-                        status = PortfolioRecalculationStatus.COMPLETED,
-                        daysProcessed = daysProcessed,
-                        completedAt = Instant.now(),
-                        updatedAt = Instant.now(),
-                    ),
-                )
-            portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(completed))
-        } catch (e: Exception) {
-            logger.error(e) { "Portfolio recalculation failed for jobId=$jobId" }
-            failJob(started, e.message ?: e::class.simpleName ?: "Unknown recalculation error")
-        }
-    }
-
-    private fun failJob(
-        job: io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob,
-        errorDetails: String,
-    ) {
-        val failed =
-            portfolioRecalculationJobRepository.update(
-                job.copy(
-                    status = PortfolioRecalculationStatus.FAILED,
-                    errorDetails = errorDetails,
+            updateJobAndEmit(
+                currentJob.copy(
+                    status = PortfolioRecalculationStatus.COMPLETED,
+                    daysProcessed = daysProcessed,
+                    errorCode = null,
+                    errorDetails = null,
                     completedAt = Instant.now(),
                     updatedAt = Instant.now(),
                 ),
             )
-        portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(failed))
+
+            logger.info { "Portfolio recalculation completed: jobId=$jobId daysProcessed=$daysProcessed" }
+        } catch (e: DomainException) {
+            logger.error(e) {
+                "Portfolio recalculation failed: jobId=$jobId financialAccountId=$financialAccountId " +
+                    "node=$NODE_ID code=${e.errorCode.code} daysProcessed=$daysProcessed"
+            }
+            failJob(claimed, e.errorCode, e.cause)
+        } catch (e: Exception) {
+            logger.error(e) {
+                "Portfolio recalculation failed: jobId=$jobId financialAccountId=$financialAccountId " +
+                    "node=$NODE_ID daysProcessed=$daysProcessed cause=${e::class.simpleName}: ${e.message}"
+            }
+            failJob(claimed, BankingErrorCode.PORTFOLIO_RECALCULATION_FAILED, e)
+        }
+    }
+
+    private fun loadRecalculationSimulationInput(
+        financialAccountId: UUID,
+        accountId: UUID,
+        startDate: LocalDate,
+        today: LocalDate,
+    ): RecalculationSimulationInput {
+        val holdings = holdingRepository.findByFinancialAccount(financialAccountId, accountId)
+        val assetsById = assetRepository.findByIds(holdings.map { it.assetId }.toSet()).associateBy { it.id!! }
+        val transactionsByHolding =
+            investmentTransactionRepository.findByHoldingIds(holdings.mapNotNull { it.id }, accountId)
+                .groupBy { it.holdingId }
+                .mapValues { (_, value) -> value.sortedWith(compareBy({ it.tradeDate }, { it.createdAt })) }
+        val flowEventsByDate =
+            portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, startDate, today)
+                .groupBy { it.eventDate }
+        val rateMap = safeGetIndicatorRates()
+        val monthlySeries = safeGetMonthlySeries(holdings, today)
+
+        val timelines =
+            holdings.mapNotNull { holding ->
+                val asset = assetsById[holding.assetId] ?: return@mapNotNull null
+                HistoricalHoldingTimeline(
+                    baseHolding = holding,
+                    asset = asset,
+                    transactions = transactionsByHolding[holding.id].orEmpty(),
+                    fixedIncomeValuationService = fixedIncomeValuationService,
+                )
+            }
+
+        val assetIds = timelines.map { it.asset.id!! }.toSet()
+        val pricesByAsset: Map<UUID, TreeMap<LocalDate, InvestmentAssetDailyPrice>> =
+            buildMap {
+                assetIds.forEach { put(it, TreeMap()) }
+                assetDailyPriceRepository.findLatestBeforeForAssets(assetIds, startDate)
+                    .forEach { price -> getValue(price.assetId)[price.priceDate] = price }
+                assetDailyPriceRepository.findByAssetsAndDateRange(assetIds, startDate, today)
+                    .forEach { price -> getValue(price.assetId)[price.priceDate] = price }
+            }
+
+        return RecalculationSimulationInput(
+            flowEventsByDate = flowEventsByDate,
+            rateMap = rateMap,
+            monthlySeries = monthlySeries,
+            timelines = timelines,
+            pricesByAsset = pricesByAsset,
+        )
+    }
+
+    private fun updateJobAndEmit(job: PortfolioRecalculationJob): PortfolioRecalculationJob {
+        val saved = portfolioRecalculationJobRepository.update(job)
+        portfolioRecalculationEventBus.emit(PortfolioRecalculationStatusPayload.from(saved))
+        return saved
+    }
+
+    private fun failJob(
+        job: PortfolioRecalculationJob,
+        errorCode: ErrorCode,
+        cause: Throwable? = null,
+    ) {
+        updateJobAndEmit(
+            job.copy(
+                status = PortfolioRecalculationStatus.FAILED,
+                errorCode = errorCode.code,
+                errorDetails = buildTechnicalDetail(cause),
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            ),
+        )
+    }
+
+    private fun buildTechnicalDetail(cause: Throwable?, maxLen: Int = 2000): String? {
+        if (cause == null) return null
+        val root = generateSequence(cause) { it.cause }.lastOrNull() ?: return null
+        val raw = "${root.javaClass.simpleName}: ${root.message ?: ""}".trim()
+        return raw.takeIf { it.isNotEmpty() }?.take(maxLen)
     }
 
     private fun safeGetIndicatorRates(): Map<Indexer, BigDecimal> =
         try {
             indicatorRateProvider.getLatestRates()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            logger.warn(e) {
+                "Failed to fetch indicator rates — fixed income valuations will fall back to averageCost where applicable"
+            }
             emptyMap()
         }
 
@@ -237,191 +284,24 @@ class PortfolioRecalculationService(
             holdings.filter { it.indexer != null && it.issueDate != null }
                 .groupBy { it.indexer!! }
 
-        return byIndexer.mapValues { (_, indexedHoldings) ->
+        return byIndexer.mapValues { (indexer, indexedHoldings) ->
             val from = indexedHoldings.mapNotNull { it.issueDate }.minOrNull() ?: return@mapValues emptyList()
             try {
-                indicatorRateProvider.getMonthlySeriesRange(indexedHoldings.first().indexer!!, from, today)
-            } catch (_: Exception) {
+                indicatorRateProvider.getMonthlySeriesRange(indexer, from, today)
+            } catch (e: Exception) {
+                logger.warn(e) {
+                    "Failed to fetch monthly series for indexer=$indexer — that indexer will use averageCost fallback in recalculation"
+                }
                 emptyList()
             }
         }.filterValues { it.isNotEmpty() }
     }
 
-    private data class HistoricalHoldingTimeline(
-        val baseHolding: Holding,
-        val asset: Asset,
-        val transactions: List<InvestmentTransaction>,
-        var cursor: Int = 0,
-        var currentState: Holding = if (transactions.isEmpty()) baseHolding else baseHolding.copy(quantity = BigDecimal.ZERO, averageCost = BigDecimal.ZERO),
-    ) {
-        fun advanceTo(date: LocalDate) {
-            while (cursor < transactions.size && !transactions[cursor].tradeDate.isAfter(date)) {
-                currentState = applyTransaction(currentState, transactions[cursor])
-                cursor += 1
-            }
-        }
-
-        fun valueAt(
-            date: LocalDate,
-            rateMap: Map<Indexer, BigDecimal>,
-            monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
-            assetDailyPriceRepository: AssetDailyPriceRepository,
-            fixedIncomeValuationService: FixedIncomeValuationService,
-        ): DailyGroupValuation {
-            if (currentState.quantity <= BigDecimal.ZERO) {
-                return DailyGroupValuation(BigDecimal.ZERO, false)
-            }
-
-            val exactPrice = assetDailyPriceRepository.findByAssetAndDate(asset.id!!, date)
-            if (exactPrice != null) {
-                return DailyGroupValuation(
-                    totalValue = currentState.quantity.multiply(exactPrice.closePrice, MATH_CONTEXT).multiply(asset.priceFactor, MATH_CONTEXT),
-                    hasEstimatedValues = false,
-                )
-            }
-
-            val fallbackPrice = assetDailyPriceRepository.findLatestBefore(asset.id!!, date)
-            if (fallbackPrice != null) {
-                return DailyGroupValuation(
-                    totalValue = currentState.quantity.multiply(fallbackPrice.closePrice, MATH_CONTEXT).multiply(asset.priceFactor, MATH_CONTEXT),
-                    hasEstimatedValues = true,
-                )
-            }
-
-            if (asset.assetType in FIXED_INCOME_ASSET_TYPES) {
-                val result =
-                    fixedIncomeValuationService.estimate(
-                        holding = currentState,
-                        indicatorRates = rateMap,
-                        valuationReferenceDate = date,
-                        monthlySeries = monthlySeries,
-                        asOfDate = date,
-                        allowRateProjectionPastSeries = true,
-                    )
-                result.grossValue?.let {
-                    return DailyGroupValuation(totalValue = it, hasEstimatedValues = result.valuationSource == ValuationSource.ESTIMATED)
-                }
-            }
-
-            val manualGrossValue = currentState.manualGrossValue
-            val manualValuedAt = currentState.manualValuedAt
-            if (
-                currentState.pricingMode == HoldingPricingMode.MANUAL &&
-                manualGrossValue != null &&
-                (manualValuedAt == null || !manualValuedAt.isAfter(date))
-            ) {
-                return DailyGroupValuation(totalValue = manualGrossValue, hasEstimatedValues = true)
-            }
-
-            val providerDate = currentState.lastValuedAt?.atZone(ZoneOffset.UTC)?.toLocalDate()
-            val providerGrossValue = currentState.grossValue
-            if (providerGrossValue != null && providerDate != null && !providerDate.isAfter(date)) {
-                return DailyGroupValuation(totalValue = providerGrossValue, hasEstimatedValues = true)
-            }
-
-            return DailyGroupValuation(
-                totalValue = currentState.quantity.multiply(currentState.averageCost, MATH_CONTEXT),
-                hasEstimatedValues = true,
-            )
-        }
-
-        private fun applyTransaction(
-            state: Holding,
-            transaction: InvestmentTransaction,
-        ): Holding {
-            val qty = transaction.quantity
-            val price = transaction.unitPrice
-            return when (transaction.type) {
-                InvestmentTransactionType.PURCHASE,
-                InvestmentTransactionType.SUBSCRIPTION,
-                -> {
-                    if (qty == null || price == null) return state
-                    val newQty = state.quantity + qty
-                    val newCost =
-                        if (state.quantity.signum() == 0) {
-                            price
-                        } else {
-                            (state.quantity * state.averageCost + qty * price).divide(newQty, 8, RoundingMode.HALF_UP)
-                        }
-                    state.copy(quantity = newQty, averageCost = newCost)
-                }
-                InvestmentTransactionType.SALE,
-                InvestmentTransactionType.MATURITY,
-                InvestmentTransactionType.CUSTODY_TRANSFER,
-                InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                InvestmentTransactionType.QUOTA_TRANSFER,
-                -> {
-                    val reduction =
-                        if (
-                            transaction.type in
-                            setOf(
-                                InvestmentTransactionType.CUSTODY_TRANSFER,
-                                InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                                InvestmentTransactionType.QUOTA_TRANSFER,
-                            ) && transaction.direction == InvestmentTransactionDirection.INFLOW
-                        ) {
-                            BigDecimal.ZERO
-                        } else {
-                            qty ?: state.quantity
-                        }
-                    if (
-                        transaction.type in
-                        setOf(
-                            InvestmentTransactionType.CUSTODY_TRANSFER,
-                            InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                            InvestmentTransactionType.QUOTA_TRANSFER,
-                        ) && transaction.direction == InvestmentTransactionDirection.INFLOW && qty != null && price != null
-                    ) {
-                        val newQty = state.quantity + qty
-                        val newCost =
-                            if (state.quantity.signum() == 0) {
-                                price
-                            } else {
-                                (state.quantity * state.averageCost + qty * price).divide(newQty, 8, RoundingMode.HALF_UP)
-                            }
-                        state.copy(quantity = newQty, averageCost = newCost)
-                    } else {
-                        state.copy(quantity = (state.quantity - reduction).max(BigDecimal.ZERO))
-                    }
-                }
-                InvestmentTransactionType.STOCK_SPLIT,
-                InvestmentTransactionType.BONUS_SHARES,
-                -> {
-                    if (qty == null || qty <= BigDecimal.ZERO) return state
-                    val newQty = state.quantity + qty
-                    val newCost =
-                        if (newQty.signum() == 0) BigDecimal.ZERO
-                        else (state.quantity * state.averageCost).divide(newQty, 8, RoundingMode.HALF_UP)
-                    state.copy(quantity = newQty, averageCost = newCost)
-                }
-                InvestmentTransactionType.REVERSE_SPLIT -> {
-                    if (qty == null || qty <= BigDecimal.ZERO) return state
-                    val newQty = (state.quantity - qty).max(BigDecimal.ZERO)
-                    val newCost =
-                        if (newQty.signum() == 0) BigDecimal.ZERO
-                        else (state.quantity * state.averageCost).divide(newQty, 8, RoundingMode.HALF_UP)
-                    state.copy(quantity = newQty, averageCost = newCost)
-                }
-                else -> state
-            }
-        }
-    }
-
     private companion object {
-        val FIXED_INCOME_ASSET_TYPES: Set<AssetType> =
-            setOf(
-                AssetType.CDB,
-                AssetType.RDB,
-                AssetType.LCI,
-                AssetType.LCA,
-                AssetType.LC,
-                AssetType.LF,
-                AssetType.LIG,
-                AssetType.DEBENTURES,
-                AssetType.CRI,
-                AssetType.CRA,
-                AssetType.TREASURY,
-            )
-        val MATH_CONTEXT: MathContext = MathContext(12, RoundingMode.HALF_UP)
+        const val HEARTBEAT_INTERVAL_DAYS: Int = 30
+
+        /** Stable identity for this JVM instance — in k8s this resolves to the pod name. */
+        val NODE_ID: String = runCatching { InetAddress.getLocalHost().hostName }
+            .getOrDefault(UUID.randomUUID().toString())
     }
 }

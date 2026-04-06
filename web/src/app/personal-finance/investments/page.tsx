@@ -40,7 +40,7 @@ import {
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
-import { InvestmentTable } from "./components/InvestmentTable";
+import { InvestmentTable } from "./components/table/InvestmentTable";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
@@ -348,6 +348,7 @@ export default function PersonalFinanceInvestmentsPage() {
                   investmentAccounts={investmentAccounts}
                   onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
                   searchQuery={holdingSearchQuery}
+                  onSelectSearchAsset={(assetName) => setHoldingSearchQuery(assetName)}
                 />
               </Box>
             </Container>

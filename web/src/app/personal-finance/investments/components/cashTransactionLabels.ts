@@ -1,6 +1,6 @@
 import { CreditDebitType, TransactionType } from "@/lib/graphql/types/__generated__/graphql";
 
-export function formatCashLedgerMovementLabel(
+export function formatCashLedgerTransactionLabel(
   type: TransactionType,
   creditDebitType: CreditDebitType,
   t: (key: string) => string,

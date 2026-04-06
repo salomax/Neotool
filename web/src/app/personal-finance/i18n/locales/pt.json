@@ -68,16 +68,17 @@
       "cash": "Dinheiro em conta"
     },
     "summary": {
-      "totalPortfolio": "Portfólio Total",
+      "totalPortfolio": "Patrimônio da carteira",
       "grossGain": "Ganho acumulado",
       "totalInvested": "Total investido",
+      "totalContributed": "Total aportado",
       "cashBalance": "Caixa disponível",
       "estimated": "estimado",
       "allocation": "Alocação",
       "viewAllGroups": "Ver todos os grupos",
       "performance": {
         "title": "Performance",
-        "portfolioReturn": "Rendimento da carteira",
+        "portfolioReturn": "Rendimento",
         "period": {
           "MTD": "Este mês",
           "YTD": "Este ano",
@@ -85,7 +86,6 @@
           "THREE_YEARS": "3 anos",
           "ALL": "Desde o início"
         },
-        "absolute": "Ganho em valor atual",
         "noHistory": "Histórico insuficiente para calcular",
         "recalculating": "Recalculando histórico de performance...",
         "recalculatingDetail": "O rendimento e comparativos serão atualizados em alguns instantes."
@@ -153,6 +153,7 @@
           "date": "Data",
           "description": "Descrição",
           "kind": "Tipo",
+          "financialAccount": "Corretora",
           "amount": "Valor"
         },
         "kind": {

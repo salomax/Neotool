@@ -48,4 +48,17 @@ interface PortfolioFlowEventEntityRepository : JpaRepository<InvestmentPortfolio
         sourceReferenceId: UUID,
         sourceReferenceType: String,
     ): Int
+
+    @Query(
+        """
+        DELETE FROM banking.investment_portfolio_flow_event
+        WHERE financial_account_id = :financialAccountId
+          AND related_holding_id = :relatedHoldingId
+        """,
+        nativeQuery = true,
+    )
+    fun deleteByFinancialAccountAndRelatedHoldingId(
+        financialAccountId: UUID,
+        relatedHoldingId: UUID,
+    ): Int
 }

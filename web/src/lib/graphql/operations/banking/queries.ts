@@ -752,6 +752,7 @@ export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
         isCalculating
         jobId
         startedAt
+        errorCode
         message
       }
     }

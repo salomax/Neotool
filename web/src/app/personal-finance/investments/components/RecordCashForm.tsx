@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { useMutation } from "@apollo/client/react";
+import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Autocomplete,
@@ -120,6 +120,7 @@ export function RecordCashForm({
   cancelTestId,
   submitTestId,
 }: RecordCashFormProps) {
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -284,6 +285,7 @@ export function RecordCashForm({
     };
 
     await createCash({ variables: { input } });
+    await apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] });
 
     if (input.peerFinancialAccountId) {
       success(t("investments.cash.successPaired"));

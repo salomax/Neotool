@@ -19,6 +19,8 @@ data class PortfolioRecalculationStatusPayload(
     val status: PortfolioRecalculationStatus,
     val recalculateFrom: LocalDate,
     val daysProcessed: Int?,
+    /** Machine-readable code for client i18n (see docs/08-architecture/error-handling-system.md). */
+    val errorCode: String? = null,
     val errorDetails: String? = null,
     val startedAt: Instant? = null,
     val completedAt: Instant? = null,
@@ -32,6 +34,7 @@ data class PortfolioRecalculationStatusPayload(
                 status = job.status,
                 recalculateFrom = job.recalculateFrom,
                 daysProcessed = job.daysProcessed,
+                errorCode = job.errorCode,
                 errorDetails = job.errorDetails,
                 startedAt = job.startedAt,
                 completedAt = job.completedAt,

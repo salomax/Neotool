@@ -18,6 +18,7 @@ export interface PortfolioRecalculationStatusPayload {
   status: PortfolioRecalculationStatus;
   recalculateFrom: string;
   daysProcessed?: number | null;
+  errorCode?: string | null;
   errorDetails?: string | null;
   startedAt?: string | null;
   completedAt?: string | null;

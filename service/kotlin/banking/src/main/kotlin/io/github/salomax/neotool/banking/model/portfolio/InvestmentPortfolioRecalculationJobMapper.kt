@@ -12,7 +12,10 @@ object InvestmentPortfolioRecalculationJobMapper {
             recalculateFrom = entity.recalculateFrom,
             triggeredBy = entity.triggeredBy,
             daysProcessed = entity.daysProcessed,
+            errorCode = entity.errorCode,
             errorDetails = entity.errorDetails,
+            processingNodeId = entity.processingNodeId,
+            lastHeartbeatAt = entity.lastHeartbeatAt,
             startedAt = entity.startedAt,
             completedAt = entity.completedAt,
             createdAt = entity.createdAt,
@@ -28,7 +31,10 @@ object InvestmentPortfolioRecalculationJobMapper {
             recalculateFrom = domain.recalculateFrom,
             triggeredBy = domain.triggeredBy,
             daysProcessed = domain.daysProcessed,
+            errorCode = domain.errorCode,
             errorDetails = domain.errorDetails,
+            processingNodeId = domain.processingNodeId,
+            lastHeartbeatAt = domain.lastHeartbeatAt,
             startedAt = domain.startedAt,
             completedAt = domain.completedAt,
             createdAt = domain.createdAt,
@@ -44,7 +50,10 @@ object InvestmentPortfolioRecalculationJobMapper {
         entity.recalculateFrom = domain.recalculateFrom
         entity.triggeredBy = domain.triggeredBy
         entity.daysProcessed = domain.daysProcessed
+        entity.errorCode = domain.errorCode
         entity.errorDetails = domain.errorDetails
+        entity.processingNodeId = domain.processingNodeId
+        entity.lastHeartbeatAt = domain.lastHeartbeatAt
         entity.startedAt = domain.startedAt
         entity.completedAt = domain.completedAt
         entity.updatedAt = domain.updatedAt

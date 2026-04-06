@@ -51,4 +51,23 @@ open class DefaultAssetDailyPriceRepository(
     ): List<InvestmentAssetDailyPrice> =
         entityRepository.findByAssetAndDateRange(assetId, from, to)
             .map(InvestmentAssetDailyPriceMapper::toDomain)
+
+    override fun findLatestBeforeForAssets(
+        assetIds: Set<UUID>,
+        date: LocalDate,
+    ): List<InvestmentAssetDailyPrice> {
+        if (assetIds.isEmpty()) return emptyList()
+        return entityRepository.findLatestBeforeForAssets(assetIds, date)
+            .map(InvestmentAssetDailyPriceMapper::toDomain)
+    }
+
+    override fun findByAssetsAndDateRange(
+        assetIds: Set<UUID>,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentAssetDailyPrice> {
+        if (assetIds.isEmpty()) return emptyList()
+        return entityRepository.findByAssetsAndDateRange(assetIds, from, to)
+            .map(InvestmentAssetDailyPriceMapper::toDomain)
+    }
 }

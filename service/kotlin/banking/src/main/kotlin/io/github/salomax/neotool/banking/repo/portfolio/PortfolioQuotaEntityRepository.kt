@@ -30,6 +30,21 @@ interface PortfolioQuotaEntityRepository : JpaRepository<InvestmentPortfolioQuot
 
     @Query(
         """
+        SELECT DISTINCT ON (dimension_type, dimension_key) *
+        FROM banking.investment_portfolio_quota
+        WHERE financial_account_id = :financialAccountId
+          AND quota_date <= :date
+        ORDER BY dimension_type, dimension_key, quota_date DESC
+        """,
+        nativeQuery = true,
+    )
+    fun findLatestBeforeAllDimensions(
+        financialAccountId: UUID,
+        date: LocalDate,
+    ): List<InvestmentPortfolioQuotaEntity>
+
+    @Query(
+        """
         SELECT q FROM InvestmentPortfolioQuotaEntity q
         WHERE q.financialAccountId = :financialAccountId
           AND q.dimensionType = :dimensionType

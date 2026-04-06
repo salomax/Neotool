@@ -127,6 +127,18 @@ class PortfolioFlowEventServiceTest {
         assertThat(deleted).isEqualTo(1)
     }
 
+    @Test
+    fun `deleteEventsByRelatedHolding delegates to repository`() {
+        val financialAccountId = UUID.randomUUID()
+        val holdingId = UUID.randomUUID()
+        whenever(portfolioFlowEventRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, holdingId)).thenReturn(2)
+
+        val n = service.deleteEventsByRelatedHolding(financialAccountId, holdingId)
+
+        assertThat(n).isEqualTo(2)
+        verify(portfolioFlowEventRepository).deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, holdingId)
+    }
+
     private fun quota(
         financialAccountId: UUID,
         quotaDate: LocalDate,

@@ -81,7 +81,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = null,
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -99,28 +98,10 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = null,
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = emptyMap(),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
             assertThat(result.none { it.dimensionType == PortfolioDimensionType.PORTFOLIO }).isTrue()
-        }
-
-        @Test
-        fun `initializes with cash balance included in portfolio value`() {
-            val result = service.calculateDayQuota(
-                financialAccountId = financialAccountId,
-                date = date,
-                previousPortfolioQuota = null,
-                previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("8000.00")),
-                cashBalance = BigDecimal("2000.00"),
-                flowEvents = emptyList(),
-            )
-
-            val portfolio = portfolioResult(result)
-            assertThat(portfolio.quotaValue).isEqualByComparingTo("1.00000000")
-            assertThat(portfolio.totalPortfolioValue).isEqualByComparingTo("10000.00")
         }
     }
 
@@ -140,7 +121,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10100.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -157,7 +137,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.05000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -174,7 +153,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10100.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
             val quotaAfterDay1 = portfolioResult(day1)
@@ -186,7 +164,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quotaAfterDay1,
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10201.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
             val quotaAfterDay2 = portfolioResult(day2)
@@ -212,7 +189,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("12100.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DEPOSIT, "2000.00")),
             )
 
@@ -232,7 +208,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("12000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DEPOSIT, "2000.00")),
             )
 
@@ -251,7 +226,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("7070.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.WITHDRAWAL, "3000.00")),
             )
 
@@ -270,7 +244,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("stock" to groupValuation("10500.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DIVIDEND, "500.00")),
             )
 
@@ -289,7 +262,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("9800.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.INCOME_TAX, "200.00")),
             )
 
@@ -309,7 +281,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10850.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(
                     flowEvent(PortfolioFlowEventType.DEPOSIT, "1000.00"),
                     flowEvent(PortfolioFlowEventType.INCOME_TAX, "200.00"),
@@ -341,7 +312,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.22341305", "17739.47"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("3126.53")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(), // BUG: no WITHDRAWAL event was created for deleted holdings
             )
 
@@ -366,7 +336,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.22341305", "17739.47"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("3126.53")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.WITHDRAWAL, "14612.94")),
             )
 
@@ -392,7 +361,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("0.00000000", "0.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("5000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -402,19 +370,20 @@ class PortfolioQuotaCalculationServiceTest {
         }
 
         @Test
-        fun `returns no portfolio quota when portfolio drops to zero with no flow event`() {
-            // Portfolio had value, now all holdings are gone (no flow event)
+        fun `portfolio quota value goes to zero when holdings drop to zero with no flow event`() {
+            // Portfolio had value, now all holdings are gone (no flow event) — NAV is 0; TWR chain keeps a row with quota_value floored at 0.
             val result = service.calculateDayQuota(
                 financialAccountId = financialAccountId,
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = emptyMap(),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
-            assertThat(result.none { it.dimensionType == PortfolioDimensionType.PORTFOLIO }).isTrue()
+            val portfolio = portfolioResult(result)
+            assertThat(portfolio.totalPortfolioValue).isEqualByComparingTo("0.00")
+            assertThat(portfolio.quotaValue).isEqualByComparingTo("0.00000000")
         }
     }
 
@@ -432,7 +401,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -452,7 +420,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = mapOf("bankFixedIncome" to prevGroup),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10500.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -468,7 +435,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("0.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -492,7 +458,6 @@ class PortfolioQuotaCalculationServiceTest {
                     "bankFixedIncome" to groupValuation("6060.00"), // +1%
                     "stock" to groupValuation("3960.00"),           // -1%
                 ),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -513,7 +478,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "5000.00"),
                 previousGroupQuotas = mapOf("bankFixedIncome" to prevGroup),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("5000.00")),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 
@@ -529,7 +493,6 @@ class PortfolioQuotaCalculationServiceTest {
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
                 holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00", estimated = true)),
-                cashBalance = BigDecimal.ZERO,
                 flowEvents = emptyList(),
             )
 

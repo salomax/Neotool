@@ -988,7 +988,7 @@ input CreateInvestmentCashTransactionInput
   date: Date!
 
   """
-  Required when type = ADJUSTMENT, or when registerAsBalanceAdjustment is true.
+  Optional for DEPOSIT/WITHDRAWAL. Required when type = ADJUSTMENT or registerAsBalanceAdjustment is true.
   """
   description: String
 
@@ -3394,7 +3394,21 @@ type RecalculationStatus
   isCalculating: Boolean!
   jobId: UUID
   startedAt: DateTime
+
+  """
+  Machine-readable error code for i18n when the latest job failed (errors.* keys).
+  """
+  errorCode: String
+
+  """
+  Fallback human-readable status; prefer translating errorCode on the client when present.
+  """
   message: String
+
+  """
+  Root-cause detail for support/debugging (exception class + message). Not intended for end-user display.
+  """
+  errorDetails: String
 }
 
 """

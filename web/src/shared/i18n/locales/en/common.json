@@ -193,6 +193,8 @@
     "IMPORT_OFX_DESTINATION_MISMATCH": "This OFX belongs to a credit card bill and cannot be imported as a bank statement. Use the card bill import flow.",
     "INVALID_INPUT": "Invalid input. Please review the form and try again.",
     "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
+    "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED": "Portfolio-wide performance recalculation is not available yet.",
+    "PORTFOLIO_RECALCULATION_FAILED": "Portfolio recalculation failed due to an unexpected error. Please try again or contact support.",
     "default": "An error occurred"
   },
   "cardGrid": {

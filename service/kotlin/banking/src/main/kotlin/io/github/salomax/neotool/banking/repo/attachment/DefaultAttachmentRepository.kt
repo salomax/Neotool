@@ -62,4 +62,11 @@ open class DefaultHoldingAttachmentRepository(
     @Transactional
     override fun delete(id: UUID, accountId: UUID): Boolean =
         entityRepository.deleteByIdAndAccountId(id, accountId) > 0
+
+    @Transactional
+    override fun deleteByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): Int =
+        entityRepository.findByHoldingIdAndAccountId(holdingId, accountId).sumOf { entity ->
+            val attachmentId = requireNotNull(entity.id) { "holding attachment id must not be null" }
+            entityRepository.deleteByIdAndAccountId(attachmentId, accountId)
+        }
 }

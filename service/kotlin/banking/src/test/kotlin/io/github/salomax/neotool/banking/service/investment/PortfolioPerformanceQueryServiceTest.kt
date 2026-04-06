@@ -19,6 +19,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlo
 import org.junit.jupiter.api.Assumptions.assumeTrue
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -351,6 +352,57 @@ class PortfolioPerformanceQueryServiceTest {
         assertThat(status.jobId).isEqualTo(pendingJob.id)
         assertThat(status.startedAt).isEqualTo(pendingJob.startedAt)
         assertThat(status.message).contains("in progress")
+    }
+
+    @Test
+    fun `failed recalculation status exposes error code and catalog default message`() {
+        val accountId = UUID.randomUUID()
+        val failedJob =
+            PortfolioRecalculationJob(
+                id = UUID.randomUUID(),
+                financialAccountId = UUID.randomUUID(),
+                accountId = accountId,
+                status = PortfolioRecalculationStatus.FAILED,
+                recalculateFrom = LocalDate.of(2026, 1, 1),
+                triggeredBy = "test",
+                errorCode = BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.code,
+                errorDetails = "RuntimeException: technical",
+                completedAt = Instant.parse("2026-04-03T10:05:00Z"),
+                updatedAt = Instant.parse("2026-04-03T10:05:00Z"),
+            )
+        whenever(portfolioRecalculationJobRepository.findActiveByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findLatestByAccount(accountId)).thenReturn(failedJob)
+
+        val status = service.getRecalculationStatus(accountId)
+
+        assertThat(status.isCalculating).isFalse()
+        assertThat(status.errorCode).isEqualTo(BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.code)
+        assertThat(status.message).isEqualTo(BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.defaultMessage)
+    }
+
+    @Test
+    fun `failed recalculation without error code falls back to stored error details`() {
+        val accountId = UUID.randomUUID()
+        val failedJob =
+            PortfolioRecalculationJob(
+                id = UUID.randomUUID(),
+                financialAccountId = UUID.randomUUID(),
+                accountId = accountId,
+                status = PortfolioRecalculationStatus.FAILED,
+                recalculateFrom = LocalDate.of(2026, 1, 1),
+                triggeredBy = "test",
+                errorCode = null,
+                errorDetails = "Legacy failure text",
+                completedAt = Instant.parse("2026-04-03T10:05:00Z"),
+                updatedAt = Instant.parse("2026-04-03T10:05:00Z"),
+            )
+        whenever(portfolioRecalculationJobRepository.findActiveByAccount(accountId)).thenReturn(null)
+        whenever(portfolioRecalculationJobRepository.findLatestByAccount(accountId)).thenReturn(failedJob)
+
+        val status = service.getRecalculationStatus(accountId)
+
+        assertThat(status.errorCode).isNull()
+        assertThat(status.message).isEqualTo("Legacy failure text")
     }
 
     @Test

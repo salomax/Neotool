@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioReca
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
+import java.time.Instant
 import java.util.UUID
 
 @Repository
@@ -17,6 +18,41 @@ interface PortfolioRecalculationJobEntityRepository :
         """,
     )
     fun findByKey(id: UUID): InvestmentPortfolioRecalculationJobEntity?
+
+    @Query(
+        """
+        UPDATE banking.investment_portfolio_recalculation_job
+        SET status              = 'PROCESSING',
+            processing_node_id  = :nodeId,
+            last_heartbeat_at   = NOW(),
+            started_at          = COALESCE(started_at, NOW()),
+            error_code          = NULL,
+            error_details       = NULL,
+            updated_at          = NOW()
+        WHERE id = :jobId
+          AND status = 'PENDING'
+        RETURNING *
+        """,
+        nativeQuery = true,
+    )
+    fun tryClaimJob(
+        jobId: UUID,
+        nodeId: String,
+    ): InvestmentPortfolioRecalculationJobEntity?
+
+    @Query(
+        """
+        UPDATE banking.investment_portfolio_recalculation_job
+        SET status              = 'PENDING',
+            processing_node_id  = NULL,
+            last_heartbeat_at   = NULL,
+            updated_at          = NOW()
+        WHERE status = 'PROCESSING'
+          AND (last_heartbeat_at IS NULL OR last_heartbeat_at < :staleThreshold)
+        """,
+        nativeQuery = true,
+    )
+    fun releaseZombieJobs(staleThreshold: Instant): Int
 
     @Query(
         """

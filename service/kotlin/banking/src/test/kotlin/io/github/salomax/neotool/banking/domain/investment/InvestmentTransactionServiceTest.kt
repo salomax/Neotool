@@ -7,15 +7,19 @@ import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.BeforeEach
@@ -24,6 +28,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
+import org.mockito.kotlin.anyOrNull
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
@@ -48,6 +53,7 @@ class InvestmentTransactionServiceTest {
     private lateinit var transactionRepository: TransactionRepository
     private lateinit var transactionCategoryEntityRepository: TransactionCategoryEntityRepository
     private lateinit var portfolioFlowEventService: PortfolioFlowEventService
+    private lateinit var holdingAttachmentRepository: HoldingAttachmentRepository
     private lateinit var service: InvestmentTransactionService
 
     private val accountId = UUID.randomUUID()
@@ -145,6 +151,7 @@ class InvestmentTransactionServiceTest {
         transactionRepository = mock()
         transactionCategoryEntityRepository = mock()
         portfolioFlowEventService = mock()
+        holdingAttachmentRepository = mock()
         service = InvestmentTransactionService(
             investmentTransactionRepository,
             holdingRepository,
@@ -155,6 +162,7 @@ class InvestmentTransactionServiceTest {
             transactionRepository,
             transactionCategoryEntityRepository,
             portfolioFlowEventService,
+            holdingAttachmentRepository,
         )
 
         // Default stubs used by most tests
@@ -163,11 +171,56 @@ class InvestmentTransactionServiceTest {
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
         whenever(transactionRepository.existsByInvestmentTransactionId(any())).thenReturn(false)
+        whenever(transactionRepository.findByInvestmentTransactionIds(any(), any())).thenReturn(emptyList())
+        whenever(transactionService.delete(any(), any())).thenReturn(true)
+        whenever(portfolioFlowEventService.deleteEventsByRelatedHolding(any(), any())).thenReturn(0)
+        whenever(holdingAttachmentRepository.deleteByHoldingIdAndAccountId(any(), any())).thenReturn(0)
         whenever(pendingActionRepository.cancelByEntityAndType(any(), any(), any(), any())).thenReturn(false)
         whenever(pendingActionRepository.findPendingByEntityAndType(any(), any(), any())).thenReturn(null)
         whenever(transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any()))
             .thenReturn(UUID.randomUUID())
         whenever(transactionService.create(any(), any(), any())).thenReturn(mock<Transaction>())
+        whenever(
+            portfolioFlowEventService.recordEvent(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                anyOrNull(),
+                anyOrNull(),
+                anyOrNull(),
+            ),
+        ).thenAnswer { inv ->
+            val fa = inv.getArgument<UUID>(0)
+            val acc = inv.getArgument<UUID>(1)
+            val eventDate = inv.getArgument<LocalDate>(2)
+            val eventType = inv.getArgument<PortfolioFlowEventType>(3)
+            val grossAmount = inv.getArgument<BigDecimal>(4)
+            val relatedHoldingId = inv.getArgument<UUID?>(5)
+            val sourceReferenceId = inv.getArgument<UUID?>(6)
+            val sourceReferenceType = inv.getArgument<String?>(7)
+            val triggeredBy =
+                if (sourceReferenceId != null && sourceReferenceType != null) {
+                    "$sourceReferenceType:$sourceReferenceId"
+                } else {
+                    eventType.name.lowercase()
+                }
+            portfolioFlowEventService.requestRecalculation(fa, acc, eventDate, triggeredBy)
+            InvestmentPortfolioFlowEvent(
+                financialAccountId = fa,
+                accountId = acc,
+                eventDate = eventDate,
+                eventType = eventType,
+                grossAmount = grossAmount,
+                portfolioValueBefore = BigDecimal.ZERO,
+                quotaValueAtEvent = BigDecimal.ONE,
+                quotasTransacted = BigDecimal.ZERO,
+                relatedHoldingId = relatedHoldingId,
+                sourceReferenceId = sourceReferenceId,
+                sourceReferenceType = sourceReferenceType,
+            )
+        }
     }
 
     @Test
@@ -264,6 +317,80 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
+        fun `delete soft deletes linked custodian TRANSFER and removes BANKING portfolio flow`() {
+            val deletedTxId = UUID.randomUUID()
+            val bankingLegId = UUID.randomUUID()
+            val currentHolding = holdingWith(quantity = "150", averageCost = "29.00")
+            val deletedTx =
+                InvestmentTransaction(
+                    id = deletedTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("50"),
+                    unitPrice = BigDecimal("30.00"),
+                    grossValue = BigDecimal("1500.00"),
+                    tradeDate = today.plusDays(1),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now.plusSeconds(60),
+                    updatedAt = now.plusSeconds(60),
+                )
+            val bankingLeg =
+                Transaction(
+                    id = bankingLegId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.TRANSFER,
+                    amount = BigDecimal("1500.00"),
+                    date = today,
+                    description = "Compra / aplicação",
+                    investmentTransactionId = deletedTxId,
+                    createdAt = now,
+                    updatedAt = now,
+                    status = TransactionStatus.POSTED,
+                )
+            val remainingTx =
+                InvestmentTransaction(
+                    id = UUID.randomUUID(),
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("28.50"),
+                    grossValue = BigDecimal("2850.00"),
+                    tradeDate = today,
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+
+            whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
+            whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(remainingTx))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+            whenever(transactionRepository.findByInvestmentTransactionIds(any(), eq(accountId)))
+                .thenReturn(listOf(bankingLeg))
+
+            val deleted = service.delete(deletedTxId, accountId)
+
+            assertThat(deleted).isTrue()
+            verify(portfolioFlowEventService).deleteEventBySourceReference(
+                bankingLegId,
+                "BANKING_TRANSACTION",
+            )
+            verify(transactionService).delete(bankingLegId, accountId)
+        }
+
+        @Test
         fun `soft deletes holding when the deleted transaction was the last one`() {
             val deletedTxId = UUID.randomUUID()
             val currentHolding = holdingWith(quantity = "100", averageCost = "28.50")
@@ -348,6 +475,8 @@ class InvestmentTransactionServiceTest {
             assertThat(deleted).isTrue()
             verify(investmentTransactionRepository).softDelete(txOneId, accountId)
             verify(investmentTransactionRepository).softDelete(txTwoId, accountId)
+            verify(portfolioFlowEventService).deleteEventsByRelatedHolding(financialAccountId, holdingId)
+            verify(holdingAttachmentRepository).deleteByHoldingIdAndAccountId(holdingId, accountId)
             verify(holdingRepository).softDelete(holdingId, accountId)
         }
 
@@ -496,6 +625,26 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
+        fun `PURCHASE records DEPOSIT portfolio flow so TWR treats new capital as a flow not as return`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            service.record(buyCommand("100", "28.50"), accountId, userId)
+
+            verify(portfolioFlowEventService).recordEvent(
+                financialAccountId = eq(financialAccountId),
+                accountId = eq(accountId),
+                eventDate = eq(today),
+                eventType = eq(PortfolioFlowEventType.DEPOSIT),
+                grossAmount = eq(BigDecimal("2850.00")),
+                relatedHoldingId = eq(holdingId),
+                sourceReferenceId = any(),
+                sourceReferenceType = eq("INVESTMENT_TRANSACTION"),
+            )
+        }
+
+        @Test
         fun `purchase writes a custodian DEBIT TRANSFER so NAV equals holdings plus cash for TWR`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(null)
@@ -508,6 +657,7 @@ class InvestmentTransactionServiceTest {
             val cmd = cmdCaptor.firstValue
             assertThat(cmd.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
             assertThat(cmd.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(cmd.description).isEqualTo("Compra / aplicação")
             assertThat(cmd.investmentTransactionId).isNotNull
             verify(transactionCategoryEntityRepository).findSystemSubcategoryId("Investimento aplicado", "Ações")
         }
@@ -577,6 +727,30 @@ class InvestmentTransactionServiceTest {
             val updated = captor.firstValue
             assertThat(updated.quantity).isEqualByComparingTo("150")
             assertThat(updated.averageCost.setScale(4, java.math.RoundingMode.HALF_UP)).isEqualByComparingTo("10.6667")
+        }
+
+        @Test
+        fun `subscription cash leg description does not include asset name`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("100", "10.00"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val subscriptionCommand = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.SUBSCRIPTION,
+                quantity = BigDecimal("50"),
+                unitPrice = BigDecimal("12.00"),
+                grossValue = BigDecimal("600"),
+                tradeDate = today,
+            )
+
+            service.record(subscriptionCommand, accountId, userId)
+
+            val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            assertThat(cmdCaptor.firstValue.description).isEqualTo("Subscrição")
         }
     }
 
