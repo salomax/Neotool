@@ -20,6 +20,19 @@ class DefaultCategoryRuleRepository(
     override fun findSystemRules(): List<TransactionRule> =
         entityRepository.findSystemRules().map(CategoryRuleMapper::toDomain)
 
+    override fun findDisabledRuleIdsForAccount(accountId: UUID): Set<UUID> =
+        entityRepository.findDisabledRuleIdsForAccount(accountId).toSet()
+
+    override fun disableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean = entityRepository.disableSystemRuleForAccount(accountId, ruleId, Instant.now()) > 0
+
+    override fun enableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean = entityRepository.enableSystemRuleForAccount(accountId, ruleId) > 0
+
     override fun findById(id: UUID): TransactionRule? =
         entityRepository.findByIdAndDeletedAtIsNull(id)?.let(CategoryRuleMapper::toDomain)
 

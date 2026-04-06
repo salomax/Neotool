@@ -36,6 +36,7 @@ data class TransactionRuleDTO(
     val applicableTo: CategoryApplicableTo,
     val priority: Int,
     val isSystem: Boolean,
+    val isDisabledForAccount: Boolean,
     val isImplicit: Boolean,
     val matchCount: Int,
     val position: Int,

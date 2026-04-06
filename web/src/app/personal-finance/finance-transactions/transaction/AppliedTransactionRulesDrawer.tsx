@@ -566,28 +566,30 @@ export function AppliedTransactionRulesDrawer({
                                 />
                               </Stack>
                             </Stack>
-                            <MuiLink
-                              component="button"
-                              underline="hover"
-                              onClick={() => handleOpenRuleEditor(item.rule!)}
-                              sx={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 0.5,
-                                fontWeight: 700,
-                                fontSize: '0.8125rem',
-                                whiteSpace: 'nowrap',
-                                border: 'none',
-                                padding: 0,
-                                background: 'none',
-                                cursor: 'pointer',
-                                fontFamily: 'inherit',
-                                alignSelf: { xs: 'flex-start', sm: 'flex-start' },
-                              }}
-                            >
-                              {t('financeTransactions.transactionTable.appliedRules.editRule')}
-                              <OpenInNewIcon sx={{ fontSize: '0.95rem' }} />
-                            </MuiLink>
+                            {!item.rule.isSystem && (
+                              <MuiLink
+                                component="button"
+                                underline="hover"
+                                onClick={() => handleOpenRuleEditor(item.rule!)}
+                                sx={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 0.5,
+                                  fontWeight: 700,
+                                  fontSize: '0.8125rem',
+                                  whiteSpace: 'nowrap',
+                                  border: 'none',
+                                  padding: 0,
+                                  background: 'none',
+                                  cursor: 'pointer',
+                                  fontFamily: 'inherit',
+                                  alignSelf: { xs: 'flex-start', sm: 'flex-start' },
+                                }}
+                              >
+                                {t('financeTransactions.transactionTable.appliedRules.editRule')}
+                                <OpenInNewIcon sx={{ fontSize: '0.95rem' }} />
+                              </MuiLink>
+                            )}
                           </Stack>
                           <Stack spacing={0.75}>
                             <Label>

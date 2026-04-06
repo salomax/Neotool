@@ -537,6 +537,7 @@ const RULE_RESPONSE_FIELDS = `
   applicableTo
   priority
   isSystem
+  isDisabledForAccount
   isImplicit
   matchCount
   createdAt
@@ -575,5 +576,11 @@ export const REORDER_TRANSACTION_RULES = gql`
     reorderTransactionRules(ids: $ids) {
       ${RULE_RESPONSE_FIELDS}
     }
+  }
+`;
+
+export const SET_SYSTEM_TRANSACTION_RULE_ENABLED = gql`
+  mutation SetSystemTransactionRuleEnabled($id: ID!, $enabled: Boolean!) {
+    setSystemTransactionRuleEnabled(id: $id, enabled: $enabled)
   }
 `;

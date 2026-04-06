@@ -2003,6 +2003,11 @@ export type Mutation = {
   resendVerificationEmail: ResendVerificationEmailPayload;
   resetPassword: ResetPasswordPayload;
   resolveImportDuplicate: TransactionImport;
+  /**
+   * Enables/disables a system transaction rule for the authenticated account.
+   * This does not mutate the global system rule itself.
+   */
+  setSystemTransactionRuleEnabled: Scalars['Boolean']['output'];
   setUsageBudget: UsageBudget;
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
@@ -2317,6 +2322,12 @@ export type MutationResetPasswordArgs = {
 
 export type MutationResolveImportDuplicateArgs = {
   input: ResolveImportDuplicateInput;
+};
+
+
+export type MutationSetSystemTransactionRuleEnabledArgs = {
+  enabled: Scalars['Boolean']['input'];
+  id: Scalars['ID']['input'];
 };
 
 
@@ -3745,6 +3756,7 @@ export type TransactionRule = {
   createdAt: Scalars['DateTime']['output'];
   descriptionOverride: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  isDisabledForAccount: Scalars['Boolean']['output'];
   isImplicit: Scalars['Boolean']['output'];
   isSystem: Scalars['Boolean']['output'];
   matchCount: Scalars['Int']['output'];

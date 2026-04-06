@@ -988,6 +988,20 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "setSystemTransactionRuleEnabled",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val enabled =
+                            env.getArgument<Boolean?>("enabled")
+                                ?: throw IllegalArgumentException("enabled is required")
+                        transactionCategoryResolver.setSystemTransactionRuleEnabled(id, enabled, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "attachFileToTransaction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->

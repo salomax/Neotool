@@ -389,6 +389,7 @@ type TransactionRule {
   applicableTo: CategoryApplicableTo!
   priority: Int!
   isSystem: Boolean!
+  isDisabledForAccount: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
   """1-based evaluation order position (same order used by the rule engine)."""
@@ -1956,6 +1957,11 @@ extend type Mutation {
   All IDs must belong to the authenticated account. Returns the full updated rule list.
   """
   reorderTransactionRules(ids: [ID!]!): [TransactionRule!]!
+  """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean!
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """

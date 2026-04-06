@@ -805,6 +805,7 @@ export const TRANSACTION_RULE_FIELDS = gql`
     applicableTo
     priority
     isSystem
+    isDisabledForAccount
     isImplicit
     matchCount
     createdAt

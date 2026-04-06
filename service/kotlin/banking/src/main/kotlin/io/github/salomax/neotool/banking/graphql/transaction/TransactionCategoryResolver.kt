@@ -110,6 +110,7 @@ class TransactionCategoryResolver(
     ): TransactionRuleConnectionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val baseRules = ruleService.listRules(accountId, isSystem)
+        val disabledRuleIds = ruleService.disabledRuleIds(accountId)
         val normalizedSearch = search?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()
         val rules =
             if (normalizedSearch == null) {
@@ -137,6 +138,7 @@ class TransactionCategoryResolver(
                             category = categories[rule.categoryId],
                             merchant = merchants[rule.merchantId],
                             position = globalIndex + 1,
+                            disabledRuleIds = disabledRuleIds,
                         ),
                     cursor = CursorEncoder.encodeCursor(globalIndex),
                 )
@@ -164,6 +166,7 @@ class TransactionCategoryResolver(
 
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val allRules = ruleService.listRules(accountId, null)
+        val disabledRuleIds = ruleService.disabledRuleIds(accountId)
         val rulesById = allRules.mapNotNull { rule -> rule.id?.let { it to rule } }.toMap()
         val categoryIds = allRules.mapNotNull { it.categoryId }.toSet()
         val merchantIds = allRules.mapNotNull { it.merchantId }.toSet()
@@ -178,6 +181,7 @@ class TransactionCategoryResolver(
                 category = categories[rule.categoryId],
                 merchant = merchants[rule.merchantId],
                 position = position,
+                disabledRuleIds = disabledRuleIds,
             )
         }
     }
@@ -263,6 +267,7 @@ class TransactionCategoryResolver(
     ): List<TransactionRuleDTO> {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val rules = ruleService.reorder(ids.map(UUID::fromString), accountId)
+        val disabledRuleIds = ruleService.disabledRuleIds(accountId)
         val categoryIds = rules.mapNotNull { it.categoryId }.toSet()
         val merchantIds = rules.mapNotNull { it.merchantId }.toSet()
         val categories = categoryIds.associateWith { categoryRepository.findById(it) }
@@ -272,14 +277,25 @@ class TransactionCategoryResolver(
                 category = categories[rule.categoryId],
                 merchant = merchants[rule.merchantId],
                 position = index + 1,
+                disabledRuleIds = disabledRuleIds,
             )
         }
+    }
+
+    fun setSystemTransactionRuleEnabled(
+        id: String,
+        enabled: Boolean,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        return ruleService.setSystemRuleEnabled(accountId, UUID.fromString(id), enabled)
     }
 
     private fun TransactionRule.toDTO(
         category: TransactionCategory?,
         merchant: Merchant?,
         position: Int,
+        disabledRuleIds: Set<UUID> = emptySet(),
     ): TransactionRuleDTO =
         TransactionRuleDTO(
             id = id!!,
@@ -294,6 +310,7 @@ class TransactionCategoryResolver(
             applicableTo = applicableTo,
             priority = priority,
             isSystem = isSystem,
+            isDisabledForAccount = isSystem && id in disabledRuleIds,
             isImplicit = isImplicit,
             matchCount = matchCount,
             position = position,

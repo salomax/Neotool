@@ -791,14 +791,21 @@
       "searchPlaceholder": "Buscar...",
       "actions": {
         "newRule": "Nova Regra",
-        "clearSearchAriaLabel": "Limpar busca"
+        "clearSearchAriaLabel": "Limpar busca",
+        "disableAutomaticRule": "Desabilitar regra automática",
+        "enableAutomaticRule": "Habilitar regra automática"
       },
       "errors": {
         "load": "Erro ao carregar regras.",
-        "delete": "Não foi possível excluir a regra."
+        "delete": "Não foi possível excluir a regra.",
+        "toggleSystemRule": "Não foi possível atualizar o status da regra automática."
       },
       "toast": {
-        "deleted": "Regra excluída."
+        "deleted": "Regra excluída.",
+        "updated": "Regra automática atualizada."
+      },
+      "status": {
+        "disabled": "Desabilitada"
       },
       "loadingMore": "Carregando mais...",
       "emptyState": {

@@ -82,6 +82,63 @@ class CategoryRuleServiceTest {
             assertThat(result).isEqualTo(rules)
             verify(ruleRepository).findSystemRules()
         }
+
+        @Test
+        fun `disabledRuleIds delegates to repository`() {
+            val disabled = setOf(UUID.randomUUID())
+            whenever(ruleRepository.findDisabledRuleIdsForAccount(accountId)).thenReturn(disabled)
+
+            val result = service.disabledRuleIds(accountId)
+
+            assertThat(result).isEqualTo(disabled)
+            verify(ruleRepository).findDisabledRuleIdsForAccount(accountId)
+        }
+    }
+
+    @Nested
+    @DisplayName("setSystemRuleEnabled")
+    inner class SetSystemRuleEnabledTests {
+        private val ruleId = UUID.randomUUID()
+
+        @Test
+        fun `disables active system rule for account`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = null, isSystem = true),
+            )
+            whenever(ruleRepository.disableSystemRuleForAccount(accountId, ruleId)).thenReturn(true)
+
+            val result = service.setSystemRuleEnabled(accountId, ruleId, enabled = false)
+
+            assertThat(result).isTrue()
+            verify(ruleRepository).disableSystemRuleForAccount(accountId, ruleId)
+        }
+
+        @Test
+        fun `enables previously disabled system rule for account`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = null, isSystem = true),
+            )
+            whenever(ruleRepository.enableSystemRuleForAccount(accountId, ruleId)).thenReturn(true)
+
+            val result = service.setSystemRuleEnabled(accountId, ruleId, enabled = true)
+
+            assertThat(result).isTrue()
+            verify(ruleRepository).enableSystemRuleForAccount(accountId, ruleId)
+        }
+
+        @Test
+        fun `throws when target rule is not system-scoped`() {
+            whenever(ruleRepository.findById(ruleId)).thenReturn(
+                rule(id = ruleId, accountId = accountId, isSystem = false),
+            )
+
+            assertThrows<SystemTransactionRuleNotEditableException> {
+                service.setSystemRuleEnabled(accountId, ruleId, enabled = false)
+            }
+
+            verify(ruleRepository, never()).disableSystemRuleForAccount(any(), any())
+            verify(ruleRepository, never()).enableSystemRuleForAccount(any(), any())
+        }
     }
 
     @Nested

@@ -49,6 +49,7 @@ import {
 } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_TRANSACTION_RULE,
+  SET_SYSTEM_TRANSACTION_RULE_ENABLED,
 } from '@/lib/graphql/operations/banking/mutations';
 
 import type { TransactionRule } from './types';
@@ -163,6 +164,17 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
     onError: (err) =>
       toast.error(
         extractErrorMessage(err, t('financeTransactions.transactionRules.errors.delete')),
+      ),
+  });
+
+  const [setSystemRuleEnabled] = useMutation(SET_SYSTEM_TRANSACTION_RULE_ENABLED, {
+    onCompleted: () => {
+      toast.success(t('financeTransactions.transactionRules.toast.updated'));
+      refetch();
+    },
+    onError: (err) =>
+      toast.error(
+        extractErrorMessage(err, t('financeTransactions.transactionRules.errors.toggleSystemRule')),
       ),
   });
 
@@ -531,6 +543,7 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                       showActions
                       isFirst={filteredRules[0]?.id === rule.id}
                       isLast={filteredRules[filteredRules.length - 1]?.id === rule.id}
+                      disabledChipLabel={t('financeTransactions.transactionRules.status.disabled')}
                     />
                   ))}
                   {!loading && filteredRules.length === 0 && (
@@ -662,6 +675,13 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                     >
                       <Label>{t('financeTransactions.transactionRules.columns.priority')}</Label>
                     </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 4,
+                        borderBottom: filteredRules.length > 0 ? 'none' : `1px solid ${theme.palette.divider}`,
+                        bgcolor: 'transparent',
+                      }}
+                    />
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -672,14 +692,20 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       renderAs="table"
-                      showActions={false}
+                      showActions
+                      onToggleSystemRuleEnabled={(targetRule, enabled) => {
+                        setSystemRuleEnabled({ variables: { id: targetRule.id, enabled } });
+                      }}
+                      disableSystemRuleLabel={t('financeTransactions.transactionRules.actions.disableAutomaticRule')}
+                      enableSystemRuleLabel={t('financeTransactions.transactionRules.actions.enableAutomaticRule')}
+                      disabledChipLabel={t('financeTransactions.transactionRules.status.disabled')}
                       isFirst={filteredRules[0]?.id === rule.id}
                       isLast={filteredRules[filteredRules.length - 1]?.id === rule.id}
                     />
                   ))}
                   {!loading && filteredRules.length === 0 && (
                     <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                         <Typography variant="body2" color="text.secondary">
                           {t('financeTransactions.transactionRules.emptyState.automatic')}
                         </Typography>

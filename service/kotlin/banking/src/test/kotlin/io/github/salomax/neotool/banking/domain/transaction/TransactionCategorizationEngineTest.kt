@@ -517,10 +517,24 @@ private class InMemoryTransactionCategoryRepository : TransactionCategoryReposit
 
 private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
     private val rules = mutableListOf<TransactionRule>()
+    private val disabledRulesByAccount = mutableMapOf<UUID, MutableSet<UUID>>()
 
     override fun findRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules
-            .filter { it.deletedAt == null && (it.accountId == null || it.accountId == accountId) }
+            .filter {
+                it.deletedAt == null &&
+                    (it.accountId == accountId ||
+                        (it.accountId == null && !disabledRulesByAccount.getOrPut(accountId) { mutableSetOf() }.contains(it.id)))
+            }
+            .sortedWith(
+                compareBy<TransactionRule> { it.priority }
+                    .thenByDescending { it.matchCount }
+                    .thenByDescending { it.createdAt },
+            )
+
+    override fun findSystemRules(): List<TransactionRule> =
+        rules
+            .filter { it.deletedAt == null && it.accountId == null && it.isSystem }
             .sortedWith(
                 compareBy<TransactionRule> { it.priority }
                     .thenByDescending { it.matchCount }
@@ -577,6 +591,34 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
             rules[idx] = rules[idx].copy(matchCount = rules[idx].matchCount + 1, updatedAt = Instant.now())
         }
     }
+
+    override fun updatePriority(
+        id: UUID,
+        priority: Int,
+        now: Instant,
+    ) {
+        val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
+        if (idx >= 0) {
+            rules[idx] = rules[idx].copy(priority = priority, updatedAt = now)
+        }
+    }
+
+    override fun findDisabledRuleIdsForAccount(accountId: UUID): Set<UUID> =
+        disabledRulesByAccount[accountId]?.toSet() ?: emptySet()
+
+    override fun disableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean {
+        val rule = rules.firstOrNull { it.id == ruleId && it.deletedAt == null } ?: return false
+        if (!rule.isSystem || rule.accountId != null) return false
+        return disabledRulesByAccount.getOrPut(accountId) { mutableSetOf() }.add(ruleId)
+    }
+
+    override fun enableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean = disabledRulesByAccount[accountId]?.remove(ruleId) ?: false
 
     fun implicitRulesForAccount(accountId: UUID): List<TransactionRule> =
         rules.filter { it.deletedAt == null && it.accountId == accountId && it.isImplicit }

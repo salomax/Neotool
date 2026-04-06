@@ -791,14 +791,21 @@
       "searchPlaceholder": "Search by pattern…",
       "actions": {
         "newRule": "New Rule",
-        "clearSearchAriaLabel": "Clear search"
+        "clearSearchAriaLabel": "Clear search",
+        "disableAutomaticRule": "Disable automatic rule",
+        "enableAutomaticRule": "Enable automatic rule"
       },
       "errors": {
         "load": "Error loading rules.",
-        "delete": "Could not delete the rule."
+        "delete": "Could not delete the rule.",
+        "toggleSystemRule": "Could not update automatic rule status."
       },
       "toast": {
-        "deleted": "Rule deleted."
+        "deleted": "Rule deleted.",
+        "updated": "Automatic rule updated."
+      },
+      "status": {
+        "disabled": "Disabled"
       },
       "loadingMore": "Loading more...",
       "emptyState": {

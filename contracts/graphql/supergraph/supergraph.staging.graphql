@@ -2371,6 +2371,12 @@ type Mutation
   reorderTransactionRules(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
 
   """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean! @join__field(graph: BANKING)
+
+  """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
@@ -3575,6 +3581,7 @@ type TransactionRule
   applicableTo: CategoryApplicableTo!
   priority: Int!
   isSystem: Boolean!
+  isDisabledForAccount: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
 

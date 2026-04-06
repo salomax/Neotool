@@ -64,6 +64,8 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                             "0.11",
                             "0.12",
                             "0.13",
+                            "0.14",
+                            "0.15",
                         )
                 }
                 conn.createStatement().executeQuery(
@@ -71,7 +73,8 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "WHERE table_schema = 'banking' AND table_name IN " +
                         "('transactions', 'transaction_categories', 'credit_card_bills', 'transaction_tags', " +
                         "'document_import_jobs', 'transaction_rules', 'merchants', 'purchase_documents', " +
-                        "'purchase_items', 'products', 'product_variants', 'product_alias', 'ncm_codes')",
+                        "'purchase_items', 'products', 'product_variants', 'product_alias', 'ncm_codes', " +
+                        "'account_disabled_rules')",
                 ).use { rs ->
                     val tables = mutableListOf<String>()
                     while (rs.next()) tables.add(rs.getString("table_name"))
@@ -91,6 +94,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                         "product_variants",
                         "product_alias",
                         "ncm_codes",
+                        "account_disabled_rules",
                     )
                 }
             }
