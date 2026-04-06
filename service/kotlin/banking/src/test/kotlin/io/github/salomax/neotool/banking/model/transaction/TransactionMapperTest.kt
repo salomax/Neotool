@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.model.transaction
 
+import io.github.salomax.neotool.banking.domain.transaction.AppliedRuleAuditEntry
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -87,13 +88,77 @@ class TransactionMapperTest {
         assertThat(domain.cardIdentifier).isEqualTo("****1234")
         assertThat(domain.providerTransactionId).isEqualTo("ofb-1")
         assertThat(domain.providerAccountId).isEqualTo("acc-1")
+        assertThat(domain.appliedRuleHistory).hasSize(1)
+        assertThat(domain.appliedRuleHistory.first().appliedAt).isEqualTo(now)
         assertThat(domain.appliedRuleIds).hasSize(1)
         assertThat(domain.createdAt).isEqualTo(now)
         assertThat(domain.updatedAt).isEqualTo(now)
     }
 
     @Test
+    fun `toDomain maps structured applied rule history`() {
+        val ruleId = UUID.randomUUID()
+        val entity =
+            TransactionEntity(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = createdByUserId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("100.50"),
+                currencyCode = "BRL",
+                date = today,
+                description = "Coffee",
+                appliedRuleIds = """[{"ruleId":"$ruleId","appliedAt":"$now"}]""",
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        val domain = TransactionMapper.toDomain(entity)
+
+        assertThat(domain.appliedRuleHistory).containsExactly(
+            AppliedRuleAuditEntry(ruleId = ruleId, appliedAt = now),
+        )
+        assertThat(domain.appliedRuleIds).containsExactly(ruleId)
+    }
+
+    @Test
+    fun `toDomain maps structured applied rule history when appliedAt is numeric epoch seconds`() {
+        val ruleId = UUID.randomUUID()
+        val instant = Instant.parse("2026-04-05T21:29:22.549327Z")
+        val entity =
+            TransactionEntity(
+                id = UUID.randomUUID(),
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                createdByUserId = createdByUserId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("100.50"),
+                currencyCode = "BRL",
+                date = today,
+                description = "Coffee",
+                appliedRuleIds = """[{"ruleId":"$ruleId","appliedAt":1775482162.549327000}]""",
+                createdAt = now,
+                updatedAt = now,
+            )
+
+        val domain = TransactionMapper.toDomain(entity)
+
+        assertThat(domain.appliedRuleHistory).containsExactly(
+            AppliedRuleAuditEntry(ruleId = ruleId, appliedAt = instant),
+        )
+        assertThat(domain.appliedRuleIds).containsExactly(ruleId)
+    }
+
+    @Test
     fun `toEntity sets id to null and converts Int to Short for installments`() {
+        val ruleId = UUID.randomUUID()
         val domain =
             Transaction(
                 id = UUID.randomUUID(),
@@ -112,7 +177,7 @@ class TransactionMapperTest {
                 categoryId = null,
                 installmentNumber = 1,
                 totalInstallments = 12,
-                appliedRuleIds = listOf(UUID.randomUUID()),
+                appliedRuleHistory = listOf(AppliedRuleAuditEntry(ruleId = ruleId, appliedAt = now)),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -132,6 +197,7 @@ class TransactionMapperTest {
         assertThat(entity.installmentNumber).isEqualTo(1.toShort())
         assertThat(entity.totalInstallments).isEqualTo(12.toShort())
         assertThat(entity.appliedRuleIds).isNotBlank()
+        assertThat(entity.appliedRuleIds).contains("ruleId").contains("appliedAt")
         assertThat(entity.createdAt).isEqualTo(now)
         assertThat(entity.updatedAt).isEqualTo(now)
     }

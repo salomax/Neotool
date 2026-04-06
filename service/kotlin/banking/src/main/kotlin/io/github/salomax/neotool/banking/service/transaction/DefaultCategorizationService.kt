@@ -149,13 +149,13 @@ class DefaultTransactionRuleEngine(
         descriptionOverride: String?,
         tagsOverride: List<String>?,
         tagsOverrideProvided: Boolean,
-    ) {
-        if (description.isNullOrBlank()) return
-        if (categoryId == null && merchantId == null && descriptionOverride == null && !tagsOverrideProvided) return
+    ): UUID? {
+        if (description.isNullOrBlank()) return null
+        if (categoryId == null && merchantId == null && descriptionOverride == null && !tagsOverrideProvided) return null
         val pattern = TransactionDescriptionNormalizer.normalize(description)
         val existing = ruleRepository.findImplicitByPattern(accountId, pattern)
         val now = java.time.Instant.now()
-        if (existing == null) {
+        return if (existing == null) {
             ruleRepository.save(
                 TransactionRule(
                     accountId = accountId,
@@ -173,7 +173,7 @@ class DefaultTransactionRuleEngine(
                     createdAt = now,
                     updatedAt = now,
                 ),
-            )
+            ).id
         } else {
             val newCategoryId = if (categoryId != null) categoryId else existing.categoryId
             val newMerchantId = if (merchantId != null) merchantId else existing.merchantId
@@ -195,6 +195,7 @@ class DefaultTransactionRuleEngine(
                     ),
                 )
             }
+            existing.id
         }
     }
 

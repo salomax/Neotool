@@ -150,12 +150,12 @@ function formFromRule(rule: TransactionRule): FormState {
   };
 }
 
-export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
+function TransactionRuleDrawerInner({
   open,
   rule,
   onClose,
   onSaved,
-}) => {
+}: TransactionRuleDrawerProps) {
   const toast = useToast();
   const theme = useTheme();
   const isEdit = !!rule;
@@ -677,4 +677,9 @@ export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = ({
       </Dialog>
     </>
   );
+}
+
+export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = (props) => {
+  const drawerKey = `${props.open ? 'open' : 'closed'}:${props.rule?.id ?? 'new'}`;
+  return <TransactionRuleDrawerInner key={drawerKey} {...props} />;
 };

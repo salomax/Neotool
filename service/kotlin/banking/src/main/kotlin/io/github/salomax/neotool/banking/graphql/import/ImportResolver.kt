@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.service.import.ImportJobService
 import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.isFileImportSource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.graphql.transaction.AppliedRuleHistoryEntryDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
@@ -286,6 +287,7 @@ class ImportResolver(
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
             appliedRuleIds = appliedRuleIds,
+            appliedRuleHistory = appliedRuleHistory.map { AppliedRuleHistoryEntryDTO(ruleId = it.ruleId, appliedAt = it.appliedAt) },
             createdAt = createdAt,
             updatedAt = updatedAt,
         )

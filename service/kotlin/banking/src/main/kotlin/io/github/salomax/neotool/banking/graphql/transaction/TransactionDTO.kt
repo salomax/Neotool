@@ -68,6 +68,11 @@ data class TagTotalDTO(
     val percentage: Double,
 )
 
+data class AppliedRuleHistoryEntryDTO(
+    val ruleId: UUID,
+    val appliedAt: Instant,
+)
+
 data class TransactionDTO(
     val id: UUID,
     val financialAccountId: UUID,
@@ -108,6 +113,7 @@ data class TransactionDTO(
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,
     val appliedRuleIds: List<UUID>,
+    val appliedRuleHistory: List<AppliedRuleHistoryEntryDTO>,
     // Audit
     val createdAt: Instant,
     val updatedAt: Instant,

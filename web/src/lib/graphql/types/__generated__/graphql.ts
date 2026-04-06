@@ -48,6 +48,12 @@ export enum AnbimaCategory {
   RendaFixa = 'RENDA_FIXA'
 }
 
+export type AppliedRuleHistoryEntry = {
+  __typename: 'AppliedRuleHistoryEntry';
+  appliedAt: Scalars['DateTime']['output'];
+  ruleId: Scalars['ID']['output'];
+};
+
 /** Asset metadata and access information. */
 export type Asset = {
   __typename: 'Asset';
@@ -2509,11 +2515,7 @@ export enum PendingActionStatus {
 }
 
 export enum PendingActionType {
-  CorporateEvent = 'CORPORATE_EVENT',
-  Informational = 'INFORMATIONAL',
-  InvestmentIncome = 'INVESTMENT_INCOME',
-  InvestmentMatured = 'INVESTMENT_MATURED',
-  InvestmentPositionMissing = 'INVESTMENT_POSITION_MISSING'
+  InvestmentMatured = 'INVESTMENT_MATURED'
 }
 
 export type Permission = {
@@ -2796,6 +2798,7 @@ export type Query = {
   productPriceHistory: Array<PricePoint>;
   productStoreComparison: Array<StorePriceComparison>;
   productVariants: Array<ProductVariant>;
+  /** Product catalog for the authenticated account. */
   products: Array<Product>;
   prompt: Maybe<Prompt>;
   promptVersions: Array<PromptVersion>;
@@ -3609,7 +3612,9 @@ export type Transaction = {
   amount: Scalars['Float']['output'];
   /** BRL equivalent for FX transactions (null for BRL). */
   amountBrl: Maybe<Scalars['Float']['output']>;
-  /** IDs of rules that contributed to transaction enrichment. */
+  /** Audit history of rule applications for this transaction. */
+  appliedRuleHistory: Array<AppliedRuleHistoryEntry>;
+  /** Distinct rule IDs that have been applied at least once to this transaction. */
   appliedRuleIds: Array<Scalars['ID']['output']>;
   attachments: Array<TransactionAttachment>;
   belongsToName: Maybe<Scalars['String']['output']>;

@@ -117,6 +117,10 @@ export const TRANSACTIONS = gql`
           source
           hasNfceDocument
           appliedRuleIds
+          appliedRuleHistory {
+            ruleId
+            appliedAt
+          }
           category {
             id
             name

@@ -341,6 +341,7 @@ export const UPDATE_TRANSACTION = gql`
       description
       notes
       tags
+      appliedRuleIds
       category {
         id
         name

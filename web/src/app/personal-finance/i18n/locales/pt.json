@@ -784,7 +784,7 @@
           "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
           "items": {
             "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
-            "item2": "O app verifica se há uma regra manual, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
+            "item2": "O app verifica se há uma regra customizada, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
             "item3": "Para movimentações manuais, categoria e tags apenas são atribuídas caso o usuário tenha deixado em branco durante o cadastro."
           }
         },
@@ -802,7 +802,7 @@
       },
       "loadingMore": "Carregando mais...",
       "emptyState": {
-        "manual": "Nenhuma regra manual criada ainda.",
+        "manual": "Nenhuma regra customizada criada ainda.",
         "automatic": "Nenhuma regra automática ainda."
       },
       "deleteDialog": {
@@ -1224,10 +1224,11 @@
         "empty": "Nenhuma regra aplicada foi encontrada para esta transação.",
         "loadError": "Não foi possível carregar as regras aplicadas.",
         "ruleNumber": "Regra {{index}}",
+        "appliedAt": "Aplicada em {{datetime}}",
         "position": "Posição {{position}}",
         "priority": "Prioridade {{priority}}",
         "ownership": {
-          "manual": "Manual",
+          "manual": "Customizada",
           "automatic": "Automática"
         },
         "applicableTo": {

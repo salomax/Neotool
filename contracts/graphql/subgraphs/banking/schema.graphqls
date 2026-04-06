@@ -424,6 +424,11 @@ type TransactionRuleConnection {
   totalCount: Int
 }
 
+type AppliedRuleHistoryEntry {
+  ruleId: ID!
+  appliedAt: DateTime!
+}
+
 input CreateTransactionRuleInput {
   categoryId: ID
   merchantId: ID
@@ -505,8 +510,10 @@ type Transaction {
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
-  """IDs of rules that contributed to transaction enrichment."""
+  """Distinct rule IDs that have been applied at least once to this transaction."""
   appliedRuleIds: [ID!]!
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
 
   # Attachments (receipts, contracts, guarantees, etc.)
   attachments: [TransactionAttachment!]!

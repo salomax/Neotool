@@ -784,7 +784,7 @@
           "intro": "Rules help organize your finances automatically. They match transaction descriptions and assign new values to make tracking easier.",
           "items": {
             "item1": "When a transaction’s description matches the text defined in the rule, the app automatically applies a new description, a category, tags, and a merchant.",
-            "item2": "The app checks for a manual rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
+            "item2": "The app checks for a custom rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
             "item3": "For manual transactions, category and tags are only assigned if you left them blank when creating the entry."
           }
         },
@@ -802,7 +802,7 @@
       },
       "loadingMore": "Loading more...",
       "emptyState": {
-        "manual": "No manual rules created yet.",
+        "manual": "No custom rules created yet.",
         "automatic": "No automatic rules yet."
       },
       "deleteDialog": {
@@ -1220,10 +1220,11 @@
         "empty": "No applied rules were found for this transaction.",
         "loadError": "Could not load the applied rules.",
         "ruleNumber": "Rule {{index}}",
+        "appliedAt": "Applied on {{datetime}}",
         "position": "Position {{position}}",
         "priority": "Priority {{priority}}",
         "ownership": {
-          "manual": "Manual",
+          "manual": "Custom",
           "automatic": "Automatic"
         },
         "applicableTo": {

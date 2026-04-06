@@ -54,6 +54,13 @@ enum AnbimaCategory
   CAMBIAL @join__enumValue(graph: BANKING)
 }
 
+type AppliedRuleHistoryEntry
+  @join__type(graph: BANKING)
+{
+  ruleId: ID!
+  appliedAt: DateTime!
+}
+
 """Asset metadata and access information."""
 type Asset
   @join__type(graph: ASSETS, key: "id")
@@ -3500,8 +3507,13 @@ type Transaction
   payeeMcc: Int
   billPostDate: Date
 
-  """IDs of rules that contributed to transaction enrichment."""
+  """
+  Distinct rule IDs that have been applied at least once to this transaction.
+  """
   appliedRuleIds: [ID!]!
+
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
   attachments: [TransactionAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
