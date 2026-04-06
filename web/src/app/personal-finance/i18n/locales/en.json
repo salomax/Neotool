@@ -772,7 +772,7 @@
     },
     "transactionRules": {
       "tabs": {
-        "manual": "Manual Rules",
+        "manual": "Custom Rules",
         "automatic": "Automatic Rules"
       },
       "helpBanner": {
@@ -1211,7 +1211,47 @@
         "viewNfce": "View NFC-e",
         "markAsTransfer": "Mark as internal transfer",
         "edit": "Edit",
+        "viewAppliedRules": "View applied rules",
         "remove": "Remove"
+      },
+      "appliedRules": {
+        "title": "Applied rules",
+        "description": "These rules contributed to this transaction's categorization and enrichment, in the order they were evaluated.",
+        "empty": "No applied rules were found for this transaction.",
+        "loadError": "Could not load the applied rules.",
+        "ruleNumber": "Rule {{index}}",
+        "position": "Position {{position}}",
+        "priority": "Priority {{priority}}",
+        "ownership": {
+          "manual": "Manual",
+          "automatic": "Automatic"
+        },
+        "applicableTo": {
+          "ANY": "Any",
+          "INCOME": "Income",
+          "EXPENSE": "Expense",
+          "TRANSFER": "Transfer"
+        },
+        "patternType": {
+          "CONTAINS": "IF IT CONTAINS THE TEXT",
+          "STARTS_WITH": "IF IT STARTS WITH",
+          "EXACT": "IF IT IS EXACTLY",
+          "REGEX": "IF IT MATCHES THE PATTERN"
+        },
+        "editRule": "Edit rule",
+        "removed": "Rule unavailable",
+        "removedDescription": "One of the rules applied to this transaction is no longer available.",
+        "missingValue": "Unavailable",
+        "summary": {
+          "date": "Date",
+          "amount": "Amount"
+        },
+        "fields": {
+          "category": "Category",
+          "merchant": "Merchant",
+          "description": "Description",
+          "tags": "Tags"
+        }
       }
     },
     "monthSummary": {

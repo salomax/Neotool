@@ -45,6 +45,7 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 
 import {
   TRANSACTION_RULES,
+  TRANSACTION_RULES_BY_IDS,
 } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_TRANSACTION_RULE,
@@ -82,14 +83,28 @@ const RULES_PAGE_SIZE = 30;
 
 export interface TransactionRulesManagementProps {
   onOpenHelp?: () => void;
+  initialTab?: RulesTab;
+  initialEditRuleId?: string | null;
 }
 
-export const TransactionRulesManagement: React.FC<TransactionRulesManagementProps> = ({ onOpenHelp }) => {
+interface TransactionRulesByIdsData {
+  transactionRulesByIds: TransactionRule[];
+}
+
+interface TransactionRulesByIdsVariables {
+  ids: string[];
+}
+
+export const TransactionRulesManagement: React.FC<TransactionRulesManagementProps> = ({
+  onOpenHelp,
+  initialTab,
+  initialEditRuleId,
+}) => {
   const theme = useTheme();
   const toast = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
 
-  const [tab, setTab] = useState<RulesTab>('manual');
+  const [tab, setTab] = useState<RulesTab>(initialTab ?? 'manual');
   const [searchQuery, setSearchQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<TransactionRule | null>(null);
@@ -100,6 +115,8 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
+  const [deepLinkClosed, setDeepLinkClosed] = useState(false);
+  const deepLinkErrorNotifiedRef = useRef(false);
 
   const isSystemFilter = tab === 'automatic';
   const normalizedSearchQuery = searchQuery.trim();
@@ -112,6 +129,30 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
       after: null,
     },
   });
+
+  const normalizedEditRuleId = initialEditRuleId?.trim() ? initialEditRuleId.trim() : null;
+  const {
+    data: deepLinkRuleData,
+    error: deepLinkRuleError,
+  } = useQuery<TransactionRulesByIdsData, TransactionRulesByIdsVariables>(TRANSACTION_RULES_BY_IDS, {
+    variables: normalizedEditRuleId ? { ids: [normalizedEditRuleId] } : { ids: [] },
+    skip: !normalizedEditRuleId,
+    fetchPolicy: 'cache-first',
+  });
+
+  useEffect(() => {
+    if (!normalizedEditRuleId) return;
+    if (!deepLinkRuleError) return;
+    if (deepLinkErrorNotifiedRef.current) return;
+
+    deepLinkErrorNotifiedRef.current = true;
+    toast.error(extractErrorMessage(deepLinkRuleError, t('financeTransactions.transactionRules.errors.load')));
+  }, [deepLinkRuleError, normalizedEditRuleId, t, toast]);
+
+  const deepLinkRule = deepLinkRuleData?.transactionRulesByIds?.[0] ?? null;
+  const deepLinkOpen = !!normalizedEditRuleId && !deepLinkClosed && !!deepLinkRule;
+  const effectiveDrawerOpen = drawerOpen || deepLinkOpen;
+  const effectiveRule = drawerOpen ? editingRule : deepLinkOpen ? deepLinkRule : null;
 
   const [deleteRule, { loading: deleteLoading }] = useMutation(DELETE_TRANSACTION_RULE, {
     onCompleted: () => {
@@ -661,12 +702,22 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
         </Box>
 
         <TransactionRuleDrawer
-          key={`${drawerOpen ? 'open' : 'closed'}-${editingRule?.id ?? 'new'}`}
-          open={drawerOpen}
-          rule={editingRule}
-          onClose={() => setDrawerOpen(false)}
-          onSaved={() => {
+          key={`${effectiveDrawerOpen ? 'open' : 'closed'}-${effectiveRule?.id ?? 'new'}`}
+          open={effectiveDrawerOpen}
+          rule={effectiveRule}
+          onClose={() => {
+            if (!drawerOpen && deepLinkOpen) {
+              setDeepLinkClosed(true);
+              return;
+            }
             setDrawerOpen(false);
+          }}
+          onSaved={() => {
+            if (!drawerOpen && deepLinkOpen) {
+              setDeepLinkClosed(true);
+            } else {
+              setDrawerOpen(false);
+            }
             refetch();
           }}
         />

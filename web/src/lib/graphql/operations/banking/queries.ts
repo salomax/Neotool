@@ -116,6 +116,7 @@ export const TRANSACTIONS = gql`
           description
           source
           hasNfceDocument
+          appliedRuleIds
           category {
             id
             name
@@ -844,6 +845,17 @@ export const TRANSACTION_RULES = gql`
         endCursor
       }
       totalCount
+    }
+  }
+`;
+
+/** Specific transaction rules fetched by ID, preserving input order. */
+export const TRANSACTION_RULES_BY_IDS = gql`
+  ${TRANSACTION_RULE_FIELDS}
+  query TransactionRulesByIds($ids: [ID!]!) {
+    transactionRulesByIds(ids: $ids) {
+      ...TransactionRuleFields
+      position
     }
   }
 `;

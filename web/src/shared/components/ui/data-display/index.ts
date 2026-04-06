@@ -23,6 +23,7 @@ export { TrendIndicator } from './TrendIndicator';
 export { StatusIndicator } from './StatusIndicator';
 export { Amount } from './Amount';
 export { CurrencyAmountParts } from './CurrencyAmountParts';
+export { InfoField } from './InfoField';
 export { PercentageGain } from './PercentageGain';
 export { ValueOriginIndicator } from './ValueOriginIndicator';
 export { FinancialMetricItem } from './FinancialMetricItem';

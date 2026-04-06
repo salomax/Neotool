@@ -156,6 +156,32 @@ class TransactionCategoryResolver(
         )
     }
 
+    fun transactionRulesByIds(
+        ids: List<String>,
+        principal: RequestPrincipal,
+    ): List<TransactionRuleDTO> {
+        if (ids.isEmpty()) return emptyList()
+
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val allRules = ruleService.listRules(accountId, null)
+        val rulesById = allRules.mapNotNull { rule -> rule.id?.let { it to rule } }.toMap()
+        val categoryIds = allRules.mapNotNull { it.categoryId }.toSet()
+        val merchantIds = allRules.mapNotNull { it.merchantId }.toSet()
+        val categories = categoryIds.associateWith { categoryRepository.findById(it) }
+        val merchants = merchantIds.associateWith { merchantRepository.findById(it) }
+
+        return ids.mapNotNull { rawId ->
+            val id = UUID.fromString(rawId)
+            val rule = rulesById[id] ?: return@mapNotNull null
+            val position = allRules.indexOfFirst { it.id == id }.takeIf { it >= 0 }?.plus(1) ?: return@mapNotNull null
+            rule.toDTO(
+                category = categories[rule.categoryId],
+                merchant = merchants[rule.merchantId],
+                position = position,
+            )
+        }
+    }
+
     fun createTransactionRule(
         input: Map<String, Any?>,
         principal: RequestPrincipal,

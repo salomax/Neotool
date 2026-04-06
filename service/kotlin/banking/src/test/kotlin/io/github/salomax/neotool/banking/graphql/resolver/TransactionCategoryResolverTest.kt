@@ -123,6 +123,24 @@ class TransactionCategoryResolverTest {
         assertThat(result.totalCount).isEqualTo(2)
     }
 
+    @Test
+    fun `transactionRulesByIds preserves requested order and original evaluation position`() {
+        val first = rule(pattern = "ifood")
+        val second = rule(pattern = "uber")
+        whenever(ruleService.listRules(accountId, null)).thenReturn(listOf(first, second))
+
+        val result =
+            resolver.transactionRulesByIds(
+                ids = listOf(second.id.toString(), first.id.toString()),
+                principal = principal,
+            )
+
+        verify(ruleService).listRules(accountId, null)
+        assertThat(result).hasSize(2)
+        assertThat(result.map { it.id }).containsExactly(second.id, first.id)
+        assertThat(result.map { it.position }).containsExactly(2, 1)
+    }
+
     private fun rule(
         id: UUID = UUID.randomUUID(),
         pattern: String = "rule",

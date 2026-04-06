@@ -250,7 +250,7 @@ export function UnmappedItemsDrawer({
             <Stack direction="row" justifyContent="space-between" spacing={2}>
               <Box>
                 <Typography variant="body2" fontWeight={600}>
-                  {item.quantity} {item.unit}
+                  {item.quantity} {String(item.unit).toUpperCase() === 'CDA' ? 'UN' : item.unit}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {item.ncmCode || item.ean || t('financeTransactions.unmappedItems.sample.noExtraData')}

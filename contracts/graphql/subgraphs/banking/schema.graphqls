@@ -1722,6 +1722,11 @@ extend type Query {
   """
   transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection!
   """
+  Returns the requested transaction rules, preserving the input ID order.
+  Useful for explaining which rules contributed to a transaction.
+  """
+  transactionRulesByIds(ids: [ID!]!): [TransactionRule!]!
+  """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
   Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
   """

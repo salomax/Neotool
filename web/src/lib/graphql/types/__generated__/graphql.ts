@@ -2827,6 +2827,11 @@ export type Query = {
    * - isSystem true: returns only system rules
    */
   transactionRules: TransactionRuleConnection;
+  /**
+   * Returns the requested transaction rules, preserving the input ID order.
+   * Useful for explaining which rules contributed to a transaction.
+   */
+  transactionRulesByIds: Array<TransactionRule>;
   /** Distinct tags used in transactions for the authenticated account. */
   transactionTags: Array<TransactionTagOption>;
   /**
@@ -3201,6 +3206,11 @@ export type QueryTransactionRulesArgs = {
   first?: InputMaybe<Scalars['Int']['input']>;
   isSystem?: InputMaybe<Scalars['Boolean']['input']>;
   search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryTransactionRulesByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
 };
 
 

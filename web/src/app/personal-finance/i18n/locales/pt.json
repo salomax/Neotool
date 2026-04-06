@@ -772,7 +772,7 @@
     },
     "transactionRules": {
       "tabs": {
-        "manual": "Regras Manuais",
+        "manual": "Regras Customizadas",
         "automatic": "Regras Automáticas"
       },
       "helpBanner": {
@@ -1215,7 +1215,47 @@
         "viewNfce": "Ver NFC-e",
         "markAsTransfer": "Marcar como transferência interna",
         "edit": "Editar",
+        "viewAppliedRules": "Ver regras aplicadas",
         "remove": "Remover"
+      },
+      "appliedRules": {
+        "title": "Regras aplicadas",
+        "description": "Regras aplicadas para enriquecimento desta transação, na ordem em que foram avaliadas.",
+        "empty": "Nenhuma regra aplicada foi encontrada para esta transação.",
+        "loadError": "Não foi possível carregar as regras aplicadas.",
+        "ruleNumber": "Regra {{index}}",
+        "position": "Posição {{position}}",
+        "priority": "Prioridade {{priority}}",
+        "ownership": {
+          "manual": "Manual",
+          "automatic": "Automática"
+        },
+        "applicableTo": {
+          "ANY": "Qualquer",
+          "INCOME": "Receita",
+          "EXPENSE": "Despesa",
+          "TRANSFER": "Transferência"
+        },
+        "patternType": {
+          "CONTAINS": "SE CONTIVER O TEXTO",
+          "STARTS_WITH": "SE COMEÇAR COM",
+          "EXACT": "SE FOR EXATAMENTE",
+          "REGEX": "SE CORRESPONDER AO PADRÃO"
+        },
+        "editRule": "Editar regra",
+        "removed": "Regra indisponível",
+        "removedDescription": "Uma das regras aplicadas nesta transação não está mais disponível.",
+        "missingValue": "Não disponível",
+        "summary": {
+          "date": "Data",
+          "amount": "Valor"
+        },
+        "fields": {
+          "category": "Categoria",
+          "merchant": "Estabelecimento",
+          "description": "Descrição",
+          "tags": "Tags"
+        }
       }
     },
     "monthSummary": {

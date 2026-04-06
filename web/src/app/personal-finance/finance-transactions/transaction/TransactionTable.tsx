@@ -26,6 +26,7 @@ import {
   ButtonBase,
 } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
@@ -46,6 +47,7 @@ import { Logo } from '@/shared/components/ui/primitives';
 
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { SimilarEditDialog } from './SimilarEditDialog';
+import { AppliedTransactionRulesDrawer } from './AppliedTransactionRulesDrawer';
 import { CategoryChip } from '../category/CategoryChip';
 import { CategoryPicker } from '../category/CategoryPicker';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
@@ -178,6 +180,7 @@ export function TransactionTable({
   const endBusy = useCallback(() => setBusyCount((c) => (c > 0 ? c - 1 : 0)), []);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
+  const [appliedRulesTransaction, setAppliedRulesTransaction] = useState<Transaction | null>(null);
   const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
   const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
   const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
@@ -1201,6 +1204,22 @@ export function TransactionTable({
           </ListItemIcon>
           <ListItemText>{t('financeTransactions.transactionTable.rowActions.edit')}</ListItemText>
         </MenuItem>
+        {(actionMenuTransaction?.appliedRuleIds?.length ?? 0) > 0 && (
+          <MenuItem
+            onClick={() => {
+              const tx = actionMenuTransaction;
+              closeActionMenu();
+              if (!tx) return;
+              setAppliedRulesTransaction(tx);
+            }}
+            data-testid="transaction-action-view-applied-rules"
+          >
+            <ListItemIcon>
+              <AutoFixHighIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('financeTransactions.transactionTable.rowActions.viewAppliedRules')}</ListItemText>
+          </MenuItem>
+        )}
         {actionMenuTransaction?.type !== TransactionType.Transfer && (
           <MenuItem
             onClick={handleMarkAsInternalTransfer}
@@ -1255,6 +1274,12 @@ export function TransactionTable({
         }
         anchorEl={categoryPickerAnchorEl}
         onClose={closeCategoryPicker}
+      />
+
+      <AppliedTransactionRulesDrawer
+        open={Boolean(appliedRulesTransaction)}
+        transaction={appliedRulesTransaction}
+        onClose={() => setAppliedRulesTransaction(null)}
       />
 
       <ConfirmationDialog

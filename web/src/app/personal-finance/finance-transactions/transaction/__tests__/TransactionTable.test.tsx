@@ -41,6 +41,10 @@ vi.mock('../SimilarEditDialog', () => ({
   SimilarEditDialog: () => null,
 }));
 
+vi.mock('../AppliedTransactionRulesDrawer', () => ({
+  AppliedTransactionRulesDrawer: ({ open }: { open: boolean }) => (open ? <div>applied-rules-drawer</div> : null),
+}));
+
 describe.sequential('TransactionTable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -58,6 +62,7 @@ describe.sequential('TransactionTable', () => {
       financialAccountId: 'acc-1',
       merchant: null,
       category: null,
+      appliedRuleIds: [],
       tags: ['food', 'coffee', 'morning'],
       attachments: [],
     } as unknown as Transaction;
@@ -91,6 +96,7 @@ describe.sequential('TransactionTable', () => {
       financialAccountId: 'acc-1',
       merchant: null,
       category: null,
+      appliedRuleIds: [],
       tags: [],
       attachments: [
         {
@@ -129,5 +135,108 @@ describe.sequential('TransactionTable', () => {
         name: /Mark as internal transfer|Marcar como transferência interna/i,
       }),
     ).toBeInTheDocument();
+  });
+
+  it('shows the applied rules action only when the transaction has applied rules', async () => {
+    const user = userEvent.setup();
+    const transactionWithRules = {
+      id: 'tx-with-rules',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: ['rule-1'],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+    const transactionWithoutRules = {
+      ...transactionWithRules,
+      id: 'tx-without-rules',
+      appliedRuleIds: [],
+    } as Transaction;
+
+    const { unmount } = render(
+      <TransactionTable
+        transactions={[transactionWithRules]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /Transaction actions|Ações da transação/i })[0]!);
+
+    expect(
+      screen.getByRole('menuitem', {
+        name: /View applied rules|Ver regras aplicadas/i,
+      }),
+    ).toBeInTheDocument();
+
+    unmount();
+
+    render(
+      <TransactionTable
+        transactions={[transactionWithoutRules]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /Transaction actions|Ações da transação/i })[0]!);
+
+    expect(
+      screen.queryByRole('menuitem', {
+        name: /View applied rules|Ver regras aplicadas/i,
+      }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('opens the applied rules drawer from the row actions menu', async () => {
+    const user = userEvent.setup();
+    const transaction = {
+      id: 'tx-1',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: ['rule-1'],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    render(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /Transaction actions|Ações da transação/i })[0]!);
+    await user.click(
+      screen.getByRole('menuitem', {
+        name: /View applied rules|Ver regras aplicadas/i,
+      }),
+    );
+
+    expect(screen.getByText('applied-rules-drawer')).toBeInTheDocument();
   });
 });
