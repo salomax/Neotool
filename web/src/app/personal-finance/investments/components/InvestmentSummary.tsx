@@ -63,6 +63,14 @@ interface SummaryMetricRowProps {
 
 const PERIOD_STORAGE_KEY = "investment-summary-period";
 
+/** Matches `CurrencyAmountParts` total row line box so skeleton and value share height during refresh. */
+const TOTAL_PORTFOLIO_AMOUNT_TYPOGRAPHY_SX = {
+  fontSize: "2.3rem",
+  fontWeight: 700,
+  lineHeight: 1.05,
+} as const;
+const TOTAL_PORTFOLIO_LINE_BOX_HEIGHT = "calc(2.3rem * 1.05)";
+
 function SummaryMetricRow({
   color,
   label,
@@ -102,15 +110,12 @@ function SummaryMetricRow({
           />
         )}
         {percentage != null ? (
-          loading ? (
-            <Skeleton width={62} height={18} />
-          ) : (
-            <PercentageGain
-              value={percentage}
-              locale={locale}
-              showIcon={false}
-            />
-          )
+          <PercentageGain
+            loading={loading}
+            value={percentage}
+            locale={locale}
+            showIcon={false}
+          />
         ) : null}
       </Stack>
     </Box>
@@ -229,43 +234,57 @@ export function InvestmentSummary({
             >
               <Box>
                 <Label>{t("investments.summary.totalPortfolio")}</Label>
-                {loading ? (
-                  <Skeleton width={260} height={58} />
-                ) : (
-                  <Box
-                    sx={{
-                      position: "relative",
-                      display: "inline-flex",
-                      overflow: "visible",
-                    }}
-                  >
-                    <CurrencyAmountParts
-                      value={summary?.totalPortfolioValue}
-                      currency={currencyCode}
-                      locale={locale}
-                      variant="h3"
+                <Box
+                  sx={{
+                    minHeight: TOTAL_PORTFOLIO_LINE_BOX_HEIGHT,
+                    display: "flex",
+                    alignItems: "center",
+                  }}
+                >
+                  {loading ? (
+                    <Skeleton
+                      variant="rounded"
+                      width={260}
                       sx={{
-                        fontSize: "2.3rem",
-                        fontWeight: 700,
-                        lineHeight: 1.05,
+                        height: TOTAL_PORTFOLIO_LINE_BOX_HEIGHT,
+                        transform: "none",
+                        borderRadius: 1,
                       }}
                     />
-                    {summary?.hasEstimatedValues ? (
-                      <ValueOriginIndicator
-                        origin="estimado_app"
-                        title={t(
-                          "investments.table.valueOrigin.labels.estimado_app",
-                        )}
-                        description={t(
-                          "investments.table.valueOrigin.descriptions.estimado_app",
-                        )}
-                        ariaLabel={t("investments.table.valueOrigin.ariaLabel")}
-                        offsetPx={16}
-                        sizePx={7}
+                  ) : (
+                    <Box
+                      sx={{
+                        position: "relative",
+                        display: "inline-flex",
+                        overflow: "visible",
+                      }}
+                    >
+                      <CurrencyAmountParts
+                        value={summary?.totalPortfolioValue}
+                        currency={currencyCode}
+                        locale={locale}
+                        variant="h3"
+                        sx={TOTAL_PORTFOLIO_AMOUNT_TYPOGRAPHY_SX}
                       />
-                    ) : null}
-                  </Box>
-                )}
+                      {summary?.hasEstimatedValues ? (
+                        <ValueOriginIndicator
+                          origin="estimado_app"
+                          title={t(
+                            "investments.table.valueOrigin.labels.estimado_app",
+                          )}
+                          description={t(
+                            "investments.table.valueOrigin.descriptions.estimado_app",
+                          )}
+                          ariaLabel={t(
+                            "investments.table.valueOrigin.ariaLabel",
+                          )}
+                          offsetPx={16}
+                          sizePx={7}
+                        />
+                      ) : null}
+                    </Box>
+                  )}
+                </Box>
               </Box>
             </Stack>
 
@@ -319,10 +338,11 @@ export function InvestmentSummary({
 
                   {isCalculating ? (
                     <CircularProgress size={18} sx={{ mb: 0.25 }} />
-                  ) : performance?.twr != null ? (
+                  ) : performance?.twr != null || loading ? (
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                       <PercentageGain
-                        value={performance.twr}
+                        loading={loading}
+                        value={performance?.twr}
                         locale={locale}
                         iconSize={18}
                         textSx={{ fontWeight: 700, fontSize: "1.05rem" }}

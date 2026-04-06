@@ -3,7 +3,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { Box, CircularProgress, Paper, TableContainer, Tooltip, Typography } from '@mui/material';
+import { Box, Divider, LinearProgress, Paper, TableContainer, Tooltip, Typography } from '@mui/material';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useTranslation } from '@/shared/i18n';
 import { useToast } from '@/shared/providers';
@@ -397,6 +397,8 @@ export function InvestmentTable({
   });
 
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
+  const showHoldingsList = !error && displayedHoldings.length > 0;
+  const showHoldingsProgress = loading && !error;
 
   const cashAssetGroupCard = React.useMemo(() => {
     if (!showCashCard) return null;
@@ -446,16 +448,38 @@ export function InvestmentTable({
         bgcolor: 'transparent',
         background: 'transparent !important',
         border: 'none',
+        overflow: 'visible',
+        position: 'relative',
       }}
       data-testid="investment-table"
     >
-      {showCashCard && (loading || error || displayedHoldings.length === 0) ? (
+      {showCashCard && !showHoldingsList ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashAssetGroupCard}</Box>
       ) : null}
 
-      {loading ? (
-        <Box sx={{ py: 6, display: 'flex', justifyContent: 'center' }}>
-          <CircularProgress size={20} />
+      {showHoldingsProgress ? (
+        <Box sx={{ position: 'relative', width: '100%' }}>
+          <Divider />
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 4,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          >
+            <LinearProgress
+              sx={{
+                height: '100%',
+                opacity: 1,
+                transition: 'opacity 150ms linear',
+              }}
+            />
+          </Box>
         </Box>
       ) : null}
 
@@ -475,9 +499,9 @@ export function InvestmentTable({
         </Box>
       ) : null}
 
-      {!loading && !error && displayedHoldings.length > 0 ? (
+      {showHoldingsList ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {cashAssetGroupCard}
+          {showCashCard ? cashAssetGroupCard : null}
           {groups.map((group) => (
             <InvestmentGroupTable
               key={group.key}
