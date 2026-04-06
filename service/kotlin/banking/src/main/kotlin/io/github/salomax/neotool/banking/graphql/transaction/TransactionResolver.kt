@@ -534,6 +534,7 @@ class TransactionResolver(
             applicableTo = applicableTo,
             priority = priority,
             isSystem = isSystem,
+            isDisabledForAccount = false,
             isImplicit = isImplicit,
             matchCount = matchCount,
             position = position,
@@ -598,6 +599,7 @@ class TransactionResolver(
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
             appliedRuleIds = appliedRuleIds,
+            appliedRuleHistory = appliedRuleHistory.map { AppliedRuleHistoryEntryDTO(ruleId = it.ruleId, appliedAt = it.appliedAt) },
             createdAt = createdAt,
             updatedAt = updatedAt,
         )

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, type ReactNode } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
 import { useTranslation as useReactI18nTranslation } from 'react-i18next';
 import {
@@ -20,13 +20,13 @@ import {
   Typography,
   alpha,
 } from '@mui/material';
-import type { SxProps, Theme } from '@mui/material/styles';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
 import StoreIcon from '@mui/icons-material/Store';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display/CurrencyAmountParts';
+import { InfoField } from '@/shared/components/ui/data-display';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { useTranslation } from '@/shared/i18n';
@@ -73,28 +73,10 @@ function formatNumber(value: number | null | undefined, locale: string): string 
   }).format(value);
 }
 
-function InfoField({
-  label,
-  value,
-  footer,
-  valueColor = 'text.primary',
-  sx,
-}: {
-  label: ReactNode;
-  value: ReactNode;
-  footer?: ReactNode;
-  valueColor?: 'text.primary' | 'text.secondary';
-  sx?: SxProps<Theme>;
-}) {
-  return (
-    <Stack spacing={0.25} sx={sx}>
-      <Label sx={{ mb: 0 }}>{label}</Label>
-      <Typography variant="body2" color={valueColor} sx={{ fontWeight: 600 }}>
-        {value}
-      </Typography>
-      {footer ?? null}
-    </Stack>
-  );
+function formatUnit(value: string | null | undefined): string {
+  const normalized = String(value ?? '').trim().toUpperCase();
+  if (normalized === 'CDA') return 'UN';
+  return normalized || '-';
 }
 
 export function NfceDocumentDrawer({
@@ -279,22 +261,32 @@ export function NfceDocumentDrawer({
                           />
                         </Stack>
 
-                        <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap alignItems="flex-start">
+                        <Box
+                          sx={{
+                            display: { xs: 'block', sm: 'grid' },
+                            gridTemplateColumns: { sm: 'auto auto 160px 1fr' },
+                            columnGap: 4,
+                            rowGap: 2,
+                            alignItems: 'flex-start',
+                          }}
+                        >
                           <InfoField
                             label={t('financeTransactions.nfceDocument.quantity')}
-                            value={`${formatNumber(item.quantity, i18n.language)} ${String(item.unit).toUpperCase()}`}
+                            value={`${formatNumber(item.quantity, i18n.language)} ${formatUnit(item.unit)}`}
+                            sx={{ gridColumn: { sm: '1' } }}
                           />
                           <InfoField
                             label={t('financeTransactions.nfceDocument.unitPrice')}
                             value={formatCurrency(item.unitPrice)}
+                            sx={{ gridColumn: { sm: '2' } }}
                           />
                           <InfoField
                             label={t('financeTransactions.nfceDocument.totalTax')}
                             value={item.taxAmount != null ? formatCurrency(item.taxAmount) : '—'}
                             footer={taxPercent != null ? <TaxPercentBar percent={taxPercent} /> : null}
-                            sx={{ minWidth: 160 }}
+                            sx={{ gridColumn: { sm: '3' }, minWidth: { xs: 160, sm: 'unset' } }}
                           />
-                        </Stack>
+                        </Box>
                       </Stack>
                     </ListItem>
                   );
@@ -313,7 +305,15 @@ export function NfceDocumentDrawer({
               <Card variant="outlined">
                 <CardContent>
                   <Stack spacing={4}>
-                    <Stack direction="row" spacing={4} flexWrap="wrap" useFlexGap alignItems="flex-start">
+                    <Box
+                      sx={{
+                        display: { xs: 'block', sm: 'grid' },
+                        gridTemplateColumns: { sm: 'auto auto 160px 1fr' },
+                        columnGap: 4,
+                        rowGap: 2,
+                        alignItems: 'flex-start',
+                      }}
+                    >
                       <InfoField
                         label={t('financeTransactions.nfceDocument.emissionDate')}
                         value={formatDateTime(
@@ -321,22 +321,33 @@ export function NfceDocumentDrawer({
                           i18n.language,
                           Intl.DateTimeFormat().resolvedOptions().timeZone,
                         )}
+                        sx={{ gridColumn: { sm: '1', minWidth: 188 } }}
                       />
                       {totalTaxValue != null ? (
-                        <TaxLoadSummary
-                          percent={totalTaxPercent}
-                          amount={totalTaxValue}
-                          label={t('financeTransactions.nfceDocument.taxLoadLabel')}
-                        />
+                        <Box sx={{ gridColumn: { sm: '3' } }}>
+                          <TaxLoadSummary
+                            percent={totalTaxPercent}
+                            amount={totalTaxValue}
+                            label={t('financeTransactions.nfceDocument.taxLoadLabel')}
+                          />
+                        </Box>
                       ) : null}
                       <CurrencyAmountParts
                         value={document.totalValue}
                         currency="BRL"
                         locale={i18n.language}
                         variant="subtitle1"
-                        sx={{ ml: 'auto', fontWeight: 800, whiteSpace: 'nowrap', fontSize: '2.2em', lineHeight: 1 }}
+                        sx={{
+                          gridColumn: { sm: '4' },
+                          justifySelf: { sm: 'end' },
+                          ml: { xs: 'auto', sm: 0 },
+                          fontWeight: 800,
+                          whiteSpace: 'nowrap',
+                          fontSize: '2.2em',
+                          lineHeight: 1,
+                        }}
                       />
-                    </Stack>
+                    </Box>
                     {document.buyerCpf ? (
                       <InfoField
                         label={t('financeTransactions.nfceDocument.buyerCpf')}

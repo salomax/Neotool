@@ -77,10 +77,14 @@ data class Transaction(
     val importJobId: UUID? = null,
     /** Original provider/import values at creation time; immutable after insert. Null for MANUAL transactions. */
     val sourceData: Map<String, Any?>? = null,
-    /** Rule ids that contributed to automatic enrichment during creation. */
-    val appliedRuleIds: List<UUID> = emptyList(),
+    /** Audit trail for rules that were applied to the transaction over time. */
+    val appliedRuleHistory: List<AppliedRuleAuditEntry> = emptyList(),
     // Soft delete + audit
     val deletedAt: Instant? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
-)
+) {
+    /** Distinct rule ids that have been applied at least once, kept for compatibility with existing consumers. */
+    val appliedRuleIds: List<UUID>
+        get() = appliedRuleHistory.map { it.ruleId }.distinct()
+}

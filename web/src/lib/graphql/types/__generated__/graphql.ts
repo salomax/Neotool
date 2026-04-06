@@ -48,6 +48,12 @@ export enum AnbimaCategory {
   RendaFixa = 'RENDA_FIXA'
 }
 
+export type AppliedRuleHistoryEntry = {
+  __typename: 'AppliedRuleHistoryEntry';
+  appliedAt: Scalars['DateTime']['output'];
+  ruleId: Scalars['ID']['output'];
+};
+
 /** Asset metadata and access information. */
 export type Asset = {
   __typename: 'Asset';
@@ -2192,6 +2198,11 @@ export type Mutation = {
   resendVerificationEmail: ResendVerificationEmailPayload;
   resetPassword: ResetPasswordPayload;
   resolveImportDuplicate: TransactionImport;
+  /**
+   * Enables/disables a system transaction rule for the authenticated account.
+   * This does not mutate the global system rule itself.
+   */
+  setSystemTransactionRuleEnabled: Scalars['Boolean']['output'];
   setUsageBudget: UsageBudget;
   signIn: SignInPayload;
   signInWithOAuth: SignInPayload;
@@ -2520,6 +2531,12 @@ export type MutationResetPasswordArgs = {
 
 export type MutationResolveImportDuplicateArgs = {
   input: ResolveImportDuplicateInput;
+};
+
+
+export type MutationSetSystemTransactionRuleEnabledArgs = {
+  enabled: Scalars['Boolean']['input'];
+  id: Scalars['ID']['input'];
 };
 
 
@@ -3084,6 +3101,11 @@ export type Query = {
    * - isSystem true: returns only system rules
    */
   transactionRules: TransactionRuleConnection;
+  /**
+   * Returns the requested transaction rules, preserving the input ID order.
+   * Useful for explaining which rules contributed to a transaction.
+   */
+  transactionRulesByIds: Array<TransactionRule>;
   /** Distinct tags used in transactions for the authenticated account. */
   transactionTags: Array<TransactionTagOption>;
   /**
@@ -3526,6 +3548,11 @@ export type QueryTransactionRulesArgs = {
 };
 
 
+export type QueryTransactionRulesByIdsArgs = {
+  ids: Array<Scalars['ID']['input']>;
+};
+
+
 export type QueryTransactionsArgs = {
   after?: InputMaybe<Scalars['String']['input']>;
   belongsToName?: InputMaybe<Scalars['String']['input']>;
@@ -3934,7 +3961,9 @@ export type Transaction = {
   amount: Scalars['Float']['output'];
   /** BRL equivalent for FX transactions (null for BRL). */
   amountBrl: Maybe<Scalars['Float']['output']>;
-  /** IDs of rules that contributed to transaction enrichment. */
+  /** Audit history of rule applications for this transaction. */
+  appliedRuleHistory: Array<AppliedRuleHistoryEntry>;
+  /** Distinct rule IDs that have been applied at least once to this transaction. */
   appliedRuleIds: Array<Scalars['ID']['output']>;
   attachments: Array<TransactionAttachment>;
   belongsToName: Maybe<Scalars['String']['output']>;
@@ -4067,6 +4096,7 @@ export type TransactionRule = {
   createdAt: Scalars['DateTime']['output'];
   descriptionOverride: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  isDisabledForAccount: Scalars['Boolean']['output'];
   isImplicit: Scalars['Boolean']['output'];
   isSystem: Scalars['Boolean']['output'];
   matchCount: Scalars['Int']['output'];

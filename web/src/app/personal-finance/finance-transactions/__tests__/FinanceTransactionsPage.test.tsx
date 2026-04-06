@@ -7,9 +7,15 @@ import { extractErrorMessage } from '@/shared/utils/error';
 import { FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
 
 // Mock Apollo useQuery
-vi.mock('@apollo/client/react', () => ({
-  useQuery: vi.fn(),
-}));
+vi.mock('@apollo/client/react', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@apollo/client/react')>();
+  return {
+    ...actual,
+    useQuery: vi.fn(),
+    useMutation: vi.fn(() => [vi.fn(), {}]),
+    useLazyQuery: vi.fn(() => [vi.fn(), {}]),
+  };
+});
 
 vi.mock('@/shared/i18n', () => ({
   useTranslation: () => ({
@@ -81,6 +87,10 @@ vi.mock('../summary/MonthYearCarousel', () => ({
 
 vi.mock('../summary/MonthSummary', () => ({
   MonthSummary: () => <div>month-summary</div>,
+}));
+
+vi.mock('../FinanceTransactionsDialogs', () => ({
+  FinanceTransactionsDialogs: () => null,
 }));
 
 vi.mock('../account/useAccountDisplayMode', () => ({

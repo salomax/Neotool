@@ -17,6 +17,21 @@ interface TransactionRuleRepository {
     /** Returns only active system/global rules ordered by evaluation precedence. */
     fun findSystemRules(): List<TransactionRule>
 
+    /** Returns rule ids disabled for this account (used to mark system rules in UI). */
+    fun findDisabledRuleIdsForAccount(accountId: UUID): Set<UUID>
+
+    /** Disables a system/global rule for this account without mutating the source rule. */
+    fun disableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean
+
+    /** Re-enables a previously disabled system rule for this account. */
+    fun enableSystemRuleForAccount(
+        accountId: UUID,
+        ruleId: UUID,
+    ): Boolean
+
     fun findById(id: UUID): TransactionRule?
 
     fun save(rule: TransactionRule): TransactionRule

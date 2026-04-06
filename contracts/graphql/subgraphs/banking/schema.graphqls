@@ -406,6 +406,7 @@ type TransactionRule {
   applicableTo: CategoryApplicableTo!
   priority: Int!
   isSystem: Boolean!
+  isDisabledForAccount: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
   """1-based evaluation order position (same order used by the rule engine)."""
@@ -424,6 +425,11 @@ type TransactionRuleConnection {
   edges: [TransactionRuleEdge!]!
   pageInfo: PageInfo!
   totalCount: Int
+}
+
+type AppliedRuleHistoryEntry {
+  ruleId: ID!
+  appliedAt: DateTime!
 }
 
 input CreateTransactionRuleInput {
@@ -509,8 +515,10 @@ type Transaction {
   cardIdentifier: String
   payeeMcc: Int
   billPostDate: Date
-  """IDs of rules that contributed to transaction enrichment."""
+  """Distinct rule IDs that have been applied at least once to this transaction."""
   appliedRuleIds: [ID!]!
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
 
   # Attachments (receipts, contracts, guarantees, etc.)
   attachments: [TransactionAttachment!]!
@@ -1845,6 +1853,11 @@ extend type Query {
   """
   transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection!
   """
+  Returns the requested transaction rules, preserving the input ID order.
+  Useful for explaining which rules contributed to a transaction.
+  """
+  transactionRulesByIds(ids: [ID!]!): [TransactionRule!]!
+  """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
   Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
   """
@@ -2114,6 +2127,11 @@ extend type Mutation {
   All IDs must belong to the authenticated account. Returns the full updated rule list.
   """
   reorderTransactionRules(ids: [ID!]!): [TransactionRule!]!
+  """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean!
   """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """

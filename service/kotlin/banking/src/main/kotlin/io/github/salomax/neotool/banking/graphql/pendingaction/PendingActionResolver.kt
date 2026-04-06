@@ -7,6 +7,7 @@ import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActi
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.graphql.investment.BrokerNoteDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
+import io.github.salomax.neotool.banking.graphql.transaction.AppliedRuleHistoryEntryDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.service.investment.HoldingMaturityConfirmCommand
 import io.github.salomax.neotool.banking.service.investment.HoldingMaturityConfirmService
@@ -185,6 +186,7 @@ class PendingActionResolver(
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
             appliedRuleIds = appliedRuleIds,
+            appliedRuleHistory = appliedRuleHistory.map { AppliedRuleHistoryEntryDTO(ruleId = it.ruleId, appliedAt = it.appliedAt) },
             createdAt = createdAt,
             updatedAt = updatedAt,
         )

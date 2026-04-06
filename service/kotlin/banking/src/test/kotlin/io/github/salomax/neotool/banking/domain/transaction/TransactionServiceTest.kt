@@ -197,6 +197,8 @@ class TransactionServiceTest {
             assertThat(saveCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
             assertThat(saveCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
             assertThat(saveCaptor.firstValue.appliedRuleIds).containsExactly(suggestedRuleId)
+            assertThat(saveCaptor.firstValue.appliedRuleHistory).hasSize(1)
+            assertThat(saveCaptor.firstValue.appliedRuleHistory.map { it.ruleId }).containsExactly(suggestedRuleId)
             verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
         }
 
@@ -853,7 +855,59 @@ class TransactionServiceTest {
 
             assertThat(updateCaptor.firstValue.categoryId).isEqualTo(suggestedCategoryId)
             assertThat(updateCaptor.firstValue.categorySource).isEqualTo(CategorySource.RULE)
+            assertThat(updateCaptor.firstValue.appliedRuleIds).hasSize(1)
+            assertThat(updateCaptor.firstValue.appliedRuleHistory).hasSize(1)
             verify(transactionRuleEngine).suggest(accountId, "Coffee", CreditDebitType.DEBIT)
+        }
+
+        @Test
+        fun `manual update appends learned implicit rule to applied rule history`() {
+            whenever(userRuleApplicationModeService.get(userId)).thenReturn(RuleApplicationMode.ALWAYS)
+            val txId = UUID.randomUUID()
+            val oldCategoryId = UUID.randomUUID()
+            val newCategoryId = UUID.randomUUID()
+            val learnedRuleId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Coffee",
+                    categoryId = oldCategoryId,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(
+                transactionRuleEngine.learnFromManualAssignment(
+                    accountId,
+                    "Coffee",
+                    newCategoryId,
+                    null,
+                    null,
+                    null,
+                    false,
+                ),
+            ).thenReturn(learnedRuleId)
+            whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(null)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(categoryId = newCategoryId, categoryIdProvided = true),
+                accountId,
+                userId,
+            )
+
+            assertThat(updateCaptor.firstValue.appliedRuleIds).containsExactly(learnedRuleId)
+            assertThat(updateCaptor.firstValue.appliedRuleHistory).hasSize(1)
+            assertThat(updateCaptor.firstValue.appliedRuleHistory.first().ruleId).isEqualTo(learnedRuleId)
         }
     }
 

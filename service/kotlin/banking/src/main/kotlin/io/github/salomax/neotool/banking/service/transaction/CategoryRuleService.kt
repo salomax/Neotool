@@ -28,6 +28,25 @@ open class TransactionRuleService(
             null -> ruleRepository.findRulesForAccount(accountId)
         }
 
+    fun disabledRuleIds(accountId: UUID): Set<UUID> = ruleRepository.findDisabledRuleIdsForAccount(accountId)
+
+    fun setSystemRuleEnabled(
+        accountId: UUID,
+        ruleId: UUID,
+        enabled: Boolean,
+    ): Boolean {
+        val rule = ruleRepository.findById(ruleId) ?: throw TransactionRuleNotFoundException(ruleId)
+        if (!rule.isSystem || rule.accountId != null) {
+            throw SystemTransactionRuleNotEditableException()
+        }
+        return if (enabled) {
+            ruleRepository.enableSystemRuleForAccount(accountId, ruleId)
+            true
+        } else {
+            ruleRepository.disableSystemRuleForAccount(accountId, ruleId)
+        }
+    }
+
     fun create(
         input: CreateTransactionRuleInput,
         accountId: UUID,

@@ -54,6 +54,13 @@ enum AnbimaCategory
   CAMBIAL @join__enumValue(graph: BANKING)
 }
 
+type AppliedRuleHistoryEntry
+  @join__type(graph: BANKING)
+{
+  ruleId: ID!
+  appliedAt: DateTime!
+}
+
 """Asset metadata and access information."""
 type Asset
   @join__type(graph: ASSETS, key: "id")
@@ -2662,6 +2669,12 @@ type Mutation
   reorderTransactionRules(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
 
   """
+  Enables/disables a system transaction rule for the authenticated account.
+  This does not mutate the global system rule itself.
+  """
+  setSystemTransactionRuleEnabled(id: ID!, enabled: Boolean!): Boolean! @join__field(graph: BANKING)
+
+  """
   Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL.
   """
   bulkCategorize(transactionIds: [ID!]!, categoryId: ID!): BulkOperationResult! @join__field(graph: BANKING)
@@ -2911,7 +2924,6 @@ type PortfolioPerformance
   benchmarks: [BenchmarkPerformance!]!
   hasEstimatedValues: Boolean!
 }
-
 type PricePoint
   @join__type(graph: BANKING)
 {
@@ -3140,6 +3152,12 @@ type Query
   - isSystem true: returns only system rules
   """
   transactionRules(isSystem: Boolean, search: String, first: Int, after: String): TransactionRuleConnection! @join__field(graph: BANKING)
+
+  """
+  Returns the requested transaction rules, preserving the input ID order.
+  Useful for explaining which rules contributed to a transaction.
+  """
+  transactionRulesByIds(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
 
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
@@ -3814,8 +3832,13 @@ type Transaction
   payeeMcc: Int
   billPostDate: Date
 
-  """IDs of rules that contributed to transaction enrichment."""
+  """
+  Distinct rule IDs that have been applied at least once to this transaction.
+  """
   appliedRuleIds: [ID!]!
+
+  """Audit history of rule applications for this transaction."""
+  appliedRuleHistory: [AppliedRuleHistoryEntry!]!
   attachments: [TransactionAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -3932,6 +3955,7 @@ type TransactionRule
   applicableTo: CategoryApplicableTo!
   priority: Int!
   isSystem: Boolean!
+  isDisabledForAccount: Boolean!
   isImplicit: Boolean!
   matchCount: Int!
 
@@ -4087,7 +4111,6 @@ input UpdateInvestmentCashTransactionInput
   date: Date!
   description: String
 }
-
 input UpdateProductInput
   @join__type(graph: BANKING)
 {

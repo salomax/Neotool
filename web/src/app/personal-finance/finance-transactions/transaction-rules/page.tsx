@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Box, Container, Stack, Typography, useTheme } from '@mui/material';
+import { useSearchParams } from 'next/navigation';
 import { Page } from '@/shared/components/ui/layout';
 import { usePageTitle } from '@/shared/hooks/ui';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
@@ -13,6 +14,14 @@ export default function TransactionRulesPage() {
   const { t } = useTranslation(personalFinanceTranslations);
   usePageTitle(t('financeTransactions.title'));
   const theme = useTheme();
+  const searchParams = useSearchParams();
+
+  const initialTabParam = searchParams.get('tab');
+  const initialTab =
+    initialTabParam === 'automatic' || initialTabParam === 'manual'
+      ? (initialTabParam as 'automatic' | 'manual')
+      : undefined;
+  const initialEditRuleId = searchParams.get('editRuleId');
 
   const [helpOpen, setHelpOpen] = React.useState(false);
 
@@ -20,7 +29,11 @@ export default function TransactionRulesPage() {
     <>
       <Page>
         <Container maxWidth="xl" sx={{ py: 4, height: '100%', display: 'flex', flexDirection: 'column' }}>
-          <TransactionRulesManagement onOpenHelp={() => setHelpOpen(true)} />
+          <TransactionRulesManagement
+            onOpenHelp={() => setHelpOpen(true)}
+            initialTab={initialTab}
+            initialEditRuleId={initialEditRuleId}
+          />
         </Container>
       </Page>
       <Drawer open={helpOpen} onClose={() => setHelpOpen(false)} anchor="right" size="md">

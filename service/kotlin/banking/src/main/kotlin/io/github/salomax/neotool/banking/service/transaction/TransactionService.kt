@@ -508,6 +508,21 @@ open class TransactionService(
             }
 
         val now = Instant.now()
+        val appliedRuleHistory =
+            if (ruleSuggestion != null) {
+                val appliedRuleIds =
+                    AppliedRuleAuditSupport.resolveAppliedRuleIds(
+                        suggestion = ruleSuggestion,
+                        rules = loadRulesForAudit(accountId, ruleSuggestion.appliedRuleIds),
+                        appliedCategory = command.categoryId == null && ruleSuggestion.categoryId != null,
+                        appliedMerchant = ruleSuggestion.merchantId != null,
+                        appliedDescription = false,
+                        appliedTags = normalizedTags.isEmpty() && !ruleSuggestion.tagsOverride.isNullOrEmpty(),
+                    )
+                AppliedRuleAuditSupport.buildEntries(appliedRuleIds, now)
+            } else {
+                emptyList()
+            }
         val transaction =
             Transaction(
                 financialAccountId = command.financialAccountId,
@@ -540,13 +555,7 @@ open class TransactionService(
                 totalInstallments = command.totalInstallments,
                 cardIdentifier = command.cardIdentifier,
                 payeeMcc = command.payeeMcc,
-                providerTransactionId = command.providerTransactionId,
-                appliedRuleIds =
-                    if (skipRuleEngine) {
-                        emptyList()
-                    } else {
-                        ruleSuggestion?.appliedRuleIds ?: emptyList()
-                    },
+                appliedRuleHistory = appliedRuleHistory,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -572,7 +581,7 @@ open class TransactionService(
         )
         val appliedRuleIds =
             if (mode == RuleApplicationMode.ALWAYS_PROMPT) {
-                ruleSuggestion?.appliedRuleIds ?: emptyList()
+                appliedRuleHistory.map { it.ruleId }.distinct()
             } else {
                 emptyList()
             }
@@ -621,14 +630,16 @@ open class TransactionService(
 
         val categoryChanged = command.categoryIdProvided && command.categoryId != existing.categoryId
         val merchantChanged = command.merchantIdProvided && command.merchantId != existing.merchantId
+        var learnedRuleId: UUID? = null
         if ((categoryChanged || merchantChanged) && existing.source == TransactionSource.MANUAL) {
             try {
-                transactionRuleEngine.learnFromManualAssignment(
+                learnedRuleId =
+                    transactionRuleEngine.learnFromManualAssignment(
                     accountId = accountId,
                     description = existing.description,
                     categoryId = if (categoryChanged) command.categoryId else existing.categoryId,
                     merchantId = if (merchantChanged) command.merchantId else existing.merchantId,
-                )
+                    )
             } catch (e: Exception) {
                 // Learning failure must not fail the update
                 logger.warn(
@@ -640,6 +651,7 @@ open class TransactionService(
             }
         }
 
+        val updateTimestamp = Instant.now()
         val updated =
             existing.copy(
                 creditDebitType = command.creditDebitType ?: existing.creditDebitType,
@@ -669,11 +681,20 @@ open class TransactionService(
                 billId = newBillId,
                 cardIdentifier = command.cardIdentifier ?: existing.cardIdentifier,
                 payeeMcc = command.payeeMcc ?: existing.payeeMcc,
-                updatedAt = Instant.now(),
+                updatedAt = updateTimestamp,
             )
 
         var enriched = updated
         val mode = userRuleApplicationModeService.get(userId)
+        var appliedCategoryFromSuggestion = false
+        var appliedMerchantFromSuggestion = false
+        var appliedDescriptionFromSuggestion = false
+        var appliedTagsFromSuggestion = false
+        var appendedRuleHistory = existing.appliedRuleHistory
+        if (learnedRuleId != null) {
+            appendedRuleHistory =
+                appendedRuleHistory + AppliedRuleAuditSupport.buildEntries(listOf(learnedRuleId), updateTimestamp)
+        }
         if (mode != RuleApplicationMode.NEVER) {
             val canApplyCategory = !command.categoryIdProvided
             val canApplyMerchant = !command.merchantIdProvided
@@ -706,19 +727,40 @@ open class TransactionService(
                             categoryId = suggestion.categoryId,
                             categorySource = CategorySource.RULE,
                         )
+                        appliedCategoryFromSuggestion = true
                     }
                     if (canApplyMerchant && suggestion.merchantId != null) {
                         enriched = enriched.copy(merchantId = suggestion.merchantId)
+                        appliedMerchantFromSuggestion = true
                     }
                     if (canApplyDescription && suggestion.descriptionOverride != null) {
                         enriched = enriched.copy(description = suggestion.descriptionOverride)
+                        appliedDescriptionFromSuggestion = true
                     }
                     if (canApplyTags && suggestion.tagsOverride != null) {
                         enriched = enriched.copy(tags = suggestion.tagsOverride)
+                        appliedTagsFromSuggestion = true
+                    }
+
+                    val appendedRuleIds =
+                        AppliedRuleAuditSupport.resolveAppliedRuleIds(
+                            suggestion = suggestion,
+                            rules = loadRulesForAudit(accountId, suggestion.appliedRuleIds),
+                            appliedCategory = appliedCategoryFromSuggestion,
+                            appliedMerchant = appliedMerchantFromSuggestion,
+                            appliedDescription = appliedDescriptionFromSuggestion,
+                            appliedTags = appliedTagsFromSuggestion,
+                        )
+                    if (appendedRuleIds.isNotEmpty()) {
+                        appendedRuleHistory =
+                            existing.appliedRuleHistory +
+                                AppliedRuleAuditSupport.buildEntries(appendedRuleIds, updateTimestamp)
                     }
                 }
             }
         }
+
+        enriched = enriched.copy(appliedRuleHistory = appendedRuleHistory)
 
         require(enriched.amount > java.math.BigDecimal.ZERO) { "amount must be > 0" }
 
@@ -985,6 +1027,15 @@ open class TransactionService(
             financialAccountRepository.findByAccountId(accountId)
                 .firstOrNull { it.id == financialAccountId } ?: return null
         return if (account.subtype in CreditCardBillService.CARD_SUBTYPES) account else null
+    }
+
+    private fun loadRulesForAudit(
+        accountId: UUID,
+        ruleIds: List<UUID>,
+    ): List<TransactionRule> {
+        if (ruleIds.isEmpty()) return emptyList()
+        val requestedIds = ruleIds.toSet()
+        return transactionRuleEngine.preloadRules(accountId).filter { rule -> rule.id in requestedIds }
     }
 
     private fun requireAccountOwnsFinancialAccount(

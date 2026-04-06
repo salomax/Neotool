@@ -2,16 +2,25 @@ package io.github.salomax.neotool.banking.model.transaction
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
+import io.github.salomax.neotool.banking.domain.transaction.AppliedRuleAuditEntry
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import java.math.BigDecimal
+import java.math.RoundingMode
+import java.time.Instant
 import java.util.UUID
 
 /**
  * Maps between domain models and JPA entities for transactions and categories.
  */
 object TransactionMapper {
-    private val objectMapper = ObjectMapper()
+    private val objectMapper = ObjectMapper().findAndRegisterModules()
+
+    private data class StoredAppliedRuleAuditEntry(
+        val ruleId: UUID,
+        val appliedAt: Instant,
+    )
     // ── TransactionCategory ──────────────────────────────────────────────────
 
     fun toDomain(entity: TransactionCategoryEntity): TransactionCategory =
@@ -89,11 +98,7 @@ object TransactionMapper {
             importFingerprint = entity.importFingerprint,
             importJobId = entity.importJobId,
             sourceData = entity.sourceData?.let { objectMapper.readValue<Map<String, Any?>>(it) },
-            appliedRuleIds =
-                entity.appliedRuleIds
-                    ?.let { objectMapper.readValue<List<String>>(it) }
-                    ?.map(UUID::fromString)
-                    ?: emptyList(),
+            appliedRuleHistory = parseAppliedRuleHistory(entity.appliedRuleIds, entity.createdAt),
             deletedAt = entity.deletedAt,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
@@ -140,10 +145,7 @@ object TransactionMapper {
             importFingerprint = domain.importFingerprint,
             importJobId = domain.importJobId,
             sourceData = domain.sourceData?.let { objectMapper.writeValueAsString(it) },
-            appliedRuleIds =
-                domain.appliedRuleIds
-                    .takeIf { it.isNotEmpty() }
-                    ?.let { ids -> objectMapper.writeValueAsString(ids.map(UUID::toString)) },
+            appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory),
             deletedAt = domain.deletedAt,
             createdAt = domain.createdAt,
             updatedAt = domain.updatedAt,
@@ -189,11 +191,60 @@ object TransactionMapper {
         entity.sourceData =
             domain.sourceData
                 ?.let { source -> objectMapper.writeValueAsString(source) }
-        entity.appliedRuleIds =
-            domain.appliedRuleIds
-                .takeIf { it.isNotEmpty() }
-                ?.let { ids -> objectMapper.writeValueAsString(ids.map(UUID::toString)) }
+        entity.appliedRuleIds = serializeAppliedRuleHistory(domain.appliedRuleHistory)
         entity.deletedAt = domain.deletedAt
         entity.updatedAt = domain.updatedAt
     }
+
+    private fun parseAppliedRuleHistory(
+        raw: String?,
+        fallbackAppliedAt: Instant,
+    ): List<AppliedRuleAuditEntry> {
+        if (raw.isNullOrBlank()) return emptyList()
+        val root = objectMapper.readTree(raw)
+        if (!root.isArray) return emptyList()
+
+        return root.mapNotNull { node ->
+            when {
+                node.isTextual -> {
+                    val ruleId = runCatching { UUID.fromString(node.asText()) }.getOrNull() ?: return@mapNotNull null
+                    AppliedRuleAuditEntry(ruleId = ruleId, appliedAt = fallbackAppliedAt)
+                }
+
+                node.isObject -> {
+                    val ruleIdText = node.path("ruleId").asText(null) ?: return@mapNotNull null
+                    val ruleId = runCatching { UUID.fromString(ruleIdText) }.getOrNull() ?: return@mapNotNull null
+                    val appliedAt = parseAppliedAtNode(node.path("appliedAt")) ?: return@mapNotNull null
+                    AppliedRuleAuditEntry(ruleId = ruleId, appliedAt = appliedAt)
+                }
+
+                else -> null
+            }
+        }
+    }
+
+    private fun parseAppliedAtNode(node: com.fasterxml.jackson.databind.JsonNode): Instant? {
+        if (node.isMissingNode || node.isNull) return null
+        if (node.isTextual) {
+            return runCatching { Instant.parse(node.asText()) }.getOrNull()
+        }
+        if (node.isNumber) {
+            val decimal = runCatching { node.decimalValue() }.getOrNull() ?: return null
+            val seconds = decimal.setScale(0, RoundingMode.DOWN).longValueExact()
+            val nanos =
+                decimal
+                    .subtract(BigDecimal.valueOf(seconds))
+                    .movePointRight(9)
+                    .setScale(0, RoundingMode.HALF_UP)
+                    .intValueExact()
+            return Instant.ofEpochSecond(seconds, nanos.toLong())
+        }
+        return null
+    }
+
+    private fun serializeAppliedRuleHistory(history: List<AppliedRuleAuditEntry>): String? =
+        history
+            .takeIf { it.isNotEmpty() }
+            ?.map { StoredAppliedRuleAuditEntry(ruleId = it.ruleId, appliedAt = it.appliedAt) }
+            ?.let(objectMapper::writeValueAsString)
 }

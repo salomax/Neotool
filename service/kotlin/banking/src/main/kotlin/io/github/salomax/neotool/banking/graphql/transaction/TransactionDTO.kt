@@ -36,6 +36,7 @@ data class TransactionRuleDTO(
     val applicableTo: CategoryApplicableTo,
     val priority: Int,
     val isSystem: Boolean,
+    val isDisabledForAccount: Boolean,
     val isImplicit: Boolean,
     val matchCount: Int,
     val position: Int,
@@ -66,6 +67,11 @@ data class TagTotalDTO(
     val totalAmount: Double,
     val transactionCount: Int,
     val percentage: Double,
+)
+
+data class AppliedRuleHistoryEntryDTO(
+    val ruleId: UUID,
+    val appliedAt: Instant,
 )
 
 data class TransactionDTO(
@@ -109,6 +115,7 @@ data class TransactionDTO(
     val payeeMcc: Int?,
     val billPostDate: LocalDate?,
     val appliedRuleIds: List<UUID>,
+    val appliedRuleHistory: List<AppliedRuleHistoryEntryDTO>,
     // Audit
     val createdAt: Instant,
     val updatedAt: Instant,

@@ -59,5 +59,5 @@ interface TransactionRuleEngine {
         descriptionOverride: String? = null,
         tagsOverride: List<String>? = null,
         tagsOverrideProvided: Boolean = false,
-    )
+    ): UUID?
 }

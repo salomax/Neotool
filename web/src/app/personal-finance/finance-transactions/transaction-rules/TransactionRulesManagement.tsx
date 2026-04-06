@@ -45,9 +45,11 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 
 import {
   TRANSACTION_RULES,
+  TRANSACTION_RULES_BY_IDS,
 } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_TRANSACTION_RULE,
+  SET_SYSTEM_TRANSACTION_RULE_ENABLED,
 } from '@/lib/graphql/operations/banking/mutations';
 
 import type { TransactionRule } from './types';
@@ -82,14 +84,28 @@ const RULES_PAGE_SIZE = 30;
 
 export interface TransactionRulesManagementProps {
   onOpenHelp?: () => void;
+  initialTab?: RulesTab;
+  initialEditRuleId?: string | null;
 }
 
-export const TransactionRulesManagement: React.FC<TransactionRulesManagementProps> = ({ onOpenHelp }) => {
+interface TransactionRulesByIdsData {
+  transactionRulesByIds: TransactionRule[];
+}
+
+interface TransactionRulesByIdsVariables {
+  ids: string[];
+}
+
+export const TransactionRulesManagement: React.FC<TransactionRulesManagementProps> = ({
+  onOpenHelp,
+  initialTab,
+  initialEditRuleId,
+}) => {
   const theme = useTheme();
   const toast = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
 
-  const [tab, setTab] = useState<RulesTab>('manual');
+  const [tab, setTab] = useState<RulesTab>(initialTab ?? 'manual');
   const [searchQuery, setSearchQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<TransactionRule | null>(null);
@@ -100,6 +116,8 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
   const tableContainerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
+  const [deepLinkClosed, setDeepLinkClosed] = useState(false);
+  const deepLinkErrorNotifiedRef = useRef(false);
 
   const isSystemFilter = tab === 'automatic';
   const normalizedSearchQuery = searchQuery.trim();
@@ -113,6 +131,30 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
     },
   });
 
+  const normalizedEditRuleId = initialEditRuleId?.trim() ? initialEditRuleId.trim() : null;
+  const {
+    data: deepLinkRuleData,
+    error: deepLinkRuleError,
+  } = useQuery<TransactionRulesByIdsData, TransactionRulesByIdsVariables>(TRANSACTION_RULES_BY_IDS, {
+    variables: normalizedEditRuleId ? { ids: [normalizedEditRuleId] } : { ids: [] },
+    skip: !normalizedEditRuleId,
+    fetchPolicy: 'cache-first',
+  });
+
+  useEffect(() => {
+    if (!normalizedEditRuleId) return;
+    if (!deepLinkRuleError) return;
+    if (deepLinkErrorNotifiedRef.current) return;
+
+    deepLinkErrorNotifiedRef.current = true;
+    toast.error(extractErrorMessage(deepLinkRuleError, t('financeTransactions.transactionRules.errors.load')));
+  }, [deepLinkRuleError, normalizedEditRuleId, t, toast]);
+
+  const deepLinkRule = deepLinkRuleData?.transactionRulesByIds?.[0] ?? null;
+  const deepLinkOpen = !!normalizedEditRuleId && !deepLinkClosed && !!deepLinkRule;
+  const effectiveDrawerOpen = drawerOpen || deepLinkOpen;
+  const effectiveRule = drawerOpen ? editingRule : deepLinkOpen ? deepLinkRule : null;
+
   const [deleteRule, { loading: deleteLoading }] = useMutation(DELETE_TRANSACTION_RULE, {
     onCompleted: () => {
       toast.success(t('financeTransactions.transactionRules.toast.deleted'));
@@ -122,6 +164,17 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
     onError: (err) =>
       toast.error(
         extractErrorMessage(err, t('financeTransactions.transactionRules.errors.delete')),
+      ),
+  });
+
+  const [setSystemRuleEnabled] = useMutation(SET_SYSTEM_TRANSACTION_RULE_ENABLED, {
+    onCompleted: () => {
+      toast.success(t('financeTransactions.transactionRules.toast.updated'));
+      refetch();
+    },
+    onError: (err) =>
+      toast.error(
+        extractErrorMessage(err, t('financeTransactions.transactionRules.errors.toggleSystemRule')),
       ),
   });
 
@@ -490,6 +543,7 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                       showActions
                       isFirst={filteredRules[0]?.id === rule.id}
                       isLast={filteredRules[filteredRules.length - 1]?.id === rule.id}
+                      disabledChipLabel={t('financeTransactions.transactionRules.status.disabled')}
                     />
                   ))}
                   {!loading && filteredRules.length === 0 && (
@@ -621,6 +675,13 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                     >
                       <Label>{t('financeTransactions.transactionRules.columns.priority')}</Label>
                     </TableCell>
+                    <TableCell
+                      sx={{
+                        px: 4,
+                        borderBottom: filteredRules.length > 0 ? 'none' : `1px solid ${theme.palette.divider}`,
+                        bgcolor: 'transparent',
+                      }}
+                    />
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -631,14 +692,20 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       renderAs="table"
-                      showActions={false}
+                      showActions
+                      onToggleSystemRuleEnabled={(targetRule, enabled) => {
+                        setSystemRuleEnabled({ variables: { id: targetRule.id, enabled } });
+                      }}
+                      disableSystemRuleLabel={t('financeTransactions.transactionRules.actions.disableAutomaticRule')}
+                      enableSystemRuleLabel={t('financeTransactions.transactionRules.actions.enableAutomaticRule')}
+                      disabledChipLabel={t('financeTransactions.transactionRules.status.disabled')}
                       isFirst={filteredRules[0]?.id === rule.id}
                       isLast={filteredRules[filteredRules.length - 1]?.id === rule.id}
                     />
                   ))}
                   {!loading && filteredRules.length === 0 && (
                     <TableRow>
-                    <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                         <Typography variant="body2" color="text.secondary">
                           {t('financeTransactions.transactionRules.emptyState.automatic')}
                         </Typography>
@@ -661,12 +728,22 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
         </Box>
 
         <TransactionRuleDrawer
-          key={`${drawerOpen ? 'open' : 'closed'}-${editingRule?.id ?? 'new'}`}
-          open={drawerOpen}
-          rule={editingRule}
-          onClose={() => setDrawerOpen(false)}
-          onSaved={() => {
+          key={`${effectiveDrawerOpen ? 'open' : 'closed'}-${effectiveRule?.id ?? 'new'}`}
+          open={effectiveDrawerOpen}
+          rule={effectiveRule}
+          onClose={() => {
+            if (!drawerOpen && deepLinkOpen) {
+              setDeepLinkClosed(true);
+              return;
+            }
             setDrawerOpen(false);
+          }}
+          onSaved={() => {
+            if (!drawerOpen && deepLinkOpen) {
+              setDeepLinkClosed(true);
+            } else {
+              setDrawerOpen(false);
+            }
             refetch();
           }}
         />

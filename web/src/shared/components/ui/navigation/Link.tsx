@@ -11,6 +11,7 @@ export interface LinkProps extends MuiLinkProps {
   showIcon?: boolean;
   name?: string;
   'data-testid'?: string;
+  children?: React.ReactNode;
 }
 
 // Create a NextLinkBehavior component that properly forwards refs for MUI

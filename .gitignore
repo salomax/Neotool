@@ -22,6 +22,7 @@ web/tsconfig.tsbuildinfo
 *.code-workspace
 .idea
 .vscode/
+.trae/
 .gradle/
 **/build/
 out/

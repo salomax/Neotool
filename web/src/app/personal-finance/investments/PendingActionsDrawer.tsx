@@ -75,8 +75,6 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
     switch (type) {
       case PendingActionType.InvestmentMatured:
         return t("investments.pendingActions.registerMaturity");
-      case PendingActionType.Informational:
-        return t("investments.pendingActions.informational");
       default:
         return type;
     }

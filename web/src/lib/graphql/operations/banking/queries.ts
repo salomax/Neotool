@@ -118,6 +118,11 @@ export const TRANSACTIONS = gql`
           description
           source
           hasNfceDocument
+          appliedRuleIds
+          appliedRuleHistory {
+            ruleId
+            appliedAt
+          }
           category {
             id
             name
@@ -857,6 +862,7 @@ export const TRANSACTION_RULE_FIELDS = gql`
     applicableTo
     priority
     isSystem
+    isDisabledForAccount
     isImplicit
     matchCount
     createdAt
@@ -901,6 +907,17 @@ export const TRANSACTION_RULES = gql`
         endCursor
       }
       totalCount
+    }
+  }
+`;
+
+/** Specific transaction rules fetched by ID, preserving input order. */
+export const TRANSACTION_RULES_BY_IDS = gql`
+  ${TRANSACTION_RULE_FIELDS}
+  query TransactionRulesByIds($ids: [ID!]!) {
+    transactionRulesByIds(ids: $ids) {
+      ...TransactionRuleFields
+      position
     }
   }
 `;

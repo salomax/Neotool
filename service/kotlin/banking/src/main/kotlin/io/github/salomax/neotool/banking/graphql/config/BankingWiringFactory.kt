@@ -209,6 +209,16 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "transactionRulesByIds",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
+                        val ids = env.getArgument<List<String>>("ids")
+                            ?: throw IllegalArgumentException("ids is required")
+                        transactionCategoryResolver.transactionRulesByIds(ids, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "previewTransactionRule",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { _ ->
@@ -1052,6 +1062,20 @@ class BankingWiringFactory(
                         val ids = env.getArgument<List<String>>("ids")
                             ?: throw IllegalArgumentException("ids is required")
                         transactionCategoryResolver.reorderTransactionRules(ids, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "setSystemTransactionRuleEnabled",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val enabled =
+                            env.getArgument<Boolean?>("enabled")
+                                ?: throw IllegalArgumentException("enabled is required")
+                        transactionCategoryResolver.setSystemTransactionRuleEnabled(id, enabled, principal)
                     }
                 },
             )

@@ -18,8 +18,11 @@ import {
   TableRow,
   TableCell,
 } from '@mui/material';
+import type { Theme } from '@mui/material/styles';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import DragHandleIcon from '@mui/icons-material/DragHandle';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
@@ -95,6 +98,27 @@ function ruleChipSx(theme: any, patternType: PatternType) {
   return outlinedChipSx(theme, theme.palette.secondary.main);
 }
 
+/** Muted styling for table/list rows when automatic rule is disabled for the account. */
+function mutedChipSx(theme: Theme) {
+  return {
+    fontSize: '0.7rem',
+    height: 20,
+    borderColor: alpha(theme.palette.text.secondary, 0.4),
+    color: theme.palette.text.disabled,
+    backgroundColor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.04),
+  } as const;
+}
+
+function mutedTagChipSx(theme: Theme) {
+  return {
+    fontSize: '0.7rem',
+    height: 20,
+    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12),
+    color: theme.palette.text.secondary,
+    borderRadius: '.3rem',
+  } as const;
+}
+
 interface TransactionRuleRowProps {
   rule: TransactionRule;
   draggable?: boolean;
@@ -104,6 +128,10 @@ interface TransactionRuleRowProps {
   isFirst?: boolean;
   isLast?: boolean;
   showActions?: boolean;
+  onToggleSystemRuleEnabled?: (rule: TransactionRule, enabled: boolean) => void;
+  disableSystemRuleLabel?: string;
+  enableSystemRuleLabel?: string;
+  disabledChipLabel?: string;
 }
 
 export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
@@ -115,8 +143,13 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
   isFirst = false,
   isLast = false,
   showActions = true,
+  onToggleSystemRuleEnabled,
+  disableSystemRuleLabel = 'Desabilitar regra',
+  enableSystemRuleLabel = 'Habilitar regra',
+  disabledChipLabel = 'Desabilitada',
 }) => {
   const theme = useTheme();
+  const isRowMuted = Boolean(rule.isDisabledForAccount);
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
   const isActionMenuOpen = Boolean(actionMenuAnchorEl);
   const actionMenuId = `transaction-rule-actions-menu-${rule.id}`;
@@ -136,15 +169,28 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
     onDelete(rule);
   }, [closeActionMenu, onDelete, rule]);
 
+  const handleToggleSystemRuleEnabled = useCallback(() => {
+    closeActionMenu();
+    onToggleSystemRuleEnabled?.(rule, rule.isDisabledForAccount);
+  }, [closeActionMenu, onToggleSystemRuleEnabled, rule]);
+
   if (renderAs === 'table') {
+    const cellBg = isRowMuted
+      ? alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.14 : 0.08)
+      : 'background.paper';
     return (
       <TableRow
         hover
         sx={{
+          ...(isRowMuted && {
+            '& .rule-muted-visual': { filter: 'grayscale(1)' },
+          }),
           '&:hover .rule-actions': { opacity: 1 },
-          '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+          '&:hover': isRowMuted
+            ? { bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12) }
+            : { bgcolor: alpha(theme.palette.primary.main, 0.04) },
           '& .MuiTableCell-root': {
-            bgcolor: 'background.paper',
+            bgcolor: cellBg,
             borderColor: 'transparent',
           },
           '& .MuiTableCell-root:first-child': {
@@ -162,23 +208,39 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
             label={APPLICABLE_TO_LABELS[rule.applicableTo as CategoryApplicableTo]}
             size="small"
             variant="outlined"
-            sx={contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
+            sx={isRowMuted ? mutedChipSx(theme) : contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
           />
         </TableCell>
 
         <TableCell>
-          <Chip
-            label={PATTERN_TYPE_LABELS[rule.patternType as PatternType]}
-            size="small"
-            variant="outlined"
-            sx={ruleChipSx(theme, rule.patternType as PatternType)}
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+            <Chip
+              label={PATTERN_TYPE_LABELS[rule.patternType as PatternType]}
+              size="small"
+              variant="outlined"
+              sx={isRowMuted ? mutedChipSx(theme) : ruleChipSx(theme, rule.patternType as PatternType)}
+            />
+            {rule.isDisabledForAccount && (
+              <Chip
+                label={disabledChipLabel}
+                size="small"
+                variant="outlined"
+                sx={{
+                  fontSize: '0.7rem',
+                  height: 20,
+                  color: 'text.disabled',
+                  borderColor: alpha(theme.palette.text.secondary, 0.35),
+                  bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.08 : 0.05),
+                }}
+              />
+            )}
+          </Box>
         </TableCell>
 
         <TableCell>
           <Typography
             variant="body2"
-            color="text.secondary"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
             sx={{
               fontStyle: 'italic',
               display: '-webkit-box',
@@ -196,7 +258,7 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
           {rule.descriptionOverride ? (
             <Typography
               variant="body2"
-              color="text.secondary"
+              color={isRowMuted ? 'text.disabled' : 'text.secondary'}
               sx={{
                 fontStyle: 'italic',
                 display: '-webkit-box',
@@ -216,7 +278,7 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
         </TableCell>
 
         <TableCell>
-          <CategoryChip category={rule.category} />
+          <CategoryChip category={rule.category} disabled={isRowMuted} />
         </TableCell>
 
         <TableCell>
@@ -229,13 +291,17 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
                   label={`#${tag}`}
                   size="small"
                   variant="filled"
-                  sx={{
-                    fontSize: '0.7rem',
-                    height: 20,
-                    bgcolor: alpha(color, 0.05),
-                    color: color,
-                    borderRadius: '.3rem',
-                  }}
+                  sx={
+                    isRowMuted
+                      ? mutedTagChipSx(theme)
+                      : {
+                          fontSize: '0.7rem',
+                          height: 20,
+                          bgcolor: alpha(color, 0.05),
+                          color: color,
+                          borderRadius: '.3rem',
+                        }
+                  }
                 />
               );
             })}
@@ -244,19 +310,28 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
 
         <TableCell>
           {rule.merchant ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box
+              className={isRowMuted ? 'rule-muted-visual' : undefined}
+              sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
+            >
               <Logo
                 src={rule.merchant.logoAsset?.publicUrl ?? undefined}
                 alt={rule.merchant.name}
                 size="xs"
               />
-              <Typography variant="body2">{rule.merchant.name}</Typography>
+              <Typography variant="body2" color={isRowMuted ? 'text.disabled' : 'text.primary'}>
+                {rule.merchant.name}
+              </Typography>
             </Box>
           ) : null}
         </TableCell>
 
         <TableCell>
-          <Typography variant="body2" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+          <Typography
+            variant="body2"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+            sx={{ fontVariantNumeric: 'tabular-nums' }}
+          >
             {rule.priority}
           </Typography>
         </TableCell>
@@ -294,30 +369,42 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
                 'aria-labelledby': actionButtonId,
               }}
             >
-              <MenuItem onClick={handleEditClick}>
-                <ListItemIcon>
-                  <EditIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Editar</ListItemText>
-              </MenuItem>
-              <Divider />
-              <MenuItem
-                onClick={handleDeleteClick}
-                sx={{
-                  color: 'error.main',
-                  '&:hover': {
-                    bgcolor: alpha(theme.palette.error.main, 0.08),
-                  },
-                  '&.Mui-focusVisible': {
-                    bgcolor: alpha(theme.palette.error.main, 0.08),
-                  },
-                }}
-              >
-                <ListItemIcon sx={{ color: 'inherit' }}>
-                  <DeleteOutlineIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText>Excluir</ListItemText>
-              </MenuItem>
+              {rule.isSystem && onToggleSystemRuleEnabled && (
+                <MenuItem onClick={handleToggleSystemRuleEnabled}>
+                  <ListItemIcon>
+                    {rule.isDisabledForAccount ? <PlayCircleOutlineIcon fontSize="small" /> : <PauseCircleOutlineIcon fontSize="small" />}
+                  </ListItemIcon>
+                  <ListItemText>{rule.isDisabledForAccount ? enableSystemRuleLabel : disableSystemRuleLabel}</ListItemText>
+                </MenuItem>
+              )}
+              {!rule.isSystem && (
+                <MenuItem onClick={handleEditClick}>
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Editar</ListItemText>
+                </MenuItem>
+              )}
+              {!rule.isSystem && <Divider />}
+              {!rule.isSystem && (
+                <MenuItem
+                  onClick={handleDeleteClick}
+                  sx={{
+                    color: 'error.main',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                    '&.Mui-focusVisible': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: 'inherit' }}>
+                    <DeleteOutlineIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>Excluir</ListItemText>
+                </MenuItem>
+              )}
             </Menu>
           </TableCell>
         )}
@@ -332,12 +419,18 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
         borderBottom: `1px solid ${theme.palette.divider}`,
         '&:last-child': { borderBottom: 'none' },
         '&:hover .rule-actions': { opacity: 1 },
-        '&:hover': { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+        '&:hover': isRowMuted
+          ? { bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.16 : 0.1) }
+          : { bgcolor: alpha(theme.palette.primary.main, 0.04) },
+        bgcolor: isRowMuted ? alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.12 : 0.06) : undefined,
         px: 2,
         py: 1.5,
         gap: 1.5,
         display: 'flex',
         alignItems: 'flex-start',
+        ...(isRowMuted && {
+          '& .rule-muted-visual': { filter: 'grayscale(1)' },
+        }),
       }}
     >
       {draggable ? (
@@ -360,21 +453,39 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
-          <Typography variant="body2" fontWeight={600} sx={{ fontFamily: 'monospace' }}>
+          <Typography
+            variant="body2"
+            fontWeight={600}
+            sx={{ fontFamily: 'monospace', color: isRowMuted ? 'text.disabled' : undefined }}
+          >
             &quot;{rule.pattern}&quot;
           </Typography>
           <Chip
             label={PATTERN_TYPE_LABELS[rule.patternType as PatternType]}
             size="small"
             variant="outlined"
-            sx={ruleChipSx(theme, rule.patternType as PatternType)}
+            sx={isRowMuted ? mutedChipSx(theme) : ruleChipSx(theme, rule.patternType as PatternType)}
           />
           {rule.applicableTo !== CategoryApplicableTo.Any && (
             <Chip
               label={APPLICABLE_TO_LABELS[rule.applicableTo as CategoryApplicableTo]}
               size="small"
               variant="outlined"
-              sx={contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
+              sx={isRowMuted ? mutedChipSx(theme) : contextChipSx(theme, rule.applicableTo as CategoryApplicableTo)}
+            />
+          )}
+          {rule.isDisabledForAccount && (
+            <Chip
+              label={disabledChipLabel}
+              size="small"
+              variant="outlined"
+              sx={{
+                fontSize: '0.7rem',
+                height: 20,
+                color: 'text.disabled',
+                borderColor: alpha(theme.palette.text.secondary, 0.35),
+                bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.08 : 0.05),
+              }}
             />
           )}
         </Box>
@@ -385,13 +496,23 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
           <Chip
             label={rule.category.name}
             size="small"
-            sx={{
-              bgcolor: rule.category.color ? alpha(rule.category.color, 0.12) : undefined,
-              borderColor: rule.category.color ? alpha(rule.category.color, 0.4) : undefined,
-              color: rule.category.color ?? undefined,
-              fontWeight: 600,
-              fontSize: '0.75rem',
-            }}
+            sx={
+              isRowMuted
+                ? {
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                    color: 'text.disabled',
+                    borderColor: alpha(theme.palette.text.secondary, 0.35),
+                    bgcolor: alpha(theme.palette.grey[500], theme.palette.mode === 'dark' ? 0.2 : 0.12),
+                  }
+                : {
+                    bgcolor: rule.category.color ? alpha(rule.category.color, 0.12) : undefined,
+                    borderColor: rule.category.color ? alpha(rule.category.color, 0.4) : undefined,
+                    color: rule.category.color ?? undefined,
+                    fontWeight: 600,
+                    fontSize: '0.75rem',
+                  }
+            }
             variant="outlined"
           />
         )}
@@ -400,11 +521,22 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
             label={rule.merchant.name}
             size="small"
             variant="outlined"
-            sx={{ fontSize: '0.75rem' }}
+            sx={{
+              fontSize: '0.75rem',
+              ...(isRowMuted && {
+                borderColor: alpha(theme.palette.text.secondary, 0.4),
+                color: theme.palette.text.disabled,
+                bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.06 : 0.04),
+              }),
+            }}
           />
         )}
         {rule.descriptionOverride && (
-          <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
+          <Typography
+            variant="caption"
+            color={isRowMuted ? 'text.disabled' : 'text.secondary'}
+            sx={{ fontStyle: 'italic' }}
+          >
             → &quot;{rule.descriptionOverride}&quot;
           </Typography>
         )}
@@ -416,13 +548,17 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
               label={`#${tag}`}
               size="small"
               variant="filled"
-              sx={{
-                fontSize: '0.7rem',
-                height: 20,
-                bgcolor: alpha(color, 0.05),
-                color: color,
-                borderRadius: '.3rem',
-              }}
+              sx={
+                isRowMuted
+                  ? mutedTagChipSx(theme)
+                  : {
+                      fontSize: '0.7rem',
+                      height: 20,
+                      bgcolor: alpha(color, 0.05),
+                      color: color,
+                      borderRadius: '.3rem',
+                    }
+              }
             />
           );
         })}
@@ -472,30 +608,42 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
               'aria-labelledby': actionButtonId,
             }}
           >
-            <MenuItem onClick={handleEditClick}>
-              <ListItemIcon>
-                <EditIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Editar</ListItemText>
-            </MenuItem>
-            <Divider />
-            <MenuItem
-              onClick={handleDeleteClick}
-              sx={{
-                color: 'error.main',
-                '&:hover': {
-                  bgcolor: alpha(theme.palette.error.main, 0.08),
-                },
-                '&.Mui-focusVisible': {
-                  bgcolor: alpha(theme.palette.error.main, 0.08),
-                },
-              }}
-            >
-              <ListItemIcon sx={{ color: 'inherit' }}>
-                <DeleteOutlineIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>Excluir</ListItemText>
-            </MenuItem>
+            {rule.isSystem && onToggleSystemRuleEnabled && (
+              <MenuItem onClick={handleToggleSystemRuleEnabled}>
+                <ListItemIcon>
+                  {rule.isDisabledForAccount ? <PlayCircleOutlineIcon fontSize="small" /> : <PauseCircleOutlineIcon fontSize="small" />}
+                </ListItemIcon>
+                <ListItemText>{rule.isDisabledForAccount ? enableSystemRuleLabel : disableSystemRuleLabel}</ListItemText>
+              </MenuItem>
+            )}
+            {!rule.isSystem && (
+              <MenuItem onClick={handleEditClick}>
+                <ListItemIcon>
+                  <EditIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Editar</ListItemText>
+              </MenuItem>
+            )}
+            {!rule.isSystem && <Divider />}
+            {!rule.isSystem && (
+              <MenuItem
+                onClick={handleDeleteClick}
+                sx={{
+                  color: 'error.main',
+                  '&:hover': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                  '&.Mui-focusVisible': {
+                    bgcolor: alpha(theme.palette.error.main, 0.08),
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ color: 'inherit' }}>
+                  <DeleteOutlineIcon fontSize="small" />
+                </ListItemIcon>
+                <ListItemText>Excluir</ListItemText>
+              </MenuItem>
+            )}
           </Menu>
         </Box>
       )}

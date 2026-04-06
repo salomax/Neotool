@@ -10,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
@@ -62,6 +63,42 @@ class DefaultCategoryRuleRepositoryTest {
         repository.findRulesForAccount(accountId)
 
         verify(entityRepository).findRulesForAccount(eq(accountId))
+    }
+
+    @Test
+    fun `findDisabledRuleIdsForAccount delegates accountId to entity repository`() {
+        val accountId = UUID.randomUUID()
+        val ruleId = UUID.randomUUID()
+        whenever(entityRepository.findDisabledRuleIdsForAccount(accountId)).thenReturn(listOf(ruleId))
+
+        val result = repository.findDisabledRuleIdsForAccount(accountId)
+
+        assertThat(result).containsExactly(ruleId)
+        verify(entityRepository).findDisabledRuleIdsForAccount(eq(accountId))
+    }
+
+    @Test
+    fun `disableSystemRuleForAccount delegates to entity repository`() {
+        val accountId = UUID.randomUUID()
+        val ruleId = UUID.randomUUID()
+        whenever(entityRepository.disableSystemRuleForAccount(eq(accountId), eq(ruleId), any())).thenReturn(1)
+
+        val result = repository.disableSystemRuleForAccount(accountId, ruleId)
+
+        assertThat(result).isTrue()
+        verify(entityRepository, times(1)).disableSystemRuleForAccount(eq(accountId), eq(ruleId), any())
+    }
+
+    @Test
+    fun `enableSystemRuleForAccount delegates to entity repository`() {
+        val accountId = UUID.randomUUID()
+        val ruleId = UUID.randomUUID()
+        whenever(entityRepository.enableSystemRuleForAccount(accountId, ruleId)).thenReturn(1)
+
+        val result = repository.enableSystemRuleForAccount(accountId, ruleId)
+
+        assertThat(result).isTrue()
+        verify(entityRepository).enableSystemRuleForAccount(eq(accountId), eq(ruleId))
     }
 
     private fun entity(

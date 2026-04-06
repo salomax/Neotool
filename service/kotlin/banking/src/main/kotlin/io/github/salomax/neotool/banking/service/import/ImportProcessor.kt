@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
+import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
@@ -265,7 +266,21 @@ open class ImportProcessor(
                         sourceData = buildSourceData(parsed),
                         categoryId = categorySuggestion?.categoryId,
                         categorySource = categorySuggestion?.let { CategorySource.RULE },
-                        appliedRuleIds = categorySuggestion?.appliedRuleIds ?: emptyList(),
+                        appliedRuleHistory =
+                            categorySuggestion
+                                ?.let { suggestion ->
+                                    val appliedRuleIds =
+                                        AppliedRuleAuditSupport.resolveAppliedRuleIds(
+                                            suggestion = suggestion,
+                                            rules = categorizationRules,
+                                            appliedCategory = suggestion.categoryId != null,
+                                            appliedMerchant = false,
+                                            appliedDescription = suggestion.descriptionOverride != null,
+                                            appliedTags = !suggestion.tagsOverride.isNullOrEmpty(),
+                                        )
+                                    AppliedRuleAuditSupport.buildEntries(appliedRuleIds, now)
+                                }
+                                ?: emptyList(),
                         createdAt = now,
                         updatedAt = now,
                     )

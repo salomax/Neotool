@@ -9,6 +9,7 @@ export interface TransactionRule {
   applicableTo: CategoryApplicableTo;
   priority: number;
   isSystem: boolean;
+  isDisabledForAccount: boolean;
   isImplicit: boolean;
   matchCount: number;
   createdAt: string;
