@@ -452,6 +452,7 @@ type BenchmarkPerformance
   label: String!
   twr: Float
 }
+
 type BillImportJob
   @join__type(graph: BANKING)
 {
@@ -2810,7 +2811,6 @@ enum PerformancePeriod
   THREE_YEARS @join__enumValue(graph: BANKING)
   ALL @join__enumValue(graph: BANKING)
 }
-}
 
 type Permission
   @join__type(graph: SECURITY, key: "id")
@@ -2871,6 +2871,7 @@ type PortfolioPerformance
   benchmarks: [BenchmarkPerformance!]!
   hasEstimatedValues: Boolean!
 }
+
 type PricePoint
   @join__type(graph: BANKING)
 {
@@ -4056,6 +4057,7 @@ input UpdateInvestmentCashTransactionInput
   date: Date!
   description: String
 }
+
 input UpdateProductInput
   @join__type(graph: BANKING)
 {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { TextField, MenuItem, Stack } from "@mui/material";
+import { TextField, MenuItem, Stack, type TextFieldProps } from "@mui/material";
 
 export interface SelectOption<T = string> {
   label: string;
@@ -17,6 +17,7 @@ export interface SelectFieldProps<T = string> {
   options: SelectOption<T>[];
   helperText?: React.ReactNode;
   fullWidth?: boolean;
+  size?: TextFieldProps["size"];
   'data-testid'?: string;
 }
 
@@ -26,6 +27,7 @@ export function SelectField<T = string>({
   options,
   helperText,
   fullWidth = true,
+  size,
   'data-testid': dataTestId,
 }: SelectFieldProps<T>) {
   const { control } = useFormContext();
@@ -38,6 +40,7 @@ export function SelectField<T = string>({
           select
           label={label}
           fullWidth={fullWidth}
+          size={size}
           value={field.value ?? ""}
           onChange={(e) => field.onChange(e.target.value as any)}
           error={!!fieldState.error}

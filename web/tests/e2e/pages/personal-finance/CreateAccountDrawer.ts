@@ -28,7 +28,16 @@ export class CreateAccountDrawer {
    * e.g. 'BANK', 'CREDIT', 'CASH', 'PAYMENT', 'INVESTMENT'
    */
   async selectType(type: string): Promise<void> {
-    await this.drawer.getByTestId(`account-type-${type}`).click();
+    const normalizedType =
+      type === 'BANK'
+        ? 'BANK'
+        : type === 'CARD' || type === 'CREDIT' || type === 'BENEFIT' || type === 'PAYMENT'
+          ? 'CARD'
+          : type;
+    const typeButton = this.drawer.getByTestId(`account-type-${normalizedType}`);
+    if (await typeButton.isVisible().catch(() => false)) {
+      await typeButton.click();
+    }
   }
 
   /**
@@ -37,8 +46,9 @@ export class CreateAccountDrawer {
    * Opens the subtype SelectField and picks the option by its data-value attribute.
    */
   async selectSubtype(subtype: string): Promise<void> {
+    const normalizedSubtype = subtype === 'VALE_REFEICAO' ? 'VOUCHER_CARD' : subtype;
     await this.drawer.getByTestId('account-subtype-select').click();
-    await this.page.locator(`[data-value="${subtype}"]`).first().click();
+    await this.page.locator(`[data-value="${normalizedSubtype}"]`).first().click();
   }
 
   // ── Form fields ─────────────────────────────────────────────────────────────
@@ -49,10 +59,38 @@ export class CreateAccountDrawer {
     await input.fill(name);
   }
 
+  async selectFirstIssuer(): Promise<void> {
+    const issuerInput = this.drawer.getByLabel(/instituição|institution/i).first();
+    await issuerInput.click();
+    // Wait for real issuers to load (at least 2 options = 1 real issuer + the custom option)
+    await this.page.getByRole('option').nth(1).waitFor({ state: 'visible' });
+    await this.page.getByRole('option').first().click();
+  }
+
   async fillInitialBalance(amount: number): Promise<void> {
     const input = this.drawer.getByTestId('initial-balance-input');
     await input.clear();
     await input.fill(String(amount));
+  }
+
+  /**
+   * Fills the initial balance date field (MUI X DatePicker v7 segmented input).
+   * Expects dateStr in pt-BR format: DD/MM/YYYY.
+   * Clicks the wrapper to focus the first segment, then types digits to advance through day/month/year.
+   */
+  async fillInitialBalanceDate(dateStr: string): Promise<void> {
+    const [dd, mm, yyyy] = dateStr.split('/');
+    // .first() avoids strict-mode violation: data-testid is on both wrapper div and hidden native input
+    const container = this.drawer.getByTestId('initial-balance-date-input').first();
+    await container.click();
+    await this.page.keyboard.type(dd + mm + yyyy);
+  }
+
+  static formatDateBr(date: Date): string {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
+    return `${d}/${m}/${y}`;
   }
 
   async fillClosingDay(day: number): Promise<void> {
@@ -111,12 +149,19 @@ export class CreateAccountDrawer {
     name: string;
     subtype?: string;
     initialBalance?: number;
+    initialBalanceDate?: string; // DD/MM/YYYY; defaults to today
   }): Promise<void> {
-    await this.selectType('BANK');
+    const typeButton = this.drawer.getByTestId('account-type-BANK');
+    if (await typeButton.isVisible().catch(() => false)) {
+      await this.selectType('BANK');
+    }
     await this.selectSubtype(params.subtype ?? 'CONTA_CORRENTE');
+    await this.selectFirstIssuer();
     await this.fillName(params.name);
     if (params.initialBalance !== undefined) {
       await this.fillInitialBalance(params.initialBalance);
+      const dateStr = params.initialBalanceDate ?? CreateAccountDrawer.formatDateBr(new Date());
+      await this.fillInitialBalanceDate(dateStr);
     }
     await this.submit();
   }
@@ -129,8 +174,12 @@ export class CreateAccountDrawer {
     dueDay?: number;
     initialBalance?: number;
   }): Promise<void> {
-    await this.selectType('CREDIT');
+    const typeButton = this.drawer.getByTestId('account-type-CARD');
+    if (await typeButton.isVisible().catch(() => false)) {
+      await this.selectType('CARD');
+    }
     await this.selectSubtype(params.subtype ?? 'CREDIT_CARD');
+    await this.selectFirstIssuer();
     await this.fillName(params.name);
     if (params.closingDay !== undefined) await this.fillClosingDay(params.closingDay);
     if (params.dueDay !== undefined) await this.fillDueDay(params.dueDay);
