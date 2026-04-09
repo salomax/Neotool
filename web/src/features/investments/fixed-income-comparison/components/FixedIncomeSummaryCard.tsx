@@ -2,7 +2,6 @@
 
 import React from "react";
 import { Box, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
 import Card from "@/shared/components/ui/primitives/Card";
 import { Skeleton } from "@/shared/components/ui/primitives/Skeleton";
 import { useTranslation, i18n } from "@/shared/i18n";
@@ -26,9 +25,11 @@ export function FixedIncomeSummaryCard({
     return (
       <Card
         variant="outlined"
+        hoverable={false}
         sx={{
           p: 3,
           mb: 3,
+          boxShadow: "none",
         }}
       >
         <Skeleton
@@ -88,7 +89,6 @@ export function FixedIncomeSummaryCard({
   );
 
   const rateModel = comparisonRow.rateModel;
-  let prefixText = "";
   let suffixText = "";
 
   if (rateModel === "CDI") {
@@ -96,119 +96,74 @@ export function FixedIncomeSummaryCard({
   } else if (rateModel === "FIXED") {
     suffixText = ` ${t(`${ns}.comparisonTableRateModelFixedSuffix`)}`;
   } else if (rateModel === "IPCA_PLUS") {
-    prefixText = t(`${ns}.comparisonTableRateModelIpcaPrefix`);
+    suffixText = ` ${t(`${ns}.comparisonTableRateModelIpcaPrefix`)}`;
   }
 
   return (
     <Card
       variant="outlined"
+      hoverable={false}
       sx={{
         p: 3,
         mb: 3,
+        bgcolor: "primary.main",
+        backgroundImage: (theme) =>
+          `linear-gradient(90deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
+        boxShadow: "none",
+        color: "primary.contrastText",
+        "& .MuiTypography-root": { color: "inherit" },
       }}
     >
       <Box
         sx={{
           display: "flex",
           flexDirection: { xs: "column", md: "row" },
-          alignItems: { xs: "flex-start", md: "center" },
-          justifyContent: "space-between",
-          gap: 2,
+          alignItems: { xs: "flex-start", md: "flex-end" },
+          justifyContent: "flex-start",
+          gap: 3,
+          flexWrap: { xs: "nowrap", md: "wrap" },
         }}
       >
-        <Box sx={{ flex: 1 }}>
-          <Typography
-            variant="overline"
-            sx={{
-              display: "block",
-              color: "text.secondary",
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              mb: 0.5,
-              fontSize: "0.85rem",
-            }}
-          >
-            {t(`${ns}.netEquivalentTitle`)}
-          </Typography>
-          <Typography
-            variant="body1"
-            color="text.secondary"
-            sx={{ fontSize: "1rem", lineHeight: 1.5 }}
-          >
-            {t(`${ns}.netEquivalentLine1Prefix`)}
-            <Box
-              component="span"
-              sx={{
-                fontWeight: 700,
-                color: "primary.main",
-                display: "inline-block",
-                borderBottom: (theme) =>
-                  `3px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-              }}
-            >
-              {baseLabel}
-              {t(`${ns}.netEquivalentLine1Suffix`, {
-                baseRate: summary.baseRateDisplay,
-              })}
-            </Box>
-            <br />
-            {t(`${ns}.netEquivalentAssetsPrefix`)}
-            <Box
-              component="span"
-              sx={{
-                fontWeight: 700,
-                color: "primary.main",
-                display: "inline-block",
-                borderBottom: (theme) =>
-                  `3px solid ${alpha(theme.palette.primary.main, 0.18)}`,
-              }}
-            >
-              {targetLabel}
-            </Box>{" "}
-            {t(`${ns}.netEquivalentLine3`)}
-          </Typography>
-        </Box>
-
-        <Box
-          sx={{
-            textAlign: { xs: "left", md: "right" },
-            minWidth: { md: 180 },
-          }}
-        >
+        <Box sx={{ textAlign: "left", minWidth: { md: 220 } }}>
           <Typography
             variant="h2"
             component="p"
             sx={{
               fontWeight: 900,
-              color: "text.primary",
-              lineHeight: 1.1,
-              fontSize: { xs: "2.2rem", md: "2.5rem" },
+              color: "primary.contrastText",
+              lineHeight: 1,
+              fontSize: { xs: "2.8rem", md: "3rem" },
             }}
           >
-            {prefixText && (
-              <Box
-                component="span"
-                sx={{
-                  mr: 0.5,
-                  fontSize: "0.5em",
-                  color: "text.secondary",
-                  fontWeight: 700,
-                }}
-              >
-                {prefixText}
-              </Box>
-            )}
             {rateParts.main}
             <Box
               component="span"
               sx={{
                 ml: 0.5,
                 fontSize: "0.5em",
+                color: "primary.contrastText",
               }}
             >
               {rateParts.suffix}
               {suffixText}
             </Box>
+          </Typography>
+        </Box>
+
+        <Box sx={{ maxWidth: 680, pb: { md: 0.25 } }}>
+          <Typography
+            variant="body1"
+            sx={{ fontSize: 14, lineHeight: 1.5, color: "primary.contrastText" }}
+          >
+            {t(`${ns}.equivalentRateDescriptionPrefix`)}{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+              {targetLabel}
+            </Box>{" "}
+            {t(`${ns}.equivalentRateDescriptionMiddle`)}{" "}
+            <Box component="span" sx={{ fontWeight: 700 }}>
+              {baseLabel}
+            </Box>
+            {" "}{t(`${ns}.equivalentRateDescriptionSuffix`)}
           </Typography>
         </Box>
       </Box>

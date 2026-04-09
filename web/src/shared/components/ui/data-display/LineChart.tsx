@@ -61,10 +61,13 @@ export interface LineChartProps {
   showXAxisTitle?: boolean;
   showYAxisTitles?: boolean;
   showGrid?: boolean;
+  showHorizontalGridLines?: boolean;
+  showVerticalGridLines?: boolean;
   showDots?: boolean;
   showValueLabels?: boolean;
   showTooltip?: boolean;
   showLegend?: boolean;
+  yAxisLabelsInside?: boolean;
   strokeWidth?: number;
   showArea?: boolean;
   scale?: boolean;
@@ -165,12 +168,14 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         bgcolor: theme.palette.background.paper,
         border: `1px solid ${theme.palette.divider}`,
         p: 1.5,
+        borderRadius: 2,
       }}
     >
       <Typography variant="caption" color="text.secondary">
         {formattedLabel}
       </Typography>
-      {payload.map((entry: any, index: number) => {
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
+        {payload.map((entry: any, index: number) => {
         const [formattedValue] = tooltipFormatter(
           entry.value,
           entry.name,
@@ -183,30 +188,39 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
             key={entry.dataKey || index}
             sx={{
               display: "flex",
-              alignItems: "center",
-              mt: index === 0 ? 0.5 : 0.25,
+              flexDirection: "column",
+              alignItems: "flex-start",
+              gap: 0.25,
+              borderRadius: 1.5,
+              px: 0.75,
+              py: 0.5,
+              bgcolor: theme.palette.action.hover,
             }}
           >
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: "50%",
-                bgcolor: color,
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">
-              {entry.name && (
-                <Box component="span" sx={{ mr: 0.5 }}>
-                  {entry.name}
-                </Box>
-              )}
+            <Typography
+              variant="body2"
+              sx={{ display: "flex", alignItems: "center", fontWeight: 600 }}
+            >
+              <Box
+                component="span"
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  bgcolor: color,
+                  mr: 0.75,
+                  display: "inline-block",
+                }}
+              />
+              {entry.name}
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ pl: 1.75 }}>
               {formattedValue}
             </Typography>
           </Box>
         );
-      })}
+        })}
+      </Box>
     </Box>
   );
 };
@@ -227,10 +241,13 @@ export const LineChart: React.FC<LineChartProps> = ({
   showXAxisTitle = false,
   showYAxisTitles = false,
   showGrid = true,
+  showHorizontalGridLines = true,
+  showVerticalGridLines = false,
   showDots = true,
   showValueLabels = false,
   showTooltip = true,
   showLegend = true,
+  yAxisLabelsInside = false,
   strokeWidth = 2,
   showArea = true,
   scale = false,
@@ -568,7 +585,8 @@ export const LineChart: React.FC<LineChartProps> = ({
               <CartesianGrid 
                 strokeDasharray="3 3" 
                 stroke={theme.palette.divider}
-                vertical={false}
+                horizontal={showHorizontalGridLines}
+                vertical={showVerticalGridLines}
               />
             )}
 
@@ -599,6 +617,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="left"
+                      mirror={yAxisLabelsInside}
                       padding={axisPadding}
                       axisLine={{ stroke: theme.palette.divider }}
                       tickLine={{ stroke: theme.palette.divider }}
@@ -622,6 +641,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="right"
+                      mirror={yAxisLabelsInside}
                       padding={axisPadding}
                       axisLine={{ stroke: theme.palette.divider }}
                       tickLine={{ stroke: theme.palette.divider }}
@@ -643,6 +663,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                 </>
               ) : (
                 <YAxis
+                  mirror={yAxisLabelsInside}
                   padding={axisPadding}
                   axisLine={{ stroke: theme.palette.divider }}
                   tickLine={{ stroke: theme.palette.divider }}
@@ -676,7 +697,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                 )}
               />
             )}
-            {showLegend && <Legend />}
+            {showLegend && <Legend iconType="circle" />}
 
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];

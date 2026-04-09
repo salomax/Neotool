@@ -5,7 +5,7 @@ import { useTheme } from "@mui/material";
 
 export interface ChartTooltipProps {
   active?: boolean;
-  payload?: ReadonlyArray<{ value: number | string }>;
+  payload?: ReadonlyArray<{ value?: unknown }>;
   locale?: string;
   formatValue?: (value: number | string) => string;
 }
@@ -27,11 +27,15 @@ export function ChartTooltip({
   }
 
   const val = payload[0].value;
+  if (val === undefined || val === null) return null;
+
+  const isPrimitive = typeof val === "number" || typeof val === "string";
+  const primitiveValue: number | string = isPrimitive ? val : String(val);
   const displayValue = formatValue
-    ? formatValue(val)
-    : typeof val === "number"
-      ? val.toLocaleString(locale)
-      : val;
+    ? formatValue(primitiveValue)
+    : typeof primitiveValue === "number"
+      ? primitiveValue.toLocaleString(locale)
+      : primitiveValue;
 
   return (
     <div
@@ -59,13 +63,9 @@ export function createChartTooltipContent(
   locale: string = "pt-BR",
   formatValue?: (value: number | string) => string
 ) {
-  return function TooltipContent({
-    active,
-    payload,
-  }: {
-    active?: boolean;
-    payload?: ReadonlyArray<{ value: number | string }>;
-  }) {
+  return function TooltipContent(props: any) {
+    const active = props?.active as boolean | undefined;
+    const payload = props?.payload as ReadonlyArray<{ value?: unknown }> | undefined;
     return (
       <ChartTooltip
         active={active}

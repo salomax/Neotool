@@ -12,6 +12,7 @@ import {
 import CancelIcon from "@mui/icons-material/Cancel";
 import { NumericFormat } from "react-number-format";
 import { getLocaleSeparators } from "@/shared/utils/locale";
+import { FormSectionLabel } from "./FormSectionLabel";
 
 interface PrincipalInputInnerProps {
   field: { value: number | ""; onChange: (v: number | "") => void; onBlur: () => void };
@@ -54,19 +55,7 @@ function PrincipalInputInner({
 
   return (
     <Box>
-      <Typography
-        variant="caption"
-        sx={{
-          display: "block",
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: "0.05em",
-          color: "text.secondary",
-          mb: 1,
-        }}
-      >
-        {t(`${ns}.principal`)}
-      </Typography>
+      <FormSectionLabel>{t(`${ns}.principal`)}</FormSectionLabel>
       <NumericFormat
         customInput={TextField}
         fullWidth
@@ -90,7 +79,11 @@ function PrincipalInputInner({
         allowNegative={false}
         InputProps={{
           startAdornment: (
-            <InputAdornment position="start">R$</InputAdornment>
+            <InputAdornment position="start">
+              <Typography variant="caption" sx={{ color: "text.secondary" }}>
+                R$
+              </Typography>
+            </InputAdornment>
           ),
           endAdornment: (
             <InputAdornment position="end">
@@ -102,9 +95,9 @@ function PrincipalInputInner({
                   setLocalValue("");
                   field.onChange("");
                 }}
-                sx={{ mr: -0.5 }}
+                sx={{ mr: -0.5, p: 0.25, color: "text.disabled" }}
               >
-                <CancelIcon fontSize="small" />
+                <CancelIcon fontSize="inherit" sx={{ fontSize: 16 }} />
               </IconButton>
             </InputAdornment>
           ),
