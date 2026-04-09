@@ -89,8 +89,8 @@ CREATE TABLE banking.financial_account_card_data (
     credit_limit            NUMERIC(18,2),
     available_credit_limit  NUMERIC(18,2),
     min_payment_percentage  NUMERIC(5,2),
-    closing_day             SMALLINT CHECK (closing_day BETWEEN 1 AND 28),
-    due_day                 SMALLINT CHECK (due_day BETWEEN 1 AND 28),
+    closing_day             SMALLINT CHECK (closing_day BETWEEN 1 AND 31),
+    due_day                 SMALLINT CHECK (due_day BETWEEN 1 AND 31),
     linked_bank_account_id  UUID NULL
         REFERENCES banking.financial_accounts(id) ON DELETE SET NULL
 );

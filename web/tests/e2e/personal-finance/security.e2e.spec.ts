@@ -77,7 +77,7 @@ test.describe('Security — Financial Accounts', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta FA02-A ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta FA02-A ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -94,7 +94,7 @@ test.describe('Security — Financial Accounts', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta FA03 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta FA03 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -119,7 +119,7 @@ test.describe('Security — Financial Accounts', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta FA04 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta FA04 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -149,7 +149,7 @@ test.describe('Security — Transactions', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta TX01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta TX01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
     const tx = await createTransaction(
@@ -183,7 +183,7 @@ test.describe('Security — Transactions', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta TX02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta TX02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -227,7 +227,7 @@ test.describe('Security — Transactions', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta TX03 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta TX03 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
     const tx = await createTransaction(
@@ -266,7 +266,7 @@ test.describe('Security — Transactions', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta TX04 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta TX04 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
     const tx = await createTransaction(
@@ -303,7 +303,7 @@ test.describe('Security — Transactions', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta TX05 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta TX05 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
     const tx = await createTransaction(
@@ -409,7 +409,7 @@ test.describe('Security — Credit Card Bills', () => {
     const { userA, userB } = twoTenants;
 
     const cardA = await createFinancialAccount(
-      { name: `Cartão CB01 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 },
+      { name: `Cartão CB01 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 7, dueDay: 15 },
       userA.token
     );
     const tx = await createTransaction(
@@ -441,7 +441,7 @@ test.describe('Security — Credit Card Bills', () => {
     const { userA, userB } = twoTenants;
 
     const cardA = await createFinancialAccount(
-      { name: `Cartão CB02 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 },
+      { name: `Cartão CB02 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 7, dueDay: 15 },
       userA.token
     );
     const tx = await createTransaction(
@@ -475,7 +475,7 @@ test.describe('Security — Credit Card Bills', () => {
     const { userA, userB } = twoTenants;
 
     const cardA = await createFinancialAccount(
-      { name: `Cartão CB03 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 },
+      { name: `Cartão CB03 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 7, dueDay: 15 },
       userA.token
     );
     const tx = await createTransaction(
@@ -510,7 +510,7 @@ test.describe('Security — Transaction Import', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta IM01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta IM01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -538,7 +538,7 @@ test.describe('Security — Transaction Import', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta IM02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta IM02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -570,7 +570,7 @@ test.describe('Security — IDOR (ID Enumeration)', () => {
 
     // userA creates an account — the ID is a valid UUID in the system
     const accountA = await createFinancialAccount(
-      { name: `Conta IDOR01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta IDOR01 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
 
@@ -594,7 +594,7 @@ test.describe('Security — IDOR (ID Enumeration)', () => {
     const { userA, userB } = twoTenants;
 
     const accountA = await createFinancialAccount(
-      { name: `Conta IDOR02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE', initialBalance: 0 },
+      { name: `Conta IDOR02 ${Date.now()}`, type: 'BANK', subtype: 'CONTA_CORRENTE' },
       userA.token
     );
     const tx = await createTransaction(

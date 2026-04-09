@@ -70,12 +70,6 @@ const CardLevelValues = [
   'BLACK',
 ];
 
-const Currencies = [
-  { value: 'BRL', label: 'BRL' },
-  { value: 'USD', label: 'USD' },
-  { value: 'EUR', label: 'EUR' },
-];
-
 type CreateAccountFormData = {
   type: 'BANK' | 'CARD';
   issuerId?: string;
@@ -128,9 +122,9 @@ interface CreateFinancialAccountDrawerProps {
   onBackFromPrefilledType?: () => void;
   /** Pre-fills the last 4 digits field when creating a card inline from import. */
   initialMaskedNumber?: string;
-  /** Pre-fills the card closing day (1-31) when creating from bill import. */
+  /** Pre-fills the card closing day (1-28) when available from import context. */
   initialClosingDay?: number;
-  /** Pre-fills the card due day (1-31) when creating from bill import. */
+  /** Pre-fills the card due day (1-28) when available from import context. */
   initialDueDay?: number;
   /** Pre-select issuer when creating from flows that already locked issuer. */
   initialIssuerId?: string;
@@ -437,7 +431,7 @@ export function CreateFinancialAccountDrawer({
     }
 
     if (watchedIssuerId === 'custom') {
-      if (previousIssuerId !== 'custom') {
+      if (previousIssuerId && previousIssuerId !== 'custom') {
         setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
       }
       return;
@@ -568,7 +562,7 @@ export function CreateFinancialAccountDrawer({
   };
 
   const renderTypeSelection = () => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 2, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
       {/* Title Section */}
       <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography variant="subtitle2" color="text.secondary">
@@ -616,10 +610,6 @@ export function CreateFinancialAccountDrawer({
               <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} data-testid="account-subtype-select" size="medium" />
             )}
 
-            {watchedIssuerId === 'custom' && (
-              <SelectField name="currencyCode" label={t('financeTransactions.createAccount.step2.fields.currency')} options={Currencies} size="medium" />
-            )}
-
             <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} size="medium" />
 
             {/* Initial Balance — only for bank accounts */}
@@ -631,6 +621,7 @@ export function CreateFinancialAccountDrawer({
                   currency={watchedCurrencyCode}
                   locale={i18n.language}
                   size="medium"
+                  allowNegative
                   InputProps={{ inputProps: { 'data-testid': 'initial-balance-input' } }}
                 />
                 <DatePickerField
@@ -646,8 +637,20 @@ export function CreateFinancialAccountDrawer({
             {/* Bank Specific Fields (excluding subtype) */}
             {selectedType === 'BANK' && (
               <Stack direction="row" spacing={2}>
-                <TextField name="branchCode" label={t('financeTransactions.createAccount.step2.fields.branchCode')} sx={{ flex: 1 }} size="medium" />
-                <TextField name="accountNumber" label={t('financeTransactions.createAccount.step2.fields.accountNumber')} sx={{ flex: 2 }} size="medium" />
+                <TextField
+                  name="branchCode"
+                  label={t('financeTransactions.createAccount.step2.fields.branchCode')}
+                  sx={{ flex: 1 }}
+                  size="medium"
+                  inputProps={{ 'data-testid': 'bank-branch-input' }}
+                />
+                <TextField
+                  name="accountNumber"
+                  label={t('financeTransactions.createAccount.step2.fields.accountNumber')}
+                  sx={{ flex: 2 }}
+                  size="medium"
+                  inputProps={{ 'data-testid': 'bank-number-input' }}
+                />
                 <TextField name="checkDigit" label={t('financeTransactions.createAccount.step2.fields.checkDigit')} sx={{ width: 80 }} size="medium" />
               </Stack>
             )}

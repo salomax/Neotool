@@ -14,8 +14,8 @@ export interface FinancialAccount {
   name: string;
   currencyCode: string;
   cardData?: {
-    closingDay: number;
-    dueDay: number;
+    closingDay?: number;
+    dueDay?: number;
     maskedNumber?: string;
   } | null;
   bankData?: {
@@ -143,7 +143,7 @@ function normalizeCreateFinancialAccountInput(input: CreateFinancialAccountInput
     issuerName: input.issuerId ? undefined : input.issuerName ?? 'E2E Test Issuer',
   };
 
-  if (typeof input.initialBalance === 'number' && input.initialBalance !== 0) {
+  if (typeof input.initialBalance === 'number') {
     normalized.initialBalance = input.initialBalance;
     normalized.initialBalanceDate = input.initialBalanceDate ?? today();
   }
@@ -162,6 +162,45 @@ function normalizeCreateFinancialAccountInput(input: CreateFinancialAccountInput
       closingDay: input.closingDay,
       dueDay: input.dueDay,
     };
+  }
+
+  return normalized;
+}
+
+function normalizeUpdateFinancialAccountInput(
+  input: Partial<CreateFinancialAccountInput>
+): Record<string, unknown> {
+  if (!input.type || !input.subtype) {
+    throw new Error('updateFinancialAccount requires input.type and input.subtype');
+  }
+
+  const normalized: Record<string, unknown> = {
+    type: input.type,
+    subtype: input.subtype,
+  };
+
+  if ('name' in input) normalized.name = input.name;
+  if ('currencyCode' in input) normalized.currencyCode = input.currencyCode;
+  if ('issuerId' in input) normalized.issuerId = input.issuerId;
+  if ('issuerName' in input) normalized.issuerName = input.issuerName;
+
+  if (input.bankData !== undefined) {
+    normalized.bankData = input.bankData;
+  } else {
+    const bankData: Record<string, unknown> = {};
+    if ('branchCode' in input) bankData.branchCode = input.branchCode;
+    if ('accountNumber' in input) bankData.number = input.accountNumber;
+    if ('checkDigit' in input) bankData.checkDigit = input.checkDigit;
+    if (Object.keys(bankData).length > 0) normalized.bankData = bankData;
+  }
+
+  if (input.cardData !== undefined) {
+    normalized.cardData = input.cardData;
+  } else {
+    const cardData: Record<string, unknown> = {};
+    if ('closingDay' in input) cardData.closingDay = input.closingDay;
+    if ('dueDay' in input) cardData.dueDay = input.dueDay;
+    if (Object.keys(cardData).length > 0) normalized.cardData = cardData;
   }
 
   return normalized;
@@ -228,7 +267,7 @@ export async function updateFinancialAccount(
 
   const result = await executeGraphQL<{
     updateFinancialAccount: FinancialAccount;
-  }>(mutation, { id, input: normalizeCreateFinancialAccountInput(input as CreateFinancialAccountInput) }, token);
+  }>(mutation, { id, input: normalizeUpdateFinancialAccountInput(input) }, token);
 
   if (result.errors || !result.data?.updateFinancialAccount) {
     throw new Error(

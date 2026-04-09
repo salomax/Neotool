@@ -749,7 +749,7 @@ export function TransactionTable({
         aria-label={t('financeTransactions.transactionTable.ariaLabel')}
       >
         <TableHead ref={tableHeadRef}>
-          <TableRow>
+          <TableRow sx={{ '& .MuiTableCell-root': { pb: 1.5 } }}>
             <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
             <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
               <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>

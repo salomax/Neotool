@@ -22,17 +22,23 @@ export class FinanceTransactionsPage {
     this.createAccountDrawer = new CreateAccountDrawer(page);
   }
 
+  private async anyMainStateVisible(): Promise<boolean> {
+    const checks = await Promise.all([
+      this.page.getByTestId('empty-accounts-state').isVisible().catch(() => false),
+      this.page.getByTestId('account-selector').isVisible().catch(() => false),
+      this.page.getByTestId('btn-new-account').isVisible().catch(() => false),
+      this.page.getByTestId('account-type-BANK').isVisible().catch(() => false),
+      this.page.getByText(/nova conta ou cartão/i).isVisible().catch(() => false),
+    ]);
+    return checks.some(Boolean);
+  }
+
   // ── Navigation ──────────────────────────────────────────────────────────────
 
   async goto(): Promise<void> {
     await this.page.goto('/personal-finance/finance-transactions');
     await this.page.getByRole('heading', { name: /movimentações financeiras/i }).waitFor({ state: 'visible' });
-    await Promise.race([
-      this.page.getByTestId('empty-accounts-state').waitFor({ state: 'visible' }),
-      this.page.getByTestId('account-selector').waitFor({ state: 'visible' }),
-      this.page.getByTestId('account-type-BANK').waitFor({ state: 'visible' }),
-      this.page.getByTestId('btn-new-account').waitFor({ state: 'visible' }),
-    ]);
+    await expect.poll(async () => this.anyMainStateVisible(), { timeout: 30000 }).toBe(true);
   }
 
   // ── Account selector ────────────────────────────────────────────────────────
@@ -48,6 +54,19 @@ export class FinanceTransactionsPage {
     // .last() targets the popover item — .first() would be the trigger, covered by the backdrop.
     await this.page.getByText(accountName, { exact: true }).last().click();
     await expect(this.page.getByTestId('account-selector')).toContainText(accountName);
+  }
+
+  /**
+   * Opens the edit drawer for a specific account through the selector popover.
+   */
+  async openEditAccountDrawer(accountName: string): Promise<CreateAccountDrawer> {
+    await this.page.getByTestId('account-selector').click();
+    const accountNameCell = this.page.getByText(accountName, { exact: true }).last();
+    await accountNameCell.waitFor({ state: 'visible' });
+    const accountRow = accountNameCell.locator('xpath=ancestor::*[@role="button"][1]');
+    await accountRow.getByLabel(/editar|edit/i).click();
+    await this.createAccountDrawer.waitForOpen();
+    return this.createAccountDrawer;
   }
 
   /**
@@ -74,7 +93,20 @@ export class FinanceTransactionsPage {
     if (emptyStateTypeButton && (await emptyStateTypeButton.count()) > 0 && (await emptyStateTypeButton.first().isVisible().catch(() => false))) {
       await emptyStateTypeButton.first().click();
     } else {
-      await this.page.getByTestId('btn-new-account').click();
+      await expect.poll(
+        async () =>
+          (await this.page.getByTestId('btn-new-account').isVisible().catch(() => false)) ||
+          (await this.page.getByText(/nova conta ou cartão/i).isVisible().catch(() => false)),
+        { timeout: 30000 },
+      ).toBe(true);
+
+      const newAccountButton = this.page.getByTestId('btn-new-account');
+      if (await newAccountButton.isVisible().catch(() => false)) {
+        await newAccountButton.scrollIntoViewIfNeeded();
+        await newAccountButton.click();
+      } else {
+        await this.page.getByText(/nova conta ou cartão/i).click();
+      }
     }
 
     await this.createAccountDrawer.waitForOpen();

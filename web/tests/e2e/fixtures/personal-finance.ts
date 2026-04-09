@@ -135,7 +135,6 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
         name: uniqueName('Cartão Crédito E2E'),
         type: 'CREDIT',
         subtype: 'CREDIT_CARD',
-        initialBalance: 0,
         closingDay: 7,
         dueDay: 15,
       },

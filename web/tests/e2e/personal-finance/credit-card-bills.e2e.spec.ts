@@ -301,7 +301,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
     // Create a card with closingDay=28 specifically for this test
     const { createFinancialAccount, deleteTransaction: dt } = await import('../helpers/banking-graphql');
     const card = await createFinancialAccount(
-      { name: `Cartão ClosingDay28 A02 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 28, dueDay: 5 },
+      { name: `Cartão ClosingDay28 A02 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 28, dueDay: 5 },
       pfUser.token
     );
 
@@ -364,8 +364,8 @@ test.describe('Credit Card Bills — alternative paths', () => {
   }) => {
     const { createFinancialAccount } = await import('../helpers/banking-graphql');
     const [cardA, cardB] = await Promise.all([
-      createFinancialAccount({ name: `Cartão A A05 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 }, pfUser.token),
-      createFinancialAccount({ name: `Cartão B A05 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 }, pfUser.token),
+      createFinancialAccount({ name: `Cartão A A05 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 7, dueDay: 15 }, pfUser.token),
+      createFinancialAccount({ name: `Cartão B A05 ${Date.now()}`, type: 'CREDIT', subtype: 'CREDIT_CARD', closingDay: 7, dueDay: 15 }, pfUser.token),
     ]);
 
     const txDate = dayInCurrentMonth(4);
@@ -475,7 +475,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
   }) => {
     const { createFinancialAccount } = await import('../helpers/banking-graphql');
     const card = await createFinancialAccount(
-      { name: `Cartão Débito Parcelado A09 ${Date.now()}`, type: 'CREDIT', subtype: 'CHARGE_CARD', initialBalance: 0, closingDay: 7, dueDay: 15 },
+      { name: `Cartão Débito Parcelado A09 ${Date.now()}`, type: 'CREDIT', subtype: 'CHARGE_CARD', closingDay: 7, dueDay: 15 },
       pfUser.token
     );
 

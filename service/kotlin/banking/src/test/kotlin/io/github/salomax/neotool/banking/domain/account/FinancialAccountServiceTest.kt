@@ -246,12 +246,12 @@ class FinancialAccountServiceTest {
                         UpdateFinancialAccountCommand(
                             type = FinancialAccountType.CREDIT,
                             subtype = FinancialAccountSubtype.CHARGE_CARD,
-                            name = "Cartao editado",
+                            name = UpdateField.Present("Cartao editado"),
                             issuerId = issuerId,
                             cardData =
-                                CardData(
-                                    maskedNumber = "9876",
-                                    cardNetwork = CreditCardNetwork.VISA,
+                                CardDataPatch(
+                                    maskedNumber = UpdateField.Present("9876"),
+                                    cardNetwork = UpdateField.Present(CreditCardNetwork.VISA),
                                 ),
                         ),
                     accountId = accountId,
@@ -285,8 +285,8 @@ class FinancialAccountServiceTest {
                             subtype = FinancialAccountSubtype.CONTA_CORRENTE,
                             issuerId = issuerId,
                             bankData =
-                                BankData(
-                                    branchCode = "9999",
+                                BankDataPatch(
+                                    branchCode = UpdateField.Present("9999"),
                                 ),
                         ),
                     accountId = accountId,
@@ -366,6 +366,63 @@ class FinancialAccountServiceTest {
             assertThat(result.issuerCountry).isEqualTo("BR")
             assertThat(result.issuerCompeCode).isEqualTo("341")
             assertThat(result.issuerIspb).isEqualTo("60701190")
+        }
+
+        @Test
+        fun `clears linked bank account and last four digits when masked number is removed`() {
+            val existing = existingCardAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+
+            val result =
+                service.update(
+                    financialAccountId = financialAccountId,
+                    command =
+                        UpdateFinancialAccountCommand(
+                            type = FinancialAccountType.CREDIT,
+                            subtype = FinancialAccountSubtype.CHARGE_CARD,
+                            issuerId = issuerId,
+                            cardData =
+                                CardDataPatch(
+                                    maskedNumber = UpdateField.Present(null),
+                                    linkedBankAccountId = UpdateField.Present(null),
+                                ),
+                        ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+
+            assertThat(result.cardData!!.maskedNumber).isNull()
+            assertThat(result.cardData!!.linkedBankAccountId).isNull()
+            assertThat(result.cardLastFourDigits).isNull()
+        }
+
+        @Test
+        fun `rejects billing cycle day outside supported range`() {
+            val existing = existingCardAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+
+            val ex =
+                assertThrows<IllegalArgumentException> {
+                    service.update(
+                        financialAccountId = financialAccountId,
+                        command =
+                            UpdateFinancialAccountCommand(
+                                type = FinancialAccountType.CREDIT,
+                                subtype = FinancialAccountSubtype.CHARGE_CARD,
+                                issuerId = issuerId,
+                                cardData =
+                                    CardDataPatch(
+                                        closingDay = UpdateField.Present(32),
+                                    ),
+                            ),
+                        accountId = accountId,
+                        userId = userId,
+                    )
+                }
+
+            assertThat(ex.message).contains("closingDay must be between 1 and 31")
+            verify(financialAccountRepository, never()).update(any())
         }
     }
 }
