@@ -23,6 +23,9 @@ export interface InvestmentCardProps {
   primaryActionLabel: string;
   secondaryActionLabel: string;
   chartData: TimeSeriesDataPoint[];
+  /** When set, replaces the two primary/secondary footer buttons with one action (e.g. cash "Movimentar"). */
+  singleActionLabel?: string;
+  onSingleActionClick?: (event: React.MouseEvent) => void;
 }
 
 export function InvestmentCard({
@@ -35,6 +38,8 @@ export function InvestmentCard({
   primaryActionLabel,
   secondaryActionLabel,
   chartData,
+  singleActionLabel,
+  onSingleActionClick,
 }: InvestmentCardProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -215,54 +220,84 @@ export function InvestmentCard({
         ) : (
           <>
             <Box sx={{ display: "flex", alignItems: "stretch", gap: 1, flex: 1 }}>
-              <Button
-                size="small"
-                variant="text"
-                sx={{
-                  minWidth: 0,
-                  px: 1,
-                  flex: 1,
-                  height: "100%",
-                  borderRadius: 1,
-                  justifyContent: "center",
-                  textTransform: "none",
-                  fontSize: theme.typography.body1.fontSize,
-                  fontWeight: 500,
-                }}
-              >
-                {primaryActionLabel}
-              </Button>
-              <Divider orientation="vertical" flexItem />
-              <Button
-                size="small"
-                variant="text"
-                sx={{
-                  minWidth: 0,
-                  px: 1,
-                  flex: 1,
-                  height: "100%",
-                  borderRadius: 1,
-                  justifyContent: "center",
-                  textTransform: "none",
-                  fontSize: theme.typography.body1.fontSize,
-                  fontWeight: 500,
-                }}
-              >
-                {secondaryActionLabel}
-              </Button>
+              {singleActionLabel ? (
+                <Button
+                  size="small"
+                  variant="text"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSingleActionClick?.(e);
+                  }}
+                  sx={{
+                    minWidth: 0,
+                    px: 1,
+                    flex: 1,
+                    height: "100%",
+                    borderRadius: 1,
+                    justifyContent: "center",
+                    textTransform: "none",
+                    fontSize: theme.typography.body1.fontSize,
+                    fontWeight: 500,
+                  }}
+                >
+                  {singleActionLabel}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{
+                      minWidth: 0,
+                      px: 1,
+                      flex: 1,
+                      height: "100%",
+                      borderRadius: 1,
+                      justifyContent: "center",
+                      textTransform: "none",
+                      fontSize: theme.typography.body1.fontSize,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {primaryActionLabel}
+                  </Button>
+                  <Divider orientation="vertical" flexItem />
+                  <Button
+                    size="small"
+                    variant="text"
+                    sx={{
+                      minWidth: 0,
+                      px: 1,
+                      flex: 1,
+                      height: "100%",
+                      borderRadius: 1,
+                      justifyContent: "center",
+                      textTransform: "none",
+                      fontSize: theme.typography.body1.fontSize,
+                      fontWeight: 500,
+                    }}
+                  >
+                    {secondaryActionLabel}
+                  </Button>
+                </>
+              )}
             </Box>
-            <Divider orientation="vertical" flexItem />
-            <IconButton
-              size="small"
-              aria-label={`more actions ${title}`}
-              sx={{
-                borderRadius: 1,
-                alignSelf: "stretch",
-                px: 1,
-              }}
-            >
-              <MoreVertIcon fontSize="small" />
-            </IconButton>
+            {!singleActionLabel ? (
+              <>
+                <Divider orientation="vertical" flexItem />
+                <IconButton
+                  size="small"
+                  aria-label={`more actions ${title}`}
+                  sx={{
+                    borderRadius: 1,
+                    alignSelf: "stretch",
+                    px: 1,
+                  }}
+                >
+                  <MoreVertIcon fontSize="small" />
+                </IconButton>
+              </>
+            ) : null}
           </>
         )}
       </Box>

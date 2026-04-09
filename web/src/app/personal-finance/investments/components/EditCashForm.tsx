@@ -3,7 +3,8 @@
 import React from "react";
 import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Divider } from "@mui/material";
+import { Box, Divider } from "@mui/material";
+import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
 import dayjs from "dayjs";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,14 +20,17 @@ import {
   INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_PORTFOLIO_SUMMARY,
 } from "@/lib/graphql/operations/banking/queries";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
-import { FormStack } from "@/shared/components/ui/forms/components";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { DatePickerField, FormTextField, MoneyInput } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { useToast } from "@/shared/providers";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { personalFinanceTranslations } from "../../i18n";
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 export type EditCashFormValues = {
   amount: number | undefined;
@@ -72,7 +76,7 @@ export function EditCashForm({
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
-  const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
+  const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
   const { decimal: localeDecimal, group: localeGroup } = React.useMemo(() => getLocaleSeparators(locale), [locale]);
 
   const schema = React.useMemo(
@@ -90,7 +94,7 @@ export function EditCashForm({
                 if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
                   return undefined;
                 }
-                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+                normalized = raw.replace(new RegExp(escapeRegExp(localeGroup), "g"), "").replace(localeDecimal, ".");
               } else {
                 normalized = raw.replace(localeDecimal, ".");
               }
@@ -100,7 +104,7 @@ export function EditCashForm({
             z.number().optional(),
           ),
           date: z.date(),
-          description: z.string().optional(),
+          description: z.string(),
         })
         .superRefine((data, ctx) => {
           const amt = data.amount;
@@ -175,7 +179,7 @@ export function EditCashForm({
         input: {
           amount: data.amount!,
           date: dayjs(data.date).format("YYYY-MM-DD"),
-          description: data.description?.trim() || undefined,
+          description: data.description.trim() || undefined,
         },
       },
     });
@@ -186,48 +190,56 @@ export function EditCashForm({
 
   return (
     <FormProvider {...methods}>
-      <form id={formId} onSubmit={handleSubmit(onSubmit)}>
-        <FormStack>
-          {mutationError && <FormErrorBanner message={mutationError.message} />}
+      <Box sx={{ p: 0 }}>
+        <form id={formId} onSubmit={handleSubmit(onSubmit)}>
+          <FormStack>
+            <ErrorAlert error={mutationError} />
 
-          <MoneyInput
-            name="amount"
-            label={t("investments.cash.amount")}
-            currency={currencyCode}
-            data-testid="edit-cash-amount"
-          />
+            <FormRowStack alignItems="flex-start">
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <MoneyInput
+                  name="amount"
+                  label={t("investments.cash.amount")}
+                  currency={currencyCode}
+                  size="medium"
+                  data-testid="edit-cash-amount"
+                />
+              </Box>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <DatePickerField
+                  name="date"
+                  label={t("investments.cash.date")}
+                  maxDate={dayjs().startOf("day").toDate()}
+                  size="medium"
+                  data-testid="edit-cash-date"
+                />
+              </Box>
+            </FormRowStack>
 
-          <DatePickerField
-            name="date"
-            label={t("investments.cash.date")}
-            maxDate={dayjs().startOf("day").toDate()}
-            data-testid="edit-cash-date"
-          />
+            <FormTextField
+              name="description"
+              label={t("investments.cash.description")}
+              size="medium"
+              data-testid="edit-cash-description"
+            />
 
-          <FormTextField
-            name="description"
-            label={t("investments.cash.description")}
-            multiline
-            minRows={2}
-            data-testid="edit-cash-description"
-          />
+            <Divider  />
 
-          <Divider sx={{ py: 1 }} />
-
-          <Drawer.ActionButtons
-            cancelText={cancelText}
-            submitText={submitText}
-            submittingText={submittingText}
-            onCancel={onCancel ?? (() => {})}
-            submitForm={formId}
-            cancelDisabled={submitting}
-            submitDisabled={submitting}
-            submitting={submitting}
-            cancelTestId={cancelTestId}
-            submitTestId={submitTestId}
-          />
-        </FormStack>
-      </form>
+            <Drawer.ActionButtons
+              cancelText={cancelText}
+              submitText={submitText}
+              submittingText={submittingText}
+              onCancel={onCancel ?? (() => {})}
+              submitForm={formId}
+              cancelDisabled={submitting}
+              submitDisabled={submitting}
+              submitting={submitting}
+              cancelTestId={cancelTestId}
+              submitTestId={submitTestId}
+            />
+          </FormStack>
+        </form>
+      </Box>
     </FormProvider>
   );
 }

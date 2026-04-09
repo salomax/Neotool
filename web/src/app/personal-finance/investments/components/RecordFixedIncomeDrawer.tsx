@@ -29,7 +29,7 @@ import {
   InvestmentTransactionType,
   InvestmentTransaction,
 } from "@/lib/graphql/types/__generated__/graphql";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
@@ -512,7 +512,7 @@ const isEdit = Boolean(editHolding && editTransaction);
         <FormProvider {...methods}>
           <form id="record-fixed-income-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <FormStack>
-              {mutationError && <FormErrorBanner message={mutationError.message} />}
+              <ErrorAlert error={mutationError} />
 
               <FormStack spacing={1}>
                 <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>

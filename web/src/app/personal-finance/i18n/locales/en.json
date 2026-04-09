@@ -66,25 +66,15 @@
     },
     "grid": {
       "emptyDescription": "No position registered",
-      "firstInvestmentCta": "+ Investment"
+      "firstInvestmentCta": "+ Investment",
+      "addMovementCta": "+ Movement",
+      "movimentar": "Move cash"
     },
     "transactions": {
       "buy": "Buy",
       "sell": "Sell",
       "apply": "Apply",
       "redeem": "Redeem"
-    },
-    "picker": {
-      "title": "What do you want to record?",
-      "options": {
-        "fixedIncome": "Fixed income",
-        "equity": "Stocks / ETFs",
-        "realEstateFund": "REITs",
-        "fund": "Funds",
-        "crypto": "Crypto",
-        "cash": "Cash",
-        "comingSoon": "Coming soon"
-      }
     },
     "record": {
       "cash": "Cash in account"

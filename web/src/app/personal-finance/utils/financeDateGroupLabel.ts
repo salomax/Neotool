@@ -17,7 +17,7 @@ export function parseFinanceDateKey(value: string): FinanceDateParts | null {
   return { year, month, day, dateKey, sortKey: year * 10000 + month * 100 + day };
 }
 
-/** Same semantics as finance TransactionTable date group headers (today / tomorrow / long). */
+/** Same semantics as finance TransactionTable date group headers (today / tomorrow / long). Adds calendar year when the group date is not in the current year. */
 export function formatFinanceDateGroupLabel(
   dateKey: string,
   t: (key: string, options?: { date?: string }) => string,
@@ -44,10 +44,12 @@ export function formatFinanceDateGroupLabel(
   const isToday = date.getTime() === today.getTime();
   const isTomorrow = date.getTime() === tomorrow.getTime();
 
+  const includeYear = date.getFullYear() !== today.getFullYear();
   const dateHeaderFormatter = new Intl.DateTimeFormat(language, {
     weekday: "long",
     day: "numeric",
     month: "long",
+    ...(includeYear ? { year: "numeric" as const } : {}),
   });
   const formattedDate = dateHeaderFormatter.format(date);
 

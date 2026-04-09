@@ -12,6 +12,7 @@ import { TextField } from "@/shared/components/ui/primitives";
 import PersonIcon from "@mui/icons-material/Person";
 import { WarningAlert, LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { FormStack } from "@/shared/components/ui/forms/components";
 import { Avatar } from "@/shared/components/ui/primitives/Avatar";
 import { useTranslation } from "@/shared/i18n";
 import { authorizationManagementTranslations } from "@/app/(settings)/settings/i18n";
@@ -182,7 +183,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
             </Box>
 
             {/* Form Section */}
-            <Stack spacing={3}>
+            <FormStack>
               {/* Display Name */}
               <Box>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -263,7 +264,7 @@ export const UserDrawer: React.FC<UserDrawerProps> = ({
                   </Box>
                 </Box>
               )}
-            </Stack>
+            </FormStack>
           </Stack>
         )}
 

@@ -57,6 +57,7 @@ export const PercentField: React.FC<PercentFieldProps> = ({
           <NumericFormat
             customInput={TextField}
             {...(label && { label })}
+            size="small"
             fullWidth={fullWidth}
             error={!!fieldState.error}
             helperText={fieldState.error?.message ?? helperText}

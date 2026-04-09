@@ -15,6 +15,7 @@ export interface RecordCashDrawerProps {
   bankAccounts?: IssuerSelectionAccount[];
   /** Matches `InvestmentTable` cash query filter (sidebar selection); drives refetch after save. */
   listContextAccountId?: string | null;
+  onRecorded?: () => void | Promise<void>;
 }
 
 export function RecordCashDrawer({
@@ -24,6 +25,7 @@ export function RecordCashDrawer({
   financialAccounts = [],
   bankAccounts = [],
   listContextAccountId,
+  onRecorded,
 }: RecordCashDrawerProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const [formResetSignal, setFormResetSignal] = React.useState(0);
@@ -56,6 +58,7 @@ export function RecordCashDrawer({
             resetSignal={formResetSignal}
             formId="record-cash-form"
             onSuccess={onClose}
+            onRecorded={onRecorded}
             onCancel={onClose}
             cancelText={t("actions.cancel")}
             submitText={t("investments.cash.actions.submit")}

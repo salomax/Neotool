@@ -40,6 +40,7 @@ import {
   AccountBalance as BankIcon,
 } from '@mui/icons-material';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
+import { FormStack } from '@/shared/components/ui/forms/components';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
@@ -1429,7 +1430,7 @@ export function BillImportDrawer({
             {t('financeTransactions.billImport.cardMatchingStep.flatAssignmentBanner')}
           </Alert>
 
-          <Stack spacing={3} sx={{ pb: selectedTransactionIndexes.length > 0 ? 11 : 0 }}>
+          <FormStack sx={{ pb: selectedTransactionIndexes.length > 0 ? 11 : 0 }}>
             <Stack spacing={1.25}>
               <Stack direction="row" spacing={1.25} alignItems="center">
                 <Box
@@ -1854,7 +1855,7 @@ export function BillImportDrawer({
                 </Paper>
               </Stack>
             </Box>
-          </Stack>
+          </FormStack>
 
           {selectedTransactionIndexes.length > 0 && (
             <Box sx={{ position: 'sticky', bottom: 16, mt: 1, zIndex: 1 }}>

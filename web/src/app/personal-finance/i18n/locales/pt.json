@@ -66,25 +66,15 @@
     },
     "grid": {
       "emptyDescription": "Nenhuma posição registrada",
-      "firstInvestmentCta": "+ Investimento"
+      "firstInvestmentCta": "+ Investimento",
+      "addMovementCta": "+ Movimento",
+      "movimentar": "Movimentar"
     },
     "transactions": {
       "buy": "Comprar",
       "sell": "Vender",
       "apply": "Aplicar",
       "redeem": "Resgatar"
-    },
-    "picker": {
-      "title": "O que você quer registrar?",
-      "options": {
-        "fixedIncome": "Renda Fixa",
-        "equity": "Ações / ETFs",
-        "realEstateFund": "FIIs",
-        "fund": "Fundos",
-        "crypto": "Criptoativos",
-        "cash": "Caixa",
-        "comingSoon": "Em breve"
-      }
     },
     "record": {
       "cash": "Dinheiro em conta"

@@ -19,7 +19,6 @@ export {
   mergeAppDatePickerSlotProps,
 } from './form/DatePickers';
 export { FileUploader } from './form/FileUploader';
-export { Form } from './form/Form';
 export { FormTextField } from './form/FormField';
 export { FormMessage } from './form/FormMessage';
 export { MaskedField } from './form/MaskedField';

@@ -11,6 +11,7 @@ import { TextField } from "@/shared/components/ui/primitives";
 import { ShieldCheckIcon } from "@/shared/components/ui/icons/ShieldCheckIcon";
 import { useForm, FormProvider } from "react-hook-form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { FormStack } from "@/shared/components/ui/forms/components";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useMutation } from "@apollo/client/react";
 import {
@@ -333,7 +334,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
               onSubmit={methods.handleSubmit(handleSubmit)}
               noValidate
             >
-              <Stack spacing={3}>
+              <FormStack>
                 <RoleForm
                   initialValues={
                     role
@@ -396,7 +397,7 @@ export const RoleDrawer: React.FC<RoleDrawerProps> = ({
                     </Box>
                   </Box>
                 )}
-              </Stack>
+              </FormStack>
             </Box>
           )}
           </FormProvider>

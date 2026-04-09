@@ -71,6 +71,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
             allowLeadingZeros: true,
           } as any)}
           {...(label && { label })}
+          size="small"
           fullWidth={fullWidth}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? helperText}

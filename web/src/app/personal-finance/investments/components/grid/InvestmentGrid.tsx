@@ -1,18 +1,25 @@
 "use client";
 
 import React from "react";
-import { useQuery } from "@apollo/client/react";
+import { useApolloClient, useQuery } from "@apollo/client/react";
 import GridViewIcon from "@mui/icons-material/GridView";
-import { Box, ButtonBase, Fade, IconButton, Skeleton, Stack, Tooltip, Typography, alpha, useTheme } from "@mui/material";
+import { Box, Button, Fade, Skeleton, Stack, Tooltip, alpha, useTheme } from "@mui/material";
 import { InvestmentCard } from "./InvestmentCard";
 import type { TimeSeriesDataPoint } from "@/shared/types/charts";
 import { InvestmentAssetIcon, type InvestmentIconKind } from "../InvestmentAssetIcon";
 import { InvestmentTable } from "../table/InvestmentTable";
+import { RecordCashDrawer } from "../RecordCashDrawer";
+import { RecordEquityHoldingDrawer } from "../RecordEquityHoldingDrawer";
+import { RecordFixedIncomeDrawer } from "../RecordFixedIncomeDrawer";
+import { RecordFundHoldingDrawer } from "../RecordFundHoldingDrawer";
 import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
+import { InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
 import type { IssuerSelectionAccount } from "../IssuerSelection";
 import type { AssetGroupKey } from "../table/investmentTableHelpers";
 import { getAssetGroupKey } from "../table/investmentTableHelpers";
 import { INVESTMENT_GRID_DATA } from "@/lib/graphql/operations/banking/queries";
+import { useTranslation } from "@/shared/i18n";
+import { personalFinanceTranslations } from "../../../i18n";
 
 const makeChartSeries = (values: number[]): TimeSeriesDataPoint[] =>
   values.map((value, idx) => ({
@@ -31,6 +38,8 @@ type InvestmentClassItem = {
   visibleAssetTypes?: string[];
   includeCashCard?: boolean;
 };
+
+type GridRecordDrawer = "cash" | "fixedIncome" | "fund" | "equity" | null;
 
 const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
   {
@@ -110,8 +119,36 @@ export function InvestmentGrid({
   searchQuery,
   onSelectSearchAsset,
 }: InvestmentGridProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
+  const apolloClient = useApolloClient();
   const [selectedClassKey, setSelectedClassKey] = React.useState<string | null>(null);
+  const [recordDrawer, setRecordDrawer] = React.useState<GridRecordDrawer>(null);
+
+  const refreshGridQueries = React.useCallback(async () => {
+    await apolloClient.refetchQueries({ include: [INVESTMENT_GRID_DATA] });
+  }, [apolloClient]);
+
+  const closeRecordDrawer = React.useCallback(() => {
+    setRecordDrawer(null);
+  }, []);
+
+  const openRecordForSelectedClass = React.useCallback(() => {
+    if (!selectedClassKey) return;
+    if (selectedClassKey === "cash") {
+      setRecordDrawer("cash");
+      return;
+    }
+    if (selectedClassKey === "fixed-income") {
+      setRecordDrawer("fixedIncome");
+      return;
+    }
+    if (selectedClassKey === "funds") {
+      setRecordDrawer("fund");
+      return;
+    }
+    setRecordDrawer("equity");
+  }, [selectedClassKey]);
 
   const { data: gridData, loading: gridLoading } = useQuery<{
     investmentCashBalance: number | null;
@@ -366,6 +403,8 @@ export function InvestmentGrid({
                   primaryActionLabel={item.primaryActionLabel}
                   secondaryActionLabel={item.secondaryActionLabel}
                   chartData={chartSeriesByKey[item.key as keyof typeof chartSeriesByKey] ?? []}
+                  singleActionLabel={item.key === "cash" ? t("investments.grid.movimentar") : undefined}
+                  onSingleActionClick={item.key === "cash" ? () => setRecordDrawer("cash") : undefined}
                 />
               </Box>
             ))}
@@ -374,48 +413,90 @@ export function InvestmentGrid({
       ) : (
         <Fade in timeout={260}>
           <Box>
-            <Stack direction="row" spacing={1} sx={{ mb: 2, overflowX: "auto", pb: 0.5 }}>
-              <Tooltip title="Voltar para visao em grade">
-                <IconButton
-                  size="small"
-                  aria-label="Voltar para visao em grade"
-                  onClick={() => setSelectedClassKey(null)}
-                  sx={{
-                    color: "text.secondary",
-                    flexShrink: 0,
-                    "&:hover": { color: "primary.main", bgcolor: "transparent" },
-                  }}
-                >
-                  <GridViewIcon fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              {INITIAL_GRID_ITEMS.map((item) => {
-                const active = item.key === selectedClassKey;
-                return (
-                  <ButtonBase
-                    key={item.key}
-                    onClick={() => setSelectedClassKey(item.key)}
-                    sx={{
-                      border: "1px solid",
-                      borderColor: active ? "primary.main" : alpha(theme.palette.divider, 0.8),
-                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : "background.paper",
-                      borderRadius: 1.5,
-                      px: 1.5,
-                      py: 1,
-                      minWidth: "fit-content",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      transition: "all 180ms ease",
-                    }}
+            <Stack
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ mb: 2, flexWrap: "nowrap", gap: 1 }}
+            >
+              <Stack
+                direction="row"
+                spacing={1}
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  overflowX: "auto",
+                  pb: 0.5,
+                  alignItems: "center",
+                }}
+              >
+                <Tooltip title="Voltar para visao em grade">
+                  <Button
+                    variant="text"
+                    color="inherit"
+                    size="medium"
+                    aria-label="Voltar para visao em grade"
+                    onClick={() => setSelectedClassKey(null)}
+                    sx={(muiTheme) => ({
+                      flexShrink: 0,
+                      minWidth: 48,
+                      width: 48,
+                      maxWidth: 48,
+                      px: 0,
+                      color: alpha(muiTheme.palette.primary.main, 0.7),
+                      border: "none",
+                      "&:hover": {
+                        color: "primary.main",
+                        border: "none",
+                        bgcolor: alpha(muiTheme.palette.primary.main, 0.08),
+                      },
+                    })}
                   >
-                    <InvestmentAssetIcon kind={item.iconKind} sx={{ fontSize: 16, color: active ? "primary.main" : "text.secondary" }} />
-                    <Typography variant="body2" sx={{ fontWeight: active ? 700 : 500 }}>
+                    <GridViewIcon sx={{ fontSize: 24, color: "inherit" }} />
+                  </Button>
+                </Tooltip>
+                {INITIAL_GRID_ITEMS.map((item) => {
+                  const active = item.key === selectedClassKey;
+                  return (
+                    <Button
+                      key={item.key}
+                      onClick={() => setSelectedClassKey(item.key)}
+                      variant={active ? "contained" : "outlined"}
+                      color="primary"
+                      size="medium"
+                      startIcon={
+                        <InvestmentAssetIcon
+                          kind={item.iconKind}
+                          sx={{
+                            fontSize: 20,
+                            ...(active ? { color: "inherit" } : { color: "primary.main", opacity: 0.9 }),
+                          }}
+                        />
+                      }
+                      sx={{ flexShrink: 0 }}
+                    >
                       {item.title}
-                    </Typography>
-                  </ButtonBase>
-                );
-              })}
+                    </Button>
+                  );
+                })}
+              </Stack>
+              <Button
+                variant="contained"
+                color="primary"
+                size="medium"
+                onClick={openRecordForSelectedClass}
+                sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+                data-testid="investment-grid-record-cta"
+                aria-label={
+                  selectedClassKey === "cash"
+                    ? t("investments.grid.addMovementCta")
+                    : t("investments.grid.firstInvestmentCta")
+                }
+              >
+                {selectedClassKey === "cash"
+                  ? t("investments.grid.addMovementCta")
+                  : t("investments.grid.firstInvestmentCta")}
+              </Button>
             </Stack>
 
             <InvestmentTable
@@ -429,9 +510,43 @@ export function InvestmentGrid({
               includeCashCard={selectedClass.includeCashCard ?? false}
               hideGroupHeader
             />
+
+            <RecordFixedIncomeDrawer
+              open={recordDrawer === "fixedIncome"}
+              onClose={closeRecordDrawer}
+              financialAccountId={selectedAccountId}
+              financialAccounts={investmentAccounts}
+              onRecorded={refreshGridQueries}
+            />
+            <RecordFundHoldingDrawer
+              open={recordDrawer === "fund"}
+              onClose={closeRecordDrawer}
+              financialAccountId={selectedAccountId}
+              financialAccounts={investmentAccounts}
+              initialDirection={InvestmentTransactionDirection.Inflow}
+              onRecorded={refreshGridQueries}
+            />
+            <RecordEquityHoldingDrawer
+              open={recordDrawer === "equity"}
+              onClose={closeRecordDrawer}
+              financialAccountId={selectedAccountId}
+              financialAccounts={investmentAccounts}
+              initialDirection={InvestmentTransactionDirection.Inflow}
+              onRecorded={refreshGridQueries}
+            />
           </Box>
         </Fade>
       )}
+
+      <RecordCashDrawer
+        open={recordDrawer === "cash"}
+        onClose={closeRecordDrawer}
+        financialAccountId={selectedAccountId}
+        financialAccounts={investmentAccounts}
+        bankAccounts={bankAccounts}
+        listContextAccountId={selectedAccountId}
+        onRecorded={refreshGridQueries}
+      />
     </Box>
   );
 }

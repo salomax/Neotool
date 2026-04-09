@@ -25,7 +25,7 @@ import {
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
@@ -503,7 +503,7 @@ export function RecordFundHoldingDrawer({
         <FormProvider {...methods}>
           <form id="record-fund-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <FormStack spacing={2}>
-              {mutationError && <FormErrorBanner message={mutationError.message} />}
+              <ErrorAlert error={mutationError} />
 
               <FormStack spacing={0.5}>
                 <Label sx={{ mb: 0 }}>

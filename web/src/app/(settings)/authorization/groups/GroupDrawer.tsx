@@ -10,6 +10,7 @@ import {
 } from "@mui/material";
 import GroupIcon from "@mui/icons-material/Group";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { FormStack } from "@/shared/components/ui/forms/components";
 import { TextField } from "@/shared/components/ui/primitives";
 import { LoadingState, ErrorAlert } from "@/shared/components/ui/feedback";
 import { useForm, FormProvider } from "react-hook-form";
@@ -360,7 +361,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
           {(!loading || isCreateMode) && !error && (
             <Stack spacing={4}>
               {/* Form Section */}
-              <Stack spacing={3}>
+              <FormStack>
                 {/* Name and Description */}
                 <GroupForm
                   initialValues={
@@ -438,7 +439,7 @@ export const GroupDrawer: React.FC<GroupDrawerProps> = ({
                     </Box>
                   </Box>
                 )}
-              </Stack>
+              </FormStack>
             </Stack>
           )}
 

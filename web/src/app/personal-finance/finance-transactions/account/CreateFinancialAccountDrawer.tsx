@@ -25,13 +25,14 @@ import { FormTextField as TextField, SelectField, MoneyInput, DatePickerField } 
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
-import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { FormStack } from '@/shared/components/ui/forms/components';
 
 // --- Types & Schemas ---
 
@@ -285,21 +286,11 @@ export function CreateFinancialAccountDrawer({
   }>(CREATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
   });
-  const createErrorMessage = React.useMemo(
-    () => (createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : ''),
-    [createError, t],
-  );
-
   const [updateAccount, { loading: updating, error: updateError }] = useMutation<{
     updateFinancialAccount: { id: string; name: string };
   }>(UPDATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
   });
-  const updateErrorMessage = React.useMemo(
-    () => (updateError ? extractErrorMessage(updateError, t('errors.default', { ns: 'common' })) : ''),
-    [updateError, t],
-  );
-
   const methods = useForm<CreateAccountFormData>({
     mode: 'onChange',
     reValidateMode: 'onChange',
@@ -583,10 +574,18 @@ export function CreateFinancialAccountDrawer({
     <Box sx={{ p: 0 }}>
       <FormProvider {...methods}>
         <form id="create-financial-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
-          <Stack spacing={3}>
-            {isEditing
-              ? (updateError && <FormErrorBanner message={updateErrorMessage} />)
-              : (createError && <FormErrorBanner message={createErrorMessage} />)}
+          <FormStack>
+            <ErrorAlert
+              error={
+                isEditing
+                  ? updateError
+                    ? extractErrorMessage(updateError, t('errors.default', { ns: 'common' }))
+                    : null
+                  : createError
+                    ? extractErrorMessage(createError, t('errors.default', { ns: 'common' }))
+                    : null
+              }
+            />
 
             {/* Common Fields */}
             <IssuerSelect
@@ -724,7 +723,7 @@ export function CreateFinancialAccountDrawer({
               submitTestId="account-form-submit"
             />
 
-          </Stack>
+          </FormStack>
         </form>
       </FormProvider>
     </Box>

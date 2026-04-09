@@ -18,7 +18,7 @@ import {
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
 import { DatePickerField, FormTextField as TextField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
@@ -224,7 +224,7 @@ export function RecordFixedIncomeRedemptionDrawer({
         <FormProvider {...methods}>
           <form id="record-redemption-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <FormStack>
-              {recordTxError && <FormErrorBanner message={recordTxError.message} />}
+              <ErrorAlert error={recordTxError} />
 
               {/* Tipo de movimentação */}
               <Box>

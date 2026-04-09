@@ -8,6 +8,7 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
+import { FormStack } from '@/shared/components/ui/forms/components';
 import { Amount, InfoField, TagChips } from '@/shared/components/ui/data-display';
 import { Label, Logo } from '@/shared/components/ui/primitives';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -434,7 +435,7 @@ export function AppliedTransactionRulesDrawer({
           closeButtonAriaLabel={t('financeTransactions.actions.close')}
         />
         <Drawer.Body>
-          <Stack spacing={3}>
+          <FormStack>
             <TransactionHeader transaction={transaction} formattedDate={formattedDate} locale={locale} />
 
           <Divider />
@@ -676,7 +677,7 @@ export function AppliedTransactionRulesDrawer({
               })}
             </Stack>
           )}
-        </Stack>
+        </FormStack>
         </Drawer.Body>
       </Drawer>
 

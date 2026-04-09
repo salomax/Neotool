@@ -10,7 +10,7 @@ import {
   Checkbox,
   Divider,
   FormControlLabel,
-  TextField,
+  InputAdornment,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -33,9 +33,14 @@ import {
   InvestmentCashTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
-import { DatePickerField, FormTextField, MoneyInput } from "@/shared/components/ui/forms/form";
+import {
+  DatePickerField,
+  FormTextField,
+  MoneyInput,
+  TextField,
+} from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { i18n, useTranslation } from "@/shared/i18n";
@@ -50,6 +55,10 @@ const PEER_BANK_SUBTYPES = new Set<FinancialAccountSubtype>([
   FinancialAccountSubtype.ContaDigital,
   FinancialAccountSubtype.ContaConjunta,
 ]);
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 function PeerAccountAvatar({
   account,
@@ -97,6 +106,8 @@ export interface RecordCashFormProps {
   resetSignal?: number;
   formId: string;
   onSuccess: () => void;
+  /** Called after a successful save (before `onSuccess`). */
+  onRecorded?: () => void | Promise<void>;
   onCancel?: () => void;
   cancelText: string;
   submitText: string;
@@ -113,6 +124,7 @@ export function RecordCashForm({
   resetSignal = 0,
   formId,
   onSuccess,
+  onRecorded,
   onCancel,
   cancelText,
   submitText,
@@ -123,8 +135,9 @@ export function RecordCashForm({
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
-  const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
+  const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
   const { decimal: localeDecimal, group: localeGroup } = React.useMemo(() => getLocaleSeparators(locale), [locale]);
+  const amountInputRef = React.useRef<HTMLInputElement>(null);
 
   const peerOptions = React.useMemo(() => {
     const bankPeers = bankAccounts.filter(
@@ -168,7 +181,7 @@ export function RecordCashForm({
                 if (decimalIndex >= 0 && raw.indexOf(localeGroup, decimalIndex + 1) !== -1) {
                   return undefined;
                 }
-                normalized = raw.replace(new RegExp(`\\${localeGroup}`, "g"), "").replace(localeDecimal, ".");
+                normalized = raw.replace(new RegExp(escapeRegExp(localeGroup), "g"), "").replace(localeDecimal, ".");
               } else {
                 normalized = raw.replace(localeDecimal, ".");
               }
@@ -178,8 +191,8 @@ export function RecordCashForm({
             z.number().optional(),
           ),
           date: z.date(),
-          description: z.string().optional(),
-          peerFinancialAccountId: z.string().optional(),
+          description: z.string(),
+          peerFinancialAccountId: z.string(),
           registerAsBalanceAdjustment: z.boolean(),
         })
         .superRefine((data, ctx) => {
@@ -201,7 +214,7 @@ export function RecordCashForm({
             });
           }
           if (data.registerAsBalanceAdjustment) {
-            const d = data.description?.trim();
+            const d = data.description.trim();
             if (!d) {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
@@ -272,6 +285,13 @@ export function RecordCashForm({
     });
   }, [financialAccountId, resetSignal, reset]);
 
+  React.useEffect(() => {
+    const id = window.setTimeout(() => {
+      amountInputRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [financialAccountId, resetSignal]);
+
   const onSubmit = async (data: RecordCashFormValues) => {
     const peerId = data.peerFinancialAccountId?.trim();
     const input = {
@@ -292,6 +312,7 @@ export function RecordCashForm({
     } else {
       success(t("investments.cash.success"));
     }
+    await onRecorded?.();
     onSuccess();
   };
 
@@ -307,13 +328,12 @@ export function RecordCashForm({
     <FormProvider {...methods}>
       <form id={formId} onSubmit={handleSubmit(onSubmit)}>
         <FormStack>
-          {mutationError && <FormErrorBanner message={mutationError.message} />}
-
-          <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-            {t("investments.cash.movementTypeLabel")}
-          </Typography>
+          <ErrorAlert error={mutationError} />
+          
           <SegmentedControl
             fullWidth
+            size="medium"
+            sx={{ pb: 2 }}
             value={movementType}
             onChange={(v) =>
               setValue("movementType", v as InvestmentCashTransactionType.Deposit | InvestmentCashTransactionType.Withdrawal)
@@ -321,6 +341,28 @@ export function RecordCashForm({
             options={typeOptions}
             data-testid="record-cash-type"
           />
+          
+          <FormRowStack alignItems="flex-start">
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <MoneyInput
+                name="amount"
+                label={t("investments.cash.amount")}
+                currency="BRL"
+                size="medium"
+                inputRef={amountInputRef}
+                data-testid="record-cash-amount"
+              />
+            </Box>
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <DatePickerField
+                name="date"
+                label={t("investments.cash.date")}
+                maxDate={dayjs().startOf("day").toDate()}
+                size="medium"
+                data-testid="record-cash-date"
+              />
+            </Box>
+          </FormRowStack>
 
           <FormControlLabel
             control={
@@ -331,6 +373,7 @@ export function RecordCashForm({
                   <Checkbox
                     {...field}
                     checked={field.value}
+                    size="medium"
                     data-testid="record-cash-balance-adjustment"
                   />
                 )}
@@ -339,26 +382,16 @@ export function RecordCashForm({
             label={t("investments.cash.registerAsBalanceAdjustment")}
           />
 
-          <Divider sx={{ my: 1 }} />
-
-          <FormRowStack alignItems="flex-start">
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <MoneyInput
-                name="amount"
-                label={t("investments.cash.amount")}
-                currency="BRL"
-                data-testid="record-cash-amount"
-              />
-            </Box>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <DatePickerField
-                name="date"
-                label={t("investments.cash.date")}
-                maxDate={dayjs().startOf("day").toDate()}
-                data-testid="record-cash-date"
-              />
-            </Box>
-          </FormRowStack>
+          <FormTextField
+            name="description"
+            label={
+              registerAsBalanceAdjustment
+                ? t("investments.cash.descriptionAdjustment")
+                : t("investments.cash.description")
+            }
+            size="medium"
+            data-testid="record-cash-description"
+          />
 
           {!registerAsBalanceAdjustment && peerOptions.length > 0 ? (
             <Controller
@@ -368,6 +401,8 @@ export function RecordCashForm({
                 const selected = peerOptions.find((a) => a.id === field.value) ?? null;
                 return (
                   <Autocomplete<IssuerSelectionAccount, false, false, false>
+                    sx={{ pt: 2 }}
+                    fullWidth
                     options={peerOptions}
                     value={selected}
                     onChange={(_, newValue) => field.onChange(newValue?.id ?? "")}
@@ -386,7 +421,7 @@ export function RecordCashForm({
                           sx={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 1.5,
+                            gap: 1,
                             py: 1,
                             px: 1.5,
                           }}
@@ -403,26 +438,36 @@ export function RecordCashForm({
                         </Box>
                       );
                     }}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        label={t("investments.cash.peerAccount")}
-                        data-testid="record-cash-peer-account"
-                        inputProps={{
-                          ...params.inputProps,
-                          "aria-label": t("investments.cash.peerAccount"),
-                        }}
-                        InputProps={{
-                          ...params.InputProps,
-                          startAdornment: (
-                            <>
-                              {selected ? <PeerAccountAvatar account={selected} size={24} /> : null}
-                              {params.InputProps.startAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
+                    renderInput={(params) => {
+                      const { InputLabelProps: _InputLabelProps, ...restParams } = params;
+                      const startAdornment =
+                        selected || params.InputProps.startAdornment ? (
+                          <>
+                            {selected ? (
+                              <InputAdornment position="start" sx={{ mr: 0.5 }}>
+                                <PeerAccountAvatar account={selected} size={24} />
+                              </InputAdornment>
+                            ) : null}
+                            {params.InputProps.startAdornment}
+                          </>
+                        ) : undefined;
+                      return (
+                        <TextField
+                          {...restParams}
+                          size="medium"
+                          label={t("investments.cash.peerAccount")}
+                          data-testid="record-cash-peer-account"
+                          inputProps={{
+                            ...params.inputProps,
+                            "aria-label": t("investments.cash.peerAccount"),
+                          }}
+                          InputProps={{
+                            ...params.InputProps,
+                            ...(startAdornment ? { startAdornment } : {}),
+                          }}
+                        />
+                      );
+                    }}
                     slotProps={{
                       clearIndicator: { title: t("investments.cash.peerAccountNone") },
                     }}
@@ -431,18 +476,6 @@ export function RecordCashForm({
               }}
             />
           ) : null}
-
-          <FormTextField
-            name="description"
-            label={
-              registerAsBalanceAdjustment
-                ? t("investments.cash.descriptionAdjustment")
-                : t("investments.cash.description")
-            }
-            multiline
-            minRows={2}
-            data-testid="record-cash-description"
-          />
 
           <Divider sx={{ py: 1 }} />
 

@@ -15,6 +15,31 @@ import {
   APP_DATE_PICKER_VIEWS,
   mergeAppDatePickerSlotProps,
 } from "./appDatePickerConfig";
+import { TextField, type TextFieldProps } from "./TextField";
+
+/** Same outlined input as `MoneyInput` / `FormTextField` (PickersTextField is a few px taller). */
+const DATE_PICKER_TEXT_FIELD_SLOTS = { textField: TextField } as const;
+
+export type DatePickerTextFieldSize = NonNullable<TextFieldProps["size"]>;
+
+/**
+ * Outlined date field: match `./TextField` vertical padding for `size`, and `paddingRight: 0` so the
+ * calendar `endAdornment` matches MUI’s adorned layout (shared `TextField` uses uniform padding otherwise).
+ */
+export function getDatePickerOutlinedInputSx(size: DatePickerTextFieldSize = "small") {
+  const vertical =
+    size === "small" ? "10.5px" : size === "large" ? "16.5px" : "14.5px";
+  return {
+    "& .MuiOutlinedInput-input": {
+      paddingTop: vertical,
+      paddingBottom: vertical,
+      paddingLeft: "14px",
+      paddingRight: 0,
+      height: "1.4375em",
+      lineHeight: "1.4375em",
+    },
+  } as const;
+}
 
 const COMMON_NS = "common";
 
@@ -53,6 +78,8 @@ export interface DatePickerFieldProps {
   openTo?: DateView;
   /** Extra MUI `DatePicker` `slotProps` merged with app standards (`mergeAppDatePickerSlotProps`). `textField` merges with error/helper wiring. */
   pickerSlotProps?: DatePickerProps["slotProps"];
+  /** Input density; matches `FormTextField` / `MoneyInput`. Overrides `pickerSlotProps.textField.size` when set. */
+  size?: DatePickerTextFieldSize;
   'data-testid'?: string;
 }
 
@@ -69,6 +96,7 @@ type DatePickerFieldInnerProps = {
   views?: readonly DateView[];
   openTo?: DateView;
   pickerSlotProps?: DatePickerProps["slotProps"];
+  textFieldSize?: DatePickerTextFieldSize;
   helperText?: React.ReactNode;
   dataTestId?: string;
   pickerError: string | null;
@@ -90,6 +118,7 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   views,
   openTo,
   pickerSlotProps,
+  textFieldSize,
   helperText,
   dataTestId,
   pickerError,
@@ -111,8 +140,33 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
     return mergeAppDatePickerSlotProps(rest);
   }, [pickerSlotProps]);
 
+  const pickerTextFieldRaw =
+    typeof pickerSlotProps?.textField === "object" && pickerSlotProps.textField !== null
+      ? (pickerSlotProps.textField as Record<string, unknown> & { sx?: unknown })
+      : {};
+  const {
+    sx: pickerTextFieldSx,
+    size: pickerSlotTextFieldSize,
+    ...pickerTextFieldRest
+  } = pickerTextFieldRaw;
+  const resolvedTextFieldSize: DatePickerTextFieldSize =
+    textFieldSize ??
+    (pickerSlotTextFieldSize === "medium" || pickerSlotTextFieldSize === "large"
+      ? pickerSlotTextFieldSize
+      : "small");
+  const mergedTextFieldSx = [
+    getDatePickerOutlinedInputSx(resolvedTextFieldSize),
+    ...(pickerTextFieldSx != null
+      ? Array.isArray(pickerTextFieldSx)
+        ? pickerTextFieldSx
+        : [pickerTextFieldSx]
+      : []),
+  ];
+
   return (
     <DatePicker
+      enableAccessibleFieldDOMStructure={false}
+      slots={DATE_PICKER_TEXT_FIELD_SLOTS}
       format={dateFormat}
       views={resolvedViews}
       openTo={openTo}
@@ -137,9 +191,9 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       slotProps={{
         ...mergedNonTextFieldSlotProps,
         textField: {
-          ...(typeof pickerSlotProps?.textField === "object" && pickerSlotProps.textField !== null
-            ? pickerSlotProps.textField
-            : {}),
+          ...pickerTextFieldRest,
+          size: resolvedTextFieldSize,
+          sx: mergedTextFieldSx,
           label: effectiveLabel,
           placeholder: formatHint,
           fullWidth,
@@ -147,12 +201,9 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
           helperText: fieldState.error?.message ?? pickerErrorText ?? helperText,
           "data-testid": dataTestId,
           inputProps: {
-            ...(typeof pickerSlotProps?.textField === "object" &&
-            pickerSlotProps.textField !== null &&
-            "inputProps" in pickerSlotProps.textField &&
-            typeof pickerSlotProps.textField.inputProps === "object" &&
-            pickerSlotProps.textField.inputProps !== null
-              ? pickerSlotProps.textField.inputProps
+            ...(typeof pickerTextFieldRaw.inputProps === "object" &&
+            pickerTextFieldRaw.inputProps !== null
+              ? pickerTextFieldRaw.inputProps
               : {}),
             "data-testid": dataTestId,
           },
@@ -174,6 +225,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   views,
   openTo,
   pickerSlotProps,
+  size,
   'data-testid': dataTestId,
 }) => {
   const { t } = useTranslation(COMMON_NS);
@@ -237,6 +289,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             views={views}
             openTo={openTo}
             pickerSlotProps={pickerSlotProps}
+            textFieldSize={size}
             helperText={helperText}
             dataTestId={dataTestId}
             pickerError={pickerError}
@@ -255,6 +308,7 @@ export interface DateRangeFieldProps {
   nameEnd: string;
   labelStart?: string;
   labelEnd?: string;
+  size?: DatePickerTextFieldSize;
 }
 
 export const DateRangeField: React.FC<DateRangeFieldProps> = ({
@@ -262,6 +316,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
   nameEnd,
   labelStart,
   labelEnd,
+  size = "small",
 }) => {
   const { t } = useTranslation(COMMON_NS);
   const { control } = useFormContext();
@@ -288,13 +343,20 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
           control={control}
           render={({ field }) => (
             <DatePicker
+              enableAccessibleFieldDOMStructure={false}
+              slots={DATE_PICKER_TEXT_FIELD_SLOTS}
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
               onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
-                textField: { label: startLabel, placeholder: t("datePicker.formatHint") } as any,
+                textField: {
+                  size,
+                  label: startLabel,
+                  placeholder: t("datePicker.formatHint"),
+                  sx: [getDatePickerOutlinedInputSx(size)],
+                } as any,
               }}
             />
           )}
@@ -304,13 +366,20 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
           control={control}
           render={({ field }) => (
             <DatePicker
+              enableAccessibleFieldDOMStructure={false}
+              slots={DATE_PICKER_TEXT_FIELD_SLOTS}
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
               onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
-                textField: { label: endLabel, placeholder: t("datePicker.formatHint") } as any,
+                textField: {
+                  size,
+                  label: endLabel,
+                  placeholder: t("datePicker.formatHint"),
+                  sx: [getDatePickerOutlinedInputSx(size)],
+                } as any,
               }}
             />
           )}

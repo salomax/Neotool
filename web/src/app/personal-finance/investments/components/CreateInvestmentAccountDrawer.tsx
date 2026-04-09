@@ -4,6 +4,7 @@ import React, { useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Box, Divider, Stack } from '@mui/material';
+import { FormStack } from '@/shared/components/ui/forms/components';
 import { FormProvider, useController, useForm, useFormState, useWatch } from 'react-hook-form';
 import { z } from 'zod';
 import dayjs from 'dayjs';
@@ -16,7 +17,7 @@ import {
   IssuerCategory,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { i18n, useTranslation } from '@/shared/i18n';
-import { FormErrorBanner } from '@/shared/components/ui/forms/components/FormErrorBanner';
+import { ErrorAlert } from '@/shared/components/ui/feedback';
 import { DatePickerField, FormTextField as TextField, MoneyInput, SelectField } from '@/shared/components/ui/forms/form';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
@@ -261,11 +262,6 @@ export function CreateInvestmentAccountDrawer({
       onClose();
     },
   });
-  const createErrorMessage = React.useMemo(
-    () => (createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : ''),
-    [createError, t]
-  );
-
   const onSubmit = (data: CreateInvestmentAccountFormData) => {
     const name = data.name.trim();
     const issuerName = data.issuerName?.trim();
@@ -318,8 +314,12 @@ export function CreateInvestmentAccountDrawer({
       <Drawer.Body>
         <FormProvider {...methods}>
           <form id="create-investment-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <Stack spacing={3}>
-              {createError && <FormErrorBanner message={createErrorMessage} />}
+            <FormStack>
+              <ErrorAlert
+                error={
+                  createError ? extractErrorMessage(createError, t('errors.default', { ns: 'common' })) : null
+                }
+              />
 
               <IssuerSelect
                 issuers={issuersData?.issuers}
@@ -402,7 +402,7 @@ export function CreateInvestmentAccountDrawer({
                 submitting={creating}
               />
 
-            </Stack>
+            </FormStack>
           </form>
         </FormProvider>
       </Drawer.Body>

@@ -39,7 +39,7 @@ import {
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
-import { FormErrorBanner } from "@/shared/components/ui/forms/components/FormErrorBanner";
+import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
@@ -545,7 +545,7 @@ export function RecordEquityHoldingDrawer({
         <FormProvider {...methods}>
           <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
             <Stack spacing={2}>
-              {mutationError && <FormErrorBanner message={mutationError.message} />}
+              <ErrorAlert error={mutationError} />
 
                 <Stack spacing={1}>
                   <Typography variant="overline" color="text.secondary">

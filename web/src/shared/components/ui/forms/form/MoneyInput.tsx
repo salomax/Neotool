@@ -2,12 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import {
-  TextField,
-  InputAdornment,
-  IconButton,
-  TextFieldProps,
-} from "@mui/material";
+import { InputAdornment, IconButton, TextFieldProps } from "@mui/material";
+import { TextField } from "./TextField";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { NumericFormat } from "react-number-format";
 import { getLocaleSeparators } from "@/shared/utils/locale";
@@ -26,6 +22,8 @@ export interface MoneyInputProps {
   size?: TextFieldProps["size"];
   InputProps?: TextFieldProps["InputProps"];
   autoFocus?: boolean;
+  /** Ref to the underlying text input (via NumericFormat `getInputRef`). */
+  inputRef?: React.Ref<HTMLInputElement>;
   variant?: TextFieldProps["variant"];
   'data-testid'?: string;
 }
@@ -72,10 +70,11 @@ export function BaseMoneyInput({
   helperText,
   fullWidth = true,
   disabled,
-  size,
+  size = "small",
   InputProps,
   name,
   autoFocus,
+  inputRef,
   variant,
   'data-testid': dataTestId,
 }: BaseMoneyInputProps) {
@@ -101,6 +100,7 @@ export function BaseMoneyInput({
   return (
     <NumericFormat
       customInput={TextField}
+      getInputRef={inputRef}
       variant={variant}
       fullWidth={fullWidth}
       size={size}

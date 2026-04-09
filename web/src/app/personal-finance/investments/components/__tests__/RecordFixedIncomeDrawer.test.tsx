@@ -228,10 +228,6 @@ vi.mock('@/shared/i18n', () => ({
   },
 }));
 
-vi.mock('@/shared/components/ui/forms/components/FormErrorBanner', () => ({
-  FormErrorBanner: ({ message }: { message: string }) => <div role="alert">{message}</div>,
-}));
-
 vi.mock('@/shared/components/ui/layout/Drawer', () => {
   const Drawer = ({ open, children }: { open: boolean; children: React.ReactNode }) => (open ? <div>{children}</div> : null);
   const DrawerHeader = ({ title }: { title: React.ReactNode }) => <h2>{title}</h2>;

@@ -48,6 +48,22 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
       : size === "large"
         ? "16.5px 14px"
         : "14.5px 14px";
+  const multilineAdornmentMarginTop =
+    size === "small" ? "6px" : size === "large" ? "10px" : "8px";
+
+  /** Applied on OutlinedInput so it wins over MUI's multiline root padding (otherwise it stacks with textarea padding and looks ~2× single-line). */
+  const multilineOutlinedRootSx = {
+    padding: 0,
+    alignItems: "flex-start" as const,
+    "& .MuiInputAdornment-root.MuiInputAdornment-positionStart": {
+      marginRight: 6,
+      marginTop: multilineAdornmentMarginTop,
+    },
+    "& .MuiInputAdornment-root.MuiInputAdornment-positionEnd": {
+      marginLeft: 6,
+      marginTop: multilineAdornmentMarginTop,
+    },
+  };
 
   const baseSx = {
     ...(size === "large" && {
@@ -55,15 +71,7 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
         fontSize: "1.125rem",
       },
     }),
-    ...(isMultiline && {
-      "& .MuiOutlinedInput-root.MuiOutlinedInput-multiline": {
-        padding: 0,
-      },
-    }),
     "& .MuiOutlinedInput-input": {
-      padding: inputPadding,
-    },
-    "& .MuiOutlinedInput-inputMultiline": {
       padding: inputPadding,
     },
   } as const;
@@ -101,9 +109,22 @@ export const TextField = React.forwardRef<HTMLInputElement, TextFieldProps>(({
   // Determine actual input type (toggle password visibility)
   const inputType = type === 'password' && showPassword ? 'text' : type;
 
+  const inputPropsSx = InputProps?.sx;
+  const mergedInputSx = isMultiline
+    ? [
+        ...(Array.isArray(inputPropsSx)
+          ? inputPropsSx
+          : inputPropsSx
+            ? [inputPropsSx]
+            : []),
+        multilineOutlinedRootSx,
+      ]
+    : inputPropsSx;
+
   // Merge with existing InputProps
   const mergedInputProps = {
     ...InputProps,
+    ...(mergedInputSx !== undefined ? { sx: mergedInputSx } : {}),
     startAdornment: startAdornment || InputProps?.startAdornment,
     endAdornment: endAdornment || InputProps?.endAdornment,
   };
