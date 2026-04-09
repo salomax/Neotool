@@ -1,13 +1,20 @@
 import { gql } from "@apollo/client";
 
 export const FUND_HOLDING_DETAIL = gql`
-  query FundHoldingDetail($holdingId: ID!) {
+  query FundHoldingDetail(
+    $holdingId: ID!
+    $performanceResolution: HoldingPerformanceResolution!
+    $performanceFromDate: Date
+    $performanceToDate: Date
+  ) {
     investmentHolding(id: $holdingId) {
       id
       quantity
       averageCost
       grossValue
       netValue
+      incomeTax
+      iof
       valuationSource
       valuationReferenceDate
       isTaxExempt
@@ -50,7 +57,13 @@ export const FUND_HOLDING_DETAIL = gql`
       settlementDate
       source
     }
-    holdingPerformance(holdingId: $holdingId, resolution: MONTH, includeProjection: true) {
+    holdingPerformance(
+      holdingId: $holdingId
+      resolution: $performanceResolution
+      fromDate: $performanceFromDate
+      toDate: $performanceToDate
+      includeProjection: false
+    ) {
       holdingId
       assetType
       currencyCode

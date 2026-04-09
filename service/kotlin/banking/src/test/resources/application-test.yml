@@ -45,6 +45,16 @@ banking:
   assets-service:
     url: http://localhost:18092
     graphql-path: /graphql
+  financialdata-service:
+    url: http://localhost:18093
+    target-audience: neotool-financial-data-service
+    listed-prices-export-path: /internal/market-data/listed-prices/export
+  market-data-sync:
+    listed-prices:
+      bulk-enabled: true
+      batch-size: 2
+      connect-timeout-seconds: 10
+      read-timeout-seconds: 30
 endpoints:
   enabled: false
   health:

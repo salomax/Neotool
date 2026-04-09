@@ -12,6 +12,8 @@ import java.util.UUID
 interface AssetEntityRepository : JpaRepository<AssetEntity, UUID> {
     fun findByIdIn(ids: Collection<UUID>): List<AssetEntity>
 
+    fun findByTickerIsNotNull(): List<AssetEntity>
+
     fun findByTicker(ticker: String): AssetEntity?
 
     fun findByIsinCode(isinCode: String): AssetEntity?

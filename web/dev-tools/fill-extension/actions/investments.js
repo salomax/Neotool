@@ -38,6 +38,61 @@ async function fillFixedIncome({ assetName, assetType, issuerName, quantity = 1,
   await fillDateField('record-maturity-date', daysOffset(maturityDaysOffset));
 }
 
+async function openFundDrawer() {
+  const { waitFor, sleep, getInput } = window.__devFill;
+
+  if (!getInput('record-fund-manual-name') && !document.querySelector('[data-testid="record-fund-autocomplete"]')) {
+    const menuBtn = await waitFor(() => document.querySelector('[data-testid="record-holding-top-btn"]'), 5000, 'record-holding-top-btn');
+    menuBtn.click();
+    await sleep(300);
+    const option = await waitFor(() => document.querySelector('[data-testid="record-holding-option-fund"]'), 5000, 'fund option');
+    option.click();
+    await sleep(500);
+
+    if (!getInput('record-fund-manual-name') && !document.querySelector('[data-testid="record-fund-autocomplete"]')) {
+      const accountBtn = await waitFor(() => document.querySelector('[data-testid^="record-fund-select-account-"]'), 5000, 'fund account selector');
+      accountBtn.click();
+      await sleep(400);
+    }
+  }
+}
+
+async function ensureFundManualMode() {
+  const { waitFor, sleep } = window.__devFill;
+  if (window.__devFill.getInput('record-fund-manual-name')) return;
+
+  const manualTab = await waitFor(
+    () => Array.from(document.querySelectorAll('[role="tab"]')).find((tab) => /Nao listado|Não listado/i.test((tab.textContent || '').trim())),
+    5000,
+    'fund manual tab',
+  );
+  manualTab.click();
+  await sleep(200);
+}
+
+async function fillFundManual({
+  fundName,
+  fundCnpj = '',
+  quantity = 100,
+  unitPrice = 12.5,
+  tradeDaysOffset = -3,
+  currentGrossValue = 1300,
+  valuedAtDaysOffset = 0,
+}) {
+  const { fillField, fillDateField, daysOffset } = window.__devFill;
+
+  await openFundDrawer();
+  await ensureFundManualMode();
+
+  await fillField('record-fund-manual-name', fundName);
+  if (fundCnpj) await fillField('record-fund-manual-cnpj', fundCnpj);
+  await fillDateField('record-fund-trade-date', daysOffset(tradeDaysOffset));
+  await fillField('record-fund-quantity', String(quantity));
+  await fillField('record-fund-unit-price', String(unitPrice));
+  await fillField('record-fund-manual-current-gross-value', String(currentGrossValue));
+  await fillDateField('record-fund-manual-valued-at', daysOffset(valuedAtDaysOffset));
+}
+
 window.__devActions = window.__devActions || [];
 window.__devActions.push({
   label: 'Auto-fill',
@@ -68,6 +123,43 @@ window.__devActions.push({
             {
               label: 'CDB vencido (5 dias atrás)',
               run: () => fillFixedIncome({ assetName: `CDB Vencido Dev ${Date.now()}`, assetType: 'CDB', issuerName: 'Banco Dev', grossValue: 1200, indexer: 'CDI', indexerPercentage: 103, tradeDaysOffset: -120, maturityDaysOffset: -5 }),
+            },
+          ],
+        },
+        {
+          label: 'Fundos',
+          children: [
+            {
+              label: 'Fundo Multimercado (manual)',
+              run: () => fillFundManual({
+                fundName: `Fundo Multi Dev ${Date.now()}`,
+                fundCnpj: '12.345.678/0001-90',
+                quantity: 120.5,
+                unitPrice: 10.4,
+                currentGrossValue: 1350,
+              }),
+            },
+            {
+              label: 'Previdencia PGBL (manual)',
+              run: () => fillFundManual({
+                fundName: `PGBL Dev ${Date.now()}`,
+                fundCnpj: '23.456.789/0001-01',
+                quantity: 80,
+                unitPrice: 18.75,
+                currentGrossValue: 1620,
+                tradeDaysOffset: -40,
+              }),
+            },
+            {
+              label: 'Previdencia VGBL (manual)',
+              run: () => fillFundManual({
+                fundName: `VGBL Dev ${Date.now()}`,
+                fundCnpj: '34.567.890/0001-12',
+                quantity: 65,
+                unitPrice: 22.3,
+                currentGrossValue: 1510,
+                tradeDaysOffset: -75,
+              }),
             },
           ],
         },

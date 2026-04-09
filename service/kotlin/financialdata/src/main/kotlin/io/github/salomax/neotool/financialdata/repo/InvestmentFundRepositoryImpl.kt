@@ -290,6 +290,42 @@ open class InvestmentFundRepositoryImpl(
     }
 
     @ReadOnly
+    override fun getNavSeriesByFundCnpj(
+        normalizedCnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<FundDailyNav> {
+        if (from.isAfter(to)) return emptyList()
+
+        val sql = """
+            SELECT adp.price_date, adp.close_price, adp.volume
+            FROM financial_data.investment_asset ia
+            INNER JOIN financial_data.asset_daily_price adp ON adp.asset_id = ia.id
+            WHERE ia.source = 'CVM'
+              AND regexp_replace(COALESCE(ia.fund_cnpj, ''), '[^0-9]', '', 'g') = ?
+              AND adp.price_date >= ?
+              AND adp.price_date <= ?
+            ORDER BY adp.price_date ASC
+            LIMIT 20000
+        """.trimIndent()
+
+        val q = entityManager.createNativeQuery(sql)
+        q.setParameter(1, normalizedCnpj)
+        q.setParameter(2, from)
+        q.setParameter(3, to)
+
+        @Suppress("UNCHECKED_CAST")
+        val rows = q.resultList as List<Array<Any?>>
+        return rows.map { row ->
+            FundDailyNav(
+                date = (row[0] as java.sql.Date).toLocalDate(),
+                closePrice = row[1] as BigDecimal,
+                totalNetAssets = row[2] as? BigDecimal,
+            )
+        }
+    }
+
+    @ReadOnly
     override fun findMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot> {
         val normalized = cnpjs.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         if (normalized.isEmpty()) return emptyList()
@@ -406,7 +442,7 @@ open class InvestmentFundRepositoryImpl(
                 date = (row[2] as java.sql.Date).toLocalDate(),
                 closePrice = row[3] as BigDecimal,
                 totalNetAssets = row[4] as? BigDecimal,
-                updatedAt = (row[5] as Timestamp).toInstant(),
+                updatedAt = requireNotNull(row[5].asInstantOrNull()) { "Invalid updated_at value: ${row[5]}" },
             )
         }
     }

@@ -189,6 +189,22 @@ class BankingWiringFactoryTest {
         }
 
         @Test
+        fun `portfolioPerformance requires banking_investment_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["portfolioPerformance"]!!
+
+            val env =
+                envWithToken(
+                    arguments = mapOf("groupKey" to "variableIncome"),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_VIEW))
+            verify(investmentResolver).portfolioPerformance(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())
+        }
+
+        @Test
         fun `transactionRules forwards optional isSystem argument to resolver`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Query"]!!["transactionRules"]!!

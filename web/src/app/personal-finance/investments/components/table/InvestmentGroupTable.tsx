@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { alpha, useTheme } from '@mui/material';
+import { Box, alpha, useTheme } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { ValueOriginIndicator } from '@/shared/components/ui/data-display';
@@ -30,6 +30,9 @@ interface InvestmentGroupTableProps {
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
   onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
+  onBuy?: (holding: HoldingRow) => void;
+  onSell?: (holding: HoldingRow) => void;
+  hideGroupHeader?: boolean;
 }
 
 export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
@@ -40,6 +43,9 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
   onOpenDetail,
   onOpenMaturityConfirm,
   onOpenActions,
+  onBuy,
+  onSell,
+  hideGroupHeader = false,
 }: InvestmentGroupTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -68,6 +74,19 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
     );
   }, [group.total, group.valueOriginKey, t]);
 
+  const buyLabel = React.useMemo(() => {
+    if (group.key === 'variableIncome') return t('investments.transactions.buy');
+    if (group.key === 'mutualFunds' || group.key === 'pension') return t('investments.transactions.apply');
+    return undefined;
+  }, [group.key, t]);
+
+  const sellLabel = React.useMemo(() => {
+    if (group.key === 'variableIncome') return t('investments.transactions.sell');
+    if (group.key === 'mutualFunds' || group.key === 'pension') return t('investments.transactions.redeem');
+    if (group.key === 'bankFixedIncome' || group.key === 'creditFixedIncome') return t('investments.transactions.redeem');
+    return undefined;
+  }, [group.key, t]);
+
   const headerCells = React.useMemo(() => {
     const cells = [
       {
@@ -83,25 +102,27 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
               content: <Label>{t('investments.table.columns.indexer')}</Label>,
             },
           ]
-        : [
+        : layout.isFundGroup
+          ? []
+          : [
             {
               key: 'type',
               sx: { width: layout.colWidth },
               content: <Label>{t('investments.table.columns.type')}</Label>,
             },
-          ]),
+            ]),
       ...(layout.isFundGroup
         ? [
             {
               key: 'gain',
               align: 'right' as const,
-              sx: { width: layout.colWidth },
+              sx: layout.gainColSx,
               content: <Label>{t('investments.table.columns.gain')}</Label>,
             },
             {
               key: 'grossValue',
               align: 'right' as const,
-              sx: { width: layout.colWidth },
+              sx: layout.grossValueColSx,
               content: <Label>{t('investments.table.columns.grossValue')}</Label>,
             },
           ]
@@ -118,12 +139,6 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
                     align: 'right' as const,
                     sx: { width: layout.colWidth },
                     content: <Label>{t('investments.table.columns.averagePrice')}</Label>,
-                  },
-                  {
-                    key: 'priceD1',
-                    align: 'right' as const,
-                    sx: { width: layout.colWidth },
-                    content: <Label>{t('investments.table.columns.priceD1')}</Label>,
                   },
                 ]
               : [
@@ -151,6 +166,39 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
     return cells;
   }, [layout, t]);
 
+  if (hideGroupHeader) {
+    return (
+      <Box sx={{ borderRadius: `${tableRadius}px`, overflow: 'hidden' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 0.75 }}>
+          {headerCells.map((cell) => (
+            <Box key={cell.key} sx={{ textAlign: cell.align ?? 'left', ...cell.sx }}>
+              {cell.content}
+            </Box>
+          ))}
+          <Box sx={{ width: layout.actionColWidth, flexShrink: 0 }} />
+        </Box>
+        {group.holdings.map((holding) => (
+          <InvestmentHoldingRow
+            key={holding.id}
+            holding={holding}
+            layout={layout}
+            locale={locale}
+            dividerColor={dividerColor}
+            hoverColor={hoverColor}
+            t={t}
+            onOpenDetail={onOpenDetail}
+            onOpenMaturityConfirm={onOpenMaturityConfirm}
+            onOpenActions={onOpenActions}
+            onBuy={buyLabel ? onBuy : undefined}
+            onSell={sellLabel ? onSell : undefined}
+            buyLabel={buyLabel}
+            sellLabel={sellLabel}
+          />
+        ))}
+      </Box>
+    );
+  }
+
   return (
     <InvestmentGroupSection
       expanded={expanded}
@@ -177,6 +225,10 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
           onOpenDetail={onOpenDetail}
           onOpenMaturityConfirm={onOpenMaturityConfirm}
           onOpenActions={onOpenActions}
+          onBuy={buyLabel ? onBuy : undefined}
+          onSell={sellLabel ? onSell : undefined}
+          buyLabel={buyLabel}
+          sellLabel={sellLabel}
         />
       ))}
     </InvestmentGroupSection>

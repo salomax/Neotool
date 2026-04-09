@@ -25,6 +25,19 @@ open class DefaultHoldingRepository(
             .findByAccountIdAndDeletedAtIsNull(accountId)
             .map(HoldingMapper::toDomain)
 
+    override fun findOpenByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<Holding> =
+        entityRepository
+            .findOpenByFinancialAccount(financialAccountId, accountId)
+            .map(HoldingMapper::toDomain)
+
+    override fun findOpenByAccount(accountId: UUID): List<Holding> =
+        entityRepository
+            .findOpenByAccount(accountId)
+            .map(HoldingMapper::toDomain)
+
     override fun findById(
         id: UUID,
         accountId: UUID,

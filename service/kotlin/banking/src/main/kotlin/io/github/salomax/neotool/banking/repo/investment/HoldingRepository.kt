@@ -18,6 +18,15 @@ interface HoldingRepository {
     /** All open positions across all custodian accounts for the tenant (for net worth). */
     fun findByAccount(accountId: UUID): List<Holding>
 
+    /** All open positions (quantity > 0) for a custodian account. */
+    fun findOpenByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<Holding>
+
+    /** All open positions (quantity > 0) across all custodian accounts for the tenant. */
+    fun findOpenByAccount(accountId: UUID): List<Holding>
+
     fun findById(
         id: UUID,
         accountId: UUID,

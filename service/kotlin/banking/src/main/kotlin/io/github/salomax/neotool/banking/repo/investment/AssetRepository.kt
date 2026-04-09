@@ -12,6 +12,8 @@ interface AssetRepository {
 
     fun findByIds(ids: Collection<UUID>): List<Asset>
 
+    fun findAllWithTicker(): List<Asset>
+
     fun findByTicker(ticker: String): Asset?
 
     fun findByIsinCode(isinCode: String): Asset?

@@ -13,7 +13,7 @@ import {
   SearchInvestmentFundsAutocompleteQueryVariables,
 } from "@/lib/graphql/operations/financial-data/queries.generated";
 import { formatCnpj } from "@/lib/utils/formatCnpj";
-import { AssetTypeChip } from "./AssetTypeChip";
+import { FundTypeChip } from "./FundTypeChip";
 
 export type FundAutocompleteValue = {
   id: string;
@@ -89,12 +89,11 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
               sx={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
                 gap: 1,
                 py: 1,
               }}
             >
-              <Box sx={{ minWidth: 0 }}>
+              <Box sx={{ minWidth: 0, flex: 1 }}>
                 <Typography variant="body2" fontWeight={700} noWrap>
                   {option.name}
                 </Typography>
@@ -102,7 +101,9 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
                   {formatCnpj(option.cnpj)}
                 </Typography>
               </Box>
-              <AssetTypeChip assetType={option.assetType} size="small" />
+              <Box sx={{ ml: "auto", flexShrink: 0 }}>
+                <FundTypeChip assetType={option.assetType} size="small" />
+              </Box>
             </Box>
           )}
           renderInput={(params) => (

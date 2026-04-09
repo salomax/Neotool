@@ -31,6 +31,8 @@ export interface TimelineEventsProps {
   netAmountText: (formattedValue: string) => string;
   incomeTaxText: (formattedValue: string) => string;
   iofText: (formattedValue: string) => string;
+  /** When set, shown before tax/net lines when `settlementDateLabel` is present on an item. */
+  settlementDateText?: (settlementDateLabel: string) => string;
   sx?: SxProps<Theme>;
 }
 
@@ -46,6 +48,7 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
   netAmountText,
   incomeTaxText,
   iofText,
+  settlementDateText,
   sx,
 }) => {
   if (items.length === 0) {
@@ -87,11 +90,12 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
             .filter(Boolean)
             .join(' · ');
 
-          const detailText = [
-            moneyParts || null,
-          ]
-            .filter(Boolean)
-            .join(' · ');
+          const settlementPart =
+            item.settlementDateLabel && settlementDateText
+              ? settlementDateText(item.settlementDateLabel)
+              : null;
+
+          const detailText = [settlementPart, moneyParts || null].filter(Boolean).join(' · ');
 
           const leftCard = (
             <Paper

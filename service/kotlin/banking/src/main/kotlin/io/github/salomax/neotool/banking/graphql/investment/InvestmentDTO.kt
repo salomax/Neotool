@@ -180,6 +180,20 @@ data class HoldingPerformanceDTO(
     val points: List<HoldingPerformancePointDTO>,
 )
 
+data class PortfolioPerformanceSeriesDTO(
+    val groupKey: String?,
+    val label: String,
+    val currencyCode: String,
+    val resolution: HoldingPerformanceResolution,
+    val valuationSource: ValuationSource,
+    val valuationReferenceDate: LocalDate?,
+    val capabilities: HoldingPerformanceCapabilitiesDTO,
+    val summary: HoldingPerformanceSummaryDTO,
+    val points: List<HoldingPerformancePointDTO>,
+    val excludedHoldingsCount: Int,
+    val includedHoldingsCount: Int,
+)
+
 data class InvestmentHoldingPerformanceDTO(
     val holdingId: UUID,
     val xirr: Double?,

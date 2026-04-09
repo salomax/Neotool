@@ -199,7 +199,7 @@ open class IndicatorValueRepositoryImpl(
                 referenceDate = (row[4] as Date).toLocalDate(),
                 publicationDate = (row[5] as? Date)?.toLocalDate(),
                 value = row[6] as BigDecimal,
-                updatedAt = (row[7] as Timestamp).toInstant(),
+                updatedAt = requireNotNull(row[7].asInstantOrNull()) { "Invalid updated_at value: ${row[7]}" },
             )
         }
     }

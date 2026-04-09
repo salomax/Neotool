@@ -64,6 +64,28 @@
       "recordFund": "Record fund",
       "recordEquity": "Record stock / FII"
     },
+    "grid": {
+      "emptyDescription": "No position registered",
+      "firstInvestmentCta": "+ Investment"
+    },
+    "transactions": {
+      "buy": "Buy",
+      "sell": "Sell",
+      "apply": "Apply",
+      "redeem": "Redeem"
+    },
+    "picker": {
+      "title": "What do you want to record?",
+      "options": {
+        "fixedIncome": "Fixed income",
+        "equity": "Stocks / ETFs",
+        "realEstateFund": "REITs",
+        "fund": "Funds",
+        "crypto": "Crypto",
+        "cash": "Cash",
+        "comingSoon": "Coming soon"
+      }
+    },
     "record": {
       "cash": "Cash in account"
     },
@@ -145,11 +167,6 @@
       },
       "success": "Cash movement saved",
       "movements": {
-        "drawer": {
-          "listTitle": "Cash movements",
-          "recordTitle": "Record movement",
-          "register": "New movement"
-        },
         "columns": {
           "date": "Date",
           "description": "Description",
@@ -166,6 +183,9 @@
         "empty": "No cash movements yet.",
         "loadError": "Could not load movements.",
         "loadMore": "Load more",
+        "linkedToAsset": "Asset linked to this movement",
+        "linkedAssetResolving": "Identifying asset…",
+        "linkedAssetUnknown": "Linked asset could not be identified.",
         "detailTitle": "Movement details",
         "editTitle": "Edit movement",
         "deleteConfirmation": {
@@ -401,6 +421,14 @@
         "principalLabel": "Invested principal",
         "grossLabel": "Gross value",
         "netLabel": "Net value",
+        "period": {
+          "1M": "1M",
+          "3M": "3M",
+          "6M": "6M",
+          "1A": "1Y",
+          "2A": "2Y",
+          "ALL": "All"
+        },
         "modes": {
           "actual": "Current",
           "projected": "Include projection until maturity"
@@ -509,6 +537,41 @@
         "grossValuePositive": "Gross amount must be positive",
         "tradeDateRequired": "Enter redemption date"
       }
+    },
+    "corporateEvents": {
+      "section": "Events",
+      "drawerTitle": "Record corporate event",
+      "provento": "Record income event",
+      "split": "Record split / reverse split",
+      "bonus": "Record bonus shares",
+      "subscription": "Record subscription",
+      "splitType": {
+        "split": "Split",
+        "reverseSplit": "Reverse split"
+      },
+      "form": {
+        "paymentDate": "Date",
+        "proventoType": "Income type",
+        "valuePerUnit": "Gross value per unit",
+        "quantity": "Quantity",
+        "grossTotal": "Gross total",
+        "irWithheld": "Withholding tax",
+        "destinationAccount": "Destination account",
+        "ratioNumerator": "Ratio (numerator)",
+        "ratioDenominator": "Ratio (denominator)",
+        "resultQuantity": "Resulting quantity",
+        "bonusPercent": "Bonus percentage",
+        "issuePrice": "Issue price per bonus share",
+        "bonusQuantity": "Bonus quantity",
+        "exerciseDate": "Exercise date",
+        "exercisePrice": "Exercise price per share",
+        "subscribedQuantity": "Subscribed quantity"
+      },
+      "validation": {
+        "required": "Required field",
+        "positiveValue": "Please enter a value greater than zero"
+      },
+      "success": "Corporate event recorded successfully"
     },
     "recordHolding": {
       "title": "Record Fixed Income Holding",

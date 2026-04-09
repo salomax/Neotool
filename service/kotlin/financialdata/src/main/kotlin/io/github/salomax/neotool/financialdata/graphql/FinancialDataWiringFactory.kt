@@ -201,6 +201,18 @@ class FinancialDataWiringFactory(
                 },
             )
             .dataFetcher(
+                "fundNavSeries",
+                createValidatedDataFetcher { env ->
+                    val cnpj = env.getArgument<String?>("cnpj")
+                        ?: throw IllegalArgumentException("cnpj is required")
+                    val from = env.getArgument<LocalDate?>("from")
+                        ?: throw IllegalArgumentException("from is required")
+                    val to = env.getArgument<LocalDate?>("to")
+                        ?: throw IllegalArgumentException("to is required")
+                    investmentFundResolver.fundNavSeries(cnpj, from, to)
+                },
+            )
+            .dataFetcher(
                 "fundDailyNavs",
                 createValidatedDataFetcher { env ->
                     marketDataSyncResolver.fundDailyNavs(

@@ -107,4 +107,35 @@ describe.sequential('usePortfolioRecalculationStatus', () => {
       expect(onConnectionError).toHaveBeenCalled();
     });
   });
+
+  it('givenCompletedEventWithCrlf_whenHook_thenParsesAndCallsOnCompleted', async () => {
+    const fetchMock = globalThis.fetch as ReturnType<typeof vi.fn>;
+    const payload = {
+      jobId: 'job-1',
+      accountId,
+      financialAccountId: 'fa-1',
+      status: 'COMPLETED',
+      recalculateFrom: '2026-04-01',
+    };
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      body: createStream([`event: recalculation-status\r\ndata: ${JSON.stringify(payload)}\r\n\r\n`]),
+    });
+
+    const onCompleted = vi.fn();
+    const onStatusChange = vi.fn();
+
+    renderHook(() =>
+      usePortfolioRecalculationStatus(accountId, {
+        onCompleted,
+        onStatusChange,
+      })
+    );
+
+    await waitFor(() => {
+      expect(onStatusChange).toHaveBeenCalledWith('COMPLETED');
+      expect(onCompleted).toHaveBeenCalledWith(payload);
+    });
+  });
 });

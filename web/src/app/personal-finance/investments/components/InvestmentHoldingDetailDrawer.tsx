@@ -2,7 +2,8 @@
 
 import * as React from "react";
 import { useQuery } from "@apollo/client/react";
-import { Avatar, Box, Divider, IconButton, Typography, useMediaQuery, useTheme } from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import { Avatar, Box, Divider, IconButton, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
@@ -16,6 +17,8 @@ import { RecordFixedIncomeRedemptionDrawer } from "./fixed-income/RecordFixedInc
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
 import { FundHoldingDetailDocument } from "./fund/api/queries.generated";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
+import type { DetailPerformancePeriod } from "./performance/detailPerformancePeriods";
+import { parseUnknownDate, resolveDetailPerformanceWindow } from "./performance/detailPerformancePeriods";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
 
@@ -34,6 +37,11 @@ interface HoldingDetailSummaryCardViewModel {
   id: string;
   label: string;
   value: number | null;
+  /** default: monetary amount; percent: annualized IRR / XIRR */
+  valueKind?: "currency" | "percent";
+  /** Shown under the main value (e.g. period start for TIR). */
+  caption?: string | null;
+  labelTooltip?: string;
 }
 
 interface HoldingDetailStrategy {
@@ -121,18 +129,31 @@ function HoldingDetailDrawerShell({
           pb: 4,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 2, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, minWidth: 0, flex: "1 1 auto" }}>
+        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: "1 1 auto" }}>
             <Avatar
               src={logoUrl}
               alt={assetName}
               variant="rounded"
-              sx={{ width: 40, height: 40, borderRadius: ".5rem" }}
+              sx={{ width: 40, height: 40, borderRadius: ".5rem", flexShrink: 0, mt: 0.25 }}
             >
               {assetName.slice(0, 1).toUpperCase()}
             </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" fontWeight={700} noWrap sx={{ minWidth: 0 }}>
+            <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
+              <Typography
+                variant="h6"
+                fontWeight={700}
+                sx={{
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  wordBreak: "break-word",
+                  lineHeight: 1.25,
+                }}
+              >
                 {assetName}
               </Typography>
               <Typography variant="body2" noWrap sx={{ mt: 0.25, minWidth: 0 }}>
@@ -174,16 +195,46 @@ function HoldingDetailDrawerShell({
         >
           {summaryCards.map((card) => (
             <Box key={card.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0 }}>
-              <Label sx={{ mb: 0.25 }}>{card.label}</Label>
-              <CurrencyAmountParts
-                value={card.value}
-                currency={currencyCode}
-                locale={locale}
-                variant="h6"
-                fontWeight={500}
-                noWrap
-                sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}
-              />
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.25 }}>
+                <Label sx={{ mb: 0 }}>{card.label}</Label>
+                {card.labelTooltip ? (
+                  <Tooltip title={card.labelTooltip}>
+                    <InfoOutlinedIcon sx={{ fontSize: 14, color: "text.secondary" }} aria-hidden />
+                  </Tooltip>
+                ) : null}
+              </Box>
+              {card.valueKind === "percent" ? (
+                <>
+                  {card.value != null && Number.isFinite(card.value) ? (
+                    <GainPercent
+                      value={card.value}
+                      locale={locale}
+                      variant="h6"
+                      iconSize={14}
+                      textSx={{ fontWeight: 500, fontSize: { xs: "1.05rem", md: "1.15rem" }, lineHeight: 1.1 }}
+                    />
+                  ) : (
+                    <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}>
+                      —
+                    </Typography>
+                  )}
+                  {card.caption ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                      {card.caption}
+                    </Typography>
+                  ) : null}
+                </>
+              ) : (
+                <CurrencyAmountParts
+                  value={card.value}
+                  currency={currencyCode}
+                  locale={locale}
+                  variant="h6"
+                  fontWeight={500}
+                  noWrap
+                  sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}
+                />
+              )}
             </Box>
           ))}
         </Box>
@@ -221,6 +272,18 @@ export function InvestmentHoldingDetailDrawer({
 
   const shouldFetchFixedIncome = open && kind === "fixedIncome" && Boolean(holdingId);
   const shouldFetchFund = open && (kind === "fund" || kind === "equity") && Boolean(holdingId);
+  const [fundPerformancePeriod, setFundPerformancePeriod] = React.useState<DetailPerformancePeriod>("ALL");
+  const [fundFirstTradeDate, setFundFirstTradeDate] = React.useState<Date | null>(null);
+  const fundPerformanceWindow = React.useMemo(
+    () => resolveDetailPerformanceWindow(fundPerformancePeriod, fundFirstTradeDate),
+    [fundFirstTradeDate, fundPerformancePeriod],
+  );
+
+  React.useEffect(() => {
+    if (!open) return;
+    setFundPerformancePeriod("ALL");
+    setFundFirstTradeDate(null);
+  }, [holdingId, kind, open]);
 
   const fixedIncomeQuery = useQuery(FixedIncomeHoldingDetailDocument, {
     variables: { holdingId: holdingId || "" },
@@ -232,7 +295,12 @@ export function InvestmentHoldingDetailDrawer({
   });
 
   const fundQuery = useQuery(FundHoldingDetailDocument, {
-    variables: { holdingId: holdingId || "" },
+    variables: {
+      holdingId: holdingId || "",
+      performanceResolution: fundPerformanceWindow.resolution,
+      performanceFromDate: fundPerformanceWindow.fromDate ?? null,
+      performanceToDate: fundPerformanceWindow.toDate ?? null,
+    },
     skip: !shouldFetchFund,
     errorPolicy: "all",
     fetchPolicy: "cache-and-network",
@@ -240,11 +308,31 @@ export function InvestmentHoldingDetailDrawer({
     notifyOnNetworkStatusChange: true,
   });
 
+  const fixedIncomeData =
+    fixedIncomeQuery.data ??
+    (fixedIncomeQuery.previousData?.investmentHolding?.id === holdingId ? fixedIncomeQuery.previousData : undefined);
+  const fundData =
+    fundQuery.data ??
+    (fundQuery.previousData?.investmentHolding?.id === holdingId ? fundQuery.previousData : undefined);
+
+  React.useEffect(() => {
+    const tradeDates = (fundData?.investmentTransactions ?? [])
+      .map((transaction) => parseUnknownDate(transaction.tradeDate))
+      .filter((value): value is Date => value != null)
+      .sort((a, b) => a.getTime() - b.getTime());
+    const nextFirstTradeDate = tradeDates[0] ?? null;
+    setFundFirstTradeDate((current) => {
+      const currentTime = current?.getTime() ?? null;
+      const nextTime = nextFirstTradeDate?.getTime() ?? null;
+      return currentTime === nextTime ? current : nextFirstTradeDate;
+    });
+  }, [fundData?.investmentTransactions]);
+
   const resolvedAssetType =
     (kind === "fixedIncome"
-      ? fixedIncomeQuery.data?.investmentHolding?.asset.assetType
-      : kind === "fund"
-      ? fundQuery.data?.investmentHolding?.asset.assetType
+      ? fixedIncomeData?.investmentHolding?.asset.assetType
+      : kind === "fund" || kind === "equity"
+      ? fundData?.investmentHolding?.asset.assetType
       : null) ||
     initialAssetType ||
     null;
@@ -304,38 +392,38 @@ export function InvestmentHoldingDetailDrawer({
 
   const fixedIncomeViewModel = React.useMemo(() => {
     if (kind !== "fixedIncome") return null;
-    const holding = fixedIncomeQuery.data?.investmentHolding;
+    const holding = fixedIncomeData?.investmentHolding;
     if (!holding) return null;
     return buildFixedIncomeHoldingDetailViewModel(
       holding,
-      fixedIncomeQuery.data?.investmentTransactions ?? [],
-      fixedIncomeQuery.data?.holdingPerformance,
-      fixedIncomeQuery.data?.investmentHoldingPerformance,
+      fixedIncomeData?.investmentTransactions ?? [],
+      fixedIncomeData?.holdingPerformance,
+      fixedIncomeData?.investmentHoldingPerformance,
       t,
       locale,
     );
-  }, [fixedIncomeQuery.data?.holdingPerformance, fixedIncomeQuery.data?.investmentHolding, fixedIncomeQuery.data?.investmentHoldingPerformance, fixedIncomeQuery.data?.investmentTransactions, kind, locale, t]);
+  }, [fixedIncomeData?.holdingPerformance, fixedIncomeData?.investmentHolding, fixedIncomeData?.investmentHoldingPerformance, fixedIncomeData?.investmentTransactions, kind, locale, t]);
 
   const fundViewModel = React.useMemo(() => {
-    if (kind !== "fund") return null;
-    const holding = fundQuery.data?.investmentHolding;
+    if (kind !== "fund" && kind !== "equity") return null;
+    const holding = fundData?.investmentHolding;
     if (!holding) return null;
     return buildFundHoldingDetailViewModel(
       holding,
-      fundQuery.data?.investmentTransactions ?? [],
-      fundQuery.data?.holdingPerformance,
-      fundQuery.data?.investmentHoldingPerformance,
+      fundData?.investmentTransactions ?? [],
+      fundData?.holdingPerformance,
+      fundData?.investmentHoldingPerformance,
       t,
       locale,
     );
-  }, [fundQuery.data?.holdingPerformance, fundQuery.data?.investmentHolding, fundQuery.data?.investmentHoldingPerformance, fundQuery.data?.investmentTransactions, kind, locale, t]);
+  }, [fundData?.holdingPerformance, fundData?.investmentHolding, fundData?.investmentHoldingPerformance, fundData?.investmentTransactions, kind, locale, t]);
 
   const assetName = fixedIncomeViewModel?.title || fundViewModel?.title || initialTitle || "—";
   const logoUrl =
-    fixedIncomeQuery.data?.investmentHolding?.asset.logoAsset?.publicUrl ??
-    fixedIncomeQuery.data?.investmentHolding?.financialAccount?.issuer?.logoAsset?.publicUrl ??
-    fundQuery.data?.investmentHolding?.asset.logoAsset?.publicUrl ??
-    fundQuery.data?.investmentHolding?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+    fixedIncomeData?.investmentHolding?.asset.logoAsset?.publicUrl ??
+    fixedIncomeData?.investmentHolding?.financialAccount?.issuer?.logoAsset?.publicUrl ??
+    fundData?.investmentHolding?.asset.logoAsset?.publicUrl ??
+    fundData?.investmentHolding?.financialAccount?.issuer?.logoAsset?.publicUrl ??
     initialLogoUrl ??
     initialIssuerLogoUrl ??
     undefined;
@@ -360,7 +448,7 @@ export function InvestmentHoldingDetailDrawer({
   const [redemptionDrawerOpen, setRedemptionDrawerOpen] = React.useState(false);
 
   const redemptionHolding = React.useMemo(() => {
-    const h = fixedIncomeQuery.data?.investmentHolding;
+    const h = fixedIncomeData?.investmentHolding;
     if (!h || !h.financialAccount?.id || !h.asset?.id) return null;
     return {
       id: h.id,
@@ -371,7 +459,7 @@ export function InvestmentHoldingDetailDrawer({
       financialAccountId: h.financialAccount.id,
       assetId: h.asset.id,
     };
-  }, [fixedIncomeQuery.data?.investmentHolding]);
+  }, [fixedIncomeData?.investmentHolding]);
 
   const canRegisterRedemption = kind === "fixedIncome" && Boolean(redemptionHolding) && (redemptionHolding?.quantity ?? 0) > 0;
 
@@ -386,10 +474,10 @@ export function InvestmentHoldingDetailDrawer({
           ) : null,
           body: (
             <FixedIncomeHoldingDetailContent
-              holding={fixedIncomeQuery.data?.investmentHolding}
-              transactions={fixedIncomeQuery.data?.investmentTransactions}
-              performance={fixedIncomeQuery.data?.holdingPerformance}
-              investmentHoldingPerformance={fixedIncomeQuery.data?.investmentHoldingPerformance}
+              holding={fixedIncomeData?.investmentHolding}
+              transactions={fixedIncomeData?.investmentTransactions}
+              performance={fixedIncomeData?.holdingPerformance}
+              investmentHoldingPerformance={fixedIncomeData?.investmentHoldingPerformance}
               loading={fixedIncomeQuery.loading}
               error={fixedIncomeQuery.error}
               locale={locale}
@@ -415,10 +503,22 @@ export function InvestmentHoldingDetailDrawer({
           summaryCards: [
             { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fixedIncomeViewModel?.principal ?? null },
             { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fixedIncomeViewModel?.grossValue ?? null },
+            { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fixedIncomeViewModel?.netValue ?? null },
+            {
+              id: "xirr",
+              label: t("investments.detailDrawer.performance.xirr"),
+              value: fixedIncomeViewModel?.xirr ?? null,
+              valueKind: "percent",
+              caption:
+                fixedIncomeViewModel?.xirr != null && fixedIncomeViewModel.xirrSinceLabel
+                  ? `${t("investments.detailDrawer.performance.since")} ${fixedIncomeViewModel.xirrSinceLabel}`
+                  : null,
+              labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+            },
             { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fixedIncomeViewModel?.totalReturnAbsolute ?? null },
+            { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fixedIncomeViewModel?.netGain ?? null },
             { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fixedIncomeViewModel?.incomeTax ?? null },
             { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fixedIncomeViewModel?.iof ?? null },
-            { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fixedIncomeViewModel?.netGain ?? null },
           ],
         }
       : {
@@ -426,13 +526,15 @@ export function InvestmentHoldingDetailDrawer({
           footerActions: null,
           body: (
             <FundHoldingDetailContent
-              holding={fundQuery.data?.investmentHolding}
-              transactions={fundQuery.data?.investmentTransactions}
-              performance={fundQuery.data?.holdingPerformance}
-              investmentHoldingPerformance={fundQuery.data?.investmentHoldingPerformance}
+              holding={fundData?.investmentHolding}
+              transactions={fundData?.investmentTransactions}
+              performance={fundData?.holdingPerformance}
+              investmentHoldingPerformance={fundData?.investmentHoldingPerformance}
               loading={fundQuery.loading}
               error={fundQuery.error}
               locale={locale}
+              selectedPeriod={fundPerformancePeriod}
+              onSelectPeriod={setFundPerformancePeriod}
               onRetry={() => {
                 void fundQuery.refetch();
               }}
@@ -449,10 +551,22 @@ export function InvestmentHoldingDetailDrawer({
             { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
             { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
             { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
+            {
+              id: "xirr",
+              label: t("investments.detailDrawer.performance.xirr"),
+              value: fundViewModel?.xirr ?? null,
+              valueKind: "percent",
+              caption:
+                fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
+                  ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
+                  : null,
+              labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+            },
             { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
-            { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
-            { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fundViewModel?.incomeTax ?? null },
             { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fundViewModel?.netGain ?? null },
+            { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fundViewModel?.incomeTax ?? null },
+            { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fundViewModel?.iof ?? null },
+            { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
           ],
         };
 

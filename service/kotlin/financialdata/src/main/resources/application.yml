@@ -44,6 +44,11 @@ otel:
     exporter: ${OTEL_TRACES_EXPORTER:none}
   propagators: tracecontext,baggage
 
+financialdata:
+  market-data-export:
+    listed-prices:
+      fetch-size: ${FINANCIALDATA_LISTED_PRICES_EXPORT_FETCH_SIZE:1000}
+
 datasources:
   default:
     enabled: true

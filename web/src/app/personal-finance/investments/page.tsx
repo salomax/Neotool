@@ -3,30 +3,9 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
-import {
-  alpha,
-  Box,
-  Button,
-  CircularProgress,
-  Container,
-  Divider,
-  IconButton,
-  InputAdornment,
-  ListItemIcon,
-  Menu,
-  MenuItem,
-  Stack,
-  TextField,
-  Typography,
-  useTheme,
-} from "@mui/material";
-import AddchartIcon from "@mui/icons-material/Addchart";
-import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
+import { alpha, Box, Button, CircularProgress, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import AccountBalanceWalletIcon from "@mui/icons-material/AccountBalanceWallet";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
-import SearchIcon from "@mui/icons-material/Search";
-import ClearIcon from "@mui/icons-material/Clear";
 import { Page } from "@/shared/components/ui/layout";
 import { SidebarLayout } from "@/shared/components/ui/layout/SidebarLayout";
 import { useTranslation } from "@/shared/i18n";
@@ -40,15 +19,11 @@ import {
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
-import { InvestmentTable } from "./components/table/InvestmentTable";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
-import { RecordFixedIncomeDrawer } from "./components/RecordFixedIncomeDrawer";
-import { RecordFundHoldingDrawer } from "./components/RecordFundHoldingDrawer";
-import { RecordEquityHoldingDrawer } from "./components/RecordEquityHoldingDrawer";
-import { RecordCashDrawer } from "./components/RecordCashDrawer";
 import { PendingActionsDrawer } from "./PendingActionsDrawer";
 import { Label } from "@/shared/components/ui";
 import { InvestmentSummary } from "./components/InvestmentSummary";
+import { InvestmentGrid } from "./components/grid/InvestmentGrid";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -57,33 +32,9 @@ export default function PersonalFinanceInvestmentsPage() {
   const searchParams = useSearchParams();
   const benefitAccountType = "BENEFIT" as unknown as FinancialAccountType;
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
-  const [isRecordFixedIncomeOpen, setIsRecordFixedIncomeOpen] = React.useState(false);
-  const [isRecordFundOpen, setIsRecordFundOpen] = React.useState(false);
-  const [isRecordEquityOpen, setIsRecordEquityOpen] = React.useState(false);
-  const [isRecordCashOpen, setIsRecordCashOpen] = React.useState(false);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
-  const [holdingMenuAnchor, setHoldingMenuAnchor] = React.useState<HTMLElement | null>(null);
-  const isHoldingMenuOpen = Boolean(holdingMenuAnchor);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
-
-  const openHoldingMenu = (event: React.MouseEvent<HTMLElement>) => setHoldingMenuAnchor(event.currentTarget);
-  const closeHoldingMenu = () => setHoldingMenuAnchor(null);
-  const handleSelectFixedIncome = () => {
-    closeHoldingMenu();
-    setIsRecordFixedIncomeOpen(true);
-  };
-  const handleSelectFund = () => {
-    closeHoldingMenu();
-    setIsRecordFundOpen(true);
-  };
-  const handleSelectEquity = () => {
-    closeHoldingMenu();
-    setIsRecordEquityOpen(true);
-  };
-  const handleSelectCash = () => {
-    closeHoldingMenu();
-    setIsRecordCashOpen(true);
-  };
+  const [summaryFetching, setSummaryFetching] = React.useState(false);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -117,6 +68,10 @@ export default function PersonalFinanceInvestmentsPage() {
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
 
+  React.useEffect(() => {
+    if (isEmpty) setSummaryFetching(false);
+  }, [isEmpty]);
+
   const sidebar = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box sx={{ p: 3, pb: 2 }}>
@@ -129,8 +84,33 @@ export default function PersonalFinanceInvestmentsPage() {
           consolidatedViewLabel={t("investments.sidebar.consolidatedView")}
           newAccountLabel={t("investments.emptyState.primaryAction")}
         />
-        <Divider sx={{ my: 3 }} />
-        {!isEmpty ? <InvestmentSummary financialAccountId={selectedAccountId} /> : null}
+        <Box sx={{ position: "relative", my: 3 }}>
+          <Divider />
+          {summaryFetching ? (
+            <Box
+              aria-hidden
+              sx={{
+                position: "absolute",
+                left: 0,
+                right: 0,
+                bottom: 0,
+                height: 4,
+                pointerEvents: "none",
+                zIndex: 2,
+              }}
+            >
+              <LinearProgress
+                sx={{ height: "100%", transition: "opacity 150ms linear" }}
+              />
+            </Box>
+          ) : null}
+        </Box>
+        {!isEmpty ? (
+          <InvestmentSummary
+            financialAccountId={selectedAccountId}
+            onSummaryFetchingChange={setSummaryFetching}
+          />
+        ) : null}
         {!isEmpty ? <Divider sx={{ my: 3 }} /> : null}
       </Box>
     </Box>
@@ -280,73 +260,11 @@ export default function PersonalFinanceInvestmentsPage() {
         <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "flex-end",
-                  gap: 2,
-                  flexWrap: { xs: "wrap", sm: "nowrap" },
-                  mb: 2,
-                }}
-              >
-            <TextField
-              value={holdingSearchQuery}
-              onChange={(e) => setHoldingSearchQuery(e.target.value)}
-              placeholder={t("investments.table.searchPlaceholder")}
-              size="small"
-              sx={{ width: { xs: "100%", sm: 420 }, maxWidth: 560 }}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <SearchIcon fontSize="small" color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: holdingSearchQuery ? (
-                  <InputAdornment position="end">
-                    <IconButton
-                      aria-label="clear search"
-                      onClick={() => setHoldingSearchQuery("")}
-                      edge="end"
-                      size="small"
-                    >
-                      <ClearIcon fontSize="small" />
-                    </IconButton>
-                  </InputAdornment>
-                ) : null,
-              }}
-              inputProps={{
-                "aria-label": t("investments.table.searchPlaceholder"),
-              }}
-            />
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  endIcon={<ArrowDropDownIcon />}
-                  onClick={openHoldingMenu}
-                  data-testid="record-holding-top-btn"
-                  sx={{
-                    boxShadow: (theme) => `0 10px 24px ${alpha(theme.palette.primary.main, 0.35)}`,
-                    "&:hover": {
-                      boxShadow: (theme) => `0 12px 28px ${alpha(theme.palette.primary.main, 0.45)}`,
-                    },
-                    "&:active": {
-                      boxShadow: (theme) => `0 6px 16px ${alpha(theme.palette.primary.main, 0.55)}`,
-                    },
-                    "&.Mui-disabled": {
-                      boxShadow: "none",
-                    },
-                  }}
-                >
-                  {t("investments.actions.recordHolding")}
-                </Button>
-              </Box>
               <Box sx={{ mt: 2 }}>
-                <InvestmentTable
+                <InvestmentGrid
                   selectedAccountId={selectedAccountId}
                   bankAccounts={bankAccounts}
                   investmentAccounts={investmentAccounts}
-                  onRecordHolding={() => setIsRecordFixedIncomeOpen(true)}
                   searchQuery={holdingSearchQuery}
                   onSelectSearchAsset={(assetName) => setHoldingSearchQuery(assetName)}
                 />
@@ -364,62 +282,6 @@ export default function PersonalFinanceInvestmentsPage() {
         onCreated={(account) => setSelectedAccountId(account.id)}
       />
 
-      <Menu anchorEl={holdingMenuAnchor} open={isHoldingMenuOpen} onClose={closeHoldingMenu}>
-        <MenuItem onClick={handleSelectCash} data-testid="record-holding-option-cash">
-          <ListItemIcon>
-            <AccountBalanceWalletIcon fontSize="small" />
-          </ListItemIcon>
-          {t("investments.record.cash")}
-        </MenuItem>
-        <MenuItem onClick={handleSelectFixedIncome} data-testid="record-holding-option-fixed-income">
-          <ListItemIcon>
-            <AssetTypeIcon kind="FIXED_INCOME" fontSize="small" />
-          </ListItemIcon>
-          {t("investments.trackableAssets.fixedIncome")}
-        </MenuItem>
-        <MenuItem onClick={handleSelectFund} data-testid="record-holding-option-fund">
-          <ListItemIcon>
-            <AssetTypeIcon kind="FUND" fontSize="small" />
-          </ListItemIcon>
-          {t("investments.table.groups.mutualFunds")}
-        </MenuItem>
-        <MenuItem onClick={handleSelectEquity} data-testid="record-holding-option-equity">
-          <ListItemIcon>
-            <AssetTypeIcon kind="STOCK" fontSize="small" />
-          </ListItemIcon>
-          {t("investments.actions.recordEquity")}
-        </MenuItem>
-      </Menu>
-
-      <RecordFixedIncomeDrawer
-        open={isRecordFixedIncomeOpen}
-        onClose={() => setIsRecordFixedIncomeOpen(false)}
-        financialAccountId={selectedAccountId}
-        financialAccounts={investmentAccounts}
-      />
-
-      <RecordFundHoldingDrawer
-        open={isRecordFundOpen}
-        onClose={() => setIsRecordFundOpen(false)}
-        financialAccountId={selectedAccountId}
-        financialAccounts={investmentAccounts}
-      />
-
-      <RecordEquityHoldingDrawer
-        open={isRecordEquityOpen}
-        onClose={() => setIsRecordEquityOpen(false)}
-        financialAccountId={selectedAccountId}
-        financialAccounts={investmentAccounts}
-      />
-
-      <RecordCashDrawer
-        open={isRecordCashOpen}
-        onClose={() => setIsRecordCashOpen(false)}
-        financialAccountId={selectedAccountId}
-        financialAccounts={investmentAccounts}
-        bankAccounts={bankAccounts}
-        listContextAccountId={selectedAccountId}
-      />
     </>
   );
 }

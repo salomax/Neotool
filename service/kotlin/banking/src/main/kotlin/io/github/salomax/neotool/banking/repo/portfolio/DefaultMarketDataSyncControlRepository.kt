@@ -26,6 +26,7 @@ open class DefaultMarketDataSyncControlRepository(
             sourceLastDataDate = control.sourceLastDataDate,
             sourceLastRunAt = control.sourceLastRunAt,
             lastSyncedDate = control.lastSyncedDate,
+            lastCursor = control.lastCursor,
             lastSyncStartedAt = control.lastSyncStartedAt,
             lastSyncCompletedAt = control.lastSyncCompletedAt,
             status = control.status.name,

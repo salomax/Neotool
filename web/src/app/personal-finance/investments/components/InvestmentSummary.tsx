@@ -1,9 +1,9 @@
 "use client";
 
 import React from "react";
+import { NetworkStatus } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 import {
-  alpha,
   Box,
   Button,
   CircularProgress,
@@ -48,6 +48,8 @@ interface InvestmentSummaryProps {
   financialAccountId?: string | null;
   onGroupClick?: (groupKey: string) => void;
   activeGroupFilter?: string | null;
+  /** Reporta carregamento/refetch do resumo para o divider acima (sidebar). */
+  onSummaryFetchingChange?: (fetching: boolean) => void;
 }
 
 interface SummaryMetricRowProps {
@@ -81,6 +83,14 @@ function SummaryMetricRow({
   loading = false,
   rowSx,
 }: SummaryMetricRowProps) {
+  const formattedValue =
+    value == null
+      ? "—"
+      : new Intl.NumberFormat(locale, {
+          style: "currency",
+          currency: currencyCode,
+        }).format(value);
+
   return (
     <Box
       sx={[
@@ -98,16 +108,15 @@ function SummaryMetricRow({
         {loading ? (
           <Skeleton width={118} height={24} />
         ) : (
-          <CurrencyAmountParts
-            value={value}
-            currency={currencyCode}
-            locale={locale}
+          <Typography
             variant="subtitle2"
             sx={{
               fontWeight: 700,
               color,
             }}
-          />
+          >
+            {formattedValue}
+          </Typography>
         )}
         {percentage != null ? (
           <PercentageGain
@@ -126,6 +135,7 @@ export function InvestmentSummary({
   financialAccountId,
   onGroupClick,
   activeGroupFilter = null,
+  onSummaryFetchingChange,
 }: InvestmentSummaryProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -133,6 +143,7 @@ export function InvestmentSummary({
   const [drawerOpen, setDrawerOpen] = React.useState(false);
   const [selectedPeriod, setSelectedPeriod] =
     React.useState<SummaryPeriod>("YTD");
+  const [sseReconnectKey, setSseReconnectKey] = React.useState(0);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
@@ -147,7 +158,7 @@ export function InvestmentSummary({
     window.sessionStorage.setItem(PERIOD_STORAGE_KEY, selectedPeriod);
   }, [selectedPeriod]);
 
-  const { data, loading, error, refetch } = useQuery<
+  const { data, loading, error, refetch, networkStatus, startPolling, stopPolling } = useQuery<
     InvestmentPortfolioSummaryQuery,
     InvestmentPortfolioSummaryQueryVariables
   >(INVESTMENT_PORTFOLIO_SUMMARY, {
@@ -157,9 +168,16 @@ export function InvestmentSummary({
         selectedPeriod as InvestmentPortfolioSummaryQueryVariables["period"],
     },
     errorPolicy: "all",
+    notifyOnNetworkStatusChange: true,
   });
 
   const summary = data?.investmentPortfolioSummary;
+  const summaryFetching =
+    !error &&
+    (loading ||
+      networkStatus === NetworkStatus.refetch ||
+      networkStatus === NetworkStatus.setVariables);
+  const showSummarySkeletons = Boolean(loading && !summary);
   const currencyCode = summary?.currencyCode ?? "BRL";
   const groups = summary?.byAssetGroup ?? [];
   const inlineGroups = groups.slice(0, 5);
@@ -172,6 +190,16 @@ export function InvestmentSummary({
         : theme.palette.text.primary;
   const recalculationStatus = summary?.recalculationStatus;
   const isCalculating = Boolean(recalculationStatus?.isCalculating);
+
+  React.useEffect(() => {
+    if (isCalculating) {
+      startPolling(5000);
+    } else {
+      stopPolling();
+    }
+    return () => stopPolling();
+  }, [isCalculating, startPolling, stopPolling]);
+
   const selectedPeriodLabel = t(
     `investments.summary.performance.period.${selectedPeriod}`,
   );
@@ -180,25 +208,39 @@ export function InvestmentSummary({
     [],
   );
 
-  usePortfolioRecalculationStatus(isCalculating ? workspaceAccountId : null, {
-    onEvent: (payload) => {
-      const matchesCurrentSummary =
-        financialAccountId == null ||
-        payload.financialAccountId === financialAccountId;
-      if (!matchesCurrentSummary) return;
-      void refetch();
+  usePortfolioRecalculationStatus(
+    isCalculating ? workspaceAccountId : null,
+    {
+      onEvent: (payload) => {
+        const matchesCurrentSummary =
+          financialAccountId == null ||
+          payload.financialAccountId === financialAccountId;
+        if (!matchesCurrentSummary) return;
+        void refetch();
+      },
+      onConnectionError: () => {
+        if (!isCalculating) return;
+        void refetch().then(() => {
+          setSseReconnectKey((k) => k + 1);
+        });
+      },
     },
-    onConnectionError: () => {
-      if (!isCalculating) return;
-      void refetch();
-    },
-  });
+    sseReconnectKey,
+  );
 
   const resolveGroupLabel = React.useCallback(
     (groupKey: string, fallback: string) =>
       t(`investments.table.groups.${groupKey}`, { defaultValue: fallback }),
     [t],
   );
+
+  React.useEffect(() => {
+    onSummaryFetchingChange?.(summaryFetching);
+  }, [summaryFetching, onSummaryFetchingChange]);
+
+  React.useEffect(() => {
+    return () => onSummaryFetchingChange?.(false);
+  }, [onSummaryFetchingChange]);
 
   return (
     <>
@@ -241,7 +283,7 @@ export function InvestmentSummary({
                     alignItems: "center",
                   }}
                 >
-                  {loading ? (
+                  {showSummarySkeletons ? (
                     <Skeleton
                       variant="rounded"
                       width={260}
@@ -338,10 +380,10 @@ export function InvestmentSummary({
 
                   {isCalculating ? (
                     <CircularProgress size={18} sx={{ mb: 0.25 }} />
-                  ) : performance?.twr != null || loading ? (
+                  ) : performance?.twr != null || summaryFetching ? (
                     <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
                       <PercentageGain
-                        loading={loading}
+                        loading={summaryFetching}
                         value={performance?.twr}
                         locale={locale}
                         iconSize={18}
@@ -368,9 +410,11 @@ export function InvestmentSummary({
                     >
                       {(recalculationStatus?.errorCode
                         ? t(`errors.${recalculationStatus.errorCode}`, {
-                            defaultValue: recalculationStatus?.message ?? "",
+                            defaultValue: t(
+                              "investments.summary.performance.recalculating",
+                            ),
                           })
-                        : recalculationStatus?.message) ||
+                        : undefined) ||
                         t("investments.summary.performance.recalculating")}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
@@ -391,7 +435,7 @@ export function InvestmentSummary({
                 value={summary?.totalCostBasis}
                 currencyCode={currencyCode}
                 locale={locale}
-                loading={loading}
+                loading={showSummarySkeletons}
                 rowSx={{ pt: 2, pb: 0.25 }}
               />
               <SummaryMetricRow
@@ -404,7 +448,7 @@ export function InvestmentSummary({
                 value={summary?.cashBalance}
                 currencyCode={currencyCode}
                 locale={locale}
-                loading={loading}
+                loading={showSummarySkeletons}
                 rowSx={{ pt: 0.25 }}
               />
             </Stack>
@@ -414,7 +458,7 @@ export function InvestmentSummary({
             <Stack spacing={1}>
               <Label>{t("investments.summary.allocation")}</Label>
 
-              {loading
+              {showSummarySkeletons
                 ? Array.from({ length: 4 }).map((_, index) => (
                     <Skeleton key={index} variant="rounded" height={56} />
                   ))
@@ -436,7 +480,7 @@ export function InvestmentSummary({
                     />
                   ))}
 
-              {!loading && groups.length > 5 ? (
+              {!showSummarySkeletons && groups.length > 5 ? (
                 <Box
                   sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}
                 >

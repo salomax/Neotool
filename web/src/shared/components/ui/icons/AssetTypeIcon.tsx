@@ -4,6 +4,7 @@ import React from "react";
 import CandlestickChartIcon from "@mui/icons-material/CandlestickChart";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import CurrencyBitcoinIcon from "@mui/icons-material/CurrencyBitcoin";
+import Diversity3Icon from "@mui/icons-material/Diversity3";
 import ElderlyIcon from "@mui/icons-material/Elderly";
 import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import LanIcon from "@mui/icons-material/Lan";
@@ -11,7 +12,6 @@ import MobiledataOffIcon from "@mui/icons-material/MobiledataOff";
 import PaidIcon from "@mui/icons-material/Paid";
 import SavingsIcon from "@mui/icons-material/Savings";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
-import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import type { SvgIconProps } from "@mui/material/SvgIcon";
 
 export type AssetTypeIconKind =
@@ -28,7 +28,7 @@ export type AssetTypeIconKind =
 
 const ICON_BY_KIND: Record<AssetTypeIconKind, React.ComponentType<SvgIconProps>> = {
   FIXED_INCOME: SavingsIcon,
-  FUND: TrendingUpIcon,
+  FUND: Diversity3Icon,
   STOCK: CandlestickChartIcon,
   CRYPTO: CurrencyBitcoinIcon,
   REAL_ESTATE_FUND: CorporateFareIcon,

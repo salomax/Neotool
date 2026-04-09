@@ -55,7 +55,18 @@ import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION, 
 import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
 import { usePreferences, useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
-import { FINANCE_TABLE_BODY_FONT_SIZE, FINANCE_TABLE_TYPOGRAPHY_SX } from '@/shared/components/ui/data-display/Table';
+import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
+import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/financeDateGroupLabel';
+import {
+  financeTransactionBodyRowSx,
+  financeTransactionDateGroupTableCellSx,
+  financeTransactionDateGroupTableRowSx,
+  financeTransactionHeadCellSx,
+  financeTransactionTableBodySx,
+  financeTransactionTableHeadRowSx,
+  financeTransactionTableHeadSx,
+  getFinanceTransactionTableSx,
+} from '../../utils/financeTransactionTableStyles';
 import { Amount } from '@/shared/components/ui/data-display';
 import { resolveSimilarEditBehavior } from './similarEditPreference';
 
@@ -73,14 +84,6 @@ interface TransactionTableProps {
   selectedMonth?: number;
   selectedYear?: number;
 }
-
-type DateParts = {
-  year: number;
-  month: number;
-  day: number;
-  dateKey: string;
-  sortKey: number;
-};
 
 type SimilarEditPreview = {
   similarCount: number;
@@ -134,17 +137,6 @@ function stringToColor(value: string) {
   return TAG_COLORS[index]!;
 }
 
-function parseDateParts(value: string): DateParts | null {
-  const dateKey = (value ?? '').split('T')[0] ?? '';
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateKey);
-  if (!match) return null;
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  if (!year || !month || !day) return null;
-  return { year, month, day, dateKey, sortKey: year * 10000 + month * 100 + day };
-}
-
 function shouldPromptForImportedCategoryEdit(transaction: Transaction | null, categoryId: string | null): boolean {
   if (!transaction) return false;
   return (transaction.category?.id ?? null) !== categoryId && categoryId !== null;
@@ -172,6 +164,7 @@ export function TransactionTable({
   const transactionsRef = useRef<Transaction[]>(transactions);
   const borderRadius = '.3rem';
   const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
+  const headCellSx = financeTransactionHeadCellSx(theme);
   const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
   const [isEditFormOpen, setIsEditFormOpen] = useState(false);
   const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
@@ -501,7 +494,7 @@ export function TransactionTable({
     const groups: { date: string; transactions: Transaction[] }[] = [];
     const sorted = transactions
       .map((transaction) => {
-        const parts = parseDateParts(transaction.date as string);
+        const parts = parseFinanceDateKey(transaction.date as string);
         return {
           transaction,
           sortKey: parts?.sortKey ?? 0,
@@ -528,7 +521,7 @@ export function TransactionTable({
 
     const selectedMonthKey = selectedYear * 100 + selectedMonth;
     for (let i = 0; i < groupedTransactions.length; i++) {
-      const parts = parseDateParts(groupedTransactions[i]?.date ?? '');
+      const parts = parseFinanceDateKey(groupedTransactions[i]?.date ?? '');
       if (!parts) continue;
       const groupMonthKey = parts.year * 100 + parts.month;
       if (groupMonthKey < selectedMonthKey) {
@@ -537,46 +530,6 @@ export function TransactionTable({
     }
     return null;
   }, [groupedTransactions, selectedMonth, selectedYear]);
-
-  const dateHeaderFormatter = new Intl.DateTimeFormat(i18n.language, {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  });
-
-  const formatDateHeader = (dateString: string) => {
-    if (!dateString) return '';
-    
-    const parts = dateString.split('-').map(Number);
-    if (parts.length < 3) return dateString;
-    
-    const year = parts[0];
-    const month = parts[1];
-    const day = parts[2];
-    
-    if (year === undefined || month === undefined || day === undefined) return dateString;
-
-    const date = new Date(year, month - 1, day);
-    
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    
-    const isToday = date.getTime() === today.getTime();
-    const isTomorrow = date.getTime() === tomorrow.getTime();
-    
-    const formattedDate = dateHeaderFormatter.format(date);
-
-    if (isToday) {
-      return t('financeTransactions.dateGroup.today', { date: formattedDate });
-    }
-    if (isTomorrow) {
-      return t('financeTransactions.dateGroup.tomorrow', { date: formattedDate });
-    }
-    return formattedDate;
-  };
 
   useEffect(() => {
     const currentLoader = loaderRef.current;
@@ -745,23 +698,23 @@ export function TransactionTable({
         />
       </Box>
       <Table
-        sx={{ minWidth: 650, borderCollapse: 'separate', borderSpacing: '0', ...FINANCE_TABLE_TYPOGRAPHY_SX }}
+        sx={getFinanceTransactionTableSx(650)}
         aria-label={t('financeTransactions.transactionTable.ariaLabel')}
       >
-        <TableHead ref={tableHeadRef}>
-          <TableRow>
-            <TableCell padding="checkbox" sx={{ pl: 2, borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}></TableCell>
-            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
+        <TableHead ref={tableHeadRef} sx={financeTransactionTableHeadSx}>
+          <TableRow sx={financeTransactionTableHeadRowSx}>
+            <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }}></TableCell>
+            <TableCell sx={headCellSx}>
               <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
+            <TableCell sx={headCellSx}>
               <Label>{t('financeTransactions.transactionTable.columns.category')}</Label>
             </TableCell>
-            <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
+            <TableCell sx={headCellSx}>
               <Label>{t('financeTransactions.tags')}</Label>
             </TableCell>
             {!selectedAccountId && (
-              <TableCell sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
+              <TableCell sx={headCellSx}>
                 <Label>{t('financeTransactions.financialAccount')}</Label>
               </TableCell>
             )}
@@ -769,23 +722,21 @@ export function TransactionTable({
               padding="none"
               sx={{
                 width: 32,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                bgcolor: 'transparent',
+                ...headCellSx,
               }}
             />
-            <TableCell align="right" sx={{ borderBottom: `1px solid ${theme.palette.divider}`, bgcolor: 'transparent' }}>
+            <TableCell align="right" sx={headCellSx}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
             <TableCell
               sx={{
                 px: 4,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                bgcolor: 'transparent',
+                ...headCellSx,
               }}
             />
           </TableRow>
         </TableHead>
-        <TableBody>
+        <TableBody sx={financeTransactionTableBodySx}>
           {onCancelCreate && onSuccessCreate && (
             <InlineTransactionForm 
               isOpen={isCreating} 
@@ -809,11 +760,9 @@ export function TransactionTable({
                     </TableCell>
                   </TableRow>
                 )}
-                <TableRow key={`header-${group.date}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
-                  <TableCell colSpan={colSpan} sx={{ pt: 2, pb: 1 }} >
-                    <Label>
-                      {formatDateHeader(group.date)}
-                    </Label>
+                <TableRow key={`header-${group.date}`} sx={financeTransactionDateGroupTableRowSx}>
+                  <TableCell colSpan={colSpan} sx={financeTransactionDateGroupTableCellSx()}>
+                    <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
                   </TableCell>
                 </TableRow>
                 {group.transactions.map((transaction, index) => {
@@ -839,7 +788,7 @@ export function TransactionTable({
                     <TableRow
                       data-testid={`transaction-row-${transaction.id}`}
                       sx={{
-                        '&:last-child td, &:last-child th': { border: 0 },
+                        ...financeTransactionBodyRowSx(theme, { isFirst, isLast }),
                         opacity: isDeleting ? 0 : (isEditing && isEditFormOpen ? 0.5 : 1),
                         pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
                         filter: isDeleting ? 'none' : (isEditing && isEditFormOpen ? 'grayscale(0.5)' : 'none'),
@@ -851,18 +800,6 @@ export function TransactionTable({
                             border: 'none',
                           },
                         }),
-                        '& .MuiTableCell-root': {
-                          bgcolor: 'background.paper',
-                          borderColor: 'transparent',
-                        },
-                        '& .MuiTableCell-root:first-child': {
-                          borderTopLeftRadius: isFirst ? '12px' : 0,
-                          borderBottomLeftRadius: isLast ? '12px' : 0,
-                        },
-                        '& .MuiTableCell-root:last-child': {
-                          borderTopRightRadius: isFirst ? '12px' : 0,
-                          borderBottomRightRadius: isLast ? '12px' : 0,
-                        }
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ pl: 2 }}>

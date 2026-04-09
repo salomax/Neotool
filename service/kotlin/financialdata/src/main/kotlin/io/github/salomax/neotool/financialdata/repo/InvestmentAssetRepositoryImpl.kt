@@ -497,7 +497,7 @@ open class ListedAssetRepositoryImpl(
                 avgPrice = row[8] as? BigDecimal,
                 volume = row[9] as? BigDecimal,
                 trades = (row[10] as? Number)?.toInt(),
-                updatedAt = (row[11] as Timestamp).toInstant(),
+                updatedAt = requireNotNull(row[11].asInstantOrNull()) { "Invalid updated_at value: ${row[11]}" },
             )
         }
     }
@@ -531,6 +531,8 @@ open class ListedAssetRepositoryImpl(
             } else null
         } else null
 
+        val logoAssetId = if (row.size > 6) row[6] as? String else null
+
         return ListedAsset(
             id = UUID.fromString(row[0] as String),
             ticker = row[1] as String,
@@ -538,7 +540,7 @@ open class ListedAssetRepositoryImpl(
             assetType = row[3] as String,
             exchange = row[4] as? String,
             isActive = row[5] as Boolean,
-            logoAssetId = row[6] as? String,
+            logoAssetId = logoAssetId,
             latestPrice = latestPrice,
             simScore = simScore,
         )

@@ -522,6 +522,7 @@ const isEdit = Boolean(editHolding && editTransaction);
                 <TextField
                   name="assetName"
                   label={t("investments.recordHolding.fields.assetName")}
+                size="medium"
                   data-testid="record-asset-name"
                 />
               </FormStack>
@@ -536,6 +537,7 @@ const isEdit = Boolean(editHolding && editTransaction);
               <TextField
                 name="issuerName"
                 label={t("investments.recordHolding.fields.issuerName")}
+                size="medium"
                 InputProps={isTreasury ? { readOnly: true } : undefined}
                 data-testid="record-issuer-name"
               />

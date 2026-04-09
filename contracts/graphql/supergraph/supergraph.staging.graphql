@@ -452,6 +452,7 @@ type BenchmarkPerformance
   label: String!
   twr: Float
 }
+
 type BillImportJob
   @join__type(graph: BANKING)
 {
@@ -2014,6 +2015,19 @@ type InvestmentHolding
   updatedAt: DateTime!
 }
 
+"""
+Aggregate class used to filter holdings by broader investment category.
+"""
+enum InvestmentHoldingAssetClass
+  @join__type(graph: BANKING)
+{
+  FIXED_INCOME @join__enumValue(graph: BANKING)
+  INVESTMENT_FUND @join__enumValue(graph: BANKING)
+  VARIABLE_INCOME @join__enumValue(graph: BANKING)
+  CRYPTO @join__enumValue(graph: BANKING)
+  OPTIONS @join__enumValue(graph: BANKING)
+}
+
 type InvestmentHoldingPerformance
   @join__type(graph: BANKING)
 {
@@ -2810,7 +2824,6 @@ enum PerformancePeriod
   THREE_YEARS @join__enumValue(graph: BANKING)
   ALL @join__enumValue(graph: BANKING)
 }
-}
 
 type Permission
   @join__type(graph: SECURITY, key: "id")
@@ -2871,6 +2884,32 @@ type PortfolioPerformance
   benchmarks: [BenchmarkPerformance!]!
   hasEstimatedValues: Boolean!
 }
+
+type PortfolioPerformanceSeries
+  @join__type(graph: BANKING)
+{
+  """Echo of the requested filter; null means whole portfolio."""
+  groupKey: String
+
+  """Localized label for the group, or "Portfolio" when groupKey is null."""
+  label: String!
+  currencyCode: String!
+  resolution: HoldingPerformanceResolution!
+  valuationSource: ValuationSource!
+  valuationReferenceDate: Date
+  capabilities: HoldingPerformanceCapabilities!
+  summary: HoldingPerformanceSummary!
+  points: [HoldingPerformancePoint!]!
+
+  """
+  Number of holdings that matched the filter but were skipped (no series available).
+  """
+  excludedHoldingsCount: Int!
+
+  """Number of holdings actually contributing to the series."""
+  includedHoldingsCount: Int!
+}
+
 type PricePoint
   @join__type(graph: BANKING)
 {
@@ -3238,7 +3277,7 @@ type Query
   When omitted, returns consolidated holdings across all accounts for the tenant.
   Zero-quantity (closed) positions are always excluded.
   """
-  investmentHoldings(financialAccountId: ID): [InvestmentHolding!]! @join__field(graph: BANKING)
+  investmentHoldings(financialAccountId: ID, assetClass: InvestmentHoldingAssetClass): [InvestmentHolding!]! @join__field(graph: BANKING)
 
   """
   Ledger cash balance on investment custodian account(s): SUM(CREDIT) − SUM(DEBIT) for POSTED/PENDING rows.
@@ -3271,7 +3310,28 @@ type Query
   investmentAsset(id: ID!): InvestmentAsset @join__field(graph: BANKING)
 
   """Generic performance series and valuation summary for a holding."""
-  holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
+  holdingPerformance(holdingId: ID!, resolution: HoldingPerformanceResolution, fromDate: Date, toDate: Date, includeProjection: Boolean): HoldingPerformance @join__field(graph: BANKING)
+
+  """
+  Aggregated performance series for the authenticated account's portfolio.
+  When [groupKey] is null, aggregates all holdings; when provided, aggregates
+  only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+  """
+  portfolioPerformance(
+    groupKey: String
+
+    """
+    Canonical subgroup for grid slices (e.g. perfStocks, perfReits, perfCrypto, perfOptions).
+    """
+    subgroupKey: String
+
+    """
+    Explicit asset type filter. When provided, narrows holdings to this exact set.
+    """
+    assetTypes: [AssetType!]
+    resolution: HoldingPerformanceResolution
+    includeProjection: Boolean
+  ): PortfolioPerformanceSeries @join__field(graph: BANKING)
 
   """Annualized IRR and total return summary for a holding."""
   investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance @join__field(graph: BANKING)
@@ -3305,6 +3365,7 @@ type Query
   investmentFunds(query: String, assetType: InvestmentFundAssetType, isActive: Boolean, first: Int, after: String): InvestmentFundConnection! @join__field(graph: FINANCIALDATA)
   investmentFund(id: ID!): InvestmentFund @join__field(graph: FINANCIALDATA)
   investmentFundMarketSnapshots(cnpjs: [String!]!): [InvestmentFundMarketSnapshot!]! @join__field(graph: FINANCIALDATA)
+  fundNavSeries(cnpj: String!, from: Date!, to: Date!): [FundDailyNav!]! @join__field(graph: FINANCIALDATA)
   fundDailyNavs(from: Date!, to: Date!, first: Int!, after: String, updatedSince: DateTime, cnpjs: [String!]): FundDailyNavConnection! @join__field(graph: FINANCIALDATA)
   searchInvestmentAssetsAutocomplete(query: String!, assetType: B3AssetType): ListedAssetAutocompleteConnection! @join__field(graph: FINANCIALDATA)
   investmentAssets(query: String, assetType: B3AssetType, isActive: Boolean, first: Int, after: String): ListedAssetConnection! @join__field(graph: FINANCIALDATA)
@@ -3770,6 +3831,12 @@ type Transaction
 
   """Set when this row is the cash leg linked to an investment transaction."""
   investmentTransactionId: ID
+
+  """
+  When [investmentTransactionId] is set, the underlying instrument for that event.
+  Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
+  """
+  linkedInvestmentAsset: InvestmentAsset
   installmentNumber: Int
   totalInstallments: Int
   billId: ID
@@ -4056,6 +4123,7 @@ input UpdateInvestmentCashTransactionInput
   date: Date!
   description: String
 }
+
 input UpdateProductInput
   @join__type(graph: BANKING)
 {

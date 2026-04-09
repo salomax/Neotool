@@ -7,6 +7,8 @@ import java.util.UUID
 interface AssetDailyPriceRepository {
     fun upsert(price: InvestmentAssetDailyPrice): InvestmentAssetDailyPrice
 
+    fun upsertAll(prices: List<InvestmentAssetDailyPrice>)
+
     fun findByAssetAndDate(
         assetId: UUID,
         date: LocalDate,

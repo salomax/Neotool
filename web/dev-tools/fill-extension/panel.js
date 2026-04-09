@@ -138,7 +138,13 @@ function initToggleButton() {
   btn.id = BTN_ID;
   btn.title = 'Neotool Dev Helper';
   btn.style.cssText = s.btn;
-  btn.textContent = '⚡';
+  const logo = document.createElement('img');
+  logo.src = `${location.origin}/images/logos/invistus-logo-white-transparent.svg`;
+  logo.alt = 'Invistus';
+  logo.style.width = '22px';
+  logo.style.height = '22px';
+  logo.style.objectFit = 'contain';
+  btn.appendChild(logo);
   btn.addEventListener('click', togglePanel);
   document.body.appendChild(btn);
 }

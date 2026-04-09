@@ -63,6 +63,11 @@ interface RecordEquityHoldingDrawerProps {
     asset: { id: string; ticker: string | null; name: string; assetType: AssetType };
   } | null;
   editTransaction?: InvestmentTransaction | null;
+  prefillHolding?: {
+    id: string;
+    asset: { id: string; ticker: string | null; name: string; assetType: AssetType };
+  } | null;
+  initialDirection?: InvestmentTransactionDirection;
 }
 
 type RecordEquityFormData = {
@@ -85,6 +90,8 @@ export function RecordEquityHoldingDrawer({
   onRecorded,
   editHolding,
   editTransaction,
+  prefillHolding,
+  initialDirection,
 }: RecordEquityHoldingDrawerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -98,6 +105,17 @@ export function RecordEquityHoldingDrawer({
   const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_QUANTITY");
   const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
   const isEdit = Boolean(editHolding && editTransaction);
+  const mapHoldingAssetTypeToB3 = React.useCallback((assetType: AssetType) => {
+    switch (assetType) {
+      case AssetType.RealEstateFund:
+        return "FII";
+      case AssetType.Option:
+        return "OPTION_CALL";
+      case AssetType.Stock:
+      default:
+        return "EQUITY";
+    }
+  }, []);
 
   const createSchema = React.useMemo(
     () =>
@@ -241,6 +259,24 @@ export function RecordEquityHoldingDrawer({
     }
   }, [open, reset]);
 
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit) return;
+    if (!prefillHolding) return;
+
+    methods.setValue(
+      "asset",
+      {
+        id: prefillHolding.asset.id,
+        ticker: prefillHolding.asset.ticker ?? "",
+        name: prefillHolding.asset.name,
+        assetType: mapHoldingAssetTypeToB3(prefillHolding.asset.assetType),
+        isActive: true,
+      },
+      { shouldDirty: false, shouldValidate: true },
+    );
+  }, [isEdit, mapHoldingAssetTypeToB3, methods, open, prefillHolding]);
+
   // resolvedFinancialAccountId is managed via InvestmentRecordDrawer onResolvedChange
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
@@ -316,18 +352,6 @@ export function RecordEquityHoldingDrawer({
     return computedGrossValue + computedTotalFees;
   }, [computedGrossValue, computedTotalFees]);
 
-  const mapHoldingAssetTypeToB3 = React.useCallback((assetType: AssetType) => {
-    switch (assetType) {
-      case AssetType.RealEstateFund:
-        return "FII";
-      case AssetType.Option:
-        return "OPTION_CALL";
-      case AssetType.Stock:
-      default:
-        return "EQUITY";
-    }
-  }, []);
-
   const toDateValue = React.useCallback((value: unknown) => {
     if (!value) return undefined;
     if (value instanceof Date) return value;
@@ -380,6 +404,8 @@ export function RecordEquityHoldingDrawer({
     const resolvedAssetId =
       isEdit
         ? editHolding!.asset.id
+        : prefillHolding
+          ? prefillHolding.asset.id
         : (await (async () => {
             const createdAsset = await createAsset({
               variables: {
@@ -405,8 +431,12 @@ export function RecordEquityHoldingDrawer({
           input: {
             financialAccountId: resolvedFinancialAccountId,
             assetId: resolvedAssetId,
-            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
-            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+            direction: isEdit ? editTransaction!.direction : (initialDirection ?? InvestmentTransactionDirection.Inflow),
+            type: isEdit
+              ? editTransaction!.type
+              : (initialDirection ?? InvestmentTransactionDirection.Inflow) === InvestmentTransactionDirection.Outflow
+                ? InvestmentTransactionType.Sale
+                : InvestmentTransactionType.Purchase,
             quantity,
             unitPrice,
             grossValue,
@@ -528,7 +558,11 @@ export function RecordEquityHoldingDrawer({
                       gap: 2,
                     }}
                   >
-                    <EquityAutocomplete name="asset" data-testid="record-equity-autocomplete" disabled={isEdit} />
+                    <EquityAutocomplete
+                      name="asset"
+                      data-testid="record-equity-autocomplete"
+                      disabled={isEdit || Boolean(prefillHolding)}
+                    />
                     <DatePickerField
                       name="tradeDate"
                       label={t("investments.recordEquity.fields.tradeDate")}

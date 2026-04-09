@@ -580,6 +580,7 @@ open class DefaultTransactionRepository(
                   AND t.deleted_at IS NULL
                   AND fa.type IN ('INVESTMENT', 'BENEFIT')
                   AND t.type IN ('TRANSFER', 'INVESTMENT_RETURN', 'BALANCE_ADJUSTMENT')
+                  AND (t.type <> 'TRANSFER' OR t.investment_transaction_id IS NULL)
                 """.trimIndent(),
             )
         if (financialAccountId != null) {

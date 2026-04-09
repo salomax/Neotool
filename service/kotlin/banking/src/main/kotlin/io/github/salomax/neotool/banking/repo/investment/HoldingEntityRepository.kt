@@ -20,6 +20,32 @@ interface HoldingEntityRepository : JpaRepository<HoldingEntity, UUID> {
 
     fun findByAccountIdAndDeletedAtIsNull(accountId: UUID): List<HoldingEntity>
 
+    @Query(
+        """
+        SELECT * FROM banking.investment_holdings
+         WHERE financial_account_id = :financialAccountId
+           AND account_id = :accountId
+           AND deleted_at IS NULL
+           AND quantity > 0
+        """,
+        nativeQuery = true,
+    )
+    fun findOpenByFinancialAccount(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): List<HoldingEntity>
+
+    @Query(
+        """
+        SELECT * FROM banking.investment_holdings
+         WHERE account_id = :accountId
+           AND deleted_at IS NULL
+           AND quantity > 0
+        """,
+        nativeQuery = true,
+    )
+    fun findOpenByAccount(accountId: UUID): List<HoldingEntity>
+
     fun findByIdAndAccountIdAndDeletedAtIsNull(
         id: UUID,
         accountId: UUID,

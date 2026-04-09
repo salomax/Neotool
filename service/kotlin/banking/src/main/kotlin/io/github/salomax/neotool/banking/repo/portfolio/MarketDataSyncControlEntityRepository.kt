@@ -20,11 +20,11 @@ interface MarketDataSyncControlEntityRepository : JpaRepository<MarketDataSyncCo
     @Query(
         """
         INSERT INTO banking.market_data_sync_control
-            (job_name, source_last_data_date, source_last_run_at, last_synced_date,
+            (job_name, source_last_data_date, source_last_run_at, last_synced_date, last_cursor,
              last_sync_started_at, last_sync_completed_at, status, last_event_id,
              last_error, updated_at)
         VALUES
-            (:jobName, :sourceLastDataDate, :sourceLastRunAt, :lastSyncedDate,
+            (:jobName, :sourceLastDataDate, :sourceLastRunAt, :lastSyncedDate, :lastCursor,
              :lastSyncStartedAt, :lastSyncCompletedAt, :status, :lastEventId,
              :lastError, NOW())
         ON CONFLICT (job_name)
@@ -32,6 +32,7 @@ interface MarketDataSyncControlEntityRepository : JpaRepository<MarketDataSyncCo
             source_last_data_date  = EXCLUDED.source_last_data_date,
             source_last_run_at     = EXCLUDED.source_last_run_at,
             last_synced_date       = EXCLUDED.last_synced_date,
+            last_cursor            = EXCLUDED.last_cursor,
             last_sync_started_at   = EXCLUDED.last_sync_started_at,
             last_sync_completed_at = EXCLUDED.last_sync_completed_at,
             status                 = EXCLUDED.status,
@@ -46,6 +47,7 @@ interface MarketDataSyncControlEntityRepository : JpaRepository<MarketDataSyncCo
         sourceLastDataDate: LocalDate?,
         sourceLastRunAt: Instant?,
         lastSyncedDate: LocalDate?,
+        lastCursor: String?,
         lastSyncStartedAt: Instant?,
         lastSyncCompletedAt: Instant?,
         status: String,

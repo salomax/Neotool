@@ -3,8 +3,7 @@
 import React from 'react';
 import dynamic from 'next/dynamic';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { Box, CircularProgress, Paper, TableContainer, Tooltip, Typography } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { alpha, Box, CircularProgress, Paper, TableContainer, Typography, useTheme } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { useToast } from '@/shared/providers';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
@@ -26,13 +25,12 @@ import {
 import { InvestmentSource, InvestmentTransaction } from '@/lib/graphql/types/__generated__/graphql';
 import type { MaturityDrawerHolding } from '../MaturityConfirmDrawer';
 import type { InvestmentHoldingDetailKind } from './InvestmentHoldingDetailDrawer';
-import { AssetGroupCard } from './AssetGroupCard';
-import { CashMovementsInlineTable } from './CashMovementsInlineTable';
+import { CashTransactionsInlineTable } from './CashTransactionsInlineTable';
 import { InvestmentEditDrawers } from './InvestmentEditDrawers';
-import { InvestmentGroupTable } from './InvestmentGroupTable';
-import { InvestmentHoldingActionsMenu } from './InvestmentHoldingActionsMenu';
+import { InvestmentGroupTable } from './table/InvestmentGroupTable';
+import { InvestmentHoldingActionsMenu } from './table/InvestmentHoldingActionsMenu';
 import type { IssuerSelectionAccount } from './IssuerSelection';
-import { useInvestmentCardExpansion } from './useInvestmentCardExpansion';
+import { useInvestmentCardExpansion } from './table/useInvestmentCardExpansion';
 import {
   ASSET_GROUP_ORDER,
   formatCurrency,
@@ -44,7 +42,7 @@ import {
   type AssetGroupKey,
   type HoldingRow,
   type InvestmentHoldingGroup,
-} from './investmentTableHelpers';
+} from './table/investmentTableHelpers';
 
 const InvestmentHoldingDetailDrawer = dynamic(
   () => import('./InvestmentHoldingDetailDrawer').then((mod) => ({ default: mod.InvestmentHoldingDetailDrawer })),
@@ -107,6 +105,7 @@ export function InvestmentTable({
   investmentAccounts = [],
   searchQuery,
 }: InvestmentTableProps) {
+  const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
   const locale = getCurrentLocale();
@@ -256,7 +255,7 @@ export function InvestmentTable({
     setMaturityConfirmOpen(true);
   }, []);
 
-  const handleConfirmRemove = React.useCallback(async () => {
+  const handleConfirmRemove = async () => {
     if (!holdingToRemove) return;
 
     try {
@@ -266,7 +265,7 @@ export function InvestmentTable({
     } catch {
       setHoldingToRemove(null);
     }
-  }, [deleteInvestmentHolding, holdingToRemove, refreshInvestmentData]);
+  };
 
   const holdings = holdingsQuery.data?.investmentHoldings ?? EMPTY_HOLDINGS;
 
@@ -323,7 +322,7 @@ export function InvestmentTable({
     return base;
   }, [displayedHoldings]);
 
-  const { groups, cashAllocationPercent } = React.useMemo(() => {
+  const { groups } = React.useMemo(() => {
     let holdingsGrossTotal = 0;
     displayedHoldings.forEach((holding) => {
       if (typeof holding.grossValue === 'number') holdingsGrossTotal += holding.grossValue;
@@ -379,14 +378,10 @@ export function InvestmentTable({
 
     return {
       groups: computedGroups,
-      cashAllocationPercent:
-        showCashCard && cashBalance != null && Number.isFinite(cashBalance) && portfolioDenominator > 0
-          ? cashBalance / portfolioDenominator
-          : null,
     };
   }, [cashBalance, displayedHoldings, groupedHoldings, locale, showCashCard, t]);
 
-  const { cashExpanded, expandedGroups, setCashExpanded, toggleGroup } = useInvestmentCardExpansion({
+  const { expandedGroups, toggleGroup } = useInvestmentCardExpansion({
     selectedAccountId,
     groups,
     hasSearchQuery,
@@ -396,28 +391,29 @@ export function InvestmentTable({
 
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
 
-  const cashAssetGroupCard = React.useMemo(() => {
+  const tableRadius = (theme as { custom?: { radius?: { table?: number } } }).custom?.radius?.table ?? theme.shape.borderRadius;
+  const hasHoldingsList = !loading && !error && displayedHoldings.length > 0;
+
+  const cashSection = React.useMemo(() => {
     if (!showCashCard) return null;
 
     return (
-      <AssetGroupCard
-        expanded={cashExpanded}
-        onToggle={setCashExpanded}
-        title={t('investments.cash.cardTitle')}
-        summary={cashFormatted ?? ''}
-        allocationPercent={cashAllocationPercent}
-        summaryAdornment={
-          cashBalance != null && cashBalance < 0 ? (
-            <Tooltip title={t('investments.cash.negativeBalanceHint')}>
-              <InfoOutlinedIcon fontSize="small" color="warning" sx={{ ml: 0.5 }} />
-            </Tooltip>
-          ) : null
-        }
+      <Box
+        sx={{
+          border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
+          borderRadius: `${tableRadius}px`,
+          overflow: 'hidden',
+          bgcolor: 'background.paper',
+          mb: hasHoldingsList ? 2 : 0,
+        }}
       >
-        <CashMovementsInlineTable financialAccountId={selectedAccountId} />
-      </AssetGroupCard>
+        <CashTransactionsInlineTable
+          financialAccountId={selectedAccountId}
+          investmentAccounts={investmentAccounts}
+        />
+      </Box>
     );
-  }, [cashAllocationPercent, cashBalance, cashExpanded, cashFormatted, selectedAccountId, setCashExpanded, showCashCard, t]);
+  }, [hasHoldingsList, investmentAccounts, selectedAccountId, showCashCard, tableRadius, theme.palette.divider]);
 
   return (
     <TableContainer
@@ -431,7 +427,7 @@ export function InvestmentTable({
       data-testid="investment-table"
     >
       {showCashCard && (loading || error || displayedHoldings.length === 0) ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashAssetGroupCard}</Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashSection}</Box>
       ) : null}
 
       {loading ? (
@@ -458,7 +454,7 @@ export function InvestmentTable({
 
       {!loading && !error && displayedHoldings.length > 0 ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {cashAssetGroupCard}
+          {cashSection}
           {groups.map((group) => (
             <InvestmentGroupTable
               key={group.key}

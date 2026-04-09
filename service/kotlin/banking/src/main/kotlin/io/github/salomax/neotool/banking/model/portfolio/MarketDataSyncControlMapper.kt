@@ -10,6 +10,7 @@ object MarketDataSyncControlMapper {
             sourceLastDataDate = entity.sourceLastDataDate,
             sourceLastRunAt = entity.sourceLastRunAt,
             lastSyncedDate = entity.lastSyncedDate,
+            lastCursor = entity.lastCursor,
             lastSyncStartedAt = entity.lastSyncStartedAt,
             lastSyncCompletedAt = entity.lastSyncCompletedAt,
             status = entity.status,

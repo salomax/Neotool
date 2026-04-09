@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FinancialDataMarketDataSyncClient
+import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetPriceBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.EconomicIndicatorPointSyncNode
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetCorporateEvent
@@ -23,6 +24,7 @@ import io.github.salomax.neotool.banking.repo.portfolio.MarketDataSyncControlRep
 import io.github.salomax.neotool.banking.repo.portfolio.MarketIndicatorPointRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import mu.KotlinLogging
 import java.math.BigDecimal
@@ -35,6 +37,7 @@ import java.time.ZoneOffset
 class MarketDataSyncService(
     private val syncControlRepository: MarketDataSyncControlRepository,
     private val financialDataSyncClient: FinancialDataMarketDataSyncClient,
+    private val listedAssetPriceBulkSyncClient: ListedAssetPriceBulkSyncClient,
     private val assetRepository: AssetRepository,
     private val assetDailyPriceRepository: AssetDailyPriceRepository,
     private val marketIndicatorPointRepository: MarketIndicatorPointRepository,
@@ -47,6 +50,10 @@ class MarketDataSyncService(
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val transactionRepository: TransactionRepository,
     private val portfolioFlowEventService: PortfolioFlowEventService,
+    @param:Property(name = "banking.market-data-sync.listed-prices.bulk-enabled", defaultValue = "true")
+    private val listedPriceBulkEnabled: Boolean,
+    @param:Property(name = "banking.market-data-sync.listed-prices.batch-size", defaultValue = "1000")
+    private val listedPriceBatchSize: Int,
 ) {
     private val logger = KotlinLogging.logger {}
     private val mathContext = MathContext(12)
@@ -64,6 +71,7 @@ class MarketDataSyncService(
                 sourceLastDataDate = maxDate(existing.sourceLastDataDate, event.lastDataDate),
                 sourceLastRunAt = maxInstant(existing.sourceLastRunAt, event.lastRunAt),
                 lastEventId = event.eventId,
+                lastCursor = existing.lastCursor.takeIf { existing.lastEventId == event.eventId },
                 status = if (existing.status == MarketDataSyncStatus.FAILED) MarketDataSyncStatus.IDLE else existing.status,
                 updatedAt = now,
             )
@@ -78,6 +86,7 @@ class MarketDataSyncService(
         syncControlRepository.upsert(
             sourceAwareControl.copy(
                 status = MarketDataSyncStatus.SYNCING,
+                lastCursor = sourceAwareControl.lastCursor,
                 lastSyncStartedAt = syncStartedAt,
                 lastError = null,
                 updatedAt = syncStartedAt,
@@ -85,12 +94,13 @@ class MarketDataSyncService(
         )
 
         try {
-            val effectiveSyncedDate = sync(jobName, event, existing)
+            val syncResult = sync(jobName, event, existing, syncStartedAt)
             val completedAt = Instant.now()
             val synced =
                 syncControlRepository.upsert(
                     sourceAwareControl.copy(
-                        lastSyncedDate = maxDate(existing.lastSyncedDate, effectiveSyncedDate),
+                        lastSyncedDate = maxDate(existing.lastSyncedDate, syncResult.lastSyncedDate),
+                        lastCursor = null,
                         status = MarketDataSyncStatus.SUCCESS,
                         lastSyncStartedAt = syncStartedAt,
                         lastSyncCompletedAt = completedAt,
@@ -101,8 +111,11 @@ class MarketDataSyncService(
             maybeRequestRecalculation(synced.jobName)
         } catch (e: Exception) {
             logger.error(e) { "Market data sync failed for ${event.jobName}" }
+            val latestControl =
+                syncControlRepository.findByJobName(jobName)
+                    ?: sourceAwareControl
             syncControlRepository.upsert(
-                sourceAwareControl.copy(
+                latestControl.copy(
                     status = MarketDataSyncStatus.FAILED,
                     lastSyncStartedAt = syncStartedAt,
                     lastSyncCompletedAt = Instant.now(),
@@ -118,35 +131,135 @@ class MarketDataSyncService(
         jobName: MarketDataSyncJobName,
         event: MarketDataJobSucceededEvent,
         existing: MarketDataSyncControl,
-    ): LocalDate? =
+        syncStartedAt: Instant,
+    ): SyncExecutionResult =
         when (jobName) {
-            MarketDataSyncJobName.B3_COTAHIST -> syncListedAssetPrices(event)
-            MarketDataSyncJobName.CVM_NAV -> syncFundDailyNavs(event)
-            MarketDataSyncJobName.INDICATORS -> syncIndicators(event)
-            MarketDataSyncJobName.B3_CORPORATE_EVENTS -> syncCorporateEvents(existing)
+            MarketDataSyncJobName.B3_COTAHIST -> syncListedAssetPrices(event, existing, syncStartedAt)
+            MarketDataSyncJobName.CVM_NAV -> SyncExecutionResult(syncFundDailyNavs(event))
+            MarketDataSyncJobName.INDICATORS -> SyncExecutionResult(syncIndicators(event))
+            MarketDataSyncJobName.B3_CORPORATE_EVENTS -> SyncExecutionResult(syncCorporateEvents(existing))
         }
 
-    private fun syncListedAssetPrices(event: MarketDataJobSucceededEvent): LocalDate? {
+    private fun syncListedAssetPrices(
+        event: MarketDataJobSucceededEvent,
+        existing: MarketDataSyncControl,
+        syncStartedAt: Instant,
+    ): SyncExecutionResult {
+        if (!listedPriceBulkEnabled) {
+            return SyncExecutionResult(syncListedAssetPricesViaGraphQl(event))
+        }
+
+        val assetsByTicker =
+            assetRepository.findAllWithTicker()
+                .mapNotNull { asset ->
+                    val assetId = asset.id ?: return@mapNotNull null
+                    val ticker = asset.ticker?.trim()?.uppercase()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    ticker to assetId
+                }.toMap()
+        if (assetsByTicker.isEmpty()) {
+            logger.info { "Skipping listed asset bulk sync because banking has no known tickers" }
+            return SyncExecutionResult(lastSyncedDate = null, processedRows = 0)
+        }
+
+        val resumeCursor = existing.lastCursor.takeIf { existing.lastEventId == event.eventId }
+        var maxSyncedDate: LocalDate? = null
+        var processedRows = 0
+        var lastCursor = resumeCursor
+        val pendingUpserts = ArrayList<InvestmentAssetDailyPrice>(listedPriceBatchSize.coerceAtLeast(1))
+
+        listedAssetPriceBulkSyncClient.streamListedAssetDailyPrices(
+            from = event.fromDate,
+            to = event.lastDataDate,
+            updatedSince = null,
+            tickers = assetsByTicker.keys,
+            after = resumeCursor,
+        ) { item ->
+            val assetId = assetsByTicker[item.ticker.trim().uppercase()] ?: return@streamListedAssetDailyPrices
+            pendingUpserts +=
+                InvestmentAssetDailyPrice(
+                    assetId = assetId,
+                    priceDate = item.date,
+                    closePrice = item.closePrice,
+                    source = MarketDataSyncJobName.B3_COTAHIST.jobName,
+                )
+            maxSyncedDate = maxDate(maxSyncedDate, item.date)
+            processedRows += 1
+            lastCursor = item.cursor
+
+            if (pendingUpserts.size >= listedPriceBatchSize.coerceAtLeast(1)) {
+                flushListedAssetPriceBatch(
+                    batch = pendingUpserts,
+                    control = existing,
+                    event = event,
+                    syncStartedAt = syncStartedAt,
+                    lastCursor = lastCursor,
+                )
+            }
+        }
+
+        flushListedAssetPriceBatch(
+            batch = pendingUpserts,
+            control = existing,
+            event = event,
+            syncStartedAt = syncStartedAt,
+            lastCursor = lastCursor,
+        )
+
+        logger.info {
+            "Listed asset bulk sync completed: eventId=${event.eventId} from=${event.fromDate} to=${event.lastDataDate} " +
+                "tickers=${assetsByTicker.size} rows=$processedRows resumed=${resumeCursor != null}"
+        }
+        return SyncExecutionResult(
+            lastSyncedDate = maxSyncedDate,
+            lastCursor = lastCursor,
+            processedRows = processedRows,
+        )
+    }
+
+    private fun syncListedAssetPricesViaGraphQl(event: MarketDataJobSucceededEvent): LocalDate? {
         var maxSyncedDate: LocalDate? = null
         financialDataSyncClient.forEachListedAssetDailyPrice(
             from = event.fromDate,
             to = event.lastDataDate,
         ) { items ->
-            items.forEach { item ->
-                val asset = assetRepository.findByTicker(item.ticker) ?: return@forEach
-                val assetId = asset.id ?: return@forEach
-                assetDailyPriceRepository.upsert(
+            val upserts =
+                items.mapNotNull { item ->
+                    val asset = assetRepository.findByTicker(item.ticker) ?: return@mapNotNull null
+                    val assetId = asset.id ?: return@mapNotNull null
                     InvestmentAssetDailyPrice(
                         assetId = assetId,
                         priceDate = item.date,
                         closePrice = item.closePrice,
                         source = MarketDataSyncJobName.B3_COTAHIST.jobName,
-                    ),
-                )
-                maxSyncedDate = maxDate(maxSyncedDate, item.date)
-            }
+                    ).also { maxSyncedDate = maxDate(maxSyncedDate, item.date) }
+                }
+            assetDailyPriceRepository.upsertAll(upserts)
         }
         return maxSyncedDate
+    }
+
+    private fun flushListedAssetPriceBatch(
+        batch: MutableList<InvestmentAssetDailyPrice>,
+        control: MarketDataSyncControl,
+        event: MarketDataJobSucceededEvent,
+        syncStartedAt: Instant,
+        lastCursor: String?,
+    ) {
+        if (batch.isEmpty()) return
+        assetDailyPriceRepository.upsertAll(batch)
+        batch.clear()
+        syncControlRepository.upsert(
+            control.copy(
+                sourceLastDataDate = maxDate(control.sourceLastDataDate, event.lastDataDate),
+                sourceLastRunAt = maxInstant(control.sourceLastRunAt, event.lastRunAt),
+                lastEventId = event.eventId,
+                lastCursor = lastCursor,
+                status = MarketDataSyncStatus.SYNCING,
+                lastSyncStartedAt = syncStartedAt,
+                lastError = null,
+                updatedAt = Instant.now(),
+            ),
+        )
     }
 
     private fun syncFundDailyNavs(event: MarketDataJobSucceededEvent): LocalDate? {
@@ -338,4 +451,10 @@ class MarketDataSyncService(
 
         return (holdingDates + listOfNotNull(earliestInvestmentTradeDate, earliestLedgerDate)).minOrNull()
     }
+
+    private data class SyncExecutionResult(
+        val lastSyncedDate: LocalDate?,
+        val lastCursor: String? = null,
+        val processedRows: Int = 0,
+    )
 }

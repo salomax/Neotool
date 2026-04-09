@@ -45,6 +45,8 @@ export interface DatePickerFieldProps {
   fullWidth?: boolean;
   minDate?: Date;
   maxDate?: Date;
+  disablePast?: boolean;
+  disableFuture?: boolean;
   /** Defaults to `APP_DATE_PICKER_VIEWS` (year/month/day; opens on day grid). Override to narrow views. */
   views?: readonly DateView[];
   /** Initial view when opening; default follows MUI (typically `day` when present in `views`). */
@@ -62,6 +64,8 @@ type DatePickerFieldInnerProps = {
   fullWidth: boolean;
   minDate?: Date;
   maxDate?: Date;
+  disablePast?: boolean;
+  disableFuture?: boolean;
   views?: readonly DateView[];
   openTo?: DateView;
   pickerSlotProps?: DatePickerProps["slotProps"];
@@ -81,6 +85,8 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   fullWidth,
   minDate,
   maxDate,
+  disablePast,
+  disableFuture,
   views,
   openTo,
   pickerSlotProps,
@@ -111,7 +117,7 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       views={resolvedViews}
       openTo={openTo}
       value={draftValue}
-      onChange={(v, context) => {
+      onChange={(v: Dayjs | null, context: any) => {
         setDraftValue(v);
 
         if (!v) {
@@ -126,6 +132,8 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       onError={setPickerError}
       minDate={minDate ? dayjs(minDate) : undefined}
       maxDate={maxDate ? dayjs(maxDate) : undefined}
+      disablePast={disablePast}
+      disableFuture={disableFuture}
       slotProps={{
         ...mergedNonTextFieldSlotProps,
         textField: {
@@ -161,6 +169,8 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   fullWidth = true,
   minDate,
   maxDate,
+  disablePast,
+  disableFuture,
   views,
   openTo,
   pickerSlotProps,
@@ -222,6 +232,8 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             fullWidth={fullWidth}
             minDate={minDate}
             maxDate={maxDate}
+            disablePast={disablePast}
+            disableFuture={disableFuture}
             views={views}
             openTo={openTo}
             pickerSlotProps={pickerSlotProps}
@@ -279,7 +291,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
-              onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
+              onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
                 textField: { label: startLabel, placeholder: t("datePicker.formatHint") } as any,
@@ -295,7 +307,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
-              onChange={(v) => field.onChange(v ? (v as Dayjs).toDate() : null)}
+              onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
                 textField: { label: endLabel, placeholder: t("datePicker.formatHint") } as any,

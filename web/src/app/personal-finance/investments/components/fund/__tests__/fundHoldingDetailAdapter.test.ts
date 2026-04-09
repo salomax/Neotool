@@ -22,6 +22,8 @@ function buildHolding(overrides?: Partial<NonNullable<FundHoldingDetailQuery["in
     averageCost: 10,
     grossValue: 1200,
     netValue: 1180,
+    incomeTax: null,
+    iof: null,
     valuationSource: ValuationSource.Estimated,
     valuationReferenceDate: "2026-03-26",
     isTaxExempt: false,
@@ -228,6 +230,35 @@ describe("buildFundHoldingDetailViewModel", () => {
     expect(purchase?.settlementDateLabel).toBeNull();
   });
 
+  it("omits settlement label when settlement day equals trade day", () => {
+    const txs: FundHoldingDetailQuery["investmentTransactions"] = [
+      {
+        __typename: "InvestmentTransaction",
+        id: "tx-same-day",
+        type: InvestmentTransactionType.Purchase,
+        direction: InvestmentTransactionDirection.Inflow,
+        quantity: 1,
+        unitPrice: 100,
+        grossValue: 100,
+        netValue: null,
+        incomeTax: null,
+        iof: null,
+        tradeDate: "2026-01-01",
+        settlementDate: "2026-01-01",
+        source: InvestmentSource.Manual,
+      },
+    ];
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding(),
+      txs,
+      buildPerformance(),
+      buildInvestmentHoldingPerformance(),
+      t,
+      "pt-BR",
+    );
+    expect(viewModel.timelineItems[0]?.settlementDateLabel).toBeNull();
+  });
+
   it("sorts timeline items newest trade date first", () => {
     const txs: FundHoldingDetailQuery["investmentTransactions"] = [
       {
@@ -274,19 +305,78 @@ describe("buildFundHoldingDetailViewModel", () => {
     expect(viewModel.timelineItems[1]?.id).toBe("tx-old");
   });
 
-  it("returns null numeric summaries and empty chart when performance is missing", () => {
+  it("falls back to holding and transactions when holdingPerformance is missing", () => {
     const viewModel = buildFundHoldingDetailViewModel(buildHolding(), [], undefined, undefined, t, "pt-BR");
 
-    expect(viewModel.principal).toBeNull();
-    expect(viewModel.currentCostBasis).toBeNull();
-    expect(viewModel.grossValue).toBeNull();
-    expect(viewModel.netValue).toBeNull();
+    expect(viewModel.principal).toBe(1000);
+    expect(viewModel.currentCostBasis).toBe(1000);
+    expect(viewModel.grossValue).toBe(1200);
+    expect(viewModel.netValue).toBe(1180);
     expect(viewModel.incomeTax).toBeNull();
     expect(viewModel.iof).toBeNull();
-    expect(viewModel.grossGain).toBeNull();
-    expect(viewModel.netGain).toBeNull();
-    expect(viewModel.grossGainPercent).toBeNull();
+    expect(viewModel.grossGain).toBe(200);
+    expect(viewModel.netGain).toBe(180);
+    expect(viewModel.grossGainPercent).toBeCloseTo(0.2);
+    expect(viewModel.netGainPercent).toBeCloseTo(0.18);
     expect(viewModel.chartPoints).toEqual([]);
+  });
+
+  it("uses holding incomeTax and iof when holdingPerformance summary is missing", () => {
+    const viewModel = buildFundHoldingDetailViewModel(
+      buildHolding({ incomeTax: 25, iof: 1.5 }),
+      [],
+      undefined,
+      undefined,
+      t,
+      "pt-BR",
+    );
+    expect(viewModel.incomeTax).toBe(25);
+    expect(viewModel.iof).toBe(1.5);
+  });
+
+  it("uses purchase inflows for principal when quantity x averageCost is unusable", () => {
+    const holding = buildHolding({ quantity: 0, averageCost: 0, grossValue: 500, netValue: 500 });
+    const txs: FundHoldingDetailQuery["investmentTransactions"] = [
+      {
+        __typename: "InvestmentTransaction",
+        id: "tx1",
+        type: InvestmentTransactionType.Purchase,
+        direction: InvestmentTransactionDirection.Inflow,
+        quantity: 10,
+        unitPrice: 50,
+        grossValue: 500,
+        netValue: null,
+        incomeTax: null,
+        iof: null,
+        tradeDate: "2026-01-01",
+        settlementDate: null,
+        source: InvestmentSource.Manual,
+      },
+    ];
+    const viewModel = buildFundHoldingDetailViewModel(holding, txs, undefined, undefined, t, "pt-BR");
+    expect(viewModel.principal).toBe(500);
+    expect(viewModel.grossValue).toBe(500);
+    expect(viewModel.netGain).toBe(0);
+  });
+
+  it("uses investmentHoldingPerformance.totalReturn for netGainPercent when principal is unknown", () => {
+    const holding = buildHolding({
+      quantity: 0,
+      averageCost: 0,
+      grossValue: 100,
+      netValue: 100,
+    });
+    const viewModel = buildFundHoldingDetailViewModel(
+      holding,
+      [],
+      undefined,
+      { ...buildInvestmentHoldingPerformance(), totalReturn: 0.05 },
+      t,
+      "pt-BR",
+    );
+    expect(viewModel.principal).toBeNull();
+    expect(viewModel.netGain).toBeNull();
+    expect(viewModel.netGainPercent).toBe(0.05);
   });
 
   it("defaults currencyCode to BRL when asset currency is falsy", () => {

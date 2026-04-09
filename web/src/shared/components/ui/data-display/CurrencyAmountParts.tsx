@@ -72,7 +72,7 @@ export function CurrencyAmountParts({
             sx={{
               fontSize: isMain ? 'inherit' : `${secondaryScale}em`,
               opacity: isMain ? 1 : secondaryOpacity,
-              mr: part.type === 'currency' ? 0.5 : 0,
+              mr: part.type === 'currency' ? 0.15 : 0,
             }}
           >
             {part.value}
@@ -82,4 +82,3 @@ export function CurrencyAmountParts({
     </Typography>
   );
 }
-

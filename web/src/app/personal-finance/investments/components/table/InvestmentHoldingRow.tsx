@@ -1,8 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography, alpha, useTheme } from '@mui/material';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import ShowChartOutlinedIcon from '@mui/icons-material/ShowChartOutlined';
+import AttachMoneyOutlinedIcon from '@mui/icons-material/AttachMoneyOutlined';
 import { Chip } from '@/shared/components/ui/primitives/Chip';
 import { PercentageGain, ValueOriginIndicator } from '@/shared/components/ui/data-display';
 import { formatTableDate } from '@/shared/utils/date';
@@ -30,6 +32,10 @@ interface InvestmentHoldingRowProps {
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
   onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
+  onBuy?: (holding: HoldingRow) => void;
+  onSell?: (holding: HoldingRow) => void;
+  buyLabel?: string;
+  sellLabel?: string;
 }
 
 export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
@@ -42,7 +48,45 @@ export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
   onOpenDetail,
   onOpenMaturityConfirm,
   onOpenActions,
+  onBuy,
+  onSell,
+  buyLabel,
+  sellLabel,
 }: InvestmentHoldingRowProps) {
+  const theme = useTheme();
+  const [hovered, setHovered] = React.useState(false);
+
+  const quickActionTileSx = React.useMemo(
+    () => ({
+      width: 32,
+      height: 32,
+      minWidth: 32,
+      p: 0,
+      borderRadius: '10px',
+      color: alpha(theme.palette.primary.dark, theme.palette.mode === 'dark' ? 0.85 : 0.72),
+      bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.14 : 0.09),
+      '&:hover': {
+        bgcolor: alpha(theme.palette.primary.main, theme.palette.mode === 'dark' ? 0.22 : 0.14),
+        color: theme.palette.primary.main,
+      },
+      '&:focus-visible': {
+        outline: `2px solid ${alpha(theme.palette.primary.main, 0.45)}`,
+        outlineOffset: 1,
+      },
+    }),
+    [theme],
+  );
+
+  const quickActionRedeemTileSx = React.useMemo(
+    () => ({
+      ...quickActionTileSx,
+      '&:hover': {
+        bgcolor: alpha(theme.palette.error.main, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+        color: theme.palette.error.main,
+      },
+    }),
+    [quickActionTileSx, theme],
+  );
   const assetType = holding.asset?.assetType ?? null;
   const assetTypeLabel = assetType != null ? t(`investments.assetTypes.${assetType}`) : '—';
   const maturityLabel = holding.maturityDate ? formatTableDate(String(holding.maturityDate), locale) : '—';
@@ -75,6 +119,8 @@ export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
     <Box
       role="row"
       onClick={() => onOpenDetail(holding)}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -97,13 +143,14 @@ export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
           </Typography>
           <Box sx={SECONDARY_ROW_SX} />
         </Box>
-      ) : (
+      ) : !layout.isFundGroup ? (
         <Box sx={{ width: layout.colWidth, minWidth: 0 }}>
           <Typography variant="body2" noWrap>
             {assetTypeLabel}
           </Typography>
+          <Box sx={SECONDARY_ROW_SX} />
         </Box>
-      )}
+      ) : null}
 
       {layout.isFundGroup ? null : layout.isVariableIncomeGroup ? (
         <>
@@ -117,13 +164,6 @@ export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
           <Box sx={{ width: layout.colWidth, minWidth: 0, textAlign: 'right' }}>
             <Typography variant="body2" noWrap>
               {formatValueOrPlaceholder(holding.averageCost, holding.asset?.currencyCode, locale)}
-            </Typography>
-            <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: 'flex-end' }} />
-          </Box>
-
-          <Box sx={{ width: layout.colWidth, minWidth: 0, textAlign: 'right' }}>
-            <Typography variant="body2" noWrap>
-              —
             </Typography>
             <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: 'flex-end' }} />
           </Box>
@@ -204,7 +244,55 @@ export const InvestmentHoldingRow = React.memo(function InvestmentHoldingRow({
         <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: 'flex-end' }} />
       </Box>
 
-      <Box sx={{ width: layout.actionColWidth, flexShrink: 0, display: 'flex', justifyContent: 'flex-end' }}>
+      <Box
+        sx={{
+          width: layout.actionColWidth,
+          flexShrink: 0,
+          display: 'flex',
+          justifyContent: 'flex-end',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
+        <Box
+          sx={{
+            display: { xs: 'none', md: 'flex' },
+            alignItems: 'center',
+            gap: 0.75,
+            visibility: hovered ? 'visible' : 'hidden',
+          }}
+        >
+          {onBuy && buyLabel ? (
+            <Tooltip title={buyLabel}>
+              <IconButton
+                size="small"
+                aria-label={buyLabel}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onBuy(holding);
+                }}
+                sx={{ ...quickActionTileSx, '& svg': { fontSize: 18 } }}
+              >
+                <ShowChartOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+          {onSell && sellLabel ? (
+            <Tooltip title={sellLabel}>
+              <IconButton
+                size="small"
+                aria-label={sellLabel}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onSell(holding);
+                }}
+                sx={{ ...quickActionRedeemTileSx, '& svg': { fontSize: 18 } }}
+              >
+                <AttachMoneyOutlinedIcon />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+        </Box>
         <IconButton
           size="small"
           aria-label={t('investments.table.rowActions.ariaLabel')}

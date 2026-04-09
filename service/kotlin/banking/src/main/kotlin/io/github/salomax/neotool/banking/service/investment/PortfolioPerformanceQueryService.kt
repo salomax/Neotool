@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkCode
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
@@ -24,6 +25,7 @@ import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventReposi
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -41,6 +43,8 @@ class PortfolioPerformanceQueryService(
     private val assetRepository: AssetRepository,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     @Suppress("UNUSED_PARAMETER")
     fun getPortfolioPerformance(
         financialAccountId: UUID?,
@@ -303,10 +307,12 @@ class PortfolioPerformanceQueryService(
         var previousValue = series.first().totalValue
         if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
 
+        val steps = mutableListOf<String>()
         var factor = BigDecimal.ONE
         series.drop(1).forEach { point ->
             val netFlow = flowAmountsByDate[point.date] ?: BigDecimal.ZERO
             if (previousValue.compareTo(BigDecimal.ZERO) <= 0) {
+                steps += "  ${point.date}: SKIPPED (previousValue <= 0), currentValue=${point.totalValue.toPlainString()}"
                 previousValue = point.totalValue
                 if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
                 return@forEach
@@ -317,11 +323,24 @@ class PortfolioPerformanceQueryService(
                     .subtract(netFlow)
                     .divide(previousValue, 8, RoundingMode.HALF_UP)
             factor = factor.multiply(BigDecimal.ONE.add(dailyReturn), MathContext.DECIMAL64)
+            if (netFlow.compareTo(BigDecimal.ZERO) != 0) {
+                steps += "  ${point.date}: prev=${previousValue.toPlainString()}, cur=${point.totalValue.toPlainString()}, flow=${netFlow.toPlainString()}, dailyReturn=${dailyReturn.toPlainString()}, factor=${factor.toPlainString()} *** FLOW EVENT"
+            } else {
+                steps += "  ${point.date}: prev=${previousValue.toPlainString()}, cur=${point.totalValue.toPlainString()}, flow=0, dailyReturn=${dailyReturn.toPlainString()}, factor=${factor.toPlainString()}"
+            }
             previousValue = point.totalValue
         }
 
         if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
-        return factor.subtract(BigDecimal.ONE).setScale(8, RoundingMode.HALF_UP).toDouble()
+        val result = factor.subtract(BigDecimal.ONE).setScale(8, RoundingMode.HALF_UP).toDouble()
+        logger.debug {
+            buildString {
+                appendLine("[TWR] window=${series.first().date}..${series.last().date} points=${series.size} flowDates=${flowAmountsByDate.keys.sorted()}")
+                steps.forEach { appendLine(it) }
+                appendLine("  => TWR=$result (factor=${factor.toPlainString()})")
+            }
+        }
+        return result
     }
 
     private fun computeAggregatedValueTwr(series: List<AggregatedValuePoint>): Double? {
@@ -483,7 +502,12 @@ class PortfolioPerformanceQueryService(
                 period = period,
             ) ?: return null
 
-        val flowAmountsByDate =
+        // TWR universe = holdings only (custodian cash is excluded, matching benchmark methodology).
+        // Filter out cash-only flow events (relatedHoldingId == null): pure deposits/withdrawals on
+        // the custodian account do not move the holdings universe and would otherwise double-count
+        // against the daily return (the cash leg is invisible to the series, so the flow has nothing
+        // to subtract).
+        val rawFlowEvents: List<InvestmentPortfolioFlowEvent> =
             investmentAccountIds(accountId)
                 .flatMap { financialAccountId ->
                     portfolioFlowEventRepository.findByAccountAndDateRange(
@@ -491,7 +515,24 @@ class PortfolioPerformanceQueryService(
                         from = seriesWindow.startDate.plusDays(1),
                         to = seriesWindow.endDate,
                     )
-                }.groupBy { it.eventDate }
+                }
+                .filter { it.relatedHoldingId != null }
+        val rawFlowEventsSorted = rawFlowEvents.sortedBy { event -> event.eventDate }
+        logger.debug {
+            if (rawFlowEventsSorted.isEmpty()) {
+                "[FLOWS] no flow events in window ${seriesWindow.startDate}..${seriesWindow.endDate}"
+            } else {
+                buildString {
+                    appendLine("[FLOWS] ${rawFlowEventsSorted.size} event(s) in window ${seriesWindow.startDate}..${seriesWindow.endDate}:")
+                    for (e in rawFlowEventsSorted) {
+                        appendLine("  ${e.eventDate}: type=${e.eventType} gross=${e.grossAmount.toPlainString()} sourceType=${e.sourceReferenceType} sourceId=${e.sourceReferenceId} relatedHolding=${e.relatedHoldingId}")
+                    }
+                }
+            }
+        }
+        val flowAmountsByDate =
+            rawFlowEvents
+                .groupBy { event -> event.eventDate }
                 .mapValues { (_, events) ->
                     events.fold(BigDecimal.ZERO) { acc, event ->
                         acc + signedFlowAmount(event.eventType, event.grossAmount)
@@ -637,7 +678,7 @@ class PortfolioPerformanceQueryService(
         }
     }
 
-    private fun io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent.toGroupNetFlowAmount(): BigDecimal? =
+    private fun InvestmentPortfolioFlowEvent.toGroupNetFlowAmount(): BigDecimal? =
         when (eventType) {
             PortfolioFlowEventType.DEPOSIT -> grossAmount
             PortfolioFlowEventType.WITHDRAWAL,

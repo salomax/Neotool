@@ -50,6 +50,57 @@ enum class AssetType {
 }
 
 /**
+ * Aggregate asset class used for GraphQL holding filters.
+ * Distinct from [AssetType], which represents the concrete instrument subtype.
+ */
+enum class InvestmentHoldingAssetClass {
+    FIXED_INCOME,
+    INVESTMENT_FUND,
+    VARIABLE_INCOME,
+    CRYPTO,
+    OPTIONS,
+    ;
+
+    fun matches(assetType: AssetType): Boolean =
+        when (this) {
+            FIXED_INCOME -> assetType in FIXED_INCOME_TYPES
+            INVESTMENT_FUND -> assetType == AssetType.MUTUAL_FUND
+            VARIABLE_INCOME -> assetType in VARIABLE_INCOME_TYPES
+            CRYPTO -> assetType == AssetType.CRYPTO
+            OPTIONS -> assetType == AssetType.OPTION
+        }
+
+    companion object {
+        private val FIXED_INCOME_TYPES =
+            setOf(
+                AssetType.CDB,
+                AssetType.RDB,
+                AssetType.LCI,
+                AssetType.LCA,
+                AssetType.LC,
+                AssetType.LF,
+                AssetType.LIG,
+                AssetType.DEBENTURES,
+                AssetType.CRI,
+                AssetType.CRA,
+                AssetType.TREASURY,
+                AssetType.ETF_FIXED_INCOME,
+            )
+
+        private val VARIABLE_INCOME_TYPES =
+            setOf(
+                AssetType.STOCK,
+                AssetType.STOCK_RIGHTS,
+                AssetType.BDR,
+                AssetType.REAL_ESTATE_FUND,
+                AssetType.AGRIBUSINESS_FUND,
+                AssetType.ETF,
+                AssetType.ETF_INTERNATIONAL,
+            )
+    }
+}
+
+/**
  * Direction of an investment transaction.
  * Aligned with OFB (ENTRADA/SAÍDA) and Belvo (INFLOW/OUTFLOW).
  * Amount is always positive; direction is carried here.

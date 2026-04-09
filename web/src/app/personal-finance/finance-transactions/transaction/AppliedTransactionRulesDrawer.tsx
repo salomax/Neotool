@@ -139,6 +139,7 @@ function toTransactionRuleForDrawer(rule: AppliedTransactionRule): TransactionRu
     applicableTo: rule.applicableTo,
     priority: rule.priority,
     isSystem: rule.isSystem,
+    isDisabledForAccount: false,
     isImplicit: rule.isImplicit,
     matchCount: rule.matchCount,
     createdAt: String(rule.createdAt),

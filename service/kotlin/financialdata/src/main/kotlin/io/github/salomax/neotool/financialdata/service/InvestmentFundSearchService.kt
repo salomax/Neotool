@@ -109,4 +109,10 @@ open class InvestmentFundSearchService(
 
     fun getMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot> =
         fundRepository.findMarketSnapshotsByCnpj(cnpjs)
+
+    fun getNavSeriesByFundCnpj(
+        normalizedCnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<FundDailyNav> = fundRepository.getNavSeriesByFundCnpj(normalizedCnpj, from, to)
 }

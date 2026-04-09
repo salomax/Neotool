@@ -34,7 +34,8 @@ export interface UsePortfolioRecalculationStatusCallbacks {
 
 export function usePortfolioRecalculationStatus(
   accountId: string | null,
-  callbacks: UsePortfolioRecalculationStatusCallbacks
+  callbacks: UsePortfolioRecalculationStatusCallbacks,
+  reconnectKey = 0,
 ): void {
   const callbacksRef = useRef(callbacks);
   callbacksRef.current = callbacks;
@@ -81,8 +82,9 @@ export function usePortfolioRecalculationStatus(
         let buffer = '';
 
         const processLine = (line: string) => {
-          if (!line.startsWith('data:')) return;
-          const jsonStr = line.slice(5).trim();
+          const normalizedLine = line.trimStart();
+          if (!normalizedLine.startsWith('data:')) return;
+          const jsonStr = normalizedLine.slice(5).trim();
           if (!jsonStr) return;
 
           try {
@@ -102,16 +104,16 @@ export function usePortfolioRecalculationStatus(
             const { done, value } = await reader.read();
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
-            const events = buffer.split(/\n\n+/);
+            const events = buffer.split(/\r?\n\r?\n+/);
             buffer = events.pop() ?? '';
             for (const event of events) {
-              const lines = event.split('\n');
+              const lines = event.split(/\r?\n/);
               for (const line of lines) processLine(line);
             }
           }
 
           if (buffer) {
-            const lines = buffer.split('\n');
+            const lines = buffer.split(/\r?\n/);
             for (const line of lines) processLine(line);
           }
 
@@ -130,5 +132,5 @@ export function usePortfolioRecalculationStatus(
     return () => {
       abortController.abort();
     };
-  }, [accountId]);
+  }, [accountId, reconnectKey]);
 }

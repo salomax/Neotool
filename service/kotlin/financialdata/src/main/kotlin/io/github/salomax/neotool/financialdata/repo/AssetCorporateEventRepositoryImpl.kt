@@ -109,7 +109,7 @@ open class AssetCorporateEventRepositoryImpl(
                 lastDatePrior = (row[10] as java.sql.Date).toLocalDate(),
                 approvedOn = (row[11] as java.sql.Date).toLocalDate(),
                 remarks = row[12] as? String,
-                updatedAt = (row[13] as Timestamp).toInstant(),
+                updatedAt = requireNotNull(row[13].asInstantOrNull()) { "Invalid updated_at value: ${row[13]}" },
             )
         }
     }

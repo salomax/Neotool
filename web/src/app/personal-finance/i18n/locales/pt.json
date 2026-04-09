@@ -64,6 +64,28 @@
       "recordFund": "Novo fundo",
       "recordEquity": "Nova Ação, FII ou opção"
     },
+    "grid": {
+      "emptyDescription": "Nenhuma posição registrada",
+      "firstInvestmentCta": "+ Investimento"
+    },
+    "transactions": {
+      "buy": "Comprar",
+      "sell": "Vender",
+      "apply": "Aplicar",
+      "redeem": "Resgatar"
+    },
+    "picker": {
+      "title": "O que você quer registrar?",
+      "options": {
+        "fixedIncome": "Renda Fixa",
+        "equity": "Ações / ETFs",
+        "realEstateFund": "FIIs",
+        "fund": "Fundos",
+        "crypto": "Criptoativos",
+        "cash": "Caixa",
+        "comingSoon": "Em breve"
+      }
+    },
     "record": {
       "cash": "Dinheiro em conta"
     },
@@ -144,11 +166,6 @@
       },
       "success": "Movimentação registrada",
       "movements": {
-        "drawer": {
-          "listTitle": "Movimentações de caixa",
-          "recordTitle": "Registrar movimentação",
-          "register": "Nova movimentação"
-        },
         "columns": {
           "date": "Data",
           "description": "Descrição",
@@ -165,6 +182,9 @@
         "empty": "Nenhuma movimentação de caixa ainda.",
         "loadError": "Não foi possível carregar as movimentações.",
         "loadMore": "Carregar mais",
+        "linkedToAsset": "Ativo vinculado a esta movimentação",
+        "linkedAssetResolving": "A identificar o ativo…",
+        "linkedAssetUnknown": "Ativo vinculado não identificado.",
         "detailTitle": "Detalhes da movimentação",
         "editTitle": "Editar movimentação",
         "deleteConfirmation": {
@@ -372,7 +392,7 @@
         "grossTotal": "Total Bruto",
         "netTotal": "Total Líquido",
         "grossEarnings": "Rendimento Bruto",
-        "totalReturn": "Retorno total",
+        "totalReturn": "Rendimento Bruto",
         "dividendsReceived": "Proventos",
         "incomeTax": "IR",
         "iof": "IOF",
@@ -400,6 +420,14 @@
         "principalLabel": "Principal investido",
         "grossLabel": "Valor bruto",
         "netLabel": "Valor líquido",
+        "period": {
+          "1M": "1M",
+          "3M": "3M",
+          "6M": "6M",
+          "1A": "1A",
+          "2A": "2A",
+          "ALL": "Tudo"
+        },
         "modes": {
           "actual": "Atual",
           "projected": "Projeção até o vencimento"
@@ -508,6 +536,41 @@
         "grossValuePositive": "O valor bruto deve ser positivo",
         "tradeDateRequired": "Informe a data do resgate"
       }
+    },
+    "corporateEvents": {
+      "section": "Eventos",
+      "drawerTitle": "Registrar evento corporativo",
+      "provento": "Registrar provento",
+      "split": "Registrar desdobramento / grupamento",
+      "bonus": "Registrar bonificação",
+      "subscription": "Registrar subscrição",
+      "splitType": {
+        "split": "Desdobramento",
+        "reverseSplit": "Grupamento"
+      },
+      "form": {
+        "paymentDate": "Data",
+        "proventoType": "Tipo de provento",
+        "valuePerUnit": "Valor bruto por unidade",
+        "quantity": "Quantidade",
+        "grossTotal": "Valor bruto total",
+        "irWithheld": "IR retido na fonte",
+        "destinationAccount": "Conta de destino dos recursos",
+        "ratioNumerator": "Proporção (numerador)",
+        "ratioDenominator": "Proporção (denominador)",
+        "resultQuantity": "Quantidade resultante",
+        "bonusPercent": "Percentual de bonificação",
+        "issuePrice": "Preço de emissão por ação bonificada",
+        "bonusQuantity": "Quantidade bonificada",
+        "exerciseDate": "Data de exercício",
+        "exercisePrice": "Preço de exercício por ação",
+        "subscribedQuantity": "Quantidade subscrita"
+      },
+      "validation": {
+        "required": "Campo obrigatório",
+        "positiveValue": "Informe um valor maior que zero"
+      },
+      "success": "Evento corporativo registrado com sucesso"
     },
     "recordHolding": {
       "title": "Registrar ativo de Renda Fixa",

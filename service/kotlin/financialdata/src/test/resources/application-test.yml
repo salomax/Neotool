@@ -38,6 +38,11 @@ otel:
   traces:
     exporter: none
 
+financialdata:
+  market-data-export:
+    listed-prices:
+      fetch-size: 2
+
 logging:
   level:
     io.github.salomax.neotool: DEBUG

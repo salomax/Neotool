@@ -8,6 +8,7 @@ import {
 } from "@/lib/graphql/types/__generated__/graphql";
 import { getHoldingValueOrigin, type ValueOriginLabel } from "@/shared/utils/holdingValueOrigin";
 import type { FixedIncomeHoldingDetailQuery } from "./api/queries.generated";
+import { isSameInvestmentEventAndSettlementDay } from "../timelineSettlementDay";
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
 
@@ -232,7 +233,11 @@ export function buildFixedIncomeHoldingDetailViewModel(
       id: transaction.id,
       title: formatTransactionType(transaction.type, t),
       tradeDateLabel: formatDate(transaction.tradeDate, locale),
-      settlementDateLabel: transaction.settlementDate ? formatDate(transaction.settlementDate, locale) : null,
+      settlementDateLabel:
+        transaction.settlementDate &&
+        !isSameInvestmentEventAndSettlementDay(transaction.tradeDate, transaction.settlementDate)
+          ? formatDate(transaction.settlementDate, locale)
+          : null,
       amount: transaction.grossValue,
       netAmount: transaction.netValue,
       incomeTax: transaction.incomeTax,

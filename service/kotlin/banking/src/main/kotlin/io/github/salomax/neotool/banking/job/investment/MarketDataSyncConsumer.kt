@@ -32,7 +32,7 @@ class MarketDataSyncConsumer(
 ) {
     @Topic("\${kafka.topics.market-data-job-succeeded:financial-data.market-data.job-succeeded}")
     fun receive(
-        @KafkaKey key: String,
+        @KafkaKey key: String?,
         event: MarketDataJobSucceededEvent,
         consumer: Consumer<*, *>,
         @KafkaPartition partition: Int,

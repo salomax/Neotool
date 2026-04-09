@@ -58,4 +58,8 @@ object AssetGroupMapping {
     fun groupKeyFor(assetType: AssetType?): String = GROUP_BY_ASSET_TYPE[assetType] ?: OTHERS
 
     fun labelFor(groupKey: String): String = LABEL_BY_GROUP[groupKey] ?: groupKey
+
+    fun knownGroupKeys(): Set<String> = LABEL_BY_GROUP.keys
+
+    fun isKnownGroupKey(groupKey: String): Boolean = LABEL_BY_GROUP.containsKey(groupKey)
 }

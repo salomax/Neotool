@@ -601,8 +601,8 @@ export const CREDIT_CARD_BILL = gql`
 
 /** Holdings for one investment account, or consolidated across all accounts when financialAccountId is omitted. */
 export const INVESTMENT_HOLDINGS = gql`
-  query InvestmentHoldings($financialAccountId: ID) {
-    investmentHoldings(financialAccountId: $financialAccountId) {
+  query InvestmentHoldings($financialAccountId: ID, $assetClass: InvestmentHoldingAssetClass) {
+    investmentHoldings(financialAccountId: $financialAccountId, assetClass: $assetClass) {
       id
       financialAccountId
       quantity
@@ -670,6 +670,102 @@ export const INVESTMENT_HOLDINGS = gql`
   }
 `;
 
+/** Minimal dataset for investments grid cards (single request). */
+export const INVESTMENT_GRID_DATA = gql`
+  query InvestmentGridData($financialAccountId: ID, $includeProjection: Boolean) {
+    investmentCashBalance(financialAccountId: $financialAccountId)
+    investmentHoldings(financialAccountId: $financialAccountId) {
+      id
+      quantity
+      averageCost
+      grossValue
+      asset {
+        assetType
+      }
+    }
+    perfCash: portfolioPerformance(groupKey: "cash", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfBankFixedIncome: portfolioPerformance(groupKey: "bankFixedIncome", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfCreditFixedIncome: portfolioPerformance(
+      groupKey: "creditFixedIncome"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfMutualFunds: portfolioPerformance(groupKey: "mutualFunds", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfPension: portfolioPerformance(groupKey: "pension", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfStocks: portfolioPerformance(
+      subgroupKey: "perfStocks"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfReits: portfolioPerformance(subgroupKey: "perfReits", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfCrypto: portfolioPerformance(subgroupKey: "perfCrypto", resolution: MONTH, includeProjection: $includeProjection) {
+      groupKey
+      label
+      includedHoldingsCount
+      points {
+        timestamp
+        grossValue
+      }
+    }
+  }
+`;
+
 /** Ledger cash balance (CREDIT − DEBIT, posted/pending) on investment custodian account(s). */
 export const INVESTMENT_CASH_BALANCE = gql`
   query InvestmentCashBalance($financialAccountId: ID) {
@@ -696,6 +792,18 @@ export const INVESTMENT_CASH_TRANSACTIONS = gql`
           status
           transferPeerTransactionId
           investmentTransactionId
+          linkedInvestmentAsset {
+            id
+            name
+            assetType
+            ticker
+            issuerName
+            currencyCode
+            logoAsset {
+              id
+              publicUrl
+            }
+          }
           category {
             id
             name
@@ -760,6 +868,61 @@ export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
         errorCode
         message
       }
+    }
+  }
+`;
+
+export const PORTFOLIO_PERFORMANCE = gql`
+  query PortfolioPerformance(
+    $groupKey: String
+    $resolution: HoldingPerformanceResolution
+    $includeProjection: Boolean
+  ) {
+    portfolioPerformance(
+      groupKey: $groupKey
+      resolution: $resolution
+      includeProjection: $includeProjection
+    ) {
+      groupKey
+      label
+      currencyCode
+      resolution
+      valuationSource
+      valuationReferenceDate
+      capabilities {
+        supportsProjection
+        projectionDefaultEnabled
+        supportedResolutions
+        defaultResolution
+      }
+      summary {
+        investedPrincipal
+        netContributions
+        currentCostBasis
+        grossValue
+        netValue
+        incomeTax
+        iof
+        grossGain
+        netGain
+        grossGainPercent
+      }
+      points {
+        timestamp
+        isProjected
+        investedPrincipal
+        netContributions
+        currentCostBasis
+        grossValue
+        netValue
+        incomeTax
+        iof
+        grossGain
+        netGain
+        quantity
+      }
+      excludedHoldingsCount
+      includedHoldingsCount
     }
   }
 `;

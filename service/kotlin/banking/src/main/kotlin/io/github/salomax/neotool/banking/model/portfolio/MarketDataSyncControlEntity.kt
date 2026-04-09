@@ -23,6 +23,8 @@ open class MarketDataSyncControlEntity(
     open var sourceLastRunAt: Instant? = null,
     @Column(name = "last_synced_date")
     open var lastSyncedDate: LocalDate? = null,
+    @Column(name = "last_cursor")
+    open var lastCursor: String? = null,
     @Column(name = "last_sync_started_at")
     open var lastSyncStartedAt: Instant? = null,
     @Column(name = "last_sync_completed_at")

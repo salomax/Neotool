@@ -362,7 +362,8 @@ class BankingWiringFactory(
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
                         val financialAccountId = env.getArgument<String?>("financialAccountId")
-                        investmentResolver.investmentHoldings(financialAccountId, principal)
+                        val assetClass = env.getArgument<String?>("assetClass")
+                        investmentResolver.investmentHoldings(financialAccountId, assetClass, principal)
                     }
                 },
             )
@@ -449,12 +450,35 @@ class BankingWiringFactory(
                 "holdingPerformance",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        fun parseLocalDateArgument(name: String): java.time.LocalDate? =
+                            when (val raw = env.getArgument<Any?>(name)) {
+                                null -> null
+                                is java.time.LocalDate -> raw
+                                is String -> java.time.LocalDate.parse(raw)
+                                else -> error("$name must be a LocalDate or ISO-8601 string")
+                            }
+
                         val holdingId =
                             env.getArgument<String>("holdingId")
                                 ?: throw IllegalArgumentException("holdingId is required")
                         val resolution = env.getArgument<String?>("resolution")
+                        val fromDate = parseLocalDateArgument("fromDate")
+                        val toDate = parseLocalDateArgument("toDate")
                         val includeProjection = env.getArgument<Boolean?>("includeProjection")
-                        investmentResolver.holdingPerformance(holdingId, resolution, includeProjection, principal)
+                        investmentResolver.holdingPerformance(holdingId, resolution, fromDate, toDate, includeProjection, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "portfolioPerformance",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val groupKey = env.getArgument<String?>("groupKey")
+                        val subgroupKey = env.getArgument<String?>("subgroupKey")
+                        val assetTypes = env.getArgument<List<String>?>("assetTypes")
+                        val resolution = env.getArgument<String?>("resolution")
+                        val includeProjection = env.getArgument<Boolean?>("includeProjection")
+                        investmentResolver.portfolioPerformance(groupKey, subgroupKey, assetTypes, resolution, includeProjection, principal)
                     }
                 },
             )
@@ -1231,6 +1255,19 @@ class BankingWiringFactory(
                             transaction?.id?.let {
                                 attachmentResolver.transactionAttachments(it.toString(), principal)
                             } ?: emptyList<Any>()
+                        }
+                    },
+                )
+                type.dataFetcher(
+                    "linkedInvestmentAsset",
+                    createValidatedDataFetcher { env ->
+                        env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                            val transaction = env.getSource<TransactionDTO>()
+                            val linkId = transaction?.investmentTransactionId ?: return@withPermission null
+                            val accountId =
+                                principal.currentAccountId
+                                    ?: throw IllegalArgumentException("No active account in token")
+                            investmentQueryService.getLinkedInvestmentAssetForCashLeg(linkId, accountId)
                         }
                     },
                 )

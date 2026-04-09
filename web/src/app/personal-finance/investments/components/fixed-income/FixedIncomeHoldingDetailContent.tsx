@@ -16,7 +16,6 @@ import { Skeleton } from "@/shared/components/ui/primitives/Skeleton";
 import { buildFixedIncomeHoldingDetailViewModel } from "./fixedIncomeHoldingDetailAdapter";
 import type { FixedIncomeHoldingDetailQuery } from "./api/queries.generated";
 import { HoldingPerformanceChart } from "../performance/HoldingPerformanceChart";
-import { HoldingXirrCard } from "../performance/HoldingXirrCard";
 import { TimelineEvents } from "../TimelineEvents";
 
 interface FixedIncomeHoldingDetailContentProps {
@@ -139,22 +138,14 @@ export function FixedIncomeHoldingDetailContent({
 
       <Divider sx={{ my: 3 }} />
 
-      <HoldingXirrCard
-        title={t("investments.detailDrawer.performance.xirr")}
-        tooltip={t("investments.detailDrawer.performance.xirrTooltip")}
-        sincePrefix={t("investments.detailDrawer.performance.since")}
-        sinceLabel={viewModel.xirrSinceLabel}
-        xirr={viewModel.xirr}
-        locale={locale}
-      />
-
-      {viewModel.xirr != null ? <Divider sx={{ my: 3 }} /> : null}
-
       <HoldingPerformanceChart
         points={viewModel.chartPoints}
         currencyCode={viewModel.currencyCode}
         locale={locale}
+        resolution={performance?.resolution}
+        supportsProjection={performance?.capabilities.supportsProjection ?? true}
         isTaxExempt={holding.isTaxExempt}
+        title={t("investments.detailDrawer.chart.title")}
         emptyTitle={t("investments.detailDrawer.chart.emptyTitle")}
         emptyDescription={t("investments.detailDrawer.chart.emptyDescription")}
         principalLabel={t("investments.detailDrawer.chart.principalLabel")}
@@ -177,6 +168,7 @@ export function FixedIncomeHoldingDetailContent({
         netAmountText={(formattedValue) => t("investments.detailDrawer.timeline.netAmount", { value: formattedValue })}
         incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
         iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
+        settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
       />
     </Stack>
   );

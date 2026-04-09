@@ -21,6 +21,7 @@ import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketPrice
+import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.error.BankingErrorCode
@@ -51,6 +52,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
+import java.util.TreeMap
 import java.util.UUID
 
 data class InvestmentCashTransactionsSlice(
@@ -76,6 +78,7 @@ class InvestmentQueryService(
     private val fundValuationService: FundValuationService,
     private val fundMarketDataProvider: FundMarketDataProvider,
     private val listedAssetMarketDataProvider: ListedAssetMarketDataProvider,
+    private val assetDailyPriceRepository: AssetDailyPriceRepository,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
     private val transactionRepository: TransactionRepository,
@@ -84,15 +87,34 @@ class InvestmentQueryService(
     private val logger = KotlinLogging.logger {}
     private val mathContext = MathContext(12, RoundingMode.HALF_UP)
 
-    fun getHoldings(financialAccountId: UUID?, accountId: UUID): List<InvestmentHoldingDTO> {
+    fun getHoldings(
+        financialAccountId: UUID?,
+        accountId: UUID,
+        assetClass: InvestmentHoldingAssetClass? = null,
+    ): List<InvestmentHoldingDTO> {
         val rawHoldings =
             if (financialAccountId != null) {
-                holdingRepository.findByFinancialAccount(financialAccountId, accountId)
+                holdingRepository.findOpenByFinancialAccount(financialAccountId, accountId)
             } else {
-                holdingRepository.findByAccount(accountId)
+                holdingRepository.findOpenByAccount(accountId)
             }
-        val holdings = rawHoldings.filter { it.quantity > BigDecimal.ZERO }
-        return mapHoldingsToDTO(holdings, accountId)
+        if (rawHoldings.isEmpty()) return emptyList()
+
+        val assetsById =
+            if (assetClass != null) {
+                assetRepository.findByIds(rawHoldings.map { it.assetId }.toSet()).associateBy { it.id!! }
+            } else {
+                null
+            }
+        val holdings =
+            if (assetClass != null) {
+                rawHoldings.filter { holding ->
+                    assetsById?.get(holding.assetId)?.assetType?.let(assetClass::matches) == true
+                }
+            } else {
+                rawHoldings
+            }
+        return mapHoldingsToDTO(holdings, accountId, assetsById)
     }
 
     /**
@@ -183,6 +205,22 @@ class InvestmentQueryService(
         )
     }
 
+    /**
+     * Asset for a ledger row linked to an investment event ([investmentTransactionId]).
+     * Matches [mapHoldingsToDTO] asset mapping (listed-ticker logo via market data).
+     */
+    fun getLinkedInvestmentAssetForCashLeg(
+        investmentTransactionId: UUID,
+        accountId: UUID,
+    ): InvestmentAssetDTO? {
+        val invTx = investmentTransactionRepository.findById(investmentTransactionId, accountId) ?: return null
+        val holding = holdingRepository.findById(invTx.holdingId, accountId) ?: return null
+        val asset = assetRepository.findById(holding.assetId) ?: return null
+        val tickers = asset.listedAssetTicker()?.let { setOf(it) } ?: emptySet()
+        val listedAssetDataByTicker = safeGetListedAssetData(tickers)
+        return asset.toDTO(asset.listedAssetLogoAssetId(listedAssetDataByTicker))
+    }
+
     fun getHolding(id: UUID, accountId: UUID): InvestmentHoldingDTO? {
         val holding = holdingRepository.findById(id, accountId) ?: return null
         return mapHoldingsToDTO(listOf(holding), accountId).first()
@@ -192,45 +230,170 @@ class InvestmentQueryService(
         id: UUID,
         accountId: UUID,
         resolution: HoldingPerformanceResolution?,
+        fromDate: LocalDate?,
+        toDate: LocalDate?,
         includeProjection: Boolean,
     ): HoldingPerformanceDTO? {
         val holding = holdingRepository.findById(id, accountId) ?: return null
         val asset = assetRepository.findById(holding.assetId) ?: return null
-        if (!asset.assetType.isFixedIncomePerformanceSupported()) return null
+        return computeHoldingPerformance(
+            holding = holding,
+            asset = asset,
+            accountId = accountId,
+            resolution = resolution,
+            fromDate = fromDate,
+            toDate = toDate,
+            includeProjection = includeProjection,
+        )
+    }
+
+    internal fun computeHoldingPerformance(
+        holding: Holding,
+        asset: Asset,
+        accountId: UUID,
+        resolution: HoldingPerformanceResolution?,
+        fromDate: LocalDate? = null,
+        toDate: LocalDate? = null,
+        includeProjection: Boolean,
+    ): HoldingPerformanceDTO? {
+        val id = holding.id ?: return null
 
         val today = clock()
         val transactions = investmentTransactionRepository.findByHolding(id, accountId).sortedBy { it.tradeDate }
-        val valuationHolding = holding.withBackfilledFixedIncomeTerms(transactions)
-        val resolvedResolution = resolution.takeIf { it == HoldingPerformanceResolution.MONTH }
-            ?: HoldingPerformanceResolution.MONTH
-        val rateMap = safeGetIndicatorRates()
-        val valuationReferenceDate = indicatorRateProvider.getReferenceDate()
-        val monthlySeries = safeGetMonthlySeries(listOf(valuationHolding), today)
 
-        val points = buildFixedIncomePerformancePoints(
-            holding = valuationHolding,
-            transactions = transactions,
-            rateMap = rateMap,
-            valuationReferenceDate = valuationReferenceDate,
-            monthlySeries = monthlySeries,
-            includeProjection = includeProjection,
-            today = today,
-        )
+        if (asset.assetType.isFixedIncomePerformanceSupported()) {
+            val resolvedResolution = HoldingPerformanceResolution.MONTH
+            val valuationHolding = holding.withBackfilledFixedIncomeTerms(transactions)
+            val rateMap = safeGetIndicatorRates()
+            val valuationReferenceDate = indicatorRateProvider.getReferenceDate()
+            val monthlySeries = safeGetMonthlySeries(listOf(valuationHolding), today)
 
-        val latestHistoricalPoint = points.lastOrNull { !it.isProjected }
-        val supportsProjection = valuationHolding.maturityDate?.isAfter(today) == true
+            val points = buildFixedIncomePerformancePoints(
+                holding = valuationHolding,
+                transactions = transactions,
+                rateMap = rateMap,
+                valuationReferenceDate = valuationReferenceDate,
+                monthlySeries = monthlySeries,
+                includeProjection = includeProjection,
+                fromDate = fromDate,
+                toDate = toDate,
+                today = today,
+            )
 
-        return HoldingPerformanceDTO(
-            holdingId = id,
+            val latestHistoricalPoint = points.lastOrNull { !it.isProjected }
+            val supportsProjection = valuationHolding.maturityDate?.isAfter(today) == true
+
+            return mapToHoldingPerformanceDTO(
+                holdingId = id,
+                asset = asset,
+                resolution = resolvedResolution,
+                supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
+                latestHistoricalPoint = latestHistoricalPoint,
+                supportsProjection = supportsProjection,
+                points = points,
+            )
+        }
+
+        if (asset.assetType.isFundAsset()) {
+            val resolvedResolution = resolveHistoricalPerformanceResolution(resolution)
+            val cnpj = asset.fundCnpj?.normalizedFundCnpj()?.takeIf { it.length == 14 }
+            if (cnpj != null && transactions.isNotEmpty()) {
+                val snapshot =
+                    try {
+                        fundMarketDataProvider.getSnapshotsByCnpj(setOf(cnpj))[cnpj]
+                    } catch (e: Exception) {
+                        logger.warn(e) { "Failed to fetch fund snapshot for performance holding=$id" }
+                        null
+                    }
+                if (snapshot != null) {
+                    val firstTxDate = transactions.minOf { it.tradeDate }
+                    val navSeries =
+                        try {
+                            fundMarketDataProvider.getNavSeries(cnpj, firstTxDate, today)
+                        } catch (e: Exception) {
+                            logger.warn(e) { "Failed to fetch fund NAV series for performance holding=$id" }
+                            emptyList()
+                        }
+                    if (navSeries.isNotEmpty()) {
+                        val fundPoints =
+                            buildFundNavPerformancePoints(
+                                holding = holding,
+                                transactions = transactions,
+                                navSeries = navSeries,
+                                taxSnapshot = snapshot,
+                                fundValuationService = fundValuationService,
+                                resolution = resolvedResolution,
+                                fromDate = fromDate,
+                                toDate = toDate,
+                                today = today,
+                                mathContext = mathContext,
+                            )
+                        if (fundPoints.isNotEmpty()) {
+                            val latestHistoricalPoint = fundPoints.lastOrNull()
+                            return mapToHoldingPerformanceDTO(
+                                holdingId = id,
+                                asset = asset,
+                                resolution = resolvedResolution,
+                                supportedResolutions = listOf(HoldingPerformanceResolution.DAY, HoldingPerformanceResolution.MONTH),
+                                latestHistoricalPoint = latestHistoricalPoint?.toInternalPerformancePoint(),
+                                supportsProjection = false,
+                                points = fundPoints.map { it.toInternalPerformancePoint() },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (asset.assetType.isVariableIncomePortfolioPerformanceSupported()) {
+            val resolvedResolution = resolveHistoricalPerformanceResolution(resolution)
+            val listedPoints =
+                buildListedVariableIncomePerformancePoints(
+                    holding = holding,
+                    asset = asset,
+                    transactions = transactions,
+                    resolution = resolvedResolution,
+                    fromDate = fromDate,
+                    toDate = toDate,
+                    today = today,
+                )
+            if (listedPoints.isNotEmpty()) {
+                val latestHistoricalPoint = listedPoints.lastOrNull()
+                return mapToHoldingPerformanceDTO(
+                    holdingId = id,
+                    asset = asset,
+                    resolution = resolvedResolution,
+                    supportedResolutions = listOf(HoldingPerformanceResolution.DAY, HoldingPerformanceResolution.MONTH),
+                    latestHistoricalPoint = latestHistoricalPoint,
+                    supportsProjection = false,
+                    points = listedPoints,
+                )
+            }
+        }
+
+        return null
+    }
+
+    private fun mapToHoldingPerformanceDTO(
+        holdingId: UUID,
+        asset: Asset,
+        resolution: HoldingPerformanceResolution,
+        supportedResolutions: List<HoldingPerformanceResolution>,
+        latestHistoricalPoint: PerformancePoint?,
+        supportsProjection: Boolean,
+        points: List<PerformancePoint>,
+    ): HoldingPerformanceDTO =
+        HoldingPerformanceDTO(
+            holdingId = holdingId,
             assetType = asset.assetType,
             currencyCode = asset.currencyCode,
-            resolution = resolvedResolution,
+            resolution = resolution,
             valuationSource = latestHistoricalPoint?.valuationSource ?: ValuationSource.UNAVAILABLE,
             valuationReferenceDate = latestHistoricalPoint?.valuationReferenceDate,
             capabilities = HoldingPerformanceCapabilitiesDTO(
                 supportsProjection = supportsProjection,
                 projectionDefaultEnabled = false,
-                supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
+                supportedResolutions = supportedResolutions,
                 defaultResolution = HoldingPerformanceResolution.MONTH,
             ),
             summary = HoldingPerformanceSummaryDTO(
@@ -262,7 +425,25 @@ class InvestmentQueryService(
                 )
             },
         )
-    }
+
+    private fun FundNavPerformancePoint.toInternalPerformancePoint(): PerformancePoint =
+        PerformancePoint(
+            timestamp = timestamp,
+            isProjected = isProjected,
+            investedPrincipal = investedPrincipal,
+            netContributions = netContributions,
+            currentCostBasis = currentCostBasis,
+            grossValue = grossValue,
+            netValue = netValue,
+            incomeTax = incomeTax,
+            iof = iof,
+            grossGain = grossGain,
+            netGain = netGain,
+            grossGainPercent = grossGainPercent,
+            quantity = quantity,
+            valuationSource = valuationSource,
+            valuationReferenceDate = valuationReferenceDate,
+        )
 
     fun getInvestmentHoldingPerformance(
         id: UUID,
@@ -275,7 +456,7 @@ class InvestmentQueryService(
         val currentValue = holdingSnapshot.grossValue ?: holdingSnapshot.netValue ?: currentCostBasis
         val cashFlows = transactions.mapNotNull { it.toHoldingCashFlow() }
         val totalInvested = transactions.sumOf { transaction ->
-            if (transaction.isCapitalContribution()) transaction.cashFlowAmountMagnitude() else 0.0
+            if (transaction.isCapitalContributionForPerformance()) transaction.cashFlowAmountMagnitude() else 0.0
         }
         val totalReturnAbsolute = cashFlows.sumOf(HoldingCashFlow::amount) + currentValue
         val totalReturnBase = totalInvested.takeIf { it > 0.0 } ?: currentCostBasis
@@ -305,16 +486,23 @@ class InvestmentQueryService(
 
     // ── Private ───────────────────────────────────────────────────────────────
 
-    private fun mapHoldingsToDTO(holdings: List<Holding>, accountId: UUID): List<InvestmentHoldingDTO> {
+    private fun mapHoldingsToDTO(
+        holdings: List<Holding>,
+        accountId: UUID,
+        preloadedAssetsById: Map<UUID, Asset>? = null,
+    ): List<InvestmentHoldingDTO> {
         if (holdings.isEmpty()) return emptyList()
 
         val accountsById = financialAccountRepository.findByAccountId(accountId).associateBy { it.id!! }
         val issuersById = issuerRepository
             .findByIds(accountsById.values.mapNotNull { it.issuerId }.toSet())
             .associateBy { it.id!! }
-        val assetsById = assetRepository
-            .findByIds(holdings.map { it.assetId }.toSet())
-            .associateBy { it.id!! }
+        val assetsById =
+            preloadedAssetsById
+                ?.filterKeys { assetId -> holdings.any { it.assetId == assetId } }
+                ?: assetRepository
+                    .findByIds(holdings.map { it.assetId }.toSet())
+                    .associateBy { it.id!! }
         val listedAssetDataByTicker = safeGetListedAssetData(
             holdings.mapNotNull { holding ->
                 assetsById[holding.assetId]?.listedAssetTicker()
@@ -608,15 +796,26 @@ class InvestmentQueryService(
         valuationReferenceDate: LocalDate?,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
         includeProjection: Boolean,
+        fromDate: LocalDate?,
+        toDate: LocalDate?,
         today: LocalDate,
     ): List<PerformancePoint> {
         val startDate = holding.issueDate ?: transactions.minOfOrNull { it.tradeDate } ?: return emptyList()
-        val endDate = minOf(holding.maturityDate ?: today, today)
-        val pointDates = buildMonthlyPerformanceDates(
-            startDate = startDate,
-            historicalEndDate = endDate,
-            projectionEndDate = if (includeProjection) holding.maturityDate else null,
-        )
+        val historicalEndDate = minOf(holding.maturityDate ?: today, today)
+        val window =
+            resolvePerformanceWindow(
+                startDate = startDate,
+                historicalEndDate = historicalEndDate,
+                projectionEndDate = if (includeProjection) holding.maturityDate else null,
+                fromDate = fromDate,
+                toDate = toDate,
+            ) ?: return emptyList()
+        val pointDates =
+            buildMonthlyPerformanceDates(
+                visibleFrom = window.fromDate,
+                visibleTo = window.toDate,
+                historicalEndDate = window.historicalEndDate,
+            )
         if (pointDates.isEmpty()) return emptyList()
 
         var txIndex = 0
@@ -628,10 +827,10 @@ class InvestmentQueryService(
             while (txIndex < transactions.size && !transactions[txIndex].tradeDate.isAfter(pointDate.date)) {
                 val transaction = transactions[txIndex]
                 state = state.applyPerformanceTransaction(transaction)
-                if (transaction.isCapitalContribution()) {
+                if (transaction.isCapitalContributionForPerformance()) {
                     investedPrincipal += transaction.grossValue
                     netContributions += transaction.grossValue
-                } else if (transaction.isCapitalWithdrawal()) {
+                } else if (transaction.isCapitalWithdrawalForPerformance()) {
                     netContributions -= transaction.grossValue
                 }
                 txIndex += 1
@@ -648,6 +847,245 @@ class InvestmentQueryService(
             )
         }
     }
+
+    /**
+     * Monthly series for listed variable income holdings, marked to market with historical prices when available.
+     */
+    private fun buildListedVariableIncomePerformancePoints(
+        holding: Holding,
+        asset: Asset,
+        transactions: List<InvestmentTransaction>,
+        resolution: HoldingPerformanceResolution,
+        fromDate: LocalDate?,
+        toDate: LocalDate?,
+        today: LocalDate,
+    ): List<PerformancePoint> {
+        if (transactions.isEmpty()) return emptyList()
+
+        val startDate =
+            listOfNotNull(
+                transactions.minOfOrNull { it.tradeDate },
+                holding.issueDate,
+            ).minOrNull() ?: return emptyList()
+
+        val window =
+            resolvePerformanceWindow(
+                startDate = startDate,
+                historicalEndDate = today,
+                projectionEndDate = null,
+                fromDate = fromDate,
+                toDate = toDate,
+            ) ?: return emptyList()
+        val historicalPrices = loadListedAssetHistoricalPrices(asset, window.fromDate, window.toDate)
+        val pointDates =
+            buildListedVariableIncomePointDates(
+                resolution = resolution,
+                historicalPrices = historicalPrices,
+                fromDate = window.fromDate,
+                toDate = window.toDate,
+            )
+        if (pointDates.isEmpty()) return emptyList()
+
+        val ticker = asset.listedAssetTicker()
+        val latestMarketPrice: ListedAssetMarketPrice? =
+            ticker?.let { t ->
+                safeGetListedAssetData(setOf(t))[t]?.let { d ->
+                    val close = d.closePrice ?: return@let null
+                    val ref = d.referenceDate ?: return@let null
+                    ListedAssetMarketPrice(
+                        ticker = d.ticker,
+                        closePrice = close,
+                        referenceDate = ref,
+                    )
+                }
+            }
+        val lastHistoricalDate = pointDates.lastOrNull { !it.isProjected }?.date
+
+        var txIndex = 0
+        var state = holding.asEmptyPerformanceState()
+        var investedPrincipal = BigDecimal.ZERO
+        var netContributions = BigDecimal.ZERO
+
+        val rawPoints =
+            pointDates.map { pointDate ->
+                while (txIndex < transactions.size && !transactions[txIndex].tradeDate.isAfter(pointDate.date)) {
+                    val transaction = transactions[txIndex]
+                    state = state.applyPerformanceTransaction(transaction)
+                    if (transaction.isCapitalContributionForPerformance()) {
+                        investedPrincipal += transaction.grossValue
+                        netContributions += transaction.grossValue
+                    } else if (transaction.isCapitalWithdrawalForPerformance()) {
+                        netContributions -= transaction.grossValue
+                    }
+                    txIndex += 1
+                }
+
+                val isTerminal = !pointDate.isProjected && pointDate.date == lastHistoricalDate
+                val resolvedMarketPrice =
+                    resolveListedAssetMarketPrice(
+                        historicalPrices = historicalPrices,
+                        pointDate = pointDate.date,
+                        latestMarketPrice = latestMarketPrice,
+                    )
+                createListedVariableIncomePerformancePoint(
+                    state = state,
+                    asset = asset,
+                    investedPrincipal = investedPrincipal,
+                    netContributions = netContributions,
+                    pointDate = pointDate,
+                    isTerminalHistoricalPoint = isTerminal,
+                    marketPrice = resolvedMarketPrice,
+                    providerGrossValue = holding.grossValue,
+                )
+            }
+
+        return ensureAtLeastTwoListedPerformancePoints(rawPoints, window.toDate)
+    }
+
+    private fun createListedVariableIncomePerformancePoint(
+        state: Holding,
+        asset: Asset,
+        investedPrincipal: BigDecimal,
+        netContributions: BigDecimal,
+        pointDate: DatedPerformancePoint,
+        isTerminalHistoricalPoint: Boolean,
+        marketPrice: ListedAssetMarketPrice?,
+        providerGrossValue: BigDecimal?,
+    ): PerformancePoint {
+        val currentCostBasis = state.quantity.multiply(state.averageCost, mathContext)
+
+        if (state.quantity <= BigDecimal.ZERO || currentCostBasis <= BigDecimal.ZERO) {
+            return PerformancePoint(
+                timestamp = pointDate.date.atStartOfDay().toInstant(ZoneOffset.UTC),
+                isProjected = pointDate.isProjected,
+                investedPrincipal = investedPrincipal,
+                netContributions = netContributions,
+                currentCostBasis = BigDecimal.ZERO,
+                grossValue = BigDecimal.ZERO,
+                netValue = BigDecimal.ZERO,
+                incomeTax = BigDecimal.ZERO,
+                iof = BigDecimal.ZERO,
+                grossGain = BigDecimal.ZERO,
+                netGain = BigDecimal.ZERO,
+                grossGainPercent = BigDecimal.ZERO,
+                quantity = BigDecimal.ZERO,
+                valuationSource = ValuationSource.CALCULATED,
+                valuationReferenceDate = null,
+            )
+        }
+
+        val priceFactor = asset.priceFactor
+        val grossValue: BigDecimal?
+        val valuationSource: ValuationSource
+        val valuationReferenceDate: LocalDate?
+
+        when {
+            marketPrice != null -> {
+                grossValue =
+                    state.quantity
+                        .multiply(marketPrice.closePrice, mathContext)
+                        .multiply(priceFactor, mathContext)
+                valuationSource = ValuationSource.MARKET_DATA
+                valuationReferenceDate = marketPrice.referenceDate
+            }
+            isTerminalHistoricalPoint && providerGrossValue != null -> {
+                grossValue = providerGrossValue
+                valuationSource = ValuationSource.PROVIDER
+                valuationReferenceDate = null
+            }
+            else -> {
+                grossValue = currentCostBasis
+                valuationSource = ValuationSource.CALCULATED
+                valuationReferenceDate = null
+            }
+        }
+
+        val netValue = grossValue
+        val grossGain = grossValue?.subtract(currentCostBasis)
+        val netGain = netValue?.subtract(currentCostBasis)
+        val grossGainPercent =
+            if (grossGain != null && currentCostBasis > BigDecimal.ZERO) {
+                grossGain.divide(currentCostBasis, mathContext)
+            } else {
+                null
+            }
+
+        return PerformancePoint(
+            timestamp = pointDate.date.atStartOfDay().toInstant(ZoneOffset.UTC),
+            isProjected = pointDate.isProjected,
+            investedPrincipal = investedPrincipal,
+            netContributions = netContributions,
+            currentCostBasis = currentCostBasis,
+            grossValue = grossValue,
+            netValue = netValue,
+            incomeTax = null,
+            iof = null,
+            grossGain = grossGain,
+            netGain = netGain,
+            grossGainPercent = grossGainPercent,
+            quantity = state.quantity,
+            valuationSource = valuationSource,
+            valuationReferenceDate = valuationReferenceDate,
+        )
+    }
+
+    private fun ensureAtLeastTwoListedPerformancePoints(
+        points: List<PerformancePoint>,
+        today: LocalDate,
+    ): List<PerformancePoint> {
+        if (points.size >= 2) return points
+        if (points.isEmpty()) return points
+        val last = points.last()
+        val lastDay = last.timestamp.atZone(ZoneOffset.UTC).toLocalDate()
+        val candidate =
+            if (lastDay.isBefore(today)) {
+                today.atStartOfDay(ZoneOffset.UTC).toInstant()
+            } else {
+                last.timestamp.plusSeconds(1)
+            }
+        val second =
+            if (candidate == last.timestamp) {
+                last.copy(timestamp = last.timestamp.plusNanos(1))
+            } else {
+                last.copy(timestamp = candidate)
+            }
+        return listOf(last, second)
+    }
+
+    private fun loadListedAssetHistoricalPrices(
+        asset: Asset,
+        from: LocalDate,
+        to: LocalDate,
+    ): TreeMap<LocalDate, ListedAssetMarketPrice> {
+        val assetId = asset.id ?: return TreeMap()
+        val result = TreeMap<LocalDate, ListedAssetMarketPrice>()
+
+        assetDailyPriceRepository.findLatestBefore(assetId, from)?.let { price ->
+            result[price.priceDate] = ListedAssetMarketPrice(
+                ticker = asset.listedAssetTicker().orEmpty(),
+                closePrice = price.closePrice,
+                referenceDate = price.priceDate,
+            )
+        }
+
+        assetDailyPriceRepository.findByAssetAndDateRange(assetId, from, to).forEach { price ->
+            result[price.priceDate] = ListedAssetMarketPrice(
+                ticker = asset.listedAssetTicker().orEmpty(),
+                closePrice = price.closePrice,
+                referenceDate = price.priceDate,
+            )
+        }
+
+        return result
+    }
+
+    private fun resolveListedAssetMarketPrice(
+        historicalPrices: TreeMap<LocalDate, ListedAssetMarketPrice>,
+        pointDate: LocalDate,
+        latestMarketPrice: ListedAssetMarketPrice?,
+    ): ListedAssetMarketPrice? =
+        historicalPrices.floorEntry(pointDate)?.value
+            ?: latestMarketPrice?.takeIf { !it.referenceDate.isAfter(pointDate) }
 
     private fun createPerformancePoint(
         holding: Holding,
@@ -719,128 +1157,97 @@ class InvestmentQueryService(
     }
 
     private fun buildMonthlyPerformanceDates(
+        visibleFrom: LocalDate,
+        visibleTo: LocalDate,
+        historicalEndDate: LocalDate,
+    ): List<DatedPerformancePoint> {
+        if (visibleTo.isBefore(visibleFrom)) return emptyList()
+        val actualUpperBound = minOf(visibleTo, historicalEndDate)
+        val points = mutableListOf<DatedPerformancePoint>()
+
+        if (!actualUpperBound.isBefore(visibleFrom)) {
+            points +=
+                buildMonthlySegmentDates(visibleFrom, actualUpperBound).map { date ->
+                    DatedPerformancePoint(date = date, isProjected = false)
+                }
+        }
+
+        if (visibleTo.isAfter(historicalEndDate)) {
+            val startMonth = maxOf(YearMonth.from(visibleFrom), YearMonth.from(historicalEndDate).plusMonths(1))
+            val endMonth = YearMonth.from(visibleTo)
+            points +=
+                generateSequence(startMonth) { it.plusMonths(1) }
+                    .takeWhile { !it.isAfter(endMonth) }
+                    .map { month ->
+                        val pointDate = if (month == endMonth) visibleTo else month.atEndOfMonth()
+                        DatedPerformancePoint(date = pointDate, isProjected = true)
+                    }
+                    .toList()
+        }
+
+        return points.distinctBy { it.date }
+    }
+
+    private fun buildMonthlySegmentDates(
+        startDate: LocalDate,
+        endDate: LocalDate,
+    ): List<LocalDate> {
+        if (endDate.isBefore(startDate)) return emptyList()
+        val startMonth = YearMonth.from(startDate)
+        val endMonth = YearMonth.from(endDate)
+        return generateSequence(startMonth) { it.plusMonths(1) }
+            .takeWhile { !it.isAfter(endMonth) }
+            .map { month ->
+                when {
+                    startMonth == endMonth -> endDate
+                    month == startMonth -> startDate
+                    month == endMonth -> endDate
+                    else -> month.atEndOfMonth()
+                }
+            }
+            .distinct()
+            .toList()
+    }
+
+    private fun buildListedVariableIncomePointDates(
+        resolution: HoldingPerformanceResolution,
+        historicalPrices: TreeMap<LocalDate, ListedAssetMarketPrice>,
+        fromDate: LocalDate,
+        toDate: LocalDate,
+    ): List<DatedPerformancePoint> =
+        when (resolution) {
+            HoldingPerformanceResolution.DAY ->
+                (
+                    historicalPrices.keys.filter { !it.isBefore(fromDate) && !it.isAfter(toDate) } + toDate
+                ).distinct()
+                    .sorted()
+                    .map { DatedPerformancePoint(date = it, isProjected = false) }
+            else -> buildMonthlyPerformanceDates(visibleFrom = fromDate, visibleTo = toDate, historicalEndDate = toDate)
+        }
+
+    private fun resolveHistoricalPerformanceResolution(
+        requested: HoldingPerformanceResolution?,
+    ): HoldingPerformanceResolution =
+        requested.takeIf { it == HoldingPerformanceResolution.DAY || it == HoldingPerformanceResolution.MONTH }
+            ?: HoldingPerformanceResolution.MONTH
+
+    private fun resolvePerformanceWindow(
         startDate: LocalDate,
         historicalEndDate: LocalDate,
         projectionEndDate: LocalDate?,
-    ): List<DatedPerformancePoint> {
-        if (historicalEndDate.isBefore(startDate)) return emptyList()
-
-        val dates = mutableListOf<DatedPerformancePoint>()
-        fun appendMonthlyRange(
-            rangeStart: LocalDate,
-            rangeEnd: LocalDate,
-            isProjected: Boolean,
-            useRangeStartForFirstMonth: Boolean,
-        ) {
-            if (rangeEnd.isBefore(rangeStart)) return
-
-            val startMonth = YearMonth.from(rangeStart)
-            val endMonth = YearMonth.from(rangeEnd)
-            var monthCursor = startMonth
-            while (!monthCursor.isAfter(endMonth)) {
-                val pointDate =
-                    when {
-                        startMonth == endMonth -> rangeEnd
-                        monthCursor == startMonth && useRangeStartForFirstMonth -> rangeStart
-                        monthCursor == startMonth -> monthCursor.atEndOfMonth()
-                        monthCursor == endMonth -> rangeEnd
-                        else -> monthCursor.atEndOfMonth()
-                    }
-                if (dates.none { it.date == pointDate }) {
-                    dates += DatedPerformancePoint(pointDate, isProjected)
-                }
-                monthCursor = monthCursor.plusMonths(1)
-            }
-        }
-
-        appendMonthlyRange(startDate, historicalEndDate, false, true)
-
-        if (projectionEndDate != null && projectionEndDate.isAfter(historicalEndDate)) {
-            val projectionStart =
-                if (YearMonth.from(historicalEndDate) == YearMonth.from(historicalEndDate.plusDays(1))) {
-                    historicalEndDate.withDayOfMonth(1).plusMonths(1)
-                } else {
-                    historicalEndDate.plusDays(1)
-                }
-            appendMonthlyRange(projectionStart, projectionEndDate, true, false)
-        }
-
-        return dates.sortedBy { it.date }
-    }
-
-    private fun Holding.asEmptyPerformanceState(): Holding =
-        copy(
-            quantity = BigDecimal.ZERO,
-            averageCost = BigDecimal.ZERO,
-            grossValue = null,
-            netValue = null,
-            incomeTax = null,
-            iof = null,
-            lastValuedAt = null,
+        fromDate: LocalDate?,
+        toDate: LocalDate?,
+    ): PerformanceWindow? {
+        val upperBound = projectionEndDate ?: historicalEndDate
+        val resolvedFrom = maxOf(fromDate ?: startDate, startDate)
+        val resolvedTo = minOf(toDate ?: upperBound, upperBound)
+        if (resolvedTo.isBefore(resolvedFrom)) return null
+        return PerformanceWindow(
+            fromDate = resolvedFrom,
+            toDate = resolvedTo,
+            historicalEndDate = minOf(resolvedTo, historicalEndDate),
         )
-
-    private fun Holding.applyPerformanceTransaction(transaction: InvestmentTransaction): Holding {
-        val quantity = transaction.quantity
-        val unitPrice = transaction.unitPrice ?: quantity?.takeIf { it > BigDecimal.ZERO }?.let {
-            transaction.grossValue.divide(it, COST_SCALE, RoundingMode.HALF_UP)
-        }
-
-        return when (transaction.type) {
-            InvestmentTransactionType.PURCHASE,
-            InvestmentTransactionType.SUBSCRIPTION,
-            -> {
-                if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO) return this
-                val newQuantity = this.quantity + quantity
-                val newAverageCost =
-                    if (this.quantity.signum() == 0) {
-                        unitPrice
-                    } else {
-                        (this.quantity * this.averageCost + quantity * unitPrice)
-                            .divide(newQuantity, COST_SCALE, RoundingMode.HALF_UP)
-                    }
-                copy(quantity = newQuantity, averageCost = newAverageCost)
-            }
-
-            InvestmentTransactionType.SALE -> {
-                if (quantity == null || quantity <= BigDecimal.ZERO) return this
-                copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
-            }
-
-            InvestmentTransactionType.MATURITY -> {
-                val closingQuantity = quantity ?: this.quantity
-                copy(quantity = (this.quantity - closingQuantity).coerceAtLeast(BigDecimal.ZERO))
-            }
-
-            InvestmentTransactionType.CUSTODY_TRANSFER,
-            InvestmentTransactionType.OWNERSHIP_TRANSFER,
-            InvestmentTransactionType.QUOTA_TRANSFER,
-            -> {
-                if (transaction.direction == InvestmentTransactionDirection.INFLOW) {
-                    if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO) return this
-                    val newQuantity = this.quantity + quantity
-                    val newAverageCost =
-                        if (this.quantity.signum() == 0) {
-                            unitPrice
-                        } else {
-                            (this.quantity * this.averageCost + quantity * unitPrice)
-                                .divide(newQuantity, COST_SCALE, RoundingMode.HALF_UP)
-                        }
-                    copy(quantity = newQuantity, averageCost = newAverageCost)
-                } else {
-                    if (quantity == null || quantity <= BigDecimal.ZERO) return this
-                    copy(quantity = (this.quantity - quantity).coerceAtLeast(BigDecimal.ZERO))
-                }
-            }
-
-            else -> this
-        }
     }
-
-    private fun InvestmentTransaction.isCapitalContribution(): Boolean =
-        direction == InvestmentTransactionDirection.INFLOW && type in CAPITAL_CONTRIBUTION_TYPES
-
-    private fun InvestmentTransaction.isCapitalWithdrawal(): Boolean =
-        direction == InvestmentTransactionDirection.OUTFLOW && type in CAPITAL_WITHDRAWAL_TYPES
 
     private fun InvestmentTransaction.cashFlowAmountMagnitude(): Double =
         (netValue ?: grossValue).abs().toDouble()
@@ -855,8 +1262,8 @@ class InvestmentQueryService(
     private fun InvestmentTransaction.toHoldingCashFlow(): HoldingCashFlow? {
         val amount =
             when {
-                isCapitalContribution() -> -cashFlowAmountMagnitude()
-                isCapitalWithdrawal() -> cashFlowAmountMagnitude()
+                isCapitalContributionForPerformance() -> -cashFlowAmountMagnitude()
+                isCapitalWithdrawalForPerformance() -> cashFlowAmountMagnitude()
                 direction == InvestmentTransactionDirection.INFLOW && type in DIVIDEND_LIKE_TYPES -> cashFlowAmountMagnitude()
                 direction == InvestmentTransactionDirection.OUTFLOW && type in EXPENSE_LIKE_TYPES -> -cashFlowAmountMagnitude()
                 else -> null
@@ -922,6 +1329,12 @@ class InvestmentQueryService(
     private data class DatedPerformancePoint(
         val date: LocalDate,
         val isProjected: Boolean,
+    )
+
+    private data class PerformanceWindow(
+        val fromDate: LocalDate,
+        val toDate: LocalDate,
+        val historicalEndDate: LocalDate,
     )
 
     private data class HoldingCashFlow(
@@ -1001,7 +1414,10 @@ class InvestmentQueryService(
     )
 
     private fun AssetType?.isFundAsset(): Boolean =
-        this == AssetType.MUTUAL_FUND || this == AssetType.PGBL || this == AssetType.VGBL
+        this in FUND_ASSET_TYPES
+
+    private fun AssetType?.isVariableIncomePortfolioPerformanceSupported(): Boolean =
+        this in VARIABLE_INCOME_PORTFOLIO_PERFORMANCE_ASSET_TYPES
 
     private fun AssetType?.supportsListedAssetTickerFallback(): Boolean =
         this in setOf(
@@ -1075,7 +1491,6 @@ class InvestmentQueryService(
     )
 
     private companion object {
-        private const val COST_SCALE = 8
         private val LISTED_ASSET_TICKER_REGEX = Regex("^[A-Z]{4,6}\\d{1,2}$")
         private val INFLATION_LINKED_INDEXERS =
             setOf(Indexer.IPCA, Indexer.IGP_M, Indexer.IGP_DI, Indexer.INPC, Indexer.TR)
@@ -1096,23 +1511,31 @@ class InvestmentQueryService(
                 AssetType.TREASURY,
                 AssetType.COE,
             )
-        private val CAPITAL_CONTRIBUTION_TYPES =
+        private val FUND_ASSET_TYPES =
             setOf(
-                InvestmentTransactionType.PURCHASE,
-                InvestmentTransactionType.SUBSCRIPTION,
-                InvestmentTransactionType.CUSTODY_TRANSFER,
-                InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                InvestmentTransactionType.QUOTA_TRANSFER,
+                AssetType.MUTUAL_FUND,
+                AssetType.PGBL,
+                AssetType.VGBL,
+                AssetType.REAL_ESTATE_FUND,
+                AssetType.AGRIBUSINESS_FUND,
+                AssetType.ETF,
+                AssetType.ETF_FIXED_INCOME,
+                AssetType.ETF_INTERNATIONAL,
             )
-        private val CAPITAL_WITHDRAWAL_TYPES =
+        /** Asset types used by portfolio performance subgroup filters when NAV/RF paths do not apply. */
+        private val VARIABLE_INCOME_PORTFOLIO_PERFORMANCE_ASSET_TYPES =
             setOf(
-                InvestmentTransactionType.SALE,
-                InvestmentTransactionType.MATURITY,
-                InvestmentTransactionType.AMORTIZATION,
-                InvestmentTransactionType.CANCELLATION,
-                InvestmentTransactionType.CUSTODY_TRANSFER,
-                InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                InvestmentTransactionType.QUOTA_TRANSFER,
+                AssetType.STOCK,
+                AssetType.STOCK_RIGHTS,
+                AssetType.BDR,
+                AssetType.ETF,
+                AssetType.ETF_FIXED_INCOME,
+                AssetType.ETF_INTERNATIONAL,
+                AssetType.REAL_ESTATE_FUND,
+                AssetType.AGRIBUSINESS_FUND,
+                AssetType.CRYPTO,
+                AssetType.OPTION,
+                AssetType.DERIVATIVES,
             )
         private val DIVIDEND_LIKE_TYPES =
             setOf(

@@ -56,6 +56,11 @@ interface RecordFundHoldingDrawerProps {
     asset: { id: string; name: string; assetType: AssetType };
   } | null;
   editTransaction?: InvestmentTransaction | null;
+  prefillHolding?: {
+    id: string;
+    asset: { id: string; name: string; assetType: AssetType };
+  } | null;
+  initialDirection?: InvestmentTransactionDirection;
 }
 
 type ListingMode = "CVM" | "MANUAL";
@@ -97,6 +102,8 @@ export function RecordFundHoldingDrawer({
   onRecorded,
   editHolding,
   editTransaction,
+  prefillHolding,
+  initialDirection,
 }: RecordFundHoldingDrawerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -221,6 +228,25 @@ export function RecordFundHoldingDrawer({
       setListingMode("CVM");
     }
   }, [open, reset]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (isEdit) return;
+    if (!prefillHolding) return;
+
+    setListingMode("CVM");
+    methods.setValue(
+      "fund",
+      {
+        id: prefillHolding.asset.id,
+        name: prefillHolding.asset.name,
+        cnpj: "",
+        assetType: String(prefillHolding.asset.assetType),
+        isActive: true,
+      },
+      { shouldDirty: false, shouldValidate: true },
+    );
+  }, [isEdit, methods, open, prefillHolding]);
 
   useEffect(() => {
     if (!open) return;
@@ -363,6 +389,8 @@ export function RecordFundHoldingDrawer({
     const resolvedAssetId =
       isEdit
         ? editHolding!.asset.id
+        : prefillHolding
+          ? prefillHolding.asset.id
         : (await (async () => {
             const assetType = isManual
               ? data.manualAssetType ?? AssetType.MutualFund
@@ -394,8 +422,12 @@ export function RecordFundHoldingDrawer({
           input: {
             financialAccountId: resolvedFinancialAccountId,
             assetId: resolvedAssetId,
-            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
-            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+            direction: isEdit ? editTransaction!.direction : (initialDirection ?? InvestmentTransactionDirection.Inflow),
+            type: isEdit
+              ? editTransaction!.type
+              : (initialDirection ?? InvestmentTransactionDirection.Inflow) === InvestmentTransactionDirection.Outflow
+                ? InvestmentTransactionType.Sale
+                : InvestmentTransactionType.Purchase,
             quantity,
             unitPrice,
             grossValue,
@@ -483,6 +515,7 @@ export function RecordFundHoldingDrawer({
                     setListingMode(next);
                   }}
                   sx={{
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     "& .MuiTab-root": {
                       textTransform: "none",
                       fontWeight: theme.typography.button.fontWeight,
@@ -503,7 +536,6 @@ export function RecordFundHoldingDrawer({
                   <Tab value="CVM" label={t("investments.recordFund.modes.cvmListed")} disabled={isEdit} />
                   <Tab value="MANUAL" label={t("investments.recordFund.modes.notListed")} disabled={isEdit} />
                 </Tabs>
-                <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }} />
               </FormStack>
 
               {listingMode === "CVM" ? (
@@ -515,7 +547,11 @@ export function RecordFundHoldingDrawer({
                     data-testid="record-fund-edit-fund-name"
                   />
                 ) : (
-                  <FundAutocomplete name="fund" data-testid="record-fund-autocomplete" />
+                  <FundAutocomplete
+                    name="fund"
+                    data-testid="record-fund-autocomplete"
+                    disabled={Boolean(prefillHolding)}
+                  />
                 )
               ) : (
                 <FormStack spacing={1.5}>
@@ -573,6 +609,7 @@ export function RecordFundHoldingDrawer({
                 <DatePickerField
                   name="tradeDate"
                   label={t("investments.recordFund.fields.tradeDate")}
+                  disableFuture
                   data-testid="record-fund-trade-date"
                 />
               </Box>
@@ -589,6 +626,7 @@ export function RecordFundHoldingDrawer({
                     setValueFlow(next);
                   }}
                   sx={{
+                    borderBottom: `1px solid ${theme.palette.divider}`,
                     "& .MuiTab-root": {
                       textTransform: "none",
                       fontWeight: theme.typography.button.fontWeight,
@@ -609,7 +647,6 @@ export function RecordFundHoldingDrawer({
                   <Tab value="BY_AMOUNT" label={t("investments.recordFund.flows.byAmount")} />
                   <Tab value="BY_QUANTITY" label={t("investments.recordFund.flows.byQuantity")} />
                 </Tabs>
-                <Box sx={{ borderBottom: `1px solid ${theme.palette.divider}` }} />
               </FormStack>
 
               {valueFlow === "BY_AMOUNT" ? (
@@ -619,7 +656,7 @@ export function RecordFundHoldingDrawer({
                       <Box sx={{ flex: 1, minWidth: 0 }}>
                         <MoneyInput
                           name="grossValue"
-                          label={t("investments.recordFund.fields.grossValue")}
+                          label="Valor aplicado"
                           currency="BRL"
                           data-testid="record-fund-gross-value"
                         />
@@ -636,7 +673,7 @@ export function RecordFundHoldingDrawer({
                   ) : (
                     <MoneyInput
                       name="grossValue"
-                      label={t("investments.recordFund.fields.grossValue")}
+                      label="Valor aplicado"
                       currency="BRL"
                       data-testid="record-fund-gross-value"
                     />

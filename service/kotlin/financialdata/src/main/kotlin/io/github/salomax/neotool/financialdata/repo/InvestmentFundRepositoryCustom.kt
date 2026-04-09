@@ -60,6 +60,16 @@ interface InvestmentFundRepositoryCustom {
 
     fun findMarketSnapshotsByCnpj(cnpjs: Collection<String>): List<InvestmentFundMarketSnapshot>
 
+    /**
+     * All daily NAV rows for a CVM fund in [from, to], ascending by date.
+     * [normalizedCnpj] must be 14 digits (no punctuation). Empty when fund not found or no prices.
+     */
+    fun getNavSeriesByFundCnpj(
+        normalizedCnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<FundDailyNav>
+
     fun getDailyNavsForSync(
         from: LocalDate,
         to: LocalDate,

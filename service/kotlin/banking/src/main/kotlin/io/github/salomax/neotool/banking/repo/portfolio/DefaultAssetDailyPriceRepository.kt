@@ -6,6 +6,7 @@ import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
+import javax.sql.DataSource
 import java.time.LocalDate
 import java.util.UUID
 
@@ -13,7 +14,22 @@ import java.util.UUID
 open class DefaultAssetDailyPriceRepository(
     private val entityRepository: AssetDailyPriceEntityRepository,
     @PersistenceContext private val entityManager: EntityManager,
+    private val dataSource: DataSource,
 ) : AssetDailyPriceRepository {
+    private val batchUpsertSql =
+        """
+        INSERT INTO banking.investment_asset_daily_price
+            (asset_id, price_date, close_price, currency_code, source, created_at, updated_at)
+        VALUES
+            (?, ?, ?, ?, ?, NOW(), NOW())
+        ON CONFLICT (asset_id, price_date)
+        DO UPDATE SET
+            close_price   = EXCLUDED.close_price,
+            currency_code = EXCLUDED.currency_code,
+            source        = EXCLUDED.source,
+            updated_at    = NOW()
+        """.trimIndent()
+
     @Transactional
     override fun upsert(price: InvestmentAssetDailyPrice): InvestmentAssetDailyPrice {
         entityRepository.upsert(
@@ -27,6 +43,25 @@ open class DefaultAssetDailyPriceRepository(
         return entityRepository.findByKey(price.assetId, price.priceDate)
             ?.let(InvestmentAssetDailyPriceMapper::toDomain)
             ?: throw IllegalStateException("Asset daily price upsert failed for ${price.assetId} @ ${price.priceDate}")
+    }
+
+    @Transactional
+    override fun upsertAll(prices: List<InvestmentAssetDailyPrice>) {
+        if (prices.isEmpty()) return
+        dataSource.connection.use { connection ->
+            connection.prepareStatement(batchUpsertSql).use { statement ->
+                prices.forEach { price ->
+                    statement.setObject(1, price.assetId)
+                    statement.setObject(2, price.priceDate)
+                    statement.setBigDecimal(3, price.closePrice)
+                    statement.setString(4, price.currencyCode)
+                    statement.setString(5, price.source)
+                    statement.addBatch()
+                }
+                statement.executeBatch()
+            }
+        }
+        entityManager.clear()
     }
 
     override fun findByAssetAndDate(

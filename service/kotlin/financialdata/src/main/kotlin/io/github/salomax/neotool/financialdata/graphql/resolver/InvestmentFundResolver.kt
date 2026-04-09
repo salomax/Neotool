@@ -64,4 +64,15 @@ class InvestmentFundResolver(
 
     fun investmentFundMarketSnapshots(cnpjs: List<String>): List<InvestmentFundMarketSnapshotDTO> =
         fundSearchService.getMarketSnapshotsByCnpj(cnpjs).map(mapper::toMarketSnapshotDTO)
+
+    fun fundNavSeries(
+        cnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<FundDailyNavDTO> {
+        val normalized = cnpj.filter { it.isDigit() }
+        if (normalized.length != 14) return emptyList()
+        val history = fundSearchService.getNavSeriesByFundCnpj(normalized, from, to)
+        return mapper.toNavListDTO(history)
+    }
 }

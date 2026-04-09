@@ -18,6 +18,9 @@ open class DefaultAssetRepository(
         if (ids.isEmpty()) emptyList()
         else entityRepository.findByIdIn(ids).map(AssetMapper::toDomain)
 
+    override fun findAllWithTicker(): List<Asset> =
+        entityRepository.findByTickerIsNotNull().map(AssetMapper::toDomain)
+
     override fun findByTicker(ticker: String): Asset? =
         entityRepository.findByTicker(ticker)?.let(AssetMapper::toDomain)
 

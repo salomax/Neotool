@@ -30,6 +30,7 @@ data class MarketDataSyncControl(
     val sourceLastDataDate: LocalDate? = null,
     val sourceLastRunAt: Instant? = null,
     val lastSyncedDate: LocalDate? = null,
+    val lastCursor: String? = null,
     val lastSyncStartedAt: Instant? = null,
     val lastSyncCompletedAt: Instant? = null,
     val status: MarketDataSyncStatus = MarketDataSyncStatus.IDLE,

@@ -203,6 +203,8 @@ export interface LineChartProps {
   referenceLines?: LineChartReferenceLine[];
   sx?: any;
   locale?: string;
+  /** Recharts Line/Area interpolation. Default `monotone` for smooth curves. */
+  curveType?: React.ComponentProps<typeof Line>["type"];
 }
 
 // --- Helpers ---
@@ -516,6 +518,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   referenceLines,
   sx,
   locale: localeProp,
+  curveType = "monotone",
 }) => {
   const theme = useTheme();
 
@@ -986,7 +989,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                 <React.Fragment key={serie.id}>
                   {serie.kind === "area" ? (
                     <Area
-                      type="monotone"
+                      type={curveType}
                       dataKey={actualKey}
                       name={serie.name}
                       stroke={color}
@@ -998,7 +1001,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                     />
                   ) : (
                     <Line
-                      type="monotone"
+                      type={curveType}
                       dataKey={actualKey}
                       name={serie.name}
                       stroke={color}
@@ -1013,7 +1016,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                   {projKey && (
                     serie.kind === "area" ? (
                       <Area
-                        type="monotone"
+                        type={curveType}
                         dataKey={projKey}
                         name={serie.name}
                         stroke={color}
@@ -1027,7 +1030,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       />
                     ) : (
                       <Line
-                        type="monotone"
+                        type={curveType}
                         dataKey={projKey}
                         name={serie.name}
                         stroke={color}

@@ -553,15 +553,6 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
                     .thenByDescending { it.createdAt },
             )
 
-    override fun findSystemRules(): List<TransactionRule> =
-        rules
-            .filter { it.deletedAt == null && it.accountId == null && it.isSystem }
-            .sortedWith(
-                compareBy<TransactionRule> { it.priority }
-                    .thenByDescending { it.matchCount }
-                    .thenByDescending { it.createdAt },
-            )
-
     override fun findById(id: UUID): TransactionRule? =
         rules.firstOrNull { it.deletedAt == null && it.id == id }
 

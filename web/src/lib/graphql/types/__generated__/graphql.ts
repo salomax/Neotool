@@ -1723,6 +1723,15 @@ export type InvestmentHolding = {
   valuationSource: ValuationSource;
 };
 
+/** Aggregate class used to filter holdings by broader investment category. */
+export enum InvestmentHoldingAssetClass {
+  Crypto = 'CRYPTO',
+  FixedIncome = 'FIXED_INCOME',
+  InvestmentFund = 'INVESTMENT_FUND',
+  Options = 'OPTIONS',
+  VariableIncome = 'VARIABLE_INCOME'
+}
+
 export type InvestmentHoldingPerformance = {
   __typename: 'InvestmentHoldingPerformance';
   dividendsReceived: Scalars['Float']['output'];
@@ -2813,6 +2822,25 @@ export type PortfolioPerformance = {
   twrSince: Maybe<Scalars['Date']['output']>;
 };
 
+export type PortfolioPerformanceSeries = {
+  __typename: 'PortfolioPerformanceSeries';
+  capabilities: HoldingPerformanceCapabilities;
+  currencyCode: Scalars['String']['output'];
+  /** Number of holdings that matched the filter but were skipped (no series available). */
+  excludedHoldingsCount: Scalars['Int']['output'];
+  /** Echo of the requested filter; null means whole portfolio. */
+  groupKey: Maybe<Scalars['String']['output']>;
+  /** Number of holdings actually contributing to the series. */
+  includedHoldingsCount: Scalars['Int']['output'];
+  /** Localized label for the group, or "Portfolio" when groupKey is null. */
+  label: Scalars['String']['output'];
+  points: Array<HoldingPerformancePoint>;
+  resolution: HoldingPerformanceResolution;
+  summary: HoldingPerformanceSummary;
+  valuationReferenceDate: Maybe<Scalars['Date']['output']>;
+  valuationSource: ValuationSource;
+};
+
 export type PricePoint = {
   __typename: 'PricePoint';
   date: Scalars['Date']['output'];
@@ -2995,6 +3023,7 @@ export type Query = {
   financialAccounts: Array<FinancialAccount>;
   fixedIncomeComparison: FixedIncomeComparisonResult;
   fundDailyNavs: FundDailyNavConnection;
+  fundNavSeries: Array<FundDailyNav>;
   group: Maybe<Group>;
   groups: GroupConnection;
   /** Generic performance series and valuation summary for a holding. */
@@ -3059,6 +3088,12 @@ export type Query = {
   pendingReviewImports: Array<TransactionImport>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
+  /**
+   * Aggregated performance series for the authenticated account's portfolio.
+   * When [groupKey] is null, aggregates all holdings; when provided, aggregates
+   * only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+   */
+  portfolioPerformance: Maybe<PortfolioPerformanceSeries>;
   /**
    * Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
    * Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
@@ -3236,6 +3271,13 @@ export type QueryFundDailyNavsArgs = {
 };
 
 
+export type QueryFundNavSeriesArgs = {
+  cnpj: Scalars['String']['input'];
+  from: Scalars['Date']['input'];
+  to: Scalars['Date']['input'];
+};
+
+
 export type QueryGroupArgs = {
   id: Scalars['ID']['input'];
 };
@@ -3250,9 +3292,11 @@ export type QueryGroupsArgs = {
 
 
 export type QueryHoldingPerformanceArgs = {
+  fromDate?: InputMaybe<Scalars['Date']['input']>;
   holdingId: Scalars['ID']['input'];
   includeProjection?: InputMaybe<Scalars['Boolean']['input']>;
   resolution?: InputMaybe<HoldingPerformanceResolution>;
+  toDate?: InputMaybe<Scalars['Date']['input']>;
 };
 
 
@@ -3322,6 +3366,7 @@ export type QueryInvestmentHoldingPerformanceArgs = {
 
 
 export type QueryInvestmentHoldingsArgs = {
+  assetClass?: InputMaybe<InvestmentHoldingAssetClass>;
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
 };
 
@@ -3399,6 +3444,15 @@ export type QueryPermissionsArgs = {
 
 export type QueryPopularInstitutionsArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPortfolioPerformanceArgs = {
+  assetTypes?: InputMaybe<Array<AssetType>>;
+  groupKey?: InputMaybe<Scalars['String']['input']>;
+  includeProjection?: InputMaybe<Scalars['Boolean']['input']>;
+  resolution?: InputMaybe<HoldingPerformanceResolution>;
+  subgroupKey?: InputMaybe<Scalars['String']['input']>;
 };
 
 
@@ -3989,6 +4043,11 @@ export type Transaction = {
   installmentNumber: Maybe<Scalars['Int']['output']>;
   /** Set when this row is the cash leg linked to an investment transaction. */
   investmentTransactionId: Maybe<Scalars['ID']['output']>;
+  /**
+   * When [investmentTransactionId] is set, the underlying instrument for that event.
+   * Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
+   */
+  linkedInvestmentAsset: Maybe<InvestmentAsset>;
   merchant: Maybe<Merchant>;
   notes: Maybe<Scalars['String']['output']>;
   payeeMcc: Maybe<Scalars['Int']['output']>;

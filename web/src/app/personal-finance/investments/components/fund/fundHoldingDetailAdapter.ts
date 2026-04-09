@@ -7,6 +7,7 @@ import {
 } from "@/lib/graphql/types/__generated__/graphql";
 import { getHoldingValueOrigin, type ValueOriginLabel } from "@/shared/utils/holdingValueOrigin";
 import type { FundHoldingDetailQuery } from "./api/queries.generated";
+import { isSameInvestmentEventAndSettlementDay } from "../timelineSettlementDay";
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
 
@@ -98,6 +99,40 @@ function buildAccountLabel(holding: Holding): string {
   return holding.financialAccount?.name ?? "—";
 }
 
+function costBasisFromHolding(holding: Holding): number | null {
+  const q = holding.quantity;
+  const ac = holding.averageCost;
+  if (
+    typeof q === "number" &&
+    typeof ac === "number" &&
+    Number.isFinite(q) &&
+    Number.isFinite(ac) &&
+    q > 0 &&
+    ac >= 0
+  ) {
+    return q * ac;
+  }
+  return null;
+}
+
+/** Sum of purchase inflows when the performance summary (invested principal) is unavailable. */
+function sumPurchaseInflowGross(transactions: FundHoldingDetailQuery["investmentTransactions"]): number | null {
+  let sum = 0;
+  let any = false;
+  for (const tx of transactions) {
+    if (
+      tx.direction === InvestmentTransactionDirection.Inflow &&
+      tx.type === InvestmentTransactionType.Purchase &&
+      typeof tx.grossValue === "number" &&
+      Number.isFinite(tx.grossValue)
+    ) {
+      sum += tx.grossValue;
+      any = true;
+    }
+  }
+  return any ? sum : null;
+}
+
 export function buildFundHoldingDetailViewModel(
   holding: Holding,
   transactions: FundHoldingDetailQuery["investmentTransactions"],
@@ -108,17 +143,67 @@ export function buildFundHoldingDetailViewModel(
 ): FundHoldingDetailViewModel {
   const currencyCode = holding.asset.currencyCode || "BRL";
   const summary = performance?.summary;
-  const principal = typeof summary?.investedPrincipal === "number" ? summary.investedPrincipal : null;
-  const currentCostBasis = typeof summary?.currentCostBasis === "number" ? summary.currentCostBasis : null;
-  const grossValue = typeof summary?.grossValue === "number" ? summary.grossValue : null;
-  const netValue = typeof summary?.netValue === "number" ? summary.netValue : null;
-  const incomeTax = typeof summary?.incomeTax === "number" ? summary.incomeTax : null;
-  const iof = typeof summary?.iof === "number" ? summary.iof : null;
-  const grossGain = typeof summary?.grossGain === "number" ? summary.grossGain : null;
-  const netGain = typeof summary?.netGain === "number" ? summary.netGain : null;
-  const grossGainPercent = typeof summary?.grossGainPercent === "number" ? summary.grossGainPercent : null;
-  const netGainPercent =
-    typeof netGain === "number" && typeof principal === "number" && principal > 0 ? netGain / principal : null;
+
+  let principal: number | null =
+    typeof summary?.investedPrincipal === "number" ? summary.investedPrincipal : null;
+  if (principal == null) {
+    principal = costBasisFromHolding(holding);
+  }
+  if (principal == null) {
+    principal = sumPurchaseInflowGross(transactions);
+  }
+
+  let currentCostBasis: number | null =
+    typeof summary?.currentCostBasis === "number" ? summary.currentCostBasis : null;
+  if (currentCostBasis == null) {
+    currentCostBasis = principal;
+  }
+
+  let grossValue: number | null = typeof summary?.grossValue === "number" ? summary.grossValue : null;
+  if (grossValue == null && typeof holding.grossValue === "number" && Number.isFinite(holding.grossValue)) {
+    grossValue = holding.grossValue;
+  }
+
+  let netValue: number | null = typeof summary?.netValue === "number" ? summary.netValue : null;
+  if (netValue == null && typeof holding.netValue === "number" && Number.isFinite(holding.netValue)) {
+    netValue = holding.netValue;
+  }
+  if (netValue == null && grossValue != null) {
+    netValue = grossValue;
+  }
+
+  let incomeTax: number | null = typeof summary?.incomeTax === "number" ? summary.incomeTax : null;
+  if (incomeTax == null && typeof holding.incomeTax === "number" && Number.isFinite(holding.incomeTax)) {
+    incomeTax = holding.incomeTax;
+  }
+
+  let iof: number | null = typeof summary?.iof === "number" ? summary.iof : null;
+  if (iof == null && typeof holding.iof === "number" && Number.isFinite(holding.iof)) {
+    iof = holding.iof;
+  }
+
+  let grossGain: number | null = typeof summary?.grossGain === "number" ? summary.grossGain : null;
+  if (grossGain == null && grossValue != null && principal != null) {
+    grossGain = grossValue - principal;
+  }
+
+  let netGain: number | null = typeof summary?.netGain === "number" ? summary.netGain : null;
+  if (netGain == null && netValue != null && principal != null) {
+    netGain = netValue - principal;
+  }
+
+  let grossGainPercent: number | null =
+    typeof summary?.grossGainPercent === "number" ? summary.grossGainPercent : null;
+  if (grossGainPercent == null && grossGain != null && principal != null && principal > 0) {
+    grossGainPercent = grossGain / principal;
+  }
+
+  let netGainPercent: number | null = null;
+  if (typeof netGain === "number" && typeof principal === "number" && principal > 0) {
+    netGainPercent = netGain / principal;
+  } else if (typeof investmentHoldingPerformance?.totalReturn === "number") {
+    netGainPercent = investmentHoldingPerformance.totalReturn;
+  }
   const xirr = typeof investmentHoldingPerformance?.xirr === "number" ? investmentHoldingPerformance.xirr : null;
   const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
     ? formatDate(investmentHoldingPerformance.xirrSince, locale)
@@ -161,7 +246,11 @@ export function buildFundHoldingDetailViewModel(
       id: transaction.id,
       title: formatTransactionType(transaction.type, t),
       tradeDateLabel: formatDate(transaction.tradeDate, locale),
-      settlementDateLabel: transaction.settlementDate ? formatDate(transaction.settlementDate, locale) : null,
+      settlementDateLabel:
+        transaction.settlementDate &&
+        !isSameInvestmentEventAndSettlementDay(transaction.tradeDate, transaction.settlementDate)
+          ? formatDate(transaction.settlementDate, locale)
+          : null,
       amount: transaction.grossValue,
       netAmount: transaction.netValue,
       incomeTax: typeof transaction.incomeTax === "number" ? transaction.incomeTax : null,

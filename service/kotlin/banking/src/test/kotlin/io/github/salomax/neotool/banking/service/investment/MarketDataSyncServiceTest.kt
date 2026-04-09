@@ -2,6 +2,8 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FinancialDataMarketDataSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundDailyNavSyncNode
+import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetDailyPriceBulkSyncNode
+import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetPriceBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
@@ -43,6 +45,7 @@ import java.util.UUID
 class MarketDataSyncServiceTest {
     private val syncControlRepository: MarketDataSyncControlRepository = mock()
     private val financialDataSyncClient: FinancialDataMarketDataSyncClient = mock()
+    private val listedAssetPriceBulkSyncClient: ListedAssetPriceBulkSyncClient = mock()
     private val assetRepository: AssetRepository = mock()
     private val assetDailyPriceRepository: AssetDailyPriceRepository = mock()
     private val marketIndicatorPointRepository: MarketIndicatorPointRepository = mock()
@@ -60,6 +63,7 @@ class MarketDataSyncServiceTest {
         MarketDataSyncService(
             syncControlRepository = syncControlRepository,
             financialDataSyncClient = financialDataSyncClient,
+            listedAssetPriceBulkSyncClient = listedAssetPriceBulkSyncClient,
             assetRepository = assetRepository,
             assetDailyPriceRepository = assetDailyPriceRepository,
             marketIndicatorPointRepository = marketIndicatorPointRepository,
@@ -72,6 +76,8 @@ class MarketDataSyncServiceTest {
             investmentTransactionRepository = investmentTransactionRepository,
             transactionRepository = transactionRepository,
             portfolioFlowEventService = portfolioFlowEventService,
+            listedPriceBulkEnabled = true,
+            listedPriceBatchSize = 2,
         )
 
     @Test
@@ -248,6 +254,112 @@ class MarketDataSyncServiceTest {
             recalculateFrom = eq(earliestTradeDate),
             triggeredBy = eq("market_data_sync:cvm_nav:2026-04-01"),
         )
+    }
+
+    @Test
+    fun `syncs listed prices via bulk client using local ticker map and persists checkpoint batches`() {
+        val assetId = UUID.randomUUID()
+        val eventId = UUID.randomUUID()
+        val event =
+            MarketDataJobSucceededEvent(
+                eventId = eventId,
+                jobName = MarketDataSyncJobName.B3_COTAHIST.jobName,
+                runId = UUID.randomUUID(),
+                fromDate = LocalDate.of(2026, 1, 1),
+                toDate = LocalDate.of(2026, 4, 7),
+                lastDataDate = LocalDate.of(2026, 4, 7),
+                lastRunAt = Instant.parse("2026-04-08T10:00:00Z"),
+                status = "SUCCESS",
+                isBackfill = true,
+                publishedAt = Instant.parse("2026-04-08T10:00:05Z"),
+            )
+
+        whenever(syncControlRepository.findByJobName(MarketDataSyncJobName.B3_COTAHIST))
+            .thenReturn(
+                MarketDataSyncControl(
+                    jobName = MarketDataSyncJobName.B3_COTAHIST,
+                    lastEventId = eventId,
+                    lastCursor = "cursor-previous",
+                    status = MarketDataSyncStatus.FAILED,
+                ),
+            )
+            .thenReturn(
+                MarketDataSyncControl(
+                    jobName = MarketDataSyncJobName.B3_COTAHIST,
+                    lastEventId = eventId,
+                    lastCursor = "cursor-2",
+                    status = MarketDataSyncStatus.SYNCING,
+                ),
+            )
+        whenever(syncControlRepository.upsert(any())).thenAnswer { it.arguments.first() }
+        whenever(assetRepository.findAllWithTicker()).thenReturn(
+            listOf(
+                Asset(
+                    id = assetId,
+                    name = "Petrobras",
+                    assetType = AssetType.STOCK,
+                    ticker = "PETR4",
+                ),
+            ),
+        )
+        whenever(marketDataReadinessService.valuationReadiness()).thenReturn(
+            MarketDataValuationReadiness(
+                safeValuationDate = null,
+                missingJobs = listOf(MarketDataSyncJobName.CVM_NAV),
+            ),
+        )
+        doAnswer { invocation ->
+            val consumer = invocation.getArgument<(ListedAssetDailyPriceBulkSyncNode) -> Unit>(5)
+            consumer(
+                ListedAssetDailyPriceBulkSyncNode(
+                    cursor = "cursor-1",
+                    ticker = "PETR4",
+                    isinCode = null,
+                    date = LocalDate.of(2026, 1, 31),
+                    closePrice = BigDecimal("31.10"),
+                    updatedAt = Instant.parse("2026-04-08T10:00:00Z"),
+                ),
+            )
+            consumer(
+                ListedAssetDailyPriceBulkSyncNode(
+                    cursor = "cursor-2",
+                    ticker = "PETR4",
+                    isinCode = null,
+                    date = LocalDate.of(2026, 2, 28),
+                    closePrice = BigDecimal("33.20"),
+                    updatedAt = Instant.parse("2026-04-08T10:00:01Z"),
+                ),
+            )
+            consumer(
+                ListedAssetDailyPriceBulkSyncNode(
+                    cursor = "cursor-3",
+                    ticker = "PETR4",
+                    isinCode = null,
+                    date = LocalDate.of(2026, 3, 31),
+                    closePrice = BigDecimal("29.80"),
+                    updatedAt = Instant.parse("2026-04-08T10:00:02Z"),
+                ),
+            )
+            Unit
+        }.whenever(listedAssetPriceBulkSyncClient).streamListedAssetDailyPrices(
+            from = eq(LocalDate.of(2026, 1, 1)),
+            to = eq(LocalDate.of(2026, 4, 7)),
+            updatedSince = isNull(),
+            tickers = eq(setOf("PETR4")),
+            after = eq("cursor-previous"),
+            consumer = any(),
+        )
+
+        service.handleJobSucceeded(event)
+
+        verify(assetDailyPriceRepository, times(2)).upsertAll(any())
+        val controlsCaptor = argumentCaptor<MarketDataSyncControl>()
+        verify(syncControlRepository, org.mockito.kotlin.atLeastOnce()).upsert(controlsCaptor.capture())
+        assertThat(controlsCaptor.allValues.any { it.status == MarketDataSyncStatus.SYNCING && it.lastCursor == "cursor-2" }).isTrue()
+        val finalControl = controlsCaptor.allValues.last()
+        assertThat(finalControl.status).isEqualTo(MarketDataSyncStatus.SUCCESS)
+        assertThat(finalControl.lastSyncedDate).isEqualTo(LocalDate.of(2026, 3, 31))
+        assertThat(finalControl.lastCursor).isNull()
     }
 
     private fun asset(id: UUID) =

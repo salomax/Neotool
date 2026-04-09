@@ -20,6 +20,31 @@ class FinancialDataFundMarketDataProvider(
 ) : FundMarketDataProvider {
     private val logger = KotlinLogging.logger {}
     private val cache = ConcurrentHashMap<String, CachedSnapshot>()
+    private val navSeriesCache = ConcurrentHashMap<String, CachedNavSeries>()
+
+    override fun getNavSeries(
+        cnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<Pair<LocalDate, BigDecimal>> {
+        val normalized = cnpj.filter(Char::isDigit).takeIf { it.isNotBlank() } ?: return emptyList()
+        if (from.isAfter(to)) return emptyList()
+        val cacheKey = "$normalized|$from|$to"
+        val now = System.currentTimeMillis()
+        navSeriesCache[cacheKey]?.let { cached ->
+            if (cached.expiresAt > now) {
+                return cached.series
+            }
+        }
+
+        val series = fetchNavSeries(normalized, from, to)
+        navSeriesCache[cacheKey] =
+            CachedNavSeries(
+                series = series,
+                expiresAt = now + if (series.isEmpty()) MISS_TTL_MS else DEFAULT_TTL_MS,
+            )
+        return series
+    }
 
     override fun getSnapshotsByCnpj(cnpjs: Set<String>): Map<String, FundMarketSnapshot> {
         if (cnpjs.isEmpty()) return emptyMap()
@@ -103,8 +128,51 @@ class FinancialDataFundMarketDataProvider(
         }
     }
 
+    private fun fetchNavSeries(
+        normalizedCnpj: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<Pair<LocalDate, BigDecimal>> {
+        val query =
+            """
+            query FundNavSeries(${'$'}cnpj: String!, ${'$'}from: Date!, ${'$'}to: Date!) {
+              fundNavSeries(cnpj: ${'$'}cnpj, from: ${'$'}from, to: ${'$'}to) {
+                date
+                closePrice
+              }
+            }
+            """.trimIndent()
+
+        val response: GraphQLResponse =
+            runBlocking {
+                graphQLServiceClient.query(
+                    query = query,
+                    variables =
+                        mapOf(
+                            "cnpj" to normalizedCnpj,
+                            "from" to from.toString(),
+                            "to" to to.toString(),
+                        ),
+                    targetAudience = "apollo-router",
+                )
+            }
+
+        val items = response.data?.get("fundNavSeries") as? List<*> ?: emptyList<Any?>()
+        return items.mapNotNull { raw ->
+            val item = raw as? Map<*, *> ?: return@mapNotNull null
+            val dateStr = item["date"] as? String ?: return@mapNotNull null
+            val closePrice = item["closePrice"] as? Number ?: return@mapNotNull null
+            LocalDate.parse(dateStr, DateTimeFormatter.ISO_DATE) to BigDecimal(closePrice.toString())
+        }
+    }
+
     private data class CachedSnapshot(
         val snapshot: FundMarketSnapshot?,
+        val expiresAt: Long,
+    )
+
+    private data class CachedNavSeries(
+        val series: List<Pair<LocalDate, BigDecimal>>,
         val expiresAt: Long,
     )
 

@@ -336,6 +336,14 @@ open class InvestmentCashService(
                 transactionId,
                 PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
             )
+            // The flow event may have been keyed to the peer (custodian) leg instead of the
+            // initiating (bank) leg — e.g. when the user deletes from the bank-account side.
+            peer?.id?.let { peerId ->
+                portfolioFlowEventService.deleteEventBySourceReference(
+                    peerId,
+                    PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                )
+            }
         }
 
         portfolioFlowEventService.requestRecalculation(

@@ -2,9 +2,9 @@
 
 import React from 'react';
 import dynamic from 'next/dynamic';
+import { NetworkStatus } from '@apollo/client/core';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
-import { Box, Divider, LinearProgress, Paper, TableContainer, Tooltip, Typography } from '@mui/material';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import { Box, Divider, LinearProgress, Paper, TableContainer, Typography } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { useToast } from '@/shared/providers';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
@@ -23,14 +23,21 @@ import {
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import { InvestmentSource, InvestmentTransaction } from '@/lib/graphql/types/__generated__/graphql';
+import {
+  InvestmentSource,
+  InvestmentTransaction,
+  InvestmentTransactionDirection,
+} from '@/lib/graphql/types/__generated__/graphql';
 import type { MaturityDrawerHolding } from '../../MaturityConfirmDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
-import { AssetGroupCard } from '../AssetGroupCard';
-import { CashTransactionsInlineTable } from '../CashTransactionsInlineTable';
+import { CashMovementsSection } from './CashMovementsSection';
+import { HoldingsGroupsSection } from './HoldingsGroupsSection';
 import { InvestmentEditDrawers } from '../InvestmentEditDrawers';
-import { InvestmentGroupTable } from './InvestmentGroupTable';
+import { RecordEquityHoldingDrawer } from '../RecordEquityHoldingDrawer';
+import { RecordFundHoldingDrawer } from '../RecordFundHoldingDrawer';
+import { RecordFixedIncomeRedemptionDrawer } from '../fixed-income/RecordFixedIncomeRedemptionDrawer';
 import { InvestmentHoldingActionsMenu } from './InvestmentHoldingActionsMenu';
+import { RecordCorporateEventDrawer, type CorporateEventType } from '../corporate-events/RecordCorporateEventDrawer';
 import type { IssuerSelectionAccount } from '../IssuerSelection';
 import { useInvestmentCardExpansion } from './useInvestmentCardExpansion';
 import {
@@ -65,6 +72,10 @@ interface InvestmentTableProps {
   onRecordHolding?: () => void;
   searchQuery?: string;
   onSelectSearchAsset?: (assetName: string) => void;
+  visibleGroupKeys?: AssetGroupKey[];
+  visibleAssetTypes?: string[];
+  includeCashCard?: boolean;
+  hideGroupHeader?: boolean;
 }
 
 interface ActionMenuState {
@@ -82,6 +93,16 @@ interface EditDrawerState {
   transaction: InvestmentTransaction | null;
   kind: HoldingKind;
   financialAccountId: string | null;
+}
+
+interface QuickTransactionState {
+  holding: HoldingRow | null;
+  direction: 'buy' | 'sell' | null;
+}
+
+interface CorporateEventState {
+  holding: HoldingRow | null;
+  eventType: CorporateEventType | null;
 }
 
 const EMPTY_HOLDINGS: HoldingRow[] = [];
@@ -108,6 +129,10 @@ export function InvestmentTable({
   investmentAccounts = [],
   searchQuery,
   onSelectSearchAsset,
+  visibleGroupKeys,
+  visibleAssetTypes,
+  includeCashCard = true,
+  hideGroupHeader = false,
 }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
@@ -124,17 +149,24 @@ export function InvestmentTable({
   });
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
   const [maturityConfirmHolding, setMaturityConfirmHolding] = React.useState<MaturityDrawerHolding | null>(null);
+  const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
+  const [isQuickEquityOpen, setIsQuickEquityOpen] = React.useState(false);
+  const [isQuickFundOpen, setIsQuickFundOpen] = React.useState(false);
+  const [isQuickRedemptionOpen, setIsQuickRedemptionOpen] = React.useState(false);
+  const [corporateEventState, setCorporateEventState] = React.useState<CorporateEventState>({ holding: null, eventType: null });
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
 
   const cashQuery = useQuery<InvestmentCashBalanceQuery, InvestmentCashBalanceQueryVariables>(INVESTMENT_CASH_BALANCE, {
     variables: { financialAccountId: selectedAccountId ?? undefined },
     errorPolicy: 'all',
+    notifyOnNetworkStatusChange: true,
   });
 
   const holdingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
     variables: { financialAccountId: selectedAccountId ?? null },
     errorPolicy: 'all',
+    notifyOnNetworkStatusChange: true,
   });
 
   const refreshInvestmentData = React.useCallback(async () => {
@@ -258,7 +290,46 @@ export function InvestmentTable({
     setMaturityConfirmOpen(true);
   }, []);
 
-  const handleConfirmRemove = React.useCallback(async () => {
+  const closeQuickTransaction = React.useCallback(() => {
+    setQuickTransaction({ holding: null, direction: null });
+    setIsQuickEquityOpen(false);
+    setIsQuickFundOpen(false);
+    setIsQuickRedemptionOpen(false);
+  }, []);
+
+  const handleQuickBuy = React.useCallback((holding: HoldingRow) => {
+    const groupKey = getAssetGroupKey(holding.asset?.assetType);
+    setQuickTransaction({ holding, direction: 'buy' });
+    if (groupKey === 'variableIncome') {
+      setIsQuickEquityOpen(true);
+      return;
+    }
+    if (groupKey === 'mutualFunds' || groupKey === 'pension') {
+      setIsQuickFundOpen(true);
+    }
+  }, []);
+
+  const handleQuickSell = React.useCallback((holding: HoldingRow) => {
+    const groupKey = getAssetGroupKey(holding.asset?.assetType);
+    setQuickTransaction({ holding, direction: 'sell' });
+    if (groupKey === 'variableIncome') {
+      setIsQuickEquityOpen(true);
+      return;
+    }
+    if (groupKey === 'mutualFunds' || groupKey === 'pension') {
+      setIsQuickFundOpen(true);
+      return;
+    }
+    if (groupKey === 'bankFixedIncome' || groupKey === 'creditFixedIncome') {
+      setIsQuickRedemptionOpen(true);
+    }
+  }, []);
+
+  const handleRecordCorporateEvent = React.useCallback((holding: HoldingRow, eventType: CorporateEventType) => {
+    setCorporateEventState({ holding, eventType });
+  }, [setCorporateEventState]);
+
+  const handleConfirmRemove = async () => {
     if (!holdingToRemove) return;
 
     try {
@@ -268,17 +339,38 @@ export function InvestmentTable({
     } catch {
       setHoldingToRemove(null);
     }
-  }, [deleteInvestmentHolding, holdingToRemove, refreshInvestmentData]);
+  };
 
   const holdings = holdingsQuery.data?.investmentHoldings ?? EMPTY_HOLDINGS;
 
   const normalizedSearchQuery = React.useMemo(() => (searchQuery ?? '').trim().toLowerCase(), [searchQuery]);
   const hasSearchQuery = Boolean(normalizedSearchQuery);
+  const cashMatchesSearch = React.useMemo(() => {
+    if (!hasSearchQuery) return true;
+
+    const cashSearchText = [
+      t('investments.cash.cardTitle'),
+      t('investments.summary.cashBalance'),
+      'cash',
+    ]
+      .join(' ')
+      .toLowerCase();
+
+    return cashSearchText.includes(normalizedSearchQuery);
+  }, [hasSearchQuery, normalizedSearchQuery, t]);
 
   const displayedHoldings = React.useMemo(() => {
-    if (!hasSearchQuery) return holdings;
+    const scopedByAssetType =
+      visibleAssetTypes && visibleAssetTypes.length > 0
+        ? holdings.filter((holding) => {
+            const assetType = holding.asset?.assetType;
+            return assetType ? visibleAssetTypes.includes(assetType) : false;
+          })
+        : holdings;
 
-    return holdings.filter((holding) => {
+    if (!hasSearchQuery) return scopedByAssetType;
+
+    return scopedByAssetType.filter((holding) => {
       const haystack = [
         holding.asset?.name ?? '',
         holding.asset?.ticker ?? '',
@@ -291,7 +383,7 @@ export function InvestmentTable({
 
       return haystack.includes(normalizedSearchQuery);
     });
-  }, [hasSearchQuery, holdings, normalizedSearchQuery]);
+  }, [hasSearchQuery, holdings, normalizedSearchQuery, visibleAssetTypes]);
 
   const detailHolding = React.useMemo(
     () => holdings.find((holding) => holding.id === detailDrawer.holdingId) ?? null,
@@ -305,11 +397,24 @@ export function InvestmentTable({
 
   const loading = holdingsQuery.loading;
   const error = holdingsQuery.error;
+  const holdingsNetworkStatus = holdingsQuery.networkStatus;
+  const holdingsFetching =
+    !error &&
+    (loading ||
+      holdingsNetworkStatus === NetworkStatus.refetch ||
+      holdingsNetworkStatus === NetworkStatus.setVariables);
   const cashBalance = cashQuery.data?.investmentCashBalance;
   const cashFormatted =
     cashBalance != null && Number.isFinite(cashBalance) ? formatCurrency(cashBalance, displayCurrency, locale) : null;
   const showCashCard =
-    !cashQuery.loading && !cashQuery.error && cashBalance != null && Number.isFinite(cashBalance) && cashFormatted != null;
+    includeCashCard &&
+    !cashQuery.loading &&
+    !cashQuery.error &&
+    cashBalance != null &&
+    Number.isFinite(cashBalance) &&
+    cashBalance !== 0 &&
+    cashFormatted != null &&
+    cashMatchesSearch;
 
   const groupedHoldings = React.useMemo(() => {
     const base = ASSET_GROUP_ORDER.reduce((accumulator, groupKey) => {
@@ -325,7 +430,7 @@ export function InvestmentTable({
     return base;
   }, [displayedHoldings]);
 
-  const { groups, cashAllocationPercent } = React.useMemo(() => {
+  const { groups } = React.useMemo(() => {
     let holdingsGrossTotal = 0;
     displayedHoldings.forEach((holding) => {
       if (typeof holding.grossValue === 'number') holdingsGrossTotal += holding.grossValue;
@@ -377,18 +482,16 @@ export function InvestmentTable({
         }),
         holdings: groupHoldings,
       };
-    }).filter((group) => group.count > 0);
+    })
+      .filter((group) => group.count > 0)
+      .filter((group) => (visibleGroupKeys === undefined ? true : visibleGroupKeys.includes(group.key)));
 
     return {
       groups: computedGroups,
-      cashAllocationPercent:
-        showCashCard && cashBalance != null && Number.isFinite(cashBalance) && portfolioDenominator > 0
-          ? cashBalance / portfolioDenominator
-          : null,
     };
-  }, [cashBalance, displayedHoldings, groupedHoldings, locale, showCashCard, t]);
+  }, [cashBalance, displayedHoldings, groupedHoldings, locale, showCashCard, t, visibleGroupKeys]);
 
-  const { cashExpanded, expandedGroups, setCashExpanded, toggleGroup } = useInvestmentCardExpansion({
+  const { expandedGroups, toggleGroup } = useInvestmentCardExpansion({
     selectedAccountId,
     groups,
     hasSearchQuery,
@@ -398,47 +501,37 @@ export function InvestmentTable({
 
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
   const showHoldingsList = !error && displayedHoldings.length > 0;
-  const showHoldingsProgress = loading && !error;
+  const showHoldingsProgress = holdingsFetching;
+  const actionHoldingGroupKey = actionMenu.holding?.asset?.assetType ? getAssetGroupKey(actionMenu.holding.asset.assetType) : null;
+  const actionBuyLabel =
+    actionHoldingGroupKey === 'variableIncome'
+      ? t('investments.transactions.buy')
+      : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension'
+        ? t('investments.transactions.apply')
+        : undefined;
+  const actionSellLabel =
+    actionHoldingGroupKey === 'variableIncome'
+      ? t('investments.transactions.sell')
+      : actionHoldingGroupKey === 'mutualFunds' ||
+          actionHoldingGroupKey === 'pension' ||
+          actionHoldingGroupKey === 'bankFixedIncome' ||
+          actionHoldingGroupKey === 'creditFixedIncome'
+        ? t('investments.transactions.redeem')
+        : undefined;
+  const quickFinancialAccountId = quickTransaction.holding ? resolveFinancialAccountId(quickTransaction.holding) : null;
 
-  const cashAssetGroupCard = React.useMemo(() => {
+  const cashSection = React.useMemo(() => {
     if (!showCashCard) return null;
 
     return (
-      <AssetGroupCard
-        expanded={cashExpanded}
-        onToggle={setCashExpanded}
-        title={t('investments.cash.cardTitle')}
-        summary={cashFormatted ?? ''}
-        allocationPercent={cashAllocationPercent}
-        summaryAdornment={
-          cashBalance != null && cashBalance < 0 ? (
-            <Tooltip title={t('investments.cash.negativeBalanceHint')}>
-              <InfoOutlinedIcon fontSize="small" color="warning" sx={{ ml: 0.5 }} />
-            </Tooltip>
-          ) : null
-        }
-      >
-        <CashTransactionsInlineTable
-          financialAccountId={selectedAccountId}
-          investmentAccounts={investmentAccounts}
-          holdings={holdings}
-          onSelectRelatedAsset={onSelectSearchAsset}
-        />
-      </AssetGroupCard>
+      <CashMovementsSection
+        financialAccountId={selectedAccountId}
+        investmentAccounts={investmentAccounts}
+        onSelectRelatedAsset={onSelectSearchAsset}
+        bottomSpacing={showHoldingsList ? 2 : 0}
+      />
     );
-  }, [
-    cashAllocationPercent,
-    cashBalance,
-    cashExpanded,
-    cashFormatted,
-    investmentAccounts,
-    holdings,
-    onSelectSearchAsset,
-    selectedAccountId,
-    setCashExpanded,
-    showCashCard,
-    t,
-  ]);
+  }, [investmentAccounts, onSelectSearchAsset, selectedAccountId, showCashCard, showHoldingsList]);
 
   return (
     <TableContainer
@@ -454,7 +547,7 @@ export function InvestmentTable({
       data-testid="investment-table"
     >
       {showCashCard && !showHoldingsList ? (
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashAssetGroupCard}</Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashSection}</Box>
       ) : null}
 
       {showHoldingsProgress ? (
@@ -501,19 +594,19 @@ export function InvestmentTable({
 
       {showHoldingsList ? (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {showCashCard ? cashAssetGroupCard : null}
-          {groups.map((group) => (
-            <InvestmentGroupTable
-              key={group.key}
-              group={group}
-              expanded={expandedGroups.has(group.key)}
-              locale={locale}
-              onToggleGroup={toggleGroup}
-              onOpenDetail={handleOpenDetail}
-              onOpenMaturityConfirm={handleOpenMaturityConfirmDrawer}
-              onOpenActions={handleOpenActionMenu}
-            />
-          ))}
+          {showCashCard ? cashSection : null}
+          <HoldingsGroupsSection
+            groups={groups}
+            expandedGroups={expandedGroups}
+            hideGroupHeader={hideGroupHeader}
+            locale={locale}
+            onToggleGroup={toggleGroup}
+            onOpenDetail={handleOpenDetail}
+            onOpenMaturityConfirm={handleOpenMaturityConfirmDrawer}
+            onOpenActions={handleOpenActionMenu}
+            onBuy={handleQuickBuy}
+            onSell={handleQuickSell}
+          />
         </Box>
       ) : null}
 
@@ -525,6 +618,33 @@ export function InvestmentTable({
         onViewDetails={handleOpenDetail}
         onEdit={handleOpenEdit}
         onRemove={setHoldingToRemove}
+        onBuy={() => {
+          if (!actionMenu.holding) return;
+          handleQuickBuy(actionMenu.holding);
+        }}
+        onSell={() => {
+          if (!actionMenu.holding) return;
+          handleQuickSell(actionMenu.holding);
+        }}
+        buyLabel={actionBuyLabel}
+        sellLabel={actionSellLabel}
+        showTransactionActions={Boolean(actionBuyLabel || actionSellLabel)}
+        onRecordProvento={() => {
+          if (!actionMenu.holding) return;
+          handleRecordCorporateEvent(actionMenu.holding, 'PROVENTO');
+        }}
+        onRecordSplit={() => {
+          if (!actionMenu.holding) return;
+          handleRecordCorporateEvent(actionMenu.holding, 'SPLIT');
+        }}
+        onRecordBonus={() => {
+          if (!actionMenu.holding) return;
+          handleRecordCorporateEvent(actionMenu.holding, 'BONUS');
+        }}
+        onRecordSubscription={() => {
+          if (!actionMenu.holding) return;
+          handleRecordCorporateEvent(actionMenu.holding, 'SUBSCRIPTION');
+        }}
       />
 
       <ConfirmationDialog
@@ -565,6 +685,81 @@ export function InvestmentTable({
         financialAccountId={editDrawer.financialAccountId}
         financialAccounts={investmentAccounts}
         onClose={closeEditDrawer}
+        onRecorded={refreshInvestmentData}
+      />
+
+      <RecordEquityHoldingDrawer
+        open={isQuickEquityOpen}
+        onClose={closeQuickTransaction}
+        financialAccountId={quickFinancialAccountId}
+        financialAccounts={investmentAccounts}
+        prefillHolding={
+          quickTransaction.holding?.asset
+            ? {
+                id: quickTransaction.holding.id,
+                asset: {
+                  id: quickTransaction.holding.asset.id,
+                  ticker: quickTransaction.holding.asset.ticker ?? null,
+                  name: quickTransaction.holding.asset.name,
+                  assetType: quickTransaction.holding.asset.assetType,
+                },
+              }
+            : null
+        }
+        initialDirection={
+          quickTransaction.direction === 'sell' ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
+        }
+        onRecorded={refreshInvestmentData}
+      />
+
+      <RecordFundHoldingDrawer
+        open={isQuickFundOpen}
+        onClose={closeQuickTransaction}
+        financialAccountId={quickFinancialAccountId}
+        financialAccounts={investmentAccounts}
+        prefillHolding={
+          quickTransaction.holding?.asset
+            ? {
+                id: quickTransaction.holding.id,
+                asset: {
+                  id: quickTransaction.holding.asset.id,
+                  name: quickTransaction.holding.asset.name,
+                  assetType: quickTransaction.holding.asset.assetType,
+                },
+              }
+            : null
+        }
+        initialDirection={
+          quickTransaction.direction === 'sell' ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
+        }
+        onRecorded={refreshInvestmentData}
+      />
+
+      <RecordFixedIncomeRedemptionDrawer
+        open={isQuickRedemptionOpen}
+        onClose={closeQuickTransaction}
+        holding={
+          quickTransaction.holding?.asset?.id && quickTransaction.holding?.financialAccount?.id
+            ? {
+                id: quickTransaction.holding.id,
+                quantity: quickTransaction.holding.quantity,
+                grossValue: quickTransaction.holding.grossValue ?? null,
+                netValue: quickTransaction.holding.netValue ?? null,
+                isTaxExempt: Boolean(quickTransaction.holding.isTaxExempt),
+                financialAccountId: quickTransaction.holding.financialAccount.id,
+                assetId: quickTransaction.holding.asset.id,
+              }
+            : null
+        }
+        onRecorded={refreshInvestmentData}
+      />
+
+      <RecordCorporateEventDrawer
+        open={Boolean(corporateEventState.holding && corporateEventState.eventType)}
+        onClose={() => setCorporateEventState({ holding: null, eventType: null })}
+        holding={corporateEventState.holding}
+        eventType={corporateEventState.eventType}
+        financialAccounts={investmentAccounts}
         onRecorded={refreshInvestmentData}
       />
     </TableContainer>

@@ -1,5 +1,11 @@
 # Banking Service
 
+## GraphQL Investments
+
+- `holdingPerformance`: performance series for a single holding.
+- `portfolioPerformance`: aggregated performance series for the authenticated account portfolio, optionally filtered by `groupKey`.
+- Current limitation: portfolio aggregation is single-currency only; mixed currencies return an error.
+
 ## File Import Flow
 
 This document defines the high-level import architecture for uploaded files:

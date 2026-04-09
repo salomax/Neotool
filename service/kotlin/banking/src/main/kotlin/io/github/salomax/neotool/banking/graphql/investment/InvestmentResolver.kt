@@ -2,15 +2,16 @@ package io.github.salomax.neotool.banking.graphql.investment
 
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
-import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
 import io.github.salomax.neotool.banking.service.investment.CnpjValidator
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
+import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
 import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionConnectionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
@@ -22,8 +23,11 @@ import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransa
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
 import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
 import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
+import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSeriesService
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
+import io.github.salomax.neotool.banking.service.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSubgroupMapping
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
@@ -53,6 +57,7 @@ class InvestmentResolver(
     private val investmentAssetService: InvestmentAssetService,
     private val investmentQueryService: InvestmentQueryService,
     private val investmentPortfolioSummaryService: InvestmentPortfolioSummaryService,
+    private val portfolioPerformanceSeriesService: PortfolioPerformanceSeriesService,
     private val assetRepository: AssetRepository,
     private val investmentCashService: InvestmentCashService,
     private val transactionResolver: TransactionResolver,
@@ -63,12 +68,14 @@ class InvestmentResolver(
 
     fun investmentHoldings(
         financialAccountId: String?,
+        assetClass: String?,
         principal: RequestPrincipal,
     ): List<InvestmentHoldingDTO> {
         val accountId = requireAccountId(principal)
         return investmentQueryService.getHoldings(
             financialAccountId = financialAccountId?.let(UUID::fromString),
             accountId = accountId,
+            assetClass = assetClass?.let(InvestmentHoldingAssetClass::valueOf),
         )
     }
 
@@ -167,6 +174,8 @@ class InvestmentResolver(
     fun holdingPerformance(
         holdingId: String,
         resolution: String?,
+        fromDate: LocalDate?,
+        toDate: LocalDate?,
         includeProjection: Boolean?,
         principal: RequestPrincipal,
     ): HoldingPerformanceDTO? {
@@ -175,6 +184,38 @@ class InvestmentResolver(
         return investmentQueryService.getHoldingPerformance(
             id = UUID.fromString(holdingId),
             accountId = accountId,
+            resolution = resolvedResolution,
+            fromDate = fromDate,
+            toDate = toDate,
+            includeProjection = includeProjection ?: false,
+        )
+    }
+
+    fun portfolioPerformance(
+        groupKey: String?,
+        subgroupKey: String?,
+        assetTypes: List<String>?,
+        resolution: String?,
+        includeProjection: Boolean?,
+        principal: RequestPrincipal,
+    ): PortfolioPerformanceSeriesDTO {
+        val accountId = requireAccountId(principal)
+        val requestedGroupKey =
+            if (groupKey == null || AssetGroupMapping.isKnownGroupKey(groupKey)) groupKey else "__invalid_group_key__"
+        val requestedSubgroupKey =
+            if (subgroupKey == null || PortfolioPerformanceSubgroupMapping.isKnownSubgroupKey(subgroupKey)) subgroupKey else "__invalid_subgroup_key__"
+        val parsedAssetTypes =
+            assetTypes
+                ?.mapNotNull { raw ->
+                    runCatching { AssetType.valueOf(raw) }.getOrNull()
+                }
+                ?.toSet()
+        val resolvedResolution = resolution?.let(HoldingPerformanceResolution::valueOf)
+        return portfolioPerformanceSeriesService.getPortfolioPerformance(
+            accountId = accountId,
+            groupKey = requestedGroupKey,
+            subgroupKey = requestedSubgroupKey,
+            assetTypes = parsedAssetTypes,
             resolution = resolvedResolution,
             includeProjection = includeProjection ?: false,
         )

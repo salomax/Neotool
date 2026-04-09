@@ -12,7 +12,6 @@ const CARDS_STORAGE_PREFIX = 'pf-investments-card-state';
 
 type PersistedInvestmentCards = {
   expandedGroups: AssetGroupKey[];
-  cashExpanded: boolean;
 };
 
 function investmentsCardStorageKey(selectedAccountId: string | null): string {
@@ -21,16 +20,15 @@ function investmentsCardStorageKey(selectedAccountId: string | null): string {
 
 function readPersistedInvestmentCards(selectedAccountId: string | null): {
   expanded: Set<AssetGroupKey> | null;
-  cashExpanded: boolean | null;
 } {
-  if (typeof window === 'undefined') return { expanded: null, cashExpanded: null };
+  if (typeof window === 'undefined') return { expanded: null };
 
   try {
     const raw = window.localStorage.getItem(investmentsCardStorageKey(selectedAccountId));
-    if (!raw) return { expanded: null, cashExpanded: null };
+    if (!raw) return { expanded: null };
 
     const parsed = JSON.parse(raw) as Partial<PersistedInvestmentCards>;
-    if (parsed == null || typeof parsed !== 'object') return { expanded: null, cashExpanded: null };
+    if (parsed == null || typeof parsed !== 'object') return { expanded: null };
 
     let expanded: Set<AssetGroupKey> | null = null;
     if (Array.isArray(parsed.expandedGroups)) {
@@ -40,12 +38,9 @@ function readPersistedInvestmentCards(selectedAccountId: string | null): {
       expanded = new Set(keys);
     }
 
-    return {
-      expanded,
-      cashExpanded: typeof parsed.cashExpanded === 'boolean' ? parsed.cashExpanded : null,
-    };
+    return { expanded };
   } catch {
-    return { expanded: null, cashExpanded: null };
+    return { expanded: null };
   }
 }
 
@@ -65,12 +60,11 @@ export function useInvestmentCardExpansion({
   hasError,
 }: UseInvestmentCardExpansionOptions) {
   const [expandedGroups, setExpandedGroups] = React.useState<Set<AssetGroupKey>>(() => new Set());
-  const [cashExpanded, setCashExpanded] = React.useState(true);
   const didInitExpansionRef = React.useRef(false);
   const ignoreNextCardPersistRef = React.useRef(false);
 
   const applyPersistedCardState = React.useCallback((accountId: string | null) => {
-    const { expanded, cashExpanded: storedCash } = readPersistedInvestmentCards(accountId);
+    const { expanded } = readPersistedInvestmentCards(accountId);
 
     if (expanded !== null) {
       setExpandedGroups(expanded);
@@ -79,8 +73,6 @@ export function useInvestmentCardExpansion({
       setExpandedGroups(new Set());
       didInitExpansionRef.current = false;
     }
-
-    setCashExpanded(storedCash ?? true);
   }, []);
 
   const toggleGroup = React.useCallback((groupKey: AssetGroupKey, expanded: boolean) => {
@@ -110,13 +102,12 @@ export function useInvestmentCardExpansion({
     try {
       const payload: PersistedInvestmentCards = {
         expandedGroups: Array.from(expandedGroups),
-        cashExpanded,
       };
       window.localStorage.setItem(investmentsCardStorageKey(selectedAccountId), JSON.stringify(payload));
     } catch {
       // Ignore storage failures such as private mode or quota exhaustion.
     }
-  }, [cashExpanded, expandedGroups, hasSearchQuery, selectedAccountId]);
+  }, [expandedGroups, hasSearchQuery, selectedAccountId]);
 
   React.useEffect(() => {
     if (loading || hasError) return;
@@ -161,9 +152,7 @@ export function useInvestmentCardExpansion({
   }, [expandedGroups, groups, hasError, hasSearchQuery, loading]);
 
   return {
-    cashExpanded,
     expandedGroups,
-    setCashExpanded,
     toggleGroup,
   };
 }

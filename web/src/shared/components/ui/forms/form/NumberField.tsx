@@ -49,28 +49,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
       control={control}
       render={({ field, fieldState }) => (
         <NumericFormat
-          customInput={(props) => {
-            const { 
-              name, min, max, step, disabled, color, width, height, 
-              size, style, className, id, tabIndex, autoFocus, 
-              autoComplete, autoCorrect, autoCapitalize, spellCheck,
-              placeholder, required, readOnly, form,
-              ...restProps 
-            } = props;
-            return (
-              <TextField
-                {...restProps}
-                {...(label && { label })}
-                fullWidth={fullWidth}
-                error={!!fieldState.error}
-                helperText={fieldState.error?.message ?? helperText}
-                data-testid={dataTestId}
-                InputProps={{
-                  inputProps: { step: computedStep, style: { textAlign: "right" } },
-                }}
-              />
-            );
-          }}
+          customInput={TextField}
           value={field.value ?? ""}
           onValueChange={(values) => {
             let v = values.floatValue;
@@ -91,6 +70,14 @@ export const NumberField: React.FC<NumberFieldProps> = ({
             fixedDecimalScale: typeof decimalScale === "number" && fixedDecimalScale !== false,
             allowLeadingZeros: true,
           } as any)}
+          {...(label && { label })}
+          fullWidth={fullWidth}
+          error={!!fieldState.error}
+          helperText={fieldState.error?.message ?? helperText}
+          data-testid={dataTestId}
+          InputProps={{
+            inputProps: { step: computedStep, style: { textAlign: "right" } },
+          }}
         />
       )}
     />
