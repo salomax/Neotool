@@ -1,3 +1,13 @@
+## 0.7.0 (2026-04-09)
+
+### 🚀 Features
+
+- Enhance Fixed Income Comparison components and update .gitignore ([1a58a3c3](https://github.com/invistus/invistus/commit/1a58a3c3))
+
+### ❤️ Thank You
+
+- Marcos Salomao @salomax
+
 ## 0.6.1 (2026-04-01)
 
 ### 🩹 Fixes
