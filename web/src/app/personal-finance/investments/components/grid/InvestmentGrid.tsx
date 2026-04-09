@@ -351,73 +351,73 @@ export function InvestmentGrid({
 
   return (
     <Box sx={{ mt: 2 }}>
-      <Fade in={!selectedClass} timeout={220} unmountOnExit>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
-          {INITIAL_GRID_ITEMS.map((item) => (
-            <Box key={item.key} onClick={() => setSelectedClassKey(item.key)}>
-              <InvestmentCard
-                title={item.title}
-                assetCount={assetCountByKey[item.key as keyof typeof assetCountByKey] ?? null}
-                grossValue={metricsByKey[item.key as keyof typeof metricsByKey]?.grossValue ?? 0}
-                currency="BRL"
-                percentageGain={metricsByKey[item.key as keyof typeof metricsByKey]?.percentageGain ?? null}
-                iconKind={item.iconKind}
-                primaryActionLabel={item.primaryActionLabel}
-                secondaryActionLabel={item.secondaryActionLabel}
-                chartData={chartSeriesByKey[item.key as keyof typeof chartSeriesByKey] ?? []}
-              />
-            </Box>
-          ))}
-        </Box>
-      </Fade>
-
-      <Fade in={Boolean(selectedClass)} timeout={260} unmountOnExit>
-        <Box>
-          <Stack direction="row" spacing={1} sx={{ mb: 2, overflowX: "auto", pb: 0.5 }}>
-            <Tooltip title="Voltar para visao em grade">
-              <IconButton
-                size="small"
-                aria-label="Voltar para visao em grade"
-                onClick={() => setSelectedClassKey(null)}
-                sx={{
-                  color: "text.secondary",
-                  flexShrink: 0,
-                  "&:hover": { color: "primary.main", bgcolor: "transparent" },
-                }}
-              >
-                <GridViewIcon fontSize="small" />
-              </IconButton>
-            </Tooltip>
-            {INITIAL_GRID_ITEMS.map((item) => {
-              const active = item.key === selectedClassKey;
-              return (
-                <ButtonBase
-                  key={item.key}
-                  onClick={() => setSelectedClassKey(item.key)}
+      {!selectedClass ? (
+        <Fade in timeout={220}>
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
+            {INITIAL_GRID_ITEMS.map((item) => (
+              <Box key={item.key} onClick={() => setSelectedClassKey(item.key)}>
+                <InvestmentCard
+                  title={item.title}
+                  assetCount={assetCountByKey[item.key as keyof typeof assetCountByKey] ?? null}
+                  grossValue={metricsByKey[item.key as keyof typeof metricsByKey]?.grossValue ?? 0}
+                  currency="BRL"
+                  percentageGain={metricsByKey[item.key as keyof typeof metricsByKey]?.percentageGain ?? null}
+                  iconKind={item.iconKind}
+                  primaryActionLabel={item.primaryActionLabel}
+                  secondaryActionLabel={item.secondaryActionLabel}
+                  chartData={chartSeriesByKey[item.key as keyof typeof chartSeriesByKey] ?? []}
+                />
+              </Box>
+            ))}
+          </Box>
+        </Fade>
+      ) : (
+        <Fade in timeout={260}>
+          <Box>
+            <Stack direction="row" spacing={1} sx={{ mb: 2, overflowX: "auto", pb: 0.5 }}>
+              <Tooltip title="Voltar para visao em grade">
+                <IconButton
+                  size="small"
+                  aria-label="Voltar para visao em grade"
+                  onClick={() => setSelectedClassKey(null)}
                   sx={{
-                    border: "1px solid",
-                    borderColor: active ? "primary.main" : alpha(theme.palette.divider, 0.8),
-                    bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : "background.paper",
-                    borderRadius: 1.5,
-                    px: 1.5,
-                    py: 1,
-                    minWidth: "fit-content",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    transition: "all 180ms ease",
+                    color: "text.secondary",
+                    flexShrink: 0,
+                    "&:hover": { color: "primary.main", bgcolor: "transparent" },
                   }}
                 >
-                  <InvestmentAssetIcon kind={item.iconKind} sx={{ fontSize: 16, color: active ? "primary.main" : "text.secondary" }} />
-                  <Typography variant="body2" sx={{ fontWeight: active ? 700 : 500 }}>
-                    {item.title}
-                  </Typography>
-                </ButtonBase>
-              );
-            })}
-          </Stack>
+                  <GridViewIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              {INITIAL_GRID_ITEMS.map((item) => {
+                const active = item.key === selectedClassKey;
+                return (
+                  <ButtonBase
+                    key={item.key}
+                    onClick={() => setSelectedClassKey(item.key)}
+                    sx={{
+                      border: "1px solid",
+                      borderColor: active ? "primary.main" : alpha(theme.palette.divider, 0.8),
+                      bgcolor: active ? alpha(theme.palette.primary.main, 0.08) : "background.paper",
+                      borderRadius: 1.5,
+                      px: 1.5,
+                      py: 1,
+                      minWidth: "fit-content",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 1,
+                      transition: "all 180ms ease",
+                    }}
+                  >
+                    <InvestmentAssetIcon kind={item.iconKind} sx={{ fontSize: 16, color: active ? "primary.main" : "text.secondary" }} />
+                    <Typography variant="body2" sx={{ fontWeight: active ? 700 : 500 }}>
+                      {item.title}
+                    </Typography>
+                  </ButtonBase>
+                );
+              })}
+            </Stack>
 
-          {selectedClass ? (
             <InvestmentTable
               selectedAccountId={selectedAccountId}
               bankAccounts={bankAccounts}
@@ -429,9 +429,9 @@ export function InvestmentGrid({
               includeCashCard={selectedClass.includeCashCard ?? false}
               hideGroupHeader
             />
-          ) : null}
-        </Box>
-      </Fade>
+          </Box>
+        </Fade>
+      )}
     </Box>
   );
 }

@@ -9,6 +9,7 @@ export interface HoldingsGroupsSectionProps {
   expandedGroups: Set<AssetGroupKey>;
   hideGroupHeader: boolean;
   locale: string;
+  showHeaderProgress?: boolean;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
@@ -22,6 +23,7 @@ export function HoldingsGroupsSection({
   expandedGroups,
   hideGroupHeader,
   locale,
+  showHeaderProgress = false,
   onToggleGroup,
   onOpenDetail,
   onOpenMaturityConfirm,
@@ -31,12 +33,13 @@ export function HoldingsGroupsSection({
 }: HoldingsGroupsSectionProps) {
   return (
     <>
-      {groups.map((group) => (
+      {groups.map((group, index) => (
         <InvestmentGroupTable
           key={group.key}
           group={group}
           expanded={hideGroupHeader ? true : expandedGroups.has(group.key)}
           locale={locale}
+          showHeaderProgress={showHeaderProgress && index === 0}
           onToggleGroup={onToggleGroup}
           onOpenDetail={onOpenDetail}
           onOpenMaturityConfirm={onOpenMaturityConfirm}

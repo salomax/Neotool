@@ -205,6 +205,7 @@ export interface LineChartProps {
   locale?: string;
   /** Recharts Line/Area interpolation. Default `monotone` for smooth curves. */
   curveType?: React.ComponentProps<typeof Line>["type"];
+  isAnimationActive?: boolean;
 }
 
 // --- Helpers ---
@@ -519,6 +520,7 @@ export const LineChart: React.FC<LineChartProps> = ({
   sx,
   locale: localeProp,
   curveType = "monotone",
+  isAnimationActive = true,
 }) => {
   const theme = useTheme();
 
@@ -998,6 +1000,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       fillOpacity={serie.areaOpacity ?? 0.2}
                       yAxisId={yAxisKey}
                       connectNulls
+                      isAnimationActive={isAnimationActive}
                     />
                   ) : (
                     <Line
@@ -1011,6 +1014,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       connectNulls
                       label={showValueLabels}
                       strokeDasharray={serie.strokeDasharray}
+                      isAnimationActive={isAnimationActive}
                     />
                   )}
                   {projKey && (
@@ -1027,6 +1031,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                         yAxisId={yAxisKey}
                         connectNulls
                         legendType="none"
+                        isAnimationActive={isAnimationActive}
                       />
                     ) : (
                       <Line
@@ -1041,6 +1046,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                         label={showValueLabels}
                         strokeDasharray={projectedStyle?.lineDash || "5 4"}
                         legendType="none"
+                        isAnimationActive={isAnimationActive}
                       />
                     )
                   )}

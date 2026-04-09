@@ -179,6 +179,7 @@ export function HoldingPerformanceChart({
           xIsDate
           xContinuous
           curveType="linear"
+          isAnimationActive={false}
           xDateFormat={(value) => formatTimestamp(value, locale, resolution)}
           projectionKey="isProjected"
           projectedStyle={{ lineDash: "6 4", areaOpacity: 0.1 }}

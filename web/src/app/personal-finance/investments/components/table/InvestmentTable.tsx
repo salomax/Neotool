@@ -550,7 +550,7 @@ export function InvestmentTable({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashSection}</Box>
       ) : null}
 
-      {showHoldingsProgress ? (
+      {showHoldingsProgress && !showHoldingsList ? (
         <Box sx={{ position: 'relative', width: '100%' }}>
           <Divider />
           <Box
@@ -600,6 +600,7 @@ export function InvestmentTable({
             expandedGroups={expandedGroups}
             hideGroupHeader={hideGroupHeader}
             locale={locale}
+            showHeaderProgress={showHoldingsProgress}
             onToggleGroup={toggleGroup}
             onOpenDetail={handleOpenDetail}
             onOpenMaturityConfirm={handleOpenMaturityConfirmDrawer}

@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Box, alpha, useTheme } from '@mui/material';
+import { Box, LinearProgress, alpha, useTheme } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { ValueOriginIndicator } from '@/shared/components/ui/data-display';
@@ -26,6 +26,7 @@ interface InvestmentGroupTableProps {
   group: InvestmentHoldingGroup;
   expanded: boolean;
   locale: string;
+  showHeaderProgress?: boolean;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
@@ -39,6 +40,7 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
   group,
   expanded,
   locale,
+  showHeaderProgress = false,
   onToggleGroup,
   onOpenDetail,
   onOpenMaturityConfirm,
@@ -169,13 +171,33 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
   if (hideGroupHeader) {
     return (
       <Box sx={{ borderRadius: `${tableRadius}px`, overflow: 'hidden' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 0.75 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', px: 2, py: 0.75, position: 'relative' }}>
           {headerCells.map((cell) => (
             <Box key={cell.key} sx={{ textAlign: cell.align ?? 'left', ...cell.sx }}>
               {cell.content}
             </Box>
           ))}
           <Box sx={{ width: layout.actionColWidth, flexShrink: 0 }} />
+          <Box
+            aria-hidden
+            sx={{
+              position: 'absolute',
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: 4,
+              pointerEvents: 'none',
+              zIndex: 2,
+            }}
+          >
+            <LinearProgress
+              sx={{
+                height: '100%',
+                opacity: showHeaderProgress ? 1 : 0,
+                transition: 'opacity 150ms linear',
+              }}
+            />
+          </Box>
         </Box>
         {group.holdings.map((holding) => (
           <InvestmentHoldingRow
