@@ -2,12 +2,13 @@
  
  import React from "react";
 import { Box, Typography, useTheme } from "@mui/material";
- import Card from "@/shared/components/ui/primitives/Card";
+import Card from "@/shared/components/ui/primitives/Card";
  import { Skeleton } from "@/shared/components/ui/primitives/Skeleton";
- import { BarChart } from "@/shared/components/ui/data-display/BarChart";
+import { LineChart } from "@/shared/components/ui/data-display/LineChart";
  import { useTranslation, i18n } from "@/shared/i18n";
  import { investmentsTranslations } from "@/shared/i18n/domains/investments";
  import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
+import { FormSectionLabel } from "./FormSectionLabel";
  
  export interface FixedIncomePerformanceChartProps {
    result?: FixedIncomeComparisonQuery["fixedIncomeComparison"] | null;
@@ -25,7 +26,7 @@ import { Box, Typography, useTheme } from "@mui/material";
  
    if (loading) {
      return (
-       <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
+      <Card variant="outlined" hoverable={false} sx={{ p: 3, mb: 3, boxShadow: "none" }}>
          <Skeleton variant="rectangular" height={300} sx={{ borderRadius: 2 }} />
        </Card>
      );
@@ -70,35 +71,69 @@ import { Box, Typography, useTheme } from "@mui/material";
    const exemptLabel = t(`${ns}.exemptProductLabel`);
  
   return (
-    <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
-      <BarChart
-        title={t(`${ns}.performanceChartTitle`)}
-        data={data}
-        height={300}
-        xKey="date"
-        xIsDate
-        axes={[
-          { id: "currency-left", side: "left", format: "currency", currency: "BRL" },
-        ]}
-        series={[
-          { id: "taxable", name: taxableLabel, dataKey: "taxableNet", yAxisId: "currency-left", color: theme.palette.primary.light },
-          { id: "exempt", name: exemptLabel, dataKey: "exemptNet", yAxisId: "currency-left", color: theme.palette.success.light },
-        ]}
-        showLegend={true}
-        showGrid={true}
-        barSize={34}
-        barCategoryGap="0%"
-        barGap={2}
-        locale={locale}
-        scale
-        scaleMinPadding={0.05}
-        scaleMaxPadding={0.1}
-        fadeOlderBars
-        gradientOpacityStart={0.7}
-        gradientOpacityEnd={1}
-        sx={{ p: 0 }}
-      />
-    </Card>
+    <>
+      <Box sx={{ px: 2, pt: 3 }}>
+        <FormSectionLabel sx={{ fontSize: 14 }}>{t(`${ns}.performanceChartTitle`)}</FormSectionLabel>
+      </Box>
+      <Card
+        variant="outlined"
+        hoverable={false}
+        sx={{
+          p: 3,
+          mb: 3,
+          boxShadow: "none",
+          "& .MuiTypography-root": { fontSize: 14 },
+        }}
+      >
+        <LineChart
+          data={data}
+          height={300}
+          xKey="date"
+          xIsDate
+          axes={[
+            { id: "currency-left", side: "left", format: "currency", currency: "BRL" },
+          ]}
+          series={[
+            { id: "taxable", name: taxableLabel, dataKey: "taxableNet", yAxisId: "currency-left", color: theme.palette.primary.light },
+            { id: "exempt", name: exemptLabel, dataKey: "exemptNet", yAxisId: "currency-left", color: theme.palette.success.light },
+          ]}
+          showLegend={true}
+          showGrid={true}
+          showHorizontalGridLines={true}
+          showVerticalGridLines={true}
+          yAxisLabelsInside={true}
+          showDots={false}
+          strokeWidth={3}
+          xDateFormat={(value) => {
+            const date = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(date.getTime())) {
+              return String(value);
+            }
+            const monthRaw = new Intl.DateTimeFormat(locale, {
+              month: "short",
+            })
+              .format(date)
+              .replace(".", "")
+              .trim();
+            const month = monthRaw
+              ? `${monthRaw.charAt(0).toUpperCase()}${monthRaw.slice(1).toLowerCase()}`.slice(
+                  0,
+                  3
+                )
+              : "";
+            const year = new Intl.DateTimeFormat(locale, {
+              year: "2-digit",
+            }).format(date);
+            return `${month}/${year}`;
+          }}
+          locale={locale}
+          scale
+          scaleMinPadding={0.05}
+          scaleMaxPadding={0.1}
+          sx={{ p: 0 }}
+        />
+      </Card>
+    </>
   );
  }
  

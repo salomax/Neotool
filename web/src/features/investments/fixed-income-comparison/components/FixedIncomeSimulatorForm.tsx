@@ -1,23 +1,32 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { useForm, FormProvider, Controller, useWatch } from "react-hook-form";
+import {
+  useForm,
+  FormProvider,
+  Controller,
+  useWatch,
+  useController,
+  type Control,
+  type UseFormSetError,
+  type UseFormClearErrors,
+} from "react-hook-form";
 import { useLazyQuery } from "@apollo/client/react";
 import {
   Box,
+  Divider,
   Typography,
   TextField,
   Button,
+  ToggleButton,
+  ToggleButtonGroup,
   IconButton,
   InputAdornment,
   Slider as MuiSlider,
 } from "@mui/material";
-import { DatePicker } from "@mui/x-date-pickers/DatePicker";
-import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
-import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
-import dayjs, { Dayjs } from "dayjs";
+import dayjs from "dayjs";
 import "dayjs/locale/pt-br";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
+import DoneIcon from "@mui/icons-material/Done";
 import CancelIcon from "@mui/icons-material/Cancel";
 import RestartAltIcon from "@mui/icons-material/RestartAlt";
 import { NumericFormat } from "react-number-format";
@@ -27,6 +36,7 @@ import i18n from "@/shared/i18n/config";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useEconomicIndicatorsForSimulator } from "../hooks/useEconomicIndicatorsForSimulator";
 import { PrincipalInput } from "./PrincipalInput";
+import { FormSectionLabel } from "./FormSectionLabel";
 import { FixedIncomeComparisonDocument } from "../api/queries.generated";
 import type { FixedIncomeProductGroup, FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
@@ -39,6 +49,30 @@ function percentToBps(value: number): number {
 
 function defaultEndDate(startDate: string): string {
   return startDate ? dayjs(startDate).add(1, "year").format("YYYY-MM-DD") : "";
+}
+
+function SelectedBadge() {
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        top: 8,
+        right: 8,
+        width: 18,
+        height: 18,
+        borderRadius: "50%",
+        bgcolor: "background.paper",
+        border: "1px solid",
+        borderColor: "primary.main",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 1,
+      }}
+    >
+      <DoneIcon sx={{ fontSize: 14, color: "primary.main" }} />
+    </Box>
+  );
 }
 const PROJECTION_MIN = -100;
 const PROJECTION_MAX = 100;
@@ -72,16 +106,175 @@ function formatDate(d: Date): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** Map i18n language to dayjs adapter locale (pt / pt-BR -> pt-br, default en). */
-function getDateAdapterLocale(): string {
-  const lang = i18n.language?.toLowerCase() ?? "pt";
-  return lang.startsWith("pt") ? "pt-br" : "en";
-}
-
 /** Map i18n language to number-format locale (for decimal/thousand separators). */
 function getNumberFormatLocale(): string {
   const lang = i18n.language?.toLowerCase() ?? "pt";
   return lang.startsWith("pt") ? "pt-BR" : "en-US";
+}
+
+function getDateInputOrder(): "DMY" | "MDY" {
+  const lang = i18n.language?.toLowerCase() ?? "pt";
+  return lang.startsWith("pt") ? "DMY" : "MDY";
+}
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function isValidDateParts(year: number, month: number, day: number): boolean {
+  if (year < 1900 || year > 2200) return false;
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > 31) return false;
+  const dt = new Date(Date.UTC(year, month - 1, day));
+  return (
+    dt.getUTCFullYear() === year &&
+    dt.getUTCMonth() === month - 1 &&
+    dt.getUTCDate() === day
+  );
+}
+
+function isValidIsoDate(iso: string): boolean {
+  const m = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const year = Number(m[1]);
+  const month = Number(m[2]);
+  const day = Number(m[3]);
+  return isValidDateParts(year, month, day);
+}
+
+function parseDateInputToIso(value: string): string | null {
+  const trimmed = value.trim();
+  const m = trimmed.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
+  if (!m) return null;
+  const a = Number(m[1]);
+  const b = Number(m[2]);
+  const year = Number(m[3]);
+  const order = getDateInputOrder();
+  const day = order === "DMY" ? a : b;
+  const month = order === "DMY" ? b : a;
+  if (!isValidDateParts(year, month, day)) return null;
+  return `${year}-${pad2(month)}-${pad2(day)}`;
+}
+
+function formatDateInputWhileTyping(value: string): string {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  const a = digits.slice(0, 2);
+  const b = digits.slice(2, 4);
+  const c = digits.slice(4, 8);
+  if (digits.length <= 2) return a;
+  if (digits.length <= 4) return `${a}/${b}`;
+  return `${a}/${b}/${c}`;
+}
+
+function formatIsoToDateInput(iso: string): string {
+  if (!iso) return "";
+  if (!isValidIsoDate(iso)) return "";
+  const order = getDateInputOrder();
+  const d = dayjs(iso);
+  return order === "DMY" ? d.format("DD/MM/YYYY") : d.format("MM/DD/YYYY");
+}
+
+function DateInputField({
+  control,
+  name,
+  label,
+  placeholder,
+  requiredMessage,
+  invalidMessage,
+  minIso,
+  clearAriaLabel,
+  setError,
+  clearErrors,
+}: {
+  control: Control<FixedIncomeSimulatorFormValues>;
+  name: "startDate" | "endDate";
+  label: string;
+  placeholder: string;
+  requiredMessage: string;
+  invalidMessage: string;
+  minIso?: string;
+  clearAriaLabel: string;
+  setError: UseFormSetError<FixedIncomeSimulatorFormValues>;
+  clearErrors: UseFormClearErrors<FixedIncomeSimulatorFormValues>;
+}) {
+  const { field, fieldState } = useController({
+    control,
+    name,
+    rules: {
+      required: requiredMessage,
+      validate: (v) => {
+        if (!v) return requiredMessage;
+        if (!isValidIsoDate(v)) return invalidMessage;
+        if (minIso && isValidIsoDate(minIso)) {
+          const end = dayjs(v);
+          const minEnd = dayjs(minIso);
+          return end.isBefore(minEnd) ? requiredMessage : true;
+        }
+        return true;
+      },
+    },
+  });
+
+  const [localValue, setLocalValue] = useState(() => formatIsoToDateInput(field.value));
+
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <FormSectionLabel>{label}</FormSectionLabel>
+
+      <TextField
+        fullWidth
+        size="small"
+        value={localValue}
+        onChange={(e) => {
+          clearErrors(name);
+          setLocalValue(formatDateInputWhileTyping(e.target.value));
+        }}
+        onBlur={() => {
+          const iso = localValue ? parseDateInputToIso(localValue) : null;
+          if (!iso) {
+            field.onChange("");
+            setError(name, {
+              type: "validate",
+              message: localValue ? invalidMessage : requiredMessage,
+            });
+            return;
+          }
+          field.onChange(iso);
+          clearErrors(name);
+          setLocalValue(formatIsoToDateInput(iso));
+        }}
+        error={!!fieldState.error}
+        helperText={fieldState.error?.message}
+        placeholder={placeholder}
+        inputProps={{
+          inputMode: "numeric",
+          placeholder,
+          maxLength: 10,
+        }}
+        InputProps={{
+          endAdornment: localValue ? (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label={clearAriaLabel}
+                tabIndex={-1}
+                onClick={() => {
+                  setLocalValue("");
+                  field.onChange("");
+                  clearErrors(name);
+                }}
+                edge="end"
+                size="small"
+                sx={{ mr: -0.5, p: 0.25, color: "text.disabled" }}
+              >
+                <CancelIcon fontSize="inherit" sx={{ fontSize: 16 }} />
+              </IconButton>
+            </InputAdornment>
+          ) : null,
+        }}
+        sx={{ minWidth: 0 }}
+      />
+    </Box>
+  );
 }
 
 export function FixedIncomeSimulatorForm({
@@ -101,25 +294,13 @@ export function FixedIncomeSimulatorForm({
   } = useEconomicIndicatorsForSimulator();
 
   const containerRef = useRef<HTMLElement>(null);
-  const [isCompact, setIsCompact] = useState(false);
-
-  useEffect(() => {
-    if (!containerRef.current) return;
-    const ro = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setIsCompact(entry.contentRect.width < 390);
-      }
-    });
-    ro.observe(containerRef.current);
-    return () => ro.disconnect();
-  }, []);
 
   const methods = useForm<FixedIncomeSimulatorFormValues>({
     defaultValues: {
       productGroup: "TAXABLE_IR" as FixedIncomeProductGroup,
       principal: DEFAULT_PRINCIPAL,
       rateModel: "CDI" as FixedIncomeRateModel,
-      contractedRateValue: "",
+      contractedRateValue: 100.0,
       startDate: today,
       endDate: defaultEndDate(today),
       cdiAnnualPercent: 0,
@@ -155,46 +336,7 @@ export function FixedIncomeSimulatorForm({
     FixedIncomeComparisonDocument,
     { fetchPolicy: "network-only" }
   );
-
-  // Disable automatic search on initial load
-  // const initialRunDone = useRef(false);
-  // useEffect(() => {
-  //   if (indicatorsLoading || initialRunDone.current) return;
-  //   const values = getValues();
-  //   const principal =
-  //     typeof values.principal === "number" && values.principal > 0
-  //       ? values.principal
-  //       : DEFAULT_PRINCIPAL;
-  //   const endDate = values.endDate || defaultEndDate(values.startDate || today);
-  //   if (!endDate) return;
-  //   initialRunDone.current = true;
-  //   runComparison({
-  //     variables: {
-  //       input: {
-  //         productGroup: values.productGroup,
-  //         principal,
-  //         startDate: values.startDate || today,
-  //         endDate,
-  //         rateModel: values.rateModel,
-  //         contractedRateBps: percentToBps(
-  //           values.contractedRateValue === ""
-  //             ? DEFAULT_CONTRACTED_RATE
-  //             : Number(values.contractedRateValue)
-  //         ),
-  //         cdiAnnualRateBps: percentToBps(cdiPercent),
-  //         ipcaAnnualRateBps: percentToBps(ipcaPercent),
-  //       },
-  //     },
-  //   });
-  // }, [
-  //   indicatorsLoading,
-  //   cdiPercent,
-  //   ipcaPercent,
-  //   today,
-  //   getValues,
-  //   runComparison,
-  // ]);
-
+  
   useEffect(() => {
     if (comparisonData?.fixedIncomeComparison) {
       onComparisonResult?.(comparisonData.fixedIncomeComparison);
@@ -239,51 +381,33 @@ export function FixedIncomeSimulatorForm({
         bgcolor: "background.paper",
         p: 3,
         borderRadius: 2,
-        boxShadow: 2,
         border: "1px solid",
         borderColor: "divider",
         width: "100%",
-        maxWidth: 440,
+        minWidth: 0,
+        maxWidth: { xs: "100%", md: 440 },
+        fontSize: 14,
+        "& .MuiTypography-root:not(.FormSectionLabel-root)": { fontSize: 14 },
+        "& .MuiButton-root": { fontSize: 14 },
+        "& .MuiToggleButton-root": { fontSize: 14 },
+        "& .MuiInputBase-input": { fontSize: 14 },
+        "& .MuiInputAdornment-root": { fontSize: 14 },
+        "& .MuiFormHelperText-root": { fontSize: 14 },
       }}
       data-purpose="simulador-form"
     >
-      <Typography variant="h6" component="h2" sx={{ mb: 3 }}>
-        {t(`${ns}.simulatorTitle`)}
-      </Typography>
 
       <FormProvider {...methods}>
-        <LocalizationProvider
-          dateAdapter={AdapterDayjs}
-          adapterLocale={getDateAdapterLocale()}
+        <Box
+          component="form"
+          onSubmit={handleSubmit(handleFormSubmit)}
+          sx={{ display: "flex", flexDirection: "column", gap: 3 }}
         >
-          <Box
-            component="form"
-            onSubmit={handleSubmit(handleFormSubmit)}
-            sx={{ display: "flex", flexDirection: "column", gap: 3 }}
-          >
           {/* Product group - Tipo de Ativo */}
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 2,
-              }}
-            >
-              {t(`${ns}.productGroup`)}
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <FormSectionLabel mb={1}>{t(`${ns}.productGroup`)}</FormSectionLabel>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
               <Box>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "text.secondary", display: "block", mb: 0.5 }}
-                >
-                  {t(`${ns}.incidesIrDescription`)}
-                </Typography>
                 <Button
                   type="button"
                   fullWidth
@@ -292,27 +416,21 @@ export function FixedIncomeSimulatorForm({
                   sx={{
                     py: 2,
                     px: 2,
-                    justifyContent: "flex-start",
+                    justifyContent: "space-between",
                     gap: 1.5,
                     textTransform: "none",
-                    fontWeight: 700,
-                    borderWidth: 2,
                     textAlign: "left",
                     alignItems: "center",
-                    "&:hover": { borderWidth: 2 },
+                    position: "relative",
                   }}
                 >
-                  {t(`${ns}.taxableProductLabel`)}
-                  {productGroup === "TAXABLE_IR" && <CheckCircleIcon sx={{ fontSize: 20 }} />}
+                  <Typography variant="body2">
+                    {t(`${ns}.taxableProductLabel`)}
+                  </Typography>
+                  {productGroup === "TAXABLE_IR" && <SelectedBadge />}
                 </Button>
               </Box>
               <Box>
-                <Typography
-                  variant="body2"
-                  sx={{ color: "text.secondary", display: "block", mb: 0.5 }}
-                >
-                  {t(`${ns}.exemptIrDescription`)}
-                </Typography>
                 <Button
                   type="button"
                   fullWidth
@@ -321,247 +439,206 @@ export function FixedIncomeSimulatorForm({
                   sx={{
                     py: 2,
                     px: 2,
-                    justifyContent: "flex-start",
+                    justifyContent: "space-between",
                     gap: 1.5,
                     textTransform: "none",
-                    fontWeight: 700,
-                    borderWidth: 2,
                     textAlign: "left",
                     alignItems: "center",
-                    "&:hover": { borderWidth: 2 },
+                    position: "relative",
                   }}
                 >
-                  {t(`${ns}.exemptProductLabel`)}
-                  {productGroup === "EXEMPT_IR" && <CheckCircleIcon sx={{ fontSize: 20 }} />}
+                  <Typography variant="body2">
+                    {t(`${ns}.exemptProductLabel`)}
+                  </Typography>
+                  {productGroup === "EXEMPT_IR" && <SelectedBadge />}
                 </Button>
               </Box>
             </Box>
+
+            <Typography variant="body2" sx={{ color: "text.secondary", mt: 2, pl: 2 }}>
+              {productGroup === "TAXABLE_IR"
+                ? t(`${ns}.incidesIrDescription`)
+                : t(`${ns}.exemptIrDescription`)}
+            </Typography>
           </Box>
 
-          {/* Principal - Valor inicial: local state to avoid focus loss, sync on blur */}
-          <PrincipalInput
-            name="principal"
-            control={methods.control}
-            requiredMessage={reqMsg}
-            ns={ns}
-            t={t}
-          />
+          <Divider />
 
           {/* Indexador - Rate model (same style as Tipo de Ativo, single line) */}
           <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 2,
+            <FormSectionLabel mb={1}>{t(`${ns}.rateModel`)}</FormSectionLabel>
+            <ToggleButtonGroup
+              exclusive
+              value={rateModel}
+              onChange={(_, nextValue: FixedIncomeRateModel | null) => {
+                if (!nextValue) return;
+                methods.setValue("rateModel", nextValue);
               }}
-            >
-              {t(`${ns}.rateModel`)}
-            </Typography>
-            <Box
+              aria-label={t(`${ns}.rateModel`) ?? "rate model"}
               sx={{
+                width: "100%",
                 display: "flex",
-                flexDirection: isCompact ? "column" : "row",
-                flexWrap: "wrap",
-                gap: 1.5,
+                flexDirection: "row",
+                flexWrap: "nowrap",
+                "& .MuiToggleButton-root": {
+                  flex: 1,
+                  minWidth: 0,
+                  py: 1,
+                  px: 2,
+                  justifyContent: "flex-start",
+                  textTransform: "none",
+                  borderColor: "primary.main",
+                  color: "primary.main",
+                  textAlign: "left",
+                  alignItems: "center",
+                  typography: "caption",
+                  lineHeight: 1.2,
+                  position: "relative",
+                  "&.Mui-selected": {
+                    bgcolor: "primary.main",
+                    color: "primary.contrastText",
+                    borderColor: "primary.main",
+                    "&:hover": { bgcolor: "primary.dark" },
+                  },
+                  "&:hover": { borderColor: "primary.main" },
+                  "&:first-of-type": {
+                    borderRight: "none",
+                  },
+                  "&:last-of-type": {
+                    borderLeft: "none",
+                  },
+                },
               }}
             >
               {RATE_MODEL_OPTIONS.map((o) => (
-                <Button
-                  key={o.value}
-                  type="button"
-                  variant={rateModel === o.value ? "contained" : "outlined"}
-                  onClick={() => methods.setValue("rateModel", o.value)}
-                  sx={{
-                    flex: 1,
-                    minWidth: 0,
-                    py: 2,
-                    px: 2,
-                    justifyContent: "flex-start",
-                    gap: 1.5,
-                    textTransform: "none",
-                    fontWeight: 700,
-                    borderWidth: 2,
-                    textAlign: "left",
-                    alignItems: "center",
-                    "&:hover": { borderWidth: 2 },
-                  }}
-                >
-                  {t(`${ns}.${o.labelKey}` as any)}
-                  {rateModel === o.value && (
-                    <CheckCircleIcon sx={{ fontSize: 20 }} />
-                  )}
-                </Button>
+                <ToggleButton key={o.value} value={o.value} aria-label={o.value}>
+                  {rateModel === o.value && <SelectedBadge />}
+                  <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                    <Typography
+                      variant="caption"
+                      noWrap
+                      sx={{ minWidth: 0, flex: 1 }}
+                    >
+                      {t(`${ns}.${o.labelKey}` as any)}
+                    </Typography>
+                  </Box>
+                </ToggleButton>
               ))}
-            </Box>
+            </ToggleButtonGroup>
           </Box>
 
-          {/* Taxa do título (%): default empty, right-aligned, max 2 decimals, no spinner, reset (circle-x) */}
-          <Box>
-            <Typography
-              variant="caption"
-              sx={{
-                display: "block",
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.05em",
-                color: "text.secondary",
-                mb: 1,
-              }}
-            >
-              {t(`${ns}.contractedRate`)}
-            </Typography>
-            <Controller
-              name="contractedRateValue"
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 2,
+              minWidth: 0,
+            }}
+          >
+            {/* Principal - Valor inicial: local state to avoid focus loss, sync on blur */}
+            <PrincipalInput
+              name="principal"
               control={methods.control}
-              rules={{
-                required: reqMsg,
-                validate: (v) =>
-                  v === "" || (typeof v === "number" && v < 0) ? reqMsg : true,
-              }}
-              render={({ field, fieldState }) => (
-                <NumericFormat
-                  customInput={TextField}
-                  fullWidth
-                  size="small"
-                  error={!!fieldState.error}
-                  helperText={fieldState.error?.message}
-                  value={field.value === "" ? "" : field.value}
-                  onValueChange={(values) =>
-                    field.onChange(
-                      values.floatValue !== undefined && values.floatValue !== null
-                        ? values.floatValue
-                        : ""
-                    )
-                  }
-                  decimalScale={2}
-                  allowNegative={false}
-                  decimalSeparator={contractedRateDecimal}
-                  thousandSeparator={contractedRateGroup ?? false}
-                  suffix=" %"
-                  InputProps={{
-                    inputProps: { style: { textAlign: "right" as const } },
-                    endAdornment: (
-                      <InputAdornment position="end">
-                        <IconButton
-                          type="button"
-                          size="small"
-                          aria-label="reset"
-                          onClick={() =>
-                            methods.setValue("contractedRateValue", "")
-                          }
-                          sx={{ mr: -0.5 }}
-                        >
-                          <CancelIcon fontSize="small" />
-                        </IconButton>
-                      </InputAdornment>
-                    ),
-                  }}
-                />
-              )}
+              requiredMessage={reqMsg}
+              ns={ns}
+              t={t}
             />
+
+            {/* Taxa do título (%): default empty, right-aligned, max 2 decimals, no spinner, reset (circle-x) */}
+            <Box sx={{ minWidth: 0 }}>
+              <FormSectionLabel>{t(`${ns}.contractedRate`)}</FormSectionLabel>
+              <Controller
+                name="contractedRateValue"
+                control={methods.control}
+                rules={{
+                  required: reqMsg,
+                  validate: (v) =>
+                    v === "" || (typeof v === "number" && v < 0) ? reqMsg : true,
+                }}
+                render={({ field, fieldState }) => (
+                  <NumericFormat
+                    customInput={TextField}
+                    fullWidth
+                    size="small"
+                    error={!!fieldState.error}
+                    helperText={fieldState.error?.message}
+                    value={field.value === "" ? "" : field.value}
+                    onValueChange={(values) =>
+                      field.onChange(
+                        values.floatValue !== undefined && values.floatValue !== null
+                          ? values.floatValue
+                          : ""
+                      )
+                    }
+                    decimalScale={2}
+                    allowNegative={false}
+                    decimalSeparator={contractedRateDecimal}
+                    thousandSeparator={contractedRateGroup ?? false}
+                    suffix=" %"
+                    InputProps={{
+                      inputProps: { style: { textAlign: "right" as const } },
+                      endAdornment: (
+                        <InputAdornment position="end">
+                          <IconButton
+                            type="button"
+                            size="small"
+                            aria-label="reset"
+                            tabIndex={-1}
+                            onClick={() =>
+                              methods.setValue("contractedRateValue", "")
+                            }
+                            sx={{ mr: -0.5, p: 0.25, color: "text.disabled" }}
+                          >
+                            <CancelIcon fontSize="inherit" sx={{ fontSize: 16 }} />
+                          </IconButton>
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Box>
           </Box>
 
           {/* Dates: MUI DatePicker with app locale (pt-br / en) */}
           <Box
             sx={{
               display: "grid",
-              gridTemplateColumns: isCompact ? "1fr" : "1fr 1fr",
+              gridTemplateColumns: "1fr 1fr",
               gap: 2,
               minWidth: 0,
             }}
           >
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "text.secondary",
-                  mb: 1,
-                }}
-              >
-                {t(`${ns}.startDate`)}
-              </Typography>
-              <Controller
-                name="startDate"
-                control={methods.control}
-                rules={{ required: reqMsg }}
-                render={({ field, fieldState }) => (
-                  <DatePicker
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(v: Dayjs | null) =>
-                      field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                    }
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: "small",
-                        error: !!fieldState.error,
-                        helperText: fieldState.error?.message,
-                        sx: { minWidth: 0 },
-                      },
-                    }}
-                  />
-                )}
-              />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography
-                variant="caption"
-                sx={{
-                  display: "block",
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.05em",
-                  color: "text.secondary",
-                  mb: 1,
-                }}
-              >
-                {t(`${ns}.endDate`)}
-              </Typography>
-              <Controller
-                name="endDate"
-                control={methods.control}
-                rules={{
-                  required: reqMsg,
-                  validate: (v) => {
-                    if (!v || !startDate) return true;
-                    const end = dayjs(v);
-                    const minEnd = dayjs(startDate).add(1, "day");
-                    return end.isBefore(minEnd) ? reqMsg : true;
-                  },
-                }}
-                render={({ field, fieldState }) => (
-                  <DatePicker
-                    value={field.value ? dayjs(field.value) : null}
-                    onChange={(v: Dayjs | null) =>
-                      field.onChange(v ? v.format("YYYY-MM-DD") : "")
-                    }
-                    minDate={
-                      startDate
-                        ? dayjs(startDate).add(1, "day")
-                        : undefined
-                    }
-                    slotProps={{
-                      textField: {
-                        fullWidth: true,
-                        size: "small",
-                        error: !!fieldState.error,
-                        helperText: fieldState.error?.message,
-                        sx: { minWidth: 0 },
-                      },
-                    }}
-                  />
-                )}
-              />
-            </Box>
+            <DateInputField
+              key={startDate || "__empty__"}
+              control={control}
+              name="startDate"
+              label={t(`${ns}.startDate`)}
+              placeholder={t(`${ns}.datePlaceholder`)}
+              requiredMessage={reqMsg}
+              invalidMessage={t(`${ns}.invalidDate`)}
+              clearAriaLabel={t(`${ns}.clearDate`)}
+              setError={methods.setError}
+              clearErrors={methods.clearErrors}
+            />
+
+            <DateInputField
+              key={endDate || "__empty__"}
+              control={control}
+              name="endDate"
+              label={t(`${ns}.endDate`)}
+              placeholder={t(`${ns}.datePlaceholder`)}
+              requiredMessage={reqMsg}
+              invalidMessage={t(`${ns}.invalidDate`)}
+              clearAriaLabel={t(`${ns}.clearDate`)}
+              minIso={
+                isValidIsoDate(startDate)
+                  ? dayjs(startDate).add(1, "day").format("YYYY-MM-DD")
+                  : undefined
+              }
+              setError={methods.setError}
+              clearErrors={methods.clearErrors}
+            />
           </Box>
 
           {/* Projeções de mercado: input + slider tied to same value (-100 to 100, 2 decimals) */}
@@ -569,7 +646,7 @@ export function FixedIncomeSimulatorForm({
             sx={{
               p: 2,
               bgcolor: "action.hover",
-              borderRadius: 2,
+              borderRadius: 1,
               border: "1px solid",
               borderColor: "divider",
             }}
@@ -582,16 +659,9 @@ export function FixedIncomeSimulatorForm({
                 mb: 2,
               }}
             >
-              <Typography
-                variant="caption"
-                sx={{
-                  fontWeight: 800,
-                  textTransform: "uppercase",
-                  color: "text.primary",
-                }}
-              >
+              <FormSectionLabel color="text.primary">
                 {t(`${ns}.marketProjections`)}
-              </Typography>
+              </FormSectionLabel>
               <Button
                 type="button"
                 size="small"
@@ -741,13 +811,13 @@ export function FixedIncomeSimulatorForm({
               py: 2,
               fontWeight: 800,
               textTransform: "uppercase",
+                fontSize: 12,
               mt: 1,
             }}
           >
             {t(`${ns}.simulate`)}
           </Button>
-        </Box>
-        </LocalizationProvider>
+          </Box>
       </FormProvider>
     </Box>
   );
