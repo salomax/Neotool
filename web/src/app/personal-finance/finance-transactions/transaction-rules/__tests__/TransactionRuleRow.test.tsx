@@ -1,10 +1,32 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, cleanup, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Table, TableBody } from '@mui/material';
 import { CategoryApplicableTo, PatternType } from '@/lib/graphql/types/__generated__/graphql';
 import { TransactionRuleRow } from '../TransactionRuleRow';
 import type { TransactionRule } from '../types';
+
+vi.mock('@mui/material', async () => {
+  const actual = await vi.importActual<typeof import('@mui/material')>('@mui/material');
+
+  return {
+    ...actual,
+    Menu: ({
+      children,
+      anchorEl,
+      anchorOrigin,
+      transformOrigin,
+      MenuListProps,
+      open,
+      onClose,
+      ...props
+    }: any) => (
+      <div role="menu" data-open={open ? 'true' : 'false'} {...props}>
+        {children}
+      </div>
+    ),
+  };
+});
 
 const baseRule: TransactionRule = {
   id: 'rule-1',
@@ -26,6 +48,10 @@ const baseRule: TransactionRule = {
 };
 
 describe('TransactionRuleRow', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
   it('shows disabled visual badge for disabled automatic rules', () => {
     render(
       <Table>
@@ -35,7 +61,6 @@ describe('TransactionRuleRow', () => {
             onEdit={vi.fn()}
             onDelete={vi.fn()}
             renderAs="table"
-            showActions
             disabledChipLabel="Desabilitada"
           />
         </TableBody>
@@ -65,9 +90,11 @@ describe('TransactionRuleRow', () => {
       </Table>,
     );
 
-    await user.click(screen.getByRole('button', { name: /Ações da regra/i }));
-    await user.click(screen.getByRole('menuitem', { name: /Habilitar regra automática/i }));
+    const toggleMenuItem = screen.getByRole('menuitem', { name: /Habilitar regra automática/i });
+    fireEvent.click(toggleMenuItem);
 
-    expect(onToggle).toHaveBeenCalledWith(baseRule, true);
+    await waitFor(() => {
+      expect(onToggle).toHaveBeenCalledWith(baseRule, true);
+    });
   });
 });

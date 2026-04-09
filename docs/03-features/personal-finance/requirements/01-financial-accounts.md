@@ -2,7 +2,7 @@
 
 **Service:** Invistus Banking Service
 **Module:** Personal Finance — Financial Accounts
-**Document date:** 2026-03-24
+**Document date:** 2026-04-09
 
 ---
 
@@ -17,7 +17,7 @@ Financial Accounts are the central entity of the personal finance module. A user
 - Associate an account with a **known issuer** (from a seeded institution catalogue) or enter a **custom institution name**.
 - Record an **initial balance** at creation time, which auto-creates a `BALANCE_ADJUSTMENT` transaction.
 - Link a credit card account to a **bank account** for automatic bill-payment debit-leg creation.
-- View **display mode** per account type: calendar-based (bank/cash/payment) or bill-based (credit/charge card).
+- View transactions in the account scope. The current `finance-transactions` UI uses **calendar-based display** for all supported account types; bill-specific display remains deferred.
 
 Open Finance (Pluggy) sync is **out of scope** for the current phase (Phase 5). Fields required for future integration (`connectionStatus`, `consentExpiresAt`, `lastSyncAt`, `providerItemId`) are present in the schema but are null for all manually managed accounts.
 
@@ -89,11 +89,11 @@ Defined in `domain/account/FinancialAccountEnums.kt` and enforced by a DB `CHECK
 | `creditLimit` | BigDecimal? | Total credit limit |
 | `availableCreditLimit` | BigDecimal? | Available credit (computed or entered) |
 | `minimumPaymentPercentage` | BigDecimal? | Minimum payment percentage |
-| `closingDay` | Int? (1–28) | Bill closing day — **required for CREDIT_CARD at service layer** |
-| `dueDay` | Int? (1–28) | Bill due day — **required for CREDIT_CARD at service layer** |
+| `closingDay` | Int? | Optional billing-cycle metadata for cards when known (day-of-month hint; **no** fixed min/max in product) |
+| `dueDay` | Int? | Optional billing-cycle metadata for cards when known (day-of-month hint; **no** fixed min/max in product) |
 | `linkedBankAccountId` | UUID? | Optional link to a BANK account for auto-debit on bill payment |
 
-The DB enforces `closing_day BETWEEN 1 AND 28` and `due_day BETWEEN 1 AND 28` via `CHECK` constraints (`V0_3__create_banking_accounts.sql`). The frontend allows 1–31 in input fields (a discrepancy — see Section 6).
+`closingDay` and `dueDay` are independent optional integers. The product does **not** define a required range (e.g. 1–28) or ordering between them. Any legacy `CHECK (… BETWEEN 1 AND 28)` on `financial_account_card_data` should be removed or relaxed when schema is next touched so persistence matches this requirement.
 
 ---
 
@@ -166,7 +166,7 @@ Source: `FinancialAccountService.extractLastFourDigits()`
 ### 3.7 Currency
 
 - Defaults to `"BRL"` when not provided or blank.
-- Stored as `CHAR(3)` (ISO 4217). The frontend exposes three options: BRL, USD, EUR.
+- Stored as `CHAR(3)` (ISO 4217). The current `finance-transactions` drawer keeps currency hidden and defaults manual accounts to `BRL`; foreign-currency account UX remains future work.
 - Currency is not changeable on update if the field is absent or blank (existing value is preserved).
 
 ### 3.8 Dashboard & Net Worth Flags
@@ -175,12 +175,12 @@ Source: `FinancialAccountService.extractLastFourDigits()`
 - On update, if omitted, existing values are preserved.
 - The backlog documents that `includeInNetWorth` should default to `false` for credit cards (since outstanding balance is a liability), but the service layer sets `true` unconditionally when the flag is absent. This is an **open gap** (see Section 6).
 
-### 3.9 Display Mode by Account Type
+### 3.9 Display Mode in Transaction Scope
 
 Source: `web/src/app/personal-finance/finance-transactions/account/useAccountDisplayMode.ts`
 
-- Accounts with subtype `CREDIT_CARD` or `CHARGE_CARD` use **bill-based display**: the transaction list is scoped to a selected credit card bill (fatura). The most recent bill is selected by default.
-- All other account types use **calendar-based display**: the user selects a year/month for the transaction list.
+- The current `finance-transactions` page uses **calendar-based display for all supported account types**, including credit and charge cards.
+- Bill-based display has been intentionally deferred pending product decisions about how to handle cards with missing or unreliable billing-cycle metadata.
 
 ### 3.10 Bill Cycle (Credit/Charge Cards)
 
@@ -215,7 +215,7 @@ User selects "Conta Bancária" but the institution is not in the list. User pick
 User selects "Cartão", sets subtype to `CREDIT_CARD`, picks the card network and level, enters the last 4 digits, credit limit, closing day, and due day. The system creates the account. Bills are auto-created when the first transaction is posted.
 
 **Scenario 4 — Create a CHARGE_CARD account**
-Same as Scenario 3 except subtype is `CHARGE_CARD`. Billing cycle fields (closing day, due day) are shown and required. `cardLevel` is not shown (UI only renders the card level selector for `CREDIT_CARD`).
+Same as Scenario 3 except subtype is `CHARGE_CARD`. Billing cycle fields (closing day, due day) are optional. `cardLevel` is not shown (UI only renders the card level selector for `CREDIT_CARD`).
 
 **Scenario 5 — Create a VOUCHER_CARD or PREPAID_CARD**
 User selects "Cartão", sets subtype to `VOUCHER_CARD` or `PREPAID_CARD`. These subtypes are not billing-cycle cards (`isBillingCycleCard = false`), so closing day, due day, credit limit, and masked number are rendered differently (no billing fields shown). The account uses calendar-based display mode.
@@ -257,8 +257,8 @@ A credit card account has `cardData.linkedBankAccountId` set to a bank account's
 | `initialBalance` | Must be non-zero if provided | Service layer (`require`) |
 | `initialBalanceDate` | Required when `initialBalance` is provided | Service layer (`require`) |
 | `initialBalanceDate` | Must not be older than 5 years from today | Service layer (`ValidationException`) + frontend |
-| `cardData.closingDay` | 1–28 (DB constraint); schema comment says required for CREDIT_CARD | DB CHECK (1–28); frontend allows 1–31 |
-| `cardData.dueDay` | 1–28 (DB constraint); schema comment says required for CREDIT_CARD | DB CHECK (1–28); frontend allows 1–31 |
+| `cardData.closingDay` | Optional integer; no mandated range or relation to `dueDay` | Persist as provided once schema matches (see §6.10) |
+| `cardData.dueDay` | Optional integer; no mandated range or relation to `closingDay` | Persist as provided once schema matches (see §6.10) |
 | `cardData.cardNetwork` | Must be one of 8 enum values if provided | DB CHECK |
 | `cardData.cardLevel` | Must be one of 5 enum values if provided | DB CHECK |
 | `connectionStatus` | Must be one of 6 enum values if provided | DB CHECK |
@@ -280,29 +280,29 @@ A credit card account has `cardData.linkedBankAccountId` set to a bank account's
 **6.1 Delete mutation is missing from the GraphQL schema.**
 The backlog (`phase-1-accounts-cards.md`) specifies a `DELETE /personal-finance/accounts/{id}` operation. The `financial_accounts` table has a `deleted_at` column. However, there is no `deleteFinancialAccount` mutation in `schema.graphqls` and no delete method in `FinancialAccountRepository`. This operation has not been implemented.
 
-**6.2 `closingDay` / `dueDay` range mismatch between frontend and backend.**
-The DB `CHECK` constraint enforces `BETWEEN 1 AND 28`. The frontend Zod schema allows `.max(31)` and the HTML input has `max: 31`. Submitting 29, 30, or 31 will pass frontend validation but fail at the DB layer. The backend service layer does not validate these fields explicitly before persistence; the DB constraint is the only guard.
-
-**6.3 `includeInNetWorth` default not differentiated by subtype.**
+**6.2 `includeInNetWorth` default not differentiated by subtype.**
 The backlog suggests defaulting `includeInNetWorth = false` for credit cards (because the outstanding balance is a liability). The service layer always defaults to `true` when the flag is absent. The frontend `defaultValues` also sets `true` unconditionally. No subtype-specific defaulting is implemented.
 
-**6.4 `cardData.closingDay` and `dueDay` are not enforced as required for `CREDIT_CARD` at the service layer.**
-The schema comment states "Required for CREDIT_CARD", and the GraphQL schema doc also notes this. However, `FinancialAccountService` does not validate their presence; the fields are nullable in `CardData`. The enforcement is UI-side only (fields are shown only for `isBillingCycleCard` subtypes). A card with no `closingDay`/`dueDay` will fail bill cycle computation at runtime (`CreditCardBillService.computeClosingDate`).
+**6.3 Bill view is deferred in the transaction UI.**
+Backend bill lifecycle support still exists, but the `finance-transactions` page intentionally stays in calendar mode for all accounts until the product decides how bill-scoped navigation should behave for cards that do not expose reliable billing-cycle data.
 
-**6.5 BIN enrichment is not implemented in the backend.**
+**6.4 BIN enrichment is not implemented in the backend.**
 The backlog describes BIN lookup to auto-fill `cardNetwork`, `issuerName`, and `cardLevel`. No BIN enrichment service or lookup is present in the backend code. The `bin` field is stored as provided but never acted upon server-side.
 
-**6.6 `WALLET` and `CASH` subtype are misaligned in frontend type selection.**
+**6.5 `WALLET` and `CASH` subtype are misaligned in frontend type selection.**
 The frontend type selection only presents two top-level choices: "Conta Bancária" (maps to `BANK`) and "Cartão" (maps to `CREDIT`, `PAYMENT` subtypes). Account types `CASH`, `INVESTMENT`, `LOAN`, `ASSET`, and `BENEFIT` have no creation path in the current UI. These types exist in the data model and can be created via direct GraphQL mutation, but there is no UI flow for them.
 
-**6.7 Account name uniqueness is documented but not enforced.**
+**6.6 Account name uniqueness is documented but not enforced.**
 The backlog (`phase-1-accounts-cards.md`, Error Handling section) states "Validate account name uniqueness per user." No unique constraint exists in `V0_3__create_banking_accounts.sql` on `(account_id, name)`, and the service layer performs no uniqueness check.
 
-**6.8 `logoKey` is stored in `financial_accounts` but never written by the service.**
+**6.7 `logoKey` is stored in `financial_accounts` but never written by the service.**
 The `FinancialAccount` domain model has `logoKey: String?` and the DB column `logo_key` exists, but `FinancialAccountService.create()` does not populate it. It is not part of `CreateFinancialAccountCommand` or `UpdateFinancialAccountCommand`. The issuer's logo is accessed through the `Issuer` entity join at query time.
 
-**6.9 Account quota enforcement is absent.**
+**6.8 Account quota enforcement is absent.**
 The code contains a `TODO` comment indicating plan-based account creation limits (FREE: 5, BASIC: 20, PRO: 100) are planned but not yet enforced. There is no guard at creation time.
 
-**6.10 `BENEFIT` type not present in the frontend UI.**
+**6.9 `BENEFIT` type not present in the frontend UI.**
 `FGTS` and `INSS` subtypes are defined in the data model and GraphQL schema but have no corresponding UI path in the account creation drawer.
+
+**6.10 `closingDay` / `dueDay` range in implementation vs requirement.**
+The product does not cap these fields to 1–28 or enforce ordering between them. Until code and DB are aligned, note: `V0_3__create_banking_accounts.sql` still defines `CHECK (closing_day BETWEEN 1 AND 28)` and the same for `due_day`, and the finance-transactions account drawer may still validate 1–28 in the form schema. A migration plus frontend/service cleanup should remove those caps when this gap is addressed.

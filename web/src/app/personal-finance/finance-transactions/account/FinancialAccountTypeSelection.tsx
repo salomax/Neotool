@@ -150,7 +150,6 @@ export function FinancialAccountTypeSelection({ onSelect }: FinancialAccountType
                 display: '-webkit-box',
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: 'vertical',
-                overflow: 'hidden',
               }}
             >
               {t('financeTransactions.createAccount.step1.bankAccount.subtitle')}

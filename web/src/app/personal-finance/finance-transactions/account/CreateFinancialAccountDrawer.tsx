@@ -71,12 +71,6 @@ const CardLevelValues = [
   'BLACK',
 ];
 
-const Currencies = [
-  { value: 'BRL', label: 'BRL' },
-  { value: 'USD', label: 'USD' },
-  { value: 'EUR', label: 'EUR' },
-];
-
 type CreateAccountFormData = {
   type: 'BANK' | 'CARD';
   issuerId?: string;
@@ -129,9 +123,9 @@ interface CreateFinancialAccountDrawerProps {
   onBackFromPrefilledType?: () => void;
   /** Pre-fills the last 4 digits field when creating a card inline from import. */
   initialMaskedNumber?: string;
-  /** Pre-fills the card closing day (1-31) when creating from bill import. */
+  /** Pre-fills the card closing day (1-28) when available from import context. */
   initialClosingDay?: number;
-  /** Pre-fills the card due day (1-31) when creating from bill import. */
+  /** Pre-fills the card due day (1-28) when available from import context. */
   initialDueDay?: number;
   /** Pre-select issuer when creating from flows that already locked issuer. */
   initialIssuerId?: string;
@@ -285,11 +279,13 @@ export function CreateFinancialAccountDrawer({
     createFinancialAccount: { id: string; name: string };
   }>(CREATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
+    awaitRefetchQueries: true,
   });
   const [updateAccount, { loading: updating, error: updateError }] = useMutation<{
     updateFinancialAccount: { id: string; name: string };
   }>(UPDATE_FINANCIAL_ACCOUNT, {
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
+    awaitRefetchQueries: true,
   });
   const methods = useForm<CreateAccountFormData>({
     mode: 'onChange',
@@ -426,7 +422,7 @@ export function CreateFinancialAccountDrawer({
     }
 
     if (watchedIssuerId === 'custom') {
-      if (previousIssuerId !== 'custom') {
+      if (previousIssuerId && previousIssuerId !== 'custom') {
         setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
       }
       return;
@@ -557,7 +553,7 @@ export function CreateFinancialAccountDrawer({
   };
 
   const renderTypeSelection = () => (
-    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 4, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 2, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
       {/* Title Section */}
       <Box sx={{ gap: 1, display: 'flex', flexDirection: 'column' }}>
         <Typography variant="subtitle2" color="text.secondary">
@@ -598,25 +594,22 @@ export function CreateFinancialAccountDrawer({
               customIssuerLabel={t('financeTransactions.createAccount.step2.fields.customIssuer')}
               error={!!issuerIdFieldState.error}
               helperText={issuerIdFieldState.error?.message}
+              size="medium"
             />
 
             {watchedIssuerId === 'custom' && (
-              <TextField name="issuerName" label={t('financeTransactions.createAccount.step2.fields.institutionName')} required />
+              <TextField name="issuerName" label={t('financeTransactions.createAccount.step2.fields.institutionName')} required size="medium" />
             )}
 
             {/* Subtype Selection */}
             {selectedType === 'BANK' && (
-              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} data-testid="account-subtype-select" />
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} data-testid="account-subtype-select" size="medium" />
             )}
             {selectedType === 'CARD' && (
-              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} data-testid="account-subtype-select" />
+              <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} data-testid="account-subtype-select" size="medium" />
             )}
 
-            {watchedIssuerId === 'custom' && (
-              <SelectField name="currencyCode" label={t('financeTransactions.createAccount.step2.fields.currency')} options={Currencies} />
-            )}
-
-            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} />
+            <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} size="medium" />
 
             {/* Initial Balance — only for bank accounts */}
             {selectedType !== 'CARD' && !isEditing && (
@@ -626,12 +619,16 @@ export function CreateFinancialAccountDrawer({
                   label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
                   currency={watchedCurrencyCode}
                   locale={i18n.language}
+                  size="medium"
+                  allowNegative
                   InputProps={{ inputProps: { 'data-testid': 'initial-balance-input' } }}
                 />
                 <DatePickerField
                   name="initialBalanceDate"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
+                  data-testid="initial-balance-date-input"
+                  pickerSlotProps={{ textField: { size: 'medium' } }}
                 />
               </Stack>
             )}
@@ -639,19 +636,31 @@ export function CreateFinancialAccountDrawer({
             {/* Bank Specific Fields (excluding subtype) */}
             {selectedType === 'BANK' && (
               <Stack direction="row" spacing={2}>
-                <TextField name="branchCode" label={t('financeTransactions.createAccount.step2.fields.branchCode')} sx={{ flex: 1 }} />
-                <TextField name="accountNumber" label={t('financeTransactions.createAccount.step2.fields.accountNumber')} sx={{ flex: 2 }} />
-                <TextField name="checkDigit" label={t('financeTransactions.createAccount.step2.fields.checkDigit')} sx={{ width: 80 }} />
+                <TextField
+                  name="branchCode"
+                  label={t('financeTransactions.createAccount.step2.fields.branchCode')}
+                  sx={{ flex: 1 }}
+                  size="medium"
+                  inputProps={{ 'data-testid': 'bank-branch-input' }}
+                />
+                <TextField
+                  name="accountNumber"
+                  label={t('financeTransactions.createAccount.step2.fields.accountNumber')}
+                  sx={{ flex: 2 }}
+                  size="medium"
+                  inputProps={{ 'data-testid': 'bank-number-input' }}
+                />
+                <TextField name="checkDigit" label={t('financeTransactions.createAccount.step2.fields.checkDigit')} sx={{ width: 80 }} size="medium" />
               </Stack>
             )}
 
             {/* Card Specific Fields (excluding subtype) */}
             {selectedType === 'CARD' && (
               <>
-                <SelectField name="cardNetwork" label={t('financeTransactions.createAccount.step2.fields.network')} options={cardNetworks} />
+                <SelectField name="cardNetwork" label={t('financeTransactions.createAccount.step2.fields.network')} options={cardNetworks} size="medium" />
                 
                 {watchedSubtype === 'CREDIT_CARD' && (
-                  <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} />
+                  <SelectField name="cardLevel" label={t('financeTransactions.createAccount.step2.fields.level')} options={cardLevels} size="medium" />
                 )}
                 
                 {isBillingCycleCard && (
@@ -663,6 +672,7 @@ export function CreateFinancialAccountDrawer({
                         placeholder="1234"
                         InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
                         sx={{ flex: 1 }}
+                        size="medium"
                       />
                       {watchedSubtype === 'CREDIT_CARD' && (
                         <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -672,6 +682,7 @@ export function CreateFinancialAccountDrawer({
                             currency={watchedCurrencyCode}
                             locale={i18n.language}
                             fullWidth
+                            size="medium"
                           />
                         </Box>
                       )}
@@ -682,12 +693,14 @@ export function CreateFinancialAccountDrawer({
                         label={t('financeTransactions.createAccount.step2.fields.closingDay')}
                         type="number"
                         inputProps={{ min: 1, max: 31, 'data-testid': 'closing-day-input' }}
+                        size="medium"
                       />
                       <TextField
                         name="dueDay"
                         label={t('financeTransactions.createAccount.step2.fields.dueDay')}
                         type="number"
                         inputProps={{ min: 1, max: 31, 'data-testid': 'due-day-input' }}
+                        size="medium"
                       />
                     </Stack>
                   </>
@@ -699,6 +712,7 @@ export function CreateFinancialAccountDrawer({
                     label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
                     placeholder="1234"
                     InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+                    size="medium"
                   />
                 )}
               </>

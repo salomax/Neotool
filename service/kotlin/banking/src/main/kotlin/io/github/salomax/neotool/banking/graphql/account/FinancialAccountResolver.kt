@@ -9,7 +9,10 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.account.UpdateField
 import io.github.salomax.neotool.banking.domain.account.UpdateFinancialAccountCommand
+import io.github.salomax.neotool.banking.domain.account.BankDataPatch
+import io.github.salomax.neotool.banking.domain.account.CardDataPatch
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
@@ -195,36 +198,58 @@ class FinancialAccountResolver(
         return UpdateFinancialAccountCommand(
             type = FinancialAccountType.valueOf(this["type"] as String),
             subtype = FinancialAccountSubtype.valueOf(this["subtype"] as String),
-            name = this["name"] as? String,
+            name = updateField("name") { it as? String },
             issuerId = (this["issuerId"] as? String)?.let { UUID.fromString(it) },
             issuerName = this["issuerName"] as? String,
-            themeColor = this["themeColor"] as? String,
-            currencyCode = this["currencyCode"] as? String,
-            includeInNetWorth = this["includeInNetWorth"] as? Boolean,
-            includeInDashboard = this["includeInDashboard"] as? Boolean,
-            includeCashInAllocation = this["includeCashInAllocation"] as? Boolean,
+            themeColor = updateField("themeColor") { it as? String },
+            currencyCode = updateField("currencyCode") { it as? String },
+            includeInNetWorth = updateField("includeInNetWorth") { it as? Boolean },
+            includeInDashboard = updateField("includeInDashboard") { it as? Boolean },
+            includeCashInAllocation = updateField("includeCashInAllocation") { it as? Boolean },
             bankData =
                 bankDataInput?.let {
-                    BankData(
-                        branchCode = it["branchCode"] as? String,
-                        number = it["number"] as? String,
-                        checkDigit = it["checkDigit"] as? String,
-                        maskedNumber = it["maskedNumber"] as? String,
+                    BankDataPatch(
+                        branchCode = it.updateField("branchCode") { value -> value as? String },
+                        number = it.updateField("number") { value -> value as? String },
+                        checkDigit = it.updateField("checkDigit") { value -> value as? String },
+                        maskedNumber = it.updateField("maskedNumber") { value -> value as? String },
                     )
                 },
             cardData =
                 cardDataInput?.let {
-                    CardData(
-                        maskedNumber = it["maskedNumber"] as? String,
-                        bin = it["bin"] as? String,
-                        cardNetwork = (it["cardNetwork"] as? String)?.let { v -> CreditCardNetwork.valueOf(v) },
-                        cardLevel = (it["cardLevel"] as? String)?.let { v -> CreditCardLevel.valueOf(v) },
-                        creditLimit = (it["creditLimit"] as? Number)?.let { v -> BigDecimal(v.toString()) },
-                        closingDay = it["closingDay"] as? Int,
-                        dueDay = it["dueDay"] as? Int,
-                        linkedBankAccountId = (it["linkedBankAccountId"] as? String)?.let { v -> UUID.fromString(v) },
+                    CardDataPatch(
+                        maskedNumber = it.updateField("maskedNumber") { value -> value as? String },
+                        bin = it.updateField("bin") { value -> value as? String },
+                        cardNetwork =
+                            it.updateField("cardNetwork") { value ->
+                                (value as? String)?.let { raw -> CreditCardNetwork.valueOf(raw) }
+                            },
+                        cardLevel =
+                            it.updateField("cardLevel") { value ->
+                                (value as? String)?.let { raw -> CreditCardLevel.valueOf(raw) }
+                            },
+                        creditLimit =
+                            it.updateField("creditLimit") { value ->
+                                (value as? Number)?.let { raw -> BigDecimal(raw.toString()) }
+                            },
+                        closingDay = it.updateField("closingDay") { value -> value as? Int },
+                        dueDay = it.updateField("dueDay") { value -> value as? Int },
+                        linkedBankAccountId =
+                            it.updateField("linkedBankAccountId") { value ->
+                                (value as? String)?.let { raw -> UUID.fromString(raw) }
+                            },
                     )
                 },
         )
     }
+
+    private fun <T> Map<String, Any?>.updateField(
+        key: String,
+        mapper: (Any?) -> T?,
+    ): UpdateField<T> =
+        if (containsKey(key)) {
+            UpdateField.Present(mapper(this[key]))
+        } else {
+            UpdateField.Absent
+        }
 }

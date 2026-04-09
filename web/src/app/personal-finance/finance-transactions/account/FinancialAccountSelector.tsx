@@ -211,7 +211,7 @@ export function FinancialAccountSelector({
           bgcolor: 'background.paper',
           '&:hover': { bgcolor: 'action.hover' }
         }}
-        onClick={onNewAccount}
+        onClick={() => onNewAccount()}
       >
         <AddIcon color="primary" />
         <Typography color="primary" fontWeight="medium">
@@ -295,7 +295,7 @@ export function FinancialAccountSelector({
         component="button"
         variant="body1"
         underline="none"
-        onClick={onNewAccount}
+        onClick={() => onNewAccount()}
         data-testid="btn-new-account"
         sx={{
             display: 'flex',

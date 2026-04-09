@@ -285,4 +285,38 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     expect(screen.getByLabelText('financeTransactions.createAccount.step2.fields.dueDay')).toBeInTheDocument();
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.creditLimit')).not.toBeInTheDocument();
   });
+
+  it('keeps custom issuer name when opening edit mode for an account without issuerId', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={{
+            id: 'acc-1',
+            type: 'BANK',
+            subtype: 'CONTA_CORRENTE',
+            name: 'Conta Manual',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    const issuerNameInput = await screen.findByDisplayValue('Banco Manual');
+    expect(issuerNameInput).toBeInTheDocument();
+
+    const nameInput = screen.getByLabelText(/financeTransactions\.createAccount\.step2\.fields\.accountName/i);
+    await user.clear(nameInput);
+    await user.type(nameInput, 'Conta Manual Editada');
+
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.save' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+  });
 });

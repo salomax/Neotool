@@ -179,7 +179,7 @@ export const test = base.extend({
 | FA-A-02 | Criar conta com saldo inicial negativo (conta com dívida) | Conta criada; saldo negativo exibido |
 | FA-A-03 | Criar duas contas com tipos diferentes (BANK + CREDIT) | Ambas aparecem no seletor; cada uma com seu comportamento |
 | FA-A-04 | Criar conta CREDIT com closingDay=28 (limite máximo) | Conta criada; `closingDay=28` salvo corretamente |
-| FA-A-05 | Criar conta CREDIT com dueDay igual ao closingDay + 1 (mínimo razoável) | Conta criada sem erro |
+| FA-A-05 | Criar conta CREDIT informando `closingDay` e `dueDay` | Conta criada; ambos os valores persistidos |
 | FA-A-06 | Nome da conta com caracteres especiais e acentos (ex: "Nubank – Crédito") | Exibido corretamente em todo o sistema |
 | FA-A-07 | Editar `closingDay` de conta de cartão já existente | Alteração salva; novas transações seguem o novo ciclo |
 | FA-A-08 | Conta com `bankData` preenchido (agência, conta, banco) | Dados exibidos corretamente no drawer de edição |

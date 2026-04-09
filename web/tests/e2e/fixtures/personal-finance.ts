@@ -101,7 +101,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async (_fixtures, use) => {
+    async ({}, use) => {
       const user = await createPfUser();
       await use(user);
     },
@@ -135,7 +135,6 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
         name: uniqueName('Cartão Crédito E2E'),
         type: 'CREDIT',
         subtype: 'CREDIT_CARD',
-        initialBalance: 0,
         closingDay: 7,
         dueDay: 15,
       },

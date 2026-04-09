@@ -47,6 +47,9 @@ open class FinancialAccountService(
         require(command.issuerId != null || !command.issuerName.isNullOrBlank()) {
             "Either issuerId or issuerName must be provided"
         }
+        require(command.issuerId == null || command.issuerName.isNullOrBlank()) {
+            "issuerId and issuerName are mutually exclusive"
+        }
         val initialBalance = command.initialBalance
         val initialBalanceDate = command.initialBalanceDate
         if (initialBalance != null) {
@@ -69,6 +72,16 @@ open class FinancialAccountService(
                 )
             }
         }
+
+        validateAccountShape(
+            type = command.type,
+            bankDataProvided = command.bankData != null,
+            cardDataProvided = command.cardData != null,
+        )
+        validateCardDayOfMonthFields(
+            closingDay = command.cardData?.closingDay,
+            dueDay = command.cardData?.dueDay,
+        )
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
 
@@ -150,6 +163,9 @@ open class FinancialAccountService(
         require(command.issuerId != null || !command.issuerName.isNullOrBlank()) {
             "Either issuerId or issuerName must be provided"
         }
+        require(command.issuerId == null || command.issuerName.isNullOrBlank()) {
+            "issuerId and issuerName are mutually exclusive"
+        }
 
         val isExistingBank = existing.type == FinancialAccountType.BANK
         if (isExistingBank) {
@@ -162,10 +178,16 @@ open class FinancialAccountService(
             }
         }
 
+        validateAccountShape(
+            type = command.type,
+            bankDataProvided = command.bankData != null,
+            cardDataProvided = command.cardData != null,
+        )
+
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
         val isCustomIssuerUpdate = command.issuerId == null && !command.issuerName.isNullOrBlank()
-        val resolvedName = command.name?.takeIf { it.isNotBlank() } ?: existing.name
-        val resolvedCurrency = command.currencyCode?.takeIf { it.isNotBlank() } ?: existing.currencyCode
+        val resolvedName = command.name.resolve(existing.name)?.takeIf { it.isNotBlank() } ?: existing.name
+        val resolvedCurrency = command.currencyCode.resolve(existing.currencyCode)?.takeIf { it.isNotBlank() } ?: existing.currencyCode
         val resolvedBankData =
             if (isExistingBank) {
                 mergeBankData(existing.bankData, command.bankData)
@@ -178,6 +200,10 @@ open class FinancialAccountService(
             } else {
                 null
             }
+        validateCardDayOfMonthFields(
+            closingDay = resolvedCardData?.closingDay,
+            dueDay = resolvedCardData?.dueDay,
+        )
         val now = Instant.now()
 
         val updated =
@@ -187,16 +213,16 @@ open class FinancialAccountService(
                 subtype = command.subtype,
                 name = resolvedName,
                 currencyCode = resolvedCurrency,
-                includeInNetWorth = command.includeInNetWorth ?: existing.includeInNetWorth,
-                includeInDashboard = command.includeInDashboard ?: existing.includeInDashboard,
-                includeCashInAllocation = command.includeCashInAllocation ?: existing.includeCashInAllocation,
+                includeInNetWorth = command.includeInNetWorth.resolve(existing.includeInNetWorth) ?: existing.includeInNetWorth,
+                includeInDashboard = command.includeInDashboard.resolve(existing.includeInDashboard) ?: existing.includeInDashboard,
+                includeCashInAllocation = command.includeCashInAllocation.resolve(existing.includeCashInAllocation) ?: existing.includeCashInAllocation,
                 issuerId =
                     when {
                         issuer != null -> issuer.id
                         isCustomIssuerUpdate -> null
                         else -> existing.issuerId
                     },
-                themeColor = command.themeColor ?: existing.themeColor,
+                themeColor = command.themeColor.resolve(existing.themeColor),
                 issuerName =
                     when {
                         issuer != null -> issuer.name
@@ -222,8 +248,7 @@ open class FinancialAccountService(
                         else -> existing.issuerIspb
                     },
                 cardLastFourDigits =
-                    extractLastFourDigits(resolvedCardData?.maskedNumber)
-                        ?: existing.cardLastFourDigits,
+                    extractLastFourDigits(resolvedCardData?.maskedNumber),
                 bankData = resolvedBankData,
                 cardData = resolvedCardData,
                 updatedAt = now,
@@ -234,38 +259,70 @@ open class FinancialAccountService(
 
     private fun mergeBankData(
         existing: BankData?,
-        patch: BankData?,
+        patch: BankDataPatch?,
     ): BankData? {
-        if (existing == null) return patch
         if (patch == null) return existing
-
-        return existing.copy(
-            branchCode = patch.branchCode ?: existing.branchCode,
-            number = patch.number ?: existing.number,
-            checkDigit = patch.checkDigit ?: existing.checkDigit,
-            maskedNumber = patch.maskedNumber ?: existing.maskedNumber,
+        return BankData(
+            branchCode = patch.branchCode.resolve(existing?.branchCode),
+            number = patch.number.resolve(existing?.number),
+            checkDigit = patch.checkDigit.resolve(existing?.checkDigit),
+            maskedNumber = patch.maskedNumber.resolve(existing?.maskedNumber),
         )
     }
 
     private fun mergeCardData(
         existing: CardData?,
-        patch: CardData?,
+        patch: CardDataPatch?,
     ): CardData? {
-        if (existing == null) return patch
         if (patch == null) return existing
-
-        return existing.copy(
-            maskedNumber = patch.maskedNumber ?: existing.maskedNumber,
-            bin = patch.bin ?: existing.bin,
-            cardNetwork = patch.cardNetwork ?: existing.cardNetwork,
-            cardLevel = patch.cardLevel ?: existing.cardLevel,
-            creditLimit = patch.creditLimit ?: existing.creditLimit,
-            availableCreditLimit = patch.availableCreditLimit ?: existing.availableCreditLimit,
-            minimumPaymentPercentage = patch.minimumPaymentPercentage ?: existing.minimumPaymentPercentage,
-            closingDay = patch.closingDay ?: existing.closingDay,
-            dueDay = patch.dueDay ?: existing.dueDay,
-            linkedBankAccountId = patch.linkedBankAccountId ?: existing.linkedBankAccountId,
+        return CardData(
+            maskedNumber = patch.maskedNumber.resolve(existing?.maskedNumber),
+            bin = patch.bin.resolve(existing?.bin),
+            cardNetwork = patch.cardNetwork.resolve(existing?.cardNetwork),
+            cardLevel = patch.cardLevel.resolve(existing?.cardLevel),
+            creditLimit = patch.creditLimit.resolve(existing?.creditLimit),
+            availableCreditLimit = patch.availableCreditLimit.resolve(existing?.availableCreditLimit),
+            minimumPaymentPercentage = patch.minimumPaymentPercentage.resolve(existing?.minimumPaymentPercentage),
+            closingDay = patch.closingDay.resolve(existing?.closingDay),
+            dueDay = patch.dueDay.resolve(existing?.dueDay),
+            linkedBankAccountId = patch.linkedBankAccountId.resolve(existing?.linkedBankAccountId),
         )
+    }
+
+    private fun validateAccountShape(
+        type: FinancialAccountType,
+        bankDataProvided: Boolean,
+        cardDataProvided: Boolean,
+    ) {
+        if (type == FinancialAccountType.BANK) {
+            require(!cardDataProvided) {
+                "cardData is not supported for BANK accounts"
+            }
+            return
+        }
+
+        require(!bankDataProvided) {
+            "bankData is only supported for BANK accounts"
+        }
+    }
+
+    /** Only constraint: calendar day of month when a value is present (no ordering or pairing rules). */
+    private fun validateCardDayOfMonthFields(
+        closingDay: Int?,
+        dueDay: Int?,
+    ) {
+        validateDayOfMonthField("closingDay", closingDay)
+        validateDayOfMonthField("dueDay", dueDay)
+    }
+
+    private fun validateDayOfMonthField(
+        field: String,
+        value: Int?,
+    ) {
+        if (value == null) return
+        require(value in 1..31) {
+            "$field must be between 1 and 31"
+        }
     }
 
     private fun extractLastFourDigits(maskedNumber: String?): String? {
@@ -273,4 +330,5 @@ open class FinancialAccountService(
         val onlyDigits = maskedNumber.filter(Char::isDigit)
         return if (onlyDigits.length >= 4) onlyDigits.takeLast(4) else null
     }
+
 }

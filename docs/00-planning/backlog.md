@@ -1,6 +1,6 @@
 # Backlog Master
 
-> Última atualização: 2026-04-02
+> Última atualização: 2026-04-09
 > Referência: `docs/03-features/`
 
 ---
@@ -88,6 +88,34 @@
 - **Agent:** Claude (revisão spec) → Codex
 - **Esforço:** XL
 - **Spec:** `docs/03-features/personal-finance/backlogs/phase-6-transaction-categories.md`
+
+### P2
+
+#### [BK-10] Foreign currency accounts — use case and phased support
+- **Status:** `todo`
+- **Agent:** Claude (revisão spec) → Codex
+- **Esforço:** M
+- **Spec:** `docs/03-features/personal-finance/requirements/01-financial-accounts.md` + `docs/03-features/personal-finance/requirements/02-transactions.md`
+- **Objetivo:** definir o caso de uso para contas em moeda estrangeira antes de expor `currencyCode` no drawer de contas
+- **Escopo sugerido:**
+  - Criar fluxo para contas em moeda diferente de `BRL` (ex.: conta internacional, cartão internacional, saldo em USD/EUR)
+  - Definir comportamento de criação manual sem conversão automática obrigatória
+  - Definir como exibir saldo e transações em moeda da conta e, quando existir, valor convertido em BRL
+  - Especificar impactos em monthly summary, importadores e filtros
+  - Decidir rollout por fases: persistência já existente → UI de conta → UI de transação/import → reporting
+
+#### [BK-11] Financial account deactivation / soft delete
+- **Status:** `todo`
+- **Agent:** Claude (revisão spec) → Codex
+- **Esforço:** M
+- **Spec:** `docs/03-features/personal-finance/requirements/01-financial-accounts.md`
+- **Objetivo:** definir e implementar a remoção lógica ou desativação de contas financeiras sem perder integridade histórica
+- **Escopo sugerido:**
+  - Decidir comportamento de produto: `soft-delete` definitivo no app, status `disabled`, ou ambos
+  - Definir impacto em transações históricas, bills, monthly summary, seletores e imports
+  - Especificar regras para impedir uso futuro da conta sem quebrar o histórico existente
+  - Expor operação segura no backend/API e fluxo correspondente na UI
+  - Definir estratégia de visibilidade: ocultar por padrão, listar inativas opcionalmente, ou permitir restauração
 
 ### Deferred (data indeterminada)
 

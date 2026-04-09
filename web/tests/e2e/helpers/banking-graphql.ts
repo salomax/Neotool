@@ -14,8 +14,8 @@ export interface FinancialAccount {
   name: string;
   currencyCode: string;
   cardData?: {
-    closingDay: number;
-    dueDay: number;
+    closingDay?: number;
+    dueDay?: number;
     maskedNumber?: string;
   } | null;
   bankData?: {
@@ -66,10 +66,31 @@ export interface CreateFinancialAccountInput {
   type: string;
   subtype: string;
   initialBalance?: number;
+  initialBalanceDate?: string;
   currencyCode?: string;
   closingDay?: number;
   dueDay?: number;
+  branchCode?: string;
+  accountNumber?: string;
+  checkDigit?: string;
+  issuerId?: string;
   issuerName?: string;
+  bankData?: {
+    branchCode?: string;
+    number?: string;
+    checkDigit?: string;
+    maskedNumber?: string;
+  };
+  cardData?: {
+    maskedNumber?: string;
+    bin?: string;
+    cardNetwork?: string;
+    cardLevel?: string;
+    creditLimit?: number;
+    closingDay?: number;
+    dueDay?: number;
+    linkedBankAccountId?: string;
+  };
 }
 
 export interface CreateTransactionInput {
@@ -112,6 +133,79 @@ export function dateInMonth(monthOffset: number, day = 15): string {
     .split('T')[0];
 }
 
+function normalizeCreateFinancialAccountInput(input: CreateFinancialAccountInput): Record<string, unknown> {
+  const normalized: Record<string, unknown> = {
+    name: input.name,
+    type: input.type,
+    subtype: input.subtype,
+    currencyCode: input.currencyCode ?? 'BRL',
+    issuerId: input.issuerId,
+    issuerName: input.issuerId ? undefined : input.issuerName ?? 'E2E Test Issuer',
+  };
+
+  if (typeof input.initialBalance === 'number') {
+    normalized.initialBalance = input.initialBalance;
+    normalized.initialBalanceDate = input.initialBalanceDate ?? today();
+  }
+
+  if (input.type === 'BANK') {
+    normalized.bankData = input.bankData ?? {
+      branchCode: input.branchCode,
+      number: input.accountNumber,
+      checkDigit: input.checkDigit,
+    };
+  }
+
+  const isCardSubtype = ['CREDIT_CARD', 'CHARGE_CARD', 'PREPAID_CARD', 'VOUCHER_CARD'].includes(input.subtype);
+  if (isCardSubtype) {
+    normalized.cardData = input.cardData ?? {
+      closingDay: input.closingDay,
+      dueDay: input.dueDay,
+    };
+  }
+
+  return normalized;
+}
+
+function normalizeUpdateFinancialAccountInput(
+  input: Partial<CreateFinancialAccountInput>
+): Record<string, unknown> {
+  if (!input.type || !input.subtype) {
+    throw new Error('updateFinancialAccount requires input.type and input.subtype');
+  }
+
+  const normalized: Record<string, unknown> = {
+    type: input.type,
+    subtype: input.subtype,
+  };
+
+  if ('name' in input) normalized.name = input.name;
+  if ('currencyCode' in input) normalized.currencyCode = input.currencyCode;
+  if ('issuerId' in input) normalized.issuerId = input.issuerId;
+  if ('issuerName' in input) normalized.issuerName = input.issuerName;
+
+  if (input.bankData !== undefined) {
+    normalized.bankData = input.bankData;
+  } else {
+    const bankData: Record<string, unknown> = {};
+    if ('branchCode' in input) bankData.branchCode = input.branchCode;
+    if ('accountNumber' in input) bankData.number = input.accountNumber;
+    if ('checkDigit' in input) bankData.checkDigit = input.checkDigit;
+    if (Object.keys(bankData).length > 0) normalized.bankData = bankData;
+  }
+
+  if (input.cardData !== undefined) {
+    normalized.cardData = input.cardData;
+  } else {
+    const cardData: Record<string, unknown> = {};
+    if ('closingDay' in input) cardData.closingDay = input.closingDay;
+    if ('dueDay' in input) cardData.dueDay = input.dueDay;
+    if (Object.keys(cardData).length > 0) normalized.cardData = cardData;
+  }
+
+  return normalized;
+}
+
 // ── Financial Accounts ────────────────────────────────────────────────────────
 
 const FINANCIAL_ACCOUNT_FIELDS = `
@@ -147,7 +241,7 @@ export async function createFinancialAccount(
 
   const result = await executeGraphQL<{
     createFinancialAccount: FinancialAccount;
-  }>(mutation, { input }, token);
+  }>(mutation, { input: normalizeCreateFinancialAccountInput(input) }, token);
 
   if (result.errors || !result.data?.createFinancialAccount) {
     throw new Error(
@@ -173,7 +267,7 @@ export async function updateFinancialAccount(
 
   const result = await executeGraphQL<{
     updateFinancialAccount: FinancialAccount;
-  }>(mutation, { id, input }, token);
+  }>(mutation, { id, input: normalizeUpdateFinancialAccountInput(input) }, token);
 
   if (result.errors || !result.data?.updateFinancialAccount) {
     throw new Error(

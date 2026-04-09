@@ -26,6 +26,8 @@ export interface MoneyInputProps {
   inputRef?: React.Ref<HTMLInputElement>;
   variant?: TextFieldProps["variant"];
   'data-testid'?: string;
+  /** When true, users can enter negative amounts (e.g. initial balance / debt). Default false. */
+  allowNegative?: boolean;
 }
 
 export const MoneyInput: React.FC<MoneyInputProps> = (props) => {
@@ -77,6 +79,7 @@ export function BaseMoneyInput({
   inputRef,
   variant,
   'data-testid': dataTestId,
+  allowNegative = false,
 }: BaseMoneyInputProps) {
   // Determine locale and separators
   const currentLocale = locale || i18n.language || "pt-BR";
@@ -125,7 +128,7 @@ export function BaseMoneyInput({
       decimalSeparator={decimal}
       decimalScale={2}
       fixedDecimalScale
-      allowNegative={false}
+      allowNegative={allowNegative}
       InputProps={{
         ...InputProps,
         startAdornment: (
