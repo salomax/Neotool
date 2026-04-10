@@ -59,6 +59,7 @@ export function InvestmentCard({
   );
   const hasMiniChart = chartHistorical.length >= 1;
   const isEmptyState = assetCount === 0 && !hasMiniChart;
+  const showAssetCount = typeof assetCount === "number" && assetCount > 0;
   const emptyStateIconMask = "linear-gradient(135deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%)";
 
   const handleMainClick = React.useCallback(
@@ -160,26 +161,35 @@ export function InvestmentCard({
           </Box>
         ) : (
           <>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, position: "relative", zIndex: 1 }}>
-          <Logo
-            size="sm"
-            sx={{
-              bgcolor: alpha(theme.palette.primary.main, 0.08),
-              color: "primary.main",
-            }}
-          >
-            <InvestmentAssetIcon kind={iconKind} sx={{ fontSize: 16 }} />
-          </Logo>
-          <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-start", minWidth: 0, zIndex: 1 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+            <Logo
+              size="sm"
+              sx={{
+                bgcolor: alpha(theme.palette.primary.main, 0.08),
+                color: "primary.main",
+              }}
+            >
+              <InvestmentAssetIcon kind={iconKind} sx={{ fontSize: 16 }} />
+            </Logo>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
               {title}
             </Typography>
-            {typeof assetCount === "number" ? (
-              <Typography variant="caption" sx={{ display: "block", mt: 0.2, color: "text.disabled", fontSize: "0.68rem" }}>
-                {assetCount} • Ativos
-              </Typography>
-            ) : null}
           </Box>
+          <Typography
+            variant="caption"
+            sx={{
+              display: "block",
+              mt: 0.2,
+              ml: `calc(26px + ${theme.spacing(1)})`,
+              color: "text.disabled",
+              fontSize: "0.68rem",
+              visibility: showAssetCount ? "visible" : "hidden",
+            }}
+            aria-hidden={!showAssetCount}
+          >
+            {showAssetCount ? t("investments.grid.assetCount", { count: assetCount }) : "\u00A0"}
+          </Typography>
         </Box>
         <Box
           sx={{

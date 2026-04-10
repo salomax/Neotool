@@ -43,8 +43,8 @@ export function InvestmentGridCardMatrix({
               primaryActionLabel={t(def.primaryActionKey)}
               secondaryActionLabel={t(def.secondaryActionKey)}
               chartData={chartSeriesByKey[def.key] ?? []}
-              singleActionLabel={def.key === "cash" ? t("investments.grid.movimentar") : undefined}
-              onSingleActionClick={def.key === "cash" ? () => onOpenRecordDrawerForClass(def.key) : undefined}
+              singleActionLabel={def.key === "cash" ? t("investments.grid.movimentar") : t(def.primaryActionKey)}
+              onSingleActionClick={() => onOpenRecordDrawerForClass(def.key)}
               onFirstInvestmentClick={() => onOpenRecordDrawerForClass(def.key)}
               onOpenDetail={() => onOpenClass(def.key)}
             />

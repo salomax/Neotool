@@ -71,6 +71,8 @@
       "movimentar": "Move cash",
       "backToGrid": "Back to grid view",
       "openClassDetail": "Open details for {{title}}",
+      "assetCount_one": "1 Asset",
+      "assetCount_other": "{{count}} Assets",
       "classes": {
         "cash": "Cash",
         "fixedIncome": "Fixed income",

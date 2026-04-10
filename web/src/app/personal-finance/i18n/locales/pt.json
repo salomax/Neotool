@@ -71,6 +71,8 @@
       "movimentar": "Movimentar",
       "backToGrid": "Voltar para visão em grade",
       "openClassDetail": "Abrir detalhes de {{title}}",
+      "assetCount_one": "1 Ativo",
+      "assetCount_other": "{{count}} Ativos",
       "classes": {
         "cash": "Caixa",
         "fixedIncome": "Renda Fixa",
