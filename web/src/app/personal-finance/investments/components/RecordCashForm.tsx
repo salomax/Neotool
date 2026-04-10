@@ -3,6 +3,7 @@
 import React from "react";
 import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
+import HelpOutlineIcon from "@mui/icons-material/HelpOutline";
 import {
   Autocomplete,
   Avatar,
@@ -10,7 +11,9 @@ import {
   Checkbox,
   Divider,
   FormControlLabel,
+  IconButton,
   InputAdornment,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
@@ -333,7 +336,6 @@ export function RecordCashForm({
           <SegmentedControl
             fullWidth
             size="medium"
-            sx={{ pb: 2 }}
             value={movementType}
             onChange={(v) =>
               setValue("movementType", v as InvestmentCashTransactionType.Deposit | InvestmentCashTransactionType.Withdrawal)
@@ -379,7 +381,22 @@ export function RecordCashForm({
                 )}
               />
             }
-            label={t("investments.cash.registerAsBalanceAdjustment")}
+            label={
+              <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5 }}>
+                <Typography component="span" variant="body2">
+                  {`${t("investments.cash.registerAsBalanceAdjustment")}?`}
+                </Typography>
+                <Tooltip arrow placement="top-start" title={t("investments.cash.balanceAdjustmentHint")}>
+                  <IconButton
+                    size="small"
+                    aria-label={t("investments.cash.balanceAdjustmentHint")}
+                    sx={{ p: 0.25 }}
+                  >
+                    <HelpOutlineIcon sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            }
           />
 
           <FormTextField

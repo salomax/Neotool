@@ -4,12 +4,16 @@ async function openFixedIncomeDrawer() {
   const { waitFor, sleep, getInput } = window.__devFill;
 
   if (!getInput('record-asset-name')) {
-    const menuBtn = await waitFor(() => document.querySelector('[data-testid="record-holding-top-btn"]'), 5000, 'record-holding-top-btn');
-    menuBtn.click();
-    await sleep(300);
-    const option = await waitFor(() => document.querySelector('[data-testid="record-holding-option-fixed-income"]'), 5000, 'fixed-income option');
-    option.click();
-    await sleep(500);
+    const legacyMenuBtn = document.querySelector('[data-testid="record-holding-top-btn"]');
+    if (legacyMenuBtn) {
+      legacyMenuBtn.click();
+      await sleep(300);
+      const option = await waitFor(() => document.querySelector('[data-testid="record-holding-option-fixed-income"]'), 5000, 'fixed-income option');
+      option.click();
+      await sleep(500);
+    } else {
+      await openGridRecordDrawerForClass('fixed-income', 1);
+    }
 
     if (!getInput('record-asset-name')) {
       const accountBtn = await waitFor(() => document.querySelector('[data-testid^="record-select-account-"]'), 5000, 'account selector');
@@ -21,6 +25,7 @@ async function openFixedIncomeDrawer() {
 
 async function fillFixedIncome({ assetName, assetType, issuerName, quantity = 1, grossValue, indexer, indexerPercentage = 105, preFixedRate = 12, tradeDaysOffset = -5, maturityDaysOffset = 180 }) {
   const { fillField, fillDateField, selectMuiField, daysOffset } = window.__devFill;
+  const toPtDecimal = (value) => String(value).replace('.', ',');
 
   await openFixedIncomeDrawer();
   await fillField('record-asset-name', assetName);
@@ -30,7 +35,7 @@ async function fillFixedIncome({ assetName, assetType, issuerName, quantity = 1,
   await fillField('record-gross-value', String(grossValue));
   await selectMuiField('record-indexer', indexer);
   if (indexer === 'PRE_FIXADO') {
-    await fillField('record-pre-fixed-rate', String(preFixedRate));
+    await fillField('record-pre-fixed-rate', toPtDecimal(preFixedRate));
   } else {
     await fillField('record-indexer-percentage', String(indexerPercentage));
   }
@@ -42,12 +47,16 @@ async function openFundDrawer() {
   const { waitFor, sleep, getInput } = window.__devFill;
 
   if (!getInput('record-fund-manual-name') && !document.querySelector('[data-testid="record-fund-autocomplete"]')) {
-    const menuBtn = await waitFor(() => document.querySelector('[data-testid="record-holding-top-btn"]'), 5000, 'record-holding-top-btn');
-    menuBtn.click();
-    await sleep(300);
-    const option = await waitFor(() => document.querySelector('[data-testid="record-holding-option-fund"]'), 5000, 'fund option');
-    option.click();
-    await sleep(500);
+    const legacyMenuBtn = document.querySelector('[data-testid="record-holding-top-btn"]');
+    if (legacyMenuBtn) {
+      legacyMenuBtn.click();
+      await sleep(300);
+      const option = await waitFor(() => document.querySelector('[data-testid="record-holding-option-fund"]'), 5000, 'fund option');
+      option.click();
+      await sleep(500);
+    } else {
+      await openGridRecordDrawerForClass('funds', 2);
+    }
 
     if (!getInput('record-fund-manual-name') && !document.querySelector('[data-testid="record-fund-autocomplete"]')) {
       const accountBtn = await waitFor(() => document.querySelector('[data-testid^="record-fund-select-account-"]'), 5000, 'fund account selector');
@@ -55,6 +64,31 @@ async function openFundDrawer() {
       await sleep(400);
     }
   }
+}
+
+async function openGridRecordDrawerForClass(classKey, classCardIndex) {
+  const { waitFor, sleep } = window.__devFill;
+  const tabId = `investment-grid-class-tab-${classKey}`;
+
+  const classTab = document.getElementById(tabId);
+  if (classTab) {
+    classTab.click();
+    await sleep(250);
+  } else {
+    const classCards = await waitFor(
+      () => Array.from(document.querySelectorAll('[role="button"][aria-label]')).filter((el) => !el.closest('[role="tablist"]')),
+      5000,
+      'investment class cards',
+    );
+    const classCard = classCards[classCardIndex];
+    if (!classCard) throw new Error(`[devFill] class card not found for ${classKey}`);
+    classCard.click();
+    await sleep(300);
+  }
+
+  const cta = await waitFor(() => document.querySelector('[data-testid="investment-grid-record-cta"]'), 5000, 'investment-grid-record-cta');
+  cta.click();
+  await sleep(400);
 }
 
 async function ensureFundManualMode() {

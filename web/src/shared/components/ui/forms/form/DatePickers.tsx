@@ -232,6 +232,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   const { control } = useFormContext();
   const { adapterLocale, dateFormat } = useDatePickerI18nConfig();
   const [pickerError, setPickerError] = React.useState<string | null>(null);
+  const effectiveMinDate = minDate ?? dayjs().subtract(10, "year").startOf("day").toDate();
   const effectiveLabel = label ?? t("datePicker.placeholder");
   const localeText = React.useMemo(
     () => ({
@@ -248,8 +249,10 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
       return t("datePicker.errors.invalidDate");
     }
 
-    if (pickerError === "minDate" && minDate) {
-      return t("datePicker.errors.minDate", { date: dayjs(minDate).format(dateFormat) });
+    if (pickerError === "minDate") {
+      return t("datePicker.errors.minDate", {
+        date: dayjs(effectiveMinDate).format(dateFormat),
+      });
     }
 
     if (pickerError === "maxDate" && maxDate) {
@@ -265,7 +268,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
     }
 
     return t("datePicker.errors.invalidDate");
-  }, [dateFormat, maxDate, minDate, pickerError, t]);
+  }, [dateFormat, effectiveMinDate, maxDate, pickerError, t]);
   return (
     <LocalizationProvider
       dateAdapter={AdapterDayjs}
@@ -282,7 +285,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             dateFormat={dateFormat}
             effectiveLabel={effectiveLabel}
             fullWidth={fullWidth}
-            minDate={minDate}
+            minDate={effectiveMinDate}
             maxDate={maxDate}
             disablePast={disablePast}
             disableFuture={disableFuture}

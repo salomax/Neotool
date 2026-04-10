@@ -11,6 +11,7 @@ import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
   INVESTMENT_CASH_BALANCE,
+  INVESTMENT_GRID_DATA,
   INVESTMENT_HOLDINGS,
   INVESTMENT_PORTFOLIO_SUMMARY,
   INVESTMENT_TRANSACTIONS,
@@ -76,6 +77,8 @@ interface InvestmentTableProps {
   visibleAssetTypes?: string[];
   includeCashCard?: boolean;
   hideGroupHeader?: boolean;
+  /** When holdings query is fetching/refetching (for parent UI, e.g. tab bar progress). */
+  onHoldingsFetchingChange?: (fetching: boolean) => void;
 }
 
 interface ActionMenuState {
@@ -133,6 +136,7 @@ export function InvestmentTable({
   visibleAssetTypes,
   includeCashCard = true,
   hideGroupHeader = false,
+  onHoldingsFetchingChange,
 }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
@@ -173,7 +177,7 @@ export function InvestmentTable({
     await Promise.all([
       holdingsQuery.refetch(),
       cashQuery.refetch(),
-      apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY] }),
+      apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_GRID_DATA] }),
     ]);
   }, [apolloClient, cashQuery, holdingsQuery]);
 
@@ -502,6 +506,11 @@ export function InvestmentTable({
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
   const showHoldingsList = !error && displayedHoldings.length > 0;
   const showHoldingsProgress = holdingsFetching;
+
+  React.useEffect(() => {
+    onHoldingsFetchingChange?.(holdingsFetching);
+  }, [holdingsFetching, onHoldingsFetchingChange]);
+
   const actionHoldingGroupKey = actionMenu.holding?.asset?.assetType ? getAssetGroupKey(actionMenu.holding.asset.assetType) : null;
   const actionBuyLabel =
     actionHoldingGroupKey === 'variableIncome'
@@ -550,7 +559,7 @@ export function InvestmentTable({
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0 }}>{cashSection}</Box>
       ) : null}
 
-      {showHoldingsProgress && !showHoldingsList ? (
+      {showHoldingsProgress && !showHoldingsList && !hideGroupHeader ? (
         <Box sx={{ position: 'relative', width: '100%' }}>
           <Divider />
           <Box
@@ -584,7 +593,7 @@ export function InvestmentTable({
         </Box>
       ) : null}
 
-      {!loading && !error && displayedHoldings.length === 0 ? (
+      {!loading && !error && displayedHoldings.length === 0 && !showCashCard ? (
         <Box sx={{ py: 6, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {emptyStateMessage}
@@ -600,7 +609,6 @@ export function InvestmentTable({
             expandedGroups={expandedGroups}
             hideGroupHeader={hideGroupHeader}
             locale={locale}
-            showHeaderProgress={showHoldingsProgress}
             onToggleGroup={toggleGroup}
             onOpenDetail={handleOpenDetail}
             onOpenMaturityConfirm={handleOpenMaturityConfirmDrawer}

@@ -133,7 +133,7 @@ enum class BankingErrorCode(
     ),
     TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW(
         "TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW",
-        "Transaction date must be within the last 5 years",
+        "Transaction date must be within the last 10 years",
         422,
     ),
     TRANSACTION_BEFORE_INITIAL_BALANCE(

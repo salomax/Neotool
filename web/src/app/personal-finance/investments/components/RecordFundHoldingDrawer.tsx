@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Box, Divider, Paper, Tab, Tabs, TextField, Typography, alpha, useTheme } from "@mui/material";
 import { Controller, FormProvider, useForm } from "react-hook-form";
@@ -35,6 +35,7 @@ import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { Label } from "@/shared/components/ui/primitives/Label";
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { FundAutocomplete, FundAutocompleteValue } from "./FundAutocomplete";
 import { mapCvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
@@ -106,6 +107,7 @@ export function RecordFundHoldingDrawer({
   initialDirection,
 }: RecordFundHoldingDrawerProps) {
   const theme = useTheme();
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -113,6 +115,7 @@ export function RecordFundHoldingDrawer({
     () => getLocaleSeparators(locale),
     [locale],
   );
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<ValueFlow>("BY_AMOUNT");
   const [listingMode, setListingMode] = React.useState<ListingMode>("CVM");
@@ -173,8 +176,17 @@ export function RecordFundHoldingDrawer({
           (value) => (value === "" || value === null || value === undefined ? undefined : value),
           z.date().optional(),
         ),
+      })
+      .superRefine((data, ctx) => {
+        if (data.tradeDate && dayjs(data.tradeDate).isBefore(minAllowedDate, "day")) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("financeTransactions.validation.dateTooOld", { years: FINANCE_MOVING_WINDOW_YEARS }),
+            path: ["tradeDate"],
+          });
+        }
       }),
-    [parseLocalizedNumber],
+    [minAllowedDate, parseLocalizedNumber, t],
   );
 
   const methods = useForm<RecordFundFormData>({
@@ -273,19 +285,19 @@ export function RecordFundHoldingDrawer({
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
-  >(RECORD_INVESTMENT_TRANSACTION, {
-    refetchQueries: [
-      { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
-      { query: INVESTMENT_HOLDINGS },
-      { query: INVESTMENT_PORTFOLIO_SUMMARY, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
-      { query: INVESTMENT_PORTFOLIO_SUMMARY },
-    ],
-    onCompleted: () => {
-      success(t("investments.recordFund.success"));
-      onRecorded?.();
-      onClose();
-    },
-  });
+  >(RECORD_INVESTMENT_TRANSACTION);
+
+  const completeRecording = React.useCallback(() => {
+    void apolloClient
+      .refetchQueries({
+        include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY],
+      })
+      .finally(() => {
+        success(t("investments.recordFund.success"));
+        onRecorded?.();
+        onClose();
+      });
+  }, [apolloClient, onClose, onRecorded, success, t]);
 
   const isSubmitting = creatingAsset || deletingTx || recordingTx;
   const mutationError = createAssetError || deleteTxError || recordTxError;
@@ -413,10 +425,6 @@ export function RecordFundHoldingDrawer({
     if (!resolvedAssetId) return;
 
     try {
-      if (isEdit) {
-        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
-      }
-
       await recordTransaction({
         variables: {
           input: {
@@ -444,6 +452,12 @@ export function RecordFundHoldingDrawer({
           },
         },
       });
+
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
+
+      completeRecording();
     } catch {
       return;
     }
@@ -543,12 +557,14 @@ export function RecordFundHoldingDrawer({
                   <TextField
                     value={editHolding?.asset.name ?? ""}
                     label={t("investments.recordFund.sections.fund")}
+                    size="medium"
                     disabled
                     data-testid="record-fund-edit-fund-name"
                   />
                 ) : (
                   <FundAutocomplete
                     name="fund"
+                    size="medium"
                     data-testid="record-fund-autocomplete"
                     disabled={Boolean(prefillHolding)}
                   />
@@ -562,6 +578,7 @@ export function RecordFundHoldingDrawer({
                       <TextField
                         {...field}
                         label={t("investments.recordFund.fields.manualFundName")}
+                        size="medium"
                         error={!!fieldState.error}
                         helperText={fieldState.error?.message}
                         data-testid="record-fund-manual-name"
@@ -575,6 +592,7 @@ export function RecordFundHoldingDrawer({
                       <TextField
                         {...field}
                         label={t("investments.recordFund.fields.manualFundCnpj")}
+                        size="medium"
                         error={!!fieldState.error}
                         helperText={fieldState.error?.message}
                         data-testid="record-fund-manual-cnpj"
@@ -609,7 +627,9 @@ export function RecordFundHoldingDrawer({
                 <DatePickerField
                   name="tradeDate"
                   label={t("investments.recordFund.fields.tradeDate")}
+                  size="medium"
                   disableFuture
+                  minDate={minAllowedDate.toDate()}
                   data-testid="record-fund-trade-date"
                 />
               </Box>
@@ -658,6 +678,7 @@ export function RecordFundHoldingDrawer({
                           name="grossValue"
                           label="Valor aplicado"
                           currency="BRL"
+                          size="medium"
                           data-testid="record-fund-gross-value"
                         />
                       </Box>
@@ -666,6 +687,7 @@ export function RecordFundHoldingDrawer({
                           name="unitPrice"
                           label={t("investments.recordFund.fields.unitPrice")}
                           currency="BRL"
+                          size="medium"
                           data-testid="record-fund-unit-price"
                         />
                       </Box>
@@ -675,6 +697,7 @@ export function RecordFundHoldingDrawer({
                       name="grossValue"
                       label="Valor aplicado"
                       currency="BRL"
+                      size="medium"
                       data-testid="record-fund-gross-value"
                     />
                   )}
@@ -726,6 +749,7 @@ export function RecordFundHoldingDrawer({
                       <NumberField
                         name="quantity"
                         label={t("investments.recordFund.fields.quantity")}
+                        size="medium"
                         fullWidth
                         locale={locale}
                         allowNegative={false}
@@ -736,6 +760,7 @@ export function RecordFundHoldingDrawer({
                         name="unitPrice"
                         label={t("investments.recordFund.fields.unitPrice")}
                         currency="BRL"
+                        size="medium"
                         data-testid="record-fund-unit-price"
                       />
                     </Box>
@@ -774,6 +799,7 @@ export function RecordFundHoldingDrawer({
                           name="manualCurrentGrossValue"
                           label={t("investments.recordFund.fields.manualCurrentGrossValue")}
                           currency="BRL"
+                          size="medium"
                           data-testid="record-fund-manual-current-gross-value"
                         />
                       </Box>
@@ -781,6 +807,7 @@ export function RecordFundHoldingDrawer({
                         <DatePickerField
                           name="manualValuedAt"
                           label={t("investments.recordFund.fields.manualValuedAt")}
+                          size="medium"
                           data-testid="record-fund-manual-valued-at"
                         />
                       </Box>

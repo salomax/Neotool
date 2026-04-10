@@ -24,6 +24,7 @@ import { DatePickerField, FormTextField as TextField, MoneyInput, NumberField } 
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { useToast } from "@/shared/providers";
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../../i18n";
 import { FixedIncomeHoldingDetailDocument } from "./api/queries.generated";
 
@@ -72,6 +73,8 @@ export function RecordFixedIncomeRedemptionDrawer({
     [locale],
   );
 
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
+
   const maxQuantity = holding?.quantity ?? 0;
 
   const schema = React.useMemo(
@@ -106,8 +109,16 @@ export function RecordFixedIncomeRedemptionDrawer({
               path: ["quantity"],
             });
           }
+
+          if (data.tradeDate && dayjs(data.tradeDate).isBefore(minAllowedDate, "day")) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("financeTransactions.validation.dateTooOld", { years: FINANCE_MOVING_WINDOW_YEARS }),
+              path: ["tradeDate"],
+            });
+          }
         }),
-    [maxQuantity, t],
+    [maxQuantity, minAllowedDate, t],
   );
 
   const methods = useForm<RedemptionFormData>({
@@ -366,6 +377,7 @@ export function RecordFixedIncomeRedemptionDrawer({
               <DatePickerField
                 name="tradeDate"
                 label={t("investments.redemption.fields.tradeDate")}
+                minDate={minAllowedDate.toDate()}
               />
 
               <Divider />

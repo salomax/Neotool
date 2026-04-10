@@ -10,7 +10,7 @@
  *   - No `type` field  → UI always creates OtherExpense.
  *   - TRANSFER selection sets creditDebitType="TRANSFER" (UI shortcut).
  *   - BALANCE_ADJUSTMENT, FUTURE, PENDING → created via GraphQL fixtures.
- *   - Date window: minDate = today − 5 years (FINANCE_MOVING_WINDOW_YEARS = 5).
+ *   - Date window: minDate = today − 10 years (FINANCE_MOVING_WINDOW_YEARS = 10).
  * ──────────────────────────────────────────────────────────────────────────────
  */
 

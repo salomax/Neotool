@@ -444,7 +444,7 @@ export function InvestmentTable({
         </Box>
       ) : null}
 
-      {!loading && !error && displayedHoldings.length === 0 ? (
+      {!loading && !error && displayedHoldings.length === 0 && !showCashCard ? (
         <Box sx={{ py: 6, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {emptyStateMessage}

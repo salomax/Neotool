@@ -261,9 +261,9 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `fails when create date is older than 5-year moving window`() {
+        fun `fails when create date is older than 10-year moving window`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
-            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+            val tooOldDate = LocalDate.now().minusYears(10).minusDays(1)
             val command =
                 CreateTransactionCommand(
                     financialAccountId = financialAccountId,
@@ -645,7 +645,7 @@ class TransactionServiceTest {
         }
 
         @Test
-        fun `fails when update date is older than 5-year moving window`() {
+        fun `fails when update date is older than 10-year moving window`() {
             val txId = UUID.randomUUID()
             val existing =
                 Transaction(
@@ -662,7 +662,7 @@ class TransactionServiceTest {
                     updatedAt = now,
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
-            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+            val tooOldDate = LocalDate.now().minusYears(10).minusDays(1)
 
             assertThrows<ValidationException> {
                 service.update(txId, UpdateTransactionCommand(date = tooOldDate), accountId, userId)

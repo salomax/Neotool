@@ -8,7 +8,7 @@
  * - No `status` field exposed → transactions created via UI default to POSTED on the backend.
  * - No `type` field exposed → always defaults to OtherExpense for creation.
  * - `creditDebitType` accepts DEBIT | CREDIT | TRANSFER (TRANSFER is a UI shortcut).
- * - Date window: minDate = today - 5 years. Dates before this show an error message.
+ * - Date window: minDate = today - 10 years. Dates before this show an error message.
  * - Save button is disabled when: amount is empty, description is empty, date is invalid, or
  *   date is outside the allowed window.
  * - The form auto-focuses the description field when opened.

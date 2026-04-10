@@ -66,6 +66,10 @@ export function CashTransactionsInlineTable({
   const theme = useTheme();
   const showFinancialAccountColumn = !financialAccountId;
   const headCellSx = financeTransactionHeadCellSx(theme);
+  const checkboxColSx = { width: 44, maxWidth: 44 };
+  const assetColSx = { width: 120, maxWidth: 120 };
+  const financialAccountColSx = { width: 140, maxWidth: 140 };
+  const amountColSx = { width: 160, maxWidth: 160, px: 2 };
   const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
   const colSpan = showFinancialAccountColumn ? 6 : 5;
 
@@ -193,24 +197,24 @@ export function CashTransactionsInlineTable({
       data-testid="investment-cash-transactions-table"
     >
       <Table
-        sx={getFinanceTransactionTableSx(650)}
+        sx={{ ...getFinanceTransactionTableSx(650), tableLayout: "fixed" }}
         aria-label={t("financeTransactions.transactionTable.ariaLabel")}
       >
         <TableHead sx={financeTransactionTableHeadSx}>
           <TableRow sx={financeTransactionTableHeadRowSx}>
-            <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }} />
+            <TableCell padding="checkbox" sx={{ pl: 2, ...checkboxColSx, ...headCellSx }} />
             <TableCell sx={headCellSx}>
               <Label>{t("investments.cash.movements.columns.description")}</Label>
             </TableCell>
-            <TableCell sx={headCellSx}>
+            <TableCell sx={{ ...assetColSx, ...headCellSx }}>
               <Label>{t("investments.table.columns.asset")}</Label>
             </TableCell>
             {showFinancialAccountColumn ? (
-              <TableCell sx={headCellSx}>
+              <TableCell align="right" sx={{ ...financialAccountColSx, ...headCellSx }}>
                 <Label>{t("investments.cash.movements.columns.financialAccount")}</Label>
               </TableCell>
             ) : null}
-            <TableCell align="right" sx={headCellSx}>
+            <TableCell align="right" sx={{ ...amountColSx, ...headCellSx }}>
               <Label>{t("investments.cash.movements.columns.amount")}</Label>
             </TableCell>
             <TableCell
@@ -252,7 +256,7 @@ export function CashTransactionsInlineTable({
                     key={node.id}
                     sx={financeTransactionBodyRowSx(theme, { isFirst, isLast })}
                   >
-                    <TableCell padding="checkbox" sx={{ pl: 2 }} />
+                    <TableCell padding="checkbox" sx={{ pl: 2, ...checkboxColSx }} />
                     <TableCell component="th" scope="row">
                       <Typography
                         variant="body2"
@@ -263,7 +267,7 @@ export function CashTransactionsInlineTable({
                         {node.description}
                       </Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={assetColSx}>
                       {relatedIdentity ? (
                         <Box
                           onClick={() => onSelectRelatedAsset?.(relatedIdentity.assetName)}
@@ -314,8 +318,8 @@ export function CashTransactionsInlineTable({
                       )}
                     </TableCell>
                     {showFinancialAccountColumn ? (
-                      <TableCell>
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <TableCell align="right" sx={financialAccountColSx}>
+                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, width: "100%" }}>
                           <Avatar
                             variant="rounded"
                             src={account?.issuer?.logoAsset?.publicUrl || undefined}
@@ -348,15 +352,15 @@ export function CashTransactionsInlineTable({
                         </Box>
                       </TableCell>
                     ) : null}
-                    <TableCell align="right">
+                    <TableCell align="right" sx={amountColSx}>
                       <Typography
                         variant="body2"
-                        noWrap
                         sx={{
                           fontSize: tableBodyLabelFontSize,
                           lineHeight: 1.25,
                           fontVariantNumeric: "tabular-nums",
                           color: amountColor,
+                          whiteSpace: "nowrap",
                         }}
                       >
                         {signedPrefix}

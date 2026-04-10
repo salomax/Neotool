@@ -68,7 +68,27 @@
       "emptyDescription": "No position registered",
       "firstInvestmentCta": "+ Investment",
       "addMovementCta": "+ Movement",
-      "movimentar": "Move cash"
+      "movimentar": "Move cash",
+      "backToGrid": "Back to grid view",
+      "openClassDetail": "Open details for {{title}}",
+      "classes": {
+        "cash": "Cash",
+        "fixedIncome": "Fixed income",
+        "funds": "Funds",
+        "stocks": "Stocks",
+        "reits": "REITs",
+        "crypto": "Crypto"
+      },
+      "actions": {
+        "contributeCash": "Contribute"
+      },
+      "loadError": {
+        "description": "We couldn't load your portfolio. Check your connection and try again."
+      },
+      "tabs": {
+        "ariaLabel": "Investment asset classes",
+        "grid": "Grid"
+      }
     },
     "transactions": {
       "buy": "Buy",
@@ -119,6 +139,7 @@
       "viewAll": "View movements",
       "negativeBalanceHint": "Cash balance is negative. Review entries and adjustments.",
       "registerAsBalanceAdjustment": "Record as balance adjustment",
+      "balanceAdjustmentHint": "A balance adjustment corrects the current cash balance without creating a transfer between accounts. Use a normal movement for real deposits and withdrawals.",
       "peerAccount": "Counterpart account (bank or brokerage)",
       "peerAccountNone": "No linked account",
       "peerAccountNoMatch": "No matching accounts",
@@ -622,8 +643,10 @@
         "grossValueRequired": "Invested amount is required",
         "grossValuePositive": "Amount must be greater than zero",
         "tradeDateRequired": "Application date is required",
+        "tradeDateNotInFuture": "Application date cannot be in the future",
         "maturityDateRequired": "Maturity date is required",
-        "maturityAfterTrade": "Maturity must be after the application date"
+        "maturityAfterTrade": "Maturity must be after the application date",
+        "maturityDateTooFar": "Maturity date must be within the next {{years}} years"
       },
       "actions": {
         "submit": "Record",

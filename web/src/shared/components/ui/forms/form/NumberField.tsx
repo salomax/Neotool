@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
 import { TextField } from "@mui/material";
+import type { TextFieldProps } from "@mui/material";
 import { NumericFormat } from "react-number-format";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 
@@ -15,6 +16,7 @@ export interface NumberFieldProps {
   allowNegative?: boolean;
   helperText?: React.ReactNode;
   fullWidth?: boolean;
+  size?: TextFieldProps["size"];
   locale?: string;
   fractionDigits?: number;
   fixedDecimalScale?: boolean;
@@ -30,6 +32,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   allowNegative = true,
   helperText,
   fullWidth = true,
+  size = "small",
   locale = "en-US",
   fractionDigits,
   fixedDecimalScale,
@@ -71,7 +74,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
             allowLeadingZeros: true,
           } as any)}
           {...(label && { label })}
-          size="small"
+          size={size}
           fullWidth={fullWidth}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? helperText}

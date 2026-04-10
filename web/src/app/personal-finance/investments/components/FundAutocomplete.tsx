@@ -3,6 +3,7 @@
 import React from "react";
 import { useQuery } from "@apollo/client/react";
 import { Autocomplete, Box, CircularProgress, TextField, Typography } from "@mui/material";
+import type { TextFieldProps } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
@@ -26,11 +27,12 @@ export type FundAutocompleteValue = {
 interface FundAutocompleteProps {
   name: string;
   label?: string;
+  size?: TextFieldProps["size"];
   disabled?: boolean;
   "data-testid"?: string;
 }
 
-export function FundAutocomplete({ name, label, disabled, "data-testid": dataTestId }: FundAutocompleteProps) {
+export function FundAutocomplete({ name, label, size = "medium", disabled, "data-testid": dataTestId }: FundAutocompleteProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { control } = useFormContext();
   const [inputValue, setInputValue] = React.useState("");
@@ -110,6 +112,7 @@ export function FundAutocomplete({ name, label, disabled, "data-testid": dataTes
             <TextField
               {...params}
               label={label ?? t("investments.recordFund.fields.fund")}
+              size={size}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               data-testid={dataTestId}

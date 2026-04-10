@@ -185,7 +185,7 @@ open class ImportProcessor(
                     return@forEachIndexed
                 }
 
-                // 4. Moving date window guard (maximum 5 years in the past)
+                // 4. Moving date window guard (maximum DateWindowPolicy.MAX_PAST_YEARS in the past)
                 if (parsed.date.isBefore(minAllowedDate)) {
                     errors.add(
                         ImportRowError(

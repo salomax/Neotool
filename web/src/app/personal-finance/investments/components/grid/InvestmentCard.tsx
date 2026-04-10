@@ -26,6 +26,10 @@ export interface InvestmentCardProps {
   /** When set, replaces the two primary/secondary footer buttons with one action (e.g. cash "Movimentar"). */
   singleActionLabel?: string;
   onSingleActionClick?: (event: React.MouseEvent) => void;
+  /** Opens the class detail view; main card body becomes keyboard-activable (not the footer). */
+  onOpenDetail?: () => void;
+  /** CTA used by empty cards to open the corresponding record drawer. */
+  onFirstInvestmentClick?: () => void;
 }
 
 export function InvestmentCard({
@@ -40,6 +44,8 @@ export function InvestmentCard({
   chartData,
   singleActionLabel,
   onSingleActionClick,
+  onOpenDetail,
+  onFirstInvestmentClick,
 }: InvestmentCardProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -53,10 +59,36 @@ export function InvestmentCard({
   );
   const hasMiniChart = chartHistorical.length >= 1;
   const isEmptyState = assetCount === 0 && !hasMiniChart;
+  const emptyStateIconMask = "linear-gradient(135deg, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 100%)";
+
+  const handleMainClick = React.useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      if (!onOpenDetail) return;
+      if ((event.target as HTMLElement).closest("button, a[href], input, textarea, select")) {
+        return;
+      }
+      onOpenDetail();
+    },
+    [onOpenDetail],
+  );
+
+  const handleMainKeyDown = React.useCallback(
+    (event: React.KeyboardEvent<HTMLDivElement>) => {
+      if (!onOpenDetail) return;
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        onOpenDetail();
+      }
+    },
+    [onOpenDetail],
+  );
 
   return (
     <Box
       sx={{
+        "--investment-empty-icon-from": theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[600],
+        "--investment-empty-icon-to": theme.palette.mode === "dark" ? theme.palette.grey[300] : theme.palette.grey[400],
+        "--investment-empty-icon-opacity": 0.7,
         border: `1px solid ${alpha(theme.palette.divider, 0.7)}`,
         borderRadius: 2,
         minHeight: 180,
@@ -64,9 +96,12 @@ export function InvestmentCard({
         flexDirection: "column",
         bgcolor: "background.paper",
         overflow: "hidden",
-        cursor: "pointer",
+        cursor: onOpenDetail ? "default" : "pointer",
         transition: "box-shadow 180ms ease, transform 180ms ease, border-color 180ms ease",
         "&:hover": {
+          "--investment-empty-icon-from": theme.palette.primary.dark,
+          "--investment-empty-icon-to": theme.palette.primary.light,
+          "--investment-empty-icon-opacity": 1,
           boxShadow: `0 10px 24px ${alpha(theme.palette.primary.main, 0.22)}`,
           borderColor: alpha(theme.palette.primary.main, 0.45),
           transform: "translateY(-1px)",
@@ -77,11 +112,44 @@ export function InvestmentCard({
         },
       }}
     >
-      <Box sx={{ position: "relative", px: 2, pt: 2, pb: 0, flex: 1, display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          position: "relative",
+          px: 2,
+          pt: 2,
+          pb: 0,
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          ...(onOpenDetail ? { cursor: "pointer" } : {}),
+        }}
+        role={onOpenDetail ? "button" : undefined}
+        tabIndex={onOpenDetail ? 0 : undefined}
+        onClick={onOpenDetail ? handleMainClick : undefined}
+        onKeyDown={onOpenDetail ? handleMainKeyDown : undefined}
+        aria-label={onOpenDetail ? t("investments.grid.openClassDetail", { title }) : undefined}
+      >
         {isEmptyState ? (
           <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", pb: 1 }}>
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-              <InvestmentAssetIcon kind={iconKind} sx={{ fontSize: 44, color: "action.disabled" }} />
+              <Box component="span" sx={{ display: "inline-grid", lineHeight: 0, opacity: "var(--investment-empty-icon-opacity)" }}>
+                <InvestmentAssetIcon
+                  kind={iconKind}
+                  sx={{ gridArea: "1 / 1", fontSize: 44, pointerEvents: "none", color: "var(--investment-empty-icon-from)" }}
+                />
+                <InvestmentAssetIcon
+                  kind={iconKind}
+                  sx={{
+                    gridArea: "1 / 1",
+                    fontSize: 44,
+                    pointerEvents: "none",
+                    color: "var(--investment-empty-icon-to)",
+                    WebkitMaskImage: emptyStateIconMask,
+                    maskImage: emptyStateIconMask,
+                  }}
+                  aria-hidden
+                />
+              </Box>
               <Typography variant="subtitle2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                 {title}
               </Typography>
@@ -202,6 +270,10 @@ export function InvestmentCard({
           <Button
             size="small"
             variant="text"
+            onClick={(e) => {
+              e.stopPropagation();
+              onFirstInvestmentClick?.();
+            }}
             sx={{
               minWidth: 0,
               px: 1,

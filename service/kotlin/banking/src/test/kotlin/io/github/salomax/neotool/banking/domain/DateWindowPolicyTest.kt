@@ -9,11 +9,11 @@ import java.time.LocalDate
 @DisplayName("DateWindowPolicy")
 class DateWindowPolicyTest {
     @Test
-    fun `minAllowedDate returns reference date minus 5 years`() {
+    fun `minAllowedDate returns reference date minus 10 years`() {
         val referenceDate = LocalDate.of(2026, 3, 11)
 
         val result = DateWindowPolicy.minAllowedDate(referenceDate)
 
-        assertThat(result).isEqualTo(LocalDate.of(2021, 3, 11))
+        assertThat(result).isEqualTo(LocalDate.of(2016, 3, 11))
     }
 }

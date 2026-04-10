@@ -36,6 +36,7 @@ import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
@@ -125,6 +126,9 @@ export function RecordFixedIncomeDrawer({
     () => getLocaleSeparators(locale),
     [locale],
   );
+  const today = React.useMemo(() => dayjs().startOf("day"), []);
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
+  const maxMaturityDate = React.useMemo(() => dayjs().startOf("day").add(50, "year"), []);
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
 
   const createSchema = React.useMemo(
@@ -280,8 +284,32 @@ export function RecordFixedIncomeDrawer({
               path: ["maturityDate"],
             });
           }
+
+          if (dayjs(data.tradeDate).isBefore(minAllowedDate, "day")) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("financeTransactions.validation.dateTooOld", { years: FINANCE_MOVING_WINDOW_YEARS }),
+              path: ["tradeDate"],
+            });
+          }
+
+          if (dayjs(data.tradeDate).isAfter(today, "day")) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("investments.recordHolding.validation.tradeDateNotInFuture"),
+              path: ["tradeDate"],
+            });
+          }
+
+          if (dayjs(data.maturityDate).isAfter(maxMaturityDate, "day")) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("investments.recordHolding.validation.maturityDateTooFar", { years: 50 }),
+              path: ["maturityDate"],
+            });
+          }
         }),
-    [localeDecimal, localeGroup, t],
+    [localeDecimal, localeGroup, maxMaturityDate, minAllowedDate, t, today],
   );
 
   const methods = useForm<RecordFixedIncomeFormData>({
@@ -374,19 +402,19 @@ const isEdit = Boolean(editHolding && editTransaction);
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
-  >(RECORD_INVESTMENT_TRANSACTION, {
-    onCompleted: () => {
-      void apolloClient
-        .refetchQueries({
-          include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE],
-        })
-        .finally(() => {
-          success(t("investments.recordHolding.success"));
-          onRecorded?.();
-          onClose();
-        });
-    },
-  });
+  >(RECORD_INVESTMENT_TRANSACTION);
+
+  const completeRecording = React.useCallback(() => {
+    void apolloClient
+      .refetchQueries({
+        include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE],
+      })
+      .finally(() => {
+        success(t("investments.recordHolding.success"));
+        onRecorded?.();
+        onClose();
+      });
+  }, [apolloClient, onClose, onRecorded, success, t]);
 
   const isSubmitting = creatingAsset || deletingTx || recordingTx;
   const mutationError = createAssetError || deleteTxError || recordTxError;
@@ -438,10 +466,6 @@ const isEdit = Boolean(editHolding && editTransaction);
     if (!resolvedAssetId) return;
 
     try {
-      if (isEdit) {
-        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
-      }
-
       await recordTransaction({
         variables: {
           input: {
@@ -463,6 +487,12 @@ const isEdit = Boolean(editHolding && editTransaction);
           },
         },
       });
+
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
+
+      completeRecording();
     } catch {
       return;
     }
@@ -514,18 +544,12 @@ const isEdit = Boolean(editHolding && editTransaction);
             <FormStack>
               <ErrorAlert error={mutationError} />
 
-              <FormStack spacing={1}>
-                <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
-                  {t("investments.recordHolding.sections.assetInfo")}
-                </Typography>
-
                 <TextField
                   name="assetName"
                   label={t("investments.recordHolding.fields.assetName")}
                 size="medium"
                   data-testid="record-asset-name"
                 />
-              </FormStack>
 
               <SelectField
                 name="assetType"
@@ -541,8 +565,6 @@ const isEdit = Boolean(editHolding && editTransaction);
                 InputProps={isTreasury ? { readOnly: true } : undefined}
                 data-testid="record-issuer-name"
               />
-
-              <Divider sx={{ pt: 2 }} />
 
               <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
                 {t("investments.recordHolding.sections.applicationDetails")}
@@ -635,6 +657,9 @@ const isEdit = Boolean(editHolding && editTransaction);
                   <DatePickerField
                     name="tradeDate"
                     label={t("investments.recordHolding.fields.tradeDate")}
+                    size="medium"
+                    minDate={minAllowedDate.toDate()}
+                    maxDate={today.toDate()}
                     data-testid="record-trade-date"
                   />
                 </Box>
@@ -643,7 +668,9 @@ const isEdit = Boolean(editHolding && editTransaction);
                   <DatePickerField
                     name="maturityDate"
                     label={t("investments.recordHolding.fields.maturityDate")}
+                    size="medium"
                     minDate={watchedTradeDate}
+                    maxDate={maxMaturityDate.toDate()}
                     data-testid="record-maturity-date"
                   />
                 </Box>

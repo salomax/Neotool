@@ -68,7 +68,27 @@
       "emptyDescription": "Nenhuma posição registrada",
       "firstInvestmentCta": "+ Investimento",
       "addMovementCta": "+ Movimento",
-      "movimentar": "Movimentar"
+      "movimentar": "Movimentar",
+      "backToGrid": "Voltar para visão em grade",
+      "openClassDetail": "Abrir detalhes de {{title}}",
+      "classes": {
+        "cash": "Caixa",
+        "fixedIncome": "Renda Fixa",
+        "funds": "Fundos",
+        "stocks": "Ações",
+        "reits": "FIIs",
+        "crypto": "Cripto"
+      },
+      "actions": {
+        "contributeCash": "Aportar"
+      },
+      "loadError": {
+        "description": "Não foi possível carregar a carteira. Verifique sua conexão e tente novamente."
+      },
+      "tabs": {
+        "ariaLabel": "Classes de investimento",
+        "grid": "Grade"
+      }
     },
     "transactions": {
       "buy": "Comprar",
@@ -118,6 +138,7 @@
       "viewAll": "Ver movimentações",
       "negativeBalanceHint": "O saldo de caixa está negativo. Revise lançamentos e ajustes.",
       "registerAsBalanceAdjustment": "Registrar como ajuste de saldo",
+      "balanceAdjustmentHint": "Ajuste de saldo corrige o caixa atual sem criar uma transferência entre contas. Use movimento normal para aportes e saques que representam entradas ou saídas reais.",
       "peerAccount": "Conta bancária de origem",
       "peerAccountNone": "Sem conta vinculada",
       "peerAccountNoMatch": "Nenhuma conta encontrada",
@@ -621,8 +642,10 @@
         "grossValueRequired": "Valor aplicado é obrigatório",
         "grossValuePositive": "Valor deve ser maior que zero",
         "tradeDateRequired": "Data da aplicação é obrigatória",
+        "tradeDateNotInFuture": "Data da aplicação não pode ser futura",
         "maturityDateRequired": "Data de vencimento é obrigatória",
-        "maturityAfterTrade": "Vencimento deve ser após a data da aplicação"
+        "maturityAfterTrade": "Vencimento deve ser após a data da aplicação",
+        "maturityDateTooFar": "Data de vencimento deve estar dentro dos próximos {{years}} anos"
       },
       "actions": {
         "submit": "Salvar",

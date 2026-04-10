@@ -158,8 +158,8 @@ class FinancialAccountServiceTest {
         }
 
         @Test
-        fun `fails when initial balance date is older than 5-year moving window`() {
-            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+        fun `fails when initial balance date is older than 10-year moving window`() {
+            val tooOldDate = LocalDate.now().minusYears(10).minusDays(1)
             val command = command(initialBalance = BigDecimal("10.00"), initialBalanceDate = tooOldDate)
 
             assertThrows<ValidationException> {

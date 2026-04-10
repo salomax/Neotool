@@ -2,6 +2,7 @@
 
 import React from "react";
 import { Alert } from "@mui/material";
+import { extractErrorMessage } from "@/shared/utils/error";
 
 export interface ErrorAlertProps {
   /**
@@ -78,8 +79,8 @@ export const ErrorAlert: React.FC<ErrorAlertProps> = ({
     return null;
   }
 
-  // Extract message from Error object or use string directly
-  const message = typeof error === "string" ? error : error?.message || fallbackMessage;
+  const message =
+    typeof error === "string" ? error : extractErrorMessage(error, fallbackMessage);
 
   return (
     <Alert 

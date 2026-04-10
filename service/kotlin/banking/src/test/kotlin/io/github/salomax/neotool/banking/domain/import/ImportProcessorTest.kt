@@ -118,11 +118,11 @@ class ImportProcessorTest {
         }
 
         @Test
-        fun `adds row error when date is older than 5-year moving window`() {
+        fun `adds row error when date is older than 10-year moving window`() {
             whenever(sameSourceDedupService.isDuplicate(any(), any(), any())).thenReturn(false)
             whenever(importFingerprintService.compute(any(), any(), any(), any(), any())).thenReturn("fp-old")
             whenever(importFingerprintService.isDuplicate(any(), any())).thenReturn(false)
-            val tooOldDate = LocalDate.now().minusYears(5).minusDays(1)
+            val tooOldDate = LocalDate.now().minusYears(10).minusDays(1)
 
             val result = processor.process(job, listOf(parsedRow(date = tooOldDate)))
 

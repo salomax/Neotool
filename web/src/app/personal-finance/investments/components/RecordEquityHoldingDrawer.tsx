@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Avatar,
@@ -46,6 +46,7 @@ import { i18n, useTranslation } from "@/shared/i18n";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
+import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { EquityAutocomplete, EquityAutocompleteValue } from "./EquityAutocomplete";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
@@ -94,6 +95,7 @@ export function RecordEquityHoldingDrawer({
   initialDirection,
 }: RecordEquityHoldingDrawerProps) {
   const theme = useTheme();
+  const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
@@ -101,6 +103,7 @@ export function RecordEquityHoldingDrawer({
     () => getLocaleSeparators(locale),
     [locale],
   );
+  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_QUANTITY");
   const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
@@ -189,8 +192,17 @@ export function RecordEquityHoldingDrawer({
         brokerageFee: z.number().min(0).optional(),
         settlementFee: z.number().min(0).optional(),
         otherFees: z.number().min(0).optional(),
+      })
+      .superRefine((data, ctx) => {
+        if (dayjs(data.tradeDate).isBefore(minAllowedDate, "day")) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("financeTransactions.validation.dateTooOld", { years: FINANCE_MOVING_WINDOW_YEARS }),
+            path: ["tradeDate"],
+          });
+        }
       }),
-    [localeDecimal, localeGroup, t],
+    [localeDecimal, localeGroup, minAllowedDate, t],
   );
 
   const methods = useForm<RecordEquityFormData>({
@@ -292,19 +304,19 @@ export function RecordEquityHoldingDrawer({
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
-  >(RECORD_INVESTMENT_TRANSACTION, {
-    refetchQueries: [
-      { query: INVESTMENT_HOLDINGS, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
-      { query: INVESTMENT_HOLDINGS },
-      { query: INVESTMENT_PORTFOLIO_SUMMARY, variables: { financialAccountId: resolvedFinancialAccountId ?? null } },
-      { query: INVESTMENT_PORTFOLIO_SUMMARY },
-    ],
-    onCompleted: () => {
-      success(t("investments.recordEquity.success"));
-      onRecorded?.();
-      onClose();
-    },
-  });
+  >(RECORD_INVESTMENT_TRANSACTION);
+
+  const completeRecording = React.useCallback(() => {
+    void apolloClient
+      .refetchQueries({
+        include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY],
+      })
+      .finally(() => {
+        success(t("investments.recordEquity.success"));
+        onRecorded?.();
+        onClose();
+      });
+  }, [apolloClient, onClose, onRecorded, success, t]);
 
   const isSubmitting = creatingAsset || deletingTx || recordingTx;
   const mutationError = createAssetError || deleteTxError || recordTxError;
@@ -422,10 +434,6 @@ export function RecordEquityHoldingDrawer({
     if (!resolvedAssetId) return;
 
     try {
-      if (isEdit) {
-        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
-      }
-
       await recordTransaction({
         variables: {
           input: {
@@ -445,6 +453,12 @@ export function RecordEquityHoldingDrawer({
           },
         },
       });
+
+      if (isEdit) {
+        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+      }
+
+      completeRecording();
     } catch {
       return;
     }
@@ -566,6 +580,7 @@ export function RecordEquityHoldingDrawer({
                     <DatePickerField
                       name="tradeDate"
                       label={t("investments.recordEquity.fields.tradeDate")}
+                      minDate={minAllowedDate.toDate()}
                       data-testid="record-equity-trade-date"
                     />
                   </Box>
