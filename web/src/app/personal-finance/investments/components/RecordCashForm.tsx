@@ -401,7 +401,6 @@ export function RecordCashForm({
                 const selected = peerOptions.find((a) => a.id === field.value) ?? null;
                 return (
                   <Autocomplete<IssuerSelectionAccount, false, false, false>
-                    sx={{ pt: 2 }}
                     fullWidth
                     options={peerOptions}
                     value={selected}
@@ -477,7 +476,7 @@ export function RecordCashForm({
             />
           ) : null}
 
-          <Divider sx={{ py: 1 }} />
+          <Divider />
 
           <Drawer.ActionButtons
             cancelText={cancelText}

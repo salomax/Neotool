@@ -161,6 +161,7 @@ Quick lookup and reference materials:
 | Breadcrumb Pattern | `07-frontend/patterns/breadcrumb-pattern.md` | pattern | frontend | breadcrumb, navigation, page hierarchy, navigation path, breadcrumb component |
 | Styling Pattern | `07-frontend/patterns/styling-pattern.md` | pattern | frontend | styling, themes, design-tokens |
 | Toast Notification Pattern | `07-frontend/patterns/toast-notification-pattern.md` | pattern | frontend | toast, notification, feedback, user-experience |
+| **Form Pattern** | `07-frontend/patterns/form-pattern.md` | pattern | frontend | **form, react-hook-form, zod, zodResolver, useForm, FormProvider, drawer form, page form, inline form, FormStack, FormRowStack, FormTextField, MoneyInput, DatePickerField, SelectField, NumberField, PercentField, ErrorAlert, Drawer.ActionButtons, validation, size medium** |
 | Testing Pattern | `07-frontend/patterns/testing-pattern.md` | pattern | frontend | testing, frontend, react, react-hook-form, vitest, testing-library |
 | E2E Testing Pattern | `07-frontend/patterns/e2e-testing-pattern.md` | pattern | frontend | testing, e2e, playwright, end-to-end, browser-testing, integration-testing |
 

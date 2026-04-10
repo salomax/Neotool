@@ -260,15 +260,13 @@ export default function PersonalFinanceInvestmentsPage() {
         <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
-              <Box sx={{ mt: 2 }}>
-                <InvestmentGrid
-                  selectedAccountId={selectedAccountId}
-                  bankAccounts={bankAccounts}
-                  investmentAccounts={investmentAccounts}
-                  searchQuery={holdingSearchQuery}
-                  onSelectSearchAsset={(assetName) => setHoldingSearchQuery(assetName)}
-                />
-              </Box>
+              <InvestmentGrid
+                selectedAccountId={selectedAccountId}
+                bankAccounts={bankAccounts}
+                investmentAccounts={investmentAccounts}
+                searchQuery={holdingSearchQuery}
+                onSelectSearchAsset={(assetName) => setHoldingSearchQuery(assetName)}
+              />
             </Container>
           </Page>
         </SidebarLayout>

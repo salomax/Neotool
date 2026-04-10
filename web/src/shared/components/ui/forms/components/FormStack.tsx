@@ -6,7 +6,7 @@ import MuiStack, { StackProps as MuiStackProps } from "@mui/material/Stack";
 
 export type FormStackProps = MuiStackProps;
 
-const DEFAULT_SPACING = 1.5;
+const DEFAULT_SPACING = 3;
 
 export const FormStack = React.forwardRef<HTMLDivElement, FormStackProps>(function FormStack(
   { spacing = DEFAULT_SPACING, direction = "column", ...props },

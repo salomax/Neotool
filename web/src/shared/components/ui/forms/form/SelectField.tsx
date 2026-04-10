@@ -39,9 +39,8 @@ export function SelectField<T = string>({
         <TextField
           select
           label={label}
-          size="small"
           fullWidth={fullWidth}
-          size={size}
+          size={size ?? "small"}
           value={field.value ?? ""}
           onChange={(e) => field.onChange(e.target.value as any)}
           error={!!fieldState.error}

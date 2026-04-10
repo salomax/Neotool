@@ -332,6 +332,7 @@ export function CreateInvestmentAccountDrawer({
                 customIssuerLabel={t('financeTransactions.createAccount.step2.fields.customIssuer')}
                 error={!!issuerIdFieldState.error}
                 helperText={issuerIdFieldState.error?.message}
+                size="medium"
               />
 
               {watchedIssuerId === 'custom' && (
@@ -339,6 +340,7 @@ export function CreateInvestmentAccountDrawer({
                   name="issuerName"
                   label={t('investments.createAccount.fields.customIssuerLabel')}
                   required
+                  size="medium"
                 />
               )}
 
@@ -347,6 +349,7 @@ export function CreateInvestmentAccountDrawer({
                   name="subtype"
                   label={t('investments.createAccount.fields.subtypeLabel')}
                   options={investmentSubtypes}
+                  size="medium"
                 />
               </Box>
 
@@ -355,6 +358,7 @@ export function CreateInvestmentAccountDrawer({
                 label={t('investments.createAccount.fields.accountNameLabel')}
                 placeholder={t('investments.createAccount.fields.accountNamePlaceholder')}
                 inputProps={{ 'data-testid': 'investment-account-name-input' }}
+                size="medium"
               />
 
               <Stack direction="row" spacing={2}>
@@ -363,11 +367,13 @@ export function CreateInvestmentAccountDrawer({
                   label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
                   currency="BRL"
                   locale={i18n.language}
+                  size="medium"
                 />
                 <DatePickerField
                   name="initialBalanceDate"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
+                  size="medium"
                 />
               </Stack>
 
@@ -376,16 +382,19 @@ export function CreateInvestmentAccountDrawer({
                   name="branchCode"
                   label={t('financeTransactions.createAccount.step2.fields.branchCode')}
                   sx={{ flex: 1 }}
+                  size="medium"
                 />
                 <TextField
                   name="accountNumber"
                   label={t('financeTransactions.createAccount.step2.fields.accountNumber')}
                   sx={{ flex: 2 }}
+                  size="medium"
                 />
                 <TextField
                   name="checkDigit"
                   label={t('financeTransactions.createAccount.step2.fields.checkDigit')}
                   sx={{ width: 80 }}
+                  size="medium"
                 />
               </Stack>
 

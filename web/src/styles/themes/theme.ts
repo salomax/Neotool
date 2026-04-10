@@ -191,6 +191,26 @@ export const createAppTheme = (mode: Mode) => {
           },
         },
       },
+      MuiAutocomplete: {
+        styleOverrides: {
+          inputRoot: ({ ownerState }: any) => {
+            if (ownerState?.multiple) return {};
+
+            const inputPadding = ownerState?.size === "small" ? "10.5px 14px" : "14.5px 14px";
+
+            return {
+              paddingTop: 0,
+              paddingBottom: 0,
+              "& .MuiAutocomplete-input": {
+                padding: inputPadding,
+              },
+              "& .MuiOutlinedInput-inputAdornedStart.MuiAutocomplete-input": {
+                paddingLeft: 0,
+              },
+            };
+          },
+        },
+      },
       MuiPickersOutlinedInput: {
         styleOverrides: {
           root: {

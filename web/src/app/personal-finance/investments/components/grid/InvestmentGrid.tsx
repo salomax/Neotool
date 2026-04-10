@@ -21,19 +21,12 @@ import { INVESTMENT_GRID_DATA } from "@/lib/graphql/operations/banking/queries";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
 
-const makeChartSeries = (values: number[]): TimeSeriesDataPoint[] =>
-  values.map((value, idx) => ({
-    quarter: `Q${idx + 1}`,
-    value,
-  }));
-
 type InvestmentClassItem = {
   key: string;
   title: string;
   iconKind: InvestmentIconKind;
   primaryActionLabel: string;
   secondaryActionLabel: string;
-  chartData: TimeSeriesDataPoint[];
   visibleGroupKeys?: AssetGroupKey[];
   visibleAssetTypes?: string[];
   includeCashCard?: boolean;
@@ -48,7 +41,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "OTHER",
     primaryActionLabel: "Aportar",
     secondaryActionLabel: "Resgatar",
-    chartData: makeChartSeries([9.2, 10.1, 10.8, 11.4, 11.9, 12.2, 12.54]),
     includeCashCard: true,
     visibleGroupKeys: [],
   },
@@ -58,7 +50,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "FIXED_INCOME",
     primaryActionLabel: "Aplicar",
     secondaryActionLabel: "Resgatar",
-    chartData: makeChartSeries([39.1, 40.2, 41.0, 42.6, 44.4, 46.1, 48.32]),
     includeCashCard: false,
     visibleGroupKeys: ["bankFixedIncome", "creditFixedIncome"],
   },
@@ -68,7 +59,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "FUND",
     primaryActionLabel: "Aplicar",
     secondaryActionLabel: "Resgatar",
-    chartData: makeChartSeries([24.2, 25.6, 26.1, 27.9, 29.4, 30.6, 31.87]),
     includeCashCard: false,
     visibleGroupKeys: ["mutualFunds", "pension"],
   },
@@ -78,7 +68,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "STOCK",
     primaryActionLabel: "Comprar",
     secondaryActionLabel: "Vender",
-    chartData: makeChartSeries([18.6, 20.1, 19.8, 22.7, 24.9, 27.3, 28.91]),
     includeCashCard: false,
     visibleAssetTypes: ["STOCK", "STOCK_RIGHTS", "BDR", "ETF", "ETF_INTERNATIONAL"],
   },
@@ -88,7 +77,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "REAL_ESTATE_FUND",
     primaryActionLabel: "Comprar",
     secondaryActionLabel: "Vender",
-    chartData: makeChartSeries([12.2, 12.8, 13.1, 13.8, 14.5, 15.0, 15.78]),
     includeCashCard: false,
     visibleAssetTypes: ["REAL_ESTATE_FUND", "AGRIBUSINESS_FUND"],
   },
@@ -98,7 +86,6 @@ const INITIAL_GRID_ITEMS: InvestmentClassItem[] = [
     iconKind: "CRYPTO",
     primaryActionLabel: "Comprar",
     secondaryActionLabel: "Vender",
-    chartData: makeChartSeries([7.9, 8.6, 9.4, 10.2, 9.8, 9.6, 9.43]),
     includeCashCard: false,
     visibleAssetTypes: ["CRYPTO"],
   },
@@ -387,7 +374,7 @@ export function InvestmentGrid({
   }
 
   return (
-    <Box sx={{ mt: 2 }}>
+    <Box>
       {!selectedClass ? (
         <Fade in timeout={220}>
           <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" }, gap: 2 }}>
