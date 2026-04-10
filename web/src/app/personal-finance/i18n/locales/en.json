@@ -1122,11 +1122,13 @@
           "subtypeRequired": "Account type is required",
           "initialBalanceDateRequired": "Initial balance date is required when initial balance is provided",
           "initialBalanceNonZero": "Initial balance must be non-zero",
+          "accountNameMaxLength": "Account name must be at most {{max}} characters",
           "issuerRequired": "Issuer is required",
           "closingDayRequired": "Closing day is required",
           "dueDayRequired": "Due day is required",
           "closingDayInvalid": "Invalid closing day (1-31)",
           "dueDayInvalid": "Invalid due day (1-31)",
+          "maskedNumberInvalid": "Last 4 digits must be exactly 4 numbers or empty",
           "invalidCurrencyFormat": "Invalid currency format (max 2 decimals)"
         },
         "defaults": {

@@ -95,15 +95,14 @@ type CreateAccountFormData = {
 };
 
 function buildDefaultCardAccountName(
-  data: Pick<CreateAccountFormData, 'subtype' | 'maskedNumber'>,
+  data: Pick<CreateAccountFormData, 'subtype'>,
   t: (key: string) => string,
 ): string {
   const subtypeLabel =
     data.subtype && data.subtype in CardSubtypeLabelKeyByValue
       ? t(CardSubtypeLabelKeyByValue[data.subtype as keyof typeof CardSubtypeLabelKeyByValue])
       : t('financeTransactions.createAccount.step2.defaults.creditCardType');
-  const lastFourDigits = (data.maskedNumber ?? '').replace(/\D/g, '').slice(-4);
-  return lastFourDigits ? `${subtypeLabel} • ${lastFourDigits}` : subtypeLabel;
+  return subtypeLabel;
 }
 
 const CardSubtypeLabelKeyByValue = {
@@ -112,6 +111,14 @@ const CardSubtypeLabelKeyByValue = {
   PREPAID_CARD: 'financeTransactions.createAccount.step2.enums.cardSubtype.PREPAID_CARD',
   VOUCHER_CARD: 'financeTransactions.createAccount.step2.enums.cardSubtype.VOUCHER_CARD',
 } as const;
+
+/** Empty or exactly four digits (allows optional non-digit separators stripped for digit count). */
+function isCardMaskedNumberValid(raw: string | undefined): boolean {
+  const trimmed = raw?.trim() ?? '';
+  if (trimmed.length === 0) return true;
+  const digitsOnly = trimmed.replace(/\D/g, '');
+  return /^\d{4}$/.test(trimmed) || digitsOnly.length === 4;
+}
 
 // --- Components ---
 
@@ -170,7 +177,13 @@ export function CreateFinancialAccountDrawer({
           type: z.enum(['BANK', 'CARD']),
           issuerId: z.string().optional(),
           issuerName: z.string().optional(),
-          name: z.string().default(''),
+          name: z
+            .string()
+            .max(
+              255,
+              t('financeTransactions.createAccount.step2.validation.accountNameMaxLength', { max: 255 }),
+            )
+            .default(''),
           currencyCode: z.string().default('BRL'),
           initialBalance: z.number().optional(),
           initialBalanceDate: z.date().nullable().optional(),
@@ -303,7 +316,7 @@ export function CreateFinancialAccountDrawer({
     },
   });
 
-  const { setValue, reset, control, formState } = methods;
+  const { setValue, reset, control, formState, setError, clearErrors } = methods;
   const { isValid } = formState;
   const watchedIssuerId = useWatch({ control, name: 'issuerId' });
   const watchedSubtype = useWatch({ control, name: 'subtype' });
@@ -430,7 +443,7 @@ export function CreateFinancialAccountDrawer({
 
     if (!issuersData?.issuers) return;
 
-    const issuer = issuersData.issuers.find((i) => i.id === watchedIssuerId);
+    const issuer = issuersData.issuers.find((i: Issuer) => i.id === watchedIssuerId);
     if (!issuer) {
       setValue('issuerId', undefined, { shouldDirty: false, shouldValidate: true });
       setValue('issuerName', '', { shouldDirty: false, shouldValidate: false });
@@ -460,6 +473,15 @@ export function CreateFinancialAccountDrawer({
   };
 
   const onSubmit = async (data: CreateAccountFormData) => {
+    if (data.type === 'CARD' && !isCardMaskedNumberValid(data.maskedNumber)) {
+      setError('maskedNumber', {
+        type: 'manual',
+        message: t('financeTransactions.createAccount.step2.validation.maskedNumberInvalid'),
+      });
+      return;
+    }
+    clearErrors('maskedNumber');
+
     const issuerName = data.issuerName?.trim();
     const accountType =
       data.type === 'BANK'
@@ -471,6 +493,12 @@ export function CreateFinancialAccountDrawer({
       data.type === 'CARD'
         ? (data.name?.trim() || buildDefaultCardAccountName(data, t))
         : (data.name?.trim() || undefined);
+    const normalizedMaskedNumber = (() => {
+      const raw = data.maskedNumber?.trim();
+      if (!raw) return undefined;
+      const digitsOnly = raw.replace(/\D/g, '');
+      return digitsOnly.length === 4 ? digitsOnly : raw;
+    })();
 
     // Transform data for mutation
     const input: any = {
@@ -500,7 +528,7 @@ export function CreateFinancialAccountDrawer({
       input.cardData = {
         cardNetwork: data.cardNetwork,
         cardLevel: data.cardLevel,
-        maskedNumber: data.maskedNumber,
+        maskedNumber: normalizedMaskedNumber,
         creditLimit: data.creditLimit,
         closingDay: data.closingDay,
         dueDay: data.dueDay,
@@ -671,6 +699,7 @@ export function CreateFinancialAccountDrawer({
                         label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
                         placeholder="1234"
                         InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+                        inputProps={{ 'data-testid': 'card-last-four-input' }}
                         sx={{ flex: 1 }}
                         size="medium"
                       />
@@ -712,6 +741,7 @@ export function CreateFinancialAccountDrawer({
                     label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
                     placeholder="1234"
                     InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
+                    inputProps={{ 'data-testid': 'card-last-four-input' }}
                     size="medium"
                   />
                 )}

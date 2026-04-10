@@ -219,6 +219,8 @@
     "INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE": "A data da movimentação manual de caixa não pode ser futura.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND": "Movimentação de caixa de investimento não encontrada.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE": "Apenas movimentações manuais de caixa em contas de investimento ou benefícios podem ser editadas ou removidas aqui.",
+    "CARD_MASKED_NUMBER_INVALID": "Os últimos 4 dígitos devem estar vazios ou conter exatamente 4 dígitos.",
+    "FINANCIAL_ACCOUNT_NAME_TOO_LONG": "O nome da conta deve ter no máximo {{maxLength}} caracteres.",
     "INVALID_INPUT": "Entrada inválida. Revise os dados e tente novamente.",
     "INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
     "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED": "O recálculo de performance consolidada da carteira ainda não está disponível.",

@@ -219,6 +219,8 @@
     "INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE": "Manual investment cash transaction date cannot be in the future.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND": "Investment cash transaction not found.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE": "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here.",
+    "CARD_MASKED_NUMBER_INVALID": "Last 4 digits must be empty or exactly 4 digits.",
+    "FINANCIAL_ACCOUNT_NAME_TOO_LONG": "Account name must be at most {{maxLength}} characters.",
     "INVALID_INPUT": "Invalid input. Please review the form and try again.",
     "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
     "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED": "Portfolio-wide performance recalculation is not available yet.",
