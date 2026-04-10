@@ -6,6 +6,14 @@
 
 import { Page, Locator, expect } from '@playwright/test';
 
+/** Subtypes rendered in the card branch of CreateFinancialAccountDrawer step 2. */
+const CARD_FORM_SUBTYPES = new Set([
+  'CREDIT_CARD',
+  'CHARGE_CARD',
+  'PREPAID_CARD',
+  'VOUCHER_CARD',
+]);
+
 export class CreateAccountDrawer {
   private readonly drawer: Locator;
 
@@ -20,6 +28,10 @@ export class CreateAccountDrawer {
    */
   private drawerPanel(): Locator {
     return this.drawer.getByRole('dialog').first();
+  }
+
+  private submitButton(): Locator {
+    return this.drawerPanel().getByTestId('account-form-submit');
   }
 
   async waitForOpen(): Promise<void> {
@@ -77,11 +89,17 @@ export class CreateAccountDrawer {
     }
     const surface = this.drawerPanel();
     const typeButton = surface.getByTestId(`account-type-${normalizedType}`);
+    const subtypeSelect = surface.getByTestId('account-subtype-select').first();
     if (!(await typeButton.first().isVisible().catch(() => false))) {
       const backButton = surface.getByRole('button', { name: /voltar|back/i });
       if (await backButton.first().isVisible().catch(() => false)) {
         await backButton.first().click();
-        await typeButton.first().waitFor({ state: 'visible', timeout: 15000 });
+        // Some flows already land directly on step 2 for the chosen type.
+        // If we cannot navigate back to type tiles, treat it as a no-op.
+        const becameVisible = await typeButton.first().waitFor({ state: 'visible', timeout: 2000 }).then(() => true).catch(() => false);
+        if (!becameVisible && (await subtypeSelect.isVisible().catch(() => false))) {
+          return;
+        }
       }
     }
     if (await typeButton.first().isVisible().catch(() => false)) {
@@ -97,8 +115,13 @@ export class CreateAccountDrawer {
    * Selects an account subtype.
    * e.g. 'CONTA_CORRENTE', 'CREDIT_CARD', 'CHARGE_CARD'
    * Opens the subtype SelectField and picks the option by its data-value attribute.
+   *
+   * Ensures the drawer is on step 2 for the right product (bank vs card): `openCreateAccountDrawer('CARD')`
+   * may land directly on the form, while "Nova conta" opens on step 1 — without this, `selectSubtype` races.
    */
   async selectSubtype(subtype: string): Promise<void> {
+    const kind: 'BANK' | 'CARD' = CARD_FORM_SUBTYPES.has(subtype) ? 'CARD' : 'BANK';
+    await this.ensureOnAccountSubtypeStep(kind);
     await this.drawerPanel().getByTestId('account-subtype-select').first().click();
     await this.page.locator(`[data-value="${subtype}"]`).first().click();
   }
@@ -115,14 +138,28 @@ export class CreateAccountDrawer {
     const issuerInput = this.drawerPanel().getByLabel(/instituição|institution/i).first();
     await issuerInput.click();
     const options = this.page.getByRole('option');
-    await options.first().waitFor({ state: 'visible', timeout: 15000 });
-    for (let attempt = 0; attempt < 10; attempt++) {
-      if ((await options.count()) > 1) break;
-      await this.page.waitForTimeout(300);
+    await expect.poll(async () => (await options.count()) > 0, { timeout: 15000 }).toBe(true);
+
+    const optionCount = await options.count();
+    let preferredIssuer = options.first();
+    let optionText = '';
+
+    for (let index = 0; index < optionCount; index++) {
+      const candidate = options.nth(index);
+      const candidateText = ((await candidate.textContent()) ?? '').trim();
+      if (!candidateText) continue;
+
+      if (!optionText) {
+        optionText = candidateText;
+      }
+
+      if (!/outro|personalizado|custom/i.test(candidateText)) {
+        preferredIssuer = candidate;
+        optionText = candidateText;
+        break;
+      }
     }
 
-    const preferredIssuer = (await options.count()) > 1 ? options.first() : options.first();
-    const optionText = ((await preferredIssuer.textContent()) ?? '').trim();
     await preferredIssuer.click();
 
     if (/outro|personalizado|custom/i.test(optionText)) {
@@ -137,6 +174,22 @@ export class CreateAccountDrawer {
     await input.fill(String(amount));
   }
 
+  async fillBankData(params: { branchCode?: string; accountNumber?: string }): Promise<void> {
+    if (params.branchCode !== undefined) {
+      const branchInput = this.drawerPanel().getByTestId('bank-branch-input');
+      await expect(branchInput).toBeVisible();
+      await branchInput.clear();
+      await branchInput.fill(params.branchCode);
+    }
+
+    if (params.accountNumber !== undefined) {
+      const accountNumberInput = this.drawerPanel().getByTestId('bank-number-input');
+      await expect(accountNumberInput).toBeVisible();
+      await accountNumberInput.clear();
+      await accountNumberInput.fill(params.accountNumber);
+    }
+  }
+
   /**
    * Fills the initial balance date field (MUI X DatePicker v7 segmented input).
    * Expects dateStr in pt-BR format: DD/MM/YYYY.
@@ -144,6 +197,9 @@ export class CreateAccountDrawer {
    */
   async fillInitialBalanceDate(dateStr: string): Promise<void> {
     const [dd, mm, yyyy] = dateStr.split('/');
+    if (!dd || !mm || !yyyy) {
+      throw new Error(`Invalid date format for fillInitialBalanceDate: ${dateStr}`);
+    }
     // .first() avoids strict-mode violation: data-testid is on both wrapper div and hidden native input
     const container = this.drawerPanel().getByTestId('initial-balance-date-input').first();
     await container.click();
@@ -169,10 +225,23 @@ export class CreateAccountDrawer {
     await input.fill(String(day));
   }
 
+  async fillLastFourDigits(lastFourDigits: string): Promise<void> {
+    const input = this.drawerPanel().getByLabel(/últimos 4 dígitos|last 4 digits/i).first();
+    await input.clear();
+    await input.fill(lastFourDigits);
+  }
+
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async submit(): Promise<void> {
-    const submitButton = this.drawerPanel().getByTestId('account-form-submit');
+    const submitButton = this.submitButton();
+    await expect(submitButton).toBeVisible();
+    await expect(submitButton).toBeEnabled();
+    await submitButton.click();
+  }
+
+  async attemptSubmit(): Promise<void> {
+    const submitButton = this.submitButton();
     await submitButton.waitFor({ state: 'visible' });
     if (await submitButton.isDisabled()) {
       return;
@@ -189,13 +258,36 @@ export class CreateAccountDrawer {
   /** Asserts that a validation error message is visible for the given field. */
   async expectFieldError(fieldTestId: string, messagePattern?: string | RegExp): Promise<void> {
     const field = this.drawerPanel().getByTestId(fieldTestId);
-    // MUI renders helper text adjacent to the field; look for an aria-describedby target.
-    const errorEl = this.page.locator(`[id="${await field.getAttribute('aria-describedby')}"]`);
+    const describedBy = await field.getAttribute('aria-describedby');
+    const describedByIds = (describedBy ?? '')
+      .split(' ')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const errorByDescribedBy = describedByIds.length
+      ? this.page.locator(describedByIds.map((id) => `[id="${id}"]`).join(', '))
+      : this.page.locator('never-match-selector');
+
+    const errorNearby = field
+      .locator('xpath=ancestor::*[contains(@class,"MuiFormControl-root")][1]')
+      .locator('.MuiFormHelperText-root.Mui-error');
+
+    const errorEl =
+      (await errorByDescribedBy.count()) > 0
+        ? errorByDescribedBy.first()
+        : errorNearby.first();
+
     if (messagePattern) {
       await expect(errorEl).toHaveText(messagePattern);
-    } else {
-      await expect(errorEl).toBeVisible();
+      return;
     }
+
+    // No specific copy asserted: accept any visible field-level error signal.
+    if ((await errorByDescribedBy.count()) > 0 || (await errorNearby.count()) > 0) {
+      await expect(errorEl).toBeVisible();
+      return;
+    }
+    await expect(field).toHaveAttribute('aria-invalid', 'true');
   }
 
   /** Asserts that the drawer is still open (form was not closed despite submit). */
@@ -219,11 +311,18 @@ export class CreateAccountDrawer {
     subtype?: string;
     initialBalance?: number;
     initialBalanceDate?: string; // DD/MM/YYYY; defaults to today
+    branchCode?: string;
+    accountNumber?: string;
   }): Promise<void> {
-    await this.ensureOnAccountSubtypeStep('BANK');
     await this.selectSubtype(params.subtype ?? 'CONTA_CORRENTE');
     await this.selectFirstIssuer();
     await this.fillName(params.name);
+    if (params.branchCode !== undefined || params.accountNumber !== undefined) {
+      await this.fillBankData({
+        branchCode: params.branchCode,
+        accountNumber: params.accountNumber,
+      });
+    }
     if (params.initialBalance !== undefined) {
       await this.fillInitialBalance(params.initialBalance);
       const dateStr = params.initialBalanceDate ?? CreateAccountDrawer.formatDateBr(new Date());
@@ -238,12 +337,13 @@ export class CreateAccountDrawer {
     subtype?: string;
     closingDay?: number;
     dueDay?: number;
+    lastFourDigits?: string;
     initialBalance?: number;
   }): Promise<void> {
-    await this.ensureOnAccountSubtypeStep('CARD');
     await this.selectSubtype(params.subtype ?? 'CREDIT_CARD');
     await this.selectFirstIssuer();
     await this.fillName(params.name);
+    if (params.lastFourDigits !== undefined) await this.fillLastFourDigits(params.lastFourDigits);
     if (params.closingDay !== undefined) await this.fillClosingDay(params.closingDay);
     if (params.dueDay !== undefined) await this.fillDueDay(params.dueDay);
     if (params.initialBalance !== undefined) await this.fillInitialBalance(params.initialBalance);

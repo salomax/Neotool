@@ -1039,6 +1039,7 @@
         },
         "success": "Conta adicionada com sucesso",
         "validation": {
+          "accountNameMaxLength": "O nome da conta deve ter no máximo {{max}} caracteres",
           "issuerRequired": "Instituição é obrigatória",
           "accountNameRequired": "Nome da conta é obrigatório",
           "subtypeRequired": "Tipo é obrigatório",
@@ -1048,6 +1049,7 @@
           "dueDayRequired": "Dia de vencimento é obrigatório",
           "closingDayInvalid": "Dia de fechamento inválido (1-31)",
           "dueDayInvalid": "Dia de vencimento inválido (1-31)",
+          "maskedNumberInvalid": "Últimos 4 dígitos deve estar vazio ou conter exatamente 4 números",
           "invalidCurrencyFormat": "Formato de moeda inválido (máx 2 decimais)"
         },
         "defaults": {

@@ -191,6 +191,8 @@
     "DUPLICATE_IMPORT": "This file has already been imported for this account.",
     "IMPORT_FILE_ALREADY_EXISTS": "This file has already been imported or is currently being processed for this account.",
     "IMPORT_OFX_DESTINATION_MISMATCH": "This OFX belongs to a credit card bill and cannot be imported as a bank statement. Use the card bill import flow.",
+    "CARD_MASKED_NUMBER_INVALID": "Last 4 digits must be empty or exactly 4 digits.",
+    "FINANCIAL_ACCOUNT_NAME_TOO_LONG": "Account name must be at most {{maxLength}} characters.",
     "INVALID_INPUT": "Invalid input. Please review the form and try again.",
     "INTERNAL_ERROR": "An unexpected error occurred. Please try again.",
     "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED": "Portfolio-wide performance recalculation is not available yet.",

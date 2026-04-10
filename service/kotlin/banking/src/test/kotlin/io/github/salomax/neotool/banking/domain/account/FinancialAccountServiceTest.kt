@@ -171,6 +171,39 @@ class FinancialAccountServiceTest {
             verify(financialAccountRepository, never()).save(any())
             verify(transactionService, never()).create(any(), any(), any())
         }
+
+        @Test
+        fun `fails with validation error code when card masked number is partial on create`() {
+            val command =
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    issuerName = "Banco Teste",
+                    cardData =
+                        CardData(
+                            maskedNumber = "12",
+                        ),
+                )
+
+            val ex = assertThrows<ValidationException> { service.create(command, accountId, userId) }
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.CARD_MASKED_NUMBER_INVALID)
+            assertThat(ex.field).isEqualTo("maskedNumber")
+            verify(financialAccountRepository, never()).save(any())
+            verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `fails when name exceeds 255 characters on create`() {
+            val longName = "A".repeat(256)
+            val command = command().copy(name = longName)
+
+            val ex = assertThrows<ValidationException> { service.create(command, accountId, userId) }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.FINANCIAL_ACCOUNT_NAME_TOO_LONG)
+            assertThat(ex.field).isEqualTo("name")
+            verify(financialAccountRepository, never()).save(any())
+            verify(transactionService, never()).create(any(), any(), any())
+        }
     }
 
     @Nested
@@ -232,6 +265,32 @@ class FinancialAccountServiceTest {
                 createdAt = Instant.now(),
                 updatedAt = Instant.now(),
             )
+
+        @Test
+        fun `fails when resolved name exceeds 255 characters on update`() {
+            val existing = existingBankAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+
+            val longName = "A".repeat(256)
+            assertThrows<ValidationException> {
+                service.update(
+                    financialAccountId = financialAccountId,
+                    command =
+                        UpdateFinancialAccountCommand(
+                            type = FinancialAccountType.BANK,
+                            subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                            name = UpdateField.Present(longName),
+                            issuerId = issuerId,
+                        ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+            }.also { ex ->
+                assertThat(ex.errorCode).isEqualTo(BankingErrorCode.FINANCIAL_ACCOUNT_NAME_TOO_LONG)
+                assertThat(ex.field).isEqualTo("name")
+            }
+            verify(financialAccountRepository, never()).update(any())
+        }
 
         @Test
         fun `preserves nested card data omitted by update input`() {
@@ -422,6 +481,35 @@ class FinancialAccountServiceTest {
                 }
 
             assertThat(ex.message).contains("closingDay must be between 1 and 31")
+            verify(financialAccountRepository, never()).update(any())
+        }
+
+        @Test
+        fun `fails with validation error code when card masked number is partial on update`() {
+            val existing = existingCardAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.update(
+                        financialAccountId = financialAccountId,
+                        command =
+                            UpdateFinancialAccountCommand(
+                                type = FinancialAccountType.CREDIT,
+                                subtype = FinancialAccountSubtype.CHARGE_CARD,
+                                issuerId = issuerId,
+                                cardData =
+                                    CardDataPatch(
+                                        maskedNumber = UpdateField.Present("123"),
+                                    ),
+                            ),
+                        accountId = accountId,
+                        userId = userId,
+                    )
+                }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.CARD_MASKED_NUMBER_INVALID)
+            assertThat(ex.field).isEqualTo("maskedNumber")
             verify(financialAccountRepository, never()).update(any())
         }
     }

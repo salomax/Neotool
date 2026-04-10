@@ -141,6 +141,16 @@ enum class BankingErrorCode(
         "Transaction date is before the account's initial balance date",
         422,
     ),
+    CARD_MASKED_NUMBER_INVALID(
+        "CARD_MASKED_NUMBER_INVALID",
+        "Card last four digits must be empty or exactly 4 digits",
+        422,
+    ),
+    FINANCIAL_ACCOUNT_NAME_TOO_LONG(
+        "FINANCIAL_ACCOUNT_NAME_TOO_LONG",
+        "Financial account name exceeds the maximum length",
+        422,
+    ),
 
     // Attachment errors
     ATTACHMENT_LIMIT_REACHED(

@@ -170,7 +170,7 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
         expect.objectContaining({
           variables: expect.objectContaining({
             input: expect.objectContaining({
-              name: 'financeTransactions.createAccount.step2.enums.cardSubtype.CREDIT_CARD • 1234',
+              name: 'financeTransactions.createAccount.step2.enums.cardSubtype.CREDIT_CARD',
               cardData: expect.objectContaining({
                 maskedNumber: '1234',
               }),
@@ -178,6 +178,98 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
           }),
         }),
       );
+    });
+  });
+
+  it('does not include last 4 digits in default card name', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          initialType="CARD"
+          initialMaskedNumber="1234"
+          initialClosingDay={7}
+          initialDueDay={14}
+        />
+      </ThemeProvider>,
+    );
+
+    const issuerInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.issuer');
+    await user.click(issuerInput);
+    await user.click(screen.getByText('Banco Teste'));
+
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addCard' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalledWith(
+        expect.objectContaining({
+          variables: expect.objectContaining({
+            input: expect.objectContaining({
+              name: 'financeTransactions.createAccount.step2.enums.cardSubtype.CREDIT_CARD',
+              cardData: expect.objectContaining({
+                maskedNumber: '1234',
+              }),
+            }),
+          }),
+        }),
+      );
+    });
+  });
+
+  it('does not submit when last four digits is partial — validates on submit only', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          initialType="CARD"
+          initialClosingDay={7}
+          initialDueDay={14}
+        />
+      </ThemeProvider>,
+    );
+
+    const issuerInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.issuer');
+    await user.click(issuerInput);
+    await user.click(screen.getByText('Banco Teste'));
+
+    const lastFourInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.maskedNumber');
+    await user.type(lastFourInput, '12');
+
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addCard' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
+
+    expect(mockCreateAccount).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(screen.getByText('financeTransactions.createAccount.step2.validation.maskedNumberInvalid')).toBeInTheDocument();
+    });
+  });
+
+  it('does not submit when account name exceeds 255 characters', async () => {
+    const user = userEvent.setup();
+    renderDrawer();
+
+    const issuerInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.issuer');
+    await user.click(issuerInput);
+    await user.click(screen.getByText('Banco Teste'));
+
+    const nameInput = screen.getByLabelText(/financeTransactions\.createAccount\.step2\.fields\.accountName/i);
+    await user.type(nameInput, 'A'.repeat(256));
+
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' });
+    await waitFor(() => expect(submitButton).toBeDisabled());
+
+    expect(mockCreateAccount).not.toHaveBeenCalled();
+    await waitFor(() => {
+      expect(
+        screen.getByText('financeTransactions.createAccount.step2.validation.accountNameMaxLength'),
+      ).toBeInTheDocument();
     });
   });
 

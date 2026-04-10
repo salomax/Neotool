@@ -15,23 +15,23 @@
  *
  */
 
-import { Page, Locator, expect } from '@playwright/test';
+import { Page, Locator, expect } from "@playwright/test";
 
-export type CreditDebitTypeOption = 'DEBIT' | 'CREDIT' | 'TRANSFER';
+export type CreditDebitTypeOption = "DEBIT" | "CREDIT" | "TRANSFER";
 
 export class InlineTransactionForm {
   private readonly form: Locator;
 
   constructor(private readonly page: Page) {
-    this.form = page.getByTestId('inline-transaction-form');
+    this.form = page.getByTestId("inline-transaction-form");
   }
 
   async waitForOpen(): Promise<void> {
-    await this.form.waitFor({ state: 'visible' });
+    await this.form.waitFor({ state: "visible" });
   }
 
   async waitForClose(): Promise<void> {
-    await this.form.waitFor({ state: 'hidden' });
+    await this.form.waitFor({ state: "hidden" });
   }
 
   // ── Field interactions ──────────────────────────────────────────────────────
@@ -41,21 +41,21 @@ export class InlineTransactionForm {
    * Opens the MUI Select and clicks the matching menu item.
    */
   async selectCreditDebitType(type: CreditDebitTypeOption): Promise<void> {
-    await this.form.getByTestId('tx-credit-debit-type-select').click();
-    const listbox = this.page.getByRole('listbox');
-    await listbox.waitFor({ state: 'visible' });
+    await this.form.getByTestId("tx-credit-debit-type-select").click();
+    const listbox = this.page.getByRole("listbox");
+    await listbox.waitFor({ state: "visible" });
 
     const labelMap: Record<CreditDebitTypeOption, RegExp> = {
       DEBIT: /débit|debit/i,
       CREDIT: /crédit|credit/i,
       TRANSFER: /transf/i,
     };
-    await listbox.getByRole('option', { name: labelMap[type] }).click();
-    await listbox.waitFor({ state: 'hidden' });
+    await listbox.getByRole("option", { name: labelMap[type] }).click();
+    await listbox.waitFor({ state: "hidden" });
   }
 
   async fillDescription(text: string): Promise<void> {
-    const input = this.form.getByTestId('tx-description-input');
+    const input = this.form.getByTestId("tx-description-input");
     await input.clear();
     await input.fill(text);
   }
@@ -66,11 +66,11 @@ export class InlineTransactionForm {
    * Clears the field first to avoid appending to an existing value.
    */
   async fillAmount(amount: number): Promise<void> {
-    const input = this.form.getByTestId('tx-amount-input');
+    const input = this.form.getByTestId("tx-amount-input");
     await input.clear();
     await input.fill(String(amount));
     // Trigger change event (some money inputs require a blur or Enter to commit)
-    await input.press('Tab');
+    await input.press("Tab");
   }
 
   /**
@@ -78,47 +78,51 @@ export class InlineTransactionForm {
    * Expects dateStr in the locale format: DD/MM/YYYY for pt-BR.
    */
   async setDate(dateStr: string): Promise<void> {
-    const input = this.form.getByTestId('tx-date-input');
+    const input = this.form.getByTestId("tx-date-input");
     await input.click();
     await input.selectAll();
     await input.fill(dateStr);
-    await input.press('Enter');
+    await input.press("Enter");
   }
 
   /**
    * Converts a YYYY-MM-DD string to DD/MM/YYYY (pt-BR format for the DatePicker).
    */
   static formatDateBr(isoDate: string): string {
-    const [year, month, day] = isoDate.split('-');
+    const [year, month, day] = isoDate.split("-");
     return `${day}/${month}/${year}`;
   }
 
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async save(): Promise<void> {
-    await this.form.getByTestId('tx-save-btn').click();
+    await this.form.getByTestId("tx-save-btn").click();
   }
 
   async cancel(): Promise<void> {
-    await this.form.getByTestId('tx-cancel-btn').click();
+    await this.form.getByTestId("tx-cancel-btn").click();
   }
 
   async saveWithEnter(): Promise<void> {
-    await this.form.getByTestId('tx-amount-input').press('Enter');
+    await this.form.getByTestId("tx-amount-input").press("Enter");
   }
 
   // ── Assertions ──────────────────────────────────────────────────────────────
 
   async expectSaveDisabled(): Promise<void> {
-    await expect(this.form.getByTestId('tx-save-btn')).toBeDisabled();
+    await expect(this.form.getByTestId("tx-save-btn")).toBeDisabled();
   }
 
   async expectSaveEnabled(): Promise<void> {
-    await expect(this.form.getByTestId('tx-save-btn')).toBeEnabled();
+    await expect(this.form.getByTestId("tx-save-btn")).toBeEnabled();
+  }
+
+  async isSaveEnabled(): Promise<boolean> {
+    return this.form.getByTestId("tx-save-btn").isEnabled();
   }
 
   async expectDateError(messagePattern?: string | RegExp): Promise<void> {
-    const helperText = this.form.locator('.MuiFormHelperText-root');
+    const helperText = this.form.locator(".MuiFormHelperText-root");
     if (messagePattern) {
       await expect(helperText).toHaveText(messagePattern);
     } else {
@@ -135,7 +139,7 @@ export class InlineTransactionForm {
     date?: string; // YYYY-MM-DD
   }): Promise<void> {
     await this.waitForOpen();
-    if (params.creditDebitType && params.creditDebitType !== 'DEBIT') {
+    if (params.creditDebitType && params.creditDebitType !== "DEBIT") {
       await this.selectCreditDebitType(params.creditDebitType);
     }
     await this.fillDescription(params.description);
@@ -144,5 +148,19 @@ export class InlineTransactionForm {
       await this.setDate(InlineTransactionForm.formatDateBr(params.date));
     }
     await this.save();
+  }
+
+  async selectAnyCategory(): Promise<void> {
+    await this.form.getByText(/categoria|category/i).click();
+    await this.page
+      .locator(".MuiPopover-root .MuiListItemButton-root")
+      .nth(1)
+      .click();
+  }
+
+  async addTag(tag: string): Promise<void> {
+    const input = this.form.getByPlaceholder(/tags/i);
+    await input.fill(tag);
+    await input.press("Enter");
   }
 }

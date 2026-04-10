@@ -31,6 +31,9 @@ open class FinancialAccountService(
     private val issuerRepository: IssuerRepository,
     private val transactionService: TransactionService,
 ) {
+    companion object {
+        private const val MAX_FINANCIAL_ACCOUNT_NAME_LENGTH = 255
+    }
     fun listByAccount(accountId: UUID): List<FinancialAccount> = financialAccountRepository.findByAccountId(accountId)
 
     @Transactional
@@ -82,6 +85,7 @@ open class FinancialAccountService(
             closingDay = command.cardData?.closingDay,
             dueDay = command.cardData?.dueDay,
         )
+        val normalizedCreateCardMaskedNumber = normalizeCardMaskedNumber(command.cardData?.maskedNumber)
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
 
@@ -92,6 +96,18 @@ open class FinancialAccountService(
                 ?: throw IllegalArgumentException(
                     "Account name could not be resolved; provide name or a valid issuerId",
                 )
+
+        if (effectiveName.length > MAX_FINANCIAL_ACCOUNT_NAME_LENGTH) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.FINANCIAL_ACCOUNT_NAME_TOO_LONG,
+                field = "name",
+                parameters =
+                    mapOf(
+                        "maxLength" to MAX_FINANCIAL_ACCOUNT_NAME_LENGTH,
+                        "actualLength" to effectiveName.length,
+                    ),
+            )
+        }
 
         val now = Instant.now()
         val account =
@@ -111,9 +127,9 @@ open class FinancialAccountService(
                 issuerCountry = issuer?.countryCode,
                 issuerCompeCode = issuer?.compeCode,
                 issuerIspb = issuer?.ispb,
-                cardLastFourDigits = extractLastFourDigits(command.cardData?.maskedNumber),
+                cardLastFourDigits = extractLastFourDigits(normalizedCreateCardMaskedNumber),
                 bankData = command.bankData,
-                cardData = command.cardData,
+                cardData = command.cardData?.copy(maskedNumber = normalizedCreateCardMaskedNumber),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -187,6 +203,17 @@ open class FinancialAccountService(
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
         val isCustomIssuerUpdate = command.issuerId == null && !command.issuerName.isNullOrBlank()
         val resolvedName = command.name.resolve(existing.name)?.takeIf { it.isNotBlank() } ?: existing.name
+        if (resolvedName.length > MAX_FINANCIAL_ACCOUNT_NAME_LENGTH) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.FINANCIAL_ACCOUNT_NAME_TOO_LONG,
+                field = "name",
+                parameters =
+                    mapOf(
+                        "maxLength" to MAX_FINANCIAL_ACCOUNT_NAME_LENGTH,
+                        "actualLength" to resolvedName.length,
+                    ),
+            )
+        }
         val resolvedCurrency = command.currencyCode.resolve(existing.currencyCode)?.takeIf { it.isNotBlank() } ?: existing.currencyCode
         val resolvedBankData =
             if (isExistingBank) {
@@ -200,9 +227,11 @@ open class FinancialAccountService(
             } else {
                 null
             }
+        val normalizedUpdateCardMaskedNumber = normalizeCardMaskedNumber(resolvedCardData?.maskedNumber)
+        val validatedResolvedCardData = resolvedCardData?.copy(maskedNumber = normalizedUpdateCardMaskedNumber)
         validateCardDayOfMonthFields(
-            closingDay = resolvedCardData?.closingDay,
-            dueDay = resolvedCardData?.dueDay,
+            closingDay = validatedResolvedCardData?.closingDay,
+            dueDay = validatedResolvedCardData?.dueDay,
         )
         val now = Instant.now()
 
@@ -248,9 +277,9 @@ open class FinancialAccountService(
                         else -> existing.issuerIspb
                     },
                 cardLastFourDigits =
-                    extractLastFourDigits(resolvedCardData?.maskedNumber),
+                    extractLastFourDigits(normalizedUpdateCardMaskedNumber),
                 bankData = resolvedBankData,
-                cardData = resolvedCardData,
+                cardData = validatedResolvedCardData,
                 updatedAt = now,
             )
 
@@ -329,6 +358,24 @@ open class FinancialAccountService(
         if (maskedNumber.isNullOrBlank()) return null
         val onlyDigits = maskedNumber.filter(Char::isDigit)
         return if (onlyDigits.length >= 4) onlyDigits.takeLast(4) else null
+    }
+
+    private fun normalizeCardMaskedNumber(maskedNumber: String?): String? {
+        val trimmed = maskedNumber?.trim()
+        if (trimmed.isNullOrBlank()) return null
+        val onlyDigits = trimmed.filter(Char::isDigit)
+        if (onlyDigits.length != 4) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.CARD_MASKED_NUMBER_INVALID,
+                field = "maskedNumber",
+                parameters =
+                    mapOf(
+                        "requiredDigits" to 4,
+                        "actualDigits" to onlyDigits.length,
+                    ),
+            )
+        }
+        return onlyDigits
     }
 
 }

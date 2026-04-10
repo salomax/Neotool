@@ -191,6 +191,8 @@
     "DUPLICATE_IMPORT": "Este arquivo já foi importado para esta conta.",
     "IMPORT_FILE_ALREADY_EXISTS": "Este arquivo já foi importado ou está sendo processado para esta conta.",
     "IMPORT_OFX_DESTINATION_MISMATCH": "Este OFX pertence a uma fatura/cartão e não pode ser importado como extrato bancário. Use a importação de fatura do cartão.",
+    "CARD_MASKED_NUMBER_INVALID": "Os últimos 4 dígitos devem estar vazios ou conter exatamente 4 dígitos.",
+    "FINANCIAL_ACCOUNT_NAME_TOO_LONG": "O nome da conta deve ter no máximo {{maxLength}} caracteres.",
     "INVALID_INPUT": "Entrada inválida. Revise os dados e tente novamente.",
     "INTERNAL_ERROR": "Ocorreu um erro inesperado. Tente novamente.",
     "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED": "O recálculo de performance consolidada da carteira ainda não está disponível.",

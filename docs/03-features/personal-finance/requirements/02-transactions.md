@@ -2,7 +2,7 @@
 
 **Service:** Invistus Banking Service
 **Module:** Personal Finance — Transactions
-**Document date:** 2026-03-24
+**Document date:** 2026-04-10
 
 ---
 
@@ -23,6 +23,18 @@ Users can:
 - Filter the transaction list by account, month, category, tag, bill, and direction.
 - Scroll through paginated results using Relay-style forward cursor pagination.
 
+### 1.1 Current `finance-transactions` UI scope
+
+The current web UI does not expose the full backend surface for transactions. The important limits for product expectations and E2E coverage are:
+
+- Manual inline create/edit does **not** expose `status`; UI-created rows land as `POSTED`.
+- Manual inline create/edit does **not** expose `type`; non-transfer manual entries follow the UI default expense type.
+- Installments, `BALANCE_ADJUSTMENT`, `PENDING`, and `FUTURE` still require GraphQL fixtures or import flows for deterministic coverage.
+- Transaction list filters are currently driven by **Month Summary interactions** (metric, category, and tag clicks) plus active filter chips, not by a dedicated standalone filter toolbar.
+- File import follows `account -> upload -> processing -> result | review | error`. There is no separate pre-import preview/confirm step for bank-file imports in the current drawer.
+
+This distinction matters because the requirements document covers the full domain contract, while the E2E suite for the `finance-transactions` page must stay honest about what the UI actually supports today.
+
 ---
 
 ## 2. Transaction Model
@@ -31,111 +43,111 @@ Users can:
 
 Source: `Transaction.kt`, `V0_7__create_transactions.sql`
 
-| Field | Type | Required | Notes |
-|---|---|---|---|
-| `id` | UUID v7 PK | Yes | Generated server-side |
-| `financial_account_id` | UUID FK → `banking.financial_accounts` | Yes | The account this transaction belongs to |
-| `account_id` | UUID | Yes | Tenant (resolved from JWT) |
-| `created_by_user_id` | UUID | Yes | Authenticated user at creation time |
-| `belongs_to_user_id` | UUID? | Conditional | The member who owns this spend; mutually exclusive with `belongs_to_name` |
-| `belongs_to_name` | TEXT? | Conditional | Free-form attribution label; mutually exclusive with `belongs_to_user_id` |
-| `credit_debit_type` | `CreditDebitType` | Yes | Direction of flow (`CREDIT` or `DEBIT`) |
-| `type` | `TransactionType` | Yes | Transaction type (see 2.2) |
-| `status` | `TransactionStatus` | Yes | Default `POSTED` |
-| `source` | `TransactionSource` | Yes | Entry channel; always `MANUAL` for user-created |
-| `amount` | NUMERIC(18,4) | Yes | Always positive; direction carried by `credit_debit_type` |
-| `currency_code` | CHAR(3) | Yes | Default `BRL` |
-| `amount_brl` | NUMERIC(18,4)? | No | BRL equivalent for FX transactions; null for BRL |
-| `date` | DATE | Yes | Posting date (data de lançamento) |
-| `transaction_datetime` | TIMESTAMPTZ? | No | Exact datetime when available (e.g. Open Finance) |
-| `description` | TEXT | Yes | User-visible label |
-| `description_raw` | TEXT? | No | Original institution text; immutable after OFB sync |
-| `notes` | TEXT? | No | Free-form user notes |
-| `tags` | TEXT[] (via `banking.transaction_tags`) | No | Free-form, account-scoped |
-| `category_id` | UUID FK → `banking.transaction_categories`? | No | Null = uncategorized |
-| `category_source` | `CategorySource`? | No | How category was assigned (see 2.5) |
-| `merchant_id` | UUID FK → `banking.merchants`? | No | Resolved merchant entity |
-| `counterparty_name` | TEXT? | No | PIX/TED recipient or sender name |
-| `counterparty_document` | TEXT? | No | CPF/CNPJ |
-| `counterparty_bank_code` | CHAR(3)? | No | ISPB / COMPE code |
-| `counterparty_account_number` | TEXT? | No | |
-| `payment_reason` | TEXT? | No | PIX end-to-end reason |
-| `transfer_peer_transaction_id` | UUID? | No | ID of the mirroring transaction for internal transfers |
-| `bill_id` | UUID FK → `banking.credit_card_bills`? | No | Set automatically for CREDIT_CARD / CHARGE_CARD accounts |
-| `installment_number` | SMALLINT? | No | 1-based; >= 1 |
-| `total_installments` | SMALLINT? | No | >= 1 |
-| `payee_mcc` | INT? | No | Merchant Category Code |
-| `card_identifier` | TEXT? | No | Last 4 digits of card |
-| `bill_post_date` | DATE? | No | OFB bill posting date |
-| `provider_transaction_id` | TEXT? | No | External ID from institution or OFB |
-| `provider_account_id` | TEXT? | No | External account ID |
-| `import_fingerprint` | TEXT? | No | SHA-256 for dedup on poor-FITID imports |
-| `import_job_id` | UUID FK → `banking.document_import_jobs`? | No | Set for imported transactions |
-| `source_data` | JSONB? | No | Original provider/import values at creation; immutable |
-| `deleted_at` | TIMESTAMPTZ? | No | Soft delete timestamp |
-| `created_at` | TIMESTAMPTZ | Yes | |
-| `updated_at` | TIMESTAMPTZ | Yes | |
+| Field                          | Type                                        | Required    | Notes                                                                     |
+| ------------------------------ | ------------------------------------------- | ----------- | ------------------------------------------------------------------------- |
+| `id`                           | UUID v7 PK                                  | Yes         | Generated server-side                                                     |
+| `financial_account_id`         | UUID FK → `banking.financial_accounts`      | Yes         | The account this transaction belongs to                                   |
+| `account_id`                   | UUID                                        | Yes         | Tenant (resolved from JWT)                                                |
+| `created_by_user_id`           | UUID                                        | Yes         | Authenticated user at creation time                                       |
+| `belongs_to_user_id`           | UUID?                                       | Conditional | The member who owns this spend; mutually exclusive with `belongs_to_name` |
+| `belongs_to_name`              | TEXT?                                       | Conditional | Free-form attribution label; mutually exclusive with `belongs_to_user_id` |
+| `credit_debit_type`            | `CreditDebitType`                           | Yes         | Direction of flow (`CREDIT` or `DEBIT`)                                   |
+| `type`                         | `TransactionType`                           | Yes         | Transaction type (see 2.2)                                                |
+| `status`                       | `TransactionStatus`                         | Yes         | Default `POSTED`                                                          |
+| `source`                       | `TransactionSource`                         | Yes         | Entry channel; always `MANUAL` for user-created                           |
+| `amount`                       | NUMERIC(18,4)                               | Yes         | Always positive; direction carried by `credit_debit_type`                 |
+| `currency_code`                | CHAR(3)                                     | Yes         | Default `BRL`                                                             |
+| `amount_brl`                   | NUMERIC(18,4)?                              | No          | BRL equivalent for FX transactions; null for BRL                          |
+| `date`                         | DATE                                        | Yes         | Posting date (data de lançamento)                                         |
+| `transaction_datetime`         | TIMESTAMPTZ?                                | No          | Exact datetime when available (e.g. Open Finance)                         |
+| `description`                  | TEXT                                        | Yes         | User-visible label                                                        |
+| `description_raw`              | TEXT?                                       | No          | Original institution text; immutable after OFB sync                       |
+| `notes`                        | TEXT?                                       | No          | Free-form user notes                                                      |
+| `tags`                         | TEXT[] (via `banking.transaction_tags`)     | No          | Free-form, account-scoped                                                 |
+| `category_id`                  | UUID FK → `banking.transaction_categories`? | No          | Null = uncategorized                                                      |
+| `category_source`              | `CategorySource`?                           | No          | How category was assigned (see 2.5)                                       |
+| `merchant_id`                  | UUID FK → `banking.merchants`?              | No          | Resolved merchant entity                                                  |
+| `counterparty_name`            | TEXT?                                       | No          | PIX/TED recipient or sender name                                          |
+| `counterparty_document`        | TEXT?                                       | No          | CPF/CNPJ                                                                  |
+| `counterparty_bank_code`       | CHAR(3)?                                    | No          | ISPB / COMPE code                                                         |
+| `counterparty_account_number`  | TEXT?                                       | No          |                                                                           |
+| `payment_reason`               | TEXT?                                       | No          | PIX end-to-end reason                                                     |
+| `transfer_peer_transaction_id` | UUID?                                       | No          | ID of the mirroring transaction for internal transfers                    |
+| `bill_id`                      | UUID FK → `banking.credit_card_bills`?      | No          | Set automatically for CREDIT_CARD / CHARGE_CARD accounts                  |
+| `installment_number`           | SMALLINT?                                   | No          | 1-based; >= 1                                                             |
+| `total_installments`           | SMALLINT?                                   | No          | >= 1                                                                      |
+| `payee_mcc`                    | INT?                                        | No          | Merchant Category Code                                                    |
+| `card_identifier`              | TEXT?                                       | No          | Last 4 digits of card                                                     |
+| `bill_post_date`               | DATE?                                       | No          | OFB bill posting date                                                     |
+| `provider_transaction_id`      | TEXT?                                       | No          | External ID from institution or OFB                                       |
+| `provider_account_id`          | TEXT?                                       | No          | External account ID                                                       |
+| `import_fingerprint`           | TEXT?                                       | No          | SHA-256 for dedup on poor-FITID imports                                   |
+| `import_job_id`                | UUID FK → `banking.document_import_jobs`?   | No          | Set for imported transactions                                             |
+| `source_data`                  | JSONB?                                      | No          | Original provider/import values at creation; immutable                    |
+| `deleted_at`                   | TIMESTAMPTZ?                                | No          | Soft delete timestamp                                                     |
+| `created_at`                   | TIMESTAMPTZ                                 | Yes         |                                                                           |
+| `updated_at`                   | TIMESTAMPTZ                                 | Yes         |                                                                           |
 
 ### 2.2 `TransactionType`
 
 Source: `TransactionEnums.kt`, `V0_7__create_transactions.sql`
 
-| Value | Group | Description |
-|---|---|---|
-| `PIX` | Payment | Brazilian instant payment |
-| `TED` | Payment | Electronic wire transfer |
-| `DOC` | Payment | Legacy wire transfer |
-| `BOLETO` | Payment | Payment slip |
-| `TRANSFER` | Neutral | Internal transfer between own accounts; excluded from income/expense totals |
-| `SALARY` | Income | Payroll credit |
-| `DEPOSIT` | Income | Bank deposit |
-| `CASHBACK` | Income | Cashback reward |
-| `INVESTMENT_RETURN` | Income | Return from investment |
-| `OTHER_INCOME` | Income | Catch-all |
-| `CARD` | Expense | Card purchase |
-| `WITHDRAWAL` | Expense | ATM or cash withdrawal |
-| `FEE` | Expense | Bank or service fee |
-| `INTEREST` | Expense | Interest charge |
-| `LOAN_PAYMENT` | Expense | Loan amortization |
-| `TAX` | Expense | Tax payment |
-| `OTHER_EXPENSE` | Expense | Catch-all (default for manual inline entry) |
+| Value                | Group   | Description                                                                    |
+| -------------------- | ------- | ------------------------------------------------------------------------------ |
+| `PIX`                | Payment | Brazilian instant payment                                                      |
+| `TED`                | Payment | Electronic wire transfer                                                       |
+| `DOC`                | Payment | Legacy wire transfer                                                           |
+| `BOLETO`             | Payment | Payment slip                                                                   |
+| `TRANSFER`           | Neutral | Internal transfer between own accounts; excluded from income/expense totals    |
+| `SALARY`             | Income  | Payroll credit                                                                 |
+| `DEPOSIT`            | Income  | Bank deposit                                                                   |
+| `CASHBACK`           | Income  | Cashback reward                                                                |
+| `INVESTMENT_RETURN`  | Income  | Return from investment                                                         |
+| `OTHER_INCOME`       | Income  | Catch-all                                                                      |
+| `CARD`               | Expense | Card purchase                                                                  |
+| `WITHDRAWAL`         | Expense | ATM or cash withdrawal                                                         |
+| `FEE`                | Expense | Bank or service fee                                                            |
+| `INTEREST`           | Expense | Interest charge                                                                |
+| `LOAN_PAYMENT`       | Expense | Loan amortization                                                              |
+| `TAX`                | Expense | Tax payment                                                                    |
+| `OTHER_EXPENSE`      | Expense | Catch-all (default for manual inline entry)                                    |
 | `BALANCE_ADJUSTMENT` | Neutral | Sets opening balance or reconciles ledger; excluded from income/expense totals |
 
 ### 2.3 `CreditDebitType`
 
-| Value | Meaning |
-|---|---|
+| Value    | Meaning                                                   |
+| -------- | --------------------------------------------------------- |
 | `CREDIT` | Money in (income, incoming transfer, bill payment credit) |
-| `DEBIT` | Money out (expense, outgoing transfer, withdrawal) |
+| `DEBIT`  | Money out (expense, outgoing transfer, withdrawal)        |
 
 ### 2.4 `TransactionStatus`
 
-| Value | Balance impact |
-|---|---|
-| `POSTED` | Included in `closingBalance` and all totals |
-| `PENDING` | Included in `closingBalance` and all totals (same as POSTED in snapshots) |
-| `FUTURE` | Excluded from `closingBalance`; included only in `projectedClosingBalance` |
+| Value     | Balance impact                                                             |
+| --------- | -------------------------------------------------------------------------- |
+| `POSTED`  | Included in `closingBalance` and all totals                                |
+| `PENDING` | Included in `closingBalance` and all totals (same as POSTED in snapshots)  |
+| `FUTURE`  | Excluded from `closingBalance`; included only in `projectedClosingBalance` |
 
 ### 2.5 `TransactionSource`
 
-| Value | Origin |
-|---|---|
-| `MANUAL` | Typed by the user via the app |
+| Value          | Origin                                   |
+| -------------- | ---------------------------------------- |
+| `MANUAL`       | Typed by the user via the app            |
 | `OPEN_FINANCE` | Via Open Finance Brasil API (aggregator) |
-| `OFX` | Uploaded OFX statement file |
-| `CSV` | Uploaded CSV file (bank-specific parser) |
-| `PDF` | Uploaded PDF document |
-| `NFC_E` | NFC-e QR code scan via SEFAZ |
-| `RECEIPT_OCR` | Receipt photo processed via OCR/AI |
+| `OFX`          | Uploaded OFX statement file              |
+| `CSV`          | Uploaded CSV file (bank-specific parser) |
+| `PDF`          | Uploaded PDF document                    |
+| `NFC_E`        | NFC-e QR code scan via SEFAZ             |
+| `RECEIPT_OCR`  | Receipt photo processed via OCR/AI       |
 
 ### 2.6 `CategorySource`
 
-| Value | Meaning |
-|---|---|
-| `MANUAL` | User explicitly selected the category |
-| `RULE` | Auto-categorization rule matched the description |
-| `IMPORTED` | Category provided by the import source |
-| `AI` | Future: AI-assigned |
+| Value      | Meaning                                          |
+| ---------- | ------------------------------------------------ |
+| `MANUAL`   | User explicitly selected the category            |
+| `RULE`     | Auto-categorization rule matched the description |
+| `IMPORTED` | Category provided by the import source           |
+| `AI`       | Future: AI-assigned                              |
 
 ### 2.7 Tags
 
@@ -154,6 +166,7 @@ Tags are stored in `banking.transaction_tags` (one row per tag per transaction).
 Account balances are never stored as mutable fields. The source of truth is always `banking.transactions`. Monthly summaries are cached in `banking.monthly_balance_snapshots` and updated synchronously on every write.
 
 Balance formula per snapshot:
+
 ```
 closingBalance = openingBalance + SUM(CREDIT where status IN (POSTED, PENDING)) - SUM(DEBIT where status IN (POSTED, PENDING))
 totalIncome    = SUM(CREDIT) WHERE type NOT IN (TRANSFER, BALANCE_ADJUSTMENT)
@@ -187,6 +200,7 @@ Installment purchases are stored as N independent transaction rows. Each row car
 When a transaction is created or its date changed for a `CREDIT_CARD` or `CHARGE_CARD` account, the system automatically resolves the correct `bill_id` via `CreditCardBillService.resolveBillForTransaction`. The bill is created if it does not yet exist for the computed cycle. `BALANCE_ADJUSTMENT` transactions are never assigned to a bill.
 
 Billing cycle arithmetic (given `closingDay` and `dueDay`):
+
 - `closingDate`: if `day <= closingDay` → closes in the current month; else the next month.
 - `dueDate`: first occurrence of `dueDay` after the `closingDate`.
 
@@ -195,6 +209,7 @@ After any transaction write/delete, `CreditCardBillService.recomputeBill` recalc
 ### 3.9 Attribution (belongs-to)
 
 Every transaction is attributed to exactly one party (DB constraint `chk_transactions_belongs_to_exactly_one`):
+
 - `belongs_to_user_id IS NOT NULL AND belongs_to_name IS NULL`, or
 - `belongs_to_user_id IS NULL AND belongs_to_name IS NOT NULL`.
 
@@ -231,6 +246,7 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 ## 4. User Scenarios
 
 **US-1 — Create a manual transaction**
+
 1. User opens inline form, selects direction, enters description, amount, date, optionally category and tags.
 2. System validates amount > 0, date within 5-year window, date >= account initial balance date.
 3. Resolves `belongs_to_user_id` to authenticated user if not specified.
@@ -239,6 +255,7 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 6. Saves; recomputes bill totals; recomputes snapshot chain.
 
 **US-2 — Edit a transaction**
+
 1. User clicks edit; inline form opens pre-filled.
 2. User modifies fields. If date changed on a card account, new bill cycle is resolved.
 3. If editing a non-`MANUAL` transaction's description/category/tags, service previews similar transactions.
@@ -246,38 +263,46 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 5. Snapshot chain recomputed from `min(old_date, new_date)`.
 
 **US-3 — Delete a transaction**
+
 1. User clicks delete; confirmation dialog shown.
 2. On confirm: `deleted_at = NOW()`. Bill total recomputed if had `billId`. Snapshot chain recomputed.
 3. Non-`MANUAL` transactions rejected.
 
 **US-4 — Categorize a transaction (single)**
+
 1. User clicks category chip → hierarchical picker → selects category.
 2. `updateTransaction` called; `categorySource = MANUAL`. Implicit rule learning fires.
 
 **US-5 — Bulk categorize**
+
 1. User selects multiple rows → "Categorize selected" → picks category.
 2. `bulkCategorize` mutation called. `categorySource = MANUAL` for all. No rule learning.
 
 **US-6 — Tag a transaction**
+
 1. User edits transaction; tags input shows account-scoped tags as autocomplete.
 2. Tags normalized on save (trimmed, deduplicated). Blank tags rejected.
 
 **US-7 — Create an installment purchase**
+
 1. User creates N transactions manually with `installmentNumber` (1..N) and `totalInstallments = N`.
 2. Each installment is an independent ledger entry assigned to its cycle's bill.
 3. No automatic replication — each row must be created individually.
 
 **US-8 — Record a transfer between own accounts**
+
 1. User creates `DEBIT / TRANSFER` on source account.
 2. User creates `CREDIT / TRANSFER` on destination account with `transferPeerTransactionId`.
 3. Neither transaction contributes to `totalIncome` / `totalExpenses`.
 
 **US-9 — Pay a credit card bill**
+
 1. User opens bill view → "Pay bill" → enters amount, optionally selects source bank account.
 2. `payBill` mutation: creates `CREDIT / TRANSFER` on card; optionally `DEBIT / TRANSFER` on source.
 3. If `amount >= totalAmount`, bill becomes `PAID`.
 
 **US-10 — View monthly summary**
+
 1. User navigates to month/year. `monthSummary` query returns header.
 2. Fields: `openingBalance`, `closingBalance`, `totalIncome`, `totalExpenses`, `transfersIn`, `transfersOut`, `projectedClosingBalance`, `isCurrentMonth`, `isFutureMonth`, `expensesByCategory`, `incomeByCategory`, `tagsSummary`.
 3. When `financialAccountId = null`, aggregates across all accounts in the tenant.
@@ -288,13 +313,13 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 
 ### 5.1 Supported formats
 
-| Channel | Format | Dedup key |
-|---|---|---|
-| OFX file upload | `source = OFX` | `provider_transaction_id` (FITID); fallback to `import_fingerprint` |
-| Nubank CSV | `source = CSV` | `provider_transaction_id` (Nubank identifier) |
-| NFC-e QR code | `source = NFC_E` | `provider_transaction_id` (44-digit SEFAZ chNFe) |
-| Receipt photo | `source = RECEIPT_OCR` | `import_fingerprint` (SHA-256) |
-| Open Finance / Pluggy | `source = OPEN_FINANCE` | `provider_transaction_id` (OFB transactionId) |
+| Channel               | Format                  | Dedup key                                                           |
+| --------------------- | ----------------------- | ------------------------------------------------------------------- |
+| OFX file upload       | `source = OFX`          | `provider_transaction_id` (FITID); fallback to `import_fingerprint` |
+| Nubank CSV            | `source = CSV`          | `provider_transaction_id` (Nubank identifier)                       |
+| NFC-e QR code         | `source = NFC_E`        | `provider_transaction_id` (44-digit SEFAZ chNFe)                    |
+| Receipt photo         | `source = RECEIPT_OCR`  | `import_fingerprint` (SHA-256)                                      |
+| Open Finance / Pluggy | `source = OPEN_FINANCE` | `provider_transaction_id` (OFB transactionId)                       |
 
 ### 5.2 Import lifecycle
 
@@ -321,11 +346,11 @@ NFC-e is processed synchronously (single SEFAZ HTTP call, 5 s timeout).
 
 ### 5.3 Duplicate resolution options (Level 2)
 
-| Option | Effect |
-|---|---|
-| `KEEP_BOTH` | Both transactions committed independently |
-| `USE_INCOMING` | Existing soft-deleted; incoming committed; fields merged |
-| `KEEP_EXISTING` | Incoming discarded; existing unchanged |
+| Option          | Effect                                                   |
+| --------------- | -------------------------------------------------------- |
+| `KEEP_BOTH`     | Both transactions committed independently                |
+| `USE_INCOMING`  | Existing soft-deleted; incoming committed; fields merged |
+| `KEEP_EXISTING` | Incoming discarded; existing unchanged                   |
 
 ### 5.4 Status notifications
 
@@ -335,23 +360,23 @@ Frontend polls import job status via SSE (`/api/imports/{jobId}/stream`). Falls 
 
 ## 6. Validations & Restrictions
 
-| Field | Rule | Error |
-|---|---|---|
-| `amount` | Must be > 0 | `"amount must be > 0"` |
-| `date` | Within 5 years of today | `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW` |
-| `date` | >= account `initialBalanceDate` (except `BALANCE_ADJUSTMENT`) | `TRANSACTION_BEFORE_INITIAL_BALANCE` |
-| `installment_number` | >= 1, required with `total_installments` | Validation error |
-| `total_installments` | >= 1, required with `installment_number` | Validation error |
-| `installment_number` | <= `total_installments` | Validation error |
-| `belongs_to_user_id` | Must be active tenant member | `INVALID_INPUT` |
-| `belongs_to_user_id` + `belongs_to_name` | Mutually exclusive; exactly one required | DB constraint + service |
-| `belongs_to_name` | Non-blank after trimming | DB constraint + service |
-| `tags` | Each non-blank after trimming | `"tags cannot contain blank values"` |
-| `category_id` | System category or same tenant | Service validation |
-| `financial_account_id` | Must belong to authenticated tenant | Service validation |
-| Delete | Only `MANUAL`-source | Domain error |
-| `payBill` | Bill must not already be `PAID` | Domain error |
-| `payBill` | Amount must be positive | Service validation |
+| Field                                    | Rule                                                          | Error                                     |
+| ---------------------------------------- | ------------------------------------------------------------- | ----------------------------------------- |
+| `amount`                                 | Must be > 0                                                   | `"amount must be > 0"`                    |
+| `date`                                   | Within 5 years of today                                       | `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW` |
+| `date`                                   | >= account `initialBalanceDate` (except `BALANCE_ADJUSTMENT`) | `TRANSACTION_BEFORE_INITIAL_BALANCE`      |
+| `installment_number`                     | >= 1, required with `total_installments`                      | Validation error                          |
+| `total_installments`                     | >= 1, required with `installment_number`                      | Validation error                          |
+| `installment_number`                     | <= `total_installments`                                       | Validation error                          |
+| `belongs_to_user_id`                     | Must be active tenant member                                  | `INVALID_INPUT`                           |
+| `belongs_to_user_id` + `belongs_to_name` | Mutually exclusive; exactly one required                      | DB constraint + service                   |
+| `belongs_to_name`                        | Non-blank after trimming                                      | DB constraint + service                   |
+| `tags`                                   | Each non-blank after trimming                                 | `"tags cannot contain blank values"`      |
+| `category_id`                            | System category or same tenant                                | Service validation                        |
+| `financial_account_id`                   | Must belong to authenticated tenant                           | Service validation                        |
+| Delete                                   | Only `MANUAL`-source                                          | Domain error                              |
+| `payBill`                                | Bill must not already be `PAID`                               | Domain error                              |
+| `payBill`                                | Amount must be positive                                       | Service validation                        |
 
 ---
 

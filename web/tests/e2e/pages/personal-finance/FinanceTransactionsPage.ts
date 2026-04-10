@@ -22,6 +22,10 @@ export class FinanceTransactionsPage {
     this.createAccountDrawer = new CreateAccountDrawer(page);
   }
 
+  private emptyStateTypeButton(type: 'BANK' | 'CARD'): Locator {
+    return this.page.getByTestId('empty-accounts-state').getByTestId(`account-type-${type}`).first();
+  }
+
   private async anyMainStateVisible(): Promise<boolean> {
     const checks = await Promise.all([
       this.page.getByTestId('empty-accounts-state').isVisible().catch(() => false),
@@ -88,10 +92,11 @@ export class FinanceTransactionsPage {
   /** Opens the Create Account drawer. */
   async openCreateAccountDrawer(initialType?: 'BANK' | 'CARD'): Promise<CreateAccountDrawer> {
     const emptyStateTypeButton =
-      initialType != null ? this.page.getByTestId(`account-type-${initialType}`) : null;
+      initialType != null ? this.emptyStateTypeButton(initialType) : null;
 
-    if (emptyStateTypeButton && (await emptyStateTypeButton.count()) > 0 && (await emptyStateTypeButton.first().isVisible().catch(() => false))) {
-      await emptyStateTypeButton.first().click();
+    if (emptyStateTypeButton && (await emptyStateTypeButton.isVisible().catch(() => false))) {
+      await emptyStateTypeButton.scrollIntoViewIfNeeded();
+      await emptyStateTypeButton.click();
     } else {
       await expect.poll(
         async () =>
@@ -146,15 +151,13 @@ export class FinanceTransactionsPage {
     await this.page.getByTestId('account-selector').click();
     // FinancialAccountSelector uses ListItemButton (role="button") in a Popover, not role="option".
     // The name is visible either in the selector trigger (1 account) or in the popover list.
-    await expect(this.page.getByText(accountName, { exact: true }).first()).toBeVisible({ timeout: 5000 });
+    await expect(this.page.getByText(accountName, { exact: true }).last()).toBeVisible({ timeout: 5000 });
     await this.page.keyboard.press('Escape');
   }
 
   /** Asserts that the account is NOT present in the selector (e.g. after soft-delete). */
   async expectAccountNotInSelector(accountName: string): Promise<void> {
     await this.page.getByTestId('account-selector').click();
-    // Wait for popover to render, then assert name is absent from the list
-    await this.page.waitForTimeout(300);
     await expect(this.page.getByText(accountName, { exact: true })).toHaveCount(0);
     await this.page.keyboard.press('Escape');
   }
