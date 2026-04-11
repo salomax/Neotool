@@ -3,7 +3,7 @@
 ## GraphQL Investments
 
 - `holdingPerformance`: performance series for a single holding.
-- `portfolioPerformance`: aggregated performance series for the authenticated account portfolio, optionally filtered by `groupKey`.
+- `portfolioPerformance`: aggregated performance series for the authenticated account portfolio, optionally filtered by `groupKey` and optionally scoped to a custodian `financialAccountId` (same as `investmentHoldings`).
 - Current limitation: portfolio aggregation is single-currency only; mixed currencies return an error.
 
 ## File Import Flow

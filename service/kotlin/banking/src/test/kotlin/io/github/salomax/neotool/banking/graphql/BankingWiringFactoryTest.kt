@@ -201,7 +201,7 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_VIEW))
-            verify(investmentResolver).portfolioPerformance(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())
+            verify(investmentResolver).portfolioPerformance(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())
         }
 
         @Test

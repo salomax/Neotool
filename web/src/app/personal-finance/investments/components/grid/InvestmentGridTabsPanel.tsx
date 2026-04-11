@@ -78,7 +78,16 @@ export function InvestmentGridTabsPanel({
             borderBottom: 1,
             borderColor: "divider",
             pr: { xs: 15, sm: 18 },
-            "& .MuiTab-root": { minHeight: 44 },
+            "& .MuiTab-root": {
+              minHeight: 44,
+              transition: "opacity 150ms linear",
+            },
+            "& .MuiTab-root:not(.Mui-selected)": {
+              opacity: 0.65,
+            },
+            "& .MuiTab-root.Mui-selected": {
+              opacity: 1,
+            },
           }}
           aria-label={t("investments.grid.tabs.ariaLabel")}
         >

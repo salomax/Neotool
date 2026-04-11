@@ -34,14 +34,19 @@ class PortfolioPerformanceSeriesService(
         assetTypes: Set<AssetType>?,
         resolution: HoldingPerformanceResolution?,
         includeProjection: Boolean,
+        financialAccountId: UUID? = null,
     ): PortfolioPerformanceSeriesDTO {
         val resolvedResolution = resolution.takeIf { it == HoldingPerformanceResolution.MONTH }
             ?: HoldingPerformanceResolution.MONTH
+        val useOpenScope = shouldUseOpenHoldingsScope(groupKey, subgroupKey, assetTypes)
         val holdings =
-            if (shouldUseOpenHoldingsScope(groupKey, subgroupKey, assetTypes)) {
-                holdingRepository.findOpenByAccount(accountId)
-            } else {
-                holdingRepository.findByAccount(accountId)
+            when {
+                financialAccountId != null && useOpenScope ->
+                    holdingRepository.findOpenByFinancialAccount(financialAccountId, accountId)
+                financialAccountId != null && !useOpenScope ->
+                    holdingRepository.findByFinancialAccount(financialAccountId, accountId)
+                useOpenScope -> holdingRepository.findOpenByAccount(accountId)
+                else -> holdingRepository.findByAccount(accountId)
             }
         if (holdings.isEmpty()) {
             return emptySeries(groupKey, resolvedResolution)

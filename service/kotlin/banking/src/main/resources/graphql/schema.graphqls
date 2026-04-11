@@ -2018,8 +2018,12 @@ extend type Query {
   Aggregated performance series for the authenticated account's portfolio.
   When [groupKey] is null, aggregates all holdings; when provided, aggregates
   only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+  When [financialAccountId] is set, only holdings on that custodian financial account
+  are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
   """
   portfolioPerformance(
+    """When set, restrict series to this custodian financial account (tenant-scoped)."""
+    financialAccountId: ID
     groupKey: String
     """Canonical subgroup for grid slices (e.g. perfStocks, perfReits, perfCrypto, perfOptions)."""
     subgroupKey: String

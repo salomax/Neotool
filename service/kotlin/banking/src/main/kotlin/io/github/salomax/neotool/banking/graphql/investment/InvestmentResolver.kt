@@ -192,6 +192,7 @@ class InvestmentResolver(
     }
 
     fun portfolioPerformance(
+        financialAccountId: String?,
         groupKey: String?,
         subgroupKey: String?,
         assetTypes: List<String>?,
@@ -218,6 +219,7 @@ class InvestmentResolver(
             assetTypes = parsedAssetTypes,
             resolution = resolvedResolution,
             includeProjection = includeProjection ?: false,
+            financialAccountId = financialAccountId?.let(UUID::fromString),
         )
     }
 

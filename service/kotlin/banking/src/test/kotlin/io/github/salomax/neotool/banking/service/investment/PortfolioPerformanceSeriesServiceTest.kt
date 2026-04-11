@@ -105,6 +105,53 @@ class PortfolioPerformanceSeriesServiceTest {
     }
 
     @Test
+    fun `financialAccountId scopes open holdings query to custodian account`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val fixedHolding = holding(UUID.randomUUID(), UUID.randomUUID(), accountId)
+        val fixedAsset = asset(fixedHolding.assetId, AssetType.CDB, "BRL")
+        whenever(holdingRepository.findOpenByFinancialAccount(financialAccountId, accountId)).thenReturn(listOf(fixedHolding))
+        whenever(assetRepository.findByIds(setOf(fixedAsset.id!!))).thenReturn(listOf(fixedAsset))
+        whenever(investmentQueryService.computeHoldingPerformance(eq(fixedHolding), eq(fixedAsset), eq(accountId), any(), isNull(), isNull(), eq(false)))
+            .thenReturn(perf(fixedHolding.id!!, fixedAsset.assetType, "BRL", listOf(point("2026-04-30T00:00:00Z", 100.0, 110.0))))
+
+        val result =
+            service.getPortfolioPerformance(
+                accountId = accountId,
+                groupKey = AssetGroupMapping.BANK_FIXED_INCOME,
+                subgroupKey = null,
+                assetTypes = null,
+                resolution = HoldingPerformanceResolution.MONTH,
+                includeProjection = false,
+                financialAccountId = financialAccountId,
+            )
+
+        assertThat(result.includedHoldingsCount).isEqualTo(1)
+        verify(holdingRepository).findOpenByFinancialAccount(financialAccountId, accountId)
+        verify(holdingRepository, never()).findOpenByAccount(accountId)
+    }
+
+    @Test
+    fun `financialAccountId scopes full holdings when groupKey is null`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        whenever(holdingRepository.findByFinancialAccount(financialAccountId, accountId)).thenReturn(emptyList())
+
+        service.getPortfolioPerformance(
+            accountId,
+            null,
+            null,
+            null,
+            HoldingPerformanceResolution.MONTH,
+            includeProjection = false,
+            financialAccountId = financialAccountId,
+        )
+
+        verify(holdingRepository).findByFinancialAccount(financialAccountId, accountId)
+        verify(holdingRepository, never()).findByAccount(accountId)
+    }
+
+    @Test
     fun `groupKey filters holdings by mapped asset group`() {
         val accountId = UUID.randomUUID()
         val fixedHolding = holding(UUID.randomUUID(), UUID.randomUUID(), accountId)

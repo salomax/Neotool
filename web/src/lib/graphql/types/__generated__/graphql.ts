@@ -544,7 +544,7 @@ export type BulkOperationResult = {
 
 /**
  * Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
- * creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+ * closingDay and dueDay are optional billing-cycle metadata when known.
  */
 export type CardData = {
   __typename: 'CardData';
@@ -565,11 +565,11 @@ export type CardDataInput = {
   bin?: InputMaybe<Scalars['String']['input']>;
   cardLevel?: InputMaybe<CreditCardLevel>;
   cardNetwork?: InputMaybe<CreditCardNetwork>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle closing day when known. */
   closingDay?: InputMaybe<Scalars['Int']['input']>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle limit metadata. */
   creditLimit?: InputMaybe<Scalars['Float']['input']>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle due day when known. */
   dueDay?: InputMaybe<Scalars['Int']['input']>;
   /** Optional bank account that will receive the debit leg of bill-payment transfers. */
   linkedBankAccountId?: InputMaybe<Scalars['ID']['input']>;
@@ -2119,7 +2119,7 @@ export type Mutation = {
   /**
    * Create a new financial account or card.
    * Requires either issuerId (from the issuers list) or issuerName (custom institution).
-   * For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+   * Billing-cycle card metadata is optional and may be provided when known.
    */
   createFinancialAccount: FinancialAccount;
   createGroup: Group;
@@ -3092,6 +3092,8 @@ export type Query = {
    * Aggregated performance series for the authenticated account's portfolio.
    * When [groupKey] is null, aggregates all holdings; when provided, aggregates
    * only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+   * When [financialAccountId] is set, only holdings on that custodian financial account
+   * are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
    */
   portfolioPerformance: Maybe<PortfolioPerformanceSeries>;
   /**
@@ -3449,6 +3451,7 @@ export type QueryPopularInstitutionsArgs = {
 
 export type QueryPortfolioPerformanceArgs = {
   assetTypes?: InputMaybe<Array<AssetType>>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   groupKey?: InputMaybe<Scalars['String']['input']>;
   includeProjection?: InputMaybe<Scalars['Boolean']['input']>;
   resolution?: InputMaybe<HoldingPerformanceResolution>;

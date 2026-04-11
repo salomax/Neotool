@@ -617,7 +617,7 @@ type BulkOperationResult
 
 """
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
-creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+closingDay and dueDay are optional billing-cycle metadata when known.
 """
 type CardData
   @join__type(graph: BANKING)
@@ -646,13 +646,13 @@ input CardDataInput
   cardNetwork: CreditCardNetwork
   cardLevel: CreditCardLevel
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle limit metadata."""
   creditLimit: Float
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle closing day when known."""
   closingDay: Int
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle due day when known."""
   dueDay: Int
 
   """
@@ -2569,7 +2569,7 @@ type Mutation
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
-  For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+  Billing-cycle card metadata is optional and may be provided when known.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
@@ -3370,8 +3370,14 @@ type Query
   Aggregated performance series for the authenticated account's portfolio.
   When [groupKey] is null, aggregates all holdings; when provided, aggregates
   only holdings whose asset type maps to that group (see AssetGroupSummary.groupKey).
+  When [financialAccountId] is set, only holdings on that custodian financial account
+  are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
   """
   portfolioPerformance(
+    """
+    When set, restrict series to this custodian financial account (tenant-scoped).
+    """
+    financialAccountId: ID
     groupKey: String
 
     """

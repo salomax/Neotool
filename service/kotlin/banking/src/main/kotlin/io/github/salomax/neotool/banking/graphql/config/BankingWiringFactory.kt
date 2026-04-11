@@ -473,12 +473,21 @@ class BankingWiringFactory(
                 "portfolioPerformance",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
                         val groupKey = env.getArgument<String?>("groupKey")
                         val subgroupKey = env.getArgument<String?>("subgroupKey")
                         val assetTypes = env.getArgument<List<String>?>("assetTypes")
                         val resolution = env.getArgument<String?>("resolution")
                         val includeProjection = env.getArgument<Boolean?>("includeProjection")
-                        investmentResolver.portfolioPerformance(groupKey, subgroupKey, assetTypes, resolution, includeProjection, principal)
+                        investmentResolver.portfolioPerformance(
+                            financialAccountId,
+                            groupKey,
+                            subgroupKey,
+                            assetTypes,
+                            resolution,
+                            includeProjection,
+                            principal,
+                        )
                     }
                 },
             )

@@ -11,11 +11,16 @@ import {
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { mapPortfolioPerformanceToChartPoints } from "./portfolioPerformanceAdapter";
 
-export function usePortfolioPerformance(groupKey?: string, includeProjection = false) {
+export function usePortfolioPerformance(
+  groupKey?: string,
+  includeProjection = false,
+  financialAccountId?: string | null,
+) {
   const query = useQuery<PortfolioPerformanceQuery, PortfolioPerformanceQueryVariables>(
     PortfolioPerformanceDocument,
     {
       variables: {
+        financialAccountId: financialAccountId ?? undefined,
         groupKey,
         includeProjection,
         resolution: HoldingPerformanceResolution.Month,

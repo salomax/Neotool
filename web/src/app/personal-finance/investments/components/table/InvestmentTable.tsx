@@ -389,6 +389,12 @@ export function InvestmentTable({
     });
   }, [hasSearchQuery, holdings, normalizedSearchQuery, visibleAssetTypes]);
 
+  const scopedHoldings = React.useMemo(() => {
+    if (visibleGroupKeys === undefined) return displayedHoldings;
+    if (visibleGroupKeys.length === 0) return EMPTY_HOLDINGS;
+    return displayedHoldings.filter((holding) => visibleGroupKeys.includes(getAssetGroupKey(holding.asset?.assetType)));
+  }, [displayedHoldings, visibleGroupKeys]);
+
   const detailHolding = React.useMemo(
     () => holdings.find((holding) => holding.id === detailDrawer.holdingId) ?? null,
     [detailDrawer.holdingId, holdings],
@@ -426,13 +432,13 @@ export function InvestmentTable({
       return accumulator;
     }, {} as Record<AssetGroupKey, HoldingRow[]>);
 
-    displayedHoldings.forEach((holding) => {
+    scopedHoldings.forEach((holding) => {
       const groupKey = getAssetGroupKey(holding.asset?.assetType);
       base[groupKey].push(holding);
     });
 
     return base;
-  }, [displayedHoldings]);
+  }, [scopedHoldings]);
 
   const { groups } = React.useMemo(() => {
     let holdingsGrossTotal = 0;
@@ -504,7 +510,7 @@ export function InvestmentTable({
   });
 
   const emptyStateMessage = hasSearchQuery ? t('investments.table.noMatches') : t('investments.table.emptyState');
-  const showHoldingsList = !error && displayedHoldings.length > 0;
+  const showHoldingsList = !error && groups.length > 0;
   const showHoldingsProgress = holdingsFetching;
 
   React.useEffect(() => {
@@ -593,7 +599,7 @@ export function InvestmentTable({
         </Box>
       ) : null}
 
-      {!loading && !error && displayedHoldings.length === 0 && !showCashCard ? (
+      {!loading && !error && !showHoldingsList && !showCashCard ? (
         <Box sx={{ py: 6, textAlign: 'center' }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {emptyStateMessage}

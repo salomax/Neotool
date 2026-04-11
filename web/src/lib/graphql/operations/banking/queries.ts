@@ -683,7 +683,12 @@ export const INVESTMENT_GRID_DATA = gql`
         assetType
       }
     }
-    perfCash: portfolioPerformance(groupKey: "cash", resolution: MONTH, includeProjection: $includeProjection) {
+    perfCash: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "cash"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -692,7 +697,12 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfBankFixedIncome: portfolioPerformance(groupKey: "bankFixedIncome", resolution: MONTH, includeProjection: $includeProjection) {
+    perfBankFixedIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "bankFixedIncome"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -702,6 +712,7 @@ export const INVESTMENT_GRID_DATA = gql`
       }
     }
     perfCreditFixedIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
       groupKey: "creditFixedIncome"
       resolution: MONTH
       includeProjection: $includeProjection
@@ -714,7 +725,12 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfMutualFunds: portfolioPerformance(groupKey: "mutualFunds", resolution: MONTH, includeProjection: $includeProjection) {
+    perfMutualFunds: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "mutualFunds"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -723,7 +739,12 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfPension: portfolioPerformance(groupKey: "pension", resolution: MONTH, includeProjection: $includeProjection) {
+    perfPension: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "pension"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -733,6 +754,7 @@ export const INVESTMENT_GRID_DATA = gql`
       }
     }
     perfStocks: portfolioPerformance(
+      financialAccountId: $financialAccountId
       subgroupKey: "perfStocks"
       resolution: MONTH
       includeProjection: $includeProjection
@@ -745,7 +767,12 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfReits: portfolioPerformance(subgroupKey: "perfReits", resolution: MONTH, includeProjection: $includeProjection) {
+    perfReits: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      subgroupKey: "perfReits"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -754,7 +781,12 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfCrypto: portfolioPerformance(subgroupKey: "perfCrypto", resolution: MONTH, includeProjection: $includeProjection) {
+    perfCrypto: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      subgroupKey: "perfCrypto"
+      resolution: MONTH
+      includeProjection: $includeProjection
+    ) {
       groupKey
       label
       includedHoldingsCount
@@ -874,11 +906,13 @@ export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
 
 export const PORTFOLIO_PERFORMANCE = gql`
   query PortfolioPerformance(
+    $financialAccountId: ID
     $groupKey: String
     $resolution: HoldingPerformanceResolution
     $includeProjection: Boolean
   ) {
     portfolioPerformance(
+      financialAccountId: $financialAccountId
       groupKey: $groupKey
       resolution: $resolution
       includeProjection: $includeProjection
