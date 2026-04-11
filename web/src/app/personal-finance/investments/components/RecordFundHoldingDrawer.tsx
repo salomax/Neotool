@@ -630,6 +630,7 @@ export function RecordFundHoldingDrawer({
                   size="medium"
                   disableFuture
                   minDate={minAllowedDate.toDate()}
+                  maxDate={dayjs().startOf("day").toDate()}
                   data-testid="record-fund-trade-date"
                 />
               </Box>
@@ -808,6 +809,7 @@ export function RecordFundHoldingDrawer({
                           name="manualValuedAt"
                           label={t("investments.recordFund.fields.manualValuedAt")}
                           size="medium"
+                          maxDate={dayjs().startOf("day").toDate()}
                           data-testid="record-fund-manual-valued-at"
                         />
                       </Box>

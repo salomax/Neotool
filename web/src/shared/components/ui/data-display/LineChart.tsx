@@ -175,6 +175,12 @@ export interface LineChartProps {
     lineDash?: string;
     areaOpacity?: number;
   };
+  /** When set, the segment ending at a row with this key (from the previous point) uses `partialStyle` (e.g. current partial month). */
+  partialKey?: string;
+  partialStyle?: {
+    lineDash?: string;
+    areaOpacity?: number;
+  };
   projectionMarker?: boolean;
   projectionMarkerSeriesId?: string;
   projectionMarkerLabel?: string;
@@ -350,6 +356,10 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         const seriesId = key.slice("__proj_".length);
         if (actualWithValue.has(seriesId)) continue;
       }
+      if (typeof key === "string" && key.startsWith("__partial_")) {
+        const seriesId = key.slice("__partial_".length);
+        if (actualWithValue.has(seriesId)) continue;
+      }
       out.push(entry);
     }
     return out;
@@ -372,6 +382,10 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
       }
       if (key.startsWith("__proj_")) {
         const id = key.slice("__proj_".length);
+        return byId.get(id);
+      }
+      if (key.startsWith("__partial_")) {
+        const id = key.slice("__partial_".length);
         return byId.get(id);
       }
       const matchByDataKey = byDataKey.get(key);
@@ -499,6 +513,8 @@ export const LineChart: React.FC<LineChartProps> = ({
   series,
   projectionKey,
   projectedStyle,
+  partialKey,
+  partialStyle,
   projectionMarker = true,
   projectionMarkerLabel,
   showXAxis = true,
@@ -772,23 +788,41 @@ export const LineChart: React.FC<LineChartProps> = ({
   }, [chartData, xContinuous, xIsDate, xTickCount]);
 
   const transformedData = React.useMemo(() => {
-    if (!projectionKey) return chartData;
+    const splitSeries = Boolean(projectionKey) || Boolean(partialKey);
+    if (!splitSeries) return chartData;
     const arr = chartData || [];
     return arr.map((row, index) => {
-      const isProj = Boolean((row as any)[projectionKey]);
+      const isProj = projectionKey ? Boolean((row as any)[projectionKey]) : false;
+      const isPartialTail = partialKey ? Boolean((row as any)[partialKey]) : false;
+      const nextRow = index + 1 < arr.length ? (arr[index + 1] as any) : null;
       const isLastActual =
-        !isProj && index + 1 < arr.length && Boolean((arr[index + 1] as any)[projectionKey]);
+        projectionKey &&
+        !isProj &&
+        nextRow != null &&
+        Boolean(nextRow[projectionKey]);
+      const isPartialBridge =
+        partialKey &&
+        !isProj &&
+        !isPartialTail &&
+        nextRow != null &&
+        !(projectionKey && Boolean(nextRow[projectionKey])) &&
+        Boolean(nextRow[partialKey]);
       const next = { ...row };
       for (const s of series) {
         const v = (row as any)[s.dataKey];
-        (next as any)[`__actual_${s.id}`] = isProj ? null : v;
-        // Include the last actual point in the projected series so the continuous
-        // and dashed lines share the same origin — no visual gap at the boundary.
-        (next as any)[`__proj_${s.id}`] = isProj || isLastActual ? v : null;
+        (next as any)[`__actual_${s.id}`] = isProj ? null : isPartialTail ? null : v;
+        if (projectionKey) {
+          // Include the last actual point in the projected series so the continuous
+          // and dashed lines share the same origin — no visual gap at the boundary.
+          (next as any)[`__proj_${s.id}`] = isProj || isLastActual ? v : null;
+        }
+        if (partialKey) {
+          (next as any)[`__partial_${s.id}`] = isPartialTail || isPartialBridge ? v : null;
+        }
       }
       return next;
     });
-  }, [chartData, projectionKey, series]);
+  }, [chartData, partialKey, projectionKey, series]);
 
   const projectionSplit = React.useMemo(() => {
     if (!projectionKey || !projectionMarker) return null;
@@ -984,8 +1018,10 @@ export const LineChart: React.FC<LineChartProps> = ({
             {series.map((serie, index) => {
               const color = serie.color || palette[index % palette.length];
               const yAxisKey = getAxis(serie.yAxisId)?.id;
-              const actualKey = projectionKey ? `__actual_${serie.id}` : serie.dataKey;
+              const splitSeriesKeys = Boolean(projectionKey) || Boolean(partialKey);
+              const actualKey = splitSeriesKeys ? `__actual_${serie.id}` : serie.dataKey;
               const projKey = projectionKey ? `__proj_${serie.id}` : undefined;
+              const partialDataKey = partialKey ? `__partial_${serie.id}` : undefined;
 
               return (
                 <React.Fragment key={serie.id}>
@@ -1016,6 +1052,43 @@ export const LineChart: React.FC<LineChartProps> = ({
                       strokeDasharray={serie.strokeDasharray}
                       isAnimationActive={isAnimationActive}
                     />
+                  )}
+                  {partialDataKey && (
+                    serie.kind === "area" ? (
+                      <Area
+                        type={curveType}
+                        dataKey={partialDataKey}
+                        name={serie.name}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        strokeDasharray={partialStyle?.lineDash || "6 5"}
+                        fill={`url(#linechart-gradient-${serie.id})`}
+                        fillOpacity={
+                          partialStyle?.areaOpacity !== undefined
+                            ? partialStyle.areaOpacity
+                            : (serie.areaOpacity ?? 0.2)
+                        }
+                        yAxisId={yAxisKey}
+                        connectNulls
+                        legendType="none"
+                        isAnimationActive={isAnimationActive}
+                      />
+                    ) : (
+                      <Line
+                        type={curveType}
+                        dataKey={partialDataKey}
+                        name={serie.name}
+                        stroke={color}
+                        strokeWidth={strokeWidth}
+                        yAxisId={yAxisKey}
+                        dot={showDots}
+                        connectNulls
+                        label={showValueLabels}
+                        strokeDasharray={partialStyle?.lineDash || "6 5"}
+                        legendType="none"
+                        isAnimationActive={isAnimationActive}
+                      />
+                    )
                   )}
                   {projKey && (
                     serie.kind === "area" ? (

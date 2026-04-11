@@ -445,7 +445,8 @@
         "modes": {
           "actual": "Current",
           "projected": "Include projection until maturity"
-        }
+        },
+        "partialMonthChip": "Partial through {{throughDate}}"
       },
       "dates": {
         "elapsedTitle": "Time elapsed",

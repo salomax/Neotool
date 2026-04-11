@@ -444,7 +444,8 @@
         "modes": {
           "actual": "Atual",
           "projected": "Projeção até o vencimento"
-        }
+        },
+        "partialMonthChip": "parcial até {{throughDate}}"
       },
       "dates": {
         "elapsedTitle": "Tempo decorrido",

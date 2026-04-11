@@ -8,6 +8,7 @@ import {
 import { getHoldingValueOrigin, type ValueOriginLabel } from "@/shared/utils/holdingValueOrigin";
 import type { FundHoldingDetailQuery } from "./api/queries.generated";
 import { isSameInvestmentEventAndSettlementDay } from "../timelineSettlementDay";
+import { withPartialMonthFlags } from "../performance/withPartialMonthFlags";
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
 
@@ -62,6 +63,7 @@ export interface FundHoldingDetailViewModel {
   chartPoints: Array<{
     timestamp: string;
     isProjected: boolean;
+    isPartialMonth?: boolean;
     investedPrincipal: number | null;
     grossValue: number | null;
     netValue: number | null;
@@ -258,13 +260,15 @@ export function buildFundHoldingDetailViewModel(
       direction: transaction.direction,
     }));
 
-  const chartPoints = (performance?.points ?? []).map((point: PerformancePoint) => ({
-    timestamp: String(point.timestamp),
-    isProjected: point.isProjected,
-    investedPrincipal: point.investedPrincipal,
-    grossValue: point.grossValue,
-    netValue: point.netValue,
-  }));
+  const chartPoints = withPartialMonthFlags(
+    (performance?.points ?? []).map((point: PerformancePoint) => ({
+      timestamp: String(point.timestamp),
+      isProjected: point.isProjected,
+      investedPrincipal: point.investedPrincipal,
+      grossValue: point.grossValue,
+      netValue: point.netValue,
+    })),
+  );
 
   return {
     title: holding.asset.name,

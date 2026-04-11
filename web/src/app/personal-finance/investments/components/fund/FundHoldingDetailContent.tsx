@@ -105,7 +105,6 @@ export function FundHoldingDetailContent({
         }
         emptyTitle={t("investments.detailDrawer.chart.emptyTitle")}
         emptyDescription={t("investments.detailDrawer.chart.emptyDescription")}
-        principalLabel={t("investments.detailDrawer.chart.principalLabel")}
         grossLabel={t("investments.detailDrawer.chart.grossLabel")}
         netLabel={t("investments.detailDrawer.chart.netLabel")}
         projectionToggleLabel={t("investments.detailDrawer.chart.modes.projected")}

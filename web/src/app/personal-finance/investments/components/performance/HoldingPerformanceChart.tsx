@@ -1,16 +1,27 @@
 'use client';
 
 import * as React from 'react';
-import { Box, FormControlLabel, Stack, Switch } from '@mui/material';
+import { Box, FormControlLabel, Stack, Switch, Typography } from '@mui/material';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import { HoldingPerformanceResolution } from "@/lib/graphql/types/__generated__/graphql";
 import { LineChart } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
 import { Label } from '@/shared/components/ui/primitives/Label';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from "../../../i18n";
+import { FINANCE_TABLE_BODY_FONT_SIZE } from "@/shared/components/ui/data-display/Table";
+
+const CHART_PROJECTED_STYLE = { lineDash: "6 4", areaOpacity: 0.1 } as const;
+const CHART_PARTIAL_STYLE = { lineDash: "6 5" } as const;
+
+/** Prefix for the partial-month caption (bullet + space). */
+const PARTIAL_MONTH_NOTICE_PREFIX = "\u2022 ";
 
 export interface HoldingPerformanceChartPoint {
   timestamp: string;
   isProjected: boolean;
+  /** Last non-projected point is in the current month (incomplete month in the series). */
+  isPartialMonth?: boolean;
   investedPrincipal: number | null;
   grossValue: number | null;
   netValue: number | null;
@@ -28,32 +39,69 @@ interface HoldingPerformanceChartProps {
   headerAction?: React.ReactNode;
   emptyTitle: string;
   emptyDescription: string;
-  principalLabel: string;
   grossLabel: string;
   netLabel: string;
   projectionToggleLabel: string;
 }
 
-function formatTimestamp(
-  value: unknown,
+function capitalizeFirstLetter(text: string, locale: string): string {
+  if (!text) return text;
+  const head = text.charAt(0).toLocaleUpperCase(locale);
+  return head + text.slice(1);
+}
+
+/** Reuses Intl formatters for axis ticks (can run often during chart layout). */
+function useAxisDateFormatter(
   locale: string,
   resolution: HoldingPerformanceResolution | null | undefined,
-) {
-  const parsed = new Date(value instanceof Date ? value : (value as any));
-  if (Number.isNaN(parsed.getTime())) return String(value);
-  if (resolution === HoldingPerformanceResolution.Day) {
-    return new Intl.DateTimeFormat(locale, {
+): (value: unknown) => string {
+  return React.useMemo(() => {
+    const isDay = resolution === HoldingPerformanceResolution.Day;
+    const dayFormatter = new Intl.DateTimeFormat(locale, {
       day: "2-digit",
       month: "short",
-    })
-      .format(parsed)
-      .replace(/\.$/, "");
+    });
+    const monthYearFormatter = new Intl.DateTimeFormat(locale, {
+      month: "long",
+      year: "2-digit",
+    });
+
+    return (value: unknown): string => {
+      const parsed =
+        value instanceof Date ? value : new Date(value as string | number);
+      if (Number.isNaN(parsed.getTime())) {
+        return String(value);
+      }
+      const raw = isDay
+        ? dayFormatter.format(parsed).replace(/\.$/, "")
+        : monthYearFormatter.format(parsed).replace(/\.$/, "");
+      return capitalizeFirstLetter(raw, locale);
+    };
+  }, [locale, resolution]);
+}
+
+function useThroughDateFormatter(locale: string): Intl.DateTimeFormat {
+  return React.useMemo(
+    () =>
+      new Intl.DateTimeFormat(locale, {
+        day: "2-digit",
+        month: "2-digit",
+        year: "2-digit",
+      }),
+    [locale],
+  );
+}
+
+function findLastPartialActualPoint(
+  data: readonly HoldingPerformanceChartPoint[],
+): HoldingPerformanceChartPoint | undefined {
+  for (let i = data.length - 1; i >= 0; i--) {
+    const p = data[i];
+    if (p?.isPartialMonth && !p.isProjected) {
+      return p;
+    }
   }
-  const month = new Intl.DateTimeFormat(locale, { month: "short" })
-    .format(parsed)
-    .replace(/\.$/, "");
-  const year = new Intl.DateTimeFormat(locale, { year: "2-digit" }).format(parsed);
-  return `${month} ${year}`;
+  return undefined;
 }
 
 export function HoldingPerformanceChart({
@@ -71,6 +119,10 @@ export function HoldingPerformanceChart({
   netLabel,
   projectionToggleLabel,
 }: HoldingPerformanceChartProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const formatAxisDate = useAxisDateFormatter(locale, resolution);
+  const throughDateFormatter = useThroughDateFormatter(locale);
+
   const hasProjectedPoints = React.useMemo(() => points.some((point) => point.isProjected), [points]);
   const [includeProjection, setIncludeProjection] = React.useState(false);
   const showProjectionToggle = supportsProjection && hasProjectedPoints;
@@ -93,8 +145,12 @@ export function HoldingPerformanceChart({
 
     const lastActual = filtered[firstProjectedIdx - 1];
     if (!lastActual) return filtered;
+
     const lastActualDate = new Date(lastActual.timestamp);
+    if (Number.isNaN(lastActualDate.getTime())) return filtered;
+
     const endOfMonth = new Date(lastActualDate.getFullYear(), lastActualDate.getMonth() + 1, 0);
+    if (Number.isNaN(endOfMonth.getTime())) return filtered;
 
     if (lastActualDate.getDate() === endOfMonth.getDate()) return filtered;
 
@@ -102,6 +158,7 @@ export function HoldingPerformanceChart({
       ...lastActual,
       timestamp: endOfMonth.toISOString(),
       isProjected: true,
+      isPartialMonth: false,
     };
 
     return [
@@ -110,6 +167,12 @@ export function HoldingPerformanceChart({
       ...filtered.slice(firstProjectedIdx),
     ];
   }, [includeProjection, points]);
+
+  const partialMonthNotice = React.useMemo(() => {
+    if (!findLastPartialActualPoint(chartData)) return null;
+    const throughDate = throughDateFormatter.format(new Date());
+    return `${PARTIAL_MONTH_NOTICE_PREFIX}${t("investments.detailDrawer.chart.partialMonthChip", { throughDate })}`;
+  }, [chartData, t, throughDateFormatter]);
 
   const series = React.useMemo(() => {
     const netValueSeries = {
@@ -144,16 +207,47 @@ export function HoldingPerformanceChart({
     );
   }
 
+  const showHeaderBlock = Boolean(title || partialMonthNotice);
+
   return (
     <Box>
       <Stack spacing={2}>
         <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-          {title ? (
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <TimelineIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-              <Label sx={{ fontSize: '0.8rem', fontWeight: 500, mb: 0 }}>{title}</Label>
+          {showHeaderBlock ? (
+            <Box
+              sx={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                columnGap: 1,
+                rowGap: 0.75,
+                minWidth: 0,
+              }}
+            >
+              {title ? (
+                <>
+                  <TimelineIcon sx={{ fontSize: 16, color: 'primary.main' }} />
+                  <Label sx={{ fontSize: '0.8rem', fontWeight: 500, mb: 0 }}>{title}</Label>
+                </>
+              ) : null}
+              {partialMonthNotice ? (
+                <Typography
+                  variant="body2"
+                  component="span"
+                  sx={{
+                    fontSize: FINANCE_TABLE_BODY_FONT_SIZE,
+                    fontWeight: 400,
+                    color: "text.disabled",
+                    maxWidth: "100%",
+                  }}
+                >
+                  {partialMonthNotice}
+                </Typography>
+              ) : null}
             </Box>
-          ) : <span />}
+          ) : (
+            <span />
+          )}
           <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ xs: "stretch", md: "center" }}>
             {headerAction}
             {showProjectionToggle ? (
@@ -180,9 +274,11 @@ export function HoldingPerformanceChart({
           xContinuous
           curveType="linear"
           isAnimationActive={false}
-          xDateFormat={(value) => formatTimestamp(value, locale, resolution)}
+          xDateFormat={formatAxisDate}
           projectionKey="isProjected"
-          projectedStyle={{ lineDash: "6 4", areaOpacity: 0.1 }}
+          projectedStyle={CHART_PROJECTED_STYLE}
+          partialKey="isPartialMonth"
+          partialStyle={CHART_PARTIAL_STYLE}
           showDots={false}
           showLegend
           height={320}
