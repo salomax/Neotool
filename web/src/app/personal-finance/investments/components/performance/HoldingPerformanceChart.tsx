@@ -104,6 +104,93 @@ function findLastPartialActualPoint(
   return undefined;
 }
 
+/** Parse API timestamp to a local calendar date (YYYY-MM-DD avoids UTC day shifts). */
+function parseChartPointCalendarDate(raw: string): Date | null {
+  const s = String(raw).trim();
+  const cal = /^(\d{4})-(\d{2})-(\d{2})/.exec(s);
+  if (cal) {
+    const y = Number(cal[1]);
+    const mo = Number(cal[2]);
+    const d = Number(cal[3]);
+    const dt = new Date(y, mo - 1, d);
+    return Number.isNaN(dt.getTime()) ? null : dt;
+  }
+  const ms = Date.parse(s);
+  if (Number.isNaN(ms)) return null;
+  const dt = new Date(ms);
+  return Number.isNaN(dt.getTime()) ? null : dt;
+}
+
+function startOfLocalCalendarDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+function endOfLocalMonth(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0);
+}
+
+/** Stable chart X for a calendar day (noon UTC of local Y/M/D). */
+function chartTimestampForLocalCalendarDate(d: Date): string {
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 12, 0, 0)).toISOString();
+}
+
+function interpolateNullable(a: number | null, b: number | null, ratio: number): number | null {
+  if (a == null && b == null) return null;
+  if (a == null) return b;
+  if (b == null) return a;
+  return a + ratio * (b - a);
+}
+
+/**
+ * When the last actual day is mid-month and the first projected point is later, optionally insert
+ * a projected point at **local** month-end **between** them with values linearly interpolated in time.
+ * Skips when the backend already provides month-end (or any point on/before month-end) as the first
+ * projected anchor — avoids duplicate month-end and flat “copy today” artifacts.
+ */
+/** Exported for unit tests — inserts interpolated month-end bridge when timeline allows. */
+export function withProjectionMonthBridge(
+  filtered: HoldingPerformanceChartPoint[],
+  firstProjectedIdx: number,
+): HoldingPerformanceChartPoint[] {
+  const lastActual = filtered[firstProjectedIdx - 1];
+  const firstProjected = filtered[firstProjectedIdx];
+  if (!lastActual || !firstProjected) return filtered;
+
+  const lastActualDay = parseChartPointCalendarDate(lastActual.timestamp);
+  const firstProjectedDay = parseChartPointCalendarDate(firstProjected.timestamp);
+  if (!lastActualDay || !firstProjectedDay) return filtered;
+
+  const monthEnd = endOfLocalMonth(lastActualDay);
+  const tLast = startOfLocalCalendarDay(lastActualDay);
+  const tFirst = startOfLocalCalendarDay(firstProjectedDay);
+  const tBridge = startOfLocalCalendarDay(monthEnd);
+
+  if (!(tLast < tBridge && tBridge < tFirst)) {
+    return filtered;
+  }
+
+  const span = tFirst - tLast;
+  if (span <= 0) return filtered;
+
+  const ratio = (tBridge - tLast) / span;
+
+  const bridge: HoldingPerformanceChartPoint = {
+    ...lastActual,
+    timestamp: chartTimestampForLocalCalendarDate(monthEnd),
+    isProjected: true,
+    isPartialMonth: false,
+    grossValue: interpolateNullable(lastActual.grossValue, firstProjected.grossValue, ratio),
+    netValue: interpolateNullable(lastActual.netValue, firstProjected.netValue, ratio),
+    investedPrincipal: interpolateNullable(
+      lastActual.investedPrincipal,
+      firstProjected.investedPrincipal,
+      ratio,
+    ),
+  };
+
+  return [...filtered.slice(0, firstProjectedIdx), bridge, ...filtered.slice(firstProjectedIdx)];
+}
+
 export function HoldingPerformanceChart({
   points,
   currencyCode,
@@ -143,29 +230,7 @@ export function HoldingPerformanceChart({
     const firstProjectedIdx = filtered.findIndex((p) => p.isProjected);
     if (firstProjectedIdx <= 0) return filtered;
 
-    const lastActual = filtered[firstProjectedIdx - 1];
-    if (!lastActual) return filtered;
-
-    const lastActualDate = new Date(lastActual.timestamp);
-    if (Number.isNaN(lastActualDate.getTime())) return filtered;
-
-    const endOfMonth = new Date(lastActualDate.getFullYear(), lastActualDate.getMonth() + 1, 0);
-    if (Number.isNaN(endOfMonth.getTime())) return filtered;
-
-    if (lastActualDate.getDate() === endOfMonth.getDate()) return filtered;
-
-    const bridge: HoldingPerformanceChartPoint = {
-      ...lastActual,
-      timestamp: endOfMonth.toISOString(),
-      isProjected: true,
-      isPartialMonth: false,
-    };
-
-    return [
-      ...filtered.slice(0, firstProjectedIdx),
-      bridge,
-      ...filtered.slice(firstProjectedIdx),
-    ];
+    return withProjectionMonthBridge(filtered, firstProjectedIdx);
   }, [includeProjection, points]);
 
   const partialMonthNotice = React.useMemo(() => {
