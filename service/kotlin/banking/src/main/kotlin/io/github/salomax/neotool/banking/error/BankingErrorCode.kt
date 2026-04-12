@@ -141,6 +141,11 @@ enum class BankingErrorCode(
         "Transaction date is before the account's initial balance date",
         422,
     ),
+    TRANSACTION_NOT_FOUND(
+        "TRANSACTION_NOT_FOUND",
+        "Transaction not found",
+        404,
+    ),
     CARD_MASKED_NUMBER_INVALID(
         "CARD_MASKED_NUMBER_INVALID",
         "Card last four digits must be empty or exactly 4 digits",

@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -614,10 +615,10 @@ class TransactionServiceTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(null)
 
             val ex =
-                assertThrows<NoSuchElementException> {
+                assertThrows<NotFoundException> {
                     service.update(txId, UpdateTransactionCommand(description = "X"), accountId, userId)
                 }
-            assertThat(ex.message).contains(txId.toString())
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_NOT_FOUND)
         }
 
         @Test
@@ -836,11 +837,13 @@ class TransactionServiceTest {
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             val suggestedCategoryId = UUID.randomUUID()
+            val suggestionRuleId = UUID.randomUUID()
             whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
                 RuleSuggestion(
-                    ruleId = UUID.randomUUID(),
+                    ruleId = suggestionRuleId,
                     categoryId = suggestedCategoryId,
                     merchantId = null,
+                    appliedRuleIds = listOf(suggestionRuleId),
                 ),
             )
             val updateCaptor = argumentCaptor<Transaction>()
@@ -1145,8 +1148,8 @@ class TransactionServiceTest {
             val txId = UUID.randomUUID()
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(null)
 
-            val ex = assertThrows<NoSuchElementException> { service.delete(txId, accountId) }
-            assertThat(ex.message).contains(txId.toString())
+            val ex = assertThrows<NotFoundException> { service.delete(txId, accountId) }
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_NOT_FOUND)
         }
 
         @Test

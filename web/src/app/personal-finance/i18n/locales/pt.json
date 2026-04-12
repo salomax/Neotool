@@ -897,7 +897,8 @@
     "issuer": "Instituição",
     "financialAccount": "Conta financeira",
     "validation": {
-      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos"
+      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos",
+      "dateNotInFuture": "A data não pode ser futura."
     },
     "dateGroup": {
       "today": "Hoje, {{date}}",

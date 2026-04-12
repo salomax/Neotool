@@ -61,6 +61,8 @@ interface SummaryMetricRowProps {
   locale: string;
   loading?: boolean;
   rowSx?: SxProps<Theme>;
+  /** E2E: test id on the formatted amount only (see `tests/e2e/helpers/currency-dom.ts`). */
+  amountTestId?: string;
 }
 
 const PERIOD_STORAGE_KEY = "investment-summary-period";
@@ -82,6 +84,7 @@ function SummaryMetricRow({
   locale,
   loading = false,
   rowSx,
+  amountTestId,
 }: SummaryMetricRowProps) {
   const formattedValue =
     value == null
@@ -110,6 +113,7 @@ function SummaryMetricRow({
         ) : (
           <Typography
             variant="subtitle2"
+            data-testid={amountTestId}
             sx={{
               fontWeight: 700,
               color,
@@ -307,6 +311,7 @@ export function InvestmentSummary({
                         locale={locale}
                         variant="h3"
                         sx={TOTAL_PORTFOLIO_AMOUNT_TYPOGRAPHY_SX}
+                        data-testid="investment-summary-total-portfolio-value"
                       />
                       {summary?.hasEstimatedValues ? (
                         <ValueOriginIndicator
@@ -370,6 +375,7 @@ export function InvestmentSummary({
                     currency={currencyCode}
                     locale={locale}
                     variant="h4"
+                    data-testid="investment-summary-gross-gain-amount"
                     sx={{
                       color: grossGainColor,
                       fontSize: "2rem",
@@ -437,6 +443,7 @@ export function InvestmentSummary({
                 locale={locale}
                 loading={showSummarySkeletons}
                 rowSx={{ pt: 2, pb: 0.25 }}
+                amountTestId="investment-summary-total-contributed-amount"
               />
               <SummaryMetricRow
                 color={
@@ -450,6 +457,7 @@ export function InvestmentSummary({
                 locale={locale}
                 loading={showSummarySkeletons}
                 rowSx={{ pt: 0.25 }}
+                amountTestId="investment-summary-cash-balance-amount"
               />
             </Stack>
 

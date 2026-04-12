@@ -109,7 +109,6 @@ export function BaseMoneyInput({
       size={size}
       autoFocus={autoFocus}
       label={label}
-      data-testid={dataTestId}
       name={name}
       required={required}
       error={error}
@@ -163,9 +162,10 @@ export function BaseMoneyInput({
             {InputProps?.endAdornment}
           </>
         ),
-        inputProps: { 
+        inputProps: {
           style: { textAlign: "right" },
-          ...InputProps?.inputProps 
+          ...InputProps?.inputProps,
+          ...(dataTestId ? { "data-testid": dataTestId } : {}),
         },
       }}
     />

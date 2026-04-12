@@ -198,7 +198,7 @@ open class CreditCardBillService(
         closingDate: LocalDate?,
     ): CreditCardBill? {
         if (closingDate != null) {
-            return billRepository.findByClosingDate(financialAccountId, closingDate)
+            return billRepository.findByClosingDate(financialAccountId, accountId, closingDate)
         }
         val all = billRepository.listByAccount(financialAccountId, accountId)
         val today = LocalDate.now()

@@ -139,6 +139,7 @@ export function InlineTransactionForm({
   const theme = useTheme();
   const borderRadius = '.3rem';
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
+  const maxAllowedDate = dayjs().startOf('day');
   const [creditDebitType, setCreditDebitType] = useState<CreditDebitType>(initialValues?.creditDebitType || CreditDebitType.Debit);
   const [amount, setAmount] = useState<number | undefined>(initialValues?.amount ? Math.abs(initialValues.amount) : undefined);
   const [description, setDescription] = useState(initialValues?.description || '');
@@ -162,6 +163,9 @@ export function InlineTransactionForm({
   const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
 
   const isDateOutsideWindow = Boolean(date && date.isBefore(minAllowedDate, 'day'));
+  const isDateInFuture = Boolean(date && date.isAfter(maxAllowedDate, 'day'));
+  const isDateInvalidForSave =
+    isDateOutsideWindow || isDateInFuture || Boolean(date && !date.isValid());
 
   useEffect(() => {
     const accounts = accountsData?.financialAccounts;
@@ -210,7 +214,8 @@ export function InlineTransactionForm({
 
   const handleSave = async () => {
     if (!amount || !description || !date || !accountId) return;
-    if (isDateOutsideWindow) return;
+    if (!date.isValid()) return;
+    if (isDateInvalidForSave) return;
 
     const formattedAmount = Math.abs(amount);
     const updateInput = {
@@ -299,8 +304,12 @@ export function InlineTransactionForm({
         setCategoryId('');
         setTags([]);
       }
-      
-      onSuccess();
+
+      try {
+        await Promise.resolve(onSuccess?.());
+      } catch (refreshError) {
+        console.error('Failed to refresh after save:', refreshError);
+      }
       onClose();
     } catch (error) {
       console.error('Failed to save transaction:', error);
@@ -324,7 +333,11 @@ export function InlineTransactionForm({
         },
       });
       setPendingSimilarEditPrompt(null);
-      onSuccess();
+      try {
+        await Promise.resolve(onSuccess?.());
+      } catch (refreshError) {
+        console.error('Failed to refresh after similar edit:', refreshError);
+      }
       onClose();
     } catch (error) {
       console.error('Failed to apply transaction edit to similar transactions:', error);
@@ -333,9 +346,13 @@ export function InlineTransactionForm({
     }
   };
 
-  const handleDismissSimilarEditPrompt = () => {
+  const handleDismissSimilarEditPrompt = async () => {
     setPendingSimilarEditPrompt(null);
-    onSuccess();
+    try {
+      await Promise.resolve(onSuccess?.());
+    } catch (refreshError) {
+      console.error('Failed to refresh after dismiss similar edit:', refreshError);
+    }
     onClose();
   };
 
@@ -426,7 +443,9 @@ export function InlineTransactionForm({
                     setCreditDebitType(e.target.value as CreditDebitType);
                     setCategoryId('');
                   }}
-                  inputProps={{ 'data-testid': 'tx-credit-debit-type-select' }}
+                  SelectDisplayProps={{
+                    'data-testid': 'tx-credit-debit-type-select',
+                  }}
                   variant="standard"
                   disableUnderline
                   displayEmpty
@@ -638,7 +657,14 @@ export function InlineTransactionForm({
                     onKeyDown: (e: any) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        if (!(creating || updating) && amount && description && date && accountId) {
+                        if (
+                          !(creating || updating) &&
+                          amount &&
+                          description &&
+                          date &&
+                          accountId &&
+                          !isDateInvalidForSave
+                        ) {
                           handleSave();
                         }
                       }
@@ -658,13 +684,24 @@ export function InlineTransactionForm({
                 value={date}
                 onChange={(newValue: dayjs.Dayjs | null) => setDate(newValue)}
                 minDate={minAllowedDate}
+                maxDate={maxAllowedDate}
+                /* Single native input: MUI X default “accessible field” keeps a read-only section UI;
+                   programmatic fills / Playwright would not update picker state. */
+                enableAccessibleFieldDOMStructure={false}
+                /* No calendar popper: avoids overlay/focus issues in dense table rows and in E2E. */
+                disableOpenPicker
                 slotProps={mergeAppDatePickerSlotProps({
                   textField: {
                     hiddenLabel: true,
                     size: 'small',
                     variant: 'standard',
-                    error: isDateOutsideWindow,
-                    helperText: isDateOutsideWindow ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }) : undefined,
+                    inputProps: { 'data-testid': 'tx-date-input' },
+                    error: isDateInvalidForSave,
+                    helperText: isDateInFuture
+                      ? t('financeTransactions.validation.dateNotInFuture')
+                      : isDateOutsideWindow
+                        ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS })
+                        : undefined,
                     InputProps: {
                       disableUnderline: true,
                       sx: {
@@ -776,7 +813,17 @@ export function InlineTransactionForm({
                 data-testid="tx-save-btn"
                 loading={creating || updating || applyingSimilarEdit}
                 size="small"
-                disabled={creating || updating || applyingSimilarEdit || !amount || !description || !date || !accountId || isDateOutsideWindow}
+                disabled={
+                  creating ||
+                  updating ||
+                  applyingSimilarEdit ||
+                  !amount ||
+                  !description ||
+                  !date ||
+                  !date.isValid() ||
+                  !accountId ||
+                  isDateInvalidForSave
+                }
                 sx={{ boxShadow: theme.shadows[4], borderRadius: 1 }}
               >
                 {t('actions.save')}

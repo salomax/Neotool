@@ -13,6 +13,8 @@ import org.hibernate.StaleObjectStateException
 import org.hibernate.StaleStateException
 import org.hibernate.dialect.lock.OptimisticEntityLockException
 import org.slf4j.LoggerFactory
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.CompletableFuture
 
 /**
@@ -25,12 +27,66 @@ import java.util.concurrent.CompletableFuture
 class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
     private val logger = LoggerFactory.getLogger(BankingGraphQLExceptionHandler::class.java)
 
+    /**
+     * Some runtimes (transaction managers, reflection, async boundaries) surface a wrapper whose type
+     * we do not map, while still preserving the original message in the cause chain — e.g.
+     * `Transaction <uuid> not found`. Treat that as a client-safe not-found instead of INTERNAL_ERROR.
+     */
+    private val transactionMissingMessageHeuristic =
+        Regex("""(?i)\btransaction\b.{0,120}\bnot\s+found\b|\btransaction\s+not\s+found\b|\bnão\s+encontrad""")
+
     override fun handleException(
         handlerParameters: DataFetcherExceptionHandlerParameters,
     ): CompletableFuture<DataFetcherExceptionHandlerResult> {
-        val exception = handlerParameters.exception
+        val root = handlerParameters.exception
+        for (exception in root.linearCauseChain()) {
+            mapKnownException(exception, handlerParameters)?.let { return it }
+        }
+        notFoundFromCauseMessages(root, handlerParameters)?.let { return it }
+        logger.error("Unhandled GraphQL exception in banking resolver", root)
+        return buildErrorResponse(
+            handlerParameters = handlerParameters,
+            message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
+            code = CommonErrorCode.INTERNAL_ERROR.code,
+        )
+    }
 
-        return when (exception) {
+    private fun notFoundFromCauseMessages(
+        root: Throwable,
+        handlerParameters: DataFetcherExceptionHandlerParameters,
+    ): CompletableFuture<DataFetcherExceptionHandlerResult>? {
+        val text = root.linearCauseChain().joinToString(" ") { it.message ?: "" }.trim()
+        if (text.isEmpty() || !transactionMissingMessageHeuristic.containsMatchIn(text)) {
+            return null
+        }
+        logger.debug("GraphQL not found mapped from cause-chain message heuristic")
+        return buildErrorResponse(
+            handlerParameters = handlerParameters,
+            message = CommonErrorCode.RESOURCE_NOT_FOUND.defaultMessage,
+            code = CommonErrorCode.RESOURCE_NOT_FOUND.code,
+        )
+    }
+
+    /**
+     * Walks `cause` links (cycle-safe). graphql-java, async fetchers, and transactional proxies often
+     * wrap the failure type seen by [DataFetcherExceptionHandlerParameters.exception].
+     */
+    private fun Throwable.linearCauseChain(): List<Throwable> =
+        buildList {
+            val seen = Collections.newSetFromMap<Throwable>(IdentityHashMap())
+            var current: Throwable? = this@linearCauseChain
+            while (current != null) {
+                if (!seen.add(current)) break
+                add(current)
+                current = current.cause
+            }
+        }
+
+    private fun mapKnownException(
+        exception: Throwable,
+        handlerParameters: DataFetcherExceptionHandlerParameters,
+    ): CompletableFuture<DataFetcherExceptionHandlerResult>? =
+        when (exception) {
             is AuthenticationRequiredException -> {
                 logger.debug("GraphQL authentication required")
                 buildErrorResponse(
@@ -96,16 +152,16 @@ class BankingGraphQLExceptionHandler : DataFetcherExceptionHandler {
                     code = CommonErrorCode.INVALID_INPUT.code,
                 )
             }
-            else -> {
-                logger.error("Unhandled GraphQL exception in banking resolver", exception)
+            is NoSuchElementException -> {
+                logger.debug("GraphQL resource not found: {}", exception.message)
                 buildErrorResponse(
                     handlerParameters = handlerParameters,
-                    message = CommonErrorCode.INTERNAL_ERROR.defaultMessage,
-                    code = CommonErrorCode.INTERNAL_ERROR.code,
+                    message = CommonErrorCode.RESOURCE_NOT_FOUND.defaultMessage,
+                    code = CommonErrorCode.RESOURCE_NOT_FOUND.code,
                 )
             }
+            else -> null
         }
-    }
 
     private fun buildErrorResponse(
         handlerParameters: DataFetcherExceptionHandlerParameters,

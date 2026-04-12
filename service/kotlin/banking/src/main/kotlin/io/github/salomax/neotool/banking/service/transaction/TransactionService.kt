@@ -11,6 +11,7 @@ import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
@@ -433,7 +434,7 @@ open class TransactionService(
         accountId: UUID,
     ): Transaction =
         transactionRepository.findById(id, accountId)
-            ?: throw NoSuchElementException("Transaction $id not found")
+            ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
 
     @Transactional
     open fun createTransactionOutcome(
@@ -605,7 +606,7 @@ open class TransactionService(
     ): Transaction {
         val existing =
             transactionRepository.findById(id, accountId)
-                ?: throw NoSuchElementException("Transaction $id not found")
+                ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
         val updatedBelongsTo = resolveBelongsToForUpdate(command)
         if (command.belongsToProvided && command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
@@ -804,7 +805,7 @@ open class TransactionService(
     ): SimilarTransactionEditPreview {
         val existing =
             transactionRepository.findById(id, accountId)
-                ?: throw NoSuchElementException("Transaction $id not found")
+                ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
         val baseDescription = existing.baseDescription()
         if (existing.source == TransactionSource.MANUAL) {
             return SimilarTransactionEditPreview(
@@ -838,7 +839,7 @@ open class TransactionService(
     ): SimilarTransactionEditResult {
         val current =
             transactionRepository.findById(id, accountId)
-                ?: throw NoSuchElementException("Transaction $id not found")
+                ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
         if (current.source == TransactionSource.MANUAL) {
             return SimilarTransactionEditResult(affectedCount = 0, futureRuleCreated = false)
         }
@@ -908,7 +909,7 @@ open class TransactionService(
     ): Boolean {
         val exists =
             transactionRepository.findById(id, accountId)
-                ?: throw NoSuchElementException("Transaction $id not found")
+                ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
         check(exists.source == TransactionSource.MANUAL) {
             "Only MANUAL transactions can be deleted; OFB-synced transactions must be hidden via the provider"
         }

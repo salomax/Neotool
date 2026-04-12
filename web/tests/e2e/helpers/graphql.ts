@@ -1,12 +1,39 @@
 /**
- * GraphQL operation helpers for E2E tests
+ * GraphQL operation helpers for E2E tests.
+ *
+ * Non-2xx responses include the response body in the thrown error when possible
+ * (validation failures often return HTTP 400 with JSON or plain text).
  */
 
+import { expect } from '@playwright/test';
 import { currentConfig } from '../config/environments';
 
 export interface GraphQLResponse<T = any> {
   data?: T;
-  errors?: Array<{ message: string; path?: string[] }>;
+  errors?: Array<{
+    message: string;
+    path?: string[];
+    extensions?: Record<string, unknown>;
+  }>;
+}
+
+/**
+ * Asserts GraphQL errors indicate a missing resource (message or standard extension codes).
+ * Use for E2E against router or banking: Apollo may preserve `extensions.code` even when
+ * the top-level message is generic in some setups.
+ */
+export function expectGraphqlNotFoundError(
+  errors: GraphQLResponse['errors'] | undefined
+): asserts errors is NonNullable<GraphQLResponse['errors']> {
+  expect(errors).toBeDefined();
+  expect(errors!.length).toBeGreaterThan(0);
+  const blob = JSON.stringify(errors);
+  const messageOk = /not found|não encontrad/i.test(blob);
+  const codeOk = /"(TRANSACTION_NOT_FOUND|RESOURCE_NOT_FOUND|NOT_FOUND)"/.test(blob);
+  expect(
+    messageOk || codeOk,
+    `Expected a not-found GraphQL error (message or known extension code). Got: ${blob.slice(0, 800)}`
+  ).toBe(true);
 }
 
 export interface AuthSessionUser {
@@ -48,12 +75,37 @@ export async function executeGraphQL<T = any>(
     }),
   });
 
+  const bodyText = await response.text();
+
   if (!response.ok) {
-    throw new Error(`GraphQL request failed: ${response.status} ${response.statusText}`);
+    let detail = bodyText.trim();
+    if (detail.length > 4000) {
+      detail = `${detail.slice(0, 4000)}…`;
+    }
+    try {
+      const parsed = JSON.parse(bodyText) as {
+        errors?: Array<{ message: string }>;
+      };
+      if (parsed.errors?.length) {
+        detail = parsed.errors.map((e) => e.message).join('; ');
+      }
+    } catch {
+      /* keep truncated raw body */
+    }
+    throw new Error(
+      `GraphQL request failed: ${response.status} ${response.statusText}${detail ? ` — ${detail}` : ''}`,
+    );
   }
 
-  const result = await response.json();
-  
+  let result: GraphQLResponse<T>;
+  try {
+    result = JSON.parse(bodyText) as GraphQLResponse<T>;
+  } catch {
+    throw new Error(
+      `GraphQL response was not valid JSON (${response.status}): ${bodyText.slice(0, 500)}`,
+    );
+  }
+
   if (result.errors) {
     console.error('GraphQL errors:', result.errors);
   }

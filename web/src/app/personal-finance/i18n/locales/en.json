@@ -898,7 +898,8 @@
     "issuer": "Institution",
     "financialAccount": "Financial Account",
     "validation": {
-      "dateTooOld": "Date must be within the last {{years}} years"
+      "dateTooOld": "Date must be within the last {{years}} years",
+      "dateNotInFuture": "Date cannot be in the future."
     },
     "dateGroup": {
       "today": "Today, {{date}}",

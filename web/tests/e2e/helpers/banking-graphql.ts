@@ -1,9 +1,24 @@
 /**
  * Banking-specific GraphQL helpers for E2E tests.
  * Mirrors the structure of graphql.ts — plain template strings, no Apollo client.
+ *
+ * Re-exports banking enums from app codegen — prefer `CreditDebitType.Debit` etc. over raw strings.
+ * @see docs/03-features/personal-finance/requirements/02-transactions.md
  */
 
 import { executeGraphQL } from './graphql';
+import {
+  CreditDebitType,
+  TransactionStatus,
+  TransactionType,
+} from './banking-schema-enums';
+
+export {
+  CategoryApplicableTo,
+  CreditDebitType,
+  TransactionStatus,
+  TransactionType,
+} from './banking-schema-enums';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,9 +44,9 @@ export interface FinancialAccount {
 export interface Transaction {
   id: string;
   financialAccountId: string;
-  creditDebitType: 'CREDIT' | 'DEBIT';
-  type: string;
-  status: 'POSTED' | 'PENDING' | 'FUTURE';
+  creditDebitType: CreditDebitType;
+  type: TransactionType;
+  status: TransactionStatus;
   amount: number;
   currencyCode: string;
   date: string;
@@ -66,6 +81,7 @@ export interface CreateFinancialAccountInput {
   type: string;
   subtype: string;
   initialBalance?: number;
+  /** Required for past-dated ledger tests when paired with `initialBalance`; helpers default to `today()` if omitted. */
   initialBalanceDate?: string;
   currencyCode?: string;
   closingDay?: number;
@@ -97,9 +113,10 @@ export interface CreateTransactionInput {
   financialAccountId: string;
   description: string;
   amount: number;
-  creditDebitType: 'CREDIT' | 'DEBIT';
-  type?: string;
-  status?: 'POSTED' | 'PENDING' | 'FUTURE';
+  creditDebitType: CreditDebitType;
+  /** When omitted, defaults to OtherExpense (DEBIT) or OtherIncome (CREDIT) — same as the manual UI. */
+  type?: TransactionType;
+  status?: TransactionStatus;
   date?: string;
   notes?: string;
   tags?: string[];
@@ -108,29 +125,41 @@ export interface CreateTransactionInput {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Returns today's date as ISO string (YYYY-MM-DD). */
-export function today(): string {
-  return new Date().toISOString().split('T')[0];
+/**
+ * YYYY-MM-DD using the environment's local calendar.
+ * Prefer this over `toISOString().split('T')[0]` for dates built with the `Date(y, m, d)`
+ * constructor — in timezones ahead of UTC the UTC string can fall on the previous day.
+ */
+export function formatLocalIsoDate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 
-/** Returns the first day of the current month as ISO string. */
+/** Returns today's local calendar date as YYYY-MM-DD. */
+export function today(): string {
+  return formatLocalIsoDate(new Date());
+}
+
+/** Returns the first day of the current month as YYYY-MM-DD (local). */
 export function firstDayOfMonth(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+  return formatLocalIsoDate(new Date(now.getFullYear(), now.getMonth(), 1));
 }
 
-/** Returns the last day of the current month as ISO string. */
+/** Returns the last day of the current month as YYYY-MM-DD (local). */
 export function lastDayOfMonth(): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+  return formatLocalIsoDate(new Date(now.getFullYear(), now.getMonth() + 1, 0));
 }
 
-/** Returns a date in a given month offset from today (e.g. -1 = last month). */
+/** Returns a date in a given month offset from today (e.g. -1 = last month), local calendar. */
 export function dateInMonth(monthOffset: number, day = 15): string {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth() + monthOffset, day)
-    .toISOString()
-    .split('T')[0];
+  return formatLocalIsoDate(
+    new Date(now.getFullYear(), now.getMonth() + monthOffset, day),
+  );
 }
 
 function normalizeCreateFinancialAccountInput(input: CreateFinancialAccountInput): Record<string, unknown> {
@@ -317,6 +346,24 @@ const TRANSACTION_FIELDS = `
   billId
 `;
 
+function defaultTransactionTypeForCreditDebit(
+  creditDebitType: CreditDebitType,
+): TransactionType {
+  return creditDebitType === CreditDebitType.Credit
+    ? TransactionType.OtherIncome
+    : TransactionType.OtherExpense;
+}
+
+/** API requires `type`; align with manual UI when callers omit it. */
+function normalizeCreateTransactionInput(
+  input: CreateTransactionInput,
+): CreateTransactionInput & { type: TransactionType } {
+  return {
+    ...input,
+    type: input.type ?? defaultTransactionTypeForCreditDebit(input.creditDebitType),
+  };
+}
+
 export async function createTransaction(
   input: CreateTransactionInput,
   token: string
@@ -333,7 +380,7 @@ export async function createTransaction(
 
   const result = await executeGraphQL<{
     createTransaction: { transaction: Transaction };
-  }>(mutation, { input }, token);
+  }>(mutation, { input: normalizeCreateTransactionInput(input) }, token);
 
   if (result.errors || !result.data?.createTransaction?.transaction) {
     throw new Error(
@@ -358,6 +405,12 @@ export async function deleteTransaction(id: string, token: string): Promise<void
   }
 }
 
+/**
+ * Lists transactions for an account. When `month` / `year` are omitted, the API uses the
+ * **current calendar month** (same default as the finance-transactions UI table). Pass explicit
+ * `year` and `month` when loading rows in another month (e.g. past-dated txs, import fixtures,
+ * or POSTED rows dated in a **calendar-future** month where `monthSummary` headers may differ by version).
+ */
 export async function getTransactions(
   financialAccountId: string,
   token: string,
@@ -398,6 +451,12 @@ export async function getTransactions(
 
 // ── Month Summary ─────────────────────────────────────────────────────────────
 
+/**
+ * Monthly header totals and balances. For months **strictly after** the server’s current calendar
+ * month, income/expense semantics may combine POSTED/PENDING with FUTURE depending on banking
+ * version; empty months and “earliest tx after requested month” edge cases are documented in
+ * `transactions.e2e.spec.ts`.
+ */
 export async function getMonthSummary(
   financialAccountId: string,
   year: number,

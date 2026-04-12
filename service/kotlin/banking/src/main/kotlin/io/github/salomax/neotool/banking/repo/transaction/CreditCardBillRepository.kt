@@ -17,6 +17,7 @@ interface CreditCardBillRepository {
 
     fun findByClosingDate(
         financialAccountId: UUID,
+        accountId: UUID,
         closingDate: LocalDate,
     ): CreditCardBill?
 

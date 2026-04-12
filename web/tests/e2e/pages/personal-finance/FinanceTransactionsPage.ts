@@ -7,6 +7,7 @@
  */
 
 import { Page, Locator, expect } from '@playwright/test';
+import { navigateFinanceTransactionsToMonth } from '../../helpers/finance-transactions-e2e';
 import { MonthSummarySection } from './MonthSummarySection';
 import { TransactionTablePage } from './TransactionTablePage';
 import { CreateAccountDrawer } from './CreateAccountDrawer';
@@ -58,6 +59,10 @@ export class FinanceTransactionsPage {
     // .last() targets the popover item — .first() would be the trigger, covered by the backdrop.
     await this.page.getByText(accountName, { exact: true }).last().click();
     await expect(this.page.getByTestId('account-selector')).toContainText(accountName);
+    await Promise.all([
+      this.summary.waitForMetricsReady(),
+      this.transactionTable.waitForLoad(),
+    ]);
   }
 
   /**
@@ -130,11 +135,27 @@ export class FinanceTransactionsPage {
   async goToPreviousMonth(): Promise<void> {
     await this.page.getByTestId('btn-prev-month').click();
     await this.summary.waitForLoad();
+    await Promise.all([
+      this.summary.waitForMetricsReady(),
+      this.transactionTable.waitForLoad(),
+    ]);
   }
 
   async goToNextMonth(): Promise<void> {
     await this.page.getByTestId('btn-next-month').click();
     await this.summary.waitForLoad();
+    await Promise.all([
+      this.summary.waitForMetricsReady(),
+      this.transactionTable.waitForLoad(),
+    ]);
+  }
+
+  /**
+   * Aligns the carousel with a calendar month (page is expected to start on today’s month after `goto`).
+   * @see navigateFinanceTransactionsToMonth in `helpers/finance-transactions-e2e.ts`
+   */
+  async navigateToCalendarMonth(target: { year: number; month: number }): Promise<void> {
+    await navigateFinanceTransactionsToMonth(this, target);
   }
 
   // ── Transactions ────────────────────────────────────────────────────────────

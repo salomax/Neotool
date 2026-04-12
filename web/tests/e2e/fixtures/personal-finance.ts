@@ -7,6 +7,12 @@
  * - No DELETE_FINANCIAL_ACCOUNT mutation exists — test data accumulates in the test
  *   environment. Accounts are named with unique timestamps to avoid collisions.
  * - twoTenants creates two isolated users for cross-tenant security tests.
+ *
+ * Initial balance date:
+ * - `bankAccount` sets `initialBalanceDate` to **today** (via banking-graphql). GraphQL
+ *   `createTransaction` rejects dates before that. Tests that post to **last month** or **day 1
+ *   of this month** when today is later must use `createFinancialAccount({ …, initialBalanceDate })`
+ *   on or before those dates (see `transactions.e2e.spec.ts` header and monthly-summary helpers).
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
@@ -16,9 +22,13 @@ import { buildAuthStorageState } from '../helpers/storage-state';
 import {
   createFinancialAccount,
   createTransaction,
+  CreditDebitType,
   deleteTransaction,
   FinancialAccount,
   Transaction,
+  today,
+  TransactionStatus,
+  TransactionType,
 } from '../helpers/banking-graphql';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -67,10 +77,6 @@ function uniqueEmail(): string {
   return `pf-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@test.neotool.com`;
 }
 
-function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
-}
-
 async function createPfUser(): Promise<PfUser> {
   const email = uniqueEmail();
   const password = 'TestPassword123!';
@@ -101,7 +107,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async (_args, use) => {
+    async ({}, use) => {
       const user = await createPfUser();
       await use(user);
     },
@@ -111,6 +117,8 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
   /**
    * BANK / CONTA_CORRENTE account with R$ 1.000 initial balance.
    * Created fresh per test so tests don't share transaction state.
+   * `initialBalanceDate` defaults to today (see banking-graphql) — use a custom account for UI/API
+   * tests that need transaction dates before today.
    */
   bankAccount: async ({ pfUser }, use) => {
     const account = await createFinancialAccount(
@@ -153,10 +161,10 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
         financialAccountId: bankAccount.id,
         description: uniqueName('Despesa E2E'),
         amount: 100.0,
-        creditDebitType: 'DEBIT',
-        type: 'EXPENSE',
-        status: 'POSTED',
-        date: todayIso(),
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.OtherExpense,
+        status: TransactionStatus.Posted,
+        date: today(),
       },
       pfUser.token
     );
@@ -176,10 +184,10 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
         financialAccountId: bankAccount.id,
         description: uniqueName('Receita E2E'),
         amount: 500.0,
-        creditDebitType: 'CREDIT',
-        type: 'SALARY',
-        status: 'POSTED',
-        date: todayIso(),
+        creditDebitType: CreditDebitType.Credit,
+        type: TransactionType.Salary,
+        status: TransactionStatus.Posted,
+        date: today(),
       },
       pfUser.token
     );

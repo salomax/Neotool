@@ -246,10 +246,13 @@ open class MonthSummaryQueryService(
      *
      * Algorithm:
      * 1. Resolve the current month's snapshot as the anchor closing balance.
-     * 2. For each intermediate future month (current+1 until requested-1), project the balance
-     *    forward by adding FUTURE credits and subtracting FUTURE debits.
-     * 3. Use the resulting balance as openingBalance for the requested month.
-     * 4. Compute projectedClosingBalance = openingBalance + requested month's FUTURE totals.
+     * 2. For each intermediate future month (current+1 until requested-1), step the balance forward
+     *    using POSTED/PENDING net (totalCredit − totalDebit) plus FUTURE net, same as a real snapshot chain.
+     * 3. [openingBalance] for the requested month is the balance after those intermediate steps.
+     * 4. [closingBalance] = openingBalance + requested month's POSTED/PENDING net.
+     * 5. [totalIncome] / [totalExpenses] combine POSTED/PENDING and FUTURE buckets (matches how users see
+     *    “next month” after posting a dated transaction or planning FUTURE rows).
+     * 6. [projectedClosingBalance] = closingBalance + requested month's FUTURE credit/debit (when any).
      *
      * No snapshot rows are created or persisted for future months.
      */
@@ -280,35 +283,47 @@ open class MonthSummaryQueryService(
                     cursor.year,
                     cursor.monthValue,
                 )
+            openingBalance += intermediateTotals.totalCredit - intermediateTotals.totalDebit
             openingBalance += intermediateTotals.totalFutureCredit - intermediateTotals.totalFutureDebit
             cursor = cursor.plusMonths(1)
         }
 
-        // Totals for the requested future month
         val txTotals = transactionRepository.getMonthTotals(financialAccountId, year, month)
+        val transferTotals = transactionRepository.getMonthTransferTotals(financialAccountId, year, month)
+
+        val monthClosingBalance = openingBalance + txTotals.totalCredit - txTotals.totalDebit
 
         val projectedClosingBalance =
             if (txTotals.totalFutureCredit > BigDecimal.ZERO || txTotals.totalFutureDebit > BigDecimal.ZERO) {
-                openingBalance + txTotals.totalFutureCredit - txTotals.totalFutureDebit
+                monthClosingBalance + txTotals.totalFutureCredit - txTotals.totalFutureDebit
             } else {
                 null
             }
 
+        val expensesByCategory =
+            getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.EXPENSE)
+        val incomeByCategory =
+            getCategoryBreakdown(accountId, financialAccountId, year, month, CategoryApplicableTo.INCOME)
+        val tagsSummary = getTagBreakdown(accountId, financialAccountId, year, month, null)
+
+        val totalIncome = txTotals.totalIncome + txTotals.totalFutureIncome
+        val totalExpenses = txTotals.totalExpenses + txTotals.totalFutureExpenses
+
         return MonthSummary(
             year = year,
             month = month,
-            totalIncome = txTotals.totalFutureIncome,
-            totalExpenses = txTotals.totalFutureExpenses,
-            closingBalance = openingBalance,
+            totalIncome = totalIncome,
+            totalExpenses = totalExpenses,
+            closingBalance = monthClosingBalance,
             openingBalance = openingBalance,
-            transfersIn = BigDecimal.ZERO,
-            transfersOut = BigDecimal.ZERO,
+            transfersIn = transferTotals.transfersIn,
+            transfersOut = transferTotals.transfersOut,
             projectedClosingBalance = projectedClosingBalance,
             isCurrentMonth = false,
             isFutureMonth = true,
-            expensesByCategory = emptyList(),
-            incomeByCategory = emptyList(),
-            tagsSummary = emptyList(),
+            expensesByCategory = expensesByCategory,
+            incomeByCategory = incomeByCategory,
+            tagsSummary = tagsSummary,
         )
     }
 
@@ -364,8 +379,12 @@ open class MonthSummaryQueryService(
         }
 
         val earliestTransactionDate = transactionRepository.findEarliestTransactionDate(financialAccountId)
-        return earliestTransactionDate
-            ?.let { YearMonth.of(it.year, it.monthValue) }
-            ?: requestedYearMonth
+        val earliestYm =
+            earliestTransactionDate?.let { YearMonth.of(it.year, it.monthValue) }
+                ?: return requestedYearMonth
+        // If the user asks for a month before any transaction (e.g. last month while the account
+        // only has activity this month), we must still materialize that month. Starting the chain
+        // at earliestYm alone would skip the requested month and leave findByYearMonth null.
+        return minOf(requestedYearMonth, earliestYm)
     }
 }

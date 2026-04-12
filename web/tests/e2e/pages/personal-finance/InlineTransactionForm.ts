@@ -8,7 +8,8 @@
  * - No `status` field exposed → transactions created via UI default to POSTED on the backend.
  * - No `type` field exposed → always defaults to OtherExpense for creation.
  * - `creditDebitType` accepts DEBIT | CREDIT | TRANSFER (TRANSFER is a UI shortcut).
- * - Date window: minDate = today - 10 years. Dates before this show an error message.
+ * - Date window: minDate = today − 10 years, maxDate = today. Dates before min or after max
+ *   show validation helper text; save stays disabled until the date is valid.
  * - Save button is disabled when: amount is empty, description is empty, date is invalid, or
  *   date is outside the allowed window.
  * - The form auto-focuses the description field when opened.
@@ -16,8 +17,10 @@
  */
 
 import { Page, Locator, expect } from "@playwright/test";
+import { CreditDebitType } from "../../helpers/banking-schema-enums";
 
-export type CreditDebitTypeOption = "DEBIT" | "CREDIT" | "TRANSFER";
+/** GraphQL credit/debit plus UI-only TRANSFER shortcut. */
+export type CreditDebitTypeOption = CreditDebitType | "TRANSFER";
 
 export class InlineTransactionForm {
   private readonly form: Locator;
@@ -30,8 +33,9 @@ export class InlineTransactionForm {
     await this.form.waitFor({ state: "visible" });
   }
 
+  /** Waits until the inline form is gone (collapse / unmount). */
   async waitForClose(): Promise<void> {
-    await this.form.waitFor({ state: "hidden" });
+    await expect(this.form).not.toBeVisible({ timeout: 20_000 });
   }
 
   // ── Field interactions ──────────────────────────────────────────────────────
@@ -45,10 +49,11 @@ export class InlineTransactionForm {
     const listbox = this.page.getByRole("listbox");
     await listbox.waitFor({ state: "visible" });
 
+    // Labels follow i18n: pt uses Despesa/Receita/Transferência; en uses Debit/Credit/Transfer.
     const labelMap: Record<CreditDebitTypeOption, RegExp> = {
-      DEBIT: /débit|debit/i,
-      CREDIT: /crédit|credit/i,
-      TRANSFER: /transf/i,
+      [CreditDebitType.Debit]: /débit|debit|despesa/i,
+      [CreditDebitType.Credit]: /crédit|credit|receita/i,
+      TRANSFER: /transf|transferência/i,
     };
     await listbox.getByRole("option", { name: labelMap[type] }).click();
     await listbox.waitFor({ state: "hidden" });
@@ -76,13 +81,17 @@ export class InlineTransactionForm {
   /**
    * Sets the date using the MUI DatePicker text input.
    * Expects dateStr in the locale format: DD/MM/YYYY for pt-BR.
+   *
+   * InlineTransactionForm uses `enableAccessibleFieldDOMStructure={false}` so the field is a
+   * normal TextField input; typing must flow through MUI’s field pipeline to update save state.
+   *
+   * Inline form uses `disableOpenPicker` (type-only). Tab commits focus like a normal TextField.
    */
   async setDate(dateStr: string): Promise<void> {
     const input = this.form.getByTestId("tx-date-input");
     await input.click();
-    await input.selectAll();
     await input.fill(dateStr);
-    await input.press("Enter");
+    await input.press("Tab");
   }
 
   /**
@@ -96,7 +105,10 @@ export class InlineTransactionForm {
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async save(): Promise<void> {
-    await this.form.getByTestId("tx-save-btn").click();
+    const saveBtn = this.form.getByTestId("tx-save-btn");
+    await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click();
   }
 
   async cancel(): Promise<void> {
@@ -139,7 +151,10 @@ export class InlineTransactionForm {
     date?: string; // YYYY-MM-DD
   }): Promise<void> {
     await this.waitForOpen();
-    if (params.creditDebitType && params.creditDebitType !== "DEBIT") {
+    if (
+      params.creditDebitType &&
+      params.creditDebitType !== CreditDebitType.Debit
+    ) {
       await this.selectCreditDebitType(params.creditDebitType);
     }
     await this.fillDescription(params.description);
@@ -147,7 +162,28 @@ export class InlineTransactionForm {
     if (params.date) {
       await this.setDate(InlineTransactionForm.formatDateBr(params.date));
     }
+    const responsePromise = this.page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST") return false;
+        if (!/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return body.includes("CreateTransaction") && body.includes("mutation");
+      },
+      { timeout: 30_000 },
+    );
     await this.save();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      throw new Error(`CreateTransaction HTTP ${response.status()}`);
+    }
+    const payload = (await response.json()) as { errors?: { message?: string }[] };
+    if (payload.errors?.length) {
+      throw new Error(
+        `CreateTransaction GraphQL: ${payload.errors.map((e) => e.message ?? JSON.stringify(e)).join("; ")}`,
+      );
+    }
+    await this.waitForClose();
   }
 
   async selectAnyCategory(): Promise<void> {

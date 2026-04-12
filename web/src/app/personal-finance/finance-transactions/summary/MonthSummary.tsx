@@ -100,6 +100,8 @@ interface SummaryMetricRowProps {
   dimmed?: boolean;
   onActivate?: () => void;
   testId?: string;
+  /** E2E: amount-only test id (`tests/e2e/helpers/currency-dom.ts`); parent `testId` wraps label + % + value. */
+  amountTestId?: string;
 }
 
 const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
@@ -114,6 +116,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
   dimmed = false,
   onActivate,
   testId,
+  amountTestId,
 }) => {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -189,7 +192,11 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
             )}
           </Stack>
         </Box>
-        <Typography variant="subtitle2" sx={{ fontWeight: 700, color: dimmed ? disabledFg : color }}>
+        <Typography
+          variant="subtitle2"
+          data-testid={amountTestId}
+          sx={{ fontWeight: 700, color: dimmed ? disabledFg : color }}
+        >
           {isLoading ? <Skeleton width={88} height={22} /> : formatCurrency(value || 0)}
         </Typography>
       </Box>
@@ -763,6 +770,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Credit) : undefined
           }
           testId="month-summary-total-income"
+          amountTestId="month-summary-total-income-amount"
         />
         <SummaryMetricRow
           icon={<ExpenseIcon />}
@@ -778,6 +786,7 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Debit) : undefined
           }
           testId="month-summary-total-expenses"
+          amountTestId="month-summary-total-expenses-amount"
         />
       </Stack>
 

@@ -309,7 +309,7 @@ export function FinanceTransactionsHeaderBar({
                 transition: actionButtonsRevealStartIconTransition,
               },
               '& .MuiInputAdornment-positionEnd': {
-                ml: 0.5,
+                ml: 0,
                 transition: actionButtonsRevealEndIconTransition,
                 opacity: 0,
                 maxWidth: 0,
@@ -329,7 +329,7 @@ export function FinanceTransactionsHeaderBar({
                 justifyContent: 'flex-start',
               },
               '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd': {
-                ml: 1,
+                ml: -3,
                 opacity: 1,
                 maxWidth: 240,
               },

@@ -19,8 +19,9 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         accountId: UUID,
     ): CreditCardBillEntity?
 
-    fun findByFinancialAccountIdAndClosingDateAndDeletedAtIsNull(
+    fun findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
         financialAccountId: UUID,
+        accountId: UUID,
         closingDate: LocalDate,
     ): CreditCardBillEntity?
 

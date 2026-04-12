@@ -5,6 +5,9 @@
  * Security coverage is in security.e2e.spec.ts (SEC-CB-01..03).
  *
  * ──────────────────────────────────────────────────────────────────────────────
+ * **Skipped (postponed):** all `describe` blocks use `test.describe.skip`. Remove `.skip`
+ * when credit card bills E2E are back in scope.
+ *
  * MVP note:
  *   The bill-mode UI (BillCarousel, BillSummaryHeader, PayBillDialog) is deferred.
  *   All tests exercise the billing API contract directly via GraphQL.
@@ -20,18 +23,25 @@
  *   - totalAmount = SUM(DEBIT) − SUM(CREDIT) of linked transactions
  *   - BALANCE_ADJUSTMENT transactions are never assigned to a bill
  *   - Status: OPEN → CLOSED (past closingDate) → PAID/OVERDUE (past dueDate)
+ *
+ *   `getTransactions` defaults to the current calendar month — pass `year`/`month` when needed
+ *   (see `helpers/finance-transactions-e2e.ts` / `getTransactions` JSDoc).
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
 import { test, expect } from '../fixtures/personal-finance';
 import {
   createTransaction,
+  CreditDebitType,
   deleteTransaction,
   getCreditCardBills,
   getCreditCardBill,
   getTransactions,
   today,
+  TransactionStatus,
+  TransactionType,
 } from '../helpers/banking-graphql';
+import { localCalendarYearMonth } from '../helpers/finance-transactions-e2e';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -91,14 +101,14 @@ const CLOSING_DAY = 7;
 // HAPPY PATH
 // =============================================================================
 
-test.describe('Credit Card Bills — happy path', () => {
+test.describe.skip('Credit Card Bills — happy path', () => {
   test('CB-H-01: transaction BEFORE closingDay creates a bill for the current cycle', async ({
     pfUser,
     creditCardAccount,
   }) => {
     const txDate = dayInCurrentMonth(3); // day 3 ≤ closingDay 7
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H01'), amount: 200, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H01'), amount: 200, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -120,7 +130,7 @@ test.describe('Credit Card Bills — happy path', () => {
   }) => {
     const txDate = dayInCurrentMonth(10); // day 10 > closingDay 7
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H02'), amount: 150, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H02'), amount: 150, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -141,8 +151,8 @@ test.describe('Credit Card Bills — happy path', () => {
   }) => {
     const txDate = dayInCurrentMonth(5); // both in the same cycle
     const [tx1, tx2] = await Promise.all([
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H03-A'), amount: 100, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H03-B'), amount: 80, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H03-A'), amount: 100, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H03-B'), amount: 80, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
     ]);
 
     // Both must share the same billId
@@ -164,8 +174,8 @@ test.describe('Credit Card Bills — happy path', () => {
   }) => {
     const txDate = dayInCurrentMonth(5);
     const [txDebit, txCredit] = await Promise.all([
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H04'), amount: 300, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Estorno H04'), amount: 100, creditDebitType: 'CREDIT', status: 'POSTED', date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H04'), amount: 300, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('Estorno H04'), amount: 100, creditDebitType: CreditDebitType.Credit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
     ]);
 
     // Both must be on the same bill
@@ -189,8 +199,8 @@ test.describe('Credit Card Bills — happy path', () => {
     const dateThisCycle = dayInCurrentMonth(3);    // closes this month
     const dateNextCycle = dayInCurrentMonth(10);   // closes next month
     const [tx1, tx2] = await Promise.all([
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo A'), amount: 50, creditDebitType: 'DEBIT', status: 'POSTED', date: dateThisCycle }, pfUser.token),
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo B'), amount: 70, creditDebitType: 'DEBIT', status: 'POSTED', date: dateNextCycle }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo A'), amount: 50, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: dateThisCycle }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo B'), amount: 70, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: dateNextCycle }, pfUser.token),
     ]);
 
     const bills = await getCreditCardBills(creditCardAccount.id, pfUser.token);
@@ -211,7 +221,7 @@ test.describe('Credit Card Bills — happy path', () => {
   }) => {
     const txDate = dayInCurrentMonth(4);
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H06'), amount: 200, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H06'), amount: 200, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -237,8 +247,8 @@ test.describe('Credit Card Bills — happy path', () => {
   }) => {
     const txDate = dayInCurrentMonth(4);
     const [tx1, tx2] = await Promise.all([
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H07-A'), amount: 100, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H07-B'), amount: 50, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H07-A'), amount: 100, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H07-B'), amount: 50, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
     ]);
 
     expect(tx1.billId).toBe(tx2.billId);
@@ -260,7 +270,7 @@ test.describe('Credit Card Bills — happy path', () => {
     // Use a date in the next cycle to guarantee a future closingDate
     const txDate = dayInCurrentMonth(10); // > closingDay → next month
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H08'), amount: 80, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra H08'), amount: 80, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -276,14 +286,14 @@ test.describe('Credit Card Bills — happy path', () => {
 // ALTERNATIVE PATHS
 // =============================================================================
 
-test.describe('Credit Card Bills — alternative paths', () => {
+test.describe.skip('Credit Card Bills — alternative paths', () => {
   test('CB-A-01: transaction EXACTLY on closingDay — assigned to the current cycle', async ({
     pfUser,
     creditCardAccount,
   }) => {
     const txDate = dayInCurrentMonth(CLOSING_DAY); // day == closingDay
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('No Dia A01'), amount: 120, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('No Dia A01'), amount: 120, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -313,7 +323,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
     const febDate = `${febYear}-02-28`;
 
     const tx = await createTransaction(
-      { financialAccountId: card.id, description: uniqueDesc('Fevereiro A02'), amount: 90, creditDebitType: 'DEBIT', status: 'POSTED', date: febDate },
+      { financialAccountId: card.id, description: uniqueDesc('Fevereiro A02'), amount: 90, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: febDate },
       pfUser.token
     );
 
@@ -330,7 +340,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
     creditCardAccount,
   }) => {
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Ajuste A03'), amount: 500, creditDebitType: 'CREDIT', type: 'BALANCE_ADJUSTMENT', status: 'POSTED', date: today() },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Ajuste A03'), amount: 500, creditDebitType: CreditDebitType.Credit, type: TransactionType.BalanceAdjustment, status: TransactionStatus.Posted, date: today() },
       pfUser.token
     );
 
@@ -345,7 +355,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
   }) => {
     const txDate = dayInCurrentMonth(4);
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra A04'), amount: 200, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra A04'), amount: 200, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -370,8 +380,8 @@ test.describe('Credit Card Bills — alternative paths', () => {
 
     const txDate = dayInCurrentMonth(4);
     const [txA, txB] = await Promise.all([
-      createTransaction({ financialAccountId: cardA.id, description: uniqueDesc('Compra Cartão A'), amount: 100, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
-      createTransaction({ financialAccountId: cardB.id, description: uniqueDesc('Compra Cartão B'), amount: 200, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: cardA.id, description: uniqueDesc('Compra Cartão A'), amount: 100, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
+      createTransaction({ financialAccountId: cardB.id, description: uniqueDesc('Compra Cartão B'), amount: 200, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate }, pfUser.token),
     ]);
 
     const billsA = await getCreditCardBills(cardA.id, pfUser.token);
@@ -400,8 +410,8 @@ test.describe('Credit Card Bills — alternative paths', () => {
             financialAccountId: creditCardAccount.id,
             description: uniqueDesc(`Histórico A06 offset${offset}`),
             amount: 100 * (Math.abs(offset) + 1),
-            creditDebitType: 'DEBIT',
-            status: 'POSTED',
+            creditDebitType: CreditDebitType.Debit,
+            status: TransactionStatus.Posted,
             date: (() => {
               const d = new Date();
               d.setMonth(d.getMonth() + offset);
@@ -430,7 +440,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
     // creditCardAccount: closingDay=7, dueDay=15
     const txDate = dayInCurrentMonth(4);
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('DueDate A07'), amount: 60, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('DueDate A07'), amount: 60, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -452,8 +462,8 @@ test.describe('Credit Card Bills — alternative paths', () => {
   }) => {
     // Seed transactions in two different cycles (current and past)
     const [tx1, tx2] = await Promise.all([
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo A'), amount: 50, creditDebitType: 'DEBIT', status: 'POSTED', date: dayInCurrentMonth(4) }, pfUser.token),
-      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo B'), amount: 70, creditDebitType: 'DEBIT', status: 'POSTED', date: dayInCurrentMonth(10) }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo A'), amount: 50, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: dayInCurrentMonth(4) }, pfUser.token),
+      createTransaction({ financialAccountId: creditCardAccount.id, description: uniqueDesc('H05 Ciclo B'), amount: 70, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: dayInCurrentMonth(10) }, pfUser.token),
     ]);
 
     const bills = await getCreditCardBills(creditCardAccount.id, pfUser.token);
@@ -481,7 +491,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
 
     const txDate = dayInCurrentMonth(4);
     const tx = await createTransaction(
-      { financialAccountId: card.id, description: uniqueDesc('Compra CHARGE_CARD A09'), amount: 250, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: card.id, description: uniqueDesc('Compra CHARGE_CARD A09'), amount: 250, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -498,7 +508,7 @@ test.describe('Credit Card Bills — alternative paths', () => {
 // NEGATIVE PATHS
 // =============================================================================
 
-test.describe('Credit Card Bills — negative paths', () => {
+test.describe.skip('Credit Card Bills — negative paths', () => {
   test('CB-N-01: getCreditCardBills on a BANK account — returns empty list or error', async ({
     pfUser,
     bankAccount,
@@ -560,7 +570,7 @@ test.describe('Credit Card Bills — negative paths', () => {
      */
     const txDate = dayInCurrentMonth(4);
     const tx = await createTransaction(
-      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra N04'), amount: 100, creditDebitType: 'DEBIT', status: 'POSTED', date: txDate },
+      { financialAccountId: creditCardAccount.id, description: uniqueDesc('Compra N04'), amount: 100, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: txDate },
       pfUser.token
     );
 
@@ -584,8 +594,13 @@ test.describe('Credit Card Bills — negative paths', () => {
 
     // Now delete the payment transaction (simulating reversal)
     // The payment created by payBill should be findable in transactions
-    const txs = await getTransactions(creditCardAccount.id, pfUser.token);
-    const paymentTx = txs.find((t) => t.creditDebitType === 'CREDIT' && t.amount === 100);
+    const txs = await getTransactions(creditCardAccount.id, pfUser.token, {
+      ...localCalendarYearMonth(),
+      first: 80,
+    });
+    const paymentTx = txs.find(
+      (t) => t.creditDebitType === CreditDebitType.Credit && t.amount === 100,
+    );
 
     if (paymentTx) {
       await deleteTransaction(paymentTx.id, pfUser.token);

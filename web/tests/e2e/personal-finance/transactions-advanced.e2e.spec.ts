@@ -15,18 +15,24 @@
  *   TX-A-14: SimilarEditDialog is triggered during an update when description/
  *     category/tags change and other similar imported transactions exist.
  *   TX-A-16: Credit card transaction must be assigned a billId automatically.
+ *   Use `getTransactions(..., { year, month, first })` for the transaction’s calendar month
+ *   (see `helpers/finance-transactions-e2e.ts` / `getTransactions` JSDoc).
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
 import { test, expect } from "../fixtures/personal-finance";
 import {
   createTransaction,
+  CreditDebitType,
   deleteTransaction,
   getMonthSummary,
   getTransactions,
   getCreditCardBills,
   today,
+  TransactionStatus,
+  TransactionType,
 } from "../helpers/banking-graphql";
+import { localCalendarYearMonth } from "../helpers/finance-transactions-e2e";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -54,8 +60,8 @@ test("TX-A-09: edit amount to a lower value — closingBalance increases accordi
       financialAccountId: bankAccount.id,
       description: uniqueDesc("Editar Valor A09"),
       amount: 500,
-      creditDebitType: "DEBIT",
-      status: "POSTED",
+      creditDebitType: CreditDebitType.Debit,
+      status: TransactionStatus.Posted,
       date: today(),
     },
     pfUser.token,
@@ -131,9 +137,9 @@ test("TX-A-12: creating an installment transaction generates entries for each in
         financialAccountId: creditCardAccount.id,
         description: uniqueDesc("Parcelamento A12"),
         amount: 100,
-        creditDebitType: "DEBIT",
-        type: "CARD",
-        status: "POSTED",
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.Card,
+        status: TransactionStatus.Posted,
         date: today(),
         installments: 3,
       },
@@ -155,7 +161,11 @@ test("TX-A-12: creating an installment transaction generates entries for each in
   expect(tx.installmentNumber).toBe(1);
 
   // Fetch all transactions for this account and verify 3 installments exist
-  const txs = await getTransactions(creditCardAccount.id, pfUser.token);
+  const ym = localCalendarYearMonth();
+  const txs = await getTransactions(creditCardAccount.id, pfUser.token, {
+    ...ym,
+    first: 80,
+  });
   const installments = txs.filter(
     (t) =>
       t.description.includes("Parcelamento A12") ||
@@ -187,8 +197,8 @@ test("TX-A-13: deleting one installment does not affect the remaining installmen
         financialAccountId: creditCardAccount.id,
         description: `${desc} 1/2`,
         amount: 150,
-        creditDebitType: "DEBIT",
-        status: "POSTED",
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
         date: today(),
       },
       pfUser.token,
@@ -198,8 +208,8 @@ test("TX-A-13: deleting one installment does not affect the remaining installmen
         financialAccountId: creditCardAccount.id,
         description: `${desc} 2/2`,
         amount: 150,
-        creditDebitType: "DEBIT",
-        status: "POSTED",
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
         date: today(),
       },
       pfUser.token,
@@ -228,7 +238,11 @@ test("TX-A-13: deleting one installment does not affect the remaining installmen
   expect(after.totalExpenses).toBeCloseTo(before.totalExpenses - 150, 2);
 
   // Second installment still exists
-  const txs = await getTransactions(creditCardAccount.id, pfUser.token);
+  const txs = await getTransactions(creditCardAccount.id, pfUser.token, {
+    year,
+    month,
+    first: 80,
+  });
   expect(txs.some((t) => t.id === tx2.id)).toBe(true);
 
   await deleteTransaction(tx2.id, pfUser.token);
@@ -263,8 +277,8 @@ test("TX-A-16: transaction in a credit card account is automatically assigned to
       financialAccountId: creditCardAccount.id,
       description: uniqueDesc("Compra Cartão A16"),
       amount: 120,
-      creditDebitType: "DEBIT",
-      status: "POSTED",
+      creditDebitType: CreditDebitType.Debit,
+      status: TransactionStatus.Posted,
       date: today(),
     },
     pfUser.token,
@@ -311,8 +325,8 @@ test("TX-N-09: deleting an already-deleted transaction via GraphQL returns an er
       financialAccountId: bankAccount.id,
       description: uniqueDesc("Double Delete N09"),
       amount: 50,
-      creditDebitType: "DEBIT",
-      status: "POSTED",
+      creditDebitType: CreditDebitType.Debit,
+      status: TransactionStatus.Posted,
       date: today(),
     },
     pfUser.token,

@@ -1092,12 +1092,11 @@ export function TransactionTable({
                         <InlineTransactionForm
                           isOpen={isEditFormOpen && !isDeleting}
                           onClose={() => setIsEditFormOpen(false)}
-                          onSuccess={() => {
-                            setIsEditFormOpen(false);
-                            if (onSuccessCreate) onSuccessCreate();
+                          onSuccess={async () => {
+                            await onSuccessCreate?.();
                           }}
                           onRefresh={() => {
-                            if (onSuccessCreate) onSuccessCreate();
+                            void onSuccessCreate?.();
                           }}
                           selectedAccountId={selectedAccountId}
                           initialValues={transaction}

@@ -201,18 +201,20 @@ export default function FinanceTransactionsPage() {
   // --- Refetch helpers ---
   const refetchBills = displayMode.kind === 'bill' ? displayMode.refetchBills : null;
 
-  const refetchSummary = useCallback(() => {
+  const refetchSummary = useCallback(async () => {
     if (displayMode.kind === 'calendar') {
-      refetchMonthSummary();
+      await refetchMonthSummary();
       return;
     }
-    refetchBills?.();
+    await Promise.resolve(refetchBills?.());
   }, [displayMode.kind, refetchBills, refetchMonthSummary]);
 
   const refreshAfterImport = useCallback(() => {
-    if (canQueryTransactions) refetchTransactions();
-    if (effectiveSelectedAccountId) refetchImports();
-    refetchSummary();
+    void (async () => {
+      if (canQueryTransactions) await refetchTransactions();
+      if (effectiveSelectedAccountId) await refetchImports();
+      await refetchSummary();
+    })();
   }, [canQueryTransactions, effectiveSelectedAccountId, refetchImports, refetchSummary, refetchTransactions]);
 
   useOnTransactionsImported(refreshAfterImport);
@@ -245,8 +247,10 @@ export default function FinanceTransactionsPage() {
   }, []);
 
   const handleAccountCreated = useCallback(() => {
-    refetchFinancialAccounts();
-    refetchSummary();
+    void (async () => {
+      await refetchFinancialAccounts();
+      await refetchSummary();
+    })();
   }, [refetchFinancialAccounts, refetchSummary]);
 
   // --- Import drawers ---
@@ -303,9 +307,8 @@ export default function FinanceTransactionsPage() {
   const handleClosePayBillDialog = useCallback(() => setIsPayBillDialogOpen(false), []);
   const handleCancelCreate = useCallback(() => setIsCreatingTransaction(false), []);
 
-  const handleSuccessCreate = useCallback(() => {
-    refetchTransactions();
-    refetchSummary();
+  const handleSuccessCreate = useCallback(async () => {
+    await Promise.all([refetchTransactions(), refetchSummary()]);
   }, [refetchTransactions, refetchSummary]);
 
   const handlePayBillSuccess = useCallback(() => {

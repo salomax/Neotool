@@ -13,6 +13,7 @@ import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import java.util.UUID
 
 @DisplayName("BankingGraphQLExceptionHandler Tests")
 class BankingGraphQLExceptionHandlerTest {
@@ -60,6 +61,45 @@ class BankingGraphQLExceptionHandlerTest {
         assertThat(error.extensions["code"]).isEqualTo(CommonErrorCode.INVALID_INPUT.code)
         assertThat(error.extensions["service"]).isEqualTo("banking")
         assertThat(error.message).doesNotContain("raw parser details")
+    }
+
+    @Test
+    fun `maps NoSuchElementException to RESOURCE_NOT_FOUND without leaking id`() {
+        val result = handle(NoSuchElementException("Transaction deadbeef not found"))
+        val error = result.errors.single()
+
+        assertThat(error.message).isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.defaultMessage)
+        assertThat(error.extensions["code"]).isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.code)
+        assertThat(error.extensions["service"]).isEqualTo("banking")
+        assertThat(error.message).doesNotContain("deadbeef")
+    }
+
+    @Test
+    fun `maps NoSuchElementException when wrapped by runtime or completion failure`() {
+        val wrappedRuntime =
+            handle(RuntimeException("outer", NoSuchElementException("Transaction deadbeef not found")))
+        assertThat(wrappedRuntime.errors.single().extensions["code"])
+            .isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.code)
+
+        val wrappedCompletion =
+            handle(
+                java.util.concurrent.CompletionException(
+                    NoSuchElementException("missing"),
+                ),
+            )
+        assertThat(wrappedCompletion.errors.single().extensions["code"])
+            .isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.code)
+    }
+
+    @Test
+    fun `maps transaction not found text in cause chain when wrapper type is unknown`() {
+        val inner = Exception("Transaction ${UUID.randomUUID()} not found")
+        val result = handle(RuntimeException("wrapped", inner))
+        val error = result.errors.single()
+
+        assertThat(error.message).isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.defaultMessage)
+        assertThat(error.extensions["code"]).isEqualTo(CommonErrorCode.RESOURCE_NOT_FOUND.code)
+        assertThat(error.extensions["service"]).isEqualTo("banking")
     }
 
     @Test

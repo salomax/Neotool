@@ -2,7 +2,7 @@
 
 **Service:** Invistus Banking Service
 **Module:** Personal Finance — Transactions
-**Document date:** 2026-04-10
+**Document date:** 2026-04-11
 
 ---
 
@@ -29,6 +29,7 @@ The current web UI does not expose the full backend surface for transactions. Th
 
 - Manual inline create/edit does **not** expose `status`; UI-created rows land as `POSTED`.
 - Manual inline create/edit does **not** expose `type`; non-transfer manual entries follow the UI default expense type.
+- Manual inline create/edit **date picker**: rolling window from **today − 10 years** (start of day) through **today** (inclusive). Dates before the minimum show validation text; **future** calendar dates cannot be selected or saved from this form (client-side). The GraphQL API may still accept future posting dates for other flows (e.g. tests, integrations, or non-inline paths).
 - Installments, `BALANCE_ADJUSTMENT`, `PENDING`, and `FUTURE` still require GraphQL fixtures or import flows for deterministic coverage.
 - Transaction list filters are currently driven by **Month Summary interactions** (metric, category, and tag clicks) plus active filter chips, not by a dedicated standalone filter toolbar.
 - File import follows `account -> upload -> processing -> result | review | error`. There is no separate pre-import preview/confirm step for bank-file imports in the current drawer.
@@ -177,7 +178,9 @@ totalExpenses  = SUM(DEBIT)  WHERE type NOT IN (TRANSFER, BALANCE_ADJUSTMENT)
 
 ### 3.3 Date window
 
-Transactions must fall within a rolling 5-year past window (`DateWindowPolicy.MAX_PAST_YEARS = 5`). A transaction date before `today - 5 years` is rejected with error `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW`. Applies to both create and update. The frontend enforces the same window client-side. `BALANCE_ADJUSTMENT` transactions are exempt from the secondary check against the account's `initialBalanceDate`, but still subject to the 5-year window.
+**Past boundary (server + imports + aligned UI):** Transaction dates must not be before a rolling **10-year** lower bound (`DateWindowPolicy.MAX_PAST_YEARS = 10` in `DateWindowPolicy.kt`). A date strictly before `minAllowedDate` (reference “today” minus 10 years) is rejected with `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW`. This applies on create and update in `TransactionService`, and import rows outside the window are flagged (`DATE_OUTSIDE_ALLOWED_WINDOW`). `BALANCE_ADJUSTMENT` rows are still subject to this past window; they are only exempt from the separate rule in §3.4.
+
+**Today / future (API vs manual inline UI):** The banking service does **not** enforce “no future dates” for generic transaction create/update (future posting dates are allowed and used in scenarios such as `FUTURE` status). The **manual inline** form on `finance-transactions` additionally sets **`maxDate = today`** so users cannot pick or submit a future date from that surface; other clients may still send future dates if the product allows it elsewhere.
 
 ### 3.4 Date vs. initial balance date
 
@@ -248,7 +251,7 @@ Categories support at most two levels (root + one subcategory level). `parent_id
 **US-1 — Create a manual transaction**
 
 1. User opens inline form, selects direction, enters description, amount, date, optionally category and tags.
-2. System validates amount > 0, date within 5-year window, date >= account initial balance date.
+2. System validates amount > 0, date within the inline picker window (today − 10 years through today), then server validates past window (10 years) and date >= account initial balance date (except `BALANCE_ADJUSTMENT`).
 3. Resolves `belongs_to_user_id` to authenticated user if not specified.
 4. Skips transaction-rule auto-categorization because source is `MANUAL`.
 5. For CREDIT_CARD/CHARGE_CARD accounts, resolves and auto-creates the bill.
@@ -363,8 +366,9 @@ Frontend polls import job status via SSE (`/api/imports/{jobId}/stream`). Falls 
 | Field                                    | Rule                                                          | Error                                     |
 | ---------------------------------------- | ------------------------------------------------------------- | ----------------------------------------- |
 | `amount`                                 | Must be > 0                                                   | `"amount must be > 0"`                    |
-| `date`                                   | Within 5 years of today                                       | `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW` |
-| `date`                                   | >= account `initialBalanceDate` (except `BALANCE_ADJUSTMENT`) | `TRANSACTION_BEFORE_INITIAL_BALANCE`      |
+| `date`                                   | Not before rolling min (`today` − 10 years), per `DateWindowPolicy` | `TRANSACTION_DATE_OUTSIDE_ALLOWED_WINDOW` |
+| `date`                                   | Manual inline UI: not after today (picker + client validation)      | _(no submit; user-facing message)_        |
+| `date`                                   | >= account `initialBalanceDate` (except `BALANCE_ADJUSTMENT`)       | `TRANSACTION_BEFORE_INITIAL_BALANCE`      |
 | `installment_number`                     | >= 1, required with `total_installments`                      | Validation error                          |
 | `total_installments`                     | >= 1, required with `installment_number`                      | Validation error                          |
 | `installment_number`                     | <= `total_installments`                                       | Validation error                          |
