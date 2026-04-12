@@ -35,6 +35,10 @@
  *
  *   This file extends `bankAccount` with `initialBalanceDate: 2026-01-01` so March 2026 rows are not
  *   rejected when the default PF fixture’s opening date is “today” (e.g. April 2026).
+ *
+ *   Parallelism: `playwright.config` uses `fullyParallel: true`. Import tests hit long-running jobs and
+ *   the same worker-scoped `pfUser` as other PF specs; running them serially avoids cross-test contention
+ *   when executing `tests/e2e/personal-finance/` as a folder.
  */
 
 import path from "path";
@@ -71,6 +75,8 @@ const test = basePfTest.extend({
     await use(account);
   },
 });
+
+test.describe.configure({ mode: "serial" });
 
 // ── Paths to test fixture files ───────────────────────────────────────────────
 
@@ -146,12 +152,12 @@ async function signIntoPage(
  */
 async function openImportDrawer(
   page: import("@playwright/test").Page,
-  accountName: string,
+  account: { name: string; id: string },
 ) {
-  await waitForImportDrawerClosed(page, 5_000);
+  await waitForImportDrawerClosed(page, 15_000);
   const pfPage = new FinanceTransactionsPage(page);
   await pfPage.goto();
-  await pfPage.selectAccount(accountName);
+  await pfPage.selectAccount(account.name, account.id);
 
   await page.getByTestId("btn-open-import-drawer").click();
   await page.getByRole("menuitem", { name: /extrato|statement|bank/i }).click();
@@ -285,7 +291,7 @@ test.describe("Transaction Import — happy path", () => {
   }) => {
     await signIntoPage(page, pfUser.token);
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
@@ -322,7 +328,7 @@ test.describe("Transaction Import — happy path", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     const txsBefore = await getTransactions(
       bankAccount.id,
@@ -359,7 +365,7 @@ test.describe("Transaction Import — happy path", () => {
   }) => {
     await signIntoPage(page, pfUser.token);
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFile(page, OFX_VALID);
     await waitForImportComplete(page);
@@ -389,7 +395,7 @@ test.describe("Transaction Import — happy path", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     const txsBefore = await getTransactions(
       bankAccount.id,
@@ -421,7 +427,7 @@ test.describe("Transaction Import — happy path", () => {
     await signIntoPage(page, pfUser.token);
 
     // First import
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
     await resolveDuplicateReviewKeepingExisting(page);
@@ -431,7 +437,7 @@ test.describe("Transaction Import — happy path", () => {
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
 
     // Second import of the same file — should trigger duplicate review
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
     await resolveDuplicateReviewKeepingExisting(page);
@@ -496,7 +502,7 @@ test.describe("Transaction Import — happy path", () => {
     );
 
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
 
@@ -538,7 +544,7 @@ test.describe("Transaction Import — alternative paths", () => {
     // valid-transactions.csv has all transactions in March 2026
     // This verifies the summary for that specific month reflects the import
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
@@ -570,7 +576,7 @@ test.describe("Transaction Import — alternative paths", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
 
     await uploadFile(page, CSV_VALID);
@@ -618,7 +624,7 @@ test.describe("Transaction Import — alternative paths", () => {
 
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     // Upload the duplicate-FITID OFX as a blob
     await uploadFilePayload(page, {
@@ -663,7 +669,7 @@ test.describe("Transaction Import — alternative paths", () => {
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
 
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFilePayload(page, {
       name: "acentos.csv",
@@ -714,7 +720,7 @@ test.describe("Transaction Import — alternative paths", () => {
     const txsBefore = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
 
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
     await resolveDuplicateReviewKeepingExisting(page);
@@ -773,7 +779,7 @@ test.describe("Transaction Import — negative paths", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await page.getByTestId("import-transactions-file-input").setInputFiles({
       name: "document.txt",
@@ -801,7 +807,7 @@ test.describe("Transaction Import — negative paths", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFile(page, CSV_MALFORMED);
     await waitForImportComplete(page).catch(() => {});
@@ -818,7 +824,7 @@ test.describe("Transaction Import — negative paths", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFile(page, CSV_EMPTY);
     await waitForImportComplete(page).catch(() => {});
@@ -844,7 +850,7 @@ test.describe("Transaction Import — negative paths", () => {
     bankAccount,
   }) => {
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     // Create a 3.1 MB buffer
     const largeBuffer = Buffer.alloc(3.1 * 1024 * 1024, "a");
@@ -889,7 +895,7 @@ test.describe("Transaction Import — negative paths", () => {
     </BANKTRANLIST></STMTRS></STMTTRNRS></BANKMSGSRSV1></OFX>`;
 
     await signIntoPage(page, pfUser.token);
-    await openImportDrawer(page, bankAccount.name);
+    await openImportDrawer(page, bankAccount);
 
     await uploadFilePayload(page, {
       name: "bad-dates.ofx",

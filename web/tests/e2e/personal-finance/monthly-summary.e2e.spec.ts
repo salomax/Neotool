@@ -214,7 +214,7 @@ test.describe('Monthly Summary — happy path', () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     // Current month must NOT show the previous month transaction
     await pfPage.transactionTable.expectTransactionHidden(desc);
@@ -240,7 +240,7 @@ test.describe('Monthly Summary — happy path', () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.navigateToCalendarMonth(nextYM());
 

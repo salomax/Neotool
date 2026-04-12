@@ -156,7 +156,7 @@ test.describe('Financial Accounts — happy path', () => {
 
   test('FA-H-06: edits account name', async ({ page, pfUser, bankAccount }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
 
     const newName = uniqueName('Conta Editada H06');
@@ -244,10 +244,10 @@ test.describe('Financial Accounts — alternative paths', () => {
     await pfPage.expectAccountInSelector(creditCardAccount.name);
 
     // Selecting each should switch context without errors.
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     expect(await pfPage.getSelectedAccountName()).toContain(bankAccount.name);
 
-    await pfPage.selectAccount(creditCardAccount.name);
+    await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
     expect(await pfPage.getSelectedAccountName()).toContain(creditCardAccount.name);
   });
 
@@ -301,7 +301,7 @@ test.describe('Financial Accounts — alternative paths', () => {
     creditCardAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(creditCardAccount.name);
+    await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(creditCardAccount.name);
     await drawer.fillClosingDay(20);
@@ -492,7 +492,7 @@ test.describe('Financial Accounts — negative paths', () => {
     bankAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
 

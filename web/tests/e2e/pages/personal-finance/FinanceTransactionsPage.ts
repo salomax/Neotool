@@ -49,15 +49,18 @@ export class FinanceTransactionsPage {
   // ── Account selector ────────────────────────────────────────────────────────
 
   /**
-   * Selects an account by its display name in the account selector.
-   * Waits for the page to reflect the selection (URL param or data load).
+   * Selects an account in the selector. Prefer passing `accountId` when the user has multiple
+   * accounts — label-only clicks can hit the wrong node; `data-account-id` is unambiguous.
    */
-  async selectAccount(accountName: string): Promise<void> {
+  async selectAccount(accountName: string, accountId?: string): Promise<void> {
     await this.page.getByTestId('account-selector').click();
-    // FinancialAccountSelector uses ListItemButton in a Popover, not role="option".
-    // The account name appears both in the selector trigger (h6) and the popover list (p).
-    // .last() targets the popover item — .first() would be the trigger, covered by the backdrop.
-    await this.page.getByText(accountName, { exact: true }).last().click();
+    const popover = this.page.getByTestId('account-selector-popover');
+    await popover.waitFor({ state: 'visible', timeout: 10_000 });
+    if (accountId) {
+      await popover.locator(`[data-account-id="${accountId}"]`).click();
+    } else {
+      await popover.getByText(accountName, { exact: true }).click();
+    }
     await expect(this.page.getByTestId('account-selector')).toContainText(accountName);
     await Promise.all([
       this.summary.waitForMetricsReady(),
@@ -70,7 +73,9 @@ export class FinanceTransactionsPage {
    */
   async openEditAccountDrawer(accountName: string): Promise<CreateAccountDrawer> {
     await this.page.getByTestId('account-selector').click();
-    const accountNameCell = this.page.getByText(accountName, { exact: true }).last();
+    const popover = this.page.getByTestId('account-selector-popover');
+    await popover.waitFor({ state: 'visible', timeout: 10_000 });
+    const accountNameCell = popover.getByText(accountName, { exact: true });
     await accountNameCell.waitFor({ state: 'visible' });
     const accountRow = accountNameCell.locator('xpath=ancestor::*[@role="button"][1]');
     await accountRow.getByLabel(/editar|edit/i).click();
@@ -170,16 +175,18 @@ export class FinanceTransactionsPage {
   /** Asserts that the account with the given name is visible in the selector. */
   async expectAccountInSelector(accountName: string): Promise<void> {
     await this.page.getByTestId('account-selector').click();
-    // FinancialAccountSelector uses ListItemButton (role="button") in a Popover, not role="option".
-    // The name is visible either in the selector trigger (1 account) or in the popover list.
-    await expect(this.page.getByText(accountName, { exact: true }).last()).toBeVisible({ timeout: 5000 });
+    const popover = this.page.getByTestId('account-selector-popover');
+    await popover.waitFor({ state: 'visible', timeout: 10_000 });
+    await expect(popover.getByText(accountName, { exact: true })).toBeVisible({ timeout: 5000 });
     await this.page.keyboard.press('Escape');
   }
 
   /** Asserts that the account is NOT present in the selector (e.g. after soft-delete). */
   async expectAccountNotInSelector(accountName: string): Promise<void> {
     await this.page.getByTestId('account-selector').click();
-    await expect(this.page.getByText(accountName, { exact: true })).toHaveCount(0);
+    const popover = this.page.getByTestId('account-selector-popover');
+    await popover.waitFor({ state: 'visible', timeout: 10_000 });
+    await expect(popover.getByText(accountName, { exact: true })).toHaveCount(0);
     await this.page.keyboard.press('Escape');
   }
 }

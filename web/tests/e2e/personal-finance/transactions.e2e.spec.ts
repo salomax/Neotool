@@ -112,7 +112,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.summary.waitForMetricsReady();
     const summaryBefore = await pfPage.summary.getAll();
@@ -146,7 +146,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.summary.waitForMetricsReady();
     const summaryBefore = await pfPage.summary.getAll();
@@ -192,7 +192,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.transactionTable.expectTransactionVisible(desc);
 
@@ -230,7 +230,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.transactionTable.expectTransactionVisible(desc);
 
@@ -257,7 +257,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     // Open the edit form by clicking the transaction row
     await pfPage.transactionTable.clickTransaction(postedExpense.description);
@@ -284,7 +284,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.summary.waitForMetricsReady();
     const summaryBefore = await pfPage.summary.getAll();
@@ -412,7 +412,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     // Refetch can briefly show Skeleton again — parseCurrencyBr then reads 0 (see MonthSummarySection).
     await pfPage.summary.waitForMetricsReady();
@@ -441,7 +441,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -479,7 +479,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -572,7 +572,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await page
       .getByTestId("month-summary-section")
@@ -625,7 +625,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await page.getByTestId("month-summary-total-expenses").click();
 
@@ -681,7 +681,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await page
       .getByTestId("month-summary-section")
@@ -722,7 +722,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     const firstPageCount = await pfPage.transactionTable.getRowCount();
 
@@ -758,7 +758,7 @@ test.describe("Transactions — happy path", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     const desc = uniqueDesc("Data passada H16");
 
     await pfPage.openCreateTransactionForm();
@@ -1020,7 +1020,7 @@ test.describe("Transactions — alternative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     // Open edit form — notes should be visible
     await pfPage.transactionTable.clickTransaction(desc);
@@ -1270,7 +1270,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -1291,7 +1291,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -1311,7 +1311,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -1350,7 +1350,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -1375,7 +1375,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
@@ -1399,7 +1399,7 @@ test.describe("Transactions — negative paths", () => {
     await signIntoPage(page, pfUser.token);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     await pfPage.openCreateTransactionForm();
     const form = new InlineTransactionForm(page);
