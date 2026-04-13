@@ -12,6 +12,7 @@ type User = {
   email: string;
   displayName?: string | null;
   avatarUrl?: string | null;
+  avatarProvider?: string | null;
   emailVerified?: boolean | null;
   tenantId?: string | null;
   role?: string | null;
@@ -23,8 +24,8 @@ type AuthContextType = {
   user: User | null;
   token: string | null;
   isLoading: boolean;
-  signIn: (email: string, password: string, rememberMe?: boolean) => Promise<void>;
-  signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean) => Promise<void>;
+  signIn: (email: string, password: string, rememberMe?: boolean | null) => Promise<void>;
+  signInWithOAuth: (provider: string, idToken: string, rememberMe?: boolean | null) => Promise<void>;
   signUp: (name: string, email: string, password: string) => Promise<void>;
   signOut: () => void;
   setUser: (user: User | null) => void;
@@ -135,32 +136,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     };
   }, []);
 
-  const signIn = React.useCallback(async (email: string, password: string, rememberMe = false) => {
+  const signIn = React.useCallback(async (email: string, password: string, rememberMe?: boolean | null) => {
     try {
       // Dynamic import to avoid SSR issues
       const { apolloClient } = await import("@/lib/graphql/client");
       const { SIGN_IN } = await import("@/lib/graphql/operations/auth");
 
+      const input: Record<string, unknown> = {
+        email,
+        password,
+      };
+      if (typeof rememberMe === "boolean") {
+        input.rememberMe = rememberMe;
+      }
+
       const result = await apolloClient.mutate({
         mutation: SIGN_IN,
         variables: {
-          input: {
-            email,
-            password,
-            rememberMe,
-          },
+          input,
         },
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signIn' in result.data && result.data.signIn) {
         const { token: newToken, refreshToken, user: newUser } = result.data.signIn as { token: string; refreshToken: string | null; user: User };
+        const shouldPersistSession = !!refreshToken;
         
         setToken(newToken);
         setUser(newUser);
         syncAuthHintCookie(true);
 
-        // Store in appropriate storage based on rememberMe
-        const storage = rememberMe ? localStorage : sessionStorage;
+        // Store in localStorage when backend issued refreshToken (persistent session),
+        // otherwise keep session-scoped storage.
+        const storage = shouldPersistSession ? localStorage : sessionStorage;
         storage.setItem(TOKEN_KEY, newToken);
         storage.setItem(USER_KEY, JSON.stringify(newUser));
 
@@ -170,7 +177,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         void syncAuthSessionCookie({
           user: newUser,
-          rememberMe,
+          rememberMe: shouldPersistSession,
         });
 
         identifyUser(newUser.id);
@@ -184,32 +191,38 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [routeAfterAuthentication, syncAuthHintCookie]);
 
-  const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe = false) => {
+  const signInWithOAuth = React.useCallback(async (provider: string, idToken: string, rememberMe?: boolean | null) => {
     try {
       // Dynamic import to avoid SSR issues
       const { apolloClient } = await import("@/lib/graphql/client");
       const { SIGN_IN_WITH_OAUTH } = await import("@/lib/graphql/operations/auth");
 
+      const input: Record<string, unknown> = {
+        provider,
+        idToken,
+      };
+      if (typeof rememberMe === "boolean") {
+        input.rememberMe = rememberMe;
+      }
+
       const result = await apolloClient.mutate({
         mutation: SIGN_IN_WITH_OAUTH,
         variables: {
-          input: {
-            provider,
-            idToken,
-            rememberMe,
-          },
+          input,
         },
       });
 
       if (result.data && typeof result.data === 'object' && result.data !== null && 'signInWithOAuth' in result.data && result.data.signInWithOAuth) {
         const { token: newToken, refreshToken, user: newUser } = result.data.signInWithOAuth as { token: string; refreshToken: string | null; user: User };
+        const shouldPersistSession = !!refreshToken;
         
         setToken(newToken);
         setUser(newUser);
         syncAuthHintCookie(true);
 
-        // Store in appropriate storage based on rememberMe
-        const storage = rememberMe ? localStorage : sessionStorage;
+        // Store in localStorage when backend issued refreshToken (persistent session),
+        // otherwise keep session-scoped storage.
+        const storage = shouldPersistSession ? localStorage : sessionStorage;
         storage.setItem(TOKEN_KEY, newToken);
         storage.setItem(USER_KEY, JSON.stringify(newUser));
 
@@ -219,7 +232,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
         void syncAuthSessionCookie({
           user: newUser,
-          rememberMe,
+          rememberMe: shouldPersistSession,
         });
 
         identifyUser(newUser.id);

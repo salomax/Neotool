@@ -61,7 +61,11 @@ import {
   TransactionStatus,
   TransactionType,
 } from "../helpers/banking-graphql";
-import { localCalendarYearMonth, yearMonthFromIso } from "../helpers/finance-transactions-e2e";
+import {
+  localCalendarYearMonth,
+  navigateFinanceTransactionsToMonth,
+  yearMonthFromIso,
+} from "../helpers/finance-transactions-e2e";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1021,6 +1025,12 @@ test.describe("Transactions — alternative paths", () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    // Carousel month can persist in storage from other specs; align with tx date (today).
+    await navigateFinanceTransactionsToMonth(pfPage, localCalendarYearMonth());
+    await pfPage.transactionTable.waitForLoad();
+    await expect(pfPage.transactionTable.getRowByDescription(desc)).toBeVisible({
+      timeout: 15_000,
+    });
 
     // Open edit form — notes should be visible
     await pfPage.transactionTable.clickTransaction(desc);

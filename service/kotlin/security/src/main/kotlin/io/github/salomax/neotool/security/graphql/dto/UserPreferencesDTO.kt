@@ -5,4 +5,5 @@ data class UserPreferencesDTO(
     val theme: String,
     val blurBalances: Boolean,
     val firstDayOfWeek: Int,
+    val keepMeConnected: Boolean,
 )

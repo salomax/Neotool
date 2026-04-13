@@ -61,7 +61,7 @@ function uniqueBankAccountName(prefix: string): string {
  * rows dated in March 2026 when the suite runs in April+ 2026. Use an opening date before those files.
  */
 const test = basePfTest.extend({
-  bankAccount: async ({ pfUser }, use) => {
+  bankAccount: async ({ pfUser }, provideAccount) => {
     const account = await createFinancialAccount(
       {
         name: uniqueBankAccountName("Conta Corrente E2E Import"),
@@ -72,7 +72,7 @@ const test = basePfTest.extend({
       },
       pfUser.token,
     );
-    await use(account);
+    await provideAccount(account);
   },
 });
 

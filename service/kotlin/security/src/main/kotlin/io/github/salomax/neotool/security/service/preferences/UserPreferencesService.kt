@@ -19,7 +19,7 @@ open class UserPreferencesService(
     private val mapper: UserPreferencesMapper,
 ) {
     fun get(userId: UUID): UserPreferences {
-        val row = repository.findById(userId).orElse(null) ?: return UserPreferences.defaultsFor(userId)
+        val row = repository.findById(userId).orElse(null) ?: return getDefault(userId)
         return mapper.toDomain(row)
     }
 
@@ -30,8 +30,9 @@ open class UserPreferencesService(
         theme: String?,
         blurBalances: Boolean?,
         firstDayOfWeek: Int?,
+        keepMeConnected: Boolean?,
     ): UserPreferences {
-        if (language == null && theme == null && blurBalances == null && firstDayOfWeek == null) {
+        if (language == null && theme == null && blurBalances == null && firstDayOfWeek == null && keepMeConnected == null) {
             throw ValidationException(CommonErrorCode.VALIDATION_ERROR, field = "input")
         }
         firstDayOfWeek?.let {
@@ -50,7 +51,7 @@ open class UserPreferencesService(
             if (existing != null) {
                 mapper.toDomain(existing)
             } else {
-                UserPreferences.defaultsFor(userId, now)
+                getDefault(userId, now)
             }
 
         val patched =
@@ -59,6 +60,7 @@ open class UserPreferencesService(
                 theme = theme?.let { parseEnumValue<Theme>("theme", it) } ?: base.theme,
                 blurBalances = blurBalances ?: base.blurBalances,
                 firstDayOfWeek = firstDayOfWeek ?: base.firstDayOfWeek,
+                keepMeConnected = keepMeConnected ?: base.keepMeConnected,
                 updatedAt = now,
             )
 
@@ -73,11 +75,23 @@ open class UserPreferencesService(
                     theme = patched.theme,
                     blurBalances = patched.blurBalances,
                     firstDayOfWeek = patched.firstDayOfWeek.coerceIn(1, 7).toShort(),
+                    keepMeConnected = patched.keepMeConnected,
                     createdAt = now,
                     updatedAt = now,
                 )
             }
         return mapper.toDomain(repository.save(entity))
+    }
+
+    private fun getDefault(
+        userId: UUID,
+        now: Instant = Instant.now(),
+    ): UserPreferences {
+        return UserPreferences.defaultsFor(
+            userId = userId,
+            now = now,
+            keepMeConnected = true,
+        )
     }
 
     private inline fun <reified T : Enum<T>> parseEnumValue(

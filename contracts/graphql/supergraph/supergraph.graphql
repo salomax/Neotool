@@ -21,6 +21,16 @@ directive @join__unionMember(graph: join__Graph!, member: String!) repeatable on
 
 directive @link(url: String, as: String, for: link__Purpose, import: [link__Import]) repeatable on SCHEMA
 
+type Account
+  @join__type(graph: SECURITY)
+{
+  id: ID!
+  accountName: String!
+  accountType: String!
+  accountStatus: String!
+  isOwner: Boolean!
+}
+
 type AccountPendingAction
   @join__type(graph: BANKING)
 {
@@ -617,7 +627,7 @@ type BulkOperationResult
 
 """
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
-creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+closingDay and dueDay are optional billing-cycle metadata when known.
 """
 type CardData
   @join__type(graph: BANKING)
@@ -646,13 +656,13 @@ input CardDataInput
   cardNetwork: CreditCardNetwork
   cardLevel: CreditCardLevel
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle limit metadata."""
   creditLimit: Float
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle closing day when known."""
   closingDay: Int
 
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle due day when known."""
   dueDay: Int
 
   """
@@ -2569,7 +2579,7 @@ type Mutation
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
-  For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+  Billing-cycle card metadata is optional and may be provided when known.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
@@ -2732,6 +2742,9 @@ type Mutation
   verifyEmailWithToken(token: String!): VerifyEmailPayload! @join__field(graph: SECURITY)
   resendVerificationEmail: ResendVerificationEmailPayload! @join__field(graph: SECURITY)
   updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences! @join__field(graph: SECURITY)
+  updateUserAvatar(input: UpdateUserAvatarInput!): User! @join__field(graph: SECURITY)
+  removeUserAvatar: User! @join__field(graph: SECURITY)
+  updateAccount(accountId: ID!, input: UpdateAccountInput!): Account! @join__field(graph: SECURITY)
   enableUser(userId: ID!): User! @join__field(graph: SECURITY)
   disableUser(userId: ID!): User! @join__field(graph: SECURITY)
   updateUser(userId: ID!, input: UpdateUserInput!): User! @join__field(graph: SECURITY)
@@ -3436,6 +3449,7 @@ type Query
 
   """Current user's preferences (defaults when no row exists)."""
   userPreferences: UserPreferences! @join__field(graph: SECURITY)
+  myAccounts: [Account!]! @join__field(graph: SECURITY)
   user(id: ID!): User @join__field(graph: SECURITY)
   users(first: Int, after: String, query: String, orderBy: [UserOrderByInput!]): UserConnection! @join__field(graph: SECURITY)
   group(id: ID!): Group @join__field(graph: SECURITY)
@@ -4125,6 +4139,12 @@ type UnmappedItemGroup
   sampleItems: [PurchaseItem!]!
 }
 
+input UpdateAccountInput
+  @join__type(graph: SECURITY)
+{
+  accountName: String!
+}
+
 input UpdateAccountPreferencesInput
   @join__type(graph: BANKING)
 {
@@ -4248,6 +4268,12 @@ input UpdateTransactionRuleInput
   priority: Int
 }
 
+input UpdateUserAvatarInput
+  @join__type(graph: SECURITY)
+{
+  avatarUrl: String!
+}
+
 input UpdateUserInput
   @join__type(graph: SECURITY)
 {
@@ -4261,6 +4287,7 @@ input UpdateUserPreferencesInput
   theme: Theme
   blurBalances: Boolean
   firstDayOfWeek: Int
+  keepMeConnected: Boolean
 }
 
 type UsageBudget
@@ -4307,6 +4334,7 @@ type User
   email: String!
   displayName: String
   avatarUrl: String
+  avatarProvider: String
   enabled: Boolean!
   emailVerified: Boolean!
   emailVerifiedAt: String
@@ -4353,6 +4381,7 @@ type UserPreferences
   theme: Theme!
   blurBalances: Boolean!
   firstDayOfWeek: Int!
+  keepMeConnected: Boolean!
 }
 
 scalar UUID

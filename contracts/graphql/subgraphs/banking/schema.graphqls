@@ -282,7 +282,7 @@ type BankAccountData {
 
 """
 Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
-creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+closingDay and dueDay are optional billing-cycle metadata when known.
 """
 type CardData {
   maskedNumber: String
@@ -692,11 +692,11 @@ input CardDataInput {
   bin: String
   cardNetwork: CreditCardNetwork
   cardLevel: CreditCardLevel
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle limit metadata."""
   creditLimit: Float
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle closing day when known."""
   closingDay: Int
-  """Required for CREDIT_CARD."""
+  """Optional billing-cycle due day when known."""
   dueDay: Int
   """Optional bank account that will receive the debit leg of bill-payment transfers."""
   linkedBankAccountId: ID
@@ -2080,7 +2080,7 @@ extend type Mutation {
   """
   Create a new financial account or card.
   Requires either issuerId (from the issuers list) or issuerName (custom institution).
-  For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+  Billing-cycle card metadata is optional and may be provided when known.
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount!

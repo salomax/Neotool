@@ -1434,6 +1434,7 @@
         "markAsTransfer": "Marcar como transferência interna",
         "edit": "Editar",
         "viewAppliedRules": "Ver regras aplicadas",
+        "createRuleFromDescription": "Criar regra a partir da descrição",
         "remove": "Remover"
       },
       "appliedRules": {

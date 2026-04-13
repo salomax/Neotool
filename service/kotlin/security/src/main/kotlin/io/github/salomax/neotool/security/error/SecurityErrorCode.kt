@@ -49,6 +49,12 @@ enum class SecurityErrorCode(
     USER_PASSWORD_REQUIRED("USER_PASSWORD_REQUIRED", "Password is required", 400),
     USER_PASSWORD_TOO_SHORT("USER_PASSWORD_TOO_SHORT", "Password is too short", 400),
     USER_PASSWORD_TOO_WEAK("USER_PASSWORD_TOO_WEAK", "Password is too weak", 400),
+    AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS(
+        "AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS",
+        "Avatar upload is not allowed for OAuth users",
+        403,
+    ),
+    INVALID_AVATAR_URL("INVALID_AVATAR_URL", "Avatar URL is invalid", 400),
     PASSWORD_RESET_TOKEN_INVALID("PASSWORD_RESET_TOKEN_INVALID", "Password reset token is invalid or expired", 400),
     EMAIL_VERIFICATION_INVALID_LINK("EMAIL_VERIFICATION_INVALID_LINK", "Verification link is invalid", 400),
     EMAIL_VERIFICATION_LINK_EXPIRED("EMAIL_VERIFICATION_LINK_EXPIRED", "Verification link has expired", 400),

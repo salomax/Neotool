@@ -24,7 +24,8 @@ class UserPreferencesResolver(
         val theme = input["theme"] as? String
         val blurBalances = input["blurBalances"] as? Boolean
         val firstDayOfWeek = (input["firstDayOfWeek"] as? Number)?.toInt()
-        return service.update(userId, language, theme, blurBalances, firstDayOfWeek).toDTO()
+        val keepMeConnected = input["keepMeConnected"] as? Boolean
+        return service.update(userId, language, theme, blurBalances, firstDayOfWeek, keepMeConnected).toDTO()
     }
 
     private fun io.github.salomax.neotool.security.domain.preferences.UserPreferences.toDTO(): UserPreferencesDTO =
@@ -33,5 +34,6 @@ class UserPreferencesResolver(
             theme = theme.name,
             blurBalances = blurBalances,
             firstDayOfWeek = firstDayOfWeek,
+            keepMeConnected = keepMeConnected,
         )
 }

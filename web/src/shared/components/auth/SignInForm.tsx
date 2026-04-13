@@ -50,7 +50,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
       try {
         setIsOAuthLoading(true);
         setError(null);
-        await signInWithOAuth("google", idToken, false);
+        await signInWithOAuth("google", idToken, true);
         onSuccess?.();
       } catch (err: any) {
         const errorMessage = extractErrorMessage(err, t("errors.unknownError"));
@@ -73,7 +73,7 @@ export const SignInForm: React.FC<SignInFormProps> = ({ onSuccess }) => {
     defaultValues: {
       email: "",
       password: "",
-      rememberMe: false,
+      rememberMe: true,
     },
   });
 

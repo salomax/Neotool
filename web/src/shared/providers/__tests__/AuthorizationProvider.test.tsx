@@ -5,10 +5,11 @@ import { AuthProvider } from '../AuthProvider';
 import { AuthorizationProvider, useAuthorization } from '../AuthorizationProvider';
 
 // Use vi.hoisted() to define variables that need to be available in mock factories
-const { mockPush, mockQuery, mockUseQuery, mockUser, defaultMockAuthContext, mockAuthContextRef, mockUseAuth } = vi.hoisted(() => {
+const { mockPush, mockQuery, mockUseQuery, mockUser, mockSetUser, defaultMockAuthContext, mockAuthContextRef, mockUseAuth } = vi.hoisted(() => {
   const mockPush = vi.fn();
   const mockQuery = vi.fn();
   const mockUseQuery = vi.fn();
+  const mockSetUser = vi.fn();
   const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
   const defaultMockAuthContext = {
     user: mockUser,
@@ -18,6 +19,7 @@ const { mockPush, mockQuery, mockUseQuery, mockUser, defaultMockAuthContext, moc
     signInWithOAuth: vi.fn(),
     signUp: vi.fn(),
     signOut: vi.fn(),
+    setUser: mockSetUser,
     isAuthenticated: true,
   };
   // Use a ref object so we can reassign the value in tests
@@ -29,6 +31,7 @@ const { mockPush, mockQuery, mockUseQuery, mockUser, defaultMockAuthContext, moc
     mockQuery,
     mockUseQuery,
     mockUser,
+    mockSetUser,
     defaultMockAuthContext,
     mockAuthContextRef,
     mockUseAuth,
@@ -119,6 +122,42 @@ describe('AuthorizationProvider', () => {
       expect(result.current.permissions.has('security:role:view')).toBe(true);
       expect(result.current.roles).toHaveLength(2);
       expect(result.current.roles[0]?.name).toBe('Admin');
+    });
+
+    it('should sync avatarUrl from currentUser into auth user', async () => {
+      const avatarUrl = 'https://example.com/avatar.png';
+      mockAuthContextRef.current = {
+        ...defaultMockAuthContext,
+        user: { ...mockUser },
+        setUser: mockSetUser,
+      };
+
+      mockUseQuery.mockReturnValue({
+        data: {
+          currentUser: {
+            id: '1',
+            email: 'test@example.com',
+            displayName: 'Test User',
+            avatarUrl,
+            roles: [],
+            permissions: [],
+          },
+        },
+        loading: false,
+        refetch: vi.fn(),
+      });
+
+      renderHook(() => useAuthorization(), { wrapper });
+
+      await waitFor(() => {
+        expect(mockSetUser).toHaveBeenCalledWith(
+          expect.objectContaining({
+            email: 'test@example.com',
+            displayName: 'Test User',
+            avatarUrl,
+          })
+        );
+      });
     });
 
     it('should handle empty permissions and roles', async () => {

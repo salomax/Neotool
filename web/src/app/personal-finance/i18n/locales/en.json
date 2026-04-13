@@ -1431,6 +1431,7 @@
         "markAsTransfer": "Mark as internal transfer",
         "edit": "Edit",
         "viewAppliedRules": "View applied rules",
+        "createRuleFromDescription": "Create rule from description",
         "remove": "Remove"
       },
       "appliedRules": {

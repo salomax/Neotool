@@ -11,6 +11,7 @@ data class User(
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
     val avatarUrl: String? = null,
+    val avatarProvider: String? = null,
     val version: Long = 0,
 ) {
     fun toEntity(): UserEntity {
@@ -21,6 +22,7 @@ data class User(
             createdAt = this.createdAt,
             updatedAt = this.updatedAt,
             avatarUrl = this.avatarUrl,
+            avatarProvider = this.avatarProvider,
             version = this.version,
         )
     }

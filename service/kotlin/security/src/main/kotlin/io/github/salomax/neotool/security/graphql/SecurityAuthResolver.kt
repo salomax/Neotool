@@ -16,6 +16,7 @@ import io.github.salomax.neotool.security.service.authentication.AuthContextFact
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
+import io.github.salomax.neotool.security.service.preferences.UserPreferencesService
 import jakarta.inject.Singleton
 import jakarta.validation.ConstraintViolationException
 import mu.KotlinLogging
@@ -40,17 +41,21 @@ class SecurityAuthResolver(
     private val inputValidator: InputValidator,
     private val mapper: SecurityGraphQLMapper,
     private val refreshTokenService: RefreshTokenService,
+    private val userPreferencesService: UserPreferencesService,
 ) {
     private val logger = KotlinLogging.logger {}
 
     /**
      * Sign in mutation resolver
      */
-    fun signIn(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> {
+    fun signIn(
+        input: Map<String, Any?>,
+        rememberMeProvided: Boolean = input.containsKey("rememberMe"),
+    ): GraphQLPayload<SignInPayloadDTO> {
         return try {
             val email = input["email"] as? String ?: throw IllegalArgumentException("Email is required")
             val password = input["password"] as? String ?: throw IllegalArgumentException("Password is required")
-            val rememberMe = input["rememberMe"] as? Boolean ?: false
+            val rememberMeInput = if (rememberMeProvided) input["rememberMe"] as? Boolean else null
 
             logger.debug { "Sign in attempt for email: $email" }
 
@@ -69,10 +74,12 @@ class SecurityAuthResolver(
             // Generate JWT access token (short-lived, stateless) with permissions
             val token = authenticationService.generateAccessToken(authContext)
 
+            val userId = requireNotNull(user.id) { "User ID is required for sign in" }
+            val rememberMe = rememberMeInput ?: userPreferencesService.get(userId).keepMeConnected
+
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
-                val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
                 // Use new refresh token service with rotation support
                 refreshToken = refreshTokenService.createRefreshToken(userId)
             }
@@ -121,11 +128,14 @@ class SecurityAuthResolver(
     /**
      * Sign in with OAuth mutation resolver
      */
-    fun signInWithOAuth(input: Map<String, Any?>): GraphQLPayload<SignInPayloadDTO> =
+    fun signInWithOAuth(
+        input: Map<String, Any?>,
+        rememberMeProvided: Boolean = input.containsKey("rememberMe"),
+    ): GraphQLPayload<SignInPayloadDTO> =
         try {
             val provider = input["provider"] as? String ?: throw IllegalArgumentException("Provider is required")
             val idToken = input["idToken"] as? String ?: throw IllegalArgumentException("ID token is required")
-            val rememberMe = input["rememberMe"] as? Boolean ?: false
+            val rememberMeInput = if (rememberMeProvided) input["rememberMe"] as? Boolean else null
 
             logger.debug { "OAuth sign in attempt with provider: $provider" }
 
@@ -140,10 +150,12 @@ class SecurityAuthResolver(
             // Generate JWT access token (short-lived, stateless) with permissions
             val token = authenticationService.generateAccessToken(authContext)
 
+            val userId = requireNotNull(user.id) { "User ID is required for OAuth sign in" }
+            val rememberMe = rememberMeInput ?: userPreferencesService.get(userId).keepMeConnected
+
             // Handle remember me - generate and store refresh token
             var refreshToken: String? = null
             if (rememberMe) {
-                val userId = requireNotNull(user.id) { "User ID is required for refresh token generation" }
                 // Use new refresh token service with rotation support
                 refreshToken = refreshTokenService.createRefreshToken(userId)
             }

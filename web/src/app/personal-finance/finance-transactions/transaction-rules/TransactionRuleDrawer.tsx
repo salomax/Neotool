@@ -85,6 +85,9 @@ interface TransactionTagsData {
 interface TransactionRuleDrawerProps {
   open: boolean;
   rule: TransactionRule | null;
+  initialPattern?: string;
+  initialPatternType?: PatternType;
+  initialApplicableTo?: CategoryApplicableTo;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -153,6 +156,9 @@ function formFromRule(rule: TransactionRule): FormState {
 function TransactionRuleDrawerInner({
   open,
   rule,
+  initialPattern,
+  initialPatternType,
+  initialApplicableTo,
   onClose,
   onSaved,
 }: TransactionRuleDrawerProps) {
@@ -160,7 +166,14 @@ function TransactionRuleDrawerInner({
   const theme = useTheme();
   const isEdit = !!rule;
 
-  const [form, setForm] = useState<FormState>(() => (rule ? formFromRule(rule) : defaultForm()));
+  const [form, setForm] = useState<FormState>(() => {
+    if (rule) return formFromRule(rule);
+    const next = defaultForm();
+    if (typeof initialPattern === 'string') next.pattern = initialPattern;
+    if (initialPatternType) next.patternType = initialPatternType;
+    if (initialApplicableTo) next.applicableTo = initialApplicableTo;
+    return next;
+  });
   const [isDirty, setIsDirty] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [previewSample, setPreviewSample] = useState('');
@@ -680,6 +693,6 @@ function TransactionRuleDrawerInner({
 }
 
 export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = (props) => {
-  const drawerKey = `${props.open ? 'open' : 'closed'}:${props.rule?.id ?? 'new'}`;
+  const drawerKey = `${props.open ? 'open' : 'closed'}:${props.rule?.id ?? 'new'}:${props.initialApplicableTo ?? 'none'}:${props.initialPatternType ?? 'none'}:${props.initialPattern ?? ''}`;
   return <TransactionRuleDrawerInner key={drawerKey} {...props} />;
 };

@@ -443,9 +443,11 @@ export function InlineTransactionForm({
                     setCreditDebitType(e.target.value as CreditDebitType);
                     setCategoryId('');
                   }}
-                  SelectDisplayProps={{
-                    'data-testid': 'tx-credit-debit-type-select',
-                  }}
+                  SelectDisplayProps={
+                    {
+                      'data-testid': 'tx-credit-debit-type-select',
+                    } as React.HTMLAttributes<HTMLDivElement>
+                  }
                   variant="standard"
                   disableUnderline
                   displayEmpty

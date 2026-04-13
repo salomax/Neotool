@@ -35,7 +35,16 @@ import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { AccountBalance as BankIcon } from '@mui/icons-material';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
-import { Transaction, CreditDebitType, FinancialAccount, FinancialAccountSubtype, FinancialAccountType, Merchant, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
+import {
+  CategoryApplicableTo,
+  Transaction,
+  CreditDebitType,
+  FinancialAccount,
+  FinancialAccountSubtype,
+  FinancialAccountType,
+  Merchant,
+  TransactionType,
+} from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { useCallback, useEffect, useRef, useMemo, useState, Fragment, type MouseEvent } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
@@ -48,6 +57,7 @@ import { Logo } from '@/shared/components/ui/primitives';
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { SimilarEditDialog } from './SimilarEditDialog';
 import { AppliedTransactionRulesDrawer } from './AppliedTransactionRulesDrawer';
+import { TransactionRuleDrawer } from '../transaction-rules/TransactionRuleDrawer';
 import { CategoryChip } from '../category/CategoryChip';
 import { CategoryPicker } from '../category/CategoryPicker';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
@@ -174,6 +184,9 @@ export function TransactionTable({
   const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
   const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
   const [appliedRulesTransaction, setAppliedRulesTransaction] = useState<Transaction | null>(null);
+  const [createRuleDraft, setCreateRuleDraft] = useState<{ pattern: string; applicableTo: CategoryApplicableTo } | null>(
+    null,
+  );
   const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
   const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
   const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
@@ -266,6 +279,13 @@ export function TransactionTable({
   const closeActionMenu = useCallback(() => {
     setActionMenuAnchorEl(null);
     setActionMenuTransaction(null);
+  }, []);
+
+  const resolveRuleApplicableTo = useCallback((tx: Transaction): CategoryApplicableTo => {
+    if (tx.type === TransactionType.Transfer) return CategoryApplicableTo.Transfer;
+    if (tx.creditDebitType === CreditDebitType.Credit) return CategoryApplicableTo.Income;
+    if (tx.creditDebitType === CreditDebitType.Debit) return CategoryApplicableTo.Expense;
+    return CategoryApplicableTo.Any;
   }, []);
 
   useEffect(() => {
@@ -1156,6 +1176,24 @@ export function TransactionTable({
             <ListItemText>{t('financeTransactions.transactionTable.rowActions.viewAppliedRules')}</ListItemText>
           </MenuItem>
         )}
+        <MenuItem
+          onClick={() => {
+            const tx = actionMenuTransaction;
+            closeActionMenu();
+            if (!tx) return;
+            setCreateRuleDraft({
+              pattern: tx.description,
+              applicableTo: resolveRuleApplicableTo(tx),
+            });
+          }}
+          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+          data-testid="transaction-action-create-rule-from-description"
+        >
+          <ListItemIcon>
+            <AutoFixHighIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('financeTransactions.transactionTable.rowActions.createRuleFromDescription')}</ListItemText>
+        </MenuItem>
         {actionMenuTransaction?.type !== TransactionType.Transfer && (
           <MenuItem
             onClick={handleMarkAsInternalTransfer}
@@ -1216,6 +1254,18 @@ export function TransactionTable({
         open={Boolean(appliedRulesTransaction)}
         transaction={appliedRulesTransaction}
         onClose={() => setAppliedRulesTransaction(null)}
+      />
+
+      <TransactionRuleDrawer
+        open={Boolean(createRuleDraft)}
+        rule={null}
+        initialPattern={createRuleDraft?.pattern ?? ''}
+        initialApplicableTo={createRuleDraft?.applicableTo}
+        onClose={() => setCreateRuleDraft(null)}
+        onSaved={() => {
+          setCreateRuleDraft(null);
+          void onSuccessCreate?.();
+        }}
       />
 
       <ConfirmationDialog

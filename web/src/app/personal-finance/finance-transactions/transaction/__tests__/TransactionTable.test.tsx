@@ -2,7 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { TransactionTable } from '../TransactionTable';
-import { CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { CategoryApplicableTo, CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
+
+let lastRuleDrawerProps: any = null;
 
 const mockToast = {
   success: vi.fn(),
@@ -45,9 +47,17 @@ vi.mock('../AppliedTransactionRulesDrawer', () => ({
   AppliedTransactionRulesDrawer: ({ open }: { open: boolean }) => (open ? <div>applied-rules-drawer</div> : null),
 }));
 
+vi.mock('../../transaction-rules/TransactionRuleDrawer', () => ({
+  TransactionRuleDrawer: (props: any) => {
+    lastRuleDrawerProps = props;
+    return props.open ? <div>transaction-rule-drawer</div> : null;
+  },
+}));
+
 describe.sequential('TransactionTable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    lastRuleDrawerProps = null;
   });
 
   it('renders table with accessible name and makes +N tags control focusable', () => {
@@ -238,5 +248,46 @@ describe.sequential('TransactionTable', () => {
     );
 
     expect(screen.getByText('applied-rules-drawer')).toBeInTheDocument();
+  });
+
+  it('opens the create rule drawer with initial values from the transaction description and type', async () => {
+    const user = userEvent.setup();
+    const transaction = {
+      id: 'tx-1',
+      description: 'Coffee',
+      date: '2026-03-01',
+      creditDebitType: CreditDebitType.Debit,
+      type: TransactionType.Card,
+      amount: 12.34,
+      currencyCode: 'BRL',
+      financialAccountId: 'acc-1',
+      merchant: null,
+      category: null,
+      appliedRuleIds: [],
+      tags: [],
+      attachments: [],
+    } as unknown as Transaction;
+
+    render(
+      <TransactionTable
+        transactions={[transaction]}
+        financialAccounts={[]}
+        loading={false}
+        hasMore={false}
+        onLoadMore={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.click(screen.getAllByRole('button', { name: /Transaction actions|Ações da transação/i })[0]!);
+    await user.click(
+      screen.getByRole('menuitem', {
+        name: /Criar regra a partir da descrição|Create rule from description/i,
+      }),
+    );
+
+    expect(screen.getByText('transaction-rule-drawer')).toBeInTheDocument();
+    expect(lastRuleDrawerProps?.initialPattern).toBe('Coffee');
+    expect(lastRuleDrawerProps?.initialApplicableTo).toBe(CategoryApplicableTo.Expense);
   });
 });

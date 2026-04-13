@@ -56,6 +56,7 @@ data class UserDTO(
     val email: String,
     val displayName: String? = null,
     val avatarUrl: String? = null,
+    val avatarProvider: String? = null,
     val enabled: Boolean? = null,
     val emailVerified: Boolean? = null,
     val emailVerifiedAt: String? = null,

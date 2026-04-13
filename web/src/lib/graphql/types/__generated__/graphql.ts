@@ -21,6 +21,15 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+export type Account = {
+  __typename: 'Account';
+  accountName: Scalars['String']['output'];
+  accountStatus: Scalars['String']['output'];
+  accountType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isOwner: Scalars['Boolean']['output'];
+};
+
 export type AccountPendingAction = {
   __typename: 'AccountPendingAction';
   createdAt: Scalars['DateTime']['output'];
@@ -544,7 +553,7 @@ export type BulkOperationResult = {
 
 /**
  * Card-specific data. Present only when subtype is CREDIT_CARD, PREPAID_CARD, CHARGE_CARD, or VOUCHER_CARD.
- * creditLimit, closingDay and dueDay are required for CREDIT_CARD (enforced at service layer).
+ * closingDay and dueDay are optional billing-cycle metadata when known.
  */
 export type CardData = {
   __typename: 'CardData';
@@ -565,11 +574,11 @@ export type CardDataInput = {
   bin?: InputMaybe<Scalars['String']['input']>;
   cardLevel?: InputMaybe<CreditCardLevel>;
   cardNetwork?: InputMaybe<CreditCardNetwork>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle closing day when known. */
   closingDay?: InputMaybe<Scalars['Int']['input']>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle limit metadata. */
   creditLimit?: InputMaybe<Scalars['Float']['input']>;
-  /** Required for CREDIT_CARD. */
+  /** Optional billing-cycle due day when known. */
   dueDay?: InputMaybe<Scalars['Int']['input']>;
   /** Optional bank account that will receive the debit leg of bill-payment transfers. */
   linkedBankAccountId?: InputMaybe<Scalars['ID']['input']>;
@@ -2119,7 +2128,7 @@ export type Mutation = {
   /**
    * Create a new financial account or card.
    * Requires either issuerId (from the issuers list) or issuerName (custom institution).
-   * For CREDIT_CARD subtype: cardData.closingDay and cardData.dueDay are required.
+   * Billing-cycle card metadata is optional and may be provided when known.
    */
   createFinancialAccount: FinancialAccount;
   createGroup: Group;
@@ -2197,6 +2206,7 @@ export type Mutation = {
   removeRoleFromGroup: Group;
   /** Remove an attachment from a transaction and delete the underlying asset. */
   removeTransactionAttachment: Scalars['Boolean']['output'];
+  removeUserAvatar: User;
   /**
    * Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
    * All IDs must belong to the authenticated account. Returns the full updated rule list.
@@ -2220,6 +2230,7 @@ export type Mutation = {
   /** Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago. */
   triggerPortfolioRecalculation: Scalars['Boolean']['output'];
   unmapItem: Scalars['Boolean']['output'];
+  updateAccount: Account;
   /** Updates current account preferences (account owner only). */
   updateAccountPreferences: AccountPreferences;
   updateBankingUserPreferences: BankingUserPreferences;
@@ -2237,6 +2248,7 @@ export type Mutation = {
   /** Update a user-owned transaction rule. */
   updateTransactionRule: TransactionRule;
   updateUser: User;
+  updateUserAvatar: User;
   updateUserPreferences: UserPreferences;
   verifyEmailWithToken: VerifyEmailPayload;
 };
@@ -2585,6 +2597,12 @@ export type MutationUnmapItemArgs = {
 };
 
 
+export type MutationUpdateAccountArgs = {
+  accountId: Scalars['ID']['input'];
+  input: UpdateAccountInput;
+};
+
+
 export type MutationUpdateAccountPreferencesArgs = {
   input: UpdateAccountPreferencesInput;
 };
@@ -2652,6 +2670,11 @@ export type MutationUpdateTransactionRuleArgs = {
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateUserAvatarArgs = {
+  input: UpdateUserAvatarInput;
 };
 
 
@@ -3080,6 +3103,7 @@ export type Query = {
    * When month/year are not provided, the current month/year are used.
    */
   monthSummary: MonthSummary;
+  myAccounts: Array<Account>;
   myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
   nfceDocument: Maybe<NfceDocument>;
@@ -4248,6 +4272,10 @@ export type UnmappedItemGroup = {
   suggestedVariant: Maybe<ProductVariant>;
 };
 
+export type UpdateAccountInput = {
+  accountName: Scalars['String']['input'];
+};
+
 export type UpdateAccountPreferencesInput = {
   defaultTransactionStatus?: InputMaybe<TransactionStatus>;
 };
@@ -4349,6 +4377,10 @@ export type UpdateTransactionRuleInput = {
   tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
+export type UpdateUserAvatarInput = {
+  avatarUrl: Scalars['String']['input'];
+};
+
 export type UpdateUserInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4356,6 +4388,7 @@ export type UpdateUserInput = {
 export type UpdateUserPreferencesInput = {
   blurBalances?: InputMaybe<Scalars['Boolean']['input']>;
   firstDayOfWeek?: InputMaybe<Scalars['Int']['input']>;
+  keepMeConnected?: InputMaybe<Scalars['Boolean']['input']>;
   language?: InputMaybe<Language>;
   theme?: InputMaybe<Theme>;
 };
@@ -4395,6 +4428,7 @@ export type UsageStats = {
 
 export type User = {
   __typename: 'User';
+  avatarProvider: Maybe<Scalars['String']['output']>;
   avatarUrl: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
   displayName: Maybe<Scalars['String']['output']>;
@@ -4436,6 +4470,7 @@ export type UserPreferences = {
   __typename: 'UserPreferences';
   blurBalances: Scalars['Boolean']['output'];
   firstDayOfWeek: Scalars['Int']['output'];
+  keepMeConnected: Scalars['Boolean']['output'];
   language: Language;
   theme: Theme;
 };

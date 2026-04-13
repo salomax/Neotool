@@ -486,6 +486,7 @@ export const CREATE_ASSET_UPLOAD = gql`
       id
       uploadUrl
       status
+      visibility
     }
   }
 `;
@@ -496,6 +497,8 @@ export const CONFIRM_ASSET_UPLOAD = gql`
     confirmAssetUpload(input: $input) {
       id
       status
+      visibility
+      publicUrl
     }
   }
 `;

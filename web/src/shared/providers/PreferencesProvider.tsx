@@ -9,16 +9,13 @@ import { USER_PREFERENCES } from "@/lib/graphql/operations/auth/queries";
 import { UPDATE_USER_PREFERENCES } from "@/lib/graphql/operations/auth/mutations";
 import { ACCOUNT_PREFERENCES, BANKING_USER_PREFERENCES } from "@/lib/graphql/operations/banking/queries";
 import { UPDATE_ACCOUNT_PREFERENCES, UPDATE_BANKING_USER_PREFERENCES } from "@/lib/graphql/operations/banking/mutations";
-import type {
-  UserPreferencesQuery,
-} from "@/lib/graphql/operations/auth/queries.generated";
 import type { AccountPreferencesQuery, BankingUserPreferencesQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import {
   Language,
-  type Mutation,
   RuleApplicationMode,
   Theme,
   TransactionStatus,
+  type Mutation,
   type UpdateAccountPreferencesInput,
   type UpdateBankingUserPreferencesInput,
   type UpdateUserPreferencesInput,
@@ -29,6 +26,7 @@ type UserPreferencesState = {
   theme: Theme;
   blurBalances: boolean;
   firstDayOfWeek: number;
+  keepMeConnected: boolean;
 };
 
 type BankingUserPreferencesState = {
@@ -45,9 +43,33 @@ type PreferencesContextValue = {
   accountPreferences: AccountPreferencesState;
   isLoading: boolean;
   canManageAccountPreferences: boolean;
-  updateUserPreferences: (patch: UpdateUserPreferencesInput) => Promise<void>;
+  updateUserPreferences: (patch: UserPreferencesPatch) => Promise<void>;
   updateBankingUserPreferences: (patch: UpdateBankingUserPreferencesInput) => Promise<void>;
   updateAccountPreferences: (patch: UpdateAccountPreferencesInput) => Promise<void>;
+};
+
+type UserPreferencesPatch = UpdateUserPreferencesInput & {
+  keepMeConnected?: boolean;
+};
+
+type UserPreferencesQueryData = {
+  userPreferences: {
+    language: Language;
+    theme: Theme;
+    blurBalances: boolean;
+    firstDayOfWeek: number;
+    keepMeConnected?: boolean | null;
+  };
+};
+
+type UpdateUserPreferencesMutationData = {
+  updateUserPreferences: {
+    language: Language;
+    theme: Theme;
+    blurBalances: boolean;
+    firstDayOfWeek: number;
+    keepMeConnected?: boolean | null;
+  };
 };
 
 const USER_PREFS_CACHE_KEY = "@invistus/userPreferences";
@@ -58,6 +80,7 @@ const defaultUserPreferences: UserPreferencesState = {
   theme: Theme.System,
   blurBalances: false,
   firstDayOfWeek: 1,
+  keepMeConnected: true,
 };
 
 const defaultBankingUserPreferences: BankingUserPreferencesState = {
@@ -85,6 +108,7 @@ function readCachedUserPreferences(): UserPreferencesState | null {
       theme: parsed.theme,
       blurBalances: parsed.blurBalances,
       firstDayOfWeek: typeof parsed.firstDayOfWeek === "number" ? parsed.firstDayOfWeek : 1,
+      keepMeConnected: typeof parsed.keepMeConnected === "boolean" ? parsed.keepMeConnected : true,
     };
   } catch {
     return null;
@@ -126,12 +150,12 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
 
   const [canManageAccountPreferences, setCanManageAccountPreferences] = React.useState(true);
 
-  const userPrefsQuery = useQuery<UserPreferencesQuery>(USER_PREFERENCES, { skip: !isAuthenticated });
+  const userPrefsQuery = useQuery<UserPreferencesQueryData>(USER_PREFERENCES, { skip: !isAuthenticated });
   const bankingUserPrefsQuery = useQuery<BankingUserPreferencesQuery>(BANKING_USER_PREFERENCES, { skip: !isAuthenticated });
   const accountPrefsQuery = useQuery<AccountPreferencesQuery>(ACCOUNT_PREFERENCES, { skip: !isAuthenticated });
   const [updateUserPreferencesMutation] = useMutation<
-    Pick<Mutation, "updateUserPreferences">,
-    { input: UpdateUserPreferencesInput }
+    UpdateUserPreferencesMutationData,
+    { input: UserPreferencesPatch }
   >(UPDATE_USER_PREFERENCES);
   const [updateBankingUserPreferencesMutation] = useMutation<
     Pick<Mutation, "updateBankingUserPreferences">,
@@ -150,6 +174,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
       theme: data.theme,
       blurBalances: data.blurBalances,
       firstDayOfWeek: data.firstDayOfWeek,
+      keepMeConnected: data.keepMeConnected ?? true,
     };
     setUserPreferences(next);
     writeCachedUserPreferences(next);
@@ -213,13 +238,14 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
   }, [setMode, userPreferences.theme]);
 
   const updateUserPreferences = React.useCallback(
-    async (patch: UpdateUserPreferencesInput) => {
+    async (patch: UserPreferencesPatch) => {
       const previous = userPreferences;
       const optimistic: UserPreferencesState = {
         language: patch.language ?? previous.language,
         theme: patch.theme ?? previous.theme,
         blurBalances: patch.blurBalances ?? previous.blurBalances,
         firstDayOfWeek: patch.firstDayOfWeek ?? previous.firstDayOfWeek,
+        keepMeConnected: patch.keepMeConnected ?? previous.keepMeConnected,
       };
       setUserPreferences(optimistic);
       writeCachedUserPreferences(optimistic);
@@ -232,6 +258,7 @@ export function PreferencesProvider({ children }: { children: React.ReactNode })
             theme: saved.theme ?? previous.theme,
             blurBalances: saved.blurBalances ?? previous.blurBalances,
             firstDayOfWeek: saved.firstDayOfWeek ?? previous.firstDayOfWeek,
+            keepMeConnected: saved.keepMeConnected ?? previous.keepMeConnected,
           };
           setUserPreferences(next);
           writeCachedUserPreferences(next);

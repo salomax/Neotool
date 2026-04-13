@@ -12,6 +12,7 @@ class UserPreferencesMapper {
             theme = entity.theme,
             blurBalances = entity.blurBalances,
             firstDayOfWeek = entity.firstDayOfWeek.toInt(),
+            keepMeConnected = entity.keepMeConnected,
             createdAt = entity.createdAt,
             updatedAt = entity.updatedAt,
         )
@@ -24,6 +25,7 @@ class UserPreferencesMapper {
         entity.theme = domain.theme
         entity.blurBalances = domain.blurBalances
         entity.firstDayOfWeek = domain.firstDayOfWeek.coerceIn(1, 7).toShort()
+        entity.keepMeConnected = domain.keepMeConnected
         entity.updatedAt = domain.updatedAt
     }
 }

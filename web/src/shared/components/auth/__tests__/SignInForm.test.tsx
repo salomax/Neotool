@@ -144,7 +144,7 @@ describe.sequential('SignInForm', () => {
     expect(mockSignIn).toHaveBeenCalledWith(
       'test@example.com',
       'TestPassword123!',
-      false
+      true
     );
   });
 
@@ -162,7 +162,7 @@ describe.sequential('SignInForm', () => {
     await user.click(checkbox);
 
     await waitFor(() => {
-      expect(checkbox).toBeChecked();
+      expect(checkbox).not.toBeChecked();
     });
 
     await user.click(submitButton);
@@ -174,7 +174,7 @@ describe.sequential('SignInForm', () => {
     expect(mockSignIn).toHaveBeenCalledWith(
       'test@example.com',
       'TestPassword123!',
-      true
+      false
     );
   });
 
@@ -343,7 +343,7 @@ describe.sequential('SignInForm', () => {
 
       // Wait for the OAuth callback to trigger signInWithOAuth
       await waitFor(() => {
-        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', idToken, false);
+        expect(mockSignInWithOAuth).toHaveBeenCalledWith('google', idToken, true);
       }, { timeout: 2000 });
     });
 

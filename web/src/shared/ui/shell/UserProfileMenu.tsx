@@ -18,17 +18,21 @@ export type UserProfileMenuUser = {
   avatarUrl?: string | null;
 };
 
+export type UserProfileMenuProps = {
+  user: UserProfileMenuUser | null;
+  onSignOut: () => void;
+  onOpenProfile: () => void;
+  t: (key: string) => string;
+  avatarSize?: number;
+};
+
 export function UserProfileMenu({
   user,
   onSignOut,
   onOpenProfile,
   t,
-}: {
-  user: UserProfileMenuUser | null;
-  onSignOut: () => void;
-  onOpenProfile: () => void;
-  t: (key: string) => string;
-}) {
+  avatarSize = 38,
+}: UserProfileMenuProps) {
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
   const displayName =
@@ -71,8 +75,8 @@ export function UserProfileMenu({
           <Avatar
             variant="rounded"
             sx={(theme) => ({
-              width: 32,
-              height: 32,
+              width: avatarSize,
+              height: avatarSize,
               borderRadius: `${theme.custom.radius.md}px`,
             })}
             src={user?.avatarUrl || undefined}
