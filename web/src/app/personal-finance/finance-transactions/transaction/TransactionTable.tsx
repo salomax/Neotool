@@ -30,8 +30,6 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { AccountBalance as BankIcon } from '@mui/icons-material';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
@@ -42,7 +40,7 @@ import {
   FinancialAccount,
   FinancialAccountSubtype,
   FinancialAccountType,
-  Merchant,
+  TransactionCategory,
   TransactionType,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
@@ -57,12 +55,24 @@ import { Logo } from '@/shared/components/ui/primitives';
 import { InlineTransactionForm } from './InlineTransactionForm';
 import { SimilarEditDialog } from './SimilarEditDialog';
 import { AppliedTransactionRulesDrawer } from './AppliedTransactionRulesDrawer';
+import { ApplyRuleToHistoricalDialog } from './ApplyRuleToHistoricalDialog';
 import { TransactionRuleDrawer } from '../transaction-rules/TransactionRuleDrawer';
-import { CategoryChip } from '../category/CategoryChip';
+import { CategoryChip, type CategoryChipDecorationAlpha } from '../category/CategoryChip';
 import { CategoryPicker } from '../category/CategoryPicker';
-import { useLazyQuery, useMutation } from '@apollo/client/react';
-import { DELETE_TRANSACTION, REMOVE_TRANSACTION_ATTACHMENT, UPDATE_TRANSACTION, APPLY_TRANSACTION_EDIT_TO_SIMILAR } from '@/lib/graphql/operations/banking/mutations';
-import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
+import type { ApolloClient } from '@apollo/client';
+import { useApolloClient, useLazyQuery, useMutation } from '@apollo/client/react';
+import {
+  APPLY_TRANSACTION_EDIT_TO_SIMILAR,
+  APPLY_TRANSACTION_RULE_TO_HISTORICAL,
+  DELETE_TRANSACTION,
+  REMOVE_TRANSACTION_ATTACHMENT,
+  UPDATE_TRANSACTION,
+} from '@/lib/graphql/operations/banking/mutations';
+import {
+  SIMILAR_TRANSACTION_EDIT_PREVIEW,
+  TRANSACTION_CATEGORIES,
+  TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
+} from '@/lib/graphql/operations/banking/queries';
 import { usePreferences, useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
@@ -77,7 +87,7 @@ import {
   financeTransactionTableHeadSx,
   getFinanceTransactionTableSx,
 } from '../../utils/financeTransactionTableStyles';
-import { Amount } from '@/shared/components/ui/data-display';
+import { Amount, TransactionDirectionBadge } from '@/shared/components/ui/data-display';
 import { resolveSimilarEditBehavior } from './similarEditPreference';
 
 interface TransactionTableProps {
@@ -138,6 +148,15 @@ const TAG_COLORS = [
   '#607D8B',
 ];
 
+const TRANSACTION_TABLE_CATEGORY_CHIP_DECORATION_ALPHA: CategoryChipDecorationAlpha = {
+  filledBackground: 0.03,
+  filledBorder: 0.12,
+  filledHoverBackground: 0.12,
+  placeholderBackground: 0.012,
+  placeholderInsetBorder: 0.04,
+  placeholderHoverBackground: 0.03,
+};
+
 function stringToColor(value: string) {
   let hash = 0;
   for (let i = 0; i < value.length; i++) {
@@ -150,6 +169,38 @@ function stringToColor(value: string) {
 function shouldPromptForImportedCategoryEdit(transaction: Transaction | null, categoryId: string | null): boolean {
   if (!transaction) return false;
   return (transaction.category?.id ?? null) !== categoryId && categoryId !== null;
+}
+
+/** System seed: TRANSFER > Transferência enviada > Entre contas próprias (see V0_4__create_transaction_categories.sql). */
+const OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME = 'Entre contas próprias';
+
+function findOwnAccountsTransferCategoryId(categories: TransactionCategory[]): string | null {
+  const matches = categories.filter(
+    (c) =>
+      c.name === OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME &&
+      c.applicableTo === CategoryApplicableTo.Transfer &&
+      c.isSystem === true,
+  );
+  if (matches.length === 0) return null;
+  matches.sort((a, b) => a.sortOrder - b.sortOrder);
+  return matches[0]?.id ?? null;
+}
+
+async function resolveOwnAccountsTransferCategoryId(client: ApolloClient): Promise<string | null> {
+  try {
+    const cached = client.readQuery<{ transactionCategories: TransactionCategory[] }>({
+      query: TRANSACTION_CATEGORIES,
+    });
+    const fromCache = findOwnAccountsTransferCategoryId(cached?.transactionCategories ?? []);
+    if (fromCache) return fromCache;
+  } catch {
+    // not in Apollo cache yet
+  }
+  const fetched = await client.query<{ transactionCategories: TransactionCategory[] }>({
+    query: TRANSACTION_CATEGORIES,
+    fetchPolicy: 'network-only',
+  });
+  return findOwnAccountsTransferCategoryId(fetched.data?.transactionCategories ?? []);
 }
 
 export function TransactionTable({ 
@@ -187,6 +238,9 @@ export function TransactionTable({
   const [createRuleDraft, setCreateRuleDraft] = useState<{ pattern: string; applicableTo: CategoryApplicableTo } | null>(
     null,
   );
+  const [applyRuleToHistoryPrompt, setApplyRuleToHistoryPrompt] = useState<{ ruleId: string; matchCount: number } | null>(
+    null,
+  );
   const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
   const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
   const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
@@ -204,6 +258,7 @@ export function TransactionTable({
   const showHeaderProgress = loading || busyCount > 0;
   const actionMenuId = 'finance-transactions-transaction-actions-menu';
 
+  const apolloClient = useApolloClient();
   const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
   const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
   const [removeTransactionAttachment] = useMutation(REMOVE_TRANSACTION_ATTACHMENT);
@@ -213,6 +268,13 @@ export function TransactionTable({
   );
   const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
     useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
+  const [loadRuleHistoricalMatchCount] = useLazyQuery<{ transactionRuleHistoricalMatchCount: number }>(
+    TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
+    { fetchPolicy: 'no-cache' },
+  );
+  const [applyTransactionRuleToHistorical, { loading: applyingRuleToHistory }] = useMutation(
+    APPLY_TRANSACTION_RULE_TO_HISTORICAL,
+  );
 
   useEffect(() => {
     transactionsRef.current = transactions;
@@ -327,18 +389,29 @@ export function TransactionTable({
     setMarkingTransferTransactionId(tx.id);
     try {
       beginBusy();
+      const ownAccountsCategoryId = await resolveOwnAccountsTransferCategoryId(apolloClient);
+      if (!ownAccountsCategoryId) {
+        toast.error(t('financeTransactions.transactionTable.rowActions.markAsTransferMissingCategory'));
+        return;
+      }
+
       await updateTransaction({
         variables: {
           id: tx.id,
-          input: { type: TransactionType.Transfer },
+          input: {
+            type: TransactionType.Transfer,
+            categoryId: ownAccountsCategoryId,
+          },
         },
       });
 
-      toast.success('Transação marcada como transferência interna');
+      toast.success(t('financeTransactions.transactionTable.rowActions.markAsTransferSuccess'));
       onSuccessCreate?.();
       closeActionMenu();
     } catch (err) {
-      toast.error(extractErrorMessage(err, 'Não foi possível marcar como transferência interna'));
+      toast.error(
+        extractErrorMessage(err, t('financeTransactions.transactionTable.rowActions.markAsTransferError')),
+      );
     } finally {
       setMarkingTransferTransactionId(null);
       endBusy();
@@ -600,80 +673,6 @@ export function TransactionTable({
     );
   };
 
-  const getTypeIconProps = (creditDebitType: CreditDebitType, transactionType: TransactionType) => {
-    if (transactionType === TransactionType.Transfer) {
-      return { icon: <SwapHorizIcon fontSize="inherit" />, color: theme.palette.info.main };
-    }
-    if (creditDebitType === CreditDebitType.Credit) {
-      return { icon: <ArrowUpwardIcon fontSize="inherit" />, color: theme.palette.success.main };
-    }
-    if (creditDebitType === CreditDebitType.Debit) {
-      return { icon: <ArrowDownwardIcon fontSize="inherit" />, color: theme.palette.error.main };
-    }
-    return null;
-  };
-
-  const renderTransactionIcon = (
-    creditDebitType: CreditDebitType,
-    transactionType: TransactionType,
-    merchant: Pick<Merchant, 'name' | 'logoAsset'> | null | undefined,
-  ) => {
-    const typeProps = getTypeIconProps(creditDebitType, transactionType);
-    const logoUrl = merchant?.logoAsset?.publicUrl;
-
-    if (logoUrl) {
-      return (
-        <Box sx={{ position: 'relative', width: 32, height: 32, flexShrink: 0 }}>
-          <Logo
-            src={logoUrl}
-            alt={merchant?.name ?? ''}
-            size="lg"
-          />
-          {typeProps && (
-            <Box
-              sx={{
-                position: 'absolute',
-                bottom: -8,
-                right: -8,
-                width: 18,
-                height: 18,
-                border: 'none',
-                borderRadius: borderRadius,
-                display: 'flex',
-                bgcolor: `color-mix(in srgb, ${typeProps.color} 5%, ${theme.palette.background.paper})`,
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: typeProps.color,
-                fontSize: 16,
-              }}
-            >
-              {typeProps.icon}
-            </Box>
-          )}
-        </Box>
-      );
-    }
-
-    if (!typeProps) return null;
-    return (
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 32,
-          height: 32,
-          borderRadius: '.3rem',
-          bgcolor: alpha(typeProps.color, 0.05),
-          color: typeProps.color,
-          fontSize: 20,
-        }}
-      >
-        {typeProps.icon}
-      </Box>
-    );
-  };
-
   const accountsById = useMemo(() => {
     const map = new Map<string, FinancialAccount>();
     for (const account of financialAccounts ?? []) {
@@ -802,7 +801,8 @@ export function TransactionTable({
                 const displayedCategory = forceNoCategoryByTransactionId[transaction.id]
                   ? null
                   : transaction.category;
-                
+                const isBalanceAdjustment = transaction.type === TransactionType.BalanceAdjustment;
+
                 return (
                   <Fragment key={transaction.id}>
                     <TableRow
@@ -823,7 +823,12 @@ export function TransactionTable({
                       }}
                     >
                       <TableCell padding="checkbox" sx={{ pl: 2 }}>
-                        {renderTransactionIcon(transaction.creditDebitType, transaction.type, transaction.merchant)}
+                        <TransactionDirectionBadge
+                          creditDebitType={transaction.creditDebitType}
+                          transactionType={transaction.type}
+                          merchantLogoUrl={transaction.merchant?.logoAsset?.publicUrl}
+                          merchantName={transaction.merchant?.name}
+                        />
                       </TableCell>
                       <TableCell component="th" scope="row">
                         <Stack spacing={0.5}>
@@ -896,75 +901,96 @@ export function TransactionTable({
                         </Stack>
                       </TableCell>
                       <TableCell>
-                        <CategoryChip
-                          category={displayedCategory}
-                          disabled={updatingCategoryTransactionId === transaction.id}
-                          loading={updatingCategoryTransactionId === transaction.id}
-                          onClick={(e) => handleOpenCategoryPicker(e, transaction)}
-                          placeholder={
-                            <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
-                              {t('financeTransactions.category')}
-                            </Typography>
-                          }
-                        />
+                        {isBalanceAdjustment ? (
+                          <Typography
+                            variant="body2"
+                            data-testid="transaction-row-balance-adjustment-no-category"
+                            sx={{ fontSize: tableBodyLabelFontSize, color: 'text.disabled' }}
+                          >
+                            —
+                          </Typography>
+                        ) : (
+                          <CategoryChip
+                            category={displayedCategory}
+                            disabled={updatingCategoryTransactionId === transaction.id}
+                            loading={updatingCategoryTransactionId === transaction.id}
+                            onClick={(e) => handleOpenCategoryPicker(e, transaction)}
+                            decorationAlpha={TRANSACTION_TABLE_CATEGORY_CHIP_DECORATION_ALPHA}
+                            placeholder={
+                              <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
+                                {t('financeTransactions.category')}
+                              </Typography>
+                            }
+                          />
+                        )}
                       </TableCell>
                       <TableCell>
-                        <Stack direction="row" spacing={0.5} alignItems="center">
-                          {transaction.tags?.slice(0, 2).map((tag: string, tagIndex) => {
-                            if (!tag) return null;
-                            const color = stringToColor(tag);
-                            return (
-                              <Chip
-                                key={`${tag}-${tagIndex}`}
-                                label={<Typography variant="body2">{tag}</Typography>}
-                                size="small"
-                                variant="filled"
-                                sx={{ 
-                                  bgcolor: alpha(color, 0.05),
-                                  color: color,
-                                  borderRadius: borderRadius,
-                                }}
-                              />
-                            );
-                          })}
-                          {transaction.tags?.length > 2 && (
-                            <Tooltip 
-                              title={
-                                <Stack spacing={0.5} sx={{ p: 0.5 }}>
-                                  {transaction.tags.map((tag: string, tagIndex) => {
-                                    if (!tag) return null;
-                                    return (
-                                      <Typography key={`${tag}-${tagIndex}`} variant="caption" sx={{ color: 'inherit' }}>
-                                        • {tag}
-                                      </Typography>
-                                    );
-                                  })}
-                                </Stack>
-                              }
-                              arrow
-                            >
-                              <ButtonBase
-                                sx={{
-                                  px: 0.5,
-                                  borderRadius: borderRadius,
-                                  fontSize: '0.7rem',
-                                  fontWeight: 600,
-                                  color: theme.palette.primary.main,
-                                  '&:hover': { textDecoration: 'underline' },
-                                  '&:focus-visible': {
-                                    outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                                    outlineOffset: 2,
-                                  },
-                                }}
-                                aria-label={t('financeTransactions.transactionTable.tags.moreAriaLabel', {
-                                  count: transaction.tags.length - 2,
-                                })}
+                        {isBalanceAdjustment ? (
+                          <Typography
+                            variant="body2"
+                            data-testid="transaction-row-balance-adjustment-no-tags"
+                            sx={{ fontSize: tableBodyLabelFontSize, color: 'text.disabled' }}
+                          >
+                            —
+                          </Typography>
+                        ) : (
+                          <Stack direction="row" spacing={0.5} alignItems="center">
+                            {transaction.tags?.slice(0, 2).map((tag: string, tagIndex) => {
+                              if (!tag) return null;
+                              const color = stringToColor(tag);
+                              return (
+                                <Chip
+                                  key={`${tag}-${tagIndex}`}
+                                  label={<Typography variant="body2">{tag}</Typography>}
+                                  size="small"
+                                  variant="filled"
+                                  sx={{
+                                    bgcolor: alpha(color, 0.05),
+                                    color: color,
+                                    borderRadius: borderRadius,
+                                  }}
+                                />
+                              );
+                            })}
+                            {transaction.tags?.length > 2 && (
+                              <Tooltip
+                                title={
+                                  <Stack spacing={0.5} sx={{ p: 0.5 }}>
+                                    {transaction.tags.map((tag: string, tagIndex) => {
+                                      if (!tag) return null;
+                                      return (
+                                        <Typography key={`${tag}-${tagIndex}`} variant="caption" sx={{ color: 'inherit' }}>
+                                          • {tag}
+                                        </Typography>
+                                      );
+                                    })}
+                                  </Stack>
+                                }
+                                arrow
                               >
-                                +{transaction.tags.length - 2}
-                              </ButtonBase>
-                            </Tooltip>
-                          )}
-                        </Stack>
+                                <ButtonBase
+                                  sx={{
+                                    px: 0.5,
+                                    borderRadius: borderRadius,
+                                    fontSize: '0.7rem',
+                                    fontWeight: 600,
+                                    color: theme.palette.primary.main,
+                                    '&:hover': { textDecoration: 'underline' },
+                                    '&:focus-visible': {
+                                      outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
+                                      outlineOffset: 2,
+                                    },
+                                  }}
+                                  aria-label={t('financeTransactions.transactionTable.tags.moreAriaLabel', {
+                                    count: transaction.tags.length - 2,
+                                  })}
+                                >
+                                  +{transaction.tags.length - 2}
+                                </ButtonBase>
+                              </Tooltip>
+                            )}
+                          </Stack>
+                        )}
                       </TableCell>
                       {!selectedAccountId && (
                         <TableCell>
@@ -1160,56 +1186,60 @@ export function TransactionTable({
           </ListItemIcon>
           <ListItemText>{t('financeTransactions.transactionTable.rowActions.edit')}</ListItemText>
         </MenuItem>
-        {(actionMenuTransaction?.appliedRuleIds?.length ?? 0) > 0 && (
+        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment &&
+          (actionMenuTransaction?.appliedRuleIds?.length ?? 0) > 0 && (
+            <MenuItem
+              onClick={() => {
+                const tx = actionMenuTransaction;
+                closeActionMenu();
+                if (!tx) return;
+                setAppliedRulesTransaction(tx);
+              }}
+              data-testid="transaction-action-view-applied-rules"
+            >
+              <ListItemIcon>
+                <AutoFixHighIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>{t('financeTransactions.transactionTable.rowActions.viewAppliedRules')}</ListItemText>
+            </MenuItem>
+          )}
+        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment && (
           <MenuItem
             onClick={() => {
               const tx = actionMenuTransaction;
               closeActionMenu();
               if (!tx) return;
-              setAppliedRulesTransaction(tx);
+              setCreateRuleDraft({
+                pattern: tx.description,
+                applicableTo: resolveRuleApplicableTo(tx),
+              });
             }}
-            data-testid="transaction-action-view-applied-rules"
+            disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+            data-testid="transaction-action-create-rule-from-description"
           >
             <ListItemIcon>
               <AutoFixHighIcon fontSize="small" />
             </ListItemIcon>
-            <ListItemText>{t('financeTransactions.transactionTable.rowActions.viewAppliedRules')}</ListItemText>
+            <ListItemText>{t('financeTransactions.transactionTable.rowActions.createRuleFromDescription')}</ListItemText>
           </MenuItem>
         )}
-        <MenuItem
-          onClick={() => {
-            const tx = actionMenuTransaction;
-            closeActionMenu();
-            if (!tx) return;
-            setCreateRuleDraft({
-              pattern: tx.description,
-              applicableTo: resolveRuleApplicableTo(tx),
-            });
-          }}
-          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-          data-testid="transaction-action-create-rule-from-description"
-        >
-          <ListItemIcon>
-            <AutoFixHighIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('financeTransactions.transactionTable.rowActions.createRuleFromDescription')}</ListItemText>
-        </MenuItem>
-        {actionMenuTransaction?.type !== TransactionType.Transfer && (
-          <MenuItem
-            onClick={handleMarkAsInternalTransfer}
-            disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-          >
-            <ListItemIcon>
-              {markingTransferTransactionId === actionMenuTransaction?.id ? (
-                <CircularProgress size={18} />
-              ) : (
-                <SwapHorizIcon color="info" fontSize="small" />
-              )}
-            </ListItemIcon>
-            <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsTransfer')}</ListItemText>
-          </MenuItem>
-        )}
-        <Divider />
+        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment &&
+          actionMenuTransaction?.type !== TransactionType.Transfer && (
+            <MenuItem
+              onClick={handleMarkAsInternalTransfer}
+              disabled={markingTransferTransactionId === actionMenuTransaction?.id}
+            >
+              <ListItemIcon>
+                {markingTransferTransactionId === actionMenuTransaction?.id ? (
+                  <CircularProgress size={18} />
+                ) : (
+                  <SwapHorizIcon color="info" fontSize="small" />
+                )}
+              </ListItemIcon>
+              <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsTransfer')}</ListItemText>
+            </MenuItem>
+          )}
+        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment && <Divider />}
         <MenuItem
           onClick={() => {
             const tx = actionMenuTransaction;
@@ -1262,9 +1292,20 @@ export function TransactionTable({
         initialPattern={createRuleDraft?.pattern ?? ''}
         initialApplicableTo={createRuleDraft?.applicableTo}
         onClose={() => setCreateRuleDraft(null)}
-        onSaved={() => {
+        onSaved={(savedRule) => {
           setCreateRuleDraft(null);
           void onSuccessCreate?.();
+          void (async () => {
+            try {
+              const result = await loadRuleHistoricalMatchCount({ variables: { id: savedRule.id } });
+              const matchCount = result.data?.transactionRuleHistoricalMatchCount ?? 0;
+              if (matchCount > 0) {
+                setApplyRuleToHistoryPrompt({ ruleId: savedRule.id, matchCount });
+              }
+            } catch (err) {
+              toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
+            }
+          })();
         }}
       />
 
@@ -1286,6 +1327,32 @@ export function TransactionTable({
         onConfirm={handleConfirmSimilarEdit}
         similarCount={pendingSimilarEditPrompt?.similarCount ?? 0}
         loading={applyingSimilarEdit}
+      />
+
+      <ApplyRuleToHistoricalDialog
+        open={Boolean(applyRuleToHistoryPrompt)}
+        matchCount={applyRuleToHistoryPrompt?.matchCount ?? 0}
+        loading={applyingRuleToHistory}
+        onClose={() => setApplyRuleToHistoryPrompt(null)}
+        onConfirm={() => {
+          const payload = applyRuleToHistoryPrompt;
+          if (!payload) return;
+          void (async () => {
+            try {
+              const res = await applyTransactionRuleToHistorical({ variables: { id: payload.ruleId } });
+              const affected = (res.data as any)?.applyTransactionRuleToHistorical?.affectedCount as number | undefined;
+              toast.success(
+                t('financeTransactions.applyRuleToHistoryPrompt.toastSuccess', {
+                  count: typeof affected === 'number' ? affected : payload.matchCount,
+                }),
+              );
+              setApplyRuleToHistoryPrompt(null);
+              void onSuccessCreate?.();
+            } catch (err) {
+              toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
+            }
+          })();
+        }}
       />
       
       {hasMore && (

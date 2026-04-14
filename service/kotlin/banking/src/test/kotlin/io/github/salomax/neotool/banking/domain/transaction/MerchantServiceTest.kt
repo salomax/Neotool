@@ -23,6 +23,7 @@ class MerchantServiceTest {
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var ruleService: TransactionRuleService
     private lateinit var ruleRepository: TransactionRuleRepository
+    private lateinit var merchantLogoHydrationService: MerchantLogoHydrationService
     private lateinit var service: MerchantService
 
     private val accountId = UUID.randomUUID()
@@ -32,7 +33,8 @@ class MerchantServiceTest {
         merchantRepository = mock()
         ruleService = mock()
         ruleRepository = mock()
-        service = MerchantService(merchantRepository, ruleService, ruleRepository)
+        merchantLogoHydrationService = mock()
+        service = MerchantService(merchantRepository, ruleService, ruleRepository, merchantLogoHydrationService)
     }
 
     @Test
@@ -71,7 +73,7 @@ class MerchantServiceTest {
         whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existingRule))
         whenever(ruleRepository.save(any())).thenAnswer { it.arguments[0] as TransactionRule }
 
-        val created = service.create("Netflix", "netflix.com", "streaming", accountId)
+        val created = service.create("Netflix", "https://www.netflix.com/plans", "streaming", accountId)
 
         assertThat(created.id).isEqualTo(merchantId)
         val captor = argumentCaptor<TransactionRule>()
@@ -79,6 +81,7 @@ class MerchantServiceTest {
         assertThat(captor.firstValue.id).isEqualTo(existingRule.id)
         assertThat(captor.firstValue.merchantId).isEqualTo(merchantId)
         assertThat(captor.firstValue.categoryId).isEqualTo(existingRule.categoryId)
+        verify(merchantLogoHydrationService).hydrateForDomainAsync("netflix.com")
     }
 
     @Test
@@ -115,8 +118,57 @@ class MerchantServiceTest {
             .create(any(), eq(accountId))
         whenever(ruleRepository.findUserRulesForAccount(accountId)).thenReturn(listOf(existingRule))
 
-        service.create("Netflix", "netflix.com", "streaming", accountId)
+        service.create("Netflix", "https://netflix.com", "streaming", accountId)
 
         verify(ruleRepository, never()).save(any())
+        verify(merchantLogoHydrationService).hydrateForDomainAsync("netflix.com")
+    }
+
+    @Test
+    fun `create rejects invalid website`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            service.create("Bad", "notawebsite", null, accountId)
+        }
+    }
+
+    @Test
+    fun `create rejects name over 100 chars`() {
+        org.junit.jupiter.api.assertThrows<IllegalArgumentException> {
+            service.create("A".repeat(101), null, null, accountId)
+        }
+    }
+
+    @Test
+    fun `create trims and validates name length`() {
+        val merchant =
+            Merchant(
+                id = UUID.randomUUID(),
+                name = "A".repeat(100),
+                accountId = accountId,
+            )
+        whenever(merchantRepository.save(any())).thenReturn(merchant)
+
+        val created = service.create(" ${"A".repeat(100)} ", null, null, accountId)
+
+        assertThat(created.name).hasSize(100)
+    }
+
+    @Test
+    fun `search delegates to repository with bounded page size`() {
+        val page =
+            MerchantSearchPage(
+                items = emptyList(),
+                totalCount = 0,
+                hasNextPage = false,
+                hasPreviousPage = false,
+                startCursor = null,
+                endCursor = null,
+            )
+        whenever(merchantRepository.searchForAccount(accountId, "uber", null, 50)).thenReturn(page)
+
+        val result = service.search(accountId, "uber", null, 999)
+
+        assertThat(result.totalCount).isZero()
+        verify(merchantRepository).searchForAccount(accountId, "uber", null, 50)
     }
 }

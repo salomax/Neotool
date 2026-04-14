@@ -888,6 +888,8 @@
     "credit": "Credit",
     "debit": "Debit",
     "transfer": "Transfer",
+    "internalTransferIn": "Internal transfer (In)",
+    "internalTransferOut": "Internal transfer (Out)",
     "amount": "Amount",
     "description": "Description",
     "date": "Date",
@@ -895,6 +897,22 @@
     "category": "Category",
     "value": "Value",
     "tags": "Tags",
+    "merchant": "Merchant",
+    "noMerchant": "No merchant",
+    "merchantPicker": {
+      "searchPlaceholder": "Search merchant...",
+      "noResults": "No merchants found",
+      "createMerchant": "Create merchant",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Logo preview",
+      "noWebsite": "No website",
+      "created": "Merchant created: {{name}}",
+      "loadMore": "Load more",
+      "resultCount": "Showing {{shown}} of {{total}}"
+    },
     "issuer": "Institution",
     "financialAccount": "Financial Account",
     "validation": {
@@ -1429,6 +1447,9 @@
         "ariaLabel": "Transaction actions",
         "viewNfce": "View NFC-e",
         "markAsTransfer": "Mark as internal transfer",
+        "markAsTransferSuccess": "Transaction marked as internal transfer",
+        "markAsTransferError": "Could not mark as internal transfer",
+        "markAsTransferMissingCategory": "Default transfer category was not found. Reload the page or try again.",
         "edit": "Edit",
         "viewAppliedRules": "View applied rules",
         "createRuleFromDescription": "Create rule from description",
@@ -1475,6 +1496,14 @@
         }
       }
     },
+    "applyRuleToHistoryPrompt": {
+      "title": "Apply rule to history?",
+      "description": "This rule matches {{count}} existing transaction(s). Apply it now?",
+      "confirm": "Apply to history",
+      "cancel": "Not now",
+      "toastSuccess": "Rule applied to {{count}} transaction(s).",
+      "toastError": "Could not apply the rule to history"
+    },
     "monthSummary": {
       "income": "Income",
       "expenses": "Expenses",
@@ -1501,6 +1530,10 @@
       "clearCategoryFilter": "Clear category filter",
       "clearTagFilter": "Clear tag filter",
       "clearCreditDebitTypeFilter": "Clear credit/debit filter",
+      "transfersIn": "Transfers In",
+      "transfersOut": "Transfers Out",
+      "filteringByTransfer": "Internal transfers only",
+      "clearTransferFilter": "Clear transfer filter",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"

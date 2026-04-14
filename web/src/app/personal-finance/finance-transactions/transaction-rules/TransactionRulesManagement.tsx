@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useLazyQuery, useQuery, useMutation } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import {
@@ -46,15 +46,18 @@ import { Label } from '@/shared/components/ui/primitives/Label';
 import {
   TRANSACTION_RULES,
   TRANSACTION_RULES_BY_IDS,
+  TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
 } from '@/lib/graphql/operations/banking/queries';
 import {
   DELETE_TRANSACTION_RULE,
   SET_SYSTEM_TRANSACTION_RULE_ENABLED,
+  APPLY_TRANSACTION_RULE_TO_HISTORICAL,
 } from '@/lib/graphql/operations/banking/mutations';
 
 import type { TransactionRule } from './types';
 import { TransactionRuleRow } from './TransactionRuleRow';
 import { TransactionRuleDrawer } from './TransactionRuleDrawer';
+import { ApplyRuleToHistoricalDialog } from '../transaction/ApplyRuleToHistoricalDialog';
 
 interface TransactionRulesData {
   transactionRules: {
@@ -109,6 +112,9 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
   const [searchQuery, setSearchQuery] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<TransactionRule | null>(null);
+  const [applyRuleToHistoryPrompt, setApplyRuleToHistoryPrompt] = useState<{ ruleId: string; matchCount: number } | null>(
+    null,
+  );
   const [ruleToDelete, setRuleToDelete] = useState<TransactionRule | null>(null);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
   const isFetchingMoreRef = useRef(false);
@@ -154,6 +160,15 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
   const deepLinkOpen = !!normalizedEditRuleId && !deepLinkClosed && !!deepLinkRule;
   const effectiveDrawerOpen = drawerOpen || deepLinkOpen;
   const effectiveRule = drawerOpen ? editingRule : deepLinkOpen ? deepLinkRule : null;
+  const isCreatingRule = effectiveDrawerOpen && !effectiveRule;
+
+  const [loadRuleHistoricalMatchCount] = useLazyQuery<{ transactionRuleHistoricalMatchCount: number }>(
+    TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
+    { fetchPolicy: 'no-cache' },
+  );
+  const [applyTransactionRuleToHistorical, { loading: applyingRuleToHistory }] = useMutation(
+    APPLY_TRANSACTION_RULE_TO_HISTORICAL,
+  );
 
   const [deleteRule, { loading: deleteLoading }] = useMutation(DELETE_TRANSACTION_RULE, {
     onCompleted: () => {
@@ -738,13 +753,51 @@ export const TransactionRulesManagement: React.FC<TransactionRulesManagementProp
             }
             setDrawerOpen(false);
           }}
-          onSaved={() => {
+          onSaved={(savedRule) => {
             if (!drawerOpen && deepLinkOpen) {
               setDeepLinkClosed(true);
             } else {
               setDrawerOpen(false);
             }
+            setEditingRule(null);
             refetch();
+            if (!isCreatingRule) return;
+            void (async () => {
+              try {
+                const result = await loadRuleHistoricalMatchCount({ variables: { id: savedRule.id } });
+                const matchCount = result.data?.transactionRuleHistoricalMatchCount ?? 0;
+                if (matchCount > 0) {
+                  setApplyRuleToHistoryPrompt({ ruleId: savedRule.id, matchCount });
+                }
+              } catch (err) {
+                toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
+              }
+            })();
+          }}
+        />
+
+        <ApplyRuleToHistoricalDialog
+          open={Boolean(applyRuleToHistoryPrompt)}
+          matchCount={applyRuleToHistoryPrompt?.matchCount ?? 0}
+          loading={applyingRuleToHistory}
+          onClose={() => setApplyRuleToHistoryPrompt(null)}
+          onConfirm={() => {
+            const payload = applyRuleToHistoryPrompt;
+            if (!payload) return;
+            void (async () => {
+              try {
+                const res = await applyTransactionRuleToHistorical({ variables: { id: payload.ruleId } });
+                const affected = (res.data as any)?.applyTransactionRuleToHistorical?.affectedCount as number | undefined;
+                toast.success(
+                  t('financeTransactions.applyRuleToHistoryPrompt.toastSuccess', {
+                    count: typeof affected === 'number' ? affected : payload.matchCount,
+                  }),
+                );
+                setApplyRuleToHistoryPrompt(null);
+              } catch (err) {
+                toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
+              }
+            })();
           }}
         />
 

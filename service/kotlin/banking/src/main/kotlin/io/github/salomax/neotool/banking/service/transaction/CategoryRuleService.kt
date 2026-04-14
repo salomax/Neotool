@@ -2,8 +2,14 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
+import io.github.salomax.neotool.banking.service.transaction.TransactionDescriptionNormalizer
+import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import jakarta.inject.Singleton
 import java.time.Instant
 import java.util.UUID
@@ -13,6 +19,7 @@ open class TransactionRuleService(
     private val ruleRepository: TransactionRuleRepository,
     private val categoryRepository: TransactionCategoryRepository,
     private val merchantRepository: MerchantRepository,
+    private val transactionRepository: TransactionRepository,
 ) {
     /** Returns all user-owned rules (explicit + implicit) for the account. System rules are excluded. */
     fun listUserRules(accountId: UUID): List<TransactionRule> = ruleRepository.findUserRulesForAccount(accountId)
@@ -194,17 +201,140 @@ open class TransactionRuleService(
         return ruleRepository.findUserRulesForAccount(accountId)
     }
 
+    fun countHistoricalMatches(
+        ruleId: UUID,
+        accountId: UUID,
+    ): Int {
+        val rule =
+            ruleRepository.findById(ruleId)
+                ?: throw TransactionRuleNotFoundException(ruleId)
+        if (rule.accountId != accountId) {
+            throw TransactionRuleNotFoundException(ruleId)
+        }
+        return transactionRepository.findByAccount(accountId)
+            .asSequence()
+            .filter { tx -> tx.source != TransactionSource.MANUAL }
+            .filter { tx -> tx.type != TransactionType.BALANCE_ADJUSTMENT }
+            .count { tx -> matchesRule(tx, rule) }
+    }
+
+    fun applyToHistorical(
+        ruleId: UUID,
+        accountId: UUID,
+    ): BulkCategorizeResult {
+        val rule =
+            ruleRepository.findById(ruleId)
+                ?: throw TransactionRuleNotFoundException(ruleId)
+        if (rule.accountId != accountId) {
+            throw TransactionRuleNotFoundException(ruleId)
+        }
+        val now = Instant.now()
+        var affectedCount = 0
+
+        transactionRepository.findByAccount(accountId)
+            .asSequence()
+            .filter { tx -> tx.source != TransactionSource.MANUAL }
+            .filter { tx -> tx.type != TransactionType.BALANCE_ADJUSTMENT }
+            .forEach { tx ->
+                if (!matchesRule(tx, rule)) return@forEach
+
+                var next = tx
+                var anyApplied = false
+
+                if (rule.categoryId != null && tx.categorySource != CategorySource.MANUAL) {
+                    if (tx.categoryId != rule.categoryId || tx.categorySource != CategorySource.RULE) {
+                        next = next.copy(categoryId = rule.categoryId, categorySource = CategorySource.RULE)
+                        anyApplied = true
+                    }
+                }
+                if (rule.merchantId != null && tx.merchantId != rule.merchantId) {
+                    next = next.copy(merchantId = rule.merchantId)
+                    anyApplied = true
+                }
+                if (rule.descriptionOverride != null && tx.description != rule.descriptionOverride) {
+                    next = next.copy(description = rule.descriptionOverride)
+                    anyApplied = true
+                }
+                if (rule.tagsOverride != null && tx.tags != rule.tagsOverride) {
+                    next = next.copy(tags = rule.tagsOverride)
+                    anyApplied = true
+                }
+
+                if (!anyApplied) return@forEach
+
+                next =
+                    next.copy(
+                        appliedRuleHistory =
+                            tx.appliedRuleHistory +
+                                AppliedRuleAuditSupport.buildEntries(listOf(requireNotNull(rule.id)), now),
+                        updatedAt = now,
+                    )
+
+                transactionRepository.update(next)
+                affectedCount += 1
+            }
+
+        if (affectedCount > 0) {
+            ruleRepository.incrementMatchCountBy(ruleId, affectedCount)
+        }
+
+        return BulkCategorizeResult(affectedCount = affectedCount, errors = emptyList())
+    }
+
     private fun matchesPattern(
         pattern: String,
         patternType: PatternType,
         sample: String,
     ): Boolean =
         when (patternType) {
-            PatternType.CONTAINS -> sample.contains(pattern, ignoreCase = true)
+            PatternType.CONTAINS -> containsWholeWord(sample.lowercase(), pattern.lowercase())
             PatternType.STARTS_WITH -> sample.startsWith(pattern, ignoreCase = true)
             PatternType.EXACT -> sample.equals(pattern, ignoreCase = true)
             PatternType.REGEX -> Regex(pattern, RegexOption.IGNORE_CASE).containsMatchIn(sample)
         }
+
+    private fun matchesRule(
+        tx: Transaction,
+        rule: TransactionRule,
+    ): Boolean {
+        val side =
+            if (tx.type == TransactionType.TRANSFER) {
+                CategoryApplicableTo.TRANSFER
+            } else if (tx.creditDebitType == CreditDebitType.CREDIT) {
+                CategoryApplicableTo.INCOME
+            } else {
+                CategoryApplicableTo.EXPENSE
+            }
+        if (rule.applicableTo != CategoryApplicableTo.ANY && rule.applicableTo != side) return false
+
+        val normalized = TransactionDescriptionNormalizer.normalize(tx.description)
+        val pattern = rule.pattern
+
+        return when (rule.patternType) {
+            PatternType.CONTAINS -> containsWholeWord(normalized, pattern.lowercase())
+            PatternType.STARTS_WITH -> normalized.startsWith(pattern)
+            PatternType.EXACT -> normalized == pattern
+            PatternType.REGEX ->
+                try {
+                    normalized.matches(Regex(pattern, RegexOption.IGNORE_CASE))
+                } catch (_: Exception) {
+                    false
+                }
+        }
+    }
+
+    /**
+     * Checks if [text] contains [word] as a whole word — not as part of another word.
+     * Both [text] and [word] must be pre-lowercased.
+     *
+     * Examples:
+     *   "clauber" contains "uber"  → false  (letter before 'u')
+     *   "uber eats" contains "uber" → true
+     *   "uber*trip" contains "uber" → true   ('*' is not a letter)
+     *   "uber99" contains "uber"   → true    ('9' is not a letter)
+     */
+    private fun containsWholeWord(text: String, word: String): Boolean =
+        Regex("(?<![a-z])${Regex.escape(word)}(?![a-z])").containsMatchIn(text)
 
     private fun requireCategoryAccessible(
         categoryId: UUID,

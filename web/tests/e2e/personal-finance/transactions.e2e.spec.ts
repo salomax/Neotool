@@ -1,7 +1,7 @@
 /**
  * E2E tests — Transactions
  *
- * Coverage: TX-H-01..16 | TX-A-01..08 (+ TX-A-10..11 chain recompute) | TX-N-01..08
+ * Coverage: TX-H-01..17 | TX-A-01..08 (+ TX-A-10..11 chain recompute) | TX-N-01..08
  * Security coverage is in security.e2e.spec.ts (SEC-TX-01..05).
  *
  * ──────────────────────────────────────────────────────────────────────────────
@@ -789,6 +789,75 @@ test.describe("Transactions — happy path", () => {
     expect(created!.date.slice(0, 10)).toBe(targetIso);
 
     await deleteTransaction(created!.id, pfUser.token);
+  });
+
+  test("TX-H-17: BALANCE_ADJUSTMENT — no category/tags in row, actions menu Edit+Remove only, amount-only edit", async ({
+    page,
+    pfUser,
+    bankAccount,
+  }) => {
+    const desc = uniqueDesc("Ajuste saldo H17");
+    const tx = await createTransaction(
+      {
+        financialAccountId: bankAccount.id,
+        description: desc,
+        amount: 200,
+        creditDebitType: CreditDebitType.Credit,
+        type: TransactionType.BalanceAdjustment,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token,
+    );
+
+    await signIntoPage(page, pfUser.token);
+    const pfPage = new FinanceTransactionsPage(page);
+    await pfPage.goto();
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    await pfPage.transactionTable.waitForLoad();
+
+    const row = pfPage.transactionTable.getRowByDescription(desc);
+    await expect(row.getByTestId("transaction-row-balance-adjustment-no-category")).toBeVisible();
+    await expect(row.getByTestId("transaction-row-balance-adjustment-no-tags")).toBeVisible();
+
+    await pfPage.transactionTable.openRowActionsMenu(desc);
+    const menu = page.getByRole("menu");
+    await expect(menu.getByRole("menuitem")).toHaveCount(2);
+    await page.getByTestId("transaction-action-edit").click();
+
+    const inline = new InlineTransactionForm(page);
+    await inline.waitForOpen();
+    await expect(page.getByTestId("inline-transaction-form")).toHaveAttribute(
+      "data-balance-adjustment-edit",
+      "true",
+    );
+
+    const responsePromise = page.waitForResponse(
+      (response) => {
+        const req = response.request();
+        if (req.method() !== "POST") return false;
+        if (!/graphql/i.test(req.url())) return false;
+        const body = req.postData() ?? "";
+        return body.includes("UpdateTransaction") && body.includes("mutation");
+      },
+      { timeout: 30_000 },
+    );
+
+    await inline.fillAmount(350);
+    await inline.save();
+    const res = await responsePromise;
+    expect(res.ok()).toBeTruthy();
+    const json = (await res.json()) as { errors?: { message?: string }[] };
+    expect(json.errors == null || json.errors.length === 0).toBeTruthy();
+
+    await inline.waitForClose();
+
+    const txs = await getTransactions(bankAccount.id, pfUser.token, { first: 80 });
+    const updated = txs.find((t) => t.id === tx.id);
+    expect(updated).toBeDefined();
+    expect(updated!.amount).toBe(350);
+
+    await deleteTransaction(tx.id, pfUser.token);
   });
 });
 

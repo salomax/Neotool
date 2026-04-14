@@ -23,6 +23,7 @@ export { TrendIndicator } from './TrendIndicator';
 export { StatusIndicator } from './StatusIndicator';
 export { Amount } from './Amount';
 export { CurrencyAmountParts } from './CurrencyAmountParts';
+export { TransactionDirectionBadge, resolveTransactionDirectionVisuals } from './TransactionDirectionBadge';
 export { InfoField } from './InfoField';
 export { TagChips } from './TagChips';
 export { PercentageGain } from './PercentageGain';

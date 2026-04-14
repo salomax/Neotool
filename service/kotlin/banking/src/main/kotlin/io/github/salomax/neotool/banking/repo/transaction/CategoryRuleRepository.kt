@@ -49,6 +49,11 @@ interface TransactionRuleRepository {
 
     fun incrementMatchCount(id: UUID)
 
+    fun incrementMatchCountBy(
+        id: UUID,
+        delta: Int,
+    )
+
     /** Updates the priority of a single rule (used by reorder). */
     fun updatePriority(
         id: UUID,

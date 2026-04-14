@@ -96,6 +96,7 @@ export const TRANSACTIONS = gql`
     $categoryId: ID
     $uncategorized: Boolean
     $creditDebitType: CreditDebitType
+    $types: [TransactionType!]
     $first: Int
     $after: String
   ) {
@@ -109,6 +110,7 @@ export const TRANSACTIONS = gql`
       categoryId: $categoryId
       uncategorized: $uncategorized
       creditDebitType: $creditDebitType
+      types: $types
       first: $first
       after: $after
     ) {
@@ -998,18 +1000,30 @@ export const BILL_IMPORT_JOB = gql`
 `;
 
 /** Transactions belonging to a specific credit card bill (Bill mode). */
-/** All merchants (system + user-created) available to the authenticated account. */
+/** Paginated merchants (system + user-created) available to the authenticated account. */
 export const MERCHANTS = gql`
-  query Merchants {
-    merchants {
-      id
-      name
-      domain
-      isSystem
-      logoAsset {
-        id
-        publicUrl
+  query Merchants($search: String, $after: String, $first: Int = 20) {
+    merchants(search: $search, after: $after, first: $first) {
+      edges {
+        node {
+          id
+          name
+          domain
+          isSystem
+          logoAsset {
+            id
+            publicUrl
+          }
+        }
+        cursor
       }
+      pageInfo {
+        hasNextPage
+        hasPreviousPage
+        startCursor
+        endCursor
+      }
+      totalCount
     }
   }
 `;
@@ -1082,6 +1096,12 @@ export const TRANSACTION_RULES_BY_IDS = gql`
       ...TransactionRuleFields
       position
     }
+  }
+`;
+
+export const TRANSACTION_RULE_HISTORICAL_MATCH_COUNT = gql`
+  query TransactionRuleHistoricalMatchCount($id: ID!) {
+    transactionRuleHistoricalMatchCount(id: $id)
   }
 `;
 

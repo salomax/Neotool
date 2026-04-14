@@ -1,18 +1,16 @@
 import React from 'react';
 import { Box, Stack, Typography, Skeleton, useTheme, alpha, Avatar, Divider, Button, LinearProgress } from '@mui/material';
 import {
-  ArrowUpward as IncomeIcon,
-  ArrowDownward as ExpenseIcon,
   ErrorOutline as UnavailableIcon,
 } from '@mui/icons-material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
+import { CurrencyAmountParts, TransactionDirectionBadge, resolveTransactionDirectionVisuals } from '@/shared/components/ui/data-display';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { CategoryIcon } from '../category/CategoryIcon';
-import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
+import { CreditDebitType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 
 /** Locale/currency for month summary amounts until user prefs are wired. */
 const MONTH_SUMMARY_LOCALE = 'pt-BR';
@@ -80,6 +78,10 @@ interface MonthSummaryProps {
   /** Filter table by credit (income) or debit (expenses); the other summary row is dimmed. */
   onCreditDebitTypeClick?: (type: CreditDebitType) => void;
   activeCreditDebitTypeFilter?: CreditDebitType | null;
+  /** Called when user clicks a transfer row to filter transactions by TRANSFER type. */
+  onTransferClick?: () => void;
+  /** When true, transfer rows are highlighted as the active filter. */
+  activeTransferFilter?: boolean;
 }
 
 function splitVolumePercentages(absIncome: number, absExpenses: number, totalVolume: number) {
@@ -89,8 +91,8 @@ function splitVolumePercentages(absIncome: number, absExpenses: number, totalVol
 }
 
 interface SummaryMetricRowProps {
-  icon: React.ReactNode;
-  color: string;
+  creditDebitType: CreditDebitType;
+  transactionType: TransactionType;
   label: string;
   value: number | undefined;
   percentage?: number;
@@ -105,8 +107,8 @@ interface SummaryMetricRowProps {
 }
 
 const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
-  icon,
-  color,
+  creditDebitType,
+  transactionType,
   label,
   value,
   percentage,
@@ -121,6 +123,8 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const disabledFg = theme.palette.text.disabled;
+  const visuals = resolveTransactionDirectionVisuals(theme, creditDebitType, transactionType);
+  const accentColor = visuals?.color ?? theme.palette.text.primary;
   const interactive = Boolean(onActivate) && !dimmed && !isLoading;
 
   return (
@@ -161,18 +165,12 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
       }}
     >
       <Box sx={{ display: 'flex', alignItems: 'center' }}>
-        <Avatar
-          variant="rounded"
-          sx={{
-            bgcolor: dimmed ? alpha(disabledFg, 0.12) : alpha(color, 0.1),
-            color: dimmed ? disabledFg : color,
-            mr: 1.5,
-            width: 40,
-            height: 40,
-          }}
-        >
-          {icon}
-        </Avatar>
+        <TransactionDirectionBadge
+          creditDebitType={creditDebitType}
+          transactionType={transactionType}
+          dimmed={dimmed}
+          sx={{ mr: 1.5 }}
+        />
         <Box sx={{ flexGrow: 1 }}>
           <Stack spacing={0.3}>
             <Typography
@@ -180,6 +178,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
               sx={{
                 fontWeight: 600,
                 lineHeight: 1.2,
+                whiteSpace: 'pre-line',
                 color: dimmed ? disabledFg : 'text.primary',
               }}
             >
@@ -195,7 +194,7 @@ const SummaryMetricRow: React.FC<SummaryMetricRowProps> = ({
         <Typography
           variant="subtitle2"
           data-testid={amountTestId}
-          sx={{ fontWeight: 700, color: dimmed ? disabledFg : color }}
+          sx={{ fontWeight: 700, color: dimmed ? disabledFg : accentColor }}
         >
           {isLoading ? <Skeleton width={88} height={22} /> : formatCurrency(value || 0)}
         </Typography>
@@ -484,12 +483,24 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   activeTagFilter = null,
   onCreditDebitTypeClick,
   activeCreditDebitTypeFilter = null,
+  onTransferClick,
+  activeTransferFilter = false,
 }) => {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const [drawerKind, setDrawerKind] = React.useState<'expenses' | 'income' | 'tags' | null>(null);
 
   const canPickCreditDebitType = Boolean(onCreditDebitTypeClick) && !(loading && !summary);
+  const activeMetricGroup: 'income' | 'expenses' | 'transfers' | null = activeTransferFilter
+    ? 'transfers'
+    : activeCreditDebitTypeFilter === CreditDebitType.Credit
+      ? 'income'
+      : activeCreditDebitTypeFilter === CreditDebitType.Debit
+        ? 'expenses'
+        : null;
+  const isIncomeDimmed = activeMetricGroup !== null && activeMetricGroup !== 'income';
+  const isExpensesDimmed = activeMetricGroup !== null && activeMetricGroup !== 'expenses';
+  const isTransfersDimmed = activeMetricGroup !== null && activeMetricGroup !== 'transfers';
 
   const currencyFormatter = React.useMemo(
     () => new Intl.NumberFormat(MONTH_SUMMARY_LOCALE, CURRENCY_FORMAT_OPTIONS),
@@ -513,6 +524,8 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
   );
 
   const totalSuffix = t('financeTransactions.monthSummary.total');
+  const transferInLabel = t('financeTransactions.monthSummary.transfersIn').replace(/\s+/, '\n');
+  const transferOutLabel = t('financeTransactions.monthSummary.transfersOut').replace(/\s+/, '\n');
 
   const renderCategorySummary = ({
     title,
@@ -544,10 +557,8 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
               sx={{
                 p: 0,
                 minWidth: 'auto',
-                textTransform: 'uppercase',
+                textTransform: 'none',
                 fontWeight: 500,
-                letterSpacing: 0.6,
-                fontSize: '0.75rem',
               }}
             >
               {t('financeTransactions.monthSummary.seeAll')}
@@ -619,10 +630,8 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
               sx={{
                 p: 0,
                 minWidth: 'auto',
-                textTransform: 'uppercase',
+                textTransform: 'none',
                 fontWeight: 500,
-                letterSpacing: 0.6,
-                fontSize: '0.75rem',
               }}
             >
               {t('financeTransactions.monthSummary.seeAll')}
@@ -757,15 +766,15 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
 
       <Stack spacing={1.2}>
         <SummaryMetricRow
-          icon={<IncomeIcon />}
-          color={theme.palette.success.main}
+          creditDebitType={CreditDebitType.Credit}
+          transactionType={TransactionType.OtherIncome}
           label={t('financeTransactions.monthSummary.income')}
           value={income}
           percentage={incomePercentage}
           isLoading={loading && !summary}
           formatCurrency={formatCurrency}
           totalSuffix={totalSuffix}
-          dimmed={activeCreditDebitTypeFilter === CreditDebitType.Debit}
+          dimmed={isIncomeDimmed}
           onActivate={
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Credit) : undefined
           }
@@ -773,15 +782,15 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
           amountTestId="month-summary-total-income-amount"
         />
         <SummaryMetricRow
-          icon={<ExpenseIcon />}
-          color={theme.palette.error.main}
+          creditDebitType={CreditDebitType.Debit}
+          transactionType={TransactionType.OtherExpense}
           label={t('financeTransactions.monthSummary.expenses')}
           value={expenses}
           percentage={expensesPercentage}
           isLoading={loading && !summary}
           formatCurrency={formatCurrency}
           totalSuffix={totalSuffix}
-          dimmed={activeCreditDebitTypeFilter === CreditDebitType.Credit}
+          dimmed={isExpensesDimmed}
           onActivate={
             canPickCreditDebitType ? () => onCreditDebitTypeClick!(CreditDebitType.Debit) : undefined
           }
@@ -822,6 +831,36 @@ export const MonthSummary: React.FC<MonthSummaryProps> = ({
               />
             </>
           )}
+        </Box>
+      )}
+
+      {summary && !loading && (summary.transfersIn > 0 || summary.transfersOut > 0) && (
+        <Box sx={{ mt: 2 }}>
+          <Divider sx={{ mb: 2 }} />
+          <Stack spacing={1.2}>
+            <SummaryMetricRow
+              creditDebitType={CreditDebitType.Credit}
+              transactionType={TransactionType.Transfer}
+              label={transferInLabel}
+              value={summary.transfersIn}
+              isLoading={false}
+              formatCurrency={formatCurrency}
+              totalSuffix={totalSuffix}
+              dimmed={isTransfersDimmed}
+              onActivate={onTransferClick}
+            />
+            <SummaryMetricRow
+              creditDebitType={CreditDebitType.Debit}
+              transactionType={TransactionType.Transfer}
+              label={transferOutLabel}
+              value={summary.transfersOut}
+              isLoading={false}
+              formatCurrency={formatCurrency}
+              totalSuffix={totalSuffix}
+              dimmed={isTransfersDimmed}
+              onActivate={onTransferClick}
+            />
+          </Stack>
         </Box>
       )}
 

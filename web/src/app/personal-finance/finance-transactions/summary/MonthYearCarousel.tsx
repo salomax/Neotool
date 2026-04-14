@@ -44,7 +44,7 @@ export function MonthYearCarousel({ selectedMonth, selectedYear, onChange }: Mon
 
   return (
     <Box>
-      <Stack spacing={0.25} sx={{ width: 'fit-content', alignItems: 'stretch' }}>
+      <Stack spacing={0} sx={{ width: 'fit-content', alignItems: 'stretch' }}>
         {!isCurrentMonth && (
           <Box sx={{ display: 'flex', justifyContent: 'center', width: '100%' }}>
             <Link

@@ -887,6 +887,7 @@ open class DefaultTransactionRepository(
         query.creditDebitType?.let {
             params["creditDebitType"] = it.name
             conditions += "t.credit_debit_type = :creditDebitType"
+            conditions += "t.type NOT IN ('TRANSFER', 'BALANCE_ADJUSTMENT')"
         }
         if (!query.types.isNullOrEmpty()) {
             conditions += buildInClause("t.type", "type", query.types.map { it.name }, params)

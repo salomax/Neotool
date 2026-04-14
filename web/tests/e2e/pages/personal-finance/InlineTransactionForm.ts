@@ -199,4 +199,26 @@ export class InlineTransactionForm {
     await input.fill(tag);
     await input.press("Enter");
   }
+
+  async openMerchantPicker(): Promise<void> {
+    await this.form.getByTestId("merchant-select-trigger").click();
+    await this.page.getByTestId("merchant-picker-search-input").waitFor({ state: "visible" });
+  }
+
+  async openCreateMerchant(): Promise<void> {
+    await this.page.getByTestId("merchant-picker-create-button").click();
+    await this.page.getByTestId("merchant-picker-name-input").waitFor({ state: "visible" });
+  }
+
+  async createMerchant(name: string, website?: string): Promise<void> {
+    await this.openMerchantPicker();
+    await this.openCreateMerchant();
+    await this.page.getByTestId("merchant-picker-name-input").fill(name);
+    if (website) {
+      await this.page.getByTestId("merchant-picker-website-input").fill(website);
+    }
+    await this.page.getByTestId("merchant-picker-save-btn").click();
+    await expect(this.form.getByTestId("merchant-select-trigger")).toContainText(name, { timeout: 15_000 });
+    await this.page.getByTestId("merchant-picker-search-input").waitFor({ state: "hidden", timeout: 15_000 });
+  }
 }

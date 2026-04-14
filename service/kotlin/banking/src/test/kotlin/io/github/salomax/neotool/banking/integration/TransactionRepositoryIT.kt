@@ -730,6 +730,111 @@ class TransactionRepositoryIT : BankingPostgresIntegrationTest() {
             assertThat(result.totalCount).isEqualTo(1)
             assertThat(result.items.map { it.description }).containsExactly("Netflix")
         }
+
+        @Test
+        fun `credit debit filter excludes TRANSFER and BALANCE_ADJUSTMENT`() {
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Expense debit",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.TRANSFER,
+                    amount = BigDecimal("500.00"),
+                    date = today,
+                    description = "Internal transfer out",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = BigDecimal("1.00"),
+                    date = today,
+                    description = "Reconcile debit",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+            transactionRepository.save(
+                Transaction(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.TRANSFER,
+                    amount = BigDecimal("200.00"),
+                    date = today,
+                    description = "Internal transfer in",
+                    createdAt = Instant.now(),
+                    updatedAt = Instant.now(),
+                ),
+            )
+
+            val debitPage =
+                transactionRepository.findPage(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        search = null,
+                        tags = null,
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = CreditDebitType.DEBIT,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 20,
+                        offset = 0,
+                    ),
+                )
+            val creditPage =
+                transactionRepository.findPage(
+                    TransactionListQuery(
+                        accountId = accountId,
+                        financialAccountId = null,
+                        belongsToUserId = null,
+                        belongsToName = null,
+                        search = null,
+                        tags = null,
+                        billId = null,
+                        categoryIds = null,
+                        uncategorizedOnly = false,
+                        creditDebitType = CreditDebitType.CREDIT,
+                        types = null,
+                        startDate = LocalDate.of(today.year, today.monthValue, 1),
+                        endDateExclusive = LocalDate.of(today.year, today.monthValue, 1).plusMonths(1),
+                        limit = 20,
+                        offset = 0,
+                    ),
+                )
+
+            assertThat(debitPage.totalCount).isEqualTo(1)
+            assertThat(debitPage.items.single().description).isEqualTo("Expense debit")
+            assertThat(creditPage.totalCount).isEqualTo(0)
+        }
     }
 
     @Nested

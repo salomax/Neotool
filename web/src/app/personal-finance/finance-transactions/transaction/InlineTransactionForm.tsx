@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Box, 
   Stack, 
@@ -27,9 +27,9 @@ import dayjs from 'dayjs';
 import { useLazyQuery, useQuery, useMutation } from '@apollo/client/react';
 import { FINANCIAL_ACCOUNTS, SIMILAR_TRANSACTION_EDIT_PREVIEW, TRANSACTION_CATEGORIES, TRANSACTION_TAGS } from '@/lib/graphql/operations/banking/queries';
 import { APPLY_TRANSACTION_EDIT_TO_SIMILAR, CREATE_TRANSACTION, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
-import { 
-  FinancialAccount, 
-  TransactionCategory, 
+import {
+  FinancialAccount,
+  TransactionCategory,
   CreditDebitType,
   TransactionType,
   CategoryApplicableTo,
@@ -38,13 +38,17 @@ import {
 import { BaseMoneyInput } from '@/shared/components/ui/forms/form/MoneyInput';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
 import { CategorySelect } from '../category/CategorySelect';
+import { MerchantSelect } from './MerchantSelect';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
 import { AttachmentSection } from '../../components/AttachmentSection';
-import { usePreferences } from '@/shared/providers';
+import { usePreferences, useToast } from '@/shared/providers';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { resolveSimilarEditBehavior } from './similarEditPreference';
 
 interface InlineTransactionFormProps {
@@ -136,18 +140,24 @@ export function InlineTransactionForm({
 }: InlineTransactionFormProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { bankingUserPreferences } = usePreferences();
+  const toast = useToast();
   const theme = useTheme();
   const borderRadius = '.3rem';
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const maxAllowedDate = dayjs().startOf('day');
-  const [creditDebitType, setCreditDebitType] = useState<CreditDebitType>(initialValues?.creditDebitType || CreditDebitType.Debit);
+  const [creditDebitType, setCreditDebitType] = useState<CreditDebitType | 'TRANSFER_IN' | 'TRANSFER_OUT'>(
+    initialValues?.type === TransactionType.Transfer
+      ? (initialValues.creditDebitType === CreditDebitType.Credit ? 'TRANSFER_IN' : 'TRANSFER_OUT')
+      : (initialValues?.creditDebitType || CreditDebitType.Debit)
+  );
   const [amount, setAmount] = useState<number | undefined>(initialValues?.amount ? Math.abs(initialValues.amount) : undefined);
   const [description, setDescription] = useState(initialValues?.description || '');
   const [date, setDate] = useState<dayjs.Dayjs | null>(initialValues?.date ? dayjs(initialValues.date as string) : dayjs());
   const [accountId, setAccountId] = useState<string>(initialValues?.financialAccountId || selectedAccountId || '');
   const [categoryId, setCategoryId] = useState<string | null>(initialValues?.category?.id ?? null);
+  const [merchantId, setMerchantId] = useState<string | null>(initialValues?.merchant?.id ?? null);
   const [tags, setTags] = useState<string[]>(initialValues?.tags || []);
-  
+
   const { data: accountsData } = useQuery<{ financialAccounts: FinancialAccount[] }>(FINANCIAL_ACCOUNTS);
   const { data: categoriesData } = useQuery<{ transactionCategories: TransactionCategory[] }>(TRANSACTION_CATEGORIES);
   const { data: tagsData } = useQuery<{ transactionTags: { tag: string }[] }>(TRANSACTION_TAGS);
@@ -161,6 +171,9 @@ export function InlineTransactionForm({
   const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
     useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
   const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
+
+  const isBalanceAdjustmentEdit =
+    Boolean(initialValues) && initialValues?.type === TransactionType.BalanceAdjustment;
 
   const isDateOutsideWindow = Boolean(date && date.isBefore(minAllowedDate, 'day'));
   const isDateInFuture = Boolean(date && date.isAfter(maxAllowedDate, 'day'));
@@ -180,18 +193,24 @@ export function InlineTransactionForm({
   useEffect(() => {
     if (isOpen) {
       if (initialValues) {
-        setCreditDebitType(initialValues.creditDebitType);
+        setCreditDebitType(
+          initialValues.type === TransactionType.Transfer
+            ? (initialValues.creditDebitType === CreditDebitType.Credit ? 'TRANSFER_IN' : 'TRANSFER_OUT')
+            : initialValues.creditDebitType
+        );
         setAmount(Math.abs(initialValues.amount));
         setDescription(initialValues.description);
         setDate(dayjs(initialValues.date as string));
         setAccountId(initialValues.financialAccountId);
         setCategoryId(initialValues.category?.id ?? null);
+        setMerchantId(initialValues.merchant?.id ?? null);
         setTags(initialValues.tags || []);
       } else {
         if (!amount) setAmount(undefined);
         if (!description) setDescription('');
         if (!date) setDate(dayjs());
         if (!categoryId) setCategoryId(null);
+        if (!merchantId) setMerchantId(null);
         if (!tags.length) setTags([]);
         
         const accounts = accountsData?.financialAccounts;
@@ -213,24 +232,48 @@ export function InlineTransactionForm({
   }, [isOpen, onExited]);
 
   const handleSave = async () => {
-    if (!amount || !description || !date || !accountId) return;
+    if (!amount || !date || !accountId) return;
+    if (!isBalanceAdjustmentEdit && !description) return;
     if (!date.isValid()) return;
     if (isDateInvalidForSave) return;
 
+    const isTransferIn = creditDebitType === 'TRANSFER_IN';
+    const isTransferOut = creditDebitType === 'TRANSFER_OUT';
+    const isTransferShortcut = isTransferIn || isTransferOut;
+    const finalCreditDebitType = isTransferIn
+      ? CreditDebitType.Credit
+      : isTransferOut
+        ? CreditDebitType.Debit
+        : (creditDebitType as CreditDebitType);
+
     const formattedAmount = Math.abs(amount);
-    const updateInput = {
-      date: date.format('YYYY-MM-DD'),
-      amount: formattedAmount,
-      description,
-      categoryId,
-      creditDebitType,
-      tags,
-    };
+    
+    let updateType: TransactionType | undefined = undefined;
+    if (isTransferShortcut && initialValues?.type !== TransactionType.Transfer) {
+      updateType = TransactionType.Transfer;
+    } else if (!isTransferShortcut && initialValues?.type === TransactionType.Transfer) {
+      updateType = finalCreditDebitType === CreditDebitType.Credit ? TransactionType.OtherIncome : TransactionType.OtherExpense;
+    }
+
+    const updateInput = isBalanceAdjustmentEdit
+      ? { amount: formattedAmount }
+      : {
+          date: date.format('YYYY-MM-DD'),
+          amount: formattedAmount,
+          description,
+          categoryId: categoryId || undefined,
+          merchantId: merchantId ?? null,
+          creditDebitType: finalCreditDebitType,
+          ...(updateType ? { type: updateType } : {}),
+          tags,
+        };
 
     try {
       onBusyStart?.();
       if (initialValues) {
-        const shouldPrompt = shouldPromptForSimilarEdit(initialValues, description, categoryId, tags);
+        const shouldPrompt =
+          !isBalanceAdjustmentEdit &&
+          shouldPromptForSimilarEdit(initialValues, description, categoryId, tags);
         const previewResult =
           shouldPrompt
             ? await loadSimilarEditPreview({
@@ -280,6 +323,10 @@ export function InlineTransactionForm({
           return;
         }
       } else {
+        const createType = isTransferShortcut
+          ? TransactionType.Transfer
+          : (finalCreditDebitType === CreditDebitType.Credit ? TransactionType.OtherIncome : TransactionType.OtherExpense);
+
         await createTransaction({
           variables: {
             input: {
@@ -288,8 +335,9 @@ export function InlineTransactionForm({
               description,
               financialAccountId: accountId,
               categoryId: categoryId || undefined,
-              creditDebitType,
-              type: TransactionType.OtherExpense,
+              merchantId: merchantId || undefined,
+              creditDebitType: finalCreditDebitType,
+              type: createType,
               tags: tags.length > 0 ? tags : undefined,
             }
           }
@@ -301,7 +349,8 @@ export function InlineTransactionForm({
         setAmount(undefined);
         setDescription('');
         setDate(dayjs());
-        setCategoryId('');
+        setCategoryId(null);
+        setMerchantId(null);
         setTags([]);
       }
 
@@ -313,6 +362,7 @@ export function InlineTransactionForm({
       onClose();
     } catch (error) {
       console.error('Failed to save transaction:', error);
+      toast.error(extractErrorMessage(error, 'Não foi possível salvar a transação'));
     } finally {
       onBusyEnd?.();
     }
@@ -359,7 +409,9 @@ export function InlineTransactionForm({
   const categories = categoriesData?.transactionCategories || [];
   const accounts = accountsData?.financialAccounts || [];
   const filteredCategories = categories.filter(category => {
-    if (creditDebitType === CreditDebitType.Credit) {
+    if (creditDebitType === 'TRANSFER_IN' || creditDebitType === 'TRANSFER_OUT') {
+      return category.applicableTo === CategoryApplicableTo.Transfer || category.applicableTo === CategoryApplicableTo.Any;
+    } else if (creditDebitType === CreditDebitType.Credit) {
       return category.applicableTo === CategoryApplicableTo.Income || category.applicableTo === CategoryApplicableTo.Any;
     } else {
       return category.applicableTo === CategoryApplicableTo.Expense || category.applicableTo === CategoryApplicableTo.Any;
@@ -368,13 +420,24 @@ export function InlineTransactionForm({
 
   const colSpan = selectedAccountId ? 7 : 8;
 
-  const focusBorderSx = {
-    borderBottom: '2px solid transparent',
-    transition: 'border-color 0.2s',
-    '&.Mui-focused': {
-      borderBottom: `2px solid ${theme.palette.primary.main}`,
+  const gridTemplateColumns = useMemo(() => {
+    if (isBalanceAdjustmentEdit) {
+      return selectedAccountId
+        ? '68px minmax(180px, 1.6fr) minmax(100px, 1fr) 52px'
+        : '68px minmax(180px, 1.6fr) minmax(140px, 0.8fr) minmax(100px, 1fr) 52px';
     }
-  };
+    return selectedAccountId
+      ? '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(120px, 1fr) 52px'
+      : '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(140px, 0.8fr) minmax(120px, 1fr) 52px';
+  }, [isBalanceAdjustmentEdit, selectedAccountId]);
+
+  const amountGridColumn = isBalanceAdjustmentEdit
+    ? selectedAccountId
+      ? '3 / -1'
+      : '4 / -1'
+    : selectedAccountId
+      ? '5 / -1'
+      : '6 / -1';
 
   const inputBottomBorderSx = {
     borderBottom: `1px solid ${theme.palette.divider}`,
@@ -393,12 +456,6 @@ export function InlineTransactionForm({
   // Render nothing if not open (though parent usually handles this)
   if (!shouldRender) return null;
 
-  const gridTemplateColumns = selectedAccountId
-    ? '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(auto, 0.8fr) 52px'
-    : '68px minmax(180px, 1.6fr) minmax(0, .8fr) minmax(auto, .8fr) minmax(auto, 1.2fr) minmax(140px, 0.8fr) 52px';
-
-  const amountGridColumn = selectedAccountId ? '5 / -1' : '6 / -1';
-
   return (
     <>
       <TableRow sx={{ position: 'relative', zIndex: 3, }}>
@@ -414,6 +471,7 @@ export function InlineTransactionForm({
           >
             <Box
               data-testid="inline-transaction-form"
+              data-balance-adjustment-edit={isBalanceAdjustmentEdit ? 'true' : undefined}
               sx={{
                 borderRadius: 1,
                 border: 1,
@@ -437,41 +495,33 @@ export function InlineTransactionForm({
               >
               {/* 1. Type */}
               <Box sx={{ maxWidth: 'fit-content' }}>
-                <Select
-                  value={creditDebitType}
-                  onChange={(e) => {
-                    setCreditDebitType(e.target.value as CreditDebitType);
-                    setCategoryId('');
-                  }}
-                  SelectDisplayProps={
-                    {
-                      'data-testid': 'tx-credit-debit-type-select',
-                    } as React.HTMLAttributes<HTMLDivElement>
-                  }
-                  variant="standard"
-                  disableUnderline
-                  displayEmpty
-                  IconComponent={() => null}
-                  renderValue={(value) => {
-                    let icon = null;
-                    let color = theme.palette.info.main;
-                    
-                    if (value === CreditDebitType.Debit) {
-                      icon = <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />;
-                      color = theme.palette.error.main;
-                    } else if (value === CreditDebitType.Credit) {
-                      icon = <ArrowUpwardIcon fontSize="small" sx={{ color: 'success.main' }} />;
-                      color = theme.palette.success.main;
-                    } else {
-                      icon = <SwapHorizIcon fontSize="small" sx={{ color: 'info.main' }} />;
-                    }
-
-                    return (
-                      <Stack direction="row" sx={{ borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider' }}>
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
+                {isBalanceAdjustmentEdit ? (
+                  <Stack
+                    direction="row"
+                    data-testid="tx-credit-debit-type-readonly"
+                    sx={{ borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider' }}
+                  >
+                    {(() => {
+                      let icon: React.ReactNode = null;
+                      let color = theme.palette.info.main;
+                      if (creditDebitType === CreditDebitType.Debit) {
+                        icon = <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />;
+                        color = theme.palette.error.main;
+                      } else if (creditDebitType === CreditDebitType.Credit) {
+                        icon = <ArrowUpwardIcon fontSize="small" sx={{ color: 'success.main' }} />;
+                        color = theme.palette.success.main;
+                      } else if (creditDebitType === 'TRANSFER_IN') {
+                        icon = <ArrowForwardIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      } else if (creditDebitType === 'TRANSFER_OUT') {
+                        icon = <ArrowBackIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      } else {
+                        icon = <SwapHorizIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      }
+                      return (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
                             justifyContent: 'center',
                             width: 32,
                             height: 32,
@@ -480,53 +530,111 @@ export function InlineTransactionForm({
                         >
                           {icon}
                         </Box>
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            width: 24,
-                            bgcolor: 'background.paper',
-                            borderLeft: 1,
-                            borderColor: 'divider'
-                          }}
-                        >
-                          <ExpandMoreIcon fontSize="small" color="action" />
-                        </Box>
+                      );
+                    })()}
+                  </Stack>
+                ) : (
+                  <Select
+                    value={creditDebitType}
+                    onChange={(e) => {
+                      setCreditDebitType(e.target.value as any);
+                      setCategoryId(null);
+                    }}
+                    SelectDisplayProps={
+                      {
+                        'data-testid': 'tx-credit-debit-type-select',
+                      } as React.HTMLAttributes<HTMLDivElement>
+                    }
+                    variant="standard"
+                    disableUnderline
+                    displayEmpty
+                    IconComponent={() => null}
+                    renderValue={(value) => {
+                      let icon = null;
+                      let color = theme.palette.info.main;
+
+                      if (value === CreditDebitType.Debit) {
+                        icon = <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />;
+                        color = theme.palette.error.main;
+                      } else if (value === CreditDebitType.Credit) {
+                        icon = <ArrowUpwardIcon fontSize="small" sx={{ color: 'success.main' }} />;
+                        color = theme.palette.success.main;
+                      } else if (value === 'TRANSFER_IN') {
+                        icon = <ArrowForwardIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      } else if (value === 'TRANSFER_OUT') {
+                        icon = <ArrowBackIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      } else {
+                        icon = <SwapHorizIcon fontSize="small" sx={{ color: 'info.main' }} />;
+                      }
+
+                      return (
+                        <Stack direction="row" sx={{ borderRadius: 1, overflow: 'hidden', border: 1, borderColor: 'divider' }}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 32,
+                              height: 32,
+                              bgcolor: alpha(color, 0.1),
+                            }}
+                          >
+                            {icon}
+                          </Box>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 24,
+                              bgcolor: 'background.paper',
+                              borderLeft: 1,
+                              borderColor: 'divider',
+                            }}
+                          >
+                            <ExpandMoreIcon fontSize="small" color="action" />
+                          </Box>
+                        </Stack>
+                      );
+                    }}
+                    sx={{
+                      minWidth: 'auto',
+                      '& .MuiSelect-select': {
+                        p: 0,
+                        display: 'flex',
+                        bgcolor: 'transparent',
+                      },
+                    }}
+                    MenuProps={{
+                      PaperProps: { sx: { width: 280 } },
+                    }}
+                  >
+                    <MenuItem value={CreditDebitType.Debit}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArrowDownwardIcon fontSize="small" color="error" />
+                        <Typography variant="body2">{t('financeTransactions.debit')}</Typography>
                       </Stack>
-                    );
-                  }}
-                  sx={{ 
-                    minWidth: 'auto',
-                    '& .MuiSelect-select': { 
-                      p: 0,
-                      display: 'flex',
-                      bgcolor: 'transparent'
-                    } 
-                  }}
-                  MenuProps={{
-                    PaperProps: { sx: { width: 150 } }
-                  }}
-                >
-                  <MenuItem value={CreditDebitType.Debit}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <ArrowDownwardIcon fontSize="small" color="error" />
-                      <Typography variant="body2">{t('financeTransactions.debit')}</Typography>
-                    </Stack>
-                  </MenuItem>
-                  <MenuItem value={CreditDebitType.Credit}>
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <ArrowUpwardIcon fontSize="small" color="success" />
-                      <Typography variant="body2">{t('financeTransactions.credit')}</Typography>
-                    </Stack>
-                  </MenuItem>
-                  <MenuItem value="TRANSFER">
-                    <Stack direction="row" spacing={1} alignItems="center">
-                      <SwapHorizIcon fontSize="small" color="info" />
-                      <Typography variant="body2">{t('financeTransactions.transfer')}</Typography>
-                    </Stack>
-                  </MenuItem>
-                </Select>
+                    </MenuItem>
+                    <MenuItem value={CreditDebitType.Credit}>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArrowUpwardIcon fontSize="small" color="success" />
+                        <Typography variant="body2">{t('financeTransactions.credit')}</Typography>
+                      </Stack>
+                    </MenuItem>
+                    <MenuItem value="TRANSFER_IN">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArrowForwardIcon fontSize="small" color="info" />
+                        <Typography variant="body2">{t('financeTransactions.internalTransferIn')}</Typography>
+                      </Stack>
+                    </MenuItem>
+                    <MenuItem value="TRANSFER_OUT">
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <ArrowBackIcon fontSize="small" color="info" />
+                        <Typography variant="body2">{t('financeTransactions.internalTransferOut')}</Typography>
+                      </Stack>
+                    </MenuItem>
+                  </Select>
+                )}
               </Box>
 
               {/* 2. Description */}
@@ -537,15 +645,15 @@ export function InlineTransactionForm({
                   placeholder={t('financeTransactions.description')}
                   variant="standard"
                   fullWidth
-                  required
-                  autoFocus
+                  required={!isBalanceAdjustmentEdit}
+                  autoFocus={!isBalanceAdjustmentEdit}
                   multiline
-                  inputProps={{ 'data-testid': 'tx-description-input' }}
+                  inputProps={{ 'data-testid': 'tx-description-input', readOnly: isBalanceAdjustmentEdit }}
                   minRows={1}
                   maxRows={4}
-                  InputProps={{ 
+                  InputProps={{
                     disableUnderline: true,
-                    sx: inputBottomBorderSx
+                    sx: inputBottomBorderSx,
                   }}
                   sx={{
                     '& .MuiInputBase-input': { fontSize: '0.875rem' },
@@ -554,43 +662,47 @@ export function InlineTransactionForm({
                 />
               </Box>
 
-              {/* 3. Category */}
-              <Box
-                sx={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'flex-end',
-                  width: '100%',
-                  minWidth: 0,
-                  overflow: 'hidden',
-                  '& .MuiChip-root': {
-                    maxWidth: '100%',
-                  },
-                }}
-              >
-                <CategorySelect
-                  value={categoryId}
-                  onChange={setCategoryId}
-                  categories={categories}
-                  creditDebitType={creditDebitType}
-                  placeholder={t('financeTransactions.category')}
-                />
-              </Box>
+              {!isBalanceAdjustmentEdit && (
+                <>
+                  {/* 3. Category */}
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'flex-end',
+                      width: '100%',
+                      minWidth: 0,
+                      overflow: 'hidden',
+                      '& .MuiChip-root': {
+                        maxWidth: '100%',
+                      },
+                    }}
+                  >
+                    <CategorySelect
+                      value={categoryId}
+                      onChange={setCategoryId}
+                      categories={categories}
+                      creditDebitType={creditDebitType === 'TRANSFER_IN' || creditDebitType === 'TRANSFER_OUT' ? 'TRANSFER' : creditDebitType}
+                      placeholder={t('financeTransactions.category')}
+                    />
+                  </Box>
 
-              {/* 4. Tags */}
-              <Box sx={{ minWidth: 150, display: 'flex', alignItems: 'flex-end', width: '100%' }}>
-                <TagsInput
-                  value={tags}
-                  onChange={setTags}
-                  options={tagsData?.transactionTags?.map(t => t.tag) || []}
-                  placeholder={t('financeTransactions.tags')}
-                  variant="standard"
-                  InputProps={{ 
-                    disableUnderline: true,
-                    sx: inputBottomBorderSx
-                  }}
-                />
-              </Box>
+                  {/* 4. Tags */}
+                  <Box sx={{ minWidth: 150, display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                    <TagsInput
+                      value={tags}
+                      onChange={setTags}
+                      options={tagsData?.transactionTags?.map((tg) => tg.tag) || []}
+                      placeholder={t('financeTransactions.tags')}
+                      variant="standard"
+                      InputProps={{
+                        disableUnderline: true,
+                        sx: inputBottomBorderSx,
+                      }}
+                    />
+                  </Box>
+                </>
+              )}
 
               {/* 5. Issuer (Conditional) */}
               {!selectedAccountId && (
@@ -601,34 +713,40 @@ export function InlineTransactionForm({
                     onChange={(e) => setAccountId(e.target.value)}
                     variant="standard"
                     fullWidth
-                    InputProps={{ 
+                    disabled={isBalanceAdjustmentEdit}
+                    InputProps={{
                       disableUnderline: true,
+                      readOnly: isBalanceAdjustmentEdit,
                       sx: {
                         borderBottom: `1px ${accountId ? 'solid' : 'dashed'} ${theme.palette.divider}`,
                         transition: 'border-color 0.2s, border-bottom-width 0.2s',
                         '&.Mui-focused': {
                           borderBottom: `2px solid ${theme.palette.primary.main}`,
                         },
-                      }
+                      },
                     }}
                     sx={{ minWidth: 120 }}
                   >
                     {accounts.map((account) => (
                       <MenuItem key={account.id} value={account.id}>
                         <Stack direction="row" spacing={1} alignItems="center">
-                          <Avatar 
+                          <Avatar
                             src={account.issuer?.logoAsset?.publicUrl || undefined}
-                            sx={{ 
-                              width: 24, 
+                            sx={{
+                              width: 24,
                               height: 24,
                               fontSize: '0.6rem',
                               borderRadius: borderRadius,
-                              bgcolor: account.issuer?.logoAsset?.publicUrl ? 'transparent' : (account.themeColor || theme.palette.grey[300]),
+                              bgcolor: account.issuer?.logoAsset?.publicUrl
+                                ? 'transparent'
+                                : account.themeColor || theme.palette.grey[300],
                             }}
                           >
                             {!account.issuer?.logoAsset?.publicUrl && account.name.charAt(0)}
                           </Avatar>
-                          <Typography variant="body2" noWrap>{account.name}</Typography>
+                          <Typography variant="body2" noWrap>
+                            {account.name}
+                          </Typography>
                         </Stack>
                       </MenuItem>
                     ))}
@@ -643,6 +761,7 @@ export function InlineTransactionForm({
                   onChange={(val) => setAmount(val as number | undefined)}
                   variant="standard"
                   required
+                  autoFocus={isBalanceAdjustmentEdit}
                   data-testid="tx-amount-input"
                   InputProps={{
                     disableUnderline: true,
@@ -659,10 +778,11 @@ export function InlineTransactionForm({
                     onKeyDown: (e: any) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
+                        const descOk = isBalanceAdjustmentEdit || description;
                         if (
                           !(creating || updating) &&
                           amount &&
-                          description &&
+                          descOk &&
                           date &&
                           accountId &&
                           !isDateInvalidForSave
@@ -678,26 +798,26 @@ export function InlineTransactionForm({
                 
           <Divider sx={{ mt: 1, mb: 0.5 }} />
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', py: 1.5, px: 1, alignItems: 'center',  borderColor: 'divider' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ display: 'flex', py: 1.5, px: 1, alignItems: 'center', borderColor: 'divider' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
               <DatePicker
                 format={appDatePickerDisplayFormatFromLanguageTag(i18n.language)}
                 views={[...APP_DATE_PICKER_VIEWS]}
                 value={date}
                 onChange={(newValue: dayjs.Dayjs | null) => setDate(newValue)}
+                readOnly={isBalanceAdjustmentEdit}
                 minDate={minAllowedDate}
                 maxDate={maxAllowedDate}
-                /* Single native input: MUI X default “accessible field” keeps a read-only section UI;
-                   programmatic fills / Playwright would not update picker state. */
                 enableAccessibleFieldDOMStructure={false}
-                /* No calendar popper: avoids overlay/focus issues in dense table rows and in E2E. */
-                disableOpenPicker
                 slotProps={mergeAppDatePickerSlotProps({
                   textField: {
                     hiddenLabel: true,
                     size: 'small',
                     variant: 'standard',
-                    inputProps: { 'data-testid': 'tx-date-input' },
+                    inputProps: {
+                      'data-testid': 'tx-date-input',
+                      readOnly: isBalanceAdjustmentEdit,
+                    },
                     error: isDateInvalidForSave,
                     helperText: isDateInFuture
                       ? t('financeTransactions.validation.dateNotInFuture')
@@ -709,6 +829,7 @@ export function InlineTransactionForm({
                       sx: {
                         fontSize: '0.875rem',
                         flexDirection: 'row-reverse',
+                        ...inputBottomBorderSx,
                         '& .MuiInputAdornment-root': {
                           ml: 0,
                           mr: 1,
@@ -718,7 +839,6 @@ export function InlineTransactionForm({
                     sx: {
                       width: 140,
                       m: 0,
-                      ...focusBorderSx,
                       '& .MuiInputBase-input': {
                         textAlign: 'left',
                         fontSize: '0.875rem',
@@ -728,14 +848,37 @@ export function InlineTransactionForm({
                   },
                 })}
               />
+              {!isBalanceAdjustmentEdit && (
+                <>
+                  <Divider orientation="vertical" flexItem sx={{ mx: 1.5, alignSelf: 'stretch' }} />
+                  <Box
+                    sx={{
+                      width: 'fit-content',
+                      maxWidth: 360,
+                      display: 'flex',
+                      alignItems: 'center',
+                      overflow: 'hidden',
+                      borderRadius: 1,
+                      '& .MuiChip-root': { maxWidth: '100%' },
+                    }}
+                  >
+                    <MerchantSelect
+                      value={merchantId}
+                      initialMerchant={initialValues?.merchant}
+                      onChange={setMerchantId}
+                      placeholder={t('financeTransactions.merchant')}
+                    />
+                  </Box>
+                </>
+              )}
             </Box>
 
-            {initialValues && (
+            {/* Attachments — only for existing transactions */}
+            {initialValues && !isBalanceAdjustmentEdit && (
               <Divider orientation="vertical" flexItem sx={{ mx: 2, alignSelf: 'stretch' }} />
             )}
 
-            {/* Attachments — only for existing transactions */}
-            {initialValues && (
+            {initialValues && !isBalanceAdjustmentEdit && (
               <Box sx={{ flex: 1, display: 'flex' }}>
                 <Box
                   sx={{
@@ -792,7 +935,7 @@ export function InlineTransactionForm({
               </Box>
             )}
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, ml: 'auto' }}>
               <Button
                 onClick={onClose}
                 color="inherit"
@@ -820,7 +963,7 @@ export function InlineTransactionForm({
                   updating ||
                   applyingSimilarEdit ||
                   !amount ||
-                  !description ||
+                  (!isBalanceAdjustmentEdit && !description) ||
                   !date ||
                   !date.isValid() ||
                   !accountId ||

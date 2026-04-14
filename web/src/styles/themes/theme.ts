@@ -136,6 +136,41 @@ export const createAppTheme = (mode: Mode) => {
       fontFamilyMonospace: t.typography.monoFamily as any,
     } as any,
     components: ({
+      MuiCssBaseline: {
+        styleOverrides: {
+          "*": {
+            scrollbarWidth: "thin",
+            scrollbarColor: `${t.palette.divider} transparent`,
+          },
+          "*::-webkit-scrollbar": {
+            width: 8,
+            height: 8,
+          },
+          "*::-webkit-scrollbar-track": {
+            backgroundColor: "transparent",
+          },
+          "*::-webkit-scrollbar-thumb": {
+            backgroundColor: t.palette.divider,
+            borderRadius: `${t.radius.lg}px`,
+          },
+          "*::-webkit-scrollbar-thumb:hover": {
+            backgroundColor: t.palette.divider,
+          },
+          "*::-webkit-scrollbar-thumb:active": {
+            backgroundColor: t.palette.divider,
+          },
+          "*::-webkit-scrollbar-corner": {
+            backgroundColor: "transparent",
+          },
+        },
+      },
+      MuiAvatar: {
+        defaultProps: {
+          imgProps: {
+            referrerPolicy: "no-referrer",
+          },
+        },
+      },
       MuiButton: {
         defaultProps: { disableElevation: true, variant: "contained" },
         styleOverrides: {

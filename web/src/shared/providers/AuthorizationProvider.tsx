@@ -71,10 +71,12 @@ export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ ch
     // If we have query data, use it (it has roles and permissions)
     if (data?.currentUser) {
       const nextAvatarUrl = data.currentUser.avatarUrl ?? null;
+      const nextAvatarProvider = data.currentUser.avatarProvider ?? null;
       const nextDisplayName = data.currentUser.displayName ?? null;
       const nextEmail = data.currentUser.email;
       const shouldSyncUser =
         (user.avatarUrl ?? null) !== nextAvatarUrl ||
+        (user.avatarProvider ?? null) !== nextAvatarProvider ||
         (user.displayName ?? null) !== nextDisplayName ||
         user.email !== nextEmail;
 
@@ -84,6 +86,7 @@ export const AuthorizationProvider: React.FC<AuthorizationProviderProps> = ({ ch
           email: nextEmail,
           displayName: nextDisplayName,
           avatarUrl: nextAvatarUrl,
+          avatarProvider: nextAvatarProvider,
         };
         setUser(mergedUser);
         updateAuthUser(mergedUser);

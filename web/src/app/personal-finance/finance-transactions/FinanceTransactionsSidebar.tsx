@@ -38,6 +38,10 @@ interface CalendarSummaryState {
     value: CreditDebitType | null;
     onToggle: (type: CreditDebitType) => void;
   };
+  transferFilter: {
+    value: boolean | null;
+    onToggle: () => void;
+  };
 }
 
 interface BillSummaryState {
@@ -86,6 +90,8 @@ export function FinanceTransactionsSidebar({
             activeTagFilter={calendarSummary.tagFilter.value}
             onCreditDebitTypeClick={calendarSummary.creditDebitFilter.onToggle}
             activeCreditDebitTypeFilter={calendarSummary.creditDebitFilter.value}
+            onTransferClick={calendarSummary.transferFilter.onToggle}
+            activeTransferFilter={calendarSummary.transferFilter.value === true}
           />
         ) : (
           <BillSummaryHeader

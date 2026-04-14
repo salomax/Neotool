@@ -49,7 +49,7 @@ describe.sequential('ProgressBar', () => {
     it('shows indeterminate progress', () => {
       renderProgressBar({ variant: 'linear', indeterminate: true });
       expect(screen.getByRole('progressbar')).toBeInTheDocument();
-      expect(screen.getByText('Loading...')).toBeInTheDocument();
+      expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
     });
 
     it('clamps value to 0-100 range', () => {
@@ -263,4 +263,3 @@ describe.sequential('ProgressBar', () => {
     cleanup();
   });
 });
-

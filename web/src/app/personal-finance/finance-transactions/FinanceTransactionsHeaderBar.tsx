@@ -229,7 +229,7 @@ export function FinanceTransactionsHeaderBar({
       <Stack
         direction="row"
         spacing={2}
-        sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 } }}
+        sx={{ width: '100%', mb: 2, mt: { xs: 0, md: -1.5 }, minHeight: 50 }}
         alignItems="flex-end"
         flexWrap="wrap"
       >
@@ -246,6 +246,7 @@ export function FinanceTransactionsHeaderBar({
         </Box>
         <Box sx={{ flex: '0 0 auto' }}>
           <TextField
+            data-has-value={!!normalizedSearchQuery}
             placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
             value={searchQuery}
             onChange={(event) => onSearchQueryChange(event.target.value)}
@@ -315,25 +316,25 @@ export function FinanceTransactionsHeaderBar({
                 maxWidth: 0,
                 overflow: 'hidden',
               },
-              '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input': {
+              '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input, &[data-has-value="true"] .MuiInputBase-input': {
                 transition: actionButtonsRevealLabelShownTransition,
                 maxWidth: 240,
                 opacity: 1,
                 transform: 'translateX(0)',
               },
-              '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart': {
+              '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart, &[data-has-value="true"] .MuiInputAdornment-positionStart': {
                 mr: 1,
                 pr: 1,
                 ml: 1,
                 flex: '0 0 auto',
                 justifyContent: 'flex-start',
               },
-              '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd': {
+              '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd, &[data-has-value="true"] .MuiInputAdornment-positionEnd': {
                 ml: -3,
                 opacity: 1,
                 maxWidth: 240,
               },
-              '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root': {
+              '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root, &[data-has-value="true"] .MuiOutlinedInput-root': {
                 px: actionButtonsRevealExpandedPx,
                 justifyContent: 'flex-start',
                 '& .MuiOutlinedInput-notchedOutline': {
@@ -341,7 +342,7 @@ export function FinanceTransactionsHeaderBar({
                   borderWidth: 1,
                 },
               },
-              '&:hover, &:focus-within': {
+              '&:hover, &:focus-within, &[data-has-value="true"]': {
                 width: actionButtonsRevealSearchExpandedWidth,
               },
             }}

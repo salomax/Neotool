@@ -94,6 +94,7 @@ FROM banking.transaction_categories,
      (VALUES ('PIX',                   10),
              ('TED',                   20),
              ('Entre contas próprias', 25),
+             ('Reembolso',             28),
              ('Outros',                30)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Transferência recebida'
   AND is_system = true AND account_id IS NULL;
@@ -164,10 +165,11 @@ WHERE banking.transaction_categories.name = 'Educação'
 INSERT INTO banking.transaction_categories (parent_id, name, applicable_to, is_system, sort_order)
 SELECT id, sub.name, 'EXPENSE', true, sub.ord
 FROM banking.transaction_categories,
-     (VALUES ('Cinema / Teatro', 10),
-             ('Streaming',        20),
-             ('Games',            30),
-             ('Viagem',           40)) AS sub(name, ord)
+     (VALUES ('Cinema / Teatro',      10),
+             ('Streaming',            20),
+             ('Games',                30),
+             ('Viagem',               40),
+             ('Passeios / Parques',   50)) AS sub(name, ord)
 WHERE banking.transaction_categories.name = 'Lazer e Entretenimento'
   AND is_system = true AND account_id IS NULL;
 
@@ -308,6 +310,7 @@ UPDATE transaction_categories SET icon = 'movie'        WHERE name = 'Cinema / T
 UPDATE transaction_categories SET icon = 'sports_esports' WHERE name = 'Games'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'fitness_center' WHERE name = 'Academia'             AND is_system = true;
 UPDATE transaction_categories SET icon = 'flight'       WHERE name = 'Viagem'                 AND is_system = true;
+UPDATE transaction_categories SET icon = 'attractions' WHERE name = 'Passeios / Parques'     AND is_system = true;
 UPDATE transaction_categories SET icon = 'flight'       WHERE name = 'Viagens'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'shopping_bag' WHERE name = 'Compras'                AND is_system = true;
 UPDATE transaction_categories SET icon = 'checkroom'    WHERE name = 'Roupas'                 AND is_system = true;
@@ -348,3 +351,22 @@ WHERE child.parent_id = parent.id
   AND parent.is_system = true
   AND child.color IS NULL
   AND parent.color IS NOT NULL;
+
+-- Own-account transfers and refunds: icons distinct from parent; color always matches parent (siblings).
+UPDATE transaction_categories child
+SET icon = 'multiple_stop', color = parent.color
+FROM transaction_categories parent
+WHERE child.name = 'Entre contas próprias'
+  AND child.is_system = true
+  AND child.account_id IS NULL
+  AND child.parent_id = parent.id
+  AND parent.is_system = true;
+
+UPDATE transaction_categories child
+SET icon = 'assignment_return', color = parent.color
+FROM transaction_categories parent
+WHERE child.name = 'Reembolso'
+  AND child.is_system = true
+  AND child.account_id IS NULL
+  AND child.parent_id = parent.id
+  AND parent.is_system = true;

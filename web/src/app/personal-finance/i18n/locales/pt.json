@@ -887,6 +887,8 @@
     "credit": "Receita",
     "debit": "Despesa",
     "transfer": "Transferência",
+    "internalTransferIn": "Recebimento de conta própria",
+    "internalTransferOut": "Saída para conta própria",
     "amount": "Valor",
     "description": "Descrição",
     "date": "Data",
@@ -894,6 +896,22 @@
     "category": "Categoria",
     "value": "Valor",
     "tags": "Tags",
+    "merchant": "Estabelecimento",
+    "noMerchant": "Sem estabelecimento",
+    "merchantPicker": {
+      "searchPlaceholder": "Buscar estabelecimento...",
+      "noResults": "Nenhum estabelecimento encontrado",
+      "createMerchant": "Criar estabelecimento",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Ex.: Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Pré-visualização do logo",
+      "noWebsite": "Sem website",
+      "created": "Estabelecimento criado: {{name}}",
+      "loadMore": "Carregar mais",
+      "resultCount": "Mostrando {{shown}} de {{total}}"
+    },
     "issuer": "Instituição",
     "financialAccount": "Conta financeira",
     "validation": {
@@ -1432,6 +1450,9 @@
         "ariaLabel": "Ações da transação",
         "viewNfce": "Ver NFC-e",
         "markAsTransfer": "Marcar como transferência interna",
+        "markAsTransferSuccess": "Transação marcada como transferência interna",
+        "markAsTransferError": "Não foi possível marcar como transferência interna",
+        "markAsTransferMissingCategory": "Categoria padrão de transferência não encontrada. Recarregue a página ou tente novamente.",
         "edit": "Editar",
         "viewAppliedRules": "Ver regras aplicadas",
         "createRuleFromDescription": "Criar regra a partir da descrição",
@@ -1478,6 +1499,14 @@
         }
       }
     },
+    "applyRuleToHistoryPrompt": {
+      "title": "Aplicar regra ao histórico?",
+      "description": "Esta regra corresponde a {{count}} transação(ões) existente(s). Deseja aplicá-la agora?",
+      "confirm": "Aplicar ao histórico",
+      "cancel": "Agora não",
+      "toastSuccess": "Regra aplicada em {{count}} transação(ões).",
+      "toastError": "Não foi possível aplicar a regra ao histórico"
+    },
     "monthSummary": {
       "income": "Receitas",
       "expenses": "Despesas",
@@ -1504,6 +1533,10 @@
       "clearCategoryFilter": "Remover filtro de categoria",
       "clearTagFilter": "Remover filtro de tag",
       "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
+      "transfersIn": "Transferências recebidas",
+      "transfersOut": "Transferências enviadas",
+      "filteringByTransfer": "Somente transferências internas",
+      "clearTransferFilter": "Remover filtro de transferência",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
       "retry": "Tentar novamente"

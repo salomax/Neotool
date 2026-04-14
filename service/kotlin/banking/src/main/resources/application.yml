@@ -119,7 +119,14 @@ banking:
     graphql-path: /graphql
     import-namespace: ${ASSETS_IMPORT_NAMESPACE:transaction-imports}
     bill-import-namespace: ${ASSETS_BILL_IMPORT_NAMESPACE:transaction-imports}
+    merchant-logo-namespace: ${ASSETS_MERCHANT_LOGO_NAMESPACE:merchant-logos}
     bill-download-ttl-seconds: ${ASSETS_BILL_DOWNLOAD_TTL_SECONDS:7200}
+  merchant-logo:
+    token: ${LOGO_DEV_TOKEN:}
+    backfill:
+      enabled: ${BANKING_MERCHANT_LOGO_BACKFILL_ENABLED:false}
+      fixed-delay: ${BANKING_MERCHANT_LOGO_BACKFILL_FIXED_DELAY:PT24H}
+      batch-size: ${BANKING_MERCHANT_LOGO_BACKFILL_BATCH_SIZE:25}
   financialdata-service:
     url: ${FINANCIALDATA_SERVICE_URL}
     target-audience: ${FINANCIALDATA_SERVICE_AUDIENCE}

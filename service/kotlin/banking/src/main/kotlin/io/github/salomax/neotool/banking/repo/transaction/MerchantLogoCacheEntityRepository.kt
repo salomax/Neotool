@@ -9,4 +9,6 @@ interface MerchantLogoCacheEntityRepository : JpaRepository<MerchantLogoCacheEnt
     fun findByDomain(domain: String): MerchantLogoCacheEntity?
 
     fun findByDomainIn(domains: Collection<String>): List<MerchantLogoCacheEntity>
+
+    fun findByDomainIgnoreCase(domain: String): MerchantLogoCacheEntity?
 }

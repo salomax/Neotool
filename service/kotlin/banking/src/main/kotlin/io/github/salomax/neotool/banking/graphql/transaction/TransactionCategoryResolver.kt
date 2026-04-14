@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.service.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.service.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.service.transaction.BulkCategorizeResult
 import io.github.salomax.neotool.banking.service.transaction.TransactionCategoryService
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
 import io.github.salomax.neotool.banking.service.transaction.UpdateCategoryInput
@@ -186,6 +187,14 @@ class TransactionCategoryResolver(
         }
     }
 
+    fun transactionRuleHistoricalMatchCount(
+        id: String,
+        principal: RequestPrincipal,
+    ): Int {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        return ruleService.countHistoricalMatches(UUID.fromString(id), accountId)
+    }
+
     fun createTransactionRule(
         input: Map<String, Any?>,
         principal: RequestPrincipal,
@@ -215,6 +224,14 @@ class TransactionCategoryResolver(
         val category = created.categoryId?.let { categoryRepository.findById(it) }
         val merchant = created.merchantId?.let { merchantRepository.findById(it) }
         return created.toDTO(category, merchant, position = 1)
+    }
+
+    fun applyTransactionRuleToHistorical(
+        id: String,
+        principal: RequestPrincipal,
+    ): BulkCategorizeResult {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        return ruleService.applyToHistorical(UUID.fromString(id), accountId)
     }
 
     fun updateTransactionRule(
@@ -337,6 +354,7 @@ class TransactionCategoryResolver(
             domain = domain,
             sector = sector,
             isSystem = isSystem,
+            isOwned = accountId != null,
             logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
     }

@@ -241,6 +241,12 @@ enum class BankingErrorCode(
         422,
     ),
 
+    BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE(
+        "BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE",
+        "Balance adjustment transactions can only have their amount changed",
+        422,
+    ),
+
     /** Async job: consolidated (no financial account) recalculation is not implemented. */
     PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED(
         "PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED",

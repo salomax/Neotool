@@ -1,7 +1,7 @@
 -- Subcategory for manual investment deposits (spec: Transferência recebida > Entre contas próprias).
 -- TRANSFER > Transferência enviada already has this child; INCOME > Transferência recebida had only PIX/TED/Outros.
-INSERT INTO banking.transaction_categories (parent_id, name, applicable_to, is_system, sort_order)
-SELECT p.id, 'Entre contas próprias', 'INCOME', true, 25
+INSERT INTO banking.transaction_categories (parent_id, name, applicable_to, is_system, sort_order, color, icon)
+SELECT p.id, 'Entre contas próprias', 'INCOME', true, 25, p.color, 'multiple_stop'
 FROM banking.transaction_categories p
 WHERE p.name = 'Transferência recebida'
   AND p.is_system = TRUE

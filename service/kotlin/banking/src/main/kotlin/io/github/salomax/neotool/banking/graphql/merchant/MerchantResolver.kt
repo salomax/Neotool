@@ -3,9 +3,7 @@ package io.github.salomax.neotool.banking.graphql.merchant
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
-import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
-import io.github.salomax.neotool.banking.graphql.merchant.TopMerchantDTO
+import io.github.salomax.neotool.banking.service.transaction.MerchantCursorCodec
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.util.UUID
@@ -20,9 +18,32 @@ class MerchantResolver(
 ) {
     // ── Queries ───────────────────────────────────────────────────────────────
 
-    fun merchants(principal: RequestPrincipal): List<MerchantDTO> {
+    fun merchants(
+        search: String?,
+        after: String?,
+        first: Int?,
+        principal: RequestPrincipal,
+    ): MerchantConnectionDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        return merchantService.listForAccount(accountId).map { it.toDTO(accountId) }
+        val page = merchantService.search(accountId, search, after, first)
+        val edges =
+            page.items.map { merchant ->
+                MerchantEdgeDTO(
+                    node = merchant.toDTO(accountId),
+                    cursor = MerchantCursorCodec.encode(merchant.name, requireNotNull(merchant.id)),
+                )
+            }
+        return MerchantConnectionDTO(
+            edges = edges,
+            pageInfo =
+                MerchantPageInfoDTO(
+                    hasNextPage = page.hasNextPage,
+                    hasPreviousPage = page.hasPreviousPage,
+                    startCursor = page.startCursor,
+                    endCursor = page.endCursor,
+                ),
+            totalCount = page.totalCount,
+        )
     }
 
     fun topMerchants(
@@ -68,9 +89,9 @@ class MerchantResolver(
     ): MerchantDTO {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val name = input["name"] as? String ?: throw IllegalArgumentException("name is required")
-        val domain = input["domain"] as? String
+        val website = input["website"] as? String
         val sector = input["sector"] as? String
-        val merchant = merchantService.create(name, domain, sector, accountId)
+        val merchant = merchantService.create(name, website, sector, accountId)
         return merchant.toDTO(accountId)
     }
 
@@ -88,6 +109,7 @@ class MerchantResolver(
             domain = domain,
             sector = sector,
             isSystem = isSystem,
+            isOwned = this.accountId == accountId,
             logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
     }

@@ -12,6 +12,7 @@ import {
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
@@ -33,6 +34,9 @@ interface FinanceTransactionsActiveFiltersProps {
   summaryTagFilterMeta: { tag?: string | null } | null;
   summaryTagChipAccent: string;
   onClearTagFilter: () => void;
+  summaryTransferFilterActive: boolean;
+  onClearTransferFilter: () => void;
+  summaryTransferChipAccent: string;
 }
 
 export function FinanceTransactionsActiveFilters({
@@ -50,6 +54,9 @@ export function FinanceTransactionsActiveFilters({
   summaryTagFilterMeta,
   summaryTagChipAccent,
   onClearTagFilter,
+  summaryTransferFilterActive,
+  onClearTransferFilter,
+  summaryTransferChipAccent,
 }: FinanceTransactionsActiveFiltersProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -169,6 +176,36 @@ export function FinanceTransactionsActiveFilters({
                   '& .MuiChip-deleteIcon': {
                     color: alpha(summaryTagChipAccent, 0.75),
                     '&:hover': { color: summaryTagChipAccent },
+                  },
+                }}
+              />
+            )}
+            {summaryTransferFilterActive && (
+              <Chip
+                icon={<SwapHorizIcon sx={{ fontSize: 18 }} />}
+                label={t('financeTransactions.monthSummary.filteringByTransfer')}
+                onDelete={onClearTransferFilter}
+                deleteIcon={
+                  <CloseIcon fontSize="small" aria-label={t('financeTransactions.monthSummary.clearTransferFilter')} />
+                }
+                variant="outlined"
+                sx={{
+                  pl: 1.5,
+                  pr: 1.25,
+                  py: 0.75,
+                  bgcolor: alpha(summaryTransferChipAccent, 0.12),
+                  borderColor: alpha(summaryTransferChipAccent, 0.4),
+                  color: summaryTransferChipAccent,
+                  fontWeight: 600,
+                  '& .MuiChip-icon': {
+                    color: summaryTransferChipAccent,
+                    ml: 0.25,
+                    mr: 0.5,
+                  },
+                  '& .MuiChip-label': { px: 1.25 },
+                  '& .MuiChip-deleteIcon': {
+                    color: alpha(summaryTransferChipAccent, 0.75),
+                    '&:hover': { color: summaryTransferChipAccent },
                   },
                 }}
               />

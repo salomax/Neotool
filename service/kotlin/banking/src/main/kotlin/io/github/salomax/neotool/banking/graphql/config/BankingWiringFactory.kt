@@ -172,7 +172,10 @@ class BankingWiringFactory(
                 "merchants",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        merchantResolver.merchants(principal)
+                        val search = env.getArgument<String?>("search")
+                        val after = env.getArgument<String?>("after")
+                        val first = env.getArgument<Int?>("first")
+                        merchantResolver.merchants(search, after, first, principal)
                     }
                 },
             )

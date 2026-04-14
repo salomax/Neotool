@@ -20,7 +20,26 @@ export interface CategoryChipProps {
   onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   placeholder?: React.ReactNode;
   maxWidthCh?: number;
+  decorationAlpha?: CategoryChipDecorationAlpha;
 }
+
+export type CategoryChipDecorationAlpha = Readonly<{
+  filledBackground: number;
+  filledBorder: number;
+  filledHoverBackground: number;
+  placeholderBackground: number;
+  placeholderInsetBorder: number;
+  placeholderHoverBackground: number;
+}>;
+
+const DEFAULT_DECORATION_ALPHA: CategoryChipDecorationAlpha = {
+  filledBackground: 0.1,
+  filledBorder: 0.3,
+  filledHoverBackground: 0.2,
+  placeholderBackground: 0.02,
+  placeholderInsetBorder: 0.06,
+  placeholderHoverBackground: 0.05,
+};
 
 export function CategoryChip({
   category,
@@ -29,6 +48,7 @@ export function CategoryChip({
   onClick,
   placeholder,
   maxWidthCh = 22,
+  decorationAlpha = DEFAULT_DECORATION_ALPHA,
 }: CategoryChipProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -77,13 +97,15 @@ export function CategoryChip({
           sx={{
             height: 28,
             color: category.color || 'text.primary',
-            bgcolor: category.color ? alpha(category.color, 0.1) : 'action.selected',
-            borderColor: category.color ? alpha(category.color, 0.3) : 'divider',
+            bgcolor: category.color ? alpha(category.color, decorationAlpha.filledBackground) : 'action.selected',
+            borderColor: category.color ? alpha(category.color, decorationAlpha.filledBorder) : 'divider',
             borderWidth: 1,
             borderStyle: 'solid',
             '&:hover': isClickable
               ? {
-                  bgcolor: category.color ? alpha(category.color, 0.2) : 'action.hover',
+                  bgcolor: category.color
+                    ? alpha(category.color, decorationAlpha.filledHoverBackground)
+                    : 'action.hover',
                 }
               : undefined,
             transition: 'background-color 0.15s ease',
@@ -106,13 +128,16 @@ export function CategoryChip({
             height: 28,
             borderStyle: 'dashed',
             color: 'text.secondary',
-            bgcolor: alpha(theme.palette.text.primary, 0.02),
-            boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.text.primary, 0.06)}`,
+            bgcolor: alpha(theme.palette.text.primary, decorationAlpha.placeholderBackground),
+            boxShadow: `inset 0 0 0 1px ${alpha(
+              theme.palette.text.primary,
+              decorationAlpha.placeholderInsetBorder,
+            )}`,
             '&:hover': isClickable
               ? {
                   borderColor: 'primary.main',
                   color: 'primary.main',
-                  bgcolor: alpha(theme.palette.primary.main, 0.05),
+                  bgcolor: alpha(theme.palette.primary.main, decorationAlpha.placeholderHoverBackground),
                 }
               : undefined,
             transition: 'background-color 0.15s ease',
@@ -122,4 +147,3 @@ export function CategoryChip({
     </Box>
   );
 }
-

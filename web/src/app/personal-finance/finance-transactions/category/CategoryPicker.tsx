@@ -297,11 +297,13 @@ export function CategoryPicker({
   );
 
   React.useEffect(() => {
-    if (anchorEl) {
-      setView('browse');
-      setDeleteTarget(null);
-      setConfirmCreatedName(null);
+    if (!anchorEl) {
+      setSearchQuery('');
+      return;
     }
+    setView('browse');
+    setDeleteTarget(null);
+    setConfirmCreatedName(null);
   }, [anchorEl]);
 
   const handleDeleteConfirm = useCallback(async () => {

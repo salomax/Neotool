@@ -607,6 +607,9 @@ open class TransactionService(
         val existing =
             transactionRepository.findById(id, accountId)
                 ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
+        if (existing.type == TransactionType.BALANCE_ADJUSTMENT) {
+            validateBalanceAdjustmentUpdate(command, existing)
+        }
         val updatedBelongsTo = resolveBelongsToForUpdate(command)
         if (command.belongsToProvided && command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
@@ -696,7 +699,7 @@ open class TransactionService(
             appendedRuleHistory =
                 appendedRuleHistory + AppliedRuleAuditSupport.buildEntries(listOf(learnedRuleId), updateTimestamp)
         }
-        if (mode != RuleApplicationMode.NEVER) {
+        if (existing.type != TransactionType.BALANCE_ADJUSTMENT && mode != RuleApplicationMode.NEVER) {
             val canApplyCategory = !command.categoryIdProvided
             val canApplyMerchant = !command.merchantIdProvided
             val canApplyDescription = command.description == null
@@ -840,6 +843,13 @@ open class TransactionService(
         val current =
             transactionRepository.findById(id, accountId)
                 ?: throw NotFoundException(BankingErrorCode.TRANSACTION_NOT_FOUND, field = "id")
+        if (current.type == TransactionType.BALANCE_ADJUSTMENT) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE,
+                field = "input",
+                parameters = mapOf("reason" to "Propagation is not supported for balance adjustment transactions"),
+            )
+        }
         if (current.source == TransactionSource.MANUAL) {
             return SimilarTransactionEditResult(affectedCount = 0, futureRuleCreated = false)
         }
@@ -1096,6 +1106,77 @@ open class TransactionService(
             command.belongsToUserId != null -> command.belongsToUserId to null
             normalizedName != null -> null to normalizedName
             else -> authenticatedUserId to null
+        }
+    }
+
+    private fun validateBalanceAdjustmentUpdate(
+        command: UpdateTransactionCommand,
+        existing: Transaction,
+    ) {
+        fun reject(field: String) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE,
+                field = field,
+            )
+        }
+
+        if (command.creditDebitType != null && command.creditDebitType != existing.creditDebitType) {
+            reject("creditDebitType")
+        }
+        if (command.type != null && command.type != existing.type) {
+            reject("type")
+        }
+        if (command.date != null && command.date != existing.date) {
+            reject("date")
+        }
+        if (command.description != null && command.description != existing.description) {
+            reject("description")
+        }
+        if (command.status != null && command.status != existing.status) {
+            reject("status")
+        }
+        if (command.notes != null && command.notes != existing.notes) {
+            reject("notes")
+        }
+        if (command.tagsProvided) {
+            reject("tags")
+        }
+        if (command.categoryIdProvided) {
+            reject("categoryId")
+        }
+        if (command.merchantIdProvided) {
+            reject("merchantId")
+        }
+        if (command.belongsToProvided) {
+            reject("belongsTo")
+        }
+        if (command.counterpartyName != null && command.counterpartyName != existing.counterpartyName) {
+            reject("counterpartyName")
+        }
+        if (command.counterpartyDocument != null && command.counterpartyDocument != existing.counterpartyDocument) {
+            reject("counterpartyDocument")
+        }
+        if (command.counterpartyBankCode != null && command.counterpartyBankCode != existing.counterpartyBankCode) {
+            reject("counterpartyBankCode")
+        }
+        if (command.counterpartyAccountNumber != null &&
+            command.counterpartyAccountNumber != existing.counterpartyAccountNumber
+        ) {
+            reject("counterpartyAccountNumber")
+        }
+        if (command.paymentReason != null && command.paymentReason != existing.paymentReason) {
+            reject("paymentReason")
+        }
+        if (command.transferPeerTransactionId != null &&
+            command.transferPeerTransactionId != existing.transferPeerTransactionId
+        ) {
+            reject("transferPeerTransactionId")
+        }
+        if (command.cardIdentifier != null && command.cardIdentifier != existing.cardIdentifier) {
+            reject("cardIdentifier")
+        }
+        if (command.payeeMcc != null && command.payeeMcc != existing.payeeMcc) {
+            reject("payeeMcc")
         }
     }
 

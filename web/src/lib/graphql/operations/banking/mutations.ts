@@ -364,6 +364,14 @@ export const UPDATE_TRANSACTION = gql`
         id
         name
       }
+      merchant {
+        id
+        name
+        logoAsset {
+          id
+          publicUrl
+        }
+      }
     }
   }
 `;
@@ -431,6 +439,22 @@ export const PAY_BILL = gql`
       status
       createdAt
       updatedAt
+    }
+  }
+`;
+
+/** Create an account-scoped merchant. */
+export const CREATE_MERCHANT = gql`
+  mutation CreateMerchant($input: CreateMerchantInput!) {
+    createMerchant(input: $input) {
+      id
+      name
+      domain
+      isSystem
+      logoAsset {
+        id
+        publicUrl
+      }
     }
   }
 `;
@@ -603,5 +627,14 @@ export const REORDER_TRANSACTION_RULES = gql`
 export const SET_SYSTEM_TRANSACTION_RULE_ENABLED = gql`
   mutation SetSystemTransactionRuleEnabled($id: ID!, $enabled: Boolean!) {
     setSystemTransactionRuleEnabled(id: $id, enabled: $enabled)
+  }
+`;
+
+export const APPLY_TRANSACTION_RULE_TO_HISTORICAL = gql`
+  mutation ApplyTransactionRuleToHistorical($id: ID!) {
+    applyTransactionRuleToHistorical(id: $id) {
+      affectedCount
+      errors
+    }
   }
 `;

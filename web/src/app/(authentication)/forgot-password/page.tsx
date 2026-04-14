@@ -4,6 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Container, Box, Typography } from "@mui/material";
 import { ForgotPasswordForm } from "@/shared/components/auth/ForgotPasswordForm";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
@@ -26,9 +27,7 @@ export default function ForgotPasswordPage() {
   if (isLoading) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography>Loading...</Typography>
-        </Box>
+        <LoadingSpinner />
       </Container>
     );
   }
@@ -99,4 +98,3 @@ export default function ForgotPasswordPage() {
     </Box>
   );
 }
-

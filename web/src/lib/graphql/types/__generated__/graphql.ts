@@ -861,9 +861,9 @@ export type CreateInvestmentCashTransactionInput = {
 };
 
 export type CreateMerchantInput = {
-  domain?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   sector?: InputMaybe<Scalars['String']['input']>;
+  website?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateProductInput = {
@@ -1967,11 +1967,25 @@ export type Merchant = {
   __typename: 'Merchant';
   domain: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  isOwned: Scalars['Boolean']['output'];
   isSystem: Scalars['Boolean']['output'];
   /** Logo asset via federation. Null until the hydration job has run for the domain. */
   logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
   sector: Maybe<Scalars['String']['output']>;
+};
+
+export type MerchantConnection = {
+  __typename: 'MerchantConnection';
+  edges: Array<MerchantEdge>;
+  pageInfo: PageInfo;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type MerchantEdge = {
+  __typename: 'MerchantEdge';
+  cursor: Scalars['String']['output'];
+  node: Merchant;
 };
 
 export type MessageInput = {
@@ -3095,8 +3109,8 @@ export type Query = {
    */
   issuers: Array<Issuer>;
   listedAssetDailyPrices: ListedAssetDailyPriceConnection;
-  /** All merchants (system + user-created) available to the authenticated account. */
-  merchants: Array<Merchant>;
+  /** Paginated merchants (system + user-created) available to the authenticated account. */
+  merchants: MerchantConnection;
   /**
    * Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
    * When financialAccountId is omitted, returns the aggregate across all accounts.
@@ -3153,6 +3167,7 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
+  transactionRuleHistoricalMatchCount: Scalars['Int']['output'];
   /**
    * Transaction rules for auto-categorization and merchant suggestion.
    * - isSystem omitted: returns all rules (user + system)
@@ -3432,6 +3447,13 @@ export type QueryListedAssetDailyPricesArgs = {
 };
 
 
+export type QueryMerchantsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryMonthSummaryArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
@@ -3615,6 +3637,11 @@ export type QueryTransactionImportArgs = {
 
 export type QueryTransactionImportsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryTransactionRuleHistoricalMatchCountArgs = {
+  id: Scalars['ID']['input'];
 };
 
 

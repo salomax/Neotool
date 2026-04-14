@@ -23,6 +23,21 @@ data class Merchant(
     val updatedAt: Instant = Instant.now(),
 )
 
+data class MerchantLogoCacheEntry(
+    val domain: String,
+    val assetId: String,
+    val fetchedAt: Instant,
+)
+
+data class MerchantSearchPage(
+    val items: List<Merchant>,
+    val totalCount: Int,
+    val hasNextPage: Boolean,
+    val hasPreviousPage: Boolean,
+    val startCursor: String?,
+    val endCursor: String?,
+)
+
 /**
  * Row returned by the v_top_merchants view.
  */

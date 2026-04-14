@@ -83,4 +83,9 @@ export class TransactionTablePage {
     await expect(row).toBeVisible();
     await row.getByRole("button", { name: this.rowActionsPattern }).click();
   }
+
+  /** Opens the per-row overflow menu (⋯) for the transaction matching [description]. */
+  async openRowActionsMenu(description: string): Promise<void> {
+    await this.openRowActions(description);
+  }
 }

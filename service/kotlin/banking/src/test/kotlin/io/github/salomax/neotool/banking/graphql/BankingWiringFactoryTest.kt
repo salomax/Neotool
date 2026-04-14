@@ -15,6 +15,8 @@ import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantConnectionDTO
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantPageInfoDTO
 import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.product.ProductResolver
@@ -228,6 +230,34 @@ class BankingWiringFactoryTest {
 
             verify(transactionCategoryResolver).transactionRules(eq(true), eq(null), eq(20), eq(null), any())
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_CATEGORY_VIEW))
+        }
+
+        @Test
+        fun `merchants forwards search pagination arguments to resolver`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["merchants"]!!
+            whenever(merchantResolver.merchants(anyOrNull(), anyOrNull(), anyOrNull(), any())).thenReturn(
+                MerchantConnectionDTO(
+                    edges = emptyList(),
+                    pageInfo = MerchantPageInfoDTO(false, false, null, null),
+                    totalCount = 0,
+                ),
+            )
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "search" to "uber",
+                            "after" to "cursor-1",
+                            "first" to 20,
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(merchantResolver).merchants(eq("uber"), eq("cursor-1"), eq(20), any())
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
         }
     }
 

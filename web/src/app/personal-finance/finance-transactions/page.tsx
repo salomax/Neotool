@@ -7,18 +7,18 @@ import { personalFinanceTranslations } from '../i18n';
 import {
   Container,
   Box,
-  CircularProgress,
   useTheme,
 } from '@mui/material';
 import { Page } from '@/shared/components/ui/layout';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
-import { usePageTitle } from '@/shared/hooks/ui/usePageTitle';
+import { useDebounce, usePageTitle } from '@/shared/hooks/ui';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
+import { LoadingSpinner } from '@/shared/components/ui/primitives/LoadingSpinner';
 import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
 import { EmptyFinancialAccountsState } from './account/EmptyFinancialAccountsState';
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
 import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
-import { CreditDebitType, FinancialAccount, FinancialAccountType } from '@/lib/graphql/types/__generated__/graphql';
+import { CreditDebitType, FinancialAccount, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { CategoryFilterSelection, MonthSummaryData } from './summary/MonthSummary';
 import { useAccountDisplayMode } from './account/useAccountDisplayMode';
 import { useOnTransactionsImported } from './events';
@@ -92,17 +92,20 @@ export default function FinanceTransactionsPage() {
   const calendarYear = displayMode.kind === 'calendar' ? displayMode.year : null;
 
   const filterScopeKey = useMemo(
-    () => `${displayMode.kind}:${effectiveSelectedAccountId ?? ''}:${calendarYear ?? ''}:${calendarMonth ?? ''}`,
-    [calendarMonth, calendarYear, displayMode.kind, effectiveSelectedAccountId],
+    () => `${displayMode.kind}:${effectiveSelectedAccountId ?? ''}`,
+    [displayMode.kind, effectiveSelectedAccountId],
   );
 
   const categoryFilter = useScopedToggleFilter<CategoryFilterSelection>(filterScopeKey, categoryFilterEquals);
   const tagFilter = useScopedToggleFilter<string>(filterScopeKey);
   const creditDebitFilter = useScopedToggleFilter<CreditDebitType>(filterScopeKey);
+  const transferFilter = useScopedToggleFilter<true>(filterScopeKey);
 
   const selectedBillId = displayMode.kind === 'bill' ? displayMode.selectedBill?.id ?? null : null;
-  const canQueryTransactions = displayMode.kind === 'calendar' || Boolean(selectedBillId);
+  const accountsResolved = !loading && data !== undefined;
+  const canQueryTransactions = accountsResolved && (displayMode.kind === 'calendar' || Boolean(selectedBillId));
   const normalizedSearchQuery = searchQuery.trim();
+  const debouncedSearchQuery = useDebounce(normalizedSearchQuery, 300);
 
   const {
     data: transactionsData,
@@ -116,7 +119,7 @@ export default function FinanceTransactionsPage() {
       billId: displayMode.kind === 'bill' ? selectedBillId : undefined,
       month: displayMode.kind === 'calendar' ? displayMode.month : undefined,
       year: displayMode.kind === 'calendar' ? displayMode.year : undefined,
-      search: normalizedSearchQuery.length > 0 ? normalizedSearchQuery : undefined,
+      search: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
       tags: displayMode.kind === 'calendar' && tagFilter.value ? [tagFilter.value] : undefined,
       categoryId:
         displayMode.kind === 'calendar' && categoryFilter.value?.categoryId && !categoryFilter.value?.uncategorized
@@ -126,6 +129,10 @@ export default function FinanceTransactionsPage() {
         displayMode.kind === 'calendar' && categoryFilter.value?.uncategorized ? true : undefined,
       creditDebitType:
         displayMode.kind === 'calendar' && creditDebitFilter.value ? creditDebitFilter.value : undefined,
+      types:
+        displayMode.kind === 'calendar' && transferFilter.value
+          ? [TransactionType.Transfer]
+          : undefined,
       first: 20,
     },
     skip: !canQueryTransactions,
@@ -196,7 +203,7 @@ export default function FinanceTransactionsPage() {
 
   const activeFiltersOpen =
     displayMode.kind === 'calendar' &&
-    Boolean(categoryFilter.value || tagFilter.value || creditDebitFilter.value);
+    Boolean(categoryFilter.value || tagFilter.value || creditDebitFilter.value || transferFilter.value);
 
   // --- Refetch helpers ---
   const refetchBills = displayMode.kind === 'bill' ? displayMode.refetchBills : null;
@@ -319,7 +326,7 @@ export default function FinanceTransactionsPage() {
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <CircularProgress />
+        <LoadingSpinner />
       </Box>
     );
   }
@@ -384,7 +391,20 @@ export default function FinanceTransactionsPage() {
             isConsolidated: !effectiveSelectedAccountId,
             categoryFilter: { value: categoryFilter.value, onToggle: categoryFilter.toggle },
             tagFilter: { value: tagFilter.value, onToggle: tagFilter.toggle },
-            creditDebitFilter: { value: creditDebitFilter.value, onToggle: creditDebitFilter.toggle },
+            creditDebitFilter: {
+              value: creditDebitFilter.value,
+              onToggle: (type) => {
+                transferFilter.clear();
+                creditDebitFilter.toggle(type);
+              },
+            },
+            transferFilter: {
+              value: transferFilter.value,
+              onToggle: () => {
+                creditDebitFilter.clear();
+                transferFilter.toggle(true);
+              },
+            },
           }}
           billSummary={{
             bill: billSummaryData,
@@ -439,6 +459,9 @@ export default function FinanceTransactionsPage() {
               summaryTagFilterMeta={tagFilterMeta}
               summaryTagChipAccent={tagChipAccent}
               onClearTagFilter={tagFilter.clear}
+              summaryTransferFilterActive={Boolean(transferFilter.value)}
+              onClearTransferFilter={transferFilter.clear}
+              summaryTransferChipAccent={theme.palette.info.main}
             />
           )}
           <FinanceTransactionsContentPanel

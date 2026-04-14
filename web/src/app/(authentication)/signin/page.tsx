@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Container, Box, Typography, Alert, AlertTitle } from "@mui/material";
 import VerifiedUserOutlinedIcon from "@mui/icons-material/VerifiedUserOutlined";
 import { SignInForm } from "@/shared/components/auth/SignInForm";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
@@ -38,9 +39,7 @@ export default function SignInPage() {
   if (isLoading) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }} data-testid="signin-loading">
-        <Box sx={{ textAlign: "center" }}>
-          <Typography>Loading...</Typography>
-        </Box>
+        <LoadingSpinner />
       </Container>
     );
   }
