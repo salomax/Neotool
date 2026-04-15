@@ -130,6 +130,20 @@ interface CategoryRuleEntityRepository : JpaRepository<CategoryRuleEntity, UUID>
     @Query(
         """
         UPDATE banking.transaction_rules
+        SET match_count = match_count + :delta, updated_at = :now
+        WHERE id = :id AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun incrementMatchCountBy(
+        id: UUID,
+        delta: Int,
+        now: Instant,
+    )
+
+    @Query(
+        """
+        UPDATE banking.transaction_rules
         SET priority = :priority, updated_at = :now
         WHERE id = :id AND deleted_at IS NULL
         """,

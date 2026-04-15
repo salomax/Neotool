@@ -349,11 +349,11 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     const initialBalanceDateInput = await screen.findByLabelText(
       /financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i,
     );
-    const invalidDate = dayjs().subtract(5, 'year').subtract(1, 'day').format('YYYY-MM-DD');
+    const invalidDate = dayjs().subtract(10, 'year').subtract(1, 'day').format('YYYY-MM-DD');
     await user.type(initialBalanceDateInput, invalidDate);
 
     const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addAccount' });
-    await waitFor(() => expect(submitButton).toBeDisabled());
+    await user.click(submitButton);
 
     expect(mockCreateAccount).not.toHaveBeenCalled();
     await waitFor(() => {

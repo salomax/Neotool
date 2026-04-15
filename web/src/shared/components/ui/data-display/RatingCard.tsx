@@ -5,6 +5,7 @@ import { Box, Typography, IconButton, Stack, Tooltip } from "@mui/material";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
 import Card from "@/shared/components/ui/primitives/Card";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useTranslation, i18n } from "@/shared/i18n";
 import { financialDataTranslations } from "@/shared/i18n/domains/financial-data";
 import { formatDate } from "@/shared/utils/date";
@@ -63,10 +64,9 @@ export function RatingCard({ ratings, loading }: RatingCardProps) {
   };
 
   if (loading) {
-    // Basic Skeleton could be returned here
     return (
-      <Card sx={{ height: 260, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Typography color="text.secondary">Loading...</Typography>
+      <Card sx={{ height: 260 }}>
+        <LoadingSpinner />
       </Card>
     );
   }

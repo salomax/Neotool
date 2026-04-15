@@ -18,6 +18,7 @@ open class MerchantService(
     private val merchantRepository: MerchantRepository,
     private val ruleService: TransactionRuleService,
     private val ruleRepository: TransactionRuleRepository,
+    private val merchantLogoHydrationService: MerchantLogoHydrationService,
 ) {
     /**
      * Returns all merchants visible to [accountId] (system + user-scoped),
@@ -25,6 +26,17 @@ open class MerchantService(
      */
     fun listForAccount(accountId: UUID): List<Merchant> =
         merchantRepository.findAllForAccount(accountId)
+
+    fun search(
+        accountId: UUID,
+        search: String?,
+        after: String?,
+        first: Int?,
+    ): MerchantSearchPage {
+        val pageSize = (first ?: 20).coerceIn(1, 50)
+        val normalizedSearch = search?.trim()?.takeIf { it.isNotEmpty() }
+        return merchantRepository.searchForAccount(accountId, normalizedSearch, after, pageSize)
+    }
 
     /**
      * Finds a merchant by ID. Returns null if not found.
@@ -38,18 +50,26 @@ open class MerchantService(
      */
     fun create(
         name: String,
-        domain: String?,
+        website: String?,
         sector: String?,
         accountId: UUID,
     ): Merchant {
-        require(name.isNotBlank()) { "Merchant name must not be blank" }
-        val normalizedDomain = domain?.trim()?.lowercase()?.ifBlank { null }
+        val trimmedName = name.trim()
+        require(trimmedName.isNotBlank()) { "Merchant name must not be blank" }
+        require(trimmedName.length <= 100) { "Merchant name must be at most 100 characters" }
+
+        val rawWebsite = website?.trim()
+        val normalizedDomain = MerchantWebsiteNormalizer.normalizeDomain(rawWebsite)
+        if (!rawWebsite.isNullOrBlank() && normalizedDomain == null) {
+            throw IllegalArgumentException("website must be a valid domain")
+        }
+
         val now = Instant.now()
-        val normalizedName = normalize(name)
+        val normalizedName = normalize(trimmedName)
         val merchant =
             merchantRepository.save(
                 Merchant(
-                    name = name.trim(),
+                    name = trimmedName,
                     domain = normalizedDomain,
                     sector = sector?.trim()?.ifBlank { null },
                     isSystem = false,
@@ -58,6 +78,8 @@ open class MerchantService(
                     updatedAt = now,
                 ),
             )
+
+        normalizedDomain?.let { merchantLogoHydrationService.hydrateForDomainAsync(it) }
 
         // Auto-create a CONTAINS rule so this merchant participates in rule engine suggestion.
         // Ignore duplicates in case a rule for the same pattern already exists.

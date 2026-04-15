@@ -192,4 +192,38 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         assertThat(snapshotRepository.findByYearMonth(financialAccountId, importedMonth.year, importedMonth.monthValue)).isNotNull()
         assertThat(snapshotRepository.findByYearMonth(financialAccountId, viewedMonth.year, viewedMonth.monthValue)).isNotNull()
     }
+
+    @Test
+    fun `getMonthSummary for prior month succeeds when all activity is in the current month`() {
+        val today = LocalDate.now()
+        val prev = YearMonth.from(today).minusMonths(1)
+        val created =
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.BANK,
+                    subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                    name = "Conta saldo inicial hoje",
+                    issuerName = "Banco Teste",
+                    initialBalance = BigDecimal("1000.00"),
+                    initialBalanceDate = today,
+                ),
+                accountId = accountId,
+                userId = userId,
+            )
+        val financialAccountId = requireNotNull(created.id)
+
+        val summary =
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId,
+                accountId,
+                prev.year,
+                prev.monthValue,
+            )
+
+        assertThat(summary.year).isEqualTo(prev.year)
+        assertThat(summary.month).isEqualTo(prev.monthValue)
+        assertThat(summary.totalIncome).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(summary.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(snapshotRepository.findByYearMonth(financialAccountId, prev.year, prev.monthValue)).isNotNull()
+    }
 }

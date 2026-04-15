@@ -19,6 +19,7 @@ type User @key(fields: "id") {
   email: String!
   displayName: String
   avatarUrl: String
+  avatarProvider: String
   enabled: Boolean!
   emailVerified: Boolean!
   emailVerifiedAt: String
@@ -45,6 +46,7 @@ type UserPreferences {
   theme: Theme!
   blurBalances: Boolean!
   firstDayOfWeek: Int!
+  keepMeConnected: Boolean!
 }
 
 input UpdateUserPreferencesInput {
@@ -52,6 +54,23 @@ input UpdateUserPreferencesInput {
   theme: Theme
   blurBalances: Boolean
   firstDayOfWeek: Int
+  keepMeConnected: Boolean
+}
+
+type Account {
+  id: ID!
+  accountName: String!
+  accountType: String!
+  accountStatus: String!
+  isOwner: Boolean!
+}
+
+input UpdateAccountInput {
+  accountName: String!
+}
+
+input UpdateUserAvatarInput {
+  avatarUrl: String!
 }
 
 # Query type for security operations
@@ -66,6 +85,7 @@ extend type Query {
 
   """Current user's preferences (defaults when no row exists)."""
   userPreferences: UserPreferences!
+  myAccounts: [Account!]!
 
   # Authorization management queries
   user(id: ID!): User
@@ -90,6 +110,9 @@ extend type Mutation {
   resendVerificationEmail: ResendVerificationEmailPayload!
 
   updateUserPreferences(input: UpdateUserPreferencesInput!): UserPreferences!
+  updateUserAvatar(input: UpdateUserAvatarInput!): User!
+  removeUserAvatar: User!
+  updateAccount(accountId: ID!, input: UpdateAccountInput!): Account!
 
   # Authorization management mutations
   enableUser(userId: ID!): User!

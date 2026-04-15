@@ -16,6 +16,7 @@ import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -614,10 +615,10 @@ class TransactionServiceTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(null)
 
             val ex =
-                assertThrows<NoSuchElementException> {
+                assertThrows<NotFoundException> {
                     service.update(txId, UpdateTransactionCommand(description = "X"), accountId, userId)
                 }
-            assertThat(ex.message).contains(txId.toString())
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_NOT_FOUND)
         }
 
         @Test
@@ -836,11 +837,13 @@ class TransactionServiceTest {
                 )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
             val suggestedCategoryId = UUID.randomUUID()
+            val suggestionRuleId = UUID.randomUUID()
             whenever(transactionRuleEngine.suggest(accountId, "Coffee", CreditDebitType.DEBIT)).thenReturn(
                 RuleSuggestion(
-                    ruleId = UUID.randomUUID(),
+                    ruleId = suggestionRuleId,
                     categoryId = suggestedCategoryId,
                     merchantId = null,
+                    appliedRuleIds = listOf(suggestionRuleId),
                 ),
             )
             val updateCaptor = argumentCaptor<Transaction>()
@@ -909,6 +912,103 @@ class TransactionServiceTest {
             assertThat(updateCaptor.firstValue.appliedRuleHistory).hasSize(1)
             assertThat(updateCaptor.firstValue.appliedRuleHistory.first().ruleId).isEqualTo(learnedRuleId)
         }
+
+        @Test
+        fun `allows amount-only update for BALANCE_ADJUSTMENT`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = BigDecimal("1000.00"),
+                    date = today,
+                    description = "Saldo inicial",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(amount = BigDecimal("1500.00")),
+                accountId,
+                userId,
+            )
+
+            assertThat(updateCaptor.firstValue.amount).isEqualByComparingTo("1500.00")
+            assertThat(updateCaptor.firstValue.type).isEqualTo(TransactionType.BALANCE_ADJUSTMENT)
+        }
+
+        @Test
+        fun `rejects category update on BALANCE_ADJUSTMENT`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = BigDecimal("1000.00"),
+                    date = today,
+                    description = "Saldo inicial",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.update(
+                        txId,
+                        UpdateTransactionCommand(
+                            categoryId = UUID.randomUUID(),
+                            categoryIdProvided = true,
+                        ),
+                        accountId,
+                        userId,
+                    )
+                }
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE)
+            verify(transactionRepository, never()).update(any())
+        }
+
+        @Test
+        fun `rejects description update on BALANCE_ADJUSTMENT`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    amount = BigDecimal("1000.00"),
+                    date = today,
+                    description = "Saldo inicial",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+
+            assertThrows<ValidationException> {
+                service.update(
+                    txId,
+                    UpdateTransactionCommand(description = "Alterado"),
+                    accountId,
+                    userId,
+                )
+            }
+            verify(transactionRepository, never()).update(any())
+        }
     }
 
     @Nested
@@ -948,6 +1048,45 @@ class TransactionServiceTest {
             assertThat(result.similarCount).isEqualTo(2)
             assertThat(result.matchDescription).isEqualTo("IFOOD*123")
             assertThat(result.supportsFuturePropagation).isTrue()
+        }
+
+        @Test
+        fun `applyEditToSimilarTransactions rejects BALANCE_ADJUSTMENT`() {
+            val txId = UUID.randomUUID()
+            val current =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.BALANCE_ADJUSTMENT,
+                    source = TransactionSource.MANUAL,
+                    amount = BigDecimal("1000.00"),
+                    date = today,
+                    description = "Saldo inicial",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(current)
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.applyEditToSimilarTransactions(
+                        id = txId,
+                        matchDescription = "x",
+                        command =
+                            UpdateTransactionCommand(
+                                categoryId = UUID.randomUUID(),
+                                categoryIdProvided = true,
+                            ),
+                        applyToFuture = false,
+                        applyToExisting = true,
+                        accountId = accountId,
+                    )
+                }
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE)
+            verify(transactionRepository, never()).findSimilarNonManualTransactions(any(), any(), any(), any())
         }
 
         @Test
@@ -1145,8 +1284,8 @@ class TransactionServiceTest {
             val txId = UUID.randomUUID()
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(null)
 
-            val ex = assertThrows<NoSuchElementException> { service.delete(txId, accountId) }
-            assertThat(ex.message).contains(txId.toString())
+            val ex = assertThrows<NotFoundException> { service.delete(txId, accountId) }
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.TRANSACTION_NOT_FOUND)
         }
 
         @Test

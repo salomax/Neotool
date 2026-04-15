@@ -98,11 +98,11 @@ export function financeTransactionBodyRowSx(
       bgcolor: "background.paper",
       borderColor: "transparent",
     },
-    "& .MuiTableCell-root:first-child": {
+    "& > .MuiTableCell-root:first-child": {
       borderTopLeftRadius: isFirst ? dataRowCornerRadius : 0,
       borderBottomLeftRadius: isLast ? dataRowCornerRadius : 0,
     },
-    "& .MuiTableCell-root:last-child": {
+    "& > .MuiTableCell-root:last-child": {
       borderTopRightRadius: isFirst ? dataRowCornerRadius : 0,
       borderBottomRightRadius: isLast ? dataRowCornerRadius : 0,
     },

@@ -391,6 +391,14 @@ export const UPDATE_TRANSACTION = gql`
         id
         name
       }
+      merchant {
+        id
+        name
+        logoAsset {
+          id
+          publicUrl
+        }
+      }
     }
   }
 `;
@@ -462,6 +470,22 @@ export const PAY_BILL = gql`
   }
 `;
 
+/** Create an account-scoped merchant. */
+export const CREATE_MERCHANT = gql`
+  mutation CreateMerchant($input: CreateMerchantInput!) {
+    createMerchant(input: $input) {
+      id
+      name
+      domain
+      isSystem
+      logoAsset {
+        id
+        publicUrl
+      }
+    }
+  }
+`;
+
 /** Create an account-scoped transaction category. */
 export const CREATE_TRANSACTION_CATEGORY = gql`
   mutation CreateTransactionCategory($input: CreateCategoryInput!) {
@@ -513,6 +537,7 @@ export const CREATE_ASSET_UPLOAD = gql`
       id
       uploadUrl
       status
+      visibility
     }
   }
 `;
@@ -523,6 +548,8 @@ export const CONFIRM_ASSET_UPLOAD = gql`
     confirmAssetUpload(input: $input) {
       id
       status
+      visibility
+      publicUrl
     }
   }
 `;
@@ -627,5 +654,14 @@ export const REORDER_TRANSACTION_RULES = gql`
 export const SET_SYSTEM_TRANSACTION_RULE_ENABLED = gql`
   mutation SetSystemTransactionRuleEnabled($id: ID!, $enabled: Boolean!) {
     setSystemTransactionRuleEnabled(id: $id, enabled: $enabled)
+  }
+`;
+
+export const APPLY_TRANSACTION_RULE_TO_HISTORICAL = gql`
+  mutation ApplyTransactionRuleToHistorical($id: ID!) {
+    applyTransactionRuleToHistorical(id: $id) {
+      affectedCount
+      errors
+    }
   }
 `;

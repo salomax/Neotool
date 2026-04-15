@@ -1,7 +1,10 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
+import io.github.salomax.neotool.banking.domain.transaction.MerchantLogoCacheEntry
+import io.github.salomax.neotool.banking.domain.transaction.MerchantSearchPage
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -11,6 +14,17 @@ interface MerchantRepository {
 
     /** Returns system merchants + user-scoped merchants for [accountId], ordered for suggestion. */
     fun findAllForAccount(accountId: UUID): List<Merchant>
+
+    /**
+     * Returns paginated merchants visible to [accountId], optionally filtered by [search],
+     * using keyset pagination ordered by name ASC, id ASC.
+     */
+    fun searchForAccount(
+        accountId: UUID,
+        search: String?,
+        after: String?,
+        first: Int,
+    ): MerchantSearchPage
 
     /** Returns all user-scoped merchants for [accountId]. */
     fun findUserMerchantsForAccount(accountId: UUID): List<Merchant>
@@ -27,8 +41,21 @@ interface MerchantRepository {
     /** Returns the asset_id for a cached domain logo, or null if not yet cached. */
     fun findLogoAssetIdByDomain(domain: String): String?
 
+    /** Returns full cache metadata for a domain logo, or null if missing. */
+    fun findLogoCacheByDomain(domain: String): MerchantLogoCacheEntry?
+
     /** Batch-loads cached logo asset IDs keyed by domain. */
     fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String>
+
+    /** Inserts/updates the domain logo cache entry. */
+    fun upsertLogoCache(
+        domain: String,
+        assetId: String,
+        fetchedAt: Instant = Instant.now(),
+    )
+
+    /** Distinct merchant domains without cache entries (for optional background backfill). */
+    fun findDomainsMissingLogo(limit: Int): List<String>
 
     /**
      * Returns top-merchant rows for the given account, optionally filtered by

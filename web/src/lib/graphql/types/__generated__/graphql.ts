@@ -21,6 +21,15 @@ export type Scalars = {
   link__Import: { input: unknown; output: unknown; }
 };
 
+export type Account = {
+  __typename: 'Account';
+  accountName: Scalars['String']['output'];
+  accountStatus: Scalars['String']['output'];
+  accountType: Scalars['String']['output'];
+  id: Scalars['ID']['output'];
+  isOwner: Scalars['Boolean']['output'];
+};
+
 export type AccountPendingAction = {
   __typename: 'AccountPendingAction';
   createdAt: Scalars['DateTime']['output'];
@@ -852,9 +861,9 @@ export type CreateInvestmentCashTransactionInput = {
 };
 
 export type CreateMerchantInput = {
-  domain?: InputMaybe<Scalars['String']['input']>;
   name: Scalars['String']['input'];
   sector?: InputMaybe<Scalars['String']['input']>;
+  website?: InputMaybe<Scalars['String']['input']>;
 };
 
 export type CreateProductInput = {
@@ -1973,11 +1982,25 @@ export type Merchant = {
   __typename: 'Merchant';
   domain: Maybe<Scalars['String']['output']>;
   id: Scalars['ID']['output'];
+  isOwned: Scalars['Boolean']['output'];
   isSystem: Scalars['Boolean']['output'];
   /** Logo asset via federation. Null until the hydration job has run for the domain. */
   logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
   sector: Maybe<Scalars['String']['output']>;
+};
+
+export type MerchantConnection = {
+  __typename: 'MerchantConnection';
+  edges: Array<MerchantEdge>;
+  pageInfo: PageInfo;
+  totalCount: Scalars['Int']['output'];
+};
+
+export type MerchantEdge = {
+  __typename: 'MerchantEdge';
+  cursor: Scalars['String']['output'];
+  node: Merchant;
 };
 
 export type MessageInput = {
@@ -2049,6 +2072,11 @@ export type Mutation = {
   __typename: 'Mutation';
   _bankingService: Maybe<Scalars['String']['output']>;
   applyTransactionEditToSimilar: SimilarTransactionEditResult;
+  /**
+   * Applies the given transaction rule to historical (non-manual) transactions that match it.
+   * Does not override MANUAL categories; other fields may be updated according to rule actions.
+   */
+  applyTransactionRuleToHistorical: BulkOperationResult;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -2212,6 +2240,7 @@ export type Mutation = {
   removeRoleFromGroup: Group;
   /** Remove an attachment from a transaction and delete the underlying asset. */
   removeTransactionAttachment: Scalars['Boolean']['output'];
+  removeUserAvatar: User;
   /**
    * Reorders user rules by assigning priority = position+1 for each ID in the ordered list.
    * All IDs must belong to the authenticated account. Returns the full updated rule list.
@@ -2235,6 +2264,7 @@ export type Mutation = {
   /** Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago. */
   triggerPortfolioRecalculation: Scalars['Boolean']['output'];
   unmapItem: Scalars['Boolean']['output'];
+  updateAccount: Account;
   /** Updates current account preferences (account owner only). */
   updateAccountPreferences: AccountPreferences;
   updateBankingUserPreferences: BankingUserPreferences;
@@ -2256,6 +2286,7 @@ export type Mutation = {
   /** Update a user-owned transaction rule. */
   updateTransactionRule: TransactionRule;
   updateUser: User;
+  updateUserAvatar: User;
   updateUserPreferences: UserPreferences;
   verifyEmailWithToken: VerifyEmailPayload;
 };
@@ -2267,6 +2298,11 @@ export type MutationApplyTransactionEditToSimilarArgs = {
   id: Scalars['ID']['input'];
   input: UpdateTransactionInput;
   matchDescription: Scalars['String']['input'];
+};
+
+
+export type MutationApplyTransactionRuleToHistoricalArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2604,6 +2640,12 @@ export type MutationUnmapItemArgs = {
 };
 
 
+export type MutationUpdateAccountArgs = {
+  accountId: Scalars['ID']['input'];
+  input: UpdateAccountInput;
+};
+
+
 export type MutationUpdateAccountPreferencesArgs = {
   input: UpdateAccountPreferencesInput;
 };
@@ -2683,6 +2725,11 @@ export type MutationUpdateTransactionRuleArgs = {
 export type MutationUpdateUserArgs = {
   input: UpdateUserInput;
   userId: Scalars['ID']['input'];
+};
+
+
+export type MutationUpdateUserAvatarArgs = {
+  input: UpdateUserAvatarInput;
 };
 
 
@@ -3108,14 +3155,15 @@ export type Query = {
    */
   issuers: Array<Issuer>;
   listedAssetDailyPrices: ListedAssetDailyPriceConnection;
-  /** All merchants (system + user-created) available to the authenticated account. */
-  merchants: Array<Merchant>;
+  /** Paginated merchants (system + user-created) available to the authenticated account. */
+  merchants: MerchantConnection;
   /**
    * Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
    * When financialAccountId is omitted, returns the aggregate across all accounts.
    * When month/year are not provided, the current month/year are used.
    */
   monthSummary: MonthSummary;
+  myAccounts: Array<Account>;
   myUsage: UsageStats;
   myVerificationStatus: Maybe<VerificationStatus>;
   nfceDocument: Maybe<NfceDocument>;
@@ -3167,6 +3215,8 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
+  /** Counts how many existing (non-manual) transactions would be affected by applying the given rule. */
+  transactionRuleHistoricalMatchCount: Scalars['Int']['output'];
   /**
    * Transaction rules for auto-categorization and merchant suggestion.
    * - isSystem omitted: returns all rules (user + system)
@@ -3453,6 +3503,13 @@ export type QueryListedAssetDailyPricesArgs = {
 };
 
 
+export type QueryMerchantsArgs = {
+  after?: InputMaybe<Scalars['String']['input']>;
+  first?: InputMaybe<Scalars['Int']['input']>;
+  search?: InputMaybe<Scalars['String']['input']>;
+};
+
+
 export type QueryMonthSummaryArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   month?: InputMaybe<Scalars['Int']['input']>;
@@ -3637,6 +3694,11 @@ export type QueryTransactionImportArgs = {
 
 export type QueryTransactionImportsArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
+export type QueryTransactionRuleHistoricalMatchCountArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -4294,6 +4356,10 @@ export type UnmappedItemGroup = {
   suggestedVariant: Maybe<ProductVariant>;
 };
 
+export type UpdateAccountInput = {
+  accountName: Scalars['String']['input'];
+};
+
 export type UpdateAccountPreferencesInput = {
   defaultTransactionStatus?: InputMaybe<TransactionStatus>;
 };
@@ -4431,6 +4497,10 @@ export type UpdateTransactionRuleInput = {
   tagsOverride?: InputMaybe<Array<Scalars['String']['input']>>;
 };
 
+export type UpdateUserAvatarInput = {
+  avatarUrl: Scalars['String']['input'];
+};
+
 export type UpdateUserInput = {
   displayName?: InputMaybe<Scalars['String']['input']>;
 };
@@ -4438,6 +4508,7 @@ export type UpdateUserInput = {
 export type UpdateUserPreferencesInput = {
   blurBalances?: InputMaybe<Scalars['Boolean']['input']>;
   firstDayOfWeek?: InputMaybe<Scalars['Int']['input']>;
+  keepMeConnected?: InputMaybe<Scalars['Boolean']['input']>;
   language?: InputMaybe<Language>;
   theme?: InputMaybe<Theme>;
 };
@@ -4477,6 +4548,7 @@ export type UsageStats = {
 
 export type User = {
   __typename: 'User';
+  avatarProvider: Maybe<Scalars['String']['output']>;
   avatarUrl: Maybe<Scalars['String']['output']>;
   createdAt: Scalars['String']['output'];
   displayName: Maybe<Scalars['String']['output']>;
@@ -4518,6 +4590,7 @@ export type UserPreferences = {
   __typename: 'UserPreferences';
   blurBalances: Scalars['Boolean']['output'];
   firstDayOfWeek: Scalars['Int']['output'];
+  keepMeConnected: Scalars['Boolean']['output'];
   language: Language;
   theme: Theme;
 };

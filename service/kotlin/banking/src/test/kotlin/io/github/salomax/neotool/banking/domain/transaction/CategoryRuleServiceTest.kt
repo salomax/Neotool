@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.transaction.*
 import org.assertj.core.api.Assertions.assertThat
@@ -25,6 +26,7 @@ class CategoryRuleServiceTest {
     private lateinit var ruleRepository: TransactionRuleRepository
     private lateinit var categoryRepository: TransactionCategoryRepository
     private lateinit var merchantRepository: MerchantRepository
+    private lateinit var transactionRepository: TransactionRepository
     private lateinit var service: TransactionRuleService
 
     private val accountId = UUID.randomUUID()
@@ -36,7 +38,8 @@ class CategoryRuleServiceTest {
         ruleRepository = mock()
         categoryRepository = mock()
         merchantRepository = mock()
-        service = TransactionRuleService(ruleRepository, categoryRepository, merchantRepository)
+        transactionRepository = mock()
+        service = TransactionRuleService(ruleRepository, categoryRepository, merchantRepository, transactionRepository)
     }
 
     @Nested
@@ -141,6 +144,57 @@ class CategoryRuleServiceTest {
 
             verify(ruleRepository, never()).disableSystemRuleForAccount(any(), any())
             verify(ruleRepository, never()).enableSystemRuleForAccount(any(), any())
+        }
+    }
+
+    @Nested
+    @DisplayName("previewPattern — CONTAINS word-boundary matching")
+    inner class PreviewPatternContainsTests {
+        @Test
+        fun `does not match when pattern is a substring of a longer word`() {
+            // "CLAUBER" contains "uber" as raw substring but "uber" is not a whole word there
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "CLAUBER")).isFalse()
+        }
+
+        @Test
+        fun `does not match when pattern is a prefix of a longer word`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "UBERLANINHA")).isFalse()
+        }
+
+        @Test
+        fun `matches when pattern appears as a standalone word`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "UBER EATS")).isTrue()
+        }
+
+        @Test
+        fun `matches when pattern is separated by asterisk`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "UBER*TRIP")).isTrue()
+        }
+
+        @Test
+        fun `matches when pattern is followed by digits`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "UBER99")).isTrue()
+        }
+
+        @Test
+        fun `matches when pattern is preceded by digits`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "99UBER")).isTrue()
+        }
+
+        @Test
+        fun `matches regardless of case`() {
+            assertThat(service.previewPattern("uber", PatternType.CONTAINS, "UBER EATS")).isTrue()
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "uber eats")).isTrue()
+        }
+
+        @Test
+        fun `matches when pattern is the entire description`() {
+            assertThat(service.previewPattern("UBER", PatternType.CONTAINS, "UBER")).isTrue()
+        }
+
+        @Test
+        fun `matches multi-word pattern as a phrase`() {
+            assertThat(service.previewPattern("UBER EATS", PatternType.CONTAINS, "PAG UBER EATS HOJE")).isTrue()
         }
     }
 

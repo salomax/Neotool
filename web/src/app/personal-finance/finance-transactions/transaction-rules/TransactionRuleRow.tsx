@@ -193,11 +193,11 @@ export const TransactionRuleRow: React.FC<TransactionRuleRowProps> = ({
             bgcolor: cellBg,
             borderColor: 'transparent',
           },
-          '& .MuiTableCell-root:first-child': {
+          '& .MuiTableCell-root:first-of-type': {
             borderTopLeftRadius: isFirst ? '12px' : 0,
             borderBottomLeftRadius: isLast ? '12px' : 0,
           },
-          '& .MuiTableCell-root:last-child': {
+          '& .MuiTableCell-root:last-of-type': {
             borderTopRightRadius: isFirst ? '12px' : 0,
             borderBottomRightRadius: isLast ? '12px' : 0,
           },

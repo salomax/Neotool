@@ -41,7 +41,9 @@ import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.OffsetDateTime
 import java.time.ZoneOffset
+import java.time.format.DateTimeParseException
 import java.util.UUID
 import org.slf4j.LoggerFactory
 
@@ -334,9 +336,23 @@ class TransactionResolver(
         principal: RequestPrincipal,
     ): CreditCardBillDTO? {
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
-        val date = closingDate?.let { LocalDate.parse(it) }
+        val date = closingDate?.let { parseGraphQlDateArgument(it) }
         return creditCardBillService.findBill(UUID.fromString(financialAccountId), accountId, date)?.toDTO()
     }
+
+    /**
+     * Accepts ISO-8601 calendar dates and date-times (router/clients may send `YYYY-MM-DD` or `...T...Z`).
+     */
+    private fun parseGraphQlDateArgument(raw: String): LocalDate =
+        try {
+            LocalDate.parse(raw)
+        } catch (_: DateTimeParseException) {
+            try {
+                OffsetDateTime.parse(raw).toLocalDate()
+            } catch (_: DateTimeParseException) {
+                LocalDate.parse(raw.take(10))
+            }
+        }
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -613,6 +629,7 @@ class TransactionResolver(
             domain = merchant.domain,
             sector = merchant.sector,
             isSystem = merchant.isSystem,
+            isOwned = merchant.accountId != null,
             logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
         )
     }
@@ -635,6 +652,7 @@ class TransactionResolver(
                     domain = merchant.domain,
                     sector = merchant.sector,
                     isSystem = merchant.isSystem,
+                    isOwned = merchant.accountId != null,
                     logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it) },
                 )
         }

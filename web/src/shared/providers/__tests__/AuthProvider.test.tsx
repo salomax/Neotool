@@ -214,14 +214,13 @@ describe.sequential('AuthProvider', () => {
     it('should sign in successfully and store token in sessionStorage when rememberMe is false', async () => {
       const mockUser = { id: '1', email: 'test@example.com', displayName: 'Test User' };
       const mockToken = 'new-token';
-      const mockRefreshToken = 'refresh-token';
 
       // Set up mock with properly structured GraphQL response
       mockMutate.mockResolvedValue({
         data: {
           signIn: {
             token: mockToken,
-            refreshToken: mockRefreshToken,
+            refreshToken: null,
             user: mockUser,
           },
         },
@@ -245,7 +244,7 @@ describe.sequential('AuthProvider', () => {
 
       expect(sessionStorageMock.setItem).toHaveBeenCalledWith('auth_token', mockToken);
       expect(sessionStorageMock.setItem).toHaveBeenCalledWith('auth_user', JSON.stringify(mockUser));
-      expect(sessionStorageMock.setItem).toHaveBeenCalledWith('auth_refresh_token', mockRefreshToken);
+      expect(sessionStorageMock.setItem).not.toHaveBeenCalledWith('auth_refresh_token', expect.anything());
       expect(mockPush).toHaveBeenCalledWith('/');
     });
 

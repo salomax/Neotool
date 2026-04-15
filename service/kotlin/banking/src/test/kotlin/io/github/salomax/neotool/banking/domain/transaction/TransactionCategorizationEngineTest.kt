@@ -595,6 +595,13 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
         }
     }
 
+    override fun incrementMatchCountBy(id: UUID, delta: Int) {
+        val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
+        if (idx >= 0) {
+            rules[idx] = rules[idx].copy(matchCount = rules[idx].matchCount + delta, updatedAt = Instant.now())
+        }
+    }
+
     override fun updatePriority(
         id: UUID,
         priority: Int,

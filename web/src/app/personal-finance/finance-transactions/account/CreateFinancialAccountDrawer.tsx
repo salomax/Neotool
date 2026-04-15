@@ -255,6 +255,12 @@ export function CreateFinancialAccountDrawer({
                 message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
                 path: ['initialBalanceDate'],
               });
+            } else if (dayjs(data.initialBalanceDate).isAfter(dayjs(), 'day')) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: t('financeTransactions.validation.dateNotInFuture'),
+                path: ['initialBalanceDate'],
+              });
             }
           }
         }),
@@ -655,6 +661,7 @@ export function CreateFinancialAccountDrawer({
                   name="initialBalanceDate"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
+                  maxDate={new Date()}
                   data-testid="initial-balance-date-input"
                   pickerSlotProps={{ textField: { size: 'medium' } }}
                 />

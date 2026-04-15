@@ -377,21 +377,21 @@ export const Breadcrumb = React.forwardRef<HTMLElement, BreadcrumbProps>(
       switch (variant) {
         case "compact":
           return {
-            padding: "4px 0",
+            padding: "3px 0",
             "& .MuiBreadcrumbs-ol": {
               gap: "4px",
             },
           };
         case "minimal":
           return {
-            padding: "2px 0",
+            padding: "3px 0",
             "& .MuiBreadcrumbs-ol": {
               gap: "2px",
             },
           };
         default:
           return {
-            padding: "8px 0",
+            padding: "3px 0",
             "& .MuiBreadcrumbs-ol": {
               gap: "8px",
             },

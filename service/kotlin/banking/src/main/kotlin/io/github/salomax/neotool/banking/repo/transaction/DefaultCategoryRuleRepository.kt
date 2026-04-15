@@ -88,6 +88,14 @@ class DefaultCategoryRuleRepository(
         entityRepository.incrementMatchCount(id, Instant.now())
     }
 
+    override fun incrementMatchCountBy(
+        id: UUID,
+        delta: Int,
+    ) {
+        if (delta <= 0) return
+        entityRepository.incrementMatchCountBy(id, delta, Instant.now())
+    }
+
     override fun updatePriority(
         id: UUID,
         priority: Int,

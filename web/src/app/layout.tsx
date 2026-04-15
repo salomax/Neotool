@@ -22,7 +22,7 @@ const AppShell = dynamic(() => import("@/shared/ui/shell/AppShell").then(mod => 
           justifyContent: "center",
         }}
       >
-        <LoadingSpinner message="Loading application..." />
+        <LoadingSpinner />
       </Box>
     );
   }

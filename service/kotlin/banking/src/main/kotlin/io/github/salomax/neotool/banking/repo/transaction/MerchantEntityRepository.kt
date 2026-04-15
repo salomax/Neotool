@@ -25,6 +25,53 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
     )
     fun findAllForAccount(accountId: UUID): List<MerchantEntity>
 
+    @Query(
+        nativeQuery = true,
+        value = """
+            SELECT m.*
+            FROM banking.merchants m
+            WHERE (m.account_id IS NULL OR m.account_id = :accountId)
+              AND (
+                    CAST(:searchLikePattern AS text) IS NULL
+                    OR m.display_name ILIKE CAST(:searchLikePattern AS text) ESCAPE E'\\'
+                  )
+              AND (
+                    CAST(:afterName AS text) IS NULL
+                    OR m.display_name > CAST(:afterName AS text)
+                    OR (
+                        m.display_name = CAST(:afterName AS text)
+                        AND m.id > CAST(:afterId AS uuid)
+                    )
+              )
+            ORDER BY m.display_name ASC, m.id ASC
+            LIMIT :limit
+        """,
+    )
+    fun searchPageForAccount(
+        accountId: UUID,
+        searchLikePattern: String?,
+        afterName: String?,
+        afterId: UUID?,
+        limit: Int,
+    ): List<MerchantEntity>
+
+    @Query(
+        nativeQuery = true,
+        value = """
+            SELECT COUNT(*)
+            FROM banking.merchants m
+            WHERE (m.account_id IS NULL OR m.account_id = :accountId)
+              AND (
+                    CAST(:searchLikePattern AS text) IS NULL
+                    OR m.display_name ILIKE CAST(:searchLikePattern AS text) ESCAPE E'\\'
+                  )
+        """,
+    )
+    fun countForAccountBySearchLike(
+        accountId: UUID,
+        searchLikePattern: String?,
+    ): Long
+
     /** User-scoped merchants only. */
     @Query(
         value = """
@@ -68,4 +115,19 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
         month: Int?,
         limit: Int,
     ): List<Array<Any?>>
+
+    @Query(
+        nativeQuery = true,
+        value = """
+            SELECT DISTINCT m.domain
+            FROM banking.merchants m
+            LEFT JOIN banking.merchant_logo_cache mlc ON mlc.domain = m.domain
+            WHERE m.domain IS NOT NULL
+              AND m.domain <> ''
+              AND mlc.domain IS NULL
+            ORDER BY m.domain ASC
+            LIMIT :limit
+        """,
+    )
+    fun findDomainsMissingLogo(limit: Int): List<String>
 }

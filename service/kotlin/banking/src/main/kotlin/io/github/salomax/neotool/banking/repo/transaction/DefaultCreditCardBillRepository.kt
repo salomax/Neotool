@@ -30,9 +30,15 @@ open class DefaultCreditCardBillRepository(
 
     override fun findByClosingDate(
         financialAccountId: UUID,
+        accountId: UUID,
         closingDate: LocalDate,
     ): CreditCardBill? =
-        entityRepository.findByFinancialAccountIdAndClosingDateAndDeletedAtIsNull(financialAccountId, closingDate)
+        entityRepository
+            .findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
+                financialAccountId,
+                accountId,
+                closingDate,
+            )
             ?.let(CreditCardBillMapper::toDomain)
 
     override fun listByAccount(
@@ -54,7 +60,11 @@ open class DefaultCreditCardBillRepository(
         entityRepository.insertIfAbsent(financialAccountId, accountId, closingDate, dueDate)
         // Re-read to get the DB-generated id (whether newly created or pre-existing).
         return entityRepository
-            .findByFinancialAccountIdAndClosingDateAndDeletedAtIsNull(financialAccountId, closingDate)!!
+            .findByFinancialAccountIdAndAccountIdAndClosingDateAndDeletedAtIsNull(
+                financialAccountId,
+                accountId,
+                closingDate,
+            )!!
             .let(CreditCardBillMapper::toDomain)
     }
 

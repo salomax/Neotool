@@ -29,6 +29,7 @@ import MedicalServicesIcon from '@mui/icons-material/MedicalServices';
 import HealthAndSafetyIcon from '@mui/icons-material/HealthAndSafety';
 import SchoolIcon from '@mui/icons-material/School';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
+import AttractionsIcon from '@mui/icons-material/Attractions';
 import MenuBookIcon from '@mui/icons-material/MenuBook';
 import EditIcon from '@mui/icons-material/Edit';
 import CelebrationIcon from '@mui/icons-material/Celebration';
@@ -93,6 +94,10 @@ import HotelIcon from '@mui/icons-material/Hotel';
 import LocalTaxiIcon from '@mui/icons-material/LocalTaxi';
 import GavelIcon from '@mui/icons-material/Gavel';
 import PixIcon from '@mui/icons-material/Pix';
+import MultipleStopIcon from '@mui/icons-material/MultipleStop';
+import AssignmentReturnIcon from '@mui/icons-material/AssignmentReturn';
+import AirportShuttleIcon from '@mui/icons-material/AirportShuttle';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 
 export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> = {
   payments: PaymentsIcon,
@@ -101,6 +106,10 @@ export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> 
   elderly: ElderlyIcon,
   trending_up: TrendingUpIcon,
   call_received: CallReceivedIcon,
+  multiple_stop: MultipleStopIcon,
+  assignment_return: AssignmentReturnIcon,
+  airport_shuttle: AirportShuttleIcon,
+  local_shipping: LocalShippingIcon,
   restaurant: RestaurantIcon,
   shopping_cart: ShoppingCartIcon,
   ramen_dining: RamenDiningIcon,
@@ -127,6 +136,7 @@ export const categoryIconMap: Record<string, React.ComponentType<SvgIconProps>> 
   menu_book: MenuBookIcon,
   edit: EditIcon,
   celebration: CelebrationIcon,
+  attractions: AttractionsIcon,
   movie: MovieIcon,
   fitness_center: FitnessCenterIcon,
   flight: FlightIcon,
@@ -206,6 +216,8 @@ export const CATEGORY_ICON_NAMES: string[] = [
   'trending_up',
   'call_received',
   'call_made',
+  'multiple_stop',
+  'assignment_return',
 
   'work',
   'business_center',
@@ -245,6 +257,8 @@ export const CATEGORY_ICON_NAMES: string[] = [
   'local_gas_station',
   'directions_bus',
   'local_taxi',
+  'airport_shuttle',
+  'local_shipping',
   'train',
   'directions_subway',
   'two_wheeler',
@@ -270,6 +284,7 @@ export const CATEGORY_ICON_NAMES: string[] = [
   'volunteer_activism',
 
   'celebration',
+  'attractions',
   'movie',
   'fitness_center',
   'sports_esports',

@@ -17,8 +17,27 @@ data class MerchantDTO(
     val domain: String?,
     val sector: String?,
     val isSystem: Boolean,
+    val isOwned: Boolean,
     /** Federation reference resolved by [BankingWiringFactory]. */
     val logoAsset: Map<String, String>?,
+)
+
+data class MerchantEdgeDTO(
+    val node: MerchantDTO,
+    val cursor: String,
+)
+
+data class MerchantPageInfoDTO(
+    val hasNextPage: Boolean,
+    val hasPreviousPage: Boolean,
+    val startCursor: String?,
+    val endCursor: String?,
+)
+
+data class MerchantConnectionDTO(
+    val edges: List<MerchantEdgeDTO>,
+    val pageInfo: MerchantPageInfoDTO,
+    val totalCount: Int,
 )
 
 /**

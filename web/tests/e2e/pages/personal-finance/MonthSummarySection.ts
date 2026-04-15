@@ -3,9 +3,11 @@
  *
  * Selectors use data-testid attributes.
  * `openingBalance` is rendered as a hidden element (aria-hidden) for test access.
+ * Income/expense totals use `*-amount` test ids (value only) — see `helpers/currency-dom.ts`.
  */
 
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, expect } from '@playwright/test';
+import { parseCurrencyBr } from '../../helpers/currency-dom';
 
 export class MonthSummarySection {
   private readonly root: Locator;
@@ -18,10 +20,25 @@ export class MonthSummarySection {
     await this.root.waitFor({ state: 'visible' });
   }
 
+  /**
+   * While the summary query is in its first load (`loading && !summary`), the closing balance
+   * node renders a MUI Skeleton with no parseable amount — {@link getClosingBalance} becomes 0
+   * and balance assertions fail intermittently (e.g. expected 100 vs received 1000).
+   *
+   * `FinanceTransactionsPage.selectAccount` / month carousel already wait, but a **refetch**
+   * can briefly show Skeleton again — call this immediately before **baseline** reads of
+   * {@link getAll}, not only after mutations (see TX-H-01/H-02/H-06/H-09 in transactions E2E).
+   */
+  async waitForMetricsReady(): Promise<void> {
+    await expect(
+      this.page.getByTestId('month-summary-closing-balance').locator('.MuiSkeleton-root'),
+    ).toHaveCount(0, { timeout: 30000 });
+  }
+
   /** Returns the totalIncome value as a number (strips currency formatting). */
   async getTotalIncome(): Promise<number> {
     const text = await this.page
-      .getByTestId('month-summary-total-income')
+      .getByTestId('month-summary-total-income-amount')
       .textContent();
     return parseCurrencyBr(text ?? '0');
   }
@@ -29,7 +46,7 @@ export class MonthSummarySection {
   /** Returns the totalExpenses value as a number. */
   async getTotalExpenses(): Promise<number> {
     const text = await this.page
-      .getByTestId('month-summary-total-expenses')
+      .getByTestId('month-summary-total-expenses-amount')
       .textContent();
     return parseCurrencyBr(text ?? '0');
   }
@@ -64,18 +81,4 @@ export class MonthSummarySection {
       openingBalance: await this.getOpeningBalance(),
     };
   }
-}
-
-/**
- * Parses a pt-BR formatted currency string into a float.
- * Examples: "R$ 1.500,75" → 1500.75 | "-R$ 200,00" → -200 | "1.234" → 1234
- */
-function parseCurrencyBr(text: string): number {
-  const cleaned = text
-    .replace(/R\$\s*/g, '')
-    .replace(/\./g, '')
-    .replace(',', '.')
-    .trim();
-  const value = parseFloat(cleaned);
-  return isNaN(value) ? 0 : value;
 }

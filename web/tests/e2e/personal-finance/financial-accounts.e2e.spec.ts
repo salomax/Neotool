@@ -1,7 +1,7 @@
 /**
  * E2E tests — Financial Accounts
  *
- * Coverage: FA-H-01..08  |  FA-A-01..09  |  FA-N-01..11
+ * Coverage: FA-H-01..08  |  FA-A-01..09  |  FA-N-01..12
  * Security coverage is in security.e2e.spec.ts (SEC-FA-01..04).
  *
  * Each test creates its own account via the UI to exercise the full creation flow.
@@ -32,6 +32,14 @@ function todayBr(): string {
   const day = String(now.getDate()).padStart(2, '0');
   const month = String(now.getMonth() + 1).padStart(2, '0');
   return `${day}/${month}/${now.getFullYear()}`;
+}
+
+function dateOffsetBr(daysFromToday: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() + daysFromToday);
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  return `${day}/${month}/${date.getFullYear()}`;
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
@@ -156,7 +164,7 @@ test.describe('Financial Accounts — happy path', () => {
 
   test('FA-H-06: edits account name', async ({ page, pfUser, bankAccount }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
 
     const newName = uniqueName('Conta Editada H06');
@@ -244,10 +252,10 @@ test.describe('Financial Accounts — alternative paths', () => {
     await pfPage.expectAccountInSelector(creditCardAccount.name);
 
     // Selecting each should switch context without errors.
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
     expect(await pfPage.getSelectedAccountName()).toContain(bankAccount.name);
 
-    await pfPage.selectAccount(creditCardAccount.name);
+    await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
     expect(await pfPage.getSelectedAccountName()).toContain(creditCardAccount.name);
   });
 
@@ -301,7 +309,7 @@ test.describe('Financial Accounts — alternative paths', () => {
     creditCardAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(creditCardAccount.name);
+    await pfPage.selectAccount(creditCardAccount.name, creditCardAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(creditCardAccount.name);
     await drawer.fillClosingDay(20);
@@ -492,7 +500,7 @@ test.describe('Financial Accounts — negative paths', () => {
     bankAccount,
   }) => {
     const pfPage = await openFinancialAccountsPage(page);
-    await pfPage.selectAccount(bankAccount.name);
+    await pfPage.selectAccount(bankAccount.name, bankAccount.id);
 
     const drawer = await pfPage.openEditAccountDrawer(bankAccount.name);
 
@@ -512,6 +520,23 @@ test.describe('Financial Accounts — negative paths', () => {
     await drawer.attemptSubmit();
 
     await drawer.expectFieldError('card-last-four-input');
+    await drawer.expectStillOpen();
+  });
+
+  test('FA-N-12: initial balance date in the future is rejected', async ({
+    page,
+    pfUser,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    const drawer = await pfPage.openCreateAccountDrawer('BANK');
+    await drawer.selectSubtype('CONTA_CORRENTE');
+    await drawer.selectFirstIssuer();
+    await drawer.fillName(uniqueName('Conta Data Futura N12'));
+    await drawer.fillInitialBalance(100);
+    await drawer.fillInitialBalanceDate(dateOffsetBr(1));
+    await drawer.attemptSubmit();
+
+    await drawer.expectFieldError('initial-balance-date-input');
     await drawer.expectStillOpen();
   });
 });

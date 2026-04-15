@@ -274,6 +274,26 @@ class MonthSummaryQueryServiceTest {
         }
 
         @Test
+        fun `missing snapshot recomputes from requested month when it is before earliest transaction`() {
+            val requested = YearMonth.of(2025, 12)
+            val computed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal.ZERO)
+
+            whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(null)
+                .thenReturn(computed)
+            whenever(snapshotRepository.findLatestCleanBefore(financialAccountId, requested.year, requested.monthValue))
+                .thenReturn(null)
+            whenever(transactionRepository.findEarliestTransactionDate(financialAccountId))
+                .thenReturn(LocalDate.of(2026, 4, 10))
+            whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
+
+            service.getMonthSummary(financialAccountId, accountId, requested.year, requested.monthValue)
+
+            verify(snapshotComputationService).recomputeChain(financialAccountId, accountId, 2025, 12)
+        }
+
+        @Test
         fun `dirty snapshot recomputes from month after latest clean snapshot`() {
             val requested = YearMonth.of(2026, 1)
             val dirty = snapshot(year = requested.year, month = requested.monthValue, isDirty = true)
@@ -421,6 +441,16 @@ class MonthSummaryQueryServiceTest {
     inner class FutureMonthTests {
         private val today = LocalDate.now()
         private val currentYearMonth = YearMonth.of(today.year, today.monthValue)
+
+        @BeforeEach
+        fun stubFutureMonthRepositoryReads() {
+            whenever(transactionRepository.getMonthTransferTotals(any(), any(), any()))
+                .thenReturn(transferTotals())
+            whenever(transactionRepository.getCategoryBreakdown(any(), any(), any(), any(), any()))
+                .thenReturn(emptyList())
+            whenever(transactionRepository.getTagBreakdown(any(), any(), any(), any(), any()))
+                .thenReturn(emptyList())
+        }
 
         // The immediately next month
         private val nextMonth = currentYearMonth.plusMonths(1)

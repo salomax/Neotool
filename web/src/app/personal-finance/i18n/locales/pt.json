@@ -898,6 +898,8 @@
     "credit": "Receita",
     "debit": "Despesa",
     "transfer": "Transferência",
+    "internalTransferIn": "Recebimento de conta própria",
+    "internalTransferOut": "Saída para conta própria",
     "amount": "Valor",
     "description": "Descrição",
     "date": "Data",
@@ -905,10 +907,27 @@
     "category": "Categoria",
     "value": "Valor",
     "tags": "Tags",
+    "merchant": "Estabelecimento",
+    "noMerchant": "Sem estabelecimento",
+    "merchantPicker": {
+      "searchPlaceholder": "Buscar estabelecimento...",
+      "noResults": "Nenhum estabelecimento encontrado",
+      "createMerchant": "Criar estabelecimento",
+      "nameLabel": "Nome",
+      "namePlaceholder": "Ex.: Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Pré-visualização do logo",
+      "noWebsite": "Sem website",
+      "created": "Estabelecimento criado: {{name}}",
+      "loadMore": "Carregar mais",
+      "resultCount": "Mostrando {{shown}} de {{total}}"
+    },
     "issuer": "Instituição",
     "financialAccount": "Conta financeira",
     "validation": {
-      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos"
+      "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos",
+      "dateNotInFuture": "A data não pode ser futura."
     },
     "dateGroup": {
       "today": "Hoje, {{date}}",
@@ -1280,7 +1299,10 @@
           "newCardDetailsTitle": "Detalhes do novo cartão",
           "cardAssignmentTitle": "Associar cartões",
           "cardAssignmentMessage": "Selecione um cartão existente para usar na atribuição dos lançamentos.",
-          "assignTransactionsTitle": "Atribuir lançamentos"
+          "assignTransactionsTitle": "Atribuir lançamentos",
+          "assignTransactionsInfoTitle": "Como atribuir",
+          "assignTransactionsHint": "Selecione os lançamentos, informe o final do cartão (4 dígitos) ou deixe vazio para aplicar como “Sem final”, e clique em Aplicar.",
+          "assignTransactionsRequirementHint": "Você precisa aplicar em pelo menos 1 lançamento para habilitar “Revisar transações”."
         },
         "cardDataSectionTitle": "Dados do cartão",
         "availableTransactionsSectionTitle": "Transações disponíveis",
@@ -1319,6 +1341,7 @@
       },
       "txReviewStep": {
         "description": "Revise as transações antes de confirmar. Desmarque itens que não deseja importar.",
+        "setupRequired": "Para confirmar, finalize a configuração dos cartões na etapa anterior.",
         "billDatesTitle": "Datas da fatura",
         "billDatesDescription": "Confira o fechamento e informe o vencimento quando o arquivo não trouxer essa data.",
         "closingDateLabel": "Data de fechamento",
@@ -1442,8 +1465,12 @@
         "ariaLabel": "Ações da transação",
         "viewNfce": "Ver NFC-e",
         "markAsTransfer": "Marcar como transferência interna",
+        "markAsTransferSuccess": "Transação marcada como transferência interna",
+        "markAsTransferError": "Não foi possível marcar como transferência interna",
+        "markAsTransferMissingCategory": "Categoria padrão de transferência não encontrada. Recarregue a página ou tente novamente.",
         "edit": "Editar",
         "viewAppliedRules": "Ver regras aplicadas",
+        "createRuleFromDescription": "Criar regra a partir da descrição",
         "remove": "Remover"
       },
       "appliedRules": {
@@ -1487,6 +1514,14 @@
         }
       }
     },
+    "applyRuleToHistoryPrompt": {
+      "title": "Aplicar regra ao histórico?",
+      "description": "Esta regra corresponde a {{count}} transação(ões) existente(s). Deseja aplicá-la agora?",
+      "confirm": "Aplicar ao histórico",
+      "cancel": "Agora não",
+      "toastSuccess": "Regra aplicada em {{count}} transação(ões).",
+      "toastError": "Não foi possível aplicar a regra ao histórico"
+    },
     "monthSummary": {
       "income": "Receitas",
       "expenses": "Despesas",
@@ -1513,6 +1548,11 @@
       "clearCategoryFilter": "Remover filtro de categoria",
       "clearTagFilter": "Remover filtro de tag",
       "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
+      "transfersTitle": "Transferências entre contas próprias",
+      "transfersIn": "Recebidas",
+      "transfersOut": "Enviadas",
+      "filteringByTransfer": "Somente transferências internas",
+      "clearTransferFilter": "Remover filtro de transferência",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",
       "unavailableDescription": "Essa informação está temporariamente indisponível. Tente novamente em instantes.",
       "retry": "Tentar novamente"

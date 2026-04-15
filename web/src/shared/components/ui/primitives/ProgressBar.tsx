@@ -175,7 +175,9 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = (props) => {
   const renderLabel = () => {
     if (!showLabel) return null;
     
-    const displayLabel = label || (indeterminate ? 'Loading...' : 'Progress');
+    if (indeterminate && !label) return null;
+
+    const displayLabel = label || 'Progress';
     
     return (
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
@@ -215,9 +217,9 @@ const ProgressBar: React.FC<ProgressBarProps | StepProgressProps> = (props) => {
     
     return (
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-        {showLabel && (
+        {showLabel && (!indeterminate || !!label) && (
           <Typography variant="body2" color="text.primary">
-            {label || (indeterminate ? 'Loading...' : 'Progress')}
+            {label || 'Progress'}
           </Typography>
         )}
         <Box sx={{ position: 'relative', display: 'inline-flex' }}>

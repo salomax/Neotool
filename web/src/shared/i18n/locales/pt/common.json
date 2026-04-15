@@ -55,6 +55,24 @@
     "plan": "Plano",
     "yes": "Sim",
     "no": "Não",
+    "accounts": {
+      "title": "Conta",
+      "loading": "Carregando contas...",
+      "empty": "Nenhuma conta encontrada.",
+      "owner": "Proprietário",
+      "readOnly": "Somente leitura",
+      "editLabel": "Editar nome da conta",
+      "updateError": "Não foi possível atualizar o nome da conta. Tente novamente."
+    },
+    "avatar": {
+      "changePhoto": "Alterar foto",
+      "removePhoto": "Remover foto",
+      "uploadError": "Erro ao carregar imagem. Tente novamente.",
+      "publicAccessRequiredError": "Upload de avatar indisponível: o backend retornou um asset privado para perfis de usuário.",
+      "removeError": "Não foi possível remover a imagem. Tente novamente.",
+      "maxSizeError": "A imagem deve ter no máximo 2 MB.",
+      "invalidTypeError": "Formato de imagem não suportado."
+    },
     "preferences": {
       "title": "Preferências",
       "loading": "Carregando preferências...",
@@ -68,6 +86,9 @@
       "themeSystem": "Sistema",
       "language": "Idioma",
       "languageHelper": "Selecione seu idioma de preferência.",
+      "session": "Sessão",
+      "keepMeConnected": "Manter-me conectado",
+      "keepMeConnectedHelper": "Permaneça conectado entre sessões. Desative se você compartilha este dispositivo.",
       "banking": "Regras de negócio",
       "ruleApplicationMode": "Criação de regras automáticas para movimentações",
       "ruleApplicationModeHelper": "Ao alterar manualmente um movimentação, o app pode registrar esta mudança como uma regra, aplicar no histórico e para futuras movimentações semelhantes.",
@@ -135,6 +156,8 @@
     "AUTH_SESSION_EXPIRED": "A sessão expirou. Faça login novamente.",
     "AUTH_TOKEN_EXPIRED": "O token de autenticação expirou.",
     "AUTH_TOKEN_INVALID": "Token de autenticação inválido.",
+    "AVATAR_UPLOAD_NOT_ALLOWED_FOR_OAUTH_USERS": "Upload de avatar disponível apenas para usuários de e-mail e senha.",
+    "INVALID_AVATAR_URL": "URL de avatar inválida.",
     "GROUP_NOT_FOUND": "Grupo não encontrado.",
     "INVITATION_EXPIRED": "O convite expirou.",
     "INVITATION_INVALID": "Convite inválido.",

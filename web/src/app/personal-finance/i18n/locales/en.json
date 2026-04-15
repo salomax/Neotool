@@ -899,6 +899,8 @@
     "credit": "Credit",
     "debit": "Debit",
     "transfer": "Transfer",
+    "internalTransferIn": "Internal transfer (In)",
+    "internalTransferOut": "Internal transfer (Out)",
     "amount": "Amount",
     "description": "Description",
     "date": "Date",
@@ -906,10 +908,27 @@
     "category": "Category",
     "value": "Value",
     "tags": "Tags",
+    "merchant": "Merchant",
+    "noMerchant": "No merchant",
+    "merchantPicker": {
+      "searchPlaceholder": "Search merchant...",
+      "noResults": "No merchants found",
+      "createMerchant": "Create merchant",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Netflix",
+      "websiteLabel": "Website",
+      "websitePlaceholder": "netflix.com",
+      "logoPreview": "Logo preview",
+      "noWebsite": "No website",
+      "created": "Merchant created: {{name}}",
+      "loadMore": "Load more",
+      "resultCount": "Showing {{shown}} of {{total}}"
+    },
     "issuer": "Institution",
     "financialAccount": "Financial Account",
     "validation": {
-      "dateTooOld": "Date must be within the last {{years}} years"
+      "dateTooOld": "Date must be within the last {{years}} years",
+      "dateNotInFuture": "Date cannot be in the future."
     },
     "dateGroup": {
       "today": "Today, {{date}}",
@@ -1277,7 +1296,10 @@
           "newCardDetailsTitle": "New card details",
           "cardAssignmentTitle": "Associate cards",
           "cardAssignmentMessage": "Select an existing card to use while assigning transactions.",
-          "assignTransactionsTitle": "Assign transactions"
+          "assignTransactionsTitle": "Assign transactions",
+          "assignTransactionsInfoTitle": "How to assign",
+          "assignTransactionsHint": "Select the transactions, enter the card last 4 digits (or leave it empty to apply “No last 4”), and click Apply.",
+          "assignTransactionsRequirementHint": "You must apply it to at least 1 transaction to enable “Review transactions”."
         },
         "cardDataSectionTitle": "Card details",
         "availableTransactionsSectionTitle": "Available transactions",
@@ -1316,6 +1338,7 @@
       },
       "txReviewStep": {
         "description": "Review the transactions before confirming. Uncheck items you don't want to import.",
+        "setupRequired": "To confirm, finish setting up the cards in the previous step.",
         "billDatesTitle": "Bill dates",
         "billDatesDescription": "Check the closing date and enter the due date when the file does not provide it.",
         "closingDateLabel": "Closing date",
@@ -1439,8 +1462,12 @@
         "ariaLabel": "Transaction actions",
         "viewNfce": "View NFC-e",
         "markAsTransfer": "Mark as internal transfer",
+        "markAsTransferSuccess": "Transaction marked as internal transfer",
+        "markAsTransferError": "Could not mark as internal transfer",
+        "markAsTransferMissingCategory": "Default transfer category was not found. Reload the page or try again.",
         "edit": "Edit",
         "viewAppliedRules": "View applied rules",
+        "createRuleFromDescription": "Create rule from description",
         "remove": "Remove"
       },
       "appliedRules": {
@@ -1484,6 +1511,14 @@
         }
       }
     },
+    "applyRuleToHistoryPrompt": {
+      "title": "Apply rule to history?",
+      "description": "This rule matches {{count}} existing transaction(s). Apply it now?",
+      "confirm": "Apply to history",
+      "cancel": "Not now",
+      "toastSuccess": "Rule applied to {{count}} transaction(s).",
+      "toastError": "Could not apply the rule to history"
+    },
     "monthSummary": {
       "income": "Income",
       "expenses": "Expenses",
@@ -1510,6 +1545,11 @@
       "clearCategoryFilter": "Clear category filter",
       "clearTagFilter": "Clear tag filter",
       "clearCreditDebitTypeFilter": "Clear credit/debit filter",
+      "transfersTitle": "Transfers between own accounts",
+      "transfersIn": "Received",
+      "transfersOut": "Sent",
+      "filteringByTransfer": "Internal transfers only",
+      "clearTransferFilter": "Clear transfer filter",
       "unavailableTitle": "Could not load this month's summary",
       "unavailableDescription": "This information is temporarily unavailable. Please try again in a moment.",
       "retry": "Try again"

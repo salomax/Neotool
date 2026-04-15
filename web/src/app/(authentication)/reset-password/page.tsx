@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Container, Box, Typography } from "@mui/material";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { ResetPasswordForm } from "@/shared/components/auth/ResetPasswordForm";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useAuth } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
@@ -40,9 +41,7 @@ export default function ResetPasswordPage() {
   if (isLoading) {
     return (
       <Container maxWidth="sm" sx={{ py: 8 }}>
-        <Box sx={{ textAlign: "center" }}>
-          <Typography>Loading...</Typography>
-        </Box>
+        <LoadingSpinner />
       </Container>
     );
   }
@@ -111,9 +110,7 @@ export default function ResetPasswordPage() {
                   }}
                 />
               ) : (
-                <Box sx={{ textAlign: "center" }}>
-                  <Typography>Loading...</Typography>
-                </Box>
+                <LoadingSpinner />
               )}
             </Stack>
           </Paper>
@@ -122,4 +119,3 @@ export default function ResetPasswordPage() {
     </Box>
   );
 }
-

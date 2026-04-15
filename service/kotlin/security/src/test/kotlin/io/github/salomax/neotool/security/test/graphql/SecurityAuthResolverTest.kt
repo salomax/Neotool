@@ -15,6 +15,7 @@ import io.github.salomax.neotool.security.service.authentication.AuthContextFact
 import io.github.salomax.neotool.security.service.authentication.AuthenticationService
 import io.github.salomax.neotool.security.service.authorization.AuthorizationService
 import io.github.salomax.neotool.security.service.jwt.RefreshTokenService
+import io.github.salomax.neotool.security.service.preferences.UserPreferencesService
 import io.github.salomax.neotool.security.test.SecurityTestDataBuilders
 import jakarta.validation.ConstraintViolationException
 import org.assertj.core.api.Assertions.assertThat
@@ -33,6 +34,10 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.UUID
 import org.mockito.ArgumentMatchers.any as anyArg
+import io.github.salomax.neotool.security.domain.preferences.Language
+import io.github.salomax.neotool.security.domain.preferences.Theme
+import io.github.salomax.neotool.security.domain.preferences.UserPreferences
+import java.time.Instant
 
 @DisplayName("SecurityAuthResolver Unit Tests")
 class SecurityAuthResolverTest {
@@ -43,6 +48,7 @@ class SecurityAuthResolverTest {
     private lateinit var inputValidator: InputValidator
     private lateinit var mapper: SecurityGraphQLMapper
     private lateinit var refreshTokenService: RefreshTokenService
+    private lateinit var userPreferencesService: UserPreferencesService
     private lateinit var resolver: SecurityAuthResolver
 
     @BeforeEach
@@ -54,6 +60,7 @@ class SecurityAuthResolverTest {
         inputValidator = mock()
         mapper = mock()
         refreshTokenService = mock()
+        userPreferencesService = mock()
         resolver =
             SecurityAuthResolver(
                 authenticationService,
@@ -63,6 +70,7 @@ class SecurityAuthResolverTest {
                 inputValidator,
                 mapper,
                 refreshTokenService,
+                userPreferencesService,
             )
     }
 
@@ -101,6 +109,7 @@ class SecurityAuthResolverTest {
             verify(authenticationService).authenticate("test@example.com", "password123")
             verify(authContextFactory).build(user)
             verify(authenticationService).generateAccessToken(eq(authContext))
+            verify(userPreferencesService, never()).get(any())
             verify(refreshTokenService, never()).createRefreshToken(any())
         }
 
@@ -134,6 +143,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.token).isEqualTo("access-token")
             assertThat(payload.refreshToken).isEqualTo("refresh-token")
             verify(authContextFactory).build(user)
+            verify(userPreferencesService, never()).get(any())
             verify(refreshTokenService).createRefreshToken(user.id!!)
         }
 
@@ -179,7 +189,7 @@ class SecurityAuthResolverTest {
         }
 
         @Test
-        fun `should handle null rememberMe as false`() {
+        fun `should handle null rememberMe using user preference false`() {
             // Arrange
             val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
             val userDTO = UserDTO(id = user.id.toString(), email = user.email)
@@ -196,6 +206,19 @@ class SecurityAuthResolverTest {
             whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
             whenever(authContextFactory.build(user)).thenReturn(authContext)
             whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
+            whenever(userPreferencesService.get(user.id!!))
+                .thenReturn(
+                    UserPreferences(
+                        userId = user.id!!,
+                        language = Language.PORTUGUESE,
+                        theme = Theme.SYSTEM,
+                        blurBalances = false,
+                        firstDayOfWeek = 1,
+                        keepMeConnected = false,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
             whenever(mapper.userToDTO(user)).thenReturn(userDTO)
 
             // Act
@@ -205,7 +228,92 @@ class SecurityAuthResolverTest {
             assertThat(result.success).isTrue()
             verify(authContextFactory).build(user)
             verify(authenticationService).generateAccessToken(eq(authContext))
+            verify(userPreferencesService).get(user.id!!)
             verify(refreshTokenService, never()).createRefreshToken(any())
+        }
+
+        @Test
+        fun `should handle null rememberMe using user preference true`() {
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
+            val userDTO = UserDTO(id = user.id.toString(), email = user.email)
+            val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to null)
+            val authContext =
+                AuthContext(
+                    userId = user.id!!,
+                    email = user.email,
+                    displayName = user.displayName,
+                    roles = emptyList(),
+                    permissions = emptyList(),
+                )
+
+            whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
+            whenever(authContextFactory.build(user)).thenReturn(authContext)
+            whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
+            whenever(userPreferencesService.get(user.id!!))
+                .thenReturn(
+                    UserPreferences(
+                        userId = user.id!!,
+                        language = Language.PORTUGUESE,
+                        theme = Theme.SYSTEM,
+                        blurBalances = false,
+                        firstDayOfWeek = 1,
+                        keepMeConnected = true,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
+            whenever(mapper.userToDTO(user)).thenReturn(userDTO)
+
+            val result = resolver.signIn(input)
+
+            assertThat(result.success).isTrue()
+            val payload = result.data as SignInPayloadDTO
+            assertThat(payload.refreshToken).isEqualTo("refresh-token")
+            verify(userPreferencesService).get(user.id!!)
+            verify(refreshTokenService).createRefreshToken(user.id!!)
+        }
+
+        @Test
+        fun `should use preferences when rememberMe was not explicitly provided`() {
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "test@example.com")
+            val userDTO = UserDTO(id = user.id.toString(), email = user.email)
+            val input = mapOf("email" to "test@example.com", "password" to "password123", "rememberMe" to false)
+            val authContext =
+                AuthContext(
+                    userId = user.id!!,
+                    email = user.email,
+                    displayName = user.displayName,
+                    roles = emptyList(),
+                    permissions = emptyList(),
+                )
+
+            whenever(authenticationService.authenticate("test@example.com", "password123")).thenReturn(user)
+            whenever(authContextFactory.build(user)).thenReturn(authContext)
+            whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
+            whenever(userPreferencesService.get(user.id!!))
+                .thenReturn(
+                    UserPreferences(
+                        userId = user.id!!,
+                        language = Language.PORTUGUESE,
+                        theme = Theme.SYSTEM,
+                        blurBalances = false,
+                        firstDayOfWeek = 1,
+                        keepMeConnected = true,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
+            whenever(mapper.userToDTO(user)).thenReturn(userDTO)
+
+            val result = resolver.signIn(input, rememberMeProvided = false)
+
+            assertThat(result.success).isTrue()
+            val payload = result.data as SignInPayloadDTO
+            assertThat(payload.refreshToken).isEqualTo("refresh-token")
+            verify(userPreferencesService).get(user.id!!)
+            verify(refreshTokenService).createRefreshToken(user.id!!)
         }
     }
 
@@ -297,6 +405,7 @@ class SecurityAuthResolverTest {
             assertThat(payload.token).isEqualTo("access-token")
             verify(authenticationService).authenticateWithOAuth("google", "valid-id-token")
             verify(authContextFactory).build(user)
+            verify(userPreferencesService, never()).get(any())
         }
 
         @Test
@@ -334,6 +443,48 @@ class SecurityAuthResolverTest {
 
             // Assert
             assertThat(result.success).isFalse()
+        }
+
+        @Test
+        fun `should handle null rememberMe in oauth using user preference true`() {
+            val user = SecurityTestDataBuilders.user(id = UUID.randomUUID(), email = "oauth@example.com")
+            val userDTO = UserDTO(id = user.id.toString(), email = user.email)
+            val input = mapOf("provider" to "google", "idToken" to "valid-id-token", "rememberMe" to null)
+            val authContext =
+                AuthContext(
+                    userId = user.id!!,
+                    email = user.email,
+                    displayName = user.displayName,
+                    roles = emptyList(),
+                    permissions = emptyList(),
+                )
+
+            whenever(authenticationService.authenticateWithOAuth("google", "valid-id-token")).thenReturn(user)
+            whenever(authContextFactory.build(user)).thenReturn(authContext)
+            whenever(authenticationService.generateAccessToken(eq(authContext))).thenReturn("access-token")
+            whenever(userPreferencesService.get(user.id!!))
+                .thenReturn(
+                    UserPreferences(
+                        userId = user.id!!,
+                        language = Language.PORTUGUESE,
+                        theme = Theme.SYSTEM,
+                        blurBalances = false,
+                        firstDayOfWeek = 1,
+                        keepMeConnected = true,
+                        createdAt = Instant.now(),
+                        updatedAt = Instant.now(),
+                    ),
+                )
+            whenever(refreshTokenService.createRefreshToken(user.id!!)).thenReturn("refresh-token")
+            whenever(mapper.userToDTO(user)).thenReturn(userDTO)
+
+            val result = resolver.signInWithOAuth(input)
+
+            assertThat(result.success).isTrue()
+            val payload = result.data as SignInPayloadDTO
+            assertThat(payload.refreshToken).isEqualTo("refresh-token")
+            verify(userPreferencesService).get(user.id!!)
+            verify(refreshTokenService).createRefreshToken(user.id!!)
         }
     }
 

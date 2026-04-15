@@ -3,6 +3,7 @@ import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import { vi, describe, it, expect, afterEach } from 'vitest';
 import { MonthSummary, MonthSummaryData } from '../MonthSummary';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
 
 // Mock dependencies
 vi.mock('@/shared/i18n', () => ({
@@ -204,5 +205,60 @@ describe.sequential('MonthSummary', () => {
 
     fireEvent.click(screen.getByText('financeTransactions.monthSummary.uncategorized'));
     expect(onCategoryClick).toHaveBeenCalledWith({ categoryId: null, uncategorized: true });
+  });
+
+  it('locks income and expenses when transfers filter is active', () => {
+    const onCreditDebitTypeClick = vi.fn();
+    const onTransferClick = vi.fn();
+    renderWithTheme(
+      <MonthSummary
+        summary={{ ...mockSummary, transfersIn: 100, transfersOut: 50 }}
+        loading={false}
+        onCreditDebitTypeClick={onCreditDebitTypeClick}
+        onTransferClick={onTransferClick}
+        activeTransferFilter={true}
+      />,
+    );
+
+    expect(
+      screen.queryByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.income/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.expenses/,
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.transfersIn/,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('locks transfers when income filter is active', () => {
+    const onCreditDebitTypeClick = vi.fn();
+    const onTransferClick = vi.fn();
+    renderWithTheme(
+      <MonthSummary
+        summary={{ ...mockSummary, transfersIn: 100, transfersOut: 50 }}
+        loading={false}
+        onCreditDebitTypeClick={onCreditDebitTypeClick}
+        activeCreditDebitTypeFilter={CreditDebitType.Credit}
+        onTransferClick={onTransferClick}
+      />,
+    );
+
+    expect(
+      screen.getByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.income/,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', {
+        name: /financeTransactions\.monthSummary\.a11y\.filterByMetric financeTransactions\.monthSummary\.transfersIn/,
+      }),
+    ).not.toBeInTheDocument();
   });
 });

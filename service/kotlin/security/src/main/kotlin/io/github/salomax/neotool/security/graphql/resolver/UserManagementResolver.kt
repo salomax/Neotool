@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.security.graphql.resolver
 
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
+import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.security.graphql.dto.UpdateUserInputDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
@@ -250,6 +251,20 @@ class UserManagementResolver(
             logger.error(e) { "Error updating user: $userId" }
             throw e
         }
+    }
+
+    fun updateUserAvatar(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): UserDTO {
+        val userId = requireNotNull(principal.userId) { "User ID required" }
+        val avatarUrl = input["avatarUrl"] as String
+        return mapper.toUserDTO(userManagementService.updateAvatar(userId, avatarUrl))
+    }
+
+    fun removeUserAvatar(principal: RequestPrincipal): UserDTO {
+        val userId = requireNotNull(principal.userId) { "User ID required" }
+        return mapper.toUserDTO(userManagementService.removeAvatar(userId))
     }
 
     /**

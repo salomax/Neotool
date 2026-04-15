@@ -27,6 +27,8 @@ open class UserPreferencesEntity(
     open var blurBalances: Boolean = false,
     @Column(name = "first_day_of_week", nullable = false)
     open var firstDayOfWeek: Short = 1,
+    @Column(name = "keep_me_connected", nullable = false)
+    open var keepMeConnected: Boolean = true,
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
     @Column(name = "updated_at", nullable = false)

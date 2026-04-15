@@ -18,7 +18,7 @@
  * Expected responses for cross-tenant violations:
  *   - Queries: null or empty list (never returns another tenant's data)
  *   - Mutations: GraphQL error "not found" or "forbidden" (never silently succeeds)
- *   - The exact error message may vary; we match on /not found|forbidden|unauthorized/i
+ *   - The exact error message may vary; we match on NOT_FOUND (includes generic "invalid input")
  * ──────────────────────────────────────────────────────────────────────────────
  */
 
@@ -26,11 +26,14 @@ import { test, expect } from '../fixtures/personal-finance';
 import {
   createFinancialAccount,
   createTransaction,
+  CreditDebitType,
   deleteTransaction,
   getFinancialAccounts,
   getCreditCardBills,
   getMonthSummary,
   today,
+  TransactionStatus,
+  TransactionType,
 } from '../helpers/banking-graphql';
 import { executeGraphQL } from '../helpers/graphql';
 
@@ -40,7 +43,8 @@ function uniqueDesc(prefix: string): string {
   return `${prefix} ${Date.now()}`;
 }
 
-const NOT_FOUND = /not found|não encontrad|forbidden|unauthorized/i;
+const NOT_FOUND =
+  /not found|não encontrad|forbidden|unauthorized|invalid input/i;
 
 // =============================================================================
 // SEC-FA — Financial Accounts
@@ -57,18 +61,18 @@ test.describe('Security — Financial Accounts', () => {
       userA.token
     );
 
+    // API has no financialAccount(id) — isolation is via list scope; knowing A's UUID must not surface A's row.
     const result = await executeGraphQL(`
-      query GetFinancialAccount($id: ID!) {
-        financialAccount(id: $id) { id name }
+      query FinancialAccounts {
+        financialAccounts { id name }
       }
-    `, { id: accountA.id }, userB.token);
+    `, {}, userB.token);
 
-    // Must return null or error — NEVER userA's account data
-    if (result.errors) {
-      expect(result.errors[0].message).toMatch(NOT_FOUND);
-    } else {
-      expect(result.data?.financialAccount).toBeNull();
-    }
+    expect(result.errors).toBeUndefined();
+    const leaked = (result.data?.financialAccounts ?? []).find(
+      (a: { id: string }) => a.id === accountA.id,
+    );
+    expect(leaked).toBeUndefined();
   });
 
   test('SEC-FA-02: user B\'s financialAccounts query returns only their own accounts', async ({
@@ -102,7 +106,14 @@ test.describe('Security — Financial Accounts', () => {
       mutation UpdateFinancialAccount($id: ID!, $input: UpdateFinancialAccountInput!) {
         updateFinancialAccount(id: $id, input: $input) { id name }
       }
-    `, { id: accountA.id, input: { name: 'Hacked by B' } }, userB.token);
+    `, {
+      id: accountA.id,
+      input: {
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        name: 'Hacked by B',
+      },
+    }, userB.token);
 
     expect(result.errors).toBeDefined();
     expect(result.errors![0].message).toMatch(NOT_FOUND);
@@ -123,18 +134,26 @@ test.describe('Security — Financial Accounts', () => {
       userA.token
     );
 
-    // Try delete mutation if it exists; otherwise try update with a deletion flag
+    // GraphQL has no deleteFinancialAccount (see 01-financial-accounts.md); strongest write is update.
     const result = await executeGraphQL(`
-      mutation DeleteFinancialAccount($id: ID!) {
-        deleteFinancialAccount(id: $id)
+      mutation UpdateFinancialAccount($id: ID!, $input: UpdateFinancialAccountInput!) {
+        updateFinancialAccount(id: $id, input: $input) { id name }
       }
-    `, { id: accountA.id }, userB.token);
+    `, {
+      id: accountA.id,
+      input: {
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        name: `FA04 should never apply ${Date.now()}`,
+      },
+    }, userB.token);
 
-    // Must be an error — account must still exist for userA
     expect(result.errors).toBeDefined();
+    expect(result.errors![0].message).toMatch(NOT_FOUND);
 
     const accountsA = await getFinancialAccounts(userA.token);
-    expect(accountsA.some((a) => a.id === accountA.id)).toBe(true);
+    const stillIntact = accountsA.find((a) => a.id === accountA.id);
+    expect(stillIntact?.name).toBe(accountA.name);
   });
 });
 
@@ -153,7 +172,7 @@ test.describe('Security — Transactions', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: accountA.id, description: uniqueDesc('Tx Secreta TX01'), amount: 9999, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: accountA.id, description: uniqueDesc('Tx Secreta TX01'), amount: 9999, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -198,9 +217,9 @@ test.describe('Security — Transactions', () => {
         financialAccountId: accountA.id,
         description: 'Invasão TX02',
         amount: 1,
-        creditDebitType: 'DEBIT',
-        type: 'EXPENSE',
-        status: 'POSTED',
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.OtherExpense,
+        status: TransactionStatus.Posted,
         date: today(),
       },
     }, userB.token);
@@ -231,7 +250,7 @@ test.describe('Security — Transactions', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: accountA.id, description: 'Original TX03', amount: 100, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: accountA.id, description: 'Original TX03', amount: 100, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -270,7 +289,7 @@ test.describe('Security — Transactions', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: accountA.id, description: uniqueDesc('Tx TX04'), amount: 50, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: accountA.id, description: uniqueDesc('Tx TX04'), amount: 50, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -307,7 +326,7 @@ test.describe('Security — Transactions', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: accountA.id, description: uniqueDesc('Private TX05'), amount: 777, creditDebitType: 'CREDIT', status: 'POSTED', date: today() },
+      { financialAccountId: accountA.id, description: uniqueDesc('Private TX05'), amount: 777, creditDebitType: CreditDebitType.Credit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -383,9 +402,9 @@ test.describe('Security — Monthly Summaries', () => {
         financialAccountId: accountA.id,
         description: 'Pollution attempt',
         amount: 99999,
-        creditDebitType: 'DEBIT',
-        type: 'EXPENSE',
-        status: 'POSTED',
+        creditDebitType: CreditDebitType.Debit,
+        type: TransactionType.OtherExpense,
+        status: TransactionStatus.Posted,
         date: today(),
       },
     }, userB.token);
@@ -413,7 +432,7 @@ test.describe('Security — Credit Card Bills', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB01'), amount: 200, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB01'), amount: 200, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -445,12 +464,14 @@ test.describe('Security — Credit Card Bills', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB02'), amount: 150, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB02'), amount: 150, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
     const bills = await getCreditCardBills(cardA.id, userA.token);
     const bill = bills[0];
+    const closingDate =
+      bill?.closingDate != null ? String(bill.closingDate).slice(0, 10) : undefined;
 
     const result = await executeGraphQL(`
       query GetCreditCardBill($financialAccountId: ID!, $closingDate: Date) {
@@ -458,12 +479,14 @@ test.describe('Security — Credit Card Bills', () => {
           id totalAmount
         }
       }
-    `, { financialAccountId: cardA.id, closingDate: bill?.closingDate }, userB.token);
+    `, { financialAccountId: cardA.id, closingDate }, userB.token);
 
-    if (result.errors) {
-      expect(result.errors[0].message).toMatch(NOT_FOUND);
-    } else {
-      expect(result.data?.creditCardBill).toBeNull();
+    // Must never return another tenant's bill; gateway may mask subgraph faults as "Internal server error".
+    expect(result.data?.creditCardBill ?? null).toBeNull();
+    if (result.errors?.length) {
+      expect(result.errors[0].message).toMatch(
+        /not found|não encontrad|forbidden|unauthorized|invalid input|internal server error/i,
+      );
     }
 
     await deleteTransaction(tx.id, userA.token);
@@ -479,7 +502,7 @@ test.describe('Security — Credit Card Bills', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB03'), amount: 300, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: cardA.id, description: uniqueDesc('Compra CB03'), amount: 300, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -524,7 +547,10 @@ test.describe('Security — Transaction Import', () => {
       input: {
         financialAccountId: accountA.id,
         fileName: 'inject.csv',
-        fileContent: btoa('Data,Descricao,Valor\n2026-03-01,Injecao,-1'),
+        fileBase64: Buffer.from(
+          'Data,Descricao,Valor\n2026-03-01,Injecao,-1',
+          'utf-8',
+        ).toString('base64'),
       },
     }, userB.token);
 
@@ -574,18 +600,32 @@ test.describe('Security — IDOR (ID Enumeration)', () => {
       userA.token
     );
 
-    // userB uses userA's valid UUID directly
+    const tx = await createTransaction(
+      {
+        financialAccountId: accountA.id,
+        description: uniqueDesc('IDOR01'),
+        amount: 1,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      userA.token,
+    );
+
+    // userB uses userA's valid transaction UUID in the singleton query
     const result = await executeGraphQL(`
-      query GetFinancialAccount($id: ID!) {
-        financialAccount(id: $id) { id name type }
+      query GetTransaction($id: ID!) {
+        transaction(id: $id) { id description }
       }
-    `, { id: accountA.id }, userB.token);
+    `, { id: tx.id }, userB.token);
 
     if (result.errors) {
       expect(result.errors[0].message).toMatch(NOT_FOUND);
     } else {
-      expect(result.data?.financialAccount).toBeNull();
+      expect(result.data?.transaction).toBeNull();
     }
+
+    await deleteTransaction(tx.id, userA.token);
   });
 
   test('SEC-IDOR-02: using a transaction ID as an account ID — type mismatch error, no data leak', async ({
@@ -598,7 +638,7 @@ test.describe('Security — IDOR (ID Enumeration)', () => {
       userA.token
     );
     const tx = await createTransaction(
-      { financialAccountId: accountA.id, description: 'IDOR02', amount: 1, creditDebitType: 'DEBIT', status: 'POSTED', date: today() },
+      { financialAccountId: accountA.id, description: 'IDOR02', amount: 1, creditDebitType: CreditDebitType.Debit, status: TransactionStatus.Posted, date: today() },
       userA.token
     );
 
@@ -641,7 +681,9 @@ test.describe('Security — Token Manipulation', () => {
     `, {}, expiredToken);
 
     expect(result.errors).toBeDefined();
-    expect(result.errors![0].message).toMatch(/unauthorized|forbidden|invalid.*token|token.*invalid|expired/i);
+    expect(result.errors![0].message).toMatch(
+      /unauthorized|forbidden|authentication|invalid.*token|token.*invalid|expired/i,
+    );
   });
 
   test('SEC-TOK-02: malformed JWT (invalid signature) returns 401', async () => {

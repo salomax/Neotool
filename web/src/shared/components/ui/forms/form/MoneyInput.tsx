@@ -2,7 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { InputAdornment, IconButton, TextFieldProps } from "@mui/material";
+import {
+  InputAdornment,
+  IconButton,
+  TextFieldProps,
+  type SxProps,
+  type Theme,
+} from "@mui/material";
 import { TextField } from "./TextField";
 import CancelIcon from "@mui/icons-material/Cancel";
 import { NumericFormat } from "react-number-format";
@@ -28,6 +34,8 @@ export interface MoneyInputProps {
   'data-testid'?: string;
   /** When true, users can enter negative amounts (e.g. initial balance / debt). Default false. */
   allowNegative?: boolean;
+  /** Optional styles for the clear (×) icon button when the field has a value. */
+  clearButtonSx?: SxProps<Theme>;
 }
 
 export const MoneyInput: React.FC<MoneyInputProps> = (props) => {
@@ -80,6 +88,7 @@ export function BaseMoneyInput({
   variant,
   'data-testid': dataTestId,
   allowNegative = false,
+  clearButtonSx,
 }: BaseMoneyInputProps) {
   // Determine locale and separators
   const currentLocale = locale || i18n.language || "pt-BR";
@@ -100,6 +109,20 @@ export function BaseMoneyInput({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [value]);
 
+  const baseClearButtonSx: SxProps<Theme> = (theme) => ({
+    px: 1,
+    ml: -0.25,
+    mr: -0.75,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    // Standard `Input` uses slightly asymmetric vertical padding on the text field,
+    // so a geometrically centered icon reads low next to digits.
+    transform: "translateY(-2px)",
+    color: theme.palette.action.disabled,
+    "&:hover": { color: theme.palette.text.secondary },
+  });
+
   return (
     <NumericFormat
       customInput={TextField}
@@ -109,7 +132,6 @@ export function BaseMoneyInput({
       size={size}
       autoFocus={autoFocus}
       label={label}
-      data-testid={dataTestId}
       name={name}
       required={required}
       error={error}
@@ -139,7 +161,16 @@ export function BaseMoneyInput({
         endAdornment: (
           <>
             {localValue && !disabled && (
-              <InputAdornment position="end" sx={{ ml: 0 }}>
+              <InputAdornment
+                position="end"
+                sx={{
+                  ml: 0,
+                  alignSelf: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  maxHeight: "none",
+                }}
+              >
                 <IconButton
                   size="small"
                   aria-label="clear"
@@ -148,24 +179,25 @@ export function BaseMoneyInput({
                     onChange(undefined);
                   }}
                   edge="end"
-                  sx={(theme) => ({
-                    p: 0,
-                    ml: -0.25,
-                    mr: -0.75,
-                    color: theme.palette.action.disabled,
-                    "&:hover": { color: theme.palette.text.secondary },
-                  })}
+                  sx={
+                    clearButtonSx
+                      ? Array.isArray(clearButtonSx)
+                        ? [baseClearButtonSx, ...clearButtonSx]
+                        : [baseClearButtonSx, clearButtonSx]
+                      : [baseClearButtonSx]
+                  }
                 >
-                  <CancelIcon sx={{ fontSize: 16, mb: 0 }} />
+                  <CancelIcon sx={{ fontSize: 16, display: "block" }} />
                 </IconButton>
               </InputAdornment>
             )}
             {InputProps?.endAdornment}
           </>
         ),
-        inputProps: { 
+        inputProps: {
           style: { textAlign: "right" },
-          ...InputProps?.inputProps 
+          ...InputProps?.inputProps,
+          ...(dataTestId ? { "data-testid": dataTestId } : {}),
         },
       }}
     />

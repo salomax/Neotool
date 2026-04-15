@@ -141,6 +141,11 @@ enum class BankingErrorCode(
         "Transaction date is before the account's initial balance date",
         422,
     ),
+    TRANSACTION_NOT_FOUND(
+        "TRANSACTION_NOT_FOUND",
+        "Transaction not found",
+        404,
+    ),
     CARD_MASKED_NUMBER_INVALID(
         "CARD_MASKED_NUMBER_INVALID",
         "Card last four digits must be empty or exactly 4 digits",
@@ -233,6 +238,12 @@ enum class BankingErrorCode(
     INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE(
         "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE",
         "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here",
+        422,
+    ),
+
+    BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE(
+        "BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE",
+        "Balance adjustment transactions can only have their amount changed",
         422,
     ),
 

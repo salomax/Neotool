@@ -324,6 +324,7 @@ export function FinancialAccountSelector({
           horizontal: 'left',
         }}
         PaperProps={{
+          'data-testid': 'account-selector-popover',
           sx: {
             width: anchorEl?.offsetWidth, // Match trigger width
             mt: 1,
@@ -404,6 +405,8 @@ export function FinancialAccountSelector({
                         {accounts.map((account) => (
                             <ListItemButton 
                                 key={account.id}
+                                data-testid="financial-account-option"
+                                data-account-id={account.id}
                                 selected={resolvedSelectedAccountId === account.id}
                                 onClick={() => handleSelect(account.id)}
                                 sx={{ pl: 2 }}

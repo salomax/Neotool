@@ -75,7 +75,9 @@ interface Merchant {
 }
 
 interface MerchantsData {
-  merchants: Merchant[];
+  merchants: {
+    edges: Array<{ node: Merchant }>;
+  };
 }
 
 interface TransactionTagsData {
@@ -85,8 +87,11 @@ interface TransactionTagsData {
 interface TransactionRuleDrawerProps {
   open: boolean;
   rule: TransactionRule | null;
+  initialPattern?: string;
+  initialPatternType?: PatternType;
+  initialApplicableTo?: CategoryApplicableTo;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (savedRule: TransactionRule) => void;
 }
 
 const PATTERN_TYPE_OPTIONS = [
@@ -153,6 +158,9 @@ function formFromRule(rule: TransactionRule): FormState {
 function TransactionRuleDrawerInner({
   open,
   rule,
+  initialPattern,
+  initialPatternType,
+  initialApplicableTo,
   onClose,
   onSaved,
 }: TransactionRuleDrawerProps) {
@@ -160,7 +168,14 @@ function TransactionRuleDrawerInner({
   const theme = useTheme();
   const isEdit = !!rule;
 
-  const [form, setForm] = useState<FormState>(() => (rule ? formFromRule(rule) : defaultForm()));
+  const [form, setForm] = useState<FormState>(() => {
+    if (rule) return formFromRule(rule);
+    const next = defaultForm();
+    if (typeof initialPattern === 'string') next.pattern = initialPattern;
+    if (initialPatternType) next.patternType = initialPatternType;
+    if (initialApplicableTo) next.applicableTo = initialApplicableTo;
+    return next;
+  });
   const [isDirty, setIsDirty] = useState(false);
   const [discardDialogOpen, setDiscardDialogOpen] = useState(false);
   const [previewSample, setPreviewSample] = useState('');
@@ -174,6 +189,7 @@ function TransactionRuleDrawerInner({
 
   const { data: merchantsData } = useQuery<MerchantsData>(MERCHANTS, {
     skip: !open,
+    variables: { first: 50 },
   });
 
   const { data: transactionTagsData } = useQuery<TransactionTagsData>(TRANSACTION_TAGS, {
@@ -188,17 +204,19 @@ function TransactionRuleDrawerInner({
   });
 
   const [createRule, { loading: createLoading }] = useMutation(CREATE_TRANSACTION_RULE, {
-    onCompleted: () => {
+    onCompleted: (data) => {
       toast.success('Regra salva.');
-      onSaved();
+      const saved = (data as any)?.createTransactionRule as TransactionRule | undefined;
+      if (saved) onSaved(saved);
     },
     onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
   });
 
   const [updateRule, { loading: updateLoading }] = useMutation(UPDATE_TRANSACTION_RULE, {
-    onCompleted: () => {
+    onCompleted: (data) => {
       toast.success('Regra salva.');
-      onSaved();
+      const saved = (data as any)?.updateTransactionRule as TransactionRule | undefined;
+      if (saved) onSaved(saved);
     },
     onError: (err) => toast.error(extractErrorMessage(err, 'Não foi possível salvar a regra')),
   });
@@ -290,7 +308,7 @@ function TransactionRuleDrawerInner({
   const { transactionCategories: categories = [] } = categoriesData ?? {};
   const selectedCategory = categories.find((c) => c.id === form.categoryId) ?? null;
 
-  const merchants = merchantsData?.merchants ?? [];
+  const merchants = merchantsData?.merchants.edges.map((edge) => edge.node) ?? [];
   const selectedMerchant = merchants.find((m) => m.id === form.merchantId) ?? null;
   const tagOptions = transactionTagsData?.transactionTags?.map((t) => t.tag).filter(Boolean) ?? [];
   const shouldShowPreview = showPreviewField && !!previewSample.trim() && !!form.pattern.trim();
@@ -680,6 +698,6 @@ function TransactionRuleDrawerInner({
 }
 
 export const TransactionRuleDrawer: React.FC<TransactionRuleDrawerProps> = (props) => {
-  const drawerKey = `${props.open ? 'open' : 'closed'}:${props.rule?.id ?? 'new'}`;
+  const drawerKey = `${props.open ? 'open' : 'closed'}:${props.rule?.id ?? 'new'}:${props.initialApplicableTo ?? 'none'}:${props.initialPatternType ?? 'none'}:${props.initialPattern ?? ''}`;
   return <TransactionRuleDrawerInner key={drawerKey} {...props} />;
 };
