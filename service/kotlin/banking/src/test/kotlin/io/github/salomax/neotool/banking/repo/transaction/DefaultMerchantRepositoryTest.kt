@@ -25,10 +25,10 @@ class DefaultMerchantRepositoryTest {
     }
 
     @Test
-    fun `searchForAccount applies whole-word search`() {
-        val searchRegex = "(^|[^a-z])\\Quber\\E([^a-z]|$)"
-        whenever(merchantEntityRepository.countForAccountBySearchRegex(accountId, searchRegex)).thenReturn(2)
-        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchRegex, null, null, 21)).thenReturn(
+    fun `searchForAccount applies case-insensitive contains search`() {
+        val searchLikePattern = "%uber%"
+        whenever(merchantEntityRepository.countForAccountBySearchLike(accountId, searchLikePattern)).thenReturn(2)
+        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21)).thenReturn(
             listOf(
                 entity(name = "Uber"),
                 entity(name = "Uber Eats"),
@@ -44,9 +44,9 @@ class DefaultMerchantRepositoryTest {
 
     @Test
     fun `searchForAccount returns empty page when no match`() {
-        val searchRegex = "(^|[^a-z])\\Quber\\E([^a-z]|$)"
-        whenever(merchantEntityRepository.countForAccountBySearchRegex(accountId, searchRegex)).thenReturn(0)
-        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchRegex, null, null, 21)).thenReturn(emptyList())
+        val searchLikePattern = "%uber%"
+        whenever(merchantEntityRepository.countForAccountBySearchLike(accountId, searchLikePattern)).thenReturn(0)
+        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21)).thenReturn(emptyList())
 
         val page = repository.searchForAccount(accountId, "uber", null, 20)
 
@@ -62,7 +62,7 @@ class DefaultMerchantRepositoryTest {
         val appleId = UUID.fromString("00000000-0000-0000-0000-000000000002")
         val azureId = UUID.fromString("00000000-0000-0000-0000-000000000003")
 
-        whenever(merchantEntityRepository.countForAccountBySearchRegex(accountId, null)).thenReturn(3)
+        whenever(merchantEntityRepository.countForAccountBySearchLike(accountId, null)).thenReturn(3)
         whenever(merchantEntityRepository.searchPageForAccount(accountId, null, null, null, 3)).thenReturn(
             listOf(
                 entity(name = "Amazon", id = amazonId),

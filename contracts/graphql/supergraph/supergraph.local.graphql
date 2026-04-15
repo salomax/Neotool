@@ -2697,6 +2697,12 @@ type Mutation
   updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
 
   """
+  Applies the given transaction rule to historical (non-manual) transactions that match it.
+  Does not override MANUAL categories; other fields may be updated according to rule actions.
+  """
+  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult! @join__field(graph: BANKING)
+
+  """
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """
   deleteTransactionRule(id: ID!): Boolean! @join__field(graph: BANKING)
@@ -3226,6 +3232,10 @@ type Query
   Useful for explaining which rules contributed to a transaction.
   """
   transactionRulesByIds(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
+  Counts how many existing (non-manual) transactions would be affected by applying the given rule.
+  """
   transactionRuleHistoricalMatchCount(id: ID!): Int! @join__field(graph: BANKING)
 
   """

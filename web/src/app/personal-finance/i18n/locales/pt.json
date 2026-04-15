@@ -1288,7 +1288,10 @@
           "newCardDetailsTitle": "Detalhes do novo cartão",
           "cardAssignmentTitle": "Associar cartões",
           "cardAssignmentMessage": "Selecione um cartão existente para usar na atribuição dos lançamentos.",
-          "assignTransactionsTitle": "Atribuir lançamentos"
+          "assignTransactionsTitle": "Atribuir lançamentos",
+          "assignTransactionsInfoTitle": "Como atribuir",
+          "assignTransactionsHint": "Selecione os lançamentos, informe o final do cartão (4 dígitos) ou deixe vazio para aplicar como “Sem final”, e clique em Aplicar.",
+          "assignTransactionsRequirementHint": "Você precisa aplicar em pelo menos 1 lançamento para habilitar “Revisar transações”."
         },
         "cardDataSectionTitle": "Dados do cartão",
         "availableTransactionsSectionTitle": "Transações disponíveis",
@@ -1327,6 +1330,7 @@
       },
       "txReviewStep": {
         "description": "Revise as transações antes de confirmar. Desmarque itens que não deseja importar.",
+        "setupRequired": "Para confirmar, finalize a configuração dos cartões na etapa anterior.",
         "billDatesTitle": "Datas da fatura",
         "billDatesDescription": "Confira o fechamento e informe o vencimento quando o arquivo não trouxer essa data.",
         "closingDateLabel": "Data de fechamento",
@@ -1533,8 +1537,9 @@
       "clearCategoryFilter": "Remover filtro de categoria",
       "clearTagFilter": "Remover filtro de tag",
       "clearCreditDebitTypeFilter": "Remover filtro crédito/débito",
-      "transfersIn": "Transferências recebidas",
-      "transfersOut": "Transferências enviadas",
+      "transfersTitle": "Transferências entre contas próprias",
+      "transfersIn": "Recebidas",
+      "transfersOut": "Enviadas",
       "filteringByTransfer": "Somente transferências internas",
       "clearTransferFilter": "Remover filtro de transferência",
       "unavailableTitle": "Não foi possível carregar o resumo do mês",

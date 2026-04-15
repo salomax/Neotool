@@ -1,84 +1,30 @@
 'use client';
 
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableContainer, 
-  TableHead, 
-  TableRow, 
-  Paper, 
-  Chip, 
-  Typography, 
-  Box, 
-  CircularProgress,
-  LinearProgress,
-  useTheme,
-  IconButton,
-  Stack,
-  alpha,
-  Tooltip,
-  Menu,
-  MenuItem,
+import {
+  Box,
   Divider,
-  ListItemIcon,
-  ListItemText,
-  ButtonBase,
+  LinearProgress,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  useTheme,
 } from '@mui/material';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
-import EditIcon from '@mui/icons-material/Edit';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
-import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { AccountBalance as BankIcon } from '@mui/icons-material';
-import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import {
   CategoryApplicableTo,
   Transaction,
-  CreditDebitType,
   FinancialAccount,
-  FinancialAccountSubtype,
-  FinancialAccountType,
-  TransactionCategory,
-  TransactionType,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { useTranslation, i18n } from '@/shared/i18n';
-import { useCallback, useEffect, useRef, useMemo, useState, Fragment, type MouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, Fragment, type MouseEvent } from 'react';
 import { personalFinanceTranslations } from '../../i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
-import { ConfirmationDialog } from '@/shared/components/ui/feedback';
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import { FilePreviewDialog, type PreviewAttachment } from '../../components/FilePreviewDialog';
-import { Logo } from '@/shared/components/ui/primitives';
-
-import { InlineTransactionForm } from './InlineTransactionForm';
-import { SimilarEditDialog } from './SimilarEditDialog';
-import { AppliedTransactionRulesDrawer } from './AppliedTransactionRulesDrawer';
-import { ApplyRuleToHistoricalDialog } from './ApplyRuleToHistoricalDialog';
-import { TransactionRuleDrawer } from '../transaction-rules/TransactionRuleDrawer';
-import { CategoryChip, type CategoryChipDecorationAlpha } from '../category/CategoryChip';
-import { CategoryPicker } from '../category/CategoryPicker';
-import type { ApolloClient } from '@apollo/client';
-import { useApolloClient, useLazyQuery, useMutation } from '@apollo/client/react';
 import {
-  APPLY_TRANSACTION_EDIT_TO_SIMILAR,
-  APPLY_TRANSACTION_RULE_TO_HISTORICAL,
-  DELETE_TRANSACTION,
-  REMOVE_TRANSACTION_ATTACHMENT,
-  UPDATE_TRANSACTION,
-} from '@/lib/graphql/operations/banking/mutations';
-import {
-  SIMILAR_TRANSACTION_EDIT_PREVIEW,
-  TRANSACTION_CATEGORIES,
-  TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
-} from '@/lib/graphql/operations/banking/queries';
-import { usePreferences, useToast } from '@/shared/providers';
-import { extractErrorMessage } from '@/shared/utils/error';
-import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
-import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/financeDateGroupLabel';
-import {
-  financeTransactionBodyRowSx,
   financeTransactionDateGroupTableCellSx,
   financeTransactionDateGroupTableRowSx,
   financeTransactionHeadCellSx,
@@ -87,8 +33,19 @@ import {
   financeTransactionTableHeadSx,
   getFinanceTransactionTableSx,
 } from '../../utils/financeTransactionTableStyles';
-import { Amount, TransactionDirectionBadge } from '@/shared/components/ui/data-display';
-import { resolveSimilarEditBehavior } from './similarEditPreference';
+import { formatFinanceDateGroupLabel, parseFinanceDateKey } from '../../utils/financeDateGroupLabel';
+import { InlineTransactionForm } from './InlineTransactionForm';
+import { TransactionRow } from './TransactionRow';
+import type { TransactionRowCallbacks } from './TransactionRow';
+import { TransactionActionMenu } from './TransactionActionMenu';
+import { TransactionDialogs } from './TransactionDialogs';
+import { useBusyCounter } from './hooks/useBusyCounter';
+import { useTransactionEdit } from './hooks/useTransactionEdit';
+import { useTransactionDelete } from './hooks/useTransactionDelete';
+import { useActionMenu, resolveRuleApplicableTo } from './hooks/useActionMenu';
+import { useCategoryPicker } from './hooks/useCategoryPicker';
+import { useSimilarEdit } from './hooks/useSimilarEdit';
+import { useAttachmentPreview } from './hooks/useAttachmentPreview';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -105,109 +62,11 @@ interface TransactionTableProps {
   selectedYear?: number;
 }
 
-type SimilarEditPreview = {
-  similarCount: number;
-  matchDescription: string;
-  supportsFuturePropagation: boolean;
-};
-
-type PendingSimilarEditPrompt = {
-  transactionId: string;
-  similarCount: number;
-  matchDescription: string;
-  input: {
-    categoryId?: string;
-  };
-};
-
-type ApplySimilarEditResult = {
-  applyTransactionEditToSimilar: {
-    affectedCount: number;
-    futureRuleCreated: boolean;
-  };
-};
-
-const TAG_COLORS = [
-  '#F44336',
-  '#E91E63',
-  '#9C27B0',
-  '#673AB7',
-  '#3F51B5',
-  '#2196F3',
-  '#03A9F4',
-  '#00BCD4',
-  '#009688',
-  '#4CAF50',
-  '#8BC34A',
-  '#CDDC39',
-  '#FFEB3B',
-  '#FFC107',
-  '#FF9800',
-  '#FF5722',
-  '#795548',
-  '#607D8B',
-];
-
-const TRANSACTION_TABLE_CATEGORY_CHIP_DECORATION_ALPHA: CategoryChipDecorationAlpha = {
-  filledBackground: 0.03,
-  filledBorder: 0.12,
-  filledHoverBackground: 0.12,
-  placeholderBackground: 0.012,
-  placeholderInsetBorder: 0.04,
-  placeholderHoverBackground: 0.03,
-};
-
-function stringToColor(value: string) {
-  let hash = 0;
-  for (let i = 0; i < value.length; i++) {
-    hash = value.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const index = Math.abs(hash % TAG_COLORS.length);
-  return TAG_COLORS[index]!;
-}
-
-function shouldPromptForImportedCategoryEdit(transaction: Transaction | null, categoryId: string | null): boolean {
-  if (!transaction) return false;
-  return (transaction.category?.id ?? null) !== categoryId && categoryId !== null;
-}
-
-/** System seed: TRANSFER > Transferência enviada > Entre contas próprias (see V0_4__create_transaction_categories.sql). */
-const OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME = 'Entre contas próprias';
-
-function findOwnAccountsTransferCategoryId(categories: TransactionCategory[]): string | null {
-  const matches = categories.filter(
-    (c) =>
-      c.name === OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME &&
-      c.applicableTo === CategoryApplicableTo.Transfer &&
-      c.isSystem === true,
-  );
-  if (matches.length === 0) return null;
-  matches.sort((a, b) => a.sortOrder - b.sortOrder);
-  return matches[0]?.id ?? null;
-}
-
-async function resolveOwnAccountsTransferCategoryId(client: ApolloClient): Promise<string | null> {
-  try {
-    const cached = client.readQuery<{ transactionCategories: TransactionCategory[] }>({
-      query: TRANSACTION_CATEGORIES,
-    });
-    const fromCache = findOwnAccountsTransferCategoryId(cached?.transactionCategories ?? []);
-    if (fromCache) return fromCache;
-  } catch {
-    // not in Apollo cache yet
-  }
-  const fetched = await client.query<{ transactionCategories: TransactionCategory[] }>({
-    query: TRANSACTION_CATEGORIES,
-    fetchPolicy: 'network-only',
-  });
-  return findOwnAccountsTransferCategoryId(fetched.data?.transactionCategories ?? []);
-}
-
-export function TransactionTable({ 
+export function TransactionTable({
   transactions,
   financialAccounts,
-  loading, 
-  hasMore, 
+  loading,
+  hasMore,
   onLoadMore,
   isCreating = false,
   onCancelCreate,
@@ -219,369 +78,74 @@ export function TransactionTable({
 }: TransactionTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const toast = useToast();
-  const { bankingUserPreferences } = usePreferences();
   const loaderRef = useRef<HTMLDivElement>(null);
-  const transactionsRef = useRef<Transaction[]>(transactions);
-  const borderRadius = '.3rem';
-  const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
-  const headCellSx = financeTransactionHeadCellSx(theme);
-  const [editedTransaction, setEditedTransaction] = useState<Transaction | null>(null);
-  const [isEditFormOpen, setIsEditFormOpen] = useState(false);
-  const [deletedTransactionId, setDeletedTransactionId] = useState<string | null>(null);
-  const [busyCount, setBusyCount] = useState(0);
-  const beginBusy = useCallback(() => setBusyCount((c) => c + 1), []);
-  const endBusy = useCallback(() => setBusyCount((c) => (c > 0 ? c - 1 : 0)), []);
-  const [actionMenuAnchorEl, setActionMenuAnchorEl] = useState<HTMLElement | null>(null);
-  const [actionMenuTransaction, setActionMenuTransaction] = useState<Transaction | null>(null);
-  const [appliedRulesTransaction, setAppliedRulesTransaction] = useState<Transaction | null>(null);
-  const [createRuleDraft, setCreateRuleDraft] = useState<{ pattern: string; applicableTo: CategoryApplicableTo } | null>(
-    null,
-  );
-  const [applyRuleToHistoryPrompt, setApplyRuleToHistoryPrompt] = useState<{ ruleId: string; matchCount: number } | null>(
-    null,
-  );
-  const [transactionToRemove, setTransactionToRemove] = useState<Transaction | null>(null);
-  const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
-  const [categoryPickerAnchorEl, setCategoryPickerAnchorEl] = useState<HTMLElement | null>(null);
-  const [categoryPickerTransaction, setCategoryPickerTransaction] = useState<Transaction | null>(null);
-  const [updatingCategoryTransactionId, setUpdatingCategoryTransactionId] = useState<string | null>(null);
-  const [forceNoCategoryByTransactionId, setForceNoCategoryByTransactionId] = useState<Record<string, true>>({});
-  const [previewAttachments, setPreviewAttachments] = useState<PreviewAttachment[] | null>(null);
-  const [previewIndex, setPreviewIndex] = useState<number>(0);
-  const [previewTransactionId, setPreviewTransactionId] = useState<string | null>(null);
-  const [removingAttachmentId, setRemovingAttachmentId] = useState<string | null>(null);
-  const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const tableHeadRef = useRef<HTMLTableSectionElement | null>(null);
   const [progressTop, setProgressTop] = useState<number>(0);
-  const showHeaderProgress = loading || busyCount > 0;
-  const actionMenuId = 'finance-transactions-transaction-actions-menu';
 
-  const apolloClient = useApolloClient();
-  const [deleteTransaction, { loading: removing }] = useMutation(DELETE_TRANSACTION);
-  const [updateTransaction] = useMutation(UPDATE_TRANSACTION);
-  const [removeTransactionAttachment] = useMutation(REMOVE_TRANSACTION_ATTACHMENT);
-  const [loadSimilarEditPreview] = useLazyQuery<{ similarTransactionEditPreview: SimilarEditPreview }>(
-    SIMILAR_TRANSACTION_EDIT_PREVIEW,
-    { fetchPolicy: 'no-cache' },
-  );
-  const [applyTransactionEditToSimilar, { loading: applyingSimilarEdit }] =
-    useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
-  const [loadRuleHistoricalMatchCount] = useLazyQuery<{ transactionRuleHistoricalMatchCount: number }>(
-    TRANSACTION_RULE_HISTORICAL_MATCH_COUNT,
-    { fetchPolicy: 'no-cache' },
-  );
-  const [applyTransactionRuleToHistorical, { loading: applyingRuleToHistory }] = useMutation(
-    APPLY_TRANSACTION_RULE_TO_HISTORICAL,
-  );
+  // ── State domains ────────────────────────────────────────────────────────────
+  const { busyCount, beginBusy, endBusy } = useBusyCounter();
 
-  useEffect(() => {
-    transactionsRef.current = transactions;
-  }, [transactions]);
+  // "Applied rules" drawer and "create rule" drawer are simple open/close state —
+  // too lightweight to warrant their own hooks.
+  const [appliedRulesTransaction, setAppliedRulesTransaction] = useState<Transaction | null>(null);
+  const [createRuleDraft, setCreateRuleDraft] = useState<{
+    pattern: string;
+    applicableTo: CategoryApplicableTo;
+  } | null>(null);
+  const { editedTransaction, isEditFormOpen, openEdit, closeEdit, clearEdit } = useTransactionEdit();
 
-  const updateProgressTop = useCallback(() => {
-    const c = containerRef.current;
-    const h = tableHeadRef.current;
-    if (!c || !h) return;
-    const cRect = c.getBoundingClientRect();
-    const hRect = h.getBoundingClientRect();
-    const top = Math.max(0, Math.round(hRect.bottom - cRect.top - 1));
-    setProgressTop(top);
-  }, []);
-
-  useEffect(() => {
-    updateProgressTop();
-    window.addEventListener('resize', updateProgressTop);
-
-    const c = containerRef.current;
-    const h = tableHeadRef.current;
-    const ResizeObserverImpl = typeof ResizeObserver === 'undefined' ? null : ResizeObserver;
-    const ro =
-      ResizeObserverImpl && (c || h)
-        ? new ResizeObserverImpl(() => {
-            updateProgressTop();
-          })
-        : null;
-
-    if (ro) {
-      if (c) ro.observe(c);
-      if (h) ro.observe(h);
-    }
-
-    return () => {
-      window.removeEventListener('resize', updateProgressTop);
-      ro?.disconnect();
-    };
-  }, [updateProgressTop]);
-
-  useEffect(() => {
-    const id = window.requestAnimationFrame(() => updateProgressTop());
-    return () => window.cancelAnimationFrame(id);
-  }, [selectedAccountId, updateProgressTop]);
-
-  useEffect(() => {
-    setForceNoCategoryByTransactionId((prev) => {
-      const ids = Object.keys(prev);
-      if (ids.length === 0) return prev;
-
-      let changed = false;
-      const next = { ...prev };
-      for (const tx of transactions) {
-        if (!next[tx.id]) continue;
-        if (!tx.category) {
-          delete next[tx.id];
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [transactions]);
-
-  const closeActionMenu = useCallback(() => {
-    setActionMenuAnchorEl(null);
-    setActionMenuTransaction(null);
-  }, []);
-
-  const resolveRuleApplicableTo = useCallback((tx: Transaction): CategoryApplicableTo => {
-    if (tx.type === TransactionType.Transfer) return CategoryApplicableTo.Transfer;
-    if (tx.creditDebitType === CreditDebitType.Credit) return CategoryApplicableTo.Income;
-    if (tx.creditDebitType === CreditDebitType.Debit) return CategoryApplicableTo.Expense;
-    return CategoryApplicableTo.Any;
-  }, []);
-
-  useEffect(() => {
-    if (!actionMenuTransaction) return;
-    if (transactions.some((t) => t.id === actionMenuTransaction.id)) return;
-    closeActionMenu();
-  }, [actionMenuTransaction, closeActionMenu, transactions]);
-
-  const handleConfirmRemove = async () => {
-    const tx = transactionToRemove;
-    if (!tx) return;
-
-    try {
-      beginBusy();
-      await deleteTransaction({ variables: { id: tx.id } });
-
-      setTransactionToRemove(null);
-      setDeletedTransactionId(tx.id);
-
+  const deleteHook = useTransactionDelete({
+    onDeleted: (tx) => {
       if (editedTransaction?.id === tx.id) {
-        setIsEditFormOpen(false);
-        setEditedTransaction(null);
+        closeEdit();
+        clearEdit();
       }
-
       onSuccessCreate?.();
-    } catch (error) {
-      setTransactionToRemove(null);
-      toast.error(extractErrorMessage(error, 'Não foi possível remover a transação'));
-    } finally {
-      endBusy();
+    },
+    beginBusy,
+    endBusy,
+  });
+
+  const actionMenu = useActionMenu({
+    transactions,
+    onSuccess: onSuccessCreate,
+    beginBusy,
+    endBusy,
+  });
+
+  const categoryPicker = useCategoryPicker({
+    transactions,
+    onSuccess: onSuccessCreate,
+    beginBusy,
+    endBusy,
+  });
+
+  const similarEdit = useSimilarEdit({
+    pendingSimilarEditPrompt: categoryPicker.pendingSimilarEditPrompt,
+    setPendingSimilarEditPrompt: categoryPicker.setPendingSimilarEditPrompt,
+    onSuccess: onSuccessCreate,
+    beginBusy,
+    endBusy,
+  });
+
+  const attachmentPreview = useAttachmentPreview({
+    onSuccess: onSuccessCreate,
+    beginBusy,
+    endBusy,
+  });
+
+  // ── Derived ──────────────────────────────────────────────────────────────────
+  const showHeaderProgress = loading || busyCount > 0;
+  const colSpan = selectedAccountId ? 7 : 8;
+
+  const accountsById = useMemo(() => {
+    const map = new Map<string, FinancialAccount>();
+    for (const account of financialAccounts ?? []) {
+      map.set(account.id, account);
     }
-  };
-
-  const handleMarkAsInternalTransfer = async () => {
-    const tx = actionMenuTransaction;
-    if (!tx) return;
-    if (tx.type === TransactionType.Transfer) return;
-
-    setMarkingTransferTransactionId(tx.id);
-    try {
-      beginBusy();
-      const ownAccountsCategoryId = await resolveOwnAccountsTransferCategoryId(apolloClient);
-      if (!ownAccountsCategoryId) {
-        toast.error(t('financeTransactions.transactionTable.rowActions.markAsTransferMissingCategory'));
-        return;
-      }
-
-      await updateTransaction({
-        variables: {
-          id: tx.id,
-          input: {
-            type: TransactionType.Transfer,
-            categoryId: ownAccountsCategoryId,
-          },
-        },
-      });
-
-      toast.success(t('financeTransactions.transactionTable.rowActions.markAsTransferSuccess'));
-      onSuccessCreate?.();
-      closeActionMenu();
-    } catch (err) {
-      toast.error(
-        extractErrorMessage(err, t('financeTransactions.transactionTable.rowActions.markAsTransferError')),
-      );
-    } finally {
-      setMarkingTransferTransactionId(null);
-      endBusy();
-    }
-  };
-
-  const closeCategoryPicker = useCallback(() => {
-    setCategoryPickerAnchorEl(null);
-    setCategoryPickerTransaction(null);
-  }, []);
-
-  const handleOpenCategoryPicker = (event: MouseEvent<HTMLElement>, transaction: Transaction) => {
-    setCategoryPickerAnchorEl(event.currentTarget);
-    const isForcedNoCategory = Boolean(forceNoCategoryByTransactionId[transaction.id]);
-    if (!isForcedNoCategory) {
-      setCategoryPickerTransaction(transaction);
-      return;
-    }
-
-    setCategoryPickerTransaction({
-      ...transaction,
-      category: null,
-    });
-  };
-
-  const handleSelectCategory = async (categoryId: string | null) => {
-    const tx = categoryPickerTransaction;
-    closeCategoryPicker();
-    if (!tx) return;
-
-    const hadForcedNoCategory = Boolean(forceNoCategoryByTransactionId[tx.id]);
-    if (categoryId === null) {
-      setForceNoCategoryByTransactionId((prev) => ({ ...prev, [tx.id]: true }));
-    } else if (hadForcedNoCategory) {
-      setForceNoCategoryByTransactionId((prev) => {
-        const next = { ...prev };
-        delete next[tx.id];
-        return next;
-      });
-    }
-
-    setUpdatingCategoryTransactionId(tx.id);
-    try {
-      beginBusy();
-      const shouldPrompt = shouldPromptForImportedCategoryEdit(tx, categoryId);
-      const previewResult =
-        shouldPrompt
-          ? await loadSimilarEditPreview({
-              variables: { id: tx.id },
-            })
-          : undefined;
-
-      await updateTransaction({
-        variables: {
-          id: tx.id,
-          input: { categoryId },
-        },
-      });
-
-      toast.success('Categoria atualizada');
-      onSuccessCreate?.();
-
-      const preview = previewResult?.data?.similarTransactionEditPreview;
-      const similarEditBehavior =
-        preview && categoryId
-          ? resolveSimilarEditBehavior(
-              bankingUserPreferences.ruleApplicationMode,
-              preview.supportsFuturePropagation,
-            )
-          : 'skip';
-
-      if (preview && similarEditBehavior === 'auto' && categoryId) {
-        try {
-          const result = await applyTransactionEditToSimilar({
-            variables: {
-              id: tx.id,
-              matchDescription: preview.matchDescription,
-              input: { categoryId },
-              applyToFuture: true,
-              applyToExisting: true,
-            },
-          });
-          const affectedCount = result.data?.applyTransactionEditToSimilar?.affectedCount ?? preview.similarCount;
-          toast.success(
-            t('financeTransactions.similarEditPrompt.success', {
-              count: affectedCount,
-            }),
-          );
-          onSuccessCreate?.();
-        } catch (propagationError) {
-          toast.error(
-            extractErrorMessage(
-              propagationError,
-              'A categoria foi atualizada, mas não foi possível aplicar a alteração às transações semelhantes',
-            ),
-          );
-        }
-      }
-
-      if (preview && similarEditBehavior === 'prompt' && categoryId) {
-        setPendingSimilarEditPrompt({
-          transactionId: tx.id,
-          similarCount: preview.similarCount,
-          matchDescription: preview.matchDescription,
-          input: { categoryId },
-        });
-      }
-
-      if (categoryId === null) {
-        window.setTimeout(() => {
-          setForceNoCategoryByTransactionId((prev) => {
-            if (!prev[tx.id]) return prev;
-            const latest = transactionsRef.current.find((t) => t.id === tx.id);
-            if (latest?.category) {
-              const next = { ...prev };
-              delete next[tx.id];
-              return next;
-            }
-            return prev;
-          });
-        }, 2500);
-      }
-    } catch (err) {
-      if (categoryId === null) {
-        setForceNoCategoryByTransactionId((prev) => {
-          if (!prev[tx.id]) return prev;
-          const next = { ...prev };
-          delete next[tx.id];
-          return next;
-        });
-      }
-      toast.error(extractErrorMessage(err, 'Não foi possível atualizar a categoria'));
-    } finally {
-      setUpdatingCategoryTransactionId(null);
-      endBusy();
-    }
-  };
-
-  const handleConfirmSimilarEdit = async (applyToExisting: boolean, applyToFuture: boolean) => {
-    if (!pendingSimilarEditPrompt) return;
-
-    try {
-      beginBusy();
-      const result = await applyTransactionEditToSimilar({
-        variables: {
-          id: pendingSimilarEditPrompt.transactionId,
-          matchDescription: pendingSimilarEditPrompt.matchDescription,
-          input: pendingSimilarEditPrompt.input,
-          applyToFuture,
-          applyToExisting,
-        },
-      });
-      const affectedCount = result.data?.applyTransactionEditToSimilar?.affectedCount ?? pendingSimilarEditPrompt.similarCount;
-      toast.success(
-        t('financeTransactions.similarEditPrompt.success', {
-          count: affectedCount,
-        }),
-      );
-      setPendingSimilarEditPrompt(null);
-      onSuccessCreate?.();
-    } catch (err) {
-      toast.error(extractErrorMessage(err, 'Não foi possível aplicar a alteração às transações semelhantes'));
-    } finally {
-      endBusy();
-    }
-  };
-
-  const handleDismissSimilarEditPrompt = () => {
-    setPendingSimilarEditPrompt(null);
-  };
+    return map;
+  }, [financialAccounts]);
 
   const groupedTransactions = useMemo(() => {
     const groups: { date: string; transactions: Transaction[] }[] = [];
@@ -604,84 +168,100 @@ export function TransactionTable({
       }
       groups.push({ date: item.dateKey, transactions: [item.transaction] });
     }
-
     return groups;
   }, [transactions]);
 
   const installmentSectionStartIndex = useMemo(() => {
     if (typeof selectedMonth !== 'number' || typeof selectedYear !== 'number') return null;
     if (selectedMonth < 1 || selectedMonth > 12) return null;
-
     const selectedMonthKey = selectedYear * 100 + selectedMonth;
     for (let i = 0; i < groupedTransactions.length; i++) {
       const parts = parseFinanceDateKey(groupedTransactions[i]?.date ?? '');
       if (!parts) continue;
-      const groupMonthKey = parts.year * 100 + parts.month;
-      if (groupMonthKey < selectedMonthKey) {
+      if (parts.year * 100 + parts.month < selectedMonthKey) {
         return i > 0 ? i : null;
       }
     }
     return null;
   }, [groupedTransactions, selectedMonth, selectedYear]);
 
+  // ── Progress bar positioning ─────────────────────────────────────────────────
+  const updateProgressTop = useCallback(() => {
+    const c = containerRef.current;
+    const h = tableHeadRef.current;
+    if (!c || !h) return;
+    const cRect = c.getBoundingClientRect();
+    const hRect = h.getBoundingClientRect();
+    setProgressTop(Math.max(0, Math.round(hRect.bottom - cRect.top - 1)));
+  }, []);
+
+  useEffect(() => {
+    updateProgressTop();
+    window.addEventListener('resize', updateProgressTop);
+    const c = containerRef.current;
+    const h = tableHeadRef.current;
+    const ro =
+      typeof ResizeObserver !== 'undefined' && (c || h)
+        ? new ResizeObserver(() => updateProgressTop())
+        : null;
+    if (ro) {
+      if (c) ro.observe(c);
+      if (h) ro.observe(h);
+    }
+    return () => {
+      window.removeEventListener('resize', updateProgressTop);
+      ro?.disconnect();
+    };
+  }, [updateProgressTop]);
+
+  useEffect(() => {
+    const id = window.requestAnimationFrame(() => updateProgressTop());
+    return () => window.cancelAnimationFrame(id);
+  }, [selectedAccountId, updateProgressTop]);
+
+  // ── Infinite scroll ──────────────────────────────────────────────────────────
   useEffect(() => {
     const currentLoader = loaderRef.current;
     if (!currentLoader) return;
-
     const observer = new IntersectionObserver(
       (entries) => {
-        const entry = entries[0];
-        if (entry?.isIntersecting && hasMore && !loading) {
-          onLoadMore();
-        }
+        if (entries[0]?.isIntersecting && hasMore && !loading) onLoadMore();
       },
-      { threshold: 0, rootMargin: '200px 0px' }
+      { threshold: 0, rootMargin: '200px 0px' },
     );
-
     observer.observe(currentLoader);
-
-    return () => {
-      observer.disconnect();
-    };
+    return () => observer.disconnect();
   }, [hasMore, loading, onLoadMore]);
 
+  // Clean up deletedTransactionId once Apollo removes the row
   useEffect(() => {
-    if (!deletedTransactionId) return;
-    const stillPresent = transactions.some((t) => t.id === deletedTransactionId);
-    if (!stillPresent) {
-      setDeletedTransactionId(null);
+    if (!deleteHook.deletedTransactionId) return;
+    if (!transactions.some((t) => t.id === deleteHook.deletedTransactionId)) {
+      deleteHook.setDeletedTransactionId(null);
     }
-  }, [transactions, deletedTransactionId]);
+  }, [transactions, deleteHook]);
 
- 
+  // ── Stable row callbacks (object identity stable via useMemo) ────────────────
+  const rowCallbacks = useMemo<TransactionRowCallbacks>(
+    () => ({
+      onOpenCategoryPicker: (e: MouseEvent<HTMLElement>, tx: Transaction) =>
+        categoryPicker.openPicker(e, tx),
+      onOpenActionMenu: (el: HTMLElement, tx: Transaction) => actionMenu.open(el, tx),
+      onOpenNfceDocument,
+      onOpenAttachmentPreview: attachmentPreview.openPreview,
+      onEditClose: closeEdit,
+      onEditExited: clearEdit,
+      onEditSuccess: async () => { await onSuccessCreate?.(); },
+      onEditRefresh: () => { void onSuccessCreate?.(); },
+      onBusyStart: beginBusy,
+      onBusyEnd: endBusy,
+    }),
+    // onSuccessCreate is intentionally omitted from the stable ref — callers use void/await
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [categoryPicker.openPicker, actionMenu.open, onOpenNfceDocument, attachmentPreview.openPreview, closeEdit, clearEdit, beginBusy, endBusy],
+  );
 
-  const getCardLastFourDigits = (account: FinancialAccount, transaction: Transaction) => {
-    const raw = transaction.cardIdentifier || account.cardData?.maskedNumber || '';
-    const digits = raw.replace(/\D/g, '');
-    const last4 = digits.slice(-4);
-    return last4.length === 4 ? last4 : null;
-  };
-
-  const isCardAccount = (account: FinancialAccount) => {
-    if (account.type === FinancialAccountType.Bank) return false;
-    if (account.cardData) return true;
-    return (
-      account.subtype === FinancialAccountSubtype.CreditCard ||
-      account.subtype === FinancialAccountSubtype.ChargeCard ||
-      account.subtype === FinancialAccountSubtype.PrepaidCard ||
-      account.subtype === FinancialAccountSubtype.VoucherCard
-    );
-  };
-
-  const accountsById = useMemo(() => {
-    const map = new Map<string, FinancialAccount>();
-    for (const account of financialAccounts ?? []) {
-      map.set(account.id, account);
-    }
-    return map;
-  }, [financialAccounts]);
-
-  const colSpan = selectedAccountId ? 7 : 8;
+  const headCellSx = financeTransactionHeadCellSx(theme);
 
   return (
     <TableContainer
@@ -697,6 +277,7 @@ export function TransactionTable({
         position: 'relative',
       }}
     >
+      {/* Sticky loading progress bar */}
       <Box
         sx={{
           position: 'absolute',
@@ -716,13 +297,14 @@ export function TransactionTable({
           }}
         />
       </Box>
+
       <Table
         sx={getFinanceTransactionTableSx(650)}
         aria-label={t('financeTransactions.transactionTable.ariaLabel')}
       >
         <TableHead ref={tableHeadRef} sx={financeTransactionTableHeadSx}>
           <TableRow sx={financeTransactionTableHeadRowSx}>
-            <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }}></TableCell>
+            <TableCell padding="checkbox" sx={{ pl: 2, ...headCellSx }} />
             <TableCell sx={headCellSx}>
               <Label>{t('financeTransactions.transactionTable.columns.description')}</Label>
             </TableCell>
@@ -737,29 +319,19 @@ export function TransactionTable({
                 <Label>{t('financeTransactions.financialAccount')}</Label>
               </TableCell>
             )}
-            <TableCell
-              padding="none"
-              sx={{
-                width: 32,
-                ...headCellSx,
-              }}
-            />
+            <TableCell padding="none" sx={{ width: 32, ...headCellSx }} />
             <TableCell align="right" sx={headCellSx}>
               <Label>{t('financeTransactions.value')}</Label>
             </TableCell>
-            <TableCell
-              sx={{
-                px: 4,
-                ...headCellSx,
-              }}
-            />
+            <TableCell sx={{ px: 4, ...headCellSx }} />
           </TableRow>
         </TableHead>
+
         <TableBody sx={financeTransactionTableBodySx}>
           {onCancelCreate && onSuccessCreate && (
-            <InlineTransactionForm 
-              isOpen={isCreating} 
-              onClose={onCancelCreate} 
+            <InlineTransactionForm
+              isOpen={isCreating}
+              onClose={onCancelCreate}
               onSuccess={onSuccessCreate}
               onRefresh={onSuccessCreate}
               selectedAccountId={selectedAccountId}
@@ -767,601 +339,104 @@ export function TransactionTable({
               onBusyEnd={endBusy}
             />
           )}
+
           {groupedTransactions.map((group, groupIndex) => (
-              <Fragment key={`day-group-${group.date}`}>
-                {installmentSectionStartIndex === groupIndex && (
-                  <TableRow key={`installment-section-header-${selectedYear}-${selectedMonth}`} sx={{ bgcolor: 'transparent', borderBottom: 'none' }}>
-                    <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
-                      <Stack spacing={1}>
-                        <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
-                        <Divider />
-                      </Stack>
-                    </TableCell>
-                  </TableRow>
-                )}
-                <TableRow key={`header-${group.date}`} sx={financeTransactionDateGroupTableRowSx}>
-                  <TableCell colSpan={colSpan} sx={financeTransactionDateGroupTableCellSx()}>
-                    <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
+            <Fragment key={`day-group-${group.date}`}>
+              {installmentSectionStartIndex === groupIndex && (
+                <TableRow
+                  key={`installment-section-header-${selectedYear}-${selectedMonth}`}
+                  sx={{ bgcolor: 'transparent', borderBottom: 'none' }}
+                >
+                  <TableCell colSpan={colSpan} sx={{ pt: 4, pb: 1 }}>
+                    <Stack spacing={1}>
+                      <Label>{t('financeTransactions.installmentPurchasesDueThisMonthHeader')}</Label>
+                      <Divider />
+                    </Stack>
                   </TableCell>
                 </TableRow>
-                {group.transactions.map((transaction, index) => {
-                const isEditing = editedTransaction?.id === transaction.id;
-                const isDeleting = deletedTransactionId === transaction.id;
-                const isFirst = index === 0;
-                const isLast = index === group.transactions.length - 1;
+              )}
+
+              <TableRow key={`header-${group.date}`} sx={financeTransactionDateGroupTableRowSx}>
+                <TableCell colSpan={colSpan} sx={financeTransactionDateGroupTableCellSx()}>
+                  <Label>{formatFinanceDateGroupLabel(group.date, t, i18n.language)}</Label>
+                </TableCell>
+              </TableRow>
+
+              {group.transactions.map((transaction, index) => {
                 const account = !selectedAccountId ? accountsById.get(transaction.financialAccountId) : null;
-                const installmentNumber = transaction.installmentNumber ?? null;
-                const totalInstallments = transaction.totalInstallments ?? null;
-                const showInstallments =
-                  transaction.creditDebitType === CreditDebitType.Debit &&
-                  typeof installmentNumber === 'number' &&
-                  typeof totalInstallments === 'number' &&
-                  totalInstallments > 1 &&
-                  installmentNumber >= 1;
-                const displayedCategory = forceNoCategoryByTransactionId[transaction.id]
+                const displayedCategory = categoryPicker.forceNoCategoryByTransactionId[transaction.id]
                   ? null
                   : transaction.category;
-                const isBalanceAdjustment = transaction.type === TransactionType.BalanceAdjustment;
 
                 return (
-                  <Fragment key={transaction.id}>
-                    <TableRow
-                      data-testid={`transaction-row-${transaction.id}`}
-                      sx={{
-                        ...financeTransactionBodyRowSx(theme, { isFirst, isLast }),
-                        opacity: isDeleting ? 0 : (isEditing && isEditFormOpen ? 0.5 : 1),
-                        pointerEvents: (isEditing && isEditFormOpen) || isDeleting ? 'none' : 'auto',
-                        filter: isDeleting ? 'none' : (isEditing && isEditFormOpen ? 'grayscale(0.5)' : 'none'),
-                        transition: 'opacity 0.25s ease, filter 0.2s',
-                        ...(isDeleting && {
-                          '& .MuiTableCell-root': {
-                            py: 0,
-                            height: 0,
-                            border: 'none',
-                          },
-                        }),
-                      }}
-                    >
-                      <TableCell padding="checkbox" sx={{ pl: 2 }}>
-                        <TransactionDirectionBadge
-                          creditDebitType={transaction.creditDebitType}
-                          transactionType={transaction.type}
-                          merchantLogoUrl={transaction.merchant?.logoAsset?.publicUrl}
-                          merchantName={transaction.merchant?.name}
-                        />
-                      </TableCell>
-                      <TableCell component="th" scope="row">
-                        <Stack spacing={0.5}>
-                          <Typography
-                            variant="body2"
-                            title={transaction.description}
-                            sx={{
-                              fontSize: tableBodyLabelFontSize,
-                              display: '-webkit-box',
-                              WebkitBoxOrient: 'vertical',
-                              WebkitLineClamp: 2,
-                              maxWidth: 320,
-                              overflow: 'hidden',
-                            }}
-                          >
-                            {transaction.description}
-                          </Typography>
-                          {showInstallments && (
-                            <Stack spacing={0.5} sx={{ maxWidth: 200 }}>
-                              <Typography variant="caption" color="text.secondary">
-                                {installmentNumber} of {totalInstallments}
-                              </Typography>
-                              <Box
-                                role="progressbar"
-                                aria-valuemin={1}
-                                aria-valuemax={totalInstallments}
-                                aria-valuenow={Math.min(Math.max(installmentNumber, 1), totalInstallments)}
-                                aria-label={t('financeTransactions.transactionTable.installments.progressAriaLabel', {
-                                  current: installmentNumber,
-                                  total: totalInstallments,
-                                })}
-                                sx={{
-                                  display: 'flex',
-                                  gap: '2px',
-                                  height: 6,
-                                }}
-                              >
-                                {Array.from({ length: totalInstallments }, (_, i) => {
-                                  const idx = i + 1;
-                                  const isCompleted = idx < installmentNumber;
-                                  const isCurrent = idx === installmentNumber;
-
-                                  const filledColor = theme.palette.primary.main;
-                                  const bgColor = isCompleted
-                                    ? alpha(filledColor, 0.55)
-                                    : isCurrent
-                                      ? filledColor
-                                      : alpha(theme.palette.text.primary, 0.08);
-
-                                  return (
-                                    <Box
-                                      key={idx}
-                                      sx={{
-                                        flex: 1,
-                                        minWidth: 4,
-                                        bgcolor: bgColor,
-                                        borderRadius:
-                                          idx === 1
-                                            ? '6px 0 0 6px'
-                                            : idx === totalInstallments
-                                              ? '0 6px 6px 0'
-                                              : 2,
-                                      }}
-                                    />
-                                  );
-                                })}
-                              </Box>
-                            </Stack>
-                          )}
-                        </Stack>
-                      </TableCell>
-                      <TableCell>
-                        {isBalanceAdjustment ? (
-                          <Typography
-                            variant="body2"
-                            data-testid="transaction-row-balance-adjustment-no-category"
-                            sx={{ fontSize: tableBodyLabelFontSize, color: 'text.disabled' }}
-                          >
-                            —
-                          </Typography>
-                        ) : (
-                          <CategoryChip
-                            category={displayedCategory}
-                            disabled={updatingCategoryTransactionId === transaction.id}
-                            loading={updatingCategoryTransactionId === transaction.id}
-                            onClick={(e) => handleOpenCategoryPicker(e, transaction)}
-                            decorationAlpha={TRANSACTION_TABLE_CATEGORY_CHIP_DECORATION_ALPHA}
-                            placeholder={
-                              <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, opacity: 0.65 }}>
-                                {t('financeTransactions.category')}
-                              </Typography>
-                            }
-                          />
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        {isBalanceAdjustment ? (
-                          <Typography
-                            variant="body2"
-                            data-testid="transaction-row-balance-adjustment-no-tags"
-                            sx={{ fontSize: tableBodyLabelFontSize, color: 'text.disabled' }}
-                          >
-                            —
-                          </Typography>
-                        ) : (
-                          <Stack direction="row" spacing={0.5} alignItems="center">
-                            {transaction.tags?.slice(0, 2).map((tag: string, tagIndex) => {
-                              if (!tag) return null;
-                              const color = stringToColor(tag);
-                              return (
-                                <Chip
-                                  key={`${tag}-${tagIndex}`}
-                                  label={<Typography variant="body2">{tag}</Typography>}
-                                  size="small"
-                                  variant="filled"
-                                  sx={{
-                                    bgcolor: alpha(color, 0.05),
-                                    color: color,
-                                    borderRadius: borderRadius,
-                                  }}
-                                />
-                              );
-                            })}
-                            {transaction.tags?.length > 2 && (
-                              <Tooltip
-                                title={
-                                  <Stack spacing={0.5} sx={{ p: 0.5 }}>
-                                    {transaction.tags.map((tag: string, tagIndex) => {
-                                      if (!tag) return null;
-                                      return (
-                                        <Typography key={`${tag}-${tagIndex}`} variant="caption" sx={{ color: 'inherit' }}>
-                                          • {tag}
-                                        </Typography>
-                                      );
-                                    })}
-                                  </Stack>
-                                }
-                                arrow
-                              >
-                                <ButtonBase
-                                  sx={{
-                                    px: 0.5,
-                                    borderRadius: borderRadius,
-                                    fontSize: '0.7rem',
-                                    fontWeight: 600,
-                                    color: theme.palette.primary.main,
-                                    '&:hover': { textDecoration: 'underline' },
-                                    '&:focus-visible': {
-                                      outline: `2px solid ${alpha(theme.palette.primary.main, 0.6)}`,
-                                      outlineOffset: 2,
-                                    },
-                                  }}
-                                  aria-label={t('financeTransactions.transactionTable.tags.moreAriaLabel', {
-                                    count: transaction.tags.length - 2,
-                                  })}
-                                >
-                                  +{transaction.tags.length - 2}
-                                </ButtonBase>
-                              </Tooltip>
-                            )}
-                          </Stack>
-                        )}
-                      </TableCell>
-                      {!selectedAccountId && (
-                        <TableCell>
-                          {account && (() => {
-                            const issuer = account.issuer;
-                            const logoUrl = issuer?.logoAsset?.publicUrl;
-                            const showCardDetails = isCardAccount(account);
-                            const last4 = showCardDetails ? getCardLastFourDigits(account, transaction) : null;
-
-                            return (
-                              <Stack direction="row" spacing={1} alignItems="center">
-                                <Logo
-                                  src={logoUrl || undefined}
-                                  size="sm"
-                                  sx={{
-                                    fontSize: '0.75rem',
-                                    bgcolor: logoUrl ? 'transparent' : theme.palette.grey[300],
-                                  }}
-                                >
-                                  {!logoUrl && (account.type === FinancialAccountType.Bank ? <BankIcon sx={{ fontSize: '1rem' }} /> : <CardNetworkIcon network={account.cardData?.cardNetwork} size={16} />)}
-                                </Logo>
-                                <Stack spacing={0} sx={{ minWidth: 0 }}>
-                                  <Typography variant="body2" sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }} noWrap>
-                                    {account.name}
-                                  </Typography>
-                                  {showCardDetails && (
-                                    <Stack direction="row" spacing={0.5} alignItems="center">
-                                      <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
-                                      {last4 && (
-                                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                          •••• {last4}
-                                        </Typography>
-                                      )}
-                                    </Stack>
-                                  )}
-                                </Stack>
-                              </Stack>
-                            );
-                          })()}
-                        </TableCell>
-                      )}
-                      <TableCell align="center" padding="none" sx={{ width: 56, maxWidth: 56 }}>
-                        <Stack direction="row" spacing={0.25} justifyContent="center" alignItems="center">
-                          {transaction.hasNfceDocument && onOpenNfceDocument ? (
-                            <Tooltip title={t('financeTransactions.transactionTable.rowActions.viewNfce')}>
-                              <IconButton
-                                size="small"
-                                sx={{
-                                  p: 0.25,
-                                  color: 'text.secondary',
-                                  '&:hover': {
-                                    bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                    color: 'primary.main',
-                                  },
-                                }}
-                                onClick={() => onOpenNfceDocument(transaction.id)}
-                                aria-label={t('financeTransactions.transactionTable.rowActions.viewNfce')}
-                              >
-                                <ReceiptLongOutlinedIcon sx={{ fontSize: 16 }} />
-                              </IconButton>
-                            </Tooltip>
-                          ) : null}
-                          {!!transaction.attachments?.length && (
-                            <IconButton
-                              size="small"
-                              sx={{
-                                p: 0.25,
-                                color: 'text.secondary',
-                                '&:hover': {
-                                  bgcolor: alpha(theme.palette.primary.main, 0.08),
-                                  color: 'primary.main',
-                                },
-                              }}
-                              onClick={() => {
-                                const list = (transaction.attachments ?? []).map((att) => ({
-                                  id: att.id,
-                                  assetId: att.assetId,
-                                  filename: (att as any).originalFilename ?? att.filename ?? null,
-                                  mimeType: att.mimeType ?? null,
-                                  downloadUrl: att.downloadUrl ?? null,
-                                }));
-                                if (list.length > 0) {
-                                  const firstWithUrlIndex = list.findIndex((a) => !!a.downloadUrl);
-                                  setRemovingAttachmentId(null);
-                                  setPreviewTransactionId(transaction.id);
-                                  setPreviewAttachments(list);
-                                  setPreviewIndex(firstWithUrlIndex >= 0 ? firstWithUrlIndex : 0);
-                                }
-                              }}
-                              aria-label={t('financeTransactions.transactionTable.attachments.ariaLabel')}
-                            >
-                              <AttachFileIcon sx={{ fontSize: 16 }} />
-                            </IconButton>
-                          )}
-                        </Stack>
-                      </TableCell>
-                      <TableCell align="right">
-                        <Amount
-                          value={
-                            transaction.creditDebitType === CreditDebitType.Debit
-                              ? -Math.abs(transaction.amount)
-                              : Math.abs(transaction.amount)
-                          }
-                          currency={transaction.currencyCode}
-                          locale={i18n.language}
-                          tone={
-                            transaction.type === TransactionType.Transfer
-                              ? 'transfer'
-                              : transaction.creditDebitType === CreditDebitType.Debit
-                              ? 'negative'
-                              : 'positive'
-                          }
-                        />
-                      </TableCell>
-                      <TableCell
-                        align="center"
-                        padding="none"
-                        sx={{
-                          width: 30,
-                          maxWidth: 30,
-                        }}
-                      >
-                        <IconButton
-                          size="small"
-                          sx={{ p: 0.5 }}
-                          onClick={(e) => {
-                            setActionMenuAnchorEl(e.currentTarget);
-                            setActionMenuTransaction(transaction);
-                          }}
-                          id={`transaction-actions-button-${transaction.id}`}
-                          aria-label={t('financeTransactions.transactionTable.rowActions.ariaLabel')}
-                          aria-haspopup="menu"
-                          aria-expanded={
-                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? 'true' : undefined
-                          }
-                          aria-controls={
-                            Boolean(actionMenuAnchorEl) && actionMenuTransaction?.id === transaction.id ? actionMenuId : undefined
-                          }
-                        >
-                          <MoreVertIcon fontSize="small" />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                    {isEditing && (
-                        <InlineTransactionForm
-                          isOpen={isEditFormOpen && !isDeleting}
-                          onClose={() => setIsEditFormOpen(false)}
-                          onSuccess={async () => {
-                            await onSuccessCreate?.();
-                          }}
-                          onRefresh={() => {
-                            void onSuccessCreate?.();
-                          }}
-                          selectedAccountId={selectedAccountId}
-                          initialValues={transaction}
-                          onExited={() => setEditedTransaction(null)}
-                          onBusyStart={beginBusy}
-                          onBusyEnd={endBusy}
-                        />
-                      )}
-                  </Fragment>
+                  <TransactionRow
+                    key={transaction.id}
+                    transaction={transaction}
+                    account={account}
+                    isFirst={index === 0}
+                    isLast={index === group.transactions.length - 1}
+                    isEditing={editedTransaction?.id === transaction.id}
+                    isEditFormOpen={isEditFormOpen}
+                    isDeleting={deleteHook.deletedTransactionId === transaction.id}
+                    updatingCategoryTransactionId={categoryPicker.updatingCategoryTransactionId}
+                    displayedCategory={displayedCategory}
+                    selectedAccountId={selectedAccountId}
+                    activeActionMenuTransactionId={actionMenu.menuTransaction?.id ?? null}
+                    activeActionMenuAnchorEl={actionMenu.anchorEl}
+                    callbacks={rowCallbacks}
+                  />
                 );
               })}
-              </Fragment>
-            ))}
+            </Fragment>
+          ))}
         </TableBody>
       </Table>
 
-      <Menu
-        id={actionMenuId}
-        open={Boolean(actionMenuAnchorEl)}
-        anchorEl={actionMenuAnchorEl}
-        onClose={closeActionMenu}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        MenuListProps={{
-          'aria-labelledby': actionMenuAnchorEl?.id,
-        }}
-      >
-        <MenuItem
-          onClick={() => {
-            const tx = actionMenuTransaction;
-            closeActionMenu();
-            if (!tx) return;
-            setEditedTransaction(tx);
-            setIsEditFormOpen(true);
-          }}
-          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-          data-testid="transaction-action-edit"
-        >
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('financeTransactions.transactionTable.rowActions.edit')}</ListItemText>
-        </MenuItem>
-        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment &&
-          (actionMenuTransaction?.appliedRuleIds?.length ?? 0) > 0 && (
-            <MenuItem
-              onClick={() => {
-                const tx = actionMenuTransaction;
-                closeActionMenu();
-                if (!tx) return;
-                setAppliedRulesTransaction(tx);
-              }}
-              data-testid="transaction-action-view-applied-rules"
-            >
-              <ListItemIcon>
-                <AutoFixHighIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{t('financeTransactions.transactionTable.rowActions.viewAppliedRules')}</ListItemText>
-            </MenuItem>
-          )}
-        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment && (
-          <MenuItem
-            onClick={() => {
-              const tx = actionMenuTransaction;
-              closeActionMenu();
-              if (!tx) return;
-              setCreateRuleDraft({
-                pattern: tx.description,
-                applicableTo: resolveRuleApplicableTo(tx),
-              });
-            }}
-            disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-            data-testid="transaction-action-create-rule-from-description"
-          >
-            <ListItemIcon>
-              <AutoFixHighIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>{t('financeTransactions.transactionTable.rowActions.createRuleFromDescription')}</ListItemText>
-          </MenuItem>
-        )}
-        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment &&
-          actionMenuTransaction?.type !== TransactionType.Transfer && (
-            <MenuItem
-              onClick={handleMarkAsInternalTransfer}
-              disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-            >
-              <ListItemIcon>
-                {markingTransferTransactionId === actionMenuTransaction?.id ? (
-                  <CircularProgress size={18} />
-                ) : (
-                  <SwapHorizIcon color="info" fontSize="small" />
-                )}
-              </ListItemIcon>
-              <ListItemText>{t('financeTransactions.transactionTable.rowActions.markAsTransfer')}</ListItemText>
-            </MenuItem>
-          )}
-        {actionMenuTransaction?.type !== TransactionType.BalanceAdjustment && <Divider />}
-        <MenuItem
-          onClick={() => {
-            const tx = actionMenuTransaction;
-            closeActionMenu();
-            if (!tx) return;
-            setTransactionToRemove(tx);
-          }}
-          data-testid="transaction-action-delete"
-          sx={{
-            color: 'error.main',
-            '&:hover': {
-              bgcolor: alpha(theme.palette.error.main, 0.08),
-            },
-            '&.Mui-focusVisible': {
-              bgcolor: alpha(theme.palette.error.main, 0.08),
-            },
-          }}
-          disabled={markingTransferTransactionId === actionMenuTransaction?.id}
-        >
-          <ListItemIcon sx={{ color: 'inherit' }}>
-            <DeleteOutlineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('financeTransactions.transactionTable.rowActions.remove')}</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      <CategoryPicker
-        value={categoryPickerTransaction?.category?.id ?? null}
-        onChange={handleSelectCategory}
-        creditDebitType={
-          categoryPickerTransaction?.type === TransactionType.Transfer
-            ? 'TRANSFER'
-            : categoryPickerTransaction?.creditDebitType === CreditDebitType.Credit
-              ? 'CREDIT'
-              : 'DEBIT'
+      {/* Action menu (single instance, shared across all rows) */}
+      <TransactionActionMenu
+        anchorEl={actionMenu.anchorEl}
+        transaction={actionMenu.menuTransaction}
+        markingTransferTransactionId={actionMenu.markingTransferTransactionId}
+        onClose={actionMenu.close}
+        onEdit={(tx) => openEdit(tx)}
+        onViewAppliedRules={(tx) => setAppliedRulesTransaction(tx)}
+        onCreateRule={(tx) =>
+          setCreateRuleDraft({ pattern: tx.description, applicableTo: resolveRuleApplicableTo(tx) })
         }
-        anchorEl={categoryPickerAnchorEl}
-        onClose={closeCategoryPicker}
+        onMarkAsTransfer={actionMenu.handleMarkAsInternalTransfer}
+        onDelete={(tx) => deleteHook.promptDelete(tx)}
       />
 
-      <AppliedTransactionRulesDrawer
-        open={Boolean(appliedRulesTransaction)}
-        transaction={appliedRulesTransaction}
-        onClose={() => setAppliedRulesTransaction(null)}
+      {/* All dialogs/drawers */}
+      <TransactionDialogs
+        categoryPickerAnchorEl={categoryPicker.anchorEl}
+        categoryPickerTransaction={categoryPicker.pickerTransaction}
+        onCloseCategoryPicker={categoryPicker.close}
+        onSelectCategory={categoryPicker.handleSelectCategory}
+        appliedRulesTransaction={appliedRulesTransaction}
+        onCloseAppliedRules={() => setAppliedRulesTransaction(null)}
+        createRuleDraft={createRuleDraft}
+        onCloseCreateRule={() => setCreateRuleDraft(null)}
+        onSuccess={onSuccessCreate}
+        transactionToRemove={deleteHook.transactionToRemove}
+        removing={deleteHook.removing}
+        onCancelDelete={deleteHook.cancelDelete}
+        onConfirmDelete={deleteHook.confirmDelete}
+        pendingSimilarEditPrompt={categoryPicker.pendingSimilarEditPrompt}
+        applyingSimilarEdit={similarEdit.applyingSimilarEdit}
+        onDismissSimilarEdit={similarEdit.handleDismissSimilarEditPrompt}
+        onConfirmSimilarEdit={similarEdit.handleConfirmSimilarEdit}
+        previewAttachments={attachmentPreview.previewAttachments}
+        previewIndex={attachmentPreview.previewIndex}
+        removingAttachmentId={attachmentPreview.removingAttachmentId}
+        onRemoveAttachment={attachmentPreview.handleRemoveAttachment}
+        onClosePreview={attachmentPreview.closePreview}
       />
 
-      <TransactionRuleDrawer
-        open={Boolean(createRuleDraft)}
-        rule={null}
-        initialPattern={createRuleDraft?.pattern ?? ''}
-        initialApplicableTo={createRuleDraft?.applicableTo}
-        onClose={() => setCreateRuleDraft(null)}
-        onSaved={(savedRule) => {
-          setCreateRuleDraft(null);
-          void onSuccessCreate?.();
-          void (async () => {
-            try {
-              const result = await loadRuleHistoricalMatchCount({ variables: { id: savedRule.id } });
-              const matchCount = result.data?.transactionRuleHistoricalMatchCount ?? 0;
-              if (matchCount > 0) {
-                setApplyRuleToHistoryPrompt({ ruleId: savedRule.id, matchCount });
-              }
-            } catch (err) {
-              toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
-            }
-          })();
-        }}
-      />
-
-      <ConfirmationDialog
-        open={Boolean(transactionToRemove)}
-        onClose={() => setTransactionToRemove(null)}
-        onConfirm={handleConfirmRemove}
-        title={t('financeTransactions.deleteConfirmation.title')}
-        message={t('financeTransactions.deleteConfirmation.message')}
-        cancelText={t('actions.cancel')}
-        confirmText={t('actions.delete')}
-        confirmColor="error"
-        loading={removing}
-      />
-
-      <SimilarEditDialog
-        open={Boolean(pendingSimilarEditPrompt)}
-        onClose={handleDismissSimilarEditPrompt}
-        onConfirm={handleConfirmSimilarEdit}
-        similarCount={pendingSimilarEditPrompt?.similarCount ?? 0}
-        loading={applyingSimilarEdit}
-      />
-
-      <ApplyRuleToHistoricalDialog
-        open={Boolean(applyRuleToHistoryPrompt)}
-        matchCount={applyRuleToHistoryPrompt?.matchCount ?? 0}
-        loading={applyingRuleToHistory}
-        onClose={() => setApplyRuleToHistoryPrompt(null)}
-        onConfirm={() => {
-          const payload = applyRuleToHistoryPrompt;
-          if (!payload) return;
-          void (async () => {
-            try {
-              const res = await applyTransactionRuleToHistorical({ variables: { id: payload.ruleId } });
-              const affected = (res.data as any)?.applyTransactionRuleToHistorical?.affectedCount as number | undefined;
-              toast.success(
-                t('financeTransactions.applyRuleToHistoryPrompt.toastSuccess', {
-                  count: typeof affected === 'number' ? affected : payload.matchCount,
-                }),
-              );
-              setApplyRuleToHistoryPrompt(null);
-              void onSuccessCreate?.();
-            } catch (err) {
-              toast.error(extractErrorMessage(err, t('financeTransactions.applyRuleToHistoryPrompt.toastError')));
-            }
-          })();
-        }}
-      />
-      
       {hasMore && (
-        <Box 
-          ref={loaderRef} 
-          sx={{ display: 'flex', justifyContent: 'center', p: 2, minHeight: 50 }}
-        />
+        <Box ref={loaderRef} sx={{ display: 'flex', justifyContent: 'center', p: 2, minHeight: 50 }} />
       )}
-      
+
       {!loading && transactions.length === 0 && (
         <Box sx={{ p: 4, textAlign: 'center' }}>
           <Typography color="text.secondary">
@@ -1369,36 +444,6 @@ export function TransactionTable({
           </Typography>
         </Box>
       )}
-      
-      <FilePreviewDialog
-        attachments={previewAttachments}
-        initialIndex={previewIndex}
-        removingAttachmentId={removingAttachmentId}
-        onRemove={async (att) => {
-          if (!previewTransactionId) return;
-          setRemovingAttachmentId(att.id);
-          try {
-            beginBusy();
-            await removeTransactionAttachment({ variables: { attachmentId: att.id } });
-            setPreviewAttachments((prev) => {
-              if (!prev) return prev;
-              const next = prev.filter((a) => a.id !== att.id);
-              return next.length > 0 ? next : null;
-            });
-            onSuccessCreate?.();
-          } catch (err) {
-            toast.error(extractErrorMessage(err, 'Não foi possível remover o anexo'));
-          } finally {
-            setRemovingAttachmentId(null);
-            endBusy();
-          }
-        }}
-        onClose={() => {
-          setPreviewAttachments(null);
-          setPreviewTransactionId(null);
-          setRemovingAttachmentId(null);
-        }}
-      />
     </TableContainer>
   );
 }

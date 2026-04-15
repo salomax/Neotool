@@ -30,13 +30,13 @@ open class DefaultMerchantRepository(
     ): MerchantSearchPage {
         val pageSize = first.coerceIn(1, 50)
         val normalizedSearch = search?.trim()?.takeIf { it.isNotEmpty() }?.lowercase()
-        val searchRegex = normalizedSearch?.let(::toWholeWordRegex)
+        val searchLikePattern = normalizedSearch?.let(::toContainsIlikePattern)
         val cursor = after?.let(MerchantCursorCodec::decode)
 
         val pageSlice =
             merchantRepo.searchPageForAccount(
                 accountId = accountId,
-                searchRegex = searchRegex,
+                searchLikePattern = searchLikePattern,
                 afterName = cursor?.name,
                 afterId = cursor?.id,
                 limit = pageSize + 1,
@@ -54,7 +54,7 @@ open class DefaultMerchantRepository(
 
         return MerchantSearchPage(
             items = pageItems,
-            totalCount = merchantRepo.countForAccountBySearchRegex(accountId, searchRegex).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            totalCount = merchantRepo.countForAccountBySearchLike(accountId, searchLikePattern).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             hasNextPage = hasNextPage,
             hasPreviousPage = false,
             startCursor = startCursor,
@@ -138,5 +138,16 @@ open class DefaultMerchantRepository(
                 )
             }
 
-    private fun toWholeWordRegex(word: String): String = "(^|[^a-z])${Regex.escape(word)}([^a-z]|$)"
+    /**
+     * Case-insensitive substring search for the GraphQL merchant picker (`%term%`), not whole-word rule matching.
+     * Escapes `%`, `_`, and `\` for PostgreSQL `ILIKE ... ESCAPE E'\\'`.
+     */
+    private fun toContainsIlikePattern(term: String): String {
+        val escaped =
+            term
+                .replace("\\", "\\\\")
+                .replace("%", "\\%")
+                .replace("_", "\\_")
+        return "%$escaped%"
+    }
 }

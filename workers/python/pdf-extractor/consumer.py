@@ -8,7 +8,7 @@ import threading
 import time
 from typing import Any, Optional
 
-from confluent_kafka import Consumer
+from confluent_kafka import Consumer, TopicPartition
 
 from cleaner import clean_extracted_text
 from config import WorkerConfig
@@ -94,7 +94,13 @@ def run() -> None:
     consumer: Optional[Consumer] = None
 
     try:
-        logger.info("starting pdf-extractor worker topic_in=%s", config.kafka_topic_in)
+        logger.info(
+            "starting pdf-extractor worker broker=%s group=%s topic_in=%s auto_offset_reset=%s",
+            config.kafka_broker,
+            config.kafka_group_id,
+            config.kafka_topic_in,
+            config.auto_offset_reset,
+        )
 
         consumer = Consumer(
             {
@@ -106,7 +112,18 @@ def run() -> None:
             }
         )
         publisher = KafkaPublisher(config.kafka_broker, config.kafka_topic_out, config.kafka_topic_dlq)
-        consumer.subscribe([config.kafka_topic_in])
+
+        def _on_assign(_: Consumer, partitions: list[TopicPartition]) -> None:
+            if partitions:
+                detail = ", ".join(f"{tp.topic}:{tp.partition}" for tp in partitions)
+                logger.info("kafka_partitions_assigned %s", detail)
+            else:
+                logger.warning(
+                    "kafka_partitions_assigned_empty — no partitions for this member; "
+                    "another consumer may be using the same KAFKA_GROUP_ID (e.g. compose profile workers)"
+                )
+
+        consumer.subscribe([config.kafka_topic_in], on_assign=_on_assign)
         last_connectivity_check = 0.0
 
         while True:

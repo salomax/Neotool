@@ -2057,6 +2057,11 @@ export type Mutation = {
   __typename: 'Mutation';
   _bankingService: Maybe<Scalars['String']['output']>;
   applyTransactionEditToSimilar: SimilarTransactionEditResult;
+  /**
+   * Applies the given transaction rule to historical (non-manual) transactions that match it.
+   * Does not override MANUAL categories; other fields may be updated according to rule actions.
+   */
+  applyTransactionRuleToHistorical: BulkOperationResult;
   assignGroupToUser: User;
   assignPermissionToRole: Role;
   assignRoleToGroup: Group;
@@ -2274,6 +2279,11 @@ export type MutationApplyTransactionEditToSimilarArgs = {
   id: Scalars['ID']['input'];
   input: UpdateTransactionInput;
   matchDescription: Scalars['String']['input'];
+};
+
+
+export type MutationApplyTransactionRuleToHistoricalArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -3167,6 +3177,7 @@ export type Query = {
   transactionCategories: Array<TransactionCategory>;
   transactionImport: Maybe<TransactionImport>;
   transactionImports: Array<TransactionImport>;
+  /** Counts how many existing (non-manual) transactions would be affected by applying the given rule. */
   transactionRuleHistoricalMatchCount: Scalars['Int']['output'];
   /**
    * Transaction rules for auto-categorization and merchant suggestion.

@@ -193,7 +193,7 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     SELECT tr.merchant_id, m.id AS expected_merchant_id
                     FROM banking.transaction_rules tr
                     JOIN banking.merchants m
-                      ON m.name = 'netflix'
+                      ON m.merchant_name = 'netflix'
                      AND m.account_id IS NULL
                      AND m.is_system = true
                     WHERE tr.pattern = 'netflix'

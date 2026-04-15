@@ -1285,7 +1285,10 @@
           "newCardDetailsTitle": "New card details",
           "cardAssignmentTitle": "Associate cards",
           "cardAssignmentMessage": "Select an existing card to use while assigning transactions.",
-          "assignTransactionsTitle": "Assign transactions"
+          "assignTransactionsTitle": "Assign transactions",
+          "assignTransactionsInfoTitle": "How to assign",
+          "assignTransactionsHint": "Select the transactions, enter the card last 4 digits (or leave it empty to apply “No last 4”), and click Apply.",
+          "assignTransactionsRequirementHint": "You must apply it to at least 1 transaction to enable “Review transactions”."
         },
         "cardDataSectionTitle": "Card details",
         "availableTransactionsSectionTitle": "Available transactions",
@@ -1324,6 +1327,7 @@
       },
       "txReviewStep": {
         "description": "Review the transactions before confirming. Uncheck items you don't want to import.",
+        "setupRequired": "To confirm, finish setting up the cards in the previous step.",
         "billDatesTitle": "Bill dates",
         "billDatesDescription": "Check the closing date and enter the due date when the file does not provide it.",
         "closingDateLabel": "Closing date",
@@ -1530,8 +1534,9 @@
       "clearCategoryFilter": "Clear category filter",
       "clearTagFilter": "Clear tag filter",
       "clearCreditDebitTypeFilter": "Clear credit/debit filter",
-      "transfersIn": "Transfers In",
-      "transfersOut": "Transfers Out",
+      "transfersTitle": "Transfers between own accounts",
+      "transfersIn": "Received",
+      "transfersOut": "Sent",
       "filteringByTransfer": "Internal transfers only",
       "clearTransferFilter": "Clear transfer filter",
       "unavailableTitle": "Could not load this month's summary",

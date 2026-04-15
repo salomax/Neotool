@@ -341,8 +341,20 @@ type Merchant {
   domain: String
   sector: String
   isSystem: Boolean!
+  isOwned: Boolean!
   """Logo asset via federation. Null until the hydration job has run for the domain."""
   logoAsset: Asset
+}
+
+type MerchantEdge {
+  node: Merchant!
+  cursor: String!
+}
+
+type MerchantConnection {
+  edges: [MerchantEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
 }
 
 """A top-merchant analytics row."""
@@ -355,7 +367,7 @@ type TopMerchant {
 
 input CreateMerchantInput {
   name: String!
-  domain: String
+  website: String
   sector: String
 }
 
@@ -1869,8 +1881,8 @@ extend type Query {
   When month/year are not provided, the current month/year are used.
   """
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary!
-  """All merchants (system + user-created) available to the authenticated account."""
-  merchants: [Merchant!]!
+  """Paginated merchants (system + user-created) available to the authenticated account."""
+  merchants(search: String, after: String, first: Int = 20): MerchantConnection!
   """Top merchants by spend for the authenticated account. Defaults to top 10 for the current month."""
   topMerchants(financialAccountId: ID, year: Int, month: Int, limit: Int): [TopMerchant!]!
   """
@@ -1889,6 +1901,8 @@ extend type Query {
   Useful for explaining which rules contributed to a transaction.
   """
   transactionRulesByIds(ids: [ID!]!): [TransactionRule!]!
+  """Counts how many existing (non-manual) transactions would be affected by applying the given rule."""
+  transactionRuleHistoricalMatchCount(id: ID!): Int!
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
   Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
@@ -2166,6 +2180,11 @@ extend type Mutation {
   Update a user-owned transaction rule.
   """
   updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule!
+  """
+  Applies the given transaction rule to historical (non-manual) transactions that match it.
+  Does not override MANUAL categories; other fields may be updated according to rule actions.
+  """
+  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult!
   """
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
   """

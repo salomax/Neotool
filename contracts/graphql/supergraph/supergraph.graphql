@@ -1025,7 +1025,7 @@ input CreateMerchantInput
   @join__type(graph: BANKING)
 {
   name: String!
-  domain: String
+  website: String
   sector: String
 }
 
@@ -2385,11 +2385,27 @@ type Merchant
   domain: String
   sector: String
   isSystem: Boolean!
+  isOwned: Boolean!
 
   """
   Logo asset via federation. Null until the hydration job has run for the domain.
   """
   logoAsset: Asset
+}
+
+type MerchantConnection
+  @join__type(graph: BANKING)
+{
+  edges: [MerchantEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type MerchantEdge
+  @join__type(graph: BANKING)
+{
+  node: Merchant!
+  cursor: String!
 }
 
 input MessageInput
@@ -2679,6 +2695,12 @@ type Mutation
 
   """Update a user-owned transaction rule."""
   updateTransactionRule(id: ID!, input: UpdateTransactionRuleInput!): TransactionRule! @join__field(graph: BANKING)
+
+  """
+  Applies the given transaction rule to historical (non-manual) transactions that match it.
+  Does not override MANUAL categories; other fields may be updated according to rule actions.
+  """
+  applyTransactionRuleToHistorical(id: ID!): BulkOperationResult! @join__field(graph: BANKING)
 
   """
   Soft-delete a user-owned transaction rule. System rules cannot be deleted.
@@ -3183,9 +3205,9 @@ type Query
   monthSummary(financialAccountId: ID, year: Int, month: Int): MonthSummary! @join__field(graph: BANKING)
 
   """
-  All merchants (system + user-created) available to the authenticated account.
+  Paginated merchants (system + user-created) available to the authenticated account.
   """
-  merchants: [Merchant!]! @join__field(graph: BANKING)
+  merchants(search: String, after: String, first: Int = 20): MerchantConnection! @join__field(graph: BANKING)
 
   """
   Top merchants by spend for the authenticated account. Defaults to top 10 for the current month.
@@ -3210,6 +3232,11 @@ type Query
   Useful for explaining which rules contributed to a transaction.
   """
   transactionRulesByIds(ids: [ID!]!): [TransactionRule!]! @join__field(graph: BANKING)
+
+  """
+  Counts how many existing (non-manual) transactions would be affected by applying the given rule.
+  """
+  transactionRuleHistoricalMatchCount(id: ID!): Int! @join__field(graph: BANKING)
 
   """
   Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.

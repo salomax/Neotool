@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Avatar,
@@ -13,6 +13,7 @@ import {
   ListItemAvatar,
   ListItemButton,
   ListItemText,
+  Link,
   Popover,
   Stack,
   TextField,
@@ -103,6 +104,9 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
   const [confirmName, setConfirmName] = useState<string | null>(null);
   const [createdMerchant, setCreatedMerchant] = useState<Merchant | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const browseListRef = useRef<HTMLUListElement | null>(null);
+  const infiniteScrollSentinelRef = useRef<HTMLDivElement | null>(null);
+  const lastFetchCursorRef = useRef<string | null>(null);
 
   const debouncedSearch = useDebounce(searchInput, 300);
   const debouncedWebsite = useDebounce(createWebsite, 500);
@@ -136,6 +140,7 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
   const merchants = useMemo(() => connection?.edges.map((edge) => edge.node) ?? [], [connection?.edges]);
   const totalCount = connection?.totalCount ?? 0;
   const pageInfo = connection?.pageInfo;
+  const isInitialBrowseLoading = !called || (loading && merchants.length === 0);
 
   const selectedMerchant = useMemo(() => {
     if (!value) return null;
@@ -146,12 +151,68 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
     );
   }, [value, merchants, createdMerchant, initialMerchant]);
 
+  const handleLoadMore = useCallback(async () => {
+    if (!fetchMore || !pageInfo?.hasNextPage || !pageInfo.endCursor) return;
+    setLoadingMore(true);
+    try {
+      await fetchMore({
+        variables: {
+          first: PAGE_SIZE,
+          search: normalizedSearch,
+          after: pageInfo.endCursor,
+        },
+        updateQuery: (previousResult, { fetchMoreResult }) => {
+          if (!fetchMoreResult?.merchants) return previousResult;
+          return {
+            merchants: {
+              ...fetchMoreResult.merchants,
+              edges: [...previousResult.merchants.edges, ...fetchMoreResult.merchants.edges],
+            },
+          };
+        },
+      });
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [fetchMore, normalizedSearch, pageInfo?.endCursor, pageInfo?.hasNextPage]);
+
   useEffect(() => {
     if (!open || view !== 'browse') return;
     loadMerchants({
       variables: { first: PAGE_SIZE, search: normalizedSearch },
     });
   }, [open, view, normalizedSearch, loadMerchants]);
+
+  useEffect(() => {
+    lastFetchCursorRef.current = null;
+  }, [normalizedSearch, open, view]);
+
+  useEffect(() => {
+    if (!open || view !== 'browse') return;
+    if (!pageInfo?.hasNextPage || !pageInfo.endCursor) return;
+    if (loadingMore || loading) return;
+
+    const root = browseListRef.current;
+    const sentinel = infiniteScrollSentinelRef.current;
+    if (!root || !sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        if (!pageInfo?.hasNextPage || !pageInfo.endCursor) return;
+        if (loadingMore || loading) return;
+
+        if (lastFetchCursorRef.current === pageInfo.endCursor) return;
+        lastFetchCursorRef.current = pageInfo.endCursor;
+        void handleLoadMore();
+      },
+      { root, rootMargin: '80px' },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [open, view, pageInfo?.endCursor, pageInfo?.hasNextPage, loadingMore, loading, handleLoadMore]);
 
   useEffect(() => {
     if (view === 'confirm' && confirmName) {
@@ -230,36 +291,10 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
     }
   }, [createMerchant, createName, createWebsite, loadMerchants, normalizedSearch, onChange]);
 
-  const handleLoadMore = useCallback(async () => {
-    if (!fetchMore || !pageInfo?.hasNextPage || !pageInfo.endCursor) return;
-    setLoadingMore(true);
-    try {
-      await fetchMore({
-        variables: {
-          first: PAGE_SIZE,
-          search: normalizedSearch,
-          after: pageInfo.endCursor,
-        },
-        updateQuery: (previousResult, { fetchMoreResult }) => {
-          if (!fetchMoreResult?.merchants) return previousResult;
-          return {
-            merchants: {
-              ...fetchMoreResult.merchants,
-              edges: [...previousResult.merchants.edges, ...fetchMoreResult.merchants.edges],
-            },
-          };
-        },
-      });
-    } finally {
-      setLoadingMore(false);
-    }
-  }, [fetchMore, normalizedSearch, pageInfo?.endCursor, pageInfo?.hasNextPage]);
-
   const renderBrowse = () => (
-    <>
-      <Box sx={{ p: 1.5, pb: 0.5 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+      <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider', flexShrink: 0 }}>
         <TextField
-          size="small"
           fullWidth
           autoFocus
           value={searchInput}
@@ -272,12 +307,15 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
                 <SearchIcon fontSize="small" />
               </InputAdornment>
             ),
+            disableUnderline: true,
+            sx: { '& fieldset': { border: 'none' } },
           }}
+          variant="standard"
         />
       </Box>
 
-      <List dense disablePadding sx={{ overflow: 'auto', maxHeight: 300 }}>
-        {!called || loading ? (
+      <List ref={browseListRef} dense disablePadding sx={{ overflow: 'auto', flex: 1, minHeight: 0 }}>
+        {isInitialBrowseLoading ? (
           <Box sx={{ py: 3, display: 'flex', justifyContent: 'center' }}>
             <CircularProgress size={20} />
           </Box>
@@ -322,20 +360,12 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
             )}
 
             {pageInfo?.hasNextPage ? (
-              <Box sx={{ px: 1.5, pt: 0.5 }}>
-                <Button
-                  size="small"
-                  fullWidth
-                  onClick={handleLoadMore}
-                  disabled={loadingMore}
-                  data-testid="merchant-picker-load-more"
-                >
-                  {loadingMore
-                    ? t('financeTransactions.actions.saving')
-                    : t('financeTransactions.merchantPicker.loadMore')}
-                </Button>
+              <Box sx={{ px: 1.5, py: 1, display: 'flex', justifyContent: 'center' }}>
+                {loadingMore ? <CircularProgress size={18} /> : null}
               </Box>
             ) : null}
+
+            <Box ref={infiniteScrollSentinelRef} sx={{ height: 1 }} />
 
             {totalCount > 0 ? (
               <Box sx={{ px: 1.5, pb: 0.5 }}>
@@ -356,24 +386,29 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
         sx={{
           borderTop: 1,
           borderColor: 'divider',
+          flexShrink: 0,
           p: 1,
           height: 48,
           bgcolor: 'background.paper',
-          display: 'flex',
-          alignItems: 'center',
         }}
       >
-        <Button
-          variant="text"
-          size="small"
-          startIcon={<AddIcon fontSize="small" />}
+        <Link
+          component="button"
           onClick={handleOpenCreate}
+          underline="none"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 0.5,
+            cursor: 'pointer',
+          }}
           data-testid="merchant-picker-create-button"
         >
+          <AddIcon fontSize="small" />
           {t('financeTransactions.merchantPicker.createMerchant')}
-        </Button>
+        </Link>
       </Box>
-    </>
+    </Box>
   );
 
   const renderCreate = () => (
@@ -565,7 +600,9 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
           },
         }}
       >
-        {view === 'browse' ? renderBrowse() : view === 'create' ? renderCreate() : renderConfirm()}
+        <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
+          {view === 'browse' ? renderBrowse() : view === 'create' ? renderCreate() : renderConfirm()}
+        </Box>
       </Popover>
     </>
   );

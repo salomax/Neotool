@@ -31,19 +31,25 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
             SELECT m.*
             FROM banking.merchants m
             WHERE (m.account_id IS NULL OR m.account_id = :accountId)
-              AND (:searchRegex IS NULL OR LOWER(m.name) ~ :searchRegex)
               AND (
-                    :afterName IS NULL
-                    OR m.name > :afterName
-                    OR (m.name = :afterName AND m.id > :afterId)
+                    CAST(:searchLikePattern AS text) IS NULL
+                    OR m.display_name ILIKE CAST(:searchLikePattern AS text) ESCAPE E'\\'
+                  )
+              AND (
+                    CAST(:afterName AS text) IS NULL
+                    OR m.display_name > CAST(:afterName AS text)
+                    OR (
+                        m.display_name = CAST(:afterName AS text)
+                        AND m.id > CAST(:afterId AS uuid)
+                    )
               )
-            ORDER BY m.name ASC, m.id ASC
+            ORDER BY m.display_name ASC, m.id ASC
             LIMIT :limit
         """,
     )
     fun searchPageForAccount(
         accountId: UUID,
-        searchRegex: String?,
+        searchLikePattern: String?,
         afterName: String?,
         afterId: UUID?,
         limit: Int,
@@ -55,12 +61,15 @@ interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
             SELECT COUNT(*)
             FROM banking.merchants m
             WHERE (m.account_id IS NULL OR m.account_id = :accountId)
-              AND (:searchRegex IS NULL OR LOWER(m.name) ~ :searchRegex)
+              AND (
+                    CAST(:searchLikePattern AS text) IS NULL
+                    OR m.display_name ILIKE CAST(:searchLikePattern AS text) ESCAPE E'\\'
+                  )
         """,
     )
-    fun countForAccountBySearchRegex(
+    fun countForAccountBySearchLike(
         accountId: UUID,
-        searchRegex: String?,
+        searchLikePattern: String?,
     ): Long
 
     /** User-scoped merchants only. */

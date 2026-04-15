@@ -14,7 +14,10 @@ import { DateTimePicker as MuiDateTimePicker } from '@mui/x-date-pickers/DateTim
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs, { Dayjs } from 'dayjs';
+import 'dayjs/locale/pt-br';
 import { CalendarTodayIcon, AccessTimeIcon } from '@/shared/ui/mui-imports';
+import { useTranslation } from 'react-i18next';
+import { appDatePickerDisplayFormatFromLanguageTag } from '@/shared/components/ui/forms/form/appDatePickerConfig';
 
 export interface DateTimePickerProps {
   /** Current value of the date time picker */
@@ -86,7 +89,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   readOnly = false,
   required = false,
   label,
-  placeholder = 'Select date and time',
+  placeholder,
   helperText,
   error = false,
   errorMessage,
@@ -111,10 +114,29 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   className,
   'data-testid': dataTestId
 }) => {
+  const { t, i18n } = useTranslation('common');
   const [internalValue, setInternalValue] = useState<Dayjs | null>(defaultValue);
   
   const isControlled = value !== undefined;
   const currentValue = isControlled ? value : internalValue;
+
+  const { adapterLocale, dateFormat } = React.useMemo(() => {
+    const lang = i18n.language?.toLowerCase() ?? 'pt';
+    const isPt = lang.startsWith('pt');
+    return {
+      adapterLocale: isPt ? 'pt-br' : 'en',
+      dateFormat: appDatePickerDisplayFormatFromLanguageTag(lang),
+    };
+  }, [i18n.language]);
+
+  const localeText = React.useMemo(
+    () => ({
+      fieldDayPlaceholder: () => t('datePicker.fieldDay'),
+      fieldMonthPlaceholder: () => t('datePicker.fieldMonth'),
+      fieldYearPlaceholder: () => t('datePicker.fieldYear'),
+    }),
+    [t],
+  );
 
   // Determine the display format
   const getDisplayFormat = () => {
@@ -122,17 +144,17 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
     
     if (showDate && showTime) {
       return use24HourFormat 
-        ? `DD/MM/YYYY HH:mm${showSeconds ? ':ss' : ''}`
-        : `DD/MM/YYYY hh:mm${showSeconds ? ':ss' : ''} A`;
+        ? `${dateFormat} HH:mm${showSeconds ? ':ss' : ''}`
+        : `${dateFormat} hh:mm${showSeconds ? ':ss' : ''} A`;
     } else if (showDate) {
-      return 'DD/MM/YYYY';
+      return dateFormat;
     } else if (showTime) {
       return use24HourFormat 
         ? `HH:mm${showSeconds ? ':ss' : ''}`
         : `hh:mm${showSeconds ? ':ss' : ''} A`;
     }
     
-    return 'DD/MM/YYYY HH:mm';
+    return `${dateFormat} HH:mm`;
   };
 
   const handleChange = useCallback((newValue: Dayjs | null) => {
@@ -210,7 +232,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
   };
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDayjs}>
+    <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={adapterLocale} localeText={localeText}>
       <FormControl 
         fullWidth 
         disabled={disabled}
@@ -244,6 +266,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               size,
               variant,
               fullWidth: true,
+              ...(placeholder ? { placeholder } : {}),
             },
           }}
         />
