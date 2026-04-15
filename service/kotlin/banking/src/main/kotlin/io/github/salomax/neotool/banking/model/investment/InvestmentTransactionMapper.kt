@@ -40,7 +40,7 @@ object InvestmentTransactionMapper {
 
     fun toEntity(domain: InvestmentTransaction): InvestmentTransactionEntity {
         val entity = InvestmentTransactionEntity(
-            id = null,
+            id = domain.id,
             holdingId = domain.holdingId,
             financialAccountId = domain.financialAccountId,
             accountId = domain.accountId,

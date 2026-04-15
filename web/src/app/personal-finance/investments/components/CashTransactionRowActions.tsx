@@ -2,17 +2,7 @@
 
 import React from "react";
 import { useApolloClient, useMutation } from "@apollo/client/react";
-import {
-  alpha,
-  Box,
-  IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Typography,
-  useTheme,
-} from "@mui/material";
+import { alpha, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -27,18 +17,14 @@ import {
   INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_PORTFOLIO_SUMMARY,
 } from "@/lib/graphql/operations/banking/queries";
-import { CreditDebitType, TransactionSource } from "@/lib/graphql/types/__generated__/graphql";
+import { TransactionSource } from "@/lib/graphql/types/__generated__/graphql";
 import { ConfirmationDialog } from "@/shared/components/ui/feedback";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useTranslation } from "@/shared/i18n";
-import { Label } from "@/shared/components/ui/primitives/Label";
 import { useToast } from "@/shared/providers";
-import { formatTableDate } from "@/shared/utils/date";
 import { personalFinanceTranslations } from "../../i18n";
 import type { CashTransactionRowNode } from "./cashTransactionRowTypes";
-import { formatCashLedgerTransactionLabel } from "./cashTransactionLabels";
 import { EditCashForm } from "./EditCashForm";
-import { formatCurrency, getCurrentLocale } from "./table/investmentTableHelpers";
 
 function isManualCashRowEditable(node: CashTransactionRowNode): boolean {
   return node.source === TransactionSource.Manual && node.investmentTransactionId == null;
@@ -47,21 +33,20 @@ function isManualCashRowEditable(node: CashTransactionRowNode): boolean {
 export interface CashTransactionRowActionsProps {
   node: CashTransactionRowNode;
   listContextAccountId: string | null | undefined;
+  onViewDetails: (node: CashTransactionRowNode) => void;
 }
 
 /**
  * MoreVert menu with view / edit / delete for a cash ledger row (manual rows only for edit/delete).
  */
-export function CashTransactionRowActions({ node, listContextAccountId }: CashTransactionRowActionsProps) {
+export function CashTransactionRowActions({ node, listContextAccountId, onViewDetails }: CashTransactionRowActionsProps) {
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
-  const locale = getCurrentLocale();
   const theme = useTheme();
 
   const [menuAnchor, setMenuAnchor] = React.useState<HTMLElement | null>(null);
   const [menuRow, setMenuRow] = React.useState<CashTransactionRowNode | null>(null);
-  const [detailRow, setDetailRow] = React.useState<CashTransactionRowNode | null>(null);
   const [editRow, setEditRow] = React.useState<CashTransactionRowNode | null>(null);
   const [editResetSignal, setEditResetSignal] = React.useState(0);
   const [deleteRow, setDeleteRow] = React.useState<CashTransactionRowNode | null>(null);
@@ -135,7 +120,7 @@ export function CashTransactionRowActions({ node, listContextAccountId }: CashTr
             const row = menuRow;
             closeMenu();
             if (!row) return;
-            setDetailRow(row);
+            onViewDetails(row);
           }}
         >
           <ListItemIcon>
@@ -181,38 +166,6 @@ export function CashTransactionRowActions({ node, listContextAccountId }: CashTr
           <ListItemText>{t("investments.table.rowActions.remove")}</ListItemText>
         </MenuItem>
       </Menu>
-
-      <Drawer open={Boolean(detailRow)} onClose={() => setDetailRow(null)} anchor="right" size="sm">
-        <Drawer.Header title={t("investments.cash.movements.detailTitle")} />
-        <Drawer.Body>
-          {detailRow ? (
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              <Box>
-                <Label>{t("investments.cash.movements.columns.date")}</Label>
-                <Typography variant="body2">{formatTableDate(String(detailRow.date), locale)}</Typography>
-              </Box>
-              <Box>
-                <Label>{t("investments.cash.movements.columns.kind")}</Label>
-                <Typography variant="body2">
-                  {formatCashLedgerTransactionLabel(detailRow.type, detailRow.creditDebitType, (k) => t(k as never))}
-                </Typography>
-              </Box>
-              <Box>
-                <Label>{t("investments.cash.amount")}</Label>
-                <Typography variant="body2" sx={{ fontVariantNumeric: "tabular-nums" }}>
-                  {detailRow.creditDebitType === CreditDebitType.Credit ? "+" : "−"}
-                  {"\u00A0"}
-                  {formatCurrency(detailRow.amount, detailRow.currencyCode, locale)}
-                </Typography>
-              </Box>
-              <Box>
-                <Label>{t("investments.cash.description")}</Label>
-                <Typography variant="body2">{detailRow.description}</Typography>
-              </Box>
-            </Box>
-          ) : null}
-        </Drawer.Body>
-      </Drawer>
 
       <Drawer open={Boolean(editRow)} onClose={() => setEditRow(null)} anchor="right" size="md">
         <Drawer.Header title={t("investments.cash.movements.editTitle")} />

@@ -21,6 +21,9 @@ open class DefaultAssetRepository(
     override fun findAllWithTicker(): List<Asset> =
         entityRepository.findByTickerIsNotNull().map(AssetMapper::toDomain)
 
+    override fun findAllWithFundCnpj(): List<Asset> =
+        entityRepository.findByFundCnpjIsNotNull().map(AssetMapper::toDomain)
+
     override fun findByTicker(ticker: String): Asset? =
         entityRepository.findByTicker(ticker)?.let(AssetMapper::toDomain)
 

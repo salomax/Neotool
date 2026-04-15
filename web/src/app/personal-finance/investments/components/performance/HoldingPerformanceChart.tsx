@@ -1,7 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { Box, FormControlLabel, Stack, Switch, Typography } from '@mui/material';
+import { Box, FormControlLabel, Stack, Switch, Typography, useTheme } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import { HoldingPerformanceResolution } from "@/lib/graphql/types/__generated__/graphql";
 import { LineChart } from '@/shared/components/ui/data-display';
@@ -13,6 +14,9 @@ import { FINANCE_TABLE_BODY_FONT_SIZE } from "@/shared/components/ui/data-displa
 
 const CHART_PROJECTED_STYLE = { lineDash: "6 4", areaOpacity: 0.1 } as const;
 const CHART_PARTIAL_STYLE = { lineDash: "6 5" } as const;
+
+/** Gross series stroke: primary with this alpha so it reads behind the net series. */
+const GROSS_SERIES_ALPHA = 0.62;
 
 /** Prefix for the partial-month caption (bullet + space). */
 const PARTIAL_MONTH_NOTICE_PREFIX = "\u2022 ";
@@ -146,8 +150,9 @@ function interpolateNullable(a: number | null, b: number | null, ratio: number):
  * a projected point at **local** month-end **between** them with values linearly interpolated in time.
  * Skips when the backend already provides month-end (or any point on/before month-end) as the first
  * projected anchor — avoids duplicate month-end and flat “copy today” artifacts.
+ *
+ * Exported for unit tests.
  */
-/** Exported for unit tests — inserts interpolated month-end bridge when timeline allows. */
 export function withProjectionMonthBridge(
   filtered: HoldingPerformanceChartPoint[],
   firstProjectedIdx: number,
@@ -207,6 +212,7 @@ export function HoldingPerformanceChart({
   projectionToggleLabel,
 }: HoldingPerformanceChartProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
   const formatAxisDate = useAxisDateFormatter(locale, resolution);
   const throughDateFormatter = useThroughDateFormatter(locale);
 
@@ -240,31 +246,33 @@ export function HoldingPerformanceChart({
   }, [chartData, t, throughDateFormatter]);
 
   const series = React.useMemo(() => {
+    const netColor = theme.palette.success.main;
     const netValueSeries = {
       id: "netValue",
       name: netLabel,
       dataKey: "netValue",
       yAxisId: "value",
-      color: "#059669",
+      color: netColor,
       kind: "area" as const,
       areaOpacity: 1,
     };
 
     if (isTaxExempt) return [netValueSeries];
 
+    const grossColor = alpha(theme.palette.primary.main, GROSS_SERIES_ALPHA);
     return [
       {
         id: "grossValue",
         name: grossLabel,
         dataKey: "grossValue",
         yAxisId: "value",
-        color: "#1d4ed8",
+        color: grossColor,
         kind: "area" as const,
         areaOpacity: 0.2,
       },
       netValueSeries,
     ];
-  }, [grossLabel, isTaxExempt, netLabel]);
+  }, [grossLabel, isTaxExempt, netLabel, theme.palette.primary.main, theme.palette.success.main]);
 
   if (chartData.length === 0) {
     return (

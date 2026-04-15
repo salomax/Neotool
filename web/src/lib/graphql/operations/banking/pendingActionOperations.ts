@@ -25,6 +25,7 @@ export const GET_PENDING_ACTIONS = gql`
       payload
       relatedHolding {
         id
+        financialAccountId
         maturityDate
         grossValue
         netValue
@@ -33,6 +34,7 @@ export const GET_PENDING_ACTIONS = gql`
         asset {
           id
           name
+          assetType
           issuerName
           logoAsset {
             publicUrl

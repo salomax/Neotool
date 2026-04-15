@@ -17,8 +17,8 @@ import {
   type PendingActionsQueryVariables,
   PendingActionsCountDocument,
 } from "@/lib/graphql/operations/banking/pendingActionOperations.generated";
-import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import { PendingActionSeverity, PendingActionStatus, PendingActionType } from "@/lib/graphql/types/__generated__/graphql";
+import type { IssuerSelectionAccount } from "./components/IssuerSelection";
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "./MaturityConfirmDrawer";
 import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 
@@ -28,15 +28,13 @@ const SEVERITY_ORDER: Record<PendingActionSeverity, number> = {
   [PendingActionSeverity.Info]: 2,
 };
 
-type BankAccountRow = NonNullable<FinancialAccountsQuery["financialAccounts"]>[number];
-
 interface PendingActionsDrawerProps {
   open: boolean;
   onClose: () => void;
-  bankAccounts: BankAccountRow[];
+  investmentAccounts?: IssuerSelectionAccount[];
 }
 
-export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingActionsDrawerProps) {
+export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }: PendingActionsDrawerProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const client = useApolloClient();
   const { isAuthenticated } = useAuth();
@@ -139,6 +137,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
                           if (!related) return;
                           setMaturityHolding({
                             id: related.id,
+                            financialAccountId: related.financialAccountId,
                             maturityDate: related.maturityDate ? String(related.maturityDate) : null,
                             grossValue: related.grossValue ?? null,
                             netValue: related.netValue ?? null,
@@ -146,7 +145,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
                             iof: related.iof ?? null,
                             issuerName: related.asset.issuerName ?? null,
                             issuerLogoUrl: related.asset.logoAsset?.publicUrl ?? null,
-                            asset: { id: related.asset.id, name: related.asset.name },
+                            asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
                           });
                           setMaturityOpen(true);
                         }}
@@ -179,7 +178,7 @@ export function PendingActionsDrawer({ open, onClose, bankAccounts }: PendingAct
           setMaturityHolding(null);
         }}
         holding={maturityHolding}
-        bankAccounts={bankAccounts}
+        investmentAccounts={investmentAccounts}
         onSuccess={() => {
           setMaturityOpen(false);
           setMaturityHolding(null);

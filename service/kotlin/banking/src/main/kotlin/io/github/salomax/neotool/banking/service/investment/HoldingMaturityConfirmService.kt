@@ -1,8 +1,5 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
@@ -11,11 +8,7 @@ import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTrans
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -29,8 +22,6 @@ open class HoldingMaturityConfirmService(
     private val holdingRepository: HoldingRepository,
     private val investmentTransactionService: InvestmentTransactionService,
     private val userPendingActionRepository: AccountPendingActionRepository,
-    private val transactionService: TransactionService,
-    private val financialAccountRepository: FinancialAccountRepository,
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     @Transactional
@@ -131,51 +122,17 @@ open class HoldingMaturityConfirmService(
 
         val bankingTx =
             command.cashMovement?.let { cash ->
-                val target =
-                    financialAccountRepository.findById(cash.financialAccountId, accountId)
-                        ?: throw ValidationException(
-                            BankingErrorCode.HOLDING_MATURITY_INVALID_STATE,
-                            field = "cashMovement.financialAccountId",
-                            parameters = mapOf("reason" to "Financial account not found"),
-                        )
-                if (target.type != FinancialAccountType.BANK ||
-                    target.subtype !in CASH_BANK_SUBTYPES
-                ) {
+                val investmentAccountId = holding.financialAccountId
+                // Maturity already mirrors net value as INVESTMENT_RETURN on the custodian account
+                // ([InvestmentTransactionService.syncInvestmentCashLedger]).
+                if (cash.financialAccountId != investmentAccountId) {
                     throw ValidationException(
                         BankingErrorCode.HOLDING_MATURITY_INVALID_STATE,
                         field = "cashMovement.financialAccountId",
-                        parameters = mapOf("reason" to "Credit must go to a checking/savings-style bank account"),
+                        parameters = mapOf("reason" to "Credit destination must match holding financial account"),
                     )
                 }
-                val investmentAccountId = holding.financialAccountId
-                val outflow =
-                    transactionService.create(
-                        command =
-                            CreateTransactionCommand(
-                                financialAccountId = investmentAccountId,
-                                creditDebitType = CreditDebitType.DEBIT,
-                                type = TransactionType.TRANSFER,
-                                amount = cash.amount,
-                                date = cash.date,
-                                description = "Transferência para conta corrente — vencimento",
-                            ),
-                        accountId = accountId,
-                        userId = userId,
-                    )
-                transactionService.create(
-                    command =
-                        CreateTransactionCommand(
-                            financialAccountId = cash.financialAccountId,
-                            creditDebitType = CreditDebitType.CREDIT,
-                            type = TransactionType.TRANSFER,
-                            amount = cash.amount,
-                            date = cash.date,
-                            description = "Transferência recebida — resgate investimento (vencimento)",
-                            transferPeerTransactionId = requireNotNull(outflow.id),
-                        ),
-                    accountId = accountId,
-                    userId = userId,
-                )
+                null
             }
 
         val completedPending =
@@ -195,13 +152,4 @@ open class HoldingMaturityConfirmService(
         )
     }
 
-    private companion object {
-        val CASH_BANK_SUBTYPES: Set<FinancialAccountSubtype> =
-            setOf(
-                FinancialAccountSubtype.CONTA_CORRENTE,
-                FinancialAccountSubtype.CONTA_POUPANCA,
-                FinancialAccountSubtype.CONTA_DIGITAL,
-                FinancialAccountSubtype.CONTA_SALARIO,
-            )
-    }
 }

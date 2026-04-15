@@ -118,7 +118,7 @@ class PortfolioPerformanceSeriesServiceTest {
         val result =
             service.getPortfolioPerformance(
                 accountId = accountId,
-                groupKey = AssetGroupMapping.BANK_FIXED_INCOME,
+                groupKey = AssetGroupMapping.FIXED_INCOME,
                 subgroupKey = null,
                 assetTypes = null,
                 resolution = HoldingPerformanceResolution.MONTH,
@@ -165,7 +165,7 @@ class PortfolioPerformanceSeriesServiceTest {
 
         val result = service.getPortfolioPerformance(
             accountId,
-            AssetGroupMapping.BANK_FIXED_INCOME,
+            AssetGroupMapping.FIXED_INCOME,
             null,
             null,
             HoldingPerformanceResolution.MONTH,

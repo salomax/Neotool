@@ -697,23 +697,37 @@ export const INVESTMENT_GRID_DATA = gql`
         grossValue
       }
     }
-    perfBankFixedIncome: portfolioPerformance(
-      financialAccountId: $financialAccountId
-      groupKey: "bankFixedIncome"
-      resolution: MONTH
-      includeProjection: $includeProjection
-    ) {
-      groupKey
-      label
-      includedHoldingsCount
-      points {
-        timestamp
-        grossValue
-      }
+    twrCash: gridClassTwrSeries(financialAccountId: $financialAccountId, gridClassKey: "cash", period: ONE_YEAR) {
+      date
+      quotaValue
     }
-    perfCreditFixedIncome: portfolioPerformance(
+    twrFixedIncome: gridClassTwrSeries(
       financialAccountId: $financialAccountId
-      groupKey: "creditFixedIncome"
+      gridClassKey: "fixed-income"
+      period: ONE_YEAR
+    ) {
+      date
+      quotaValue
+    }
+    twrFunds: gridClassTwrSeries(financialAccountId: $financialAccountId, gridClassKey: "funds", period: ONE_YEAR) {
+      date
+      quotaValue
+    }
+    twrStocks: gridClassTwrSeries(financialAccountId: $financialAccountId, gridClassKey: "stocks", period: ONE_YEAR) {
+      date
+      quotaValue
+    }
+    twrReits: gridClassTwrSeries(financialAccountId: $financialAccountId, gridClassKey: "reits", period: ONE_YEAR) {
+      date
+      quotaValue
+    }
+    twrCrypto: gridClassTwrSeries(financialAccountId: $financialAccountId, gridClassKey: "crypto", period: ONE_YEAR) {
+      date
+      quotaValue
+    }
+    perfFixedIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "fixedIncome"
       resolution: MONTH
       includeProjection: $includeProjection
     ) {

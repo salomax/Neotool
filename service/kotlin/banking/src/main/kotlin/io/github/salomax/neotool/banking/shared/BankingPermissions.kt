@@ -34,8 +34,8 @@ object BankingPermissions {
     /** View investment holdings and transactions. */
     const val BANKING_INVESTMENT_VIEW = "banking:investment:view"
 
-    /** Record a new investment transaction (manual entry or import). */
-    const val BANKING_INVESTMENT_CREATE = "banking:investment:create"
+    /** Create, update, and mutate investment records. */
+    const val BANKING_INVESTMENT_UPDATE = "banking:investment:update"
 
     /** Soft-delete a manually-entered investment transaction. */
     const val BANKING_INVESTMENT_DELETE = "banking:investment:delete"

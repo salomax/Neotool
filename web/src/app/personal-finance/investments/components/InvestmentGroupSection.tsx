@@ -7,7 +7,7 @@ import { AssetGroupCard } from './AssetGroupCard';
 interface HeaderCell {
   key: string;
   sx?: SxProps<Theme>;
-  align?: 'left' | 'right';
+  align?: 'left' | 'center' | 'right';
   content: React.ReactNode;
 }
 

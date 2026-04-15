@@ -47,6 +47,7 @@ class PortfolioQuotaCalculationService {
             calculateGroupQuota(
                 financialAccountId = financialAccountId,
                 date = date,
+                dimensionType = PortfolioDimensionType.ASSET_GROUP,
                 groupKey = groupKey,
                 previousQuota = previousGroupQuotas[groupKey],
                 totalValueEnd = valuation.totalValue,
@@ -55,6 +56,29 @@ class PortfolioQuotaCalculationService {
             )?.let(results::add)
         }
 
+        return results
+    }
+
+    fun calculateGridClassDayQuotas(
+        financialAccountId: UUID,
+        date: LocalDate,
+        previousGridClassQuotas: Map<String, InvestmentPortfolioQuota>,
+        holdingsValueByGridClass: Map<String, DailyGroupValuation>,
+    ): List<InvestmentPortfolioQuota> {
+        val now = Instant.now()
+        val results = mutableListOf<InvestmentPortfolioQuota>()
+        holdingsValueByGridClass.forEach { (gridClassKey, valuation) ->
+            calculateGroupQuota(
+                financialAccountId = financialAccountId,
+                date = date,
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                groupKey = gridClassKey,
+                previousQuota = previousGridClassQuotas[gridClassKey],
+                totalValueEnd = valuation.totalValue,
+                hasEstimatedValues = valuation.hasEstimatedValues,
+                now = now,
+            )?.let(results::add)
+        }
         return results
     }
 
@@ -133,6 +157,7 @@ class PortfolioQuotaCalculationService {
     private fun calculateGroupQuota(
         financialAccountId: UUID,
         date: LocalDate,
+        dimensionType: PortfolioDimensionType,
         groupKey: String,
         previousQuota: InvestmentPortfolioQuota?,
         totalValueEnd: BigDecimal,
@@ -144,7 +169,7 @@ class PortfolioQuotaCalculationService {
         if (previousQuota == null || previousQuota.totalPortfolioValue <= BigDecimal.ZERO) {
             return InvestmentPortfolioQuota(
                 financialAccountId = financialAccountId,
-                dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                dimensionType = dimensionType,
                 dimensionKey = groupKey,
                 quotaDate = date,
                 quotaValue = INITIAL_QUOTA_VALUE,
@@ -168,7 +193,7 @@ class PortfolioQuotaCalculationService {
 
         return InvestmentPortfolioQuota(
             financialAccountId = financialAccountId,
-            dimensionType = PortfolioDimensionType.ASSET_GROUP,
+            dimensionType = dimensionType,
             dimensionKey = groupKey,
             quotaDate = date,
             quotaValue = quotaValue,

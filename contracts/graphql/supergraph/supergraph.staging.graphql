@@ -1573,6 +1573,27 @@ enum FundTaxProfile
   UNKNOWN @join__enumValue(graph: FINANCIALDATA)
 }
 
+enum GridClassTwrPeriod
+  @join__type(graph: BANKING)
+{
+  SIX_MONTHS @join__enumValue(graph: BANKING)
+  ONE_YEAR @join__enumValue(graph: BANKING)
+  THREE_YEARS @join__enumValue(graph: BANKING)
+  ALL @join__enumValue(graph: BANKING)
+}
+
+"""A single point in a grid-class TWR quota time series."""
+type GridClassTwrPoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """
+  Raw quota value. Normalize to % return as (quotaValue / firstPoint.quotaValue) - 1.
+  """
+  quotaValue: Float!
+}
+
 type Group
   @join__type(graph: SECURITY, key: "id")
 {
@@ -2549,10 +2570,18 @@ type Mutation
   """
   createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset! @join__field(graph: BANKING)
 
+  """Updates an existing investment asset metadata."""
+  updateInvestmentAsset(id: ID!, input: UpdateInvestmentAssetInput!): InvestmentAsset! @join__field(graph: BANKING)
+
   """
   Records an investment transaction and updates the holding's quantity and averageCost.
   """
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
+
+  """
+  Updates a MANUAL investment transaction and recomputes the holding state.
+  """
+  updateInvestmentTransaction(id: ID!, input: UpdateInvestmentTransactionInput!): InvestmentTransaction! @join__field(graph: BANKING)
 
   """
   Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
@@ -3339,6 +3368,21 @@ type Query
     includeProjection: Boolean
   ): PortfolioPerformanceSeries @join__field(graph: BANKING)
 
+  """
+  TWR quota time series for a grid card class (cash, fixed-income, funds, stocks, reits, crypto).
+  Returns one point per recorded day, ascending. Returns empty list if no data is available.
+  """
+  gridClassTwrSeries(
+    """
+    When set, restrict series to this custodian financial account (tenant-scoped).
+    """
+    financialAccountId: ID
+    gridClassKey: String!
+
+    """Lookback window. Defaults to ONE_YEAR when omitted."""
+    period: GridClassTwrPeriod
+  ): [GridClassTwrPoint!]! @join__field(graph: BANKING)
+
   """Annualized IRR and total return summary for a holding."""
   investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance @join__field(graph: BANKING)
 
@@ -4122,12 +4166,53 @@ input UpdateGroupInput
   userIds: [ID!]
 }
 
+input UpdateInvestmentAssetInput
+  @join__type(graph: BANKING)
+{
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
+  currencyCode: String
+}
+
 input UpdateInvestmentCashTransactionInput
   @join__type(graph: BANKING)
 {
   amount: Float!
   date: Date!
   description: String
+}
+
+input UpdateInvestmentTransactionInput
+  @join__type(graph: BANKING)
+{
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
 }
 
 input UpdateProductInput

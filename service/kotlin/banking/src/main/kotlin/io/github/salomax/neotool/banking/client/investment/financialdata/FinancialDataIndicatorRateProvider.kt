@@ -139,6 +139,11 @@ class FinancialDataIndicatorRateProvider(
             }
         }
 
+        // DI and CDI track the same benchmark rate; fall back to CDI when DI_OVER has no ETL data
+        if (!rates.containsKey(Indexer.DI)) {
+            rates[Indexer.CDI]?.let { rates[Indexer.DI] = it }
+        }
+
         return CachedRates(
             rates = rates,
             referenceDate = refDate,

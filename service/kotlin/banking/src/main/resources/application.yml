@@ -124,12 +124,18 @@ banking:
     url: ${FINANCIALDATA_SERVICE_URL}
     target-audience: ${FINANCIALDATA_SERVICE_AUDIENCE}
     listed-prices-export-path: ${FINANCIALDATA_LISTED_PRICES_EXPORT_PATH}
+    fund-navs-export-path: ${FINANCIALDATA_FUND_NAVS_EXPORT_PATH:/internal/market-data/fund-navs/export}
   market-data-sync:
     listed-prices:
       bulk-enabled: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_BULK_ENABLED:true}
       batch-size: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_BATCH_SIZE:1000}
       connect-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_CONNECT_TIMEOUT_SECONDS:10}
       read-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_LISTED_PRICES_READ_TIMEOUT_SECONDS:600}
+    fund-navs:
+      bulk-enabled: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BULK_ENABLED:true}
+      batch-size: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_BATCH_SIZE:1000}
+      connect-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_CONNECT_TIMEOUT_SECONDS:10}
+      read-timeout-seconds: ${BANKING_MARKET_DATA_SYNC_FUND_NAVS_READ_TIMEOUT_SECONDS:600}
   pdf-import:
     deterministic-enabled: ${BANKING_PDF_IMPORT_DETERMINISTIC_ENABLED:false}
   bill-import:

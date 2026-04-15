@@ -16,7 +16,6 @@ import {
 } from '@/lib/graphql/operations/banking/queries';
 import { DELETE_INVESTMENT_HOLDING } from '@/lib/graphql/operations/banking/mutations';
 import {
-  FinancialAccountsQuery,
   InvestmentCashBalanceQuery,
   InvestmentCashBalanceQueryVariables,
   InvestmentHoldingsQuery,
@@ -54,11 +53,8 @@ const MaturityConfirmDrawer = dynamic(
   { loading: () => null },
 );
 
-type BankAccountRow = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
-
 interface InvestmentTableProps {
   selectedAccountId: string | null;
-  bankAccounts: BankAccountRow[];
   investmentAccounts?: IssuerSelectionAccount[];
   onRecordHolding?: () => void;
   searchQuery?: string;
@@ -101,7 +97,6 @@ function sortTransactionsByMostRecent(transactions: InvestmentTransaction[]): In
 
 export function InvestmentTable({
   selectedAccountId,
-  bankAccounts,
   investmentAccounts = [],
   searchQuery,
 }: InvestmentTableProps) {
@@ -243,6 +238,7 @@ export function InvestmentTable({
 
     setMaturityConfirmHolding({
       id: holding.id,
+      financialAccountId: holding.financialAccountId,
       maturityDate: holding.maturityDate ? String(holding.maturityDate) : null,
       grossValue: holding.grossValue ?? null,
       netValue: holding.netValue ?? null,
@@ -250,7 +246,7 @@ export function InvestmentTable({
       iof: holding.iof ?? null,
       issuerName: holding.asset.issuerName ?? null,
       issuerLogoUrl: holding.asset.logoAsset?.publicUrl ?? holding.financialAccount?.issuer?.logoAsset?.publicUrl ?? null,
-      asset: { id: holding.asset.id, name: holding.asset.name },
+      asset: { id: holding.asset.id, name: holding.asset.name, assetType: holding.asset.assetType ?? null },
     });
     setMaturityConfirmOpen(true);
   }, []);
@@ -461,6 +457,7 @@ export function InvestmentTable({
               group={group}
               expanded={expandedGroups.has(group.key)}
               locale={locale}
+              showConsolidatedCustodianColumn={selectedAccountId == null}
               onToggleGroup={toggleGroup}
               onOpenDetail={handleOpenDetail}
               onOpenMaturityConfirm={handleOpenMaturityConfirmDrawer}
@@ -507,7 +504,7 @@ export function InvestmentTable({
         open={maturityConfirmOpen}
         onClose={closeMaturityConfirmDrawer}
         holding={maturityConfirmHolding}
-        bankAccounts={bankAccounts}
+        investmentAccounts={investmentAccounts}
         onSuccess={refreshInvestmentData}
       />
 

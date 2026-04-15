@@ -67,6 +67,9 @@ class PortfolioQuotaCalculationServiceTest {
     private fun groupResult(quotas: List<InvestmentPortfolioQuota>, key: String) =
         quotas.first { it.dimensionType == PortfolioDimensionType.ASSET_GROUP && it.dimensionKey == key }
 
+    private fun gridClassResult(quotas: List<InvestmentPortfolioQuota>, key: String) =
+        quotas.first { it.dimensionType == PortfolioDimensionType.GRID_CLASS && it.dimensionKey == key }
+
     // ── Portfolio quota: first day ────────────────────────────────────────────
 
     @Nested
@@ -80,7 +83,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = null,
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10000.00")),
                 flowEvents = emptyList(),
             )
 
@@ -120,7 +123,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10100.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10100.00")),
                 flowEvents = emptyList(),
             )
 
@@ -136,7 +139,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.05000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10000.00")),
                 flowEvents = emptyList(),
             )
 
@@ -152,7 +155,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10100.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10100.00")),
                 flowEvents = emptyList(),
             )
             val quotaAfterDay1 = portfolioResult(day1)
@@ -163,7 +166,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date.plusDays(1),
                 previousPortfolioQuota = quotaAfterDay1,
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10201.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10201.00")),
                 flowEvents = emptyList(),
             )
             val quotaAfterDay2 = portfolioResult(day2)
@@ -188,7 +191,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("12100.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("12100.00")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DEPOSIT, "2000.00")),
             )
 
@@ -207,7 +210,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("12000.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("12000.00")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DEPOSIT, "2000.00")),
             )
 
@@ -225,7 +228,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("7070.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("7070.00")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.WITHDRAWAL, "3000.00")),
             )
 
@@ -261,7 +264,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("9800.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("9800.00")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.INCOME_TAX, "200.00")),
             )
 
@@ -280,7 +283,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10850.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10850.00")),
                 flowEvents = listOf(
                     flowEvent(PortfolioFlowEventType.DEPOSIT, "1000.00"),
                     flowEvent(PortfolioFlowEventType.INCOME_TAX, "200.00"),
@@ -311,7 +314,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.22341305", "17739.47"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("3126.53")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("3126.53")),
                 flowEvents = emptyList(), // BUG: no WITHDRAWAL event was created for deleted holdings
             )
 
@@ -335,7 +338,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.22341305", "17739.47"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("3126.53")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("3126.53")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.WITHDRAWAL, "14612.94")),
             )
 
@@ -360,7 +363,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("0.00000000", "0.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("5000.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("5000.00")),
                 flowEvents = emptyList(),
             )
 
@@ -400,30 +403,30 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10000.00")),
                 flowEvents = emptyList(),
             )
 
-            val group = groupResult(result, "bankFixedIncome")
+            val group = groupResult(result, "fixedIncome")
             assertThat(group.quotaValue).isEqualByComparingTo("1.00000000")
-            assertThat(group.dimensionKey).isEqualTo("bankFixedIncome")
+            assertThat(group.dimensionKey).isEqualTo("fixedIncome")
             assertThat(group.totalPortfolioValue).isEqualByComparingTo("10000.00")
         }
 
         @Test
         fun `group quota grows proportionally without flow adjustment`() {
             // Group quotas do not receive flow events — they track pure return
-            val prevGroup = quota("1.00000000", "10000.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "bankFixedIncome")
+            val prevGroup = quota("1.00000000", "10000.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "fixedIncome")
             val result = service.calculateDayQuota(
                 financialAccountId = financialAccountId,
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
-                previousGroupQuotas = mapOf("bankFixedIncome" to prevGroup),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10500.00")),
+                previousGroupQuotas = mapOf("fixedIncome" to prevGroup),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10500.00")),
                 flowEvents = emptyList(),
             )
 
-            val group = groupResult(result, "bankFixedIncome")
+            val group = groupResult(result, "fixedIncome")
             assertThat(group.quotaValue.toDouble()).isCloseTo(1.05, Percentage.withPercentage(0.001))
         }
 
@@ -434,7 +437,7 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("0.00")),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("0.00")),
                 flowEvents = emptyList(),
             )
 
@@ -443,7 +446,7 @@ class PortfolioQuotaCalculationServiceTest {
 
         @Test
         fun `multiple groups are tracked independently`() {
-            val prevFI = quota("1.10000000", "6000.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "bankFixedIncome")
+            val prevFI = quota("1.10000000", "6000.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "fixedIncome")
             val prevStock = quota("0.90000000", "4000.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "stock")
 
             val result = service.calculateDayQuota(
@@ -451,17 +454,17 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = mapOf(
-                    "bankFixedIncome" to prevFI,
+                    "fixedIncome" to prevFI,
                     "stock" to prevStock,
                 ),
                 holdingsValueByGroup = mapOf(
-                    "bankFixedIncome" to groupValuation("6060.00"), // +1%
+                    "fixedIncome" to groupValuation("6060.00"), // +1%
                     "stock" to groupValuation("3960.00"),           // -1%
                 ),
                 flowEvents = emptyList(),
             )
 
-            val fi = groupResult(result, "bankFixedIncome")
+            val fi = groupResult(result, "fixedIncome")
             val stock = groupResult(result, "stock")
 
             assertThat(fi.quotaValue.toDouble()).isCloseTo(1.111, Percentage.withPercentage(0.1))
@@ -470,18 +473,18 @@ class PortfolioQuotaCalculationServiceTest {
 
         @Test
         fun `group quota reinitializes to 1 when previous group value was zero`() {
-            val prevGroup = quota("0.00000000", "0.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "bankFixedIncome")
+            val prevGroup = quota("0.00000000", "0.00", dimensionType = PortfolioDimensionType.ASSET_GROUP, dimensionKey = "fixedIncome")
 
             val result = service.calculateDayQuota(
                 financialAccountId = financialAccountId,
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "5000.00"),
-                previousGroupQuotas = mapOf("bankFixedIncome" to prevGroup),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("5000.00")),
+                previousGroupQuotas = mapOf("fixedIncome" to prevGroup),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("5000.00")),
                 flowEvents = emptyList(),
             )
 
-            val group = groupResult(result, "bankFixedIncome")
+            val group = groupResult(result, "fixedIncome")
             assertThat(group.quotaValue).isEqualByComparingTo("1.00000000")
         }
 
@@ -492,12 +495,109 @@ class PortfolioQuotaCalculationServiceTest {
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("bankFixedIncome" to groupValuation("10000.00", estimated = true)),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10000.00", estimated = true)),
                 flowEvents = emptyList(),
             )
 
-            val group = groupResult(result, "bankFixedIncome")
+            val group = groupResult(result, "fixedIncome")
             assertThat(group.hasEstimatedValues).isTrue()
+        }
+    }
+
+    @Nested
+    @DisplayName("Grid-class quotas")
+    inner class GridClassQuotas {
+        @Test
+        fun `returns empty list when grid class map is empty`() {
+            val result = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = emptyMap(),
+                holdingsValueByGridClass = emptyMap(),
+            )
+
+            assertThat(result).isEmpty()
+        }
+
+        @Test
+        fun `first day initializes quota with GRID_CLASS dimension`() {
+            val result = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = emptyMap(),
+                holdingsValueByGridClass = mapOf(GridClassMapping.FIXED_INCOME to groupValuation("10000.00")),
+            )
+
+            val grid = gridClassResult(result, GridClassMapping.FIXED_INCOME)
+            assertThat(grid.dimensionType).isEqualTo(PortfolioDimensionType.GRID_CLASS)
+            assertThat(grid.quotaValue).isEqualByComparingTo("1.00000000")
+        }
+
+        @Test
+        fun `steady state keeps same quota when value unchanged`() {
+            val previous =
+                quota(
+                    value = "1.05000000",
+                    totalPortfolioValue = "10000.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.FIXED_INCOME,
+                )
+            val result = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = mapOf(GridClassMapping.FIXED_INCOME to previous),
+                holdingsValueByGridClass = mapOf(GridClassMapping.FIXED_INCOME to groupValuation("10000.00")),
+            )
+
+            assertThat(gridClassResult(result, GridClassMapping.FIXED_INCOME).quotaValue).isEqualByComparingTo("1.05000000")
+        }
+
+        @Test
+        fun `applies positive and negative daily returns`() {
+            val previous =
+                quota(
+                    value = "1.00000000",
+                    totalPortfolioValue = "10000.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.FIXED_INCOME,
+                )
+
+            val plusTen = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = mapOf(GridClassMapping.FIXED_INCOME to previous),
+                holdingsValueByGridClass = mapOf(GridClassMapping.FIXED_INCOME to groupValuation("11000.00")),
+            )
+            assertThat(gridClassResult(plusTen, GridClassMapping.FIXED_INCOME).quotaValue.toDouble())
+                .isCloseTo(1.1, Percentage.withPercentage(0.001))
+
+            val minusFive = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = mapOf(
+                    GridClassMapping.FIXED_INCOME to previous.copy(quotaValue = BigDecimal("1.00000000")),
+                ),
+                holdingsValueByGridClass = mapOf(GridClassMapping.FIXED_INCOME to groupValuation("9500.00")),
+            )
+            assertThat(gridClassResult(minusFive, GridClassMapping.FIXED_INCOME).quotaValue.toDouble())
+                .isCloseTo(0.95, Percentage.withPercentage(0.001))
+        }
+
+        @Test
+        fun `tracks multiple grid classes independently`() {
+            val result = service.calculateGridClassDayQuotas(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousGridClassQuotas = emptyMap(),
+                holdingsValueByGridClass = mapOf(
+                    GridClassMapping.FIXED_INCOME to groupValuation("1000.00"),
+                    GridClassMapping.STOCKS to groupValuation("500.00"),
+                ),
+            )
+
+            assertThat(result).hasSize(2)
+            assertThat(gridClassResult(result, GridClassMapping.FIXED_INCOME).quotaValue).isEqualByComparingTo("1.00000000")
+            assertThat(gridClassResult(result, GridClassMapping.STOCKS).quotaValue).isEqualByComparingTo("1.00000000")
         }
     }
 }

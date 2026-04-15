@@ -4,8 +4,8 @@ import React from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import QueryStatsIcon from '@mui/icons-material/QueryStats';
-import SellIcon from '@mui/icons-material/Sell';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 import EventIcon from '@mui/icons-material/Event';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
@@ -82,8 +82,8 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
                 onBuy();
               }}
             >
-              <ListItemIcon>
-                <ShoppingCartIcon fontSize="small" />
+              <ListItemIcon sx={{ color: 'success.main' }}>
+                <AddIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>{buyLabel}</ListItemText>
             </MenuItem>
@@ -98,8 +98,8 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
                 onSell();
               }}
             >
-              <ListItemIcon>
-                <SellIcon fontSize="small" />
+              <ListItemIcon sx={{ color: 'error.main' }}>
+                <RemoveIcon fontSize="small" />
               </ListItemIcon>
               <ListItemText>{sellLabel}</ListItemText>
             </MenuItem>

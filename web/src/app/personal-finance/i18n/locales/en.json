@@ -90,6 +90,9 @@
       "tabs": {
         "ariaLabel": "Investment asset classes",
         "grid": "Grid"
+      },
+      "recordPopover": {
+        "ariaLabel": "Select what to record"
       }
     },
     "transactions": {
@@ -240,6 +243,8 @@
           "TRANSFERRED": "Transferred"
         },
         "bankAccount": "Bank account",
+        "missingHoldingAccount": "Investment account not found.",
+        "creditDestination": "Credit destination",
         "creditDate": "Credit date",
         "amountMustBePositive": "Amount must be greater than zero.",
         "submitClose": "Close",
@@ -329,6 +334,9 @@
         "gain": "Gain/Loss"
       },
       "searchPlaceholder": "Search holdings...",
+      "actions": {
+        "clearSearchAriaLabel": "Clear search"
+      },
       "cashInAccount": "Cash in account",
       "noMatches": "No holdings match your search.",
       "valuationTooltip": {
@@ -381,8 +389,7 @@
       },
       "groups": {
         "variableIncome": "Variable income",
-        "bankFixedIncome": "Fixed income",
-        "creditFixedIncome": "Credit fixed income",
+        "fixedIncome": "Fixed income",
         "mutualFunds": "Investment funds",
         "pension": "Pension",
         "structured": "Structured",
@@ -532,9 +539,12 @@
       "fields": {
         "quantity": "Redeemed quantity",
         "quantityHelper": "Max: {{max}}",
+        "detailTaxes": "Break down taxes",
         "grossValue": "Gross amount received",
         "incomeTax": "Withheld income tax",
+        "incomeTaxOptional": "Withheld income tax (optional)",
         "iof": "IOF",
+        "iofOptional": "IOF (optional)",
         "netValueInfo": "Net amount: {{value}}",
         "tradeDate": "Redemption date"
       },

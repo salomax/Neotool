@@ -9,7 +9,7 @@ SET search_path TO security, public;
 -- 1. Register new permissions
 INSERT INTO security.permissions (name) VALUES
     ('banking:investment:view'),
-    ('banking:investment:create'),
+    ('banking:investment:update'),
     ('banking:investment:delete')
 ON CONFLICT (name) DO NOTHING;
 
@@ -21,7 +21,7 @@ CROSS JOIN security.permissions p
 WHERE r.name = 'Banking User'
   AND p.name IN (
       'banking:investment:view',
-      'banking:investment:create',
+      'banking:investment:update',
       'banking:investment:delete'
   )
 ON CONFLICT DO NOTHING;

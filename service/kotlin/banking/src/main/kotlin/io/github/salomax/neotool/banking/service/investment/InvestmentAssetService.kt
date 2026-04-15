@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.*
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import jakarta.inject.Singleton
 import java.util.UUID
 
@@ -12,6 +13,7 @@ import java.util.UUID
 @Singleton
 class InvestmentAssetService(
     private val assetRepository: AssetRepository,
+    private val holdingRepository: HoldingRepository,
 ) {
     fun findById(id: UUID): Asset? = assetRepository.findById(id)
 
@@ -47,6 +49,35 @@ class InvestmentAssetService(
                 fundCnpj = normalizedFundCnpj,
                 ticker = normalizedTicker,
                 isinCode = normalizedIsinCode,
+                currencyCode = currencyCode,
+            ),
+        )
+    }
+
+    fun update(
+        id: UUID,
+        accountId: UUID,
+        name: String,
+        assetType: AssetType,
+        issuerName: String?,
+        fundCnpj: String?,
+        ticker: String?,
+        isinCode: String?,
+        currencyCode: String,
+    ): Asset {
+        require(name.isNotBlank()) { "name is required" }
+        require(holdingRepository.findByAccount(accountId).any { it.assetId == id }) {
+            "Asset $id cannot be updated because it is not linked to holdings owned by account $accountId"
+        }
+        val existing = assetRepository.findById(id) ?: throw NoSuchElementException("Asset $id not found")
+        return assetRepository.update(
+            existing.copy(
+                name = name,
+                assetType = assetType,
+                issuerName = issuerName?.trim()?.takeIf { it.isNotBlank() },
+                fundCnpj = fundCnpj?.trim()?.takeIf { it.isNotBlank() },
+                ticker = ticker?.trim()?.uppercase()?.takeIf { it.isNotBlank() },
+                isinCode = isinCode?.trim()?.uppercase()?.takeIf { it.isNotBlank() },
                 currencyCode = currencyCode,
             ),
         )

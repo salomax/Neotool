@@ -341,29 +341,43 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
 
   const visiblePayload = React.useMemo(() => {
     const rawPayload = safePayload;
-    const actualWithValue = new Set<string>();
+    /** Higher wins: one tooltip row per logical series (avoid duplicate net/gross from __partial + __proj). */
+    const bestBySeriesId = new Map<string, { entry: any; priority: number }>();
+
+    const resolveSeriesId = (dataKey: string): string => {
+      if (dataKey.startsWith("__actual_")) return dataKey.slice("__actual_".length);
+      if (dataKey.startsWith("__partial_")) return dataKey.slice("__partial_".length);
+      if (dataKey.startsWith("__proj_")) return dataKey.slice("__proj_".length);
+      const serie = series.find((s) => s.dataKey === dataKey);
+      return serie?.id ?? dataKey;
+    };
+
+    const prefixPriority = (dataKey: string): number => {
+      if (dataKey.startsWith("__actual_")) return 3;
+      if (dataKey.startsWith("__partial_")) return 2;
+      if (dataKey.startsWith("__proj_")) return 1;
+      return 3;
+    };
+
     for (const entry of rawPayload) {
       const key = entry?.dataKey;
-      if (typeof key === "string" && key.startsWith("__actual_") && entry.value != null) {
-        actualWithValue.add(key.slice("__actual_".length));
+      if (typeof key !== "string") continue;
+      const v = entry.value;
+      if (v == null && typeof v !== "number") continue;
+
+      const seriesId = resolveSeriesId(key);
+      const priority = prefixPriority(key);
+      const prev = bestBySeriesId.get(seriesId);
+      if (!prev || priority > prev.priority) {
+        bestBySeriesId.set(seriesId, { entry, priority });
       }
     }
 
-    const out: any[] = [];
-    for (const entry of rawPayload) {
-      const key = entry?.dataKey;
-      if (typeof key === "string" && key.startsWith("__proj_")) {
-        const seriesId = key.slice("__proj_".length);
-        if (actualWithValue.has(seriesId)) continue;
-      }
-      if (typeof key === "string" && key.startsWith("__partial_")) {
-        const seriesId = key.slice("__partial_".length);
-        if (actualWithValue.has(seriesId)) continue;
-      }
-      out.push(entry);
-    }
-    return out;
-  }, [safePayload]);
+    const order = new Map(series.map((s, i) => [s.id, i]));
+    return Array.from(bestBySeriesId.entries())
+      .sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999))
+      .map(([, { entry }]) => entry);
+  }, [safePayload, series]);
 
   if (!active || safePayload.length === 0) return null;
 

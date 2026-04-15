@@ -70,9 +70,8 @@ export function InvestmentGrid({
           selectedAssetClassKey={grid.selectedAssetClassKey}
           onClassChange={grid.selectAssetClass}
           onBackToGrid={grid.clearAssetClass}
-          onRecordCta={grid.openRecordForSelectedClass}
+          onOpenRecordDrawerForClass={grid.openRecordDrawerForClass}
           selectedAccountId={selectedAccountId}
-          bankAccounts={bankAccounts}
           investmentAccounts={investmentAccounts}
           searchQuery={searchQuery}
           onSelectSearchAsset={onSelectSearchAsset}

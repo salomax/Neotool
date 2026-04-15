@@ -205,6 +205,22 @@ class BankingWiringFactoryTest {
         }
 
         @Test
+        fun `gridClassTwrSeries requires banking_investment_view permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["gridClassTwrSeries"]!!
+
+            val env =
+                envWithToken(
+                    arguments = mapOf("gridClassKey" to "cash"),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_VIEW))
+            verify(investmentResolver).gridClassTwrSeries(anyOrNull(), eq("cash"), anyOrNull(), any())
+        }
+
+        @Test
         fun `transactionRules forwards optional isSystem argument to resolver`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Query"]!!["transactionRules"]!!
@@ -283,7 +299,7 @@ class BankingWiringFactoryTest {
         }
 
         @Test
-        fun `createInvestmentAsset requires banking_investment_create permission`() {
+        fun `createInvestmentAsset requires banking_investment_update permission`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["createInvestmentAsset"]!!
 
@@ -301,11 +317,11 @@ class BankingWiringFactoryTest {
 
             dataFetcher.get(env)
 
-            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_CREATE))
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_UPDATE))
         }
 
         @Test
-        fun `createInvestmentCashTransaction requires banking_investment_create permission`() {
+        fun `createInvestmentCashTransaction requires banking_investment_update permission`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Mutation"]!!["createInvestmentCashTransaction"]!!
 
@@ -325,7 +341,7 @@ class BankingWiringFactoryTest {
 
             dataFetcher.get(env)
 
-            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_CREATE))
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_UPDATE))
         }
     }
 }

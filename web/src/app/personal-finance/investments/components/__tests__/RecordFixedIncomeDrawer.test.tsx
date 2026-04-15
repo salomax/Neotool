@@ -3,16 +3,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { RecordFixedIncomeDrawer } from '../RecordFixedIncomeDrawer';
-import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import {
+  CREATE_INVESTMENT_ASSET,
+  RECORD_INVESTMENT_TRANSACTION,
+  UPDATE_INVESTMENT_ASSET,
+  UPDATE_INVESTMENT_TRANSACTION,
+} from '@/lib/graphql/operations/banking/mutations';
 
 const mockUseMutation = vi.fn();
 const mockCreateAsset = vi.fn();
 const mockRecordTransaction = vi.fn();
+const mockUpdateAsset = vi.fn();
+const mockUpdateTransaction = vi.fn();
 const mockRefetchQueries = vi.fn().mockResolvedValue([]);
 const successMock = vi.fn();
 
 let createMutationState: { loading: boolean; error: Error | null };
 let recordMutationState: { loading: boolean; error: Error | null };
+let updateAssetMutationState: { loading: boolean; error: Error | null };
+let updateTxMutationState: { loading: boolean; error: Error | null };
 let recordOnCompleted: ((data: unknown) => void) | undefined;
 
 vi.mock('@apollo/client/react', () => ({
@@ -279,6 +288,33 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
         onRecorded={onRecorded}
       />,
     );
+  const renderEditDrawer = () =>
+    render(
+      <RecordFixedIncomeDrawer
+        open
+        onClose={onClose}
+        financialAccountId="acc-1"
+        financialAccounts={[{ id: 'acc-1', name: 'Conta Investimentos', issuerName: 'Corretora', themeColor: '#1976d2' } as any]}
+        onRecorded={onRecorded}
+        editHolding={{
+          id: 'holding-1',
+          asset: { id: 'asset-1', name: 'CDB Antigo', assetType: 'CDB' as any, issuerName: 'Banco Antigo' },
+          indexer: 'CDI' as any,
+          indexerPercentage: 1.2,
+          fixedAnnualRate: null,
+          maturityDate: '2028-03-12',
+          isTaxExempt: false,
+        }}
+        editTransaction={{
+          id: 'tx-1',
+          direction: 'INFLOW',
+          type: 'PURCHASE',
+          quantity: 1,
+          grossValue: 10000,
+          tradeDate: '2026-03-12',
+        } as any}
+      />,
+    );
 
   const fillValidForm = async (
     overrides?: { tradeDate?: string; maturityDate?: string; indexerPercentage?: string },
@@ -310,6 +346,8 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
 
     createMutationState = { loading: false, error: null };
     recordMutationState = { loading: false, error: null };
+    updateAssetMutationState = { loading: false, error: null };
+    updateTxMutationState = { loading: false, error: null };
     recordOnCompleted = undefined;
 
     mockUseMutation.mockImplementation((mutation: unknown, options?: { onCompleted?: (data: unknown) => void }) => {
@@ -320,6 +358,12 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
       if (mutation === RECORD_INVESTMENT_TRANSACTION) {
         recordOnCompleted = options?.onCompleted;
         return [mockRecordTransaction, recordMutationState];
+      }
+      if (mutation === UPDATE_INVESTMENT_ASSET) {
+        return [mockUpdateAsset, updateAssetMutationState];
+      }
+      if (mutation === UPDATE_INVESTMENT_TRANSACTION) {
+        return [mockUpdateTransaction, updateTxMutationState];
       }
 
       return [vi.fn(), { loading: false, error: null }];
@@ -334,6 +378,8 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
       recordOnCompleted?.(result);
       return { data: result };
     });
+    mockUpdateAsset.mockResolvedValue({ data: { updateInvestmentAsset: { id: 'asset-1' } } });
+    mockUpdateTransaction.mockResolvedValue({ data: { updateInvestmentTransaction: { id: 'tx-1' } } });
   });
 
   afterEach(() => {
@@ -541,5 +587,34 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
     renderDrawer();
 
     expect(screen.getByRole('alert')).toHaveTextContent('create failed');
+  });
+
+  it('in edit mode updates asset and transaction instead of recording new transaction', async () => {
+    const user = userEvent.setup();
+    renderEditDrawer();
+
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText('investments.recordHolding.fields.assetName'), { target: { value: 'CDB Renomeado' } });
+      fireEvent.change(screen.getByLabelText('investments.recordHolding.fields.issuerName'), { target: { value: 'Banco Novo' } });
+    });
+    await user.click(screen.getByRole('button', { name: 'investments.recordHolding.actions.submit' }));
+
+    await waitFor(() => {
+      expect(mockUpdateAsset).toHaveBeenCalledOnce();
+      expect(mockUpdateTransaction).toHaveBeenCalledOnce();
+    });
+    expect(mockRecordTransaction).not.toHaveBeenCalled();
+  });
+
+  it('in edit mode skips asset update when identity fields are unchanged', async () => {
+    const user = userEvent.setup();
+    renderEditDrawer();
+
+    await user.click(screen.getByRole('button', { name: 'investments.recordHolding.actions.submit' }));
+
+    await waitFor(() => {
+      expect(mockUpdateTransaction).toHaveBeenCalledOnce();
+    });
+    expect(mockUpdateAsset).not.toHaveBeenCalled();
   });
 });

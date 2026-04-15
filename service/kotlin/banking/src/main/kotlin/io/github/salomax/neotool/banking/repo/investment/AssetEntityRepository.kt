@@ -14,6 +14,8 @@ interface AssetEntityRepository : JpaRepository<AssetEntity, UUID> {
 
     fun findByTickerIsNotNull(): List<AssetEntity>
 
+    fun findByFundCnpjIsNotNull(): List<AssetEntity>
+
     fun findByTicker(ticker: String): AssetEntity?
 
     fun findByIsinCode(isinCode: String): AssetEntity?

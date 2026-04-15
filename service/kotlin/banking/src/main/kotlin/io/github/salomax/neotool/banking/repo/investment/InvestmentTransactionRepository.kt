@@ -59,6 +59,8 @@ interface InvestmentTransactionRepository {
 
     fun save(transaction: InvestmentTransaction): InvestmentTransaction
 
+    fun update(transaction: InvestmentTransaction): InvestmentTransaction
+
     fun softDelete(
         id: UUID,
         accountId: UUID,

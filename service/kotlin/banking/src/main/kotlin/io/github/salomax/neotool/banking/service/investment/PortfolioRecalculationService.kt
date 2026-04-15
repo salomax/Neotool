@@ -18,7 +18,7 @@ import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventReposi
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
 import io.github.salomax.neotool.banking.service.investment.recalculation.HistoricalHoldingTimeline
-import io.github.salomax.neotool.banking.service.investment.recalculation.mergeGroupValuations
+import io.github.salomax.neotool.banking.service.investment.recalculation.mergeDimensionValuations
 import io.github.salomax.neotool.common.error.DomainException
 import io.github.salomax.neotool.common.error.ErrorCode
 import jakarta.inject.Singleton
@@ -100,6 +100,9 @@ class PortfolioRecalculationService(
             val previousGroupQuotas =
                 anchorQuotas[PortfolioDimensionType.ASSET_GROUP]?.toMutableMap()
                     ?: mutableMapOf()
+            val previousGridClassQuotas =
+                anchorQuotas[PortfolioDimensionType.GRID_CLASS]?.toMutableMap()
+                    ?: mutableMapOf()
 
             portfolioQuotaRepository.deleteFromDate(financialAccountId, startDate)
 
@@ -120,8 +123,8 @@ class PortfolioRecalculationService(
             var currentJob = claimed
             var date = startDate
             while (!date.isAfter(today)) {
-                val holdingsValueByGroup =
-                    mergeGroupValuations(
+                val dailyDimensionValuation =
+                    mergeDimensionValuations(
                         timelines = simulationInput.timelines,
                         date = date,
                         rateMap = simulationInput.rateMap,
@@ -135,15 +138,24 @@ class PortfolioRecalculationService(
                         date = date,
                         previousPortfolioQuota = previousPortfolioQuota,
                         previousGroupQuotas = previousGroupQuotas,
-                        holdingsValueByGroup = holdingsValueByGroup,
+                        holdingsValueByGroup = dailyDimensionValuation.holdingsValueByGroup,
                         flowEvents = simulationInput.flowEventsByDate[date].orEmpty(),
                     )
+                val gridClassDayQuotas =
+                    portfolioQuotaCalculationService.calculateGridClassDayQuotas(
+                        financialAccountId = financialAccountId,
+                        date = date,
+                        previousGridClassQuotas = previousGridClassQuotas,
+                        holdingsValueByGridClass = dailyDimensionValuation.holdingsValueByGridClass,
+                    )
 
-                portfolioQuotaRepository.batchUpsert(dayQuotas).forEach { saved ->
+                portfolioQuotaRepository.batchUpsert(dayQuotas + gridClassDayQuotas).forEach { saved ->
                     if (saved.dimensionType == PortfolioDimensionType.PORTFOLIO) {
                         previousPortfolioQuota = saved
-                    } else {
+                    } else if (saved.dimensionType == PortfolioDimensionType.ASSET_GROUP) {
                         previousGroupQuotas[saved.dimensionKey.orEmpty()] = saved
+                    } else if (saved.dimensionType == PortfolioDimensionType.GRID_CLASS) {
+                        previousGridClassQuotas[saved.dimensionKey.orEmpty()] = saved
                     }
                 }
 

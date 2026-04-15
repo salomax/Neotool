@@ -18,7 +18,7 @@ interface PortfolioQuotaRepository {
     ): InvestmentPortfolioQuota?
 
     /**
-     * Returns the latest quota for every dimension (PORTFOLIO + all ASSET_GROUP keys) in a single query.
+     * Returns the latest quota for every dimension (PORTFOLIO + all ASSET_GROUP/GRID_CLASS keys) in a single query.
      * Result is keyed by [dimensionKey] (empty string for PORTFOLIO dimension).
      */
     fun findLatestBeforeAllDimensions(
@@ -28,6 +28,14 @@ interface PortfolioQuotaRepository {
 
     fun findByAccountAndDateRange(
         financialAccountId: UUID,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentPortfolioQuota>
+
+    fun findByAccountsAndDateRange(
+        financialAccountIds: List<UUID>,
         dimensionType: PortfolioDimensionType,
         dimensionKey: String?,
         from: LocalDate,

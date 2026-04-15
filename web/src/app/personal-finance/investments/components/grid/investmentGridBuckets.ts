@@ -27,7 +27,7 @@ export function bucketHoldingsByGridClass(holdings: readonly GridHoldingRow[]): 
     const type = holding.asset?.assetType;
     const groupKey = getAssetGroupKey(type);
 
-    if (groupKey === "bankFixedIncome" || groupKey === "creditFixedIncome") {
+    if (groupKey === "fixedIncome") {
       buckets["fixed-income"].push(holding);
       continue;
     }

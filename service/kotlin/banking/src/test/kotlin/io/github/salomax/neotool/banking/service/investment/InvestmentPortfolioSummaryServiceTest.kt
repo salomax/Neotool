@@ -71,7 +71,7 @@ class InvestmentPortfolioSummaryServiceTest {
         )
         whenever(portfolioPerformanceQueryService.getAssetGroupPerformance(financialAccountId, accountId, "variableIncome", PerformancePeriodDTO.YTD))
             .thenReturn(0.12)
-        whenever(portfolioPerformanceQueryService.getAssetGroupPerformance(financialAccountId, accountId, "bankFixedIncome", PerformancePeriodDTO.YTD))
+        whenever(portfolioPerformanceQueryService.getAssetGroupPerformance(financialAccountId, accountId, "fixedIncome", PerformancePeriodDTO.YTD))
             .thenReturn(0.04)
         whenever(portfolioPerformanceQueryService.getRecalculationStatus(accountId)).thenReturn(
             RecalculationStatusDTO(
@@ -96,10 +96,10 @@ class InvestmentPortfolioSummaryServiceTest {
         assertThat(summary.hasEstimatedValues).isTrue()
         assertThat(summary.valuationReferenceDate).isEqualTo(LocalDate.of(2026, 4, 3))
         assertThat(summary.currencyCode).isEqualTo("BRL")
-        assertThat(summary.byAssetGroup.map { it.groupKey }).containsExactly("variableIncome", "bankFixedIncome", "cash")
+        assertThat(summary.byAssetGroup.map { it.groupKey }).containsExactly("variableIncome", "fixedIncome", "cash")
         assertThat(summary.byAssetGroup.first { it.groupKey == "cash" }.allocationPercent).isEqualTo(0.09803922)
         assertThat(summary.byAssetGroup.first { it.groupKey == "variableIncome" }.twr).isEqualTo(0.12)
-        assertThat(summary.byAssetGroup.first { it.groupKey == "bankFixedIncome" }.twr).isEqualTo(0.04)
+        assertThat(summary.byAssetGroup.first { it.groupKey == "fixedIncome" }.twr).isEqualTo(0.04)
         assertThat(summary.byAssetGroup.first { it.groupKey == "cash" }.twr).isNull()
         assertThat(summary.performance.period).isEqualTo(PerformancePeriodDTO.YTD)
         assertThat(summary.performance.twr).isEqualTo(0.0845)

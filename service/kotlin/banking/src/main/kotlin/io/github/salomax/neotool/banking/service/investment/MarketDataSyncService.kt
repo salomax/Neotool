@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FinancialDataMarketDataSyncClient
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundNavBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetPriceBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.EconomicIndicatorPointSyncNode
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
@@ -38,6 +39,7 @@ class MarketDataSyncService(
     private val syncControlRepository: MarketDataSyncControlRepository,
     private val financialDataSyncClient: FinancialDataMarketDataSyncClient,
     private val listedAssetPriceBulkSyncClient: ListedAssetPriceBulkSyncClient,
+    private val fundNavBulkSyncClient: FundNavBulkSyncClient,
     private val assetRepository: AssetRepository,
     private val assetDailyPriceRepository: AssetDailyPriceRepository,
     private val marketIndicatorPointRepository: MarketIndicatorPointRepository,
@@ -54,6 +56,10 @@ class MarketDataSyncService(
     private val listedPriceBulkEnabled: Boolean,
     @param:Property(name = "banking.market-data-sync.listed-prices.batch-size", defaultValue = "1000")
     private val listedPriceBatchSize: Int,
+    @param:Property(name = "banking.market-data-sync.fund-navs.bulk-enabled", defaultValue = "true")
+    private val fundNavBulkEnabled: Boolean,
+    @param:Property(name = "banking.market-data-sync.fund-navs.batch-size", defaultValue = "1000")
+    private val fundNavBatchSize: Int,
 ) {
     private val logger = KotlinLogging.logger {}
     private val mathContext = MathContext(12)
@@ -135,7 +141,7 @@ class MarketDataSyncService(
     ): SyncExecutionResult =
         when (jobName) {
             MarketDataSyncJobName.B3_COTAHIST -> syncListedAssetPrices(event, existing, syncStartedAt)
-            MarketDataSyncJobName.CVM_NAV -> SyncExecutionResult(syncFundDailyNavs(event))
+            MarketDataSyncJobName.CVM_NAV -> syncFundDailyNavs(event, existing, syncStartedAt)
             MarketDataSyncJobName.INDICATORS -> SyncExecutionResult(syncIndicators(event))
             MarketDataSyncJobName.B3_CORPORATE_EVENTS -> SyncExecutionResult(syncCorporateEvents(existing))
         }
@@ -262,7 +268,83 @@ class MarketDataSyncService(
         )
     }
 
-    private fun syncFundDailyNavs(event: MarketDataJobSucceededEvent): LocalDate? {
+    private fun syncFundDailyNavs(
+        event: MarketDataJobSucceededEvent,
+        existing: MarketDataSyncControl,
+        syncStartedAt: Instant,
+    ): SyncExecutionResult {
+        if (!fundNavBulkEnabled) {
+            return SyncExecutionResult(syncFundDailyNavsViaGraphQl(event))
+        }
+
+        val assetsByCnpj =
+            assetRepository.findAllWithFundCnpj()
+                .mapNotNull { asset ->
+                    val assetId = asset.id ?: return@mapNotNull null
+                    val cnpj = asset.fundCnpj?.trim()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                    cnpj to assetId
+                }.toMap()
+        if (assetsByCnpj.isEmpty()) {
+            logger.info { "Skipping fund NAV bulk sync because banking has no assets with fund_cnpj" }
+            return SyncExecutionResult(lastSyncedDate = null, processedRows = 0)
+        }
+
+        val resumeCursor = existing.lastCursor.takeIf { existing.lastEventId == event.eventId }
+        var maxSyncedDate: LocalDate? = null
+        var processedRows = 0
+        var lastCursor = resumeCursor
+        val pendingUpserts = ArrayList<InvestmentAssetDailyPrice>(fundNavBatchSize.coerceAtLeast(1))
+
+        fundNavBulkSyncClient.streamFundDailyNavs(
+            from = event.fromDate,
+            to = event.lastDataDate,
+            updatedSince = null,
+            cnpjs = assetsByCnpj.keys,
+            after = resumeCursor,
+        ) { item ->
+            val assetId = assetsByCnpj[item.cnpj.trim()] ?: return@streamFundDailyNavs
+            pendingUpserts +=
+                InvestmentAssetDailyPrice(
+                    assetId = assetId,
+                    priceDate = item.date,
+                    closePrice = item.closePrice,
+                    source = MarketDataSyncJobName.CVM_NAV.jobName,
+                )
+            maxSyncedDate = maxDate(maxSyncedDate, item.date)
+            processedRows += 1
+            lastCursor = item.cursor
+
+            if (pendingUpserts.size >= fundNavBatchSize.coerceAtLeast(1)) {
+                flushFundNavBatch(
+                    batch = pendingUpserts,
+                    control = existing,
+                    event = event,
+                    syncStartedAt = syncStartedAt,
+                    lastCursor = lastCursor,
+                )
+            }
+        }
+
+        flushFundNavBatch(
+            batch = pendingUpserts,
+            control = existing,
+            event = event,
+            syncStartedAt = syncStartedAt,
+            lastCursor = lastCursor,
+        )
+
+        logger.info {
+            "Fund NAV bulk sync completed: eventId=${event.eventId} from=${event.fromDate} to=${event.lastDataDate} " +
+                "cnpjs=${assetsByCnpj.size} rows=$processedRows resumed=${resumeCursor != null}"
+        }
+        return SyncExecutionResult(
+            lastSyncedDate = maxSyncedDate,
+            lastCursor = lastCursor,
+            processedRows = processedRows,
+        )
+    }
+
+    private fun syncFundDailyNavsViaGraphQl(event: MarketDataJobSucceededEvent): LocalDate? {
         var maxSyncedDate: LocalDate? = null
         financialDataSyncClient.forEachFundDailyNav(
             from = event.fromDate,
@@ -283,6 +365,30 @@ class MarketDataSyncService(
             }
         }
         return maxSyncedDate
+    }
+
+    private fun flushFundNavBatch(
+        batch: MutableList<InvestmentAssetDailyPrice>,
+        control: MarketDataSyncControl,
+        event: MarketDataJobSucceededEvent,
+        syncStartedAt: Instant,
+        lastCursor: String?,
+    ) {
+        if (batch.isEmpty()) return
+        assetDailyPriceRepository.upsertAll(batch)
+        batch.clear()
+        syncControlRepository.upsert(
+            control.copy(
+                sourceLastDataDate = maxDate(control.sourceLastDataDate, event.lastDataDate),
+                sourceLastRunAt = maxInstant(control.sourceLastRunAt, event.lastRunAt),
+                lastEventId = event.eventId,
+                lastCursor = lastCursor,
+                status = MarketDataSyncStatus.SYNCING,
+                lastSyncStartedAt = syncStartedAt,
+                lastError = null,
+                updatedAt = Instant.now(),
+            ),
+        )
     }
 
     private fun syncIndicators(event: MarketDataJobSucceededEvent): LocalDate? {

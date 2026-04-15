@@ -1,4 +1,5 @@
 import { createTheme, ThemeOptions, alpha, Shadows } from "@mui/material/styles";
+import { fixedIncomeTypeColorsByMode } from "./fixedIncomeTypeColors";
 import { tokens, Mode, DesignTokens } from "./tokens";
 
 type CustomPaletteTokens = Pick<
@@ -27,6 +28,8 @@ declare module "@mui/material/styles" {
       radius: DesignTokens["radius"];
       border: DesignTokens["border"];
       palette: CustomPaletteTokens;
+      /** Background colors for fixed-income type avatars (`AssetType` → hex). Includes `DEFAULT`. */
+      fixedIncomeTypeColors: Record<string, string>;
       shadow: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -36,6 +39,7 @@ declare module "@mui/material/styles" {
       radius?: DesignTokens["radius"];
       border?: DesignTokens["border"];
       palette?: CustomPaletteTokens;
+      fixedIncomeTypeColors?: Record<string, string>;
       shadow?: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -248,6 +252,7 @@ export const createAppTheme = (mode: Mode) => {
       radius: t.radius,
       border: t.border,
       shadow: buildShadow,
+      fixedIncomeTypeColors: fixedIncomeTypeColorsByMode[mode],
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,

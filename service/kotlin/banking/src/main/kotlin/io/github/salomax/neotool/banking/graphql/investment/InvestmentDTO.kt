@@ -29,6 +29,13 @@ enum class PerformancePeriodDTO {
     ALL,
 }
 
+enum class GridClassTwrPeriod {
+    SIX_MONTHS,
+    ONE_YEAR,
+    THREE_YEARS,
+    ALL,
+}
+
 // ── Asset ─────────────────────────────────────────────────────────────────────
 
 data class InvestmentAssetDTO(
@@ -207,6 +214,11 @@ data class BenchmarkPerformanceDTO(
     val code: String,
     val label: String,
     val twr: Double?,
+)
+
+data class GridClassTwrPointDTO(
+    val date: LocalDate,
+    val quotaValue: Double,
 )
 
 data class PortfolioPerformanceDTO(

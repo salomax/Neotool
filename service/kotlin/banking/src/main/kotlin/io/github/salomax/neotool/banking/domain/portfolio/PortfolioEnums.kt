@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.domain.portfolio
 enum class PortfolioDimensionType {
     PORTFOLIO,
     ASSET_GROUP,
+    GRID_CLASS,
 }
 
 enum class PortfolioFlowEventType {

@@ -215,6 +215,65 @@ open class InvestmentTransactionService(
         return savedTx
     }
 
+    @Transactional
+    open fun update(
+        id: UUID,
+        command: UpdateInvestmentTransactionCommand,
+        accountId: UUID,
+        userId: UUID,
+    ): InvestmentTransaction {
+        validateUpdateCommand(command)
+        val existingTx =
+            investmentTransactionRepository.findById(id, accountId)
+                ?: throw NoSuchElementException("InvestmentTransaction $id not found")
+        check(existingTx.source == InvestmentSource.MANUAL) {
+            "Only MANUAL transactions can be updated; synced transactions must be managed via the provider"
+        }
+        val existingHolding =
+            holdingRepository.findById(existingTx.holdingId, accountId)
+                ?: throw NoSuchElementException("Holding ${existingTx.holdingId} not found")
+        val now = Instant.now()
+        val updatedTx =
+            existingTx.copy(
+                direction = command.direction,
+                type = command.type,
+                typeAdditionalInfo = command.typeAdditionalInfo,
+                quantity = command.quantity,
+                unitPrice = command.unitPrice,
+                grossValue = command.grossValue,
+                netValue = command.netValue,
+                incomeTax = command.incomeTax,
+                iof = command.iof,
+                indexerPercentage = command.indexerPercentage,
+                fixedAnnualRate = command.fixedAnnualRate,
+                priceFactor = command.priceFactor,
+                tradeDate = command.tradeDate,
+                settlementDate = command.settlementDate,
+                brokerNote = command.brokerNote,
+                updatedAt = now,
+            )
+        val savedTx = investmentTransactionRepository.update(updatedTx)
+        removePortfolioFlowSideEffects(existingTx)
+        removeCustodianLedgerLegsLinkedToInvestmentTransactions(listOf(id), accountId)
+        val rebuiltHolding =
+            requireNotNull(recomputeHoldingState(existingHolding, accountId, command, now)) {
+                "Holding ${existingHolding.id} cannot be empty after transaction update"
+            }
+        val asset =
+            assetRepository.findById(existingHolding.assetId)
+                ?: throw NoSuchElementException("Asset ${existingHolding.assetId} not found")
+        val replayCommand = savedTx.toReplayCommand(rebuiltHolding)
+        syncInvestmentCashLedger(
+            savedTx = savedTx,
+            command = replayCommand,
+            asset = asset,
+            accountId = accountId,
+            userId = userId,
+        )
+        syncPortfolioPerformance(rebuiltHolding, savedTx, accountId)
+        return savedTx
+    }
+
     /**
      * Mirrors investment cash events into `banking.transactions` on the same custodian account,
      * linked via [io.github.salomax.neotool.banking.domain.transaction.Transaction.investmentTransactionId].
@@ -645,6 +704,15 @@ open class InvestmentTransactionService(
         }
     }
 
+    private fun validateUpdateCommand(command: UpdateInvestmentTransactionCommand) {
+        require(command.grossValue >= BigDecimal.ZERO) { "grossValue must be >= 0" }
+        if (command.type == InvestmentTransactionType.OTHER) {
+            requireNotNull(command.typeAdditionalInfo) {
+                "typeAdditionalInfo is required when type is OTHER"
+            }
+        }
+    }
+
     /**
      * Prevents adding a new PURCHASE to an existing fixed income holding.
      *
@@ -678,36 +746,51 @@ open class InvestmentTransactionService(
         existingHolding: Holding,
         accountId: UUID,
     ) {
-        val holdingId = requireNotNull(existingHolding.id) { "Holding id must not be null for delete recomputation" }
         val now = Instant.now()
+        val holdingId = requireNotNull(existingHolding.id) { "Holding id must not be null for delete recomputation" }
+        val rebuiltHolding = recomputeHoldingState(existingHolding, accountId, null, now)
+        if (rebuiltHolding == null) {
+            pendingActionRepository.cancelByEntityAndType("HOLDING", holdingId, PendingActionType.INVESTMENT_MATURED, now)
+            holdingRepository.softDelete(holdingId, accountId)
+        }
+    }
+
+    private fun recomputeHoldingState(
+        existingHolding: Holding,
+        accountId: UUID,
+        updateCommand: UpdateInvestmentTransactionCommand?,
+        now: Instant,
+    ): Holding? {
+        val holdingId = requireNotNull(existingHolding.id) { "Holding id must not be null for recomputation" }
         val remainingTransactions =
             investmentTransactionRepository.findByHolding(holdingId, accountId)
                 .sortedWith(compareBy<InvestmentTransaction>({ it.tradeDate }, { it.createdAt }))
-
-        if (remainingTransactions.isEmpty()) {
-            pendingActionRepository.cancelByEntityAndType("HOLDING", holdingId, PendingActionType.INVESTMENT_MATURED, now)
-            holdingRepository.softDelete(holdingId, accountId)
-            return
-        }
-
+        if (remainingTransactions.isEmpty()) return null
         val replayBase =
             existingHolding.copy(
                 quantity = BigDecimal.ZERO,
                 averageCost = BigDecimal.ZERO,
+                indexer = updateCommand?.indexer ?: existingHolding.indexer,
+                issueDate = updateCommand?.issueDate ?: existingHolding.issueDate,
+                maturityDate = updateCommand?.maturityDate ?: existingHolding.maturityDate,
+                gracePeriodDate = updateCommand?.gracePeriodDate ?: existingHolding.gracePeriodDate,
+                isTaxExempt = updateCommand?.isTaxExempt ?: existingHolding.isTaxExempt,
+                pricingMode = updateCommand?.pricingMode ?: existingHolding.pricingMode,
+                manualGrossValue = updateCommand?.manualValuation?.grossValue ?: existingHolding.manualGrossValue,
+                manualValuedAt = updateCommand?.manualValuation?.valuedAt ?: existingHolding.manualValuedAt,
                 updatedAt = now,
             )
-
         val rebuiltHolding =
             remainingTransactions.fold(replayBase) { holding, transaction ->
                 applyEffect(
                     holding = holding,
-                    command = transaction.toReplayCommand(existingHolding),
+                    command = transaction.toReplayCommand(replayBase),
                     now = now,
                 )
             }
-
         val saved = holdingRepository.update(rebuiltHolding.copy(updatedAt = now))
         syncMaturityPendingAction(saved, accountId)
+        return saved
     }
 
     /**
@@ -900,6 +983,9 @@ private fun InvestmentTransaction.toPortfolioFlowEventType(): PortfolioFlowEvent
         PURCHASE,
         SUBSCRIPTION,
         -> PortfolioFlowEventType.DEPOSIT
+        SALE,
+        MATURITY,
+        -> PortfolioFlowEventType.WITHDRAWAL
         DIVIDEND,
         INTEREST_ON_EQUITY,
         INTEREST_PAYMENT,

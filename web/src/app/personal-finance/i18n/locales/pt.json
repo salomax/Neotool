@@ -90,6 +90,9 @@
       "tabs": {
         "ariaLabel": "Classes de investimento",
         "grid": "Grade"
+      },
+      "recordPopover": {
+        "ariaLabel": "Selecionar o que registrar"
       }
     },
     "transactions": {
@@ -239,6 +242,8 @@
           "TRANSFERRED": "Transferido"
         },
         "bankAccount": "Conta bancária",
+        "missingHoldingAccount": "Conta do investimento não encontrada.",
+        "creditDestination": "Destino do crédito",
         "creditDate": "Data do crédito",
         "amountMustBePositive": "O valor precisa ser maior que zero.",
         "submitClose": "Encerrar",
@@ -328,6 +333,9 @@
         "gain": "Rentabilidade"
       },
       "searchPlaceholder": "Buscar ativos...",
+      "actions": {
+        "clearSearchAriaLabel": "Limpar busca"
+      },
       "cashInAccount": "Caixa na conta",
       "noMatches": "Nenhum ativo corresponde à sua busca.",
       "valuationTooltip": {
@@ -380,8 +388,7 @@
       },
       "groups": {
         "variableIncome": "Renda Variável",
-        "bankFixedIncome": "Renda Fixa",
-        "creditFixedIncome": "Renda Fixa Crédito",
+        "fixedIncome": "Renda Fixa",
         "mutualFunds": "Fundos de Investimento",
         "pension": "Previdência Privada",
         "structured": "Estruturado",
@@ -531,9 +538,12 @@
       "fields": {
         "quantity": "Quantidade resgatada",
         "quantityHelper": "Máximo: {{max}}",
+        "detailTaxes": "Detalhar impostos",
         "grossValue": "Valor bruto recebido",
         "incomeTax": "IR retido na fonte",
+        "incomeTaxOptional": "IR retido na fonte (opcional)",
         "iof": "IOF",
+        "iofOptional": "IOF (opcional)",
         "netValueInfo": "Valor líquido: {{value}}",
         "tradeDate": "Data do resgate"
       },

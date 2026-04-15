@@ -1,7 +1,8 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.financialdata.FinancialDataMarketDataSyncClient
-import io.github.salomax.neotool.banking.client.investment.financialdata.FundDailyNavSyncNode
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundNavBulkSyncClient
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundNavBulkSyncNode
 import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetDailyPriceBulkSyncNode
 import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetPriceBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
@@ -46,6 +47,7 @@ class MarketDataSyncServiceTest {
     private val syncControlRepository: MarketDataSyncControlRepository = mock()
     private val financialDataSyncClient: FinancialDataMarketDataSyncClient = mock()
     private val listedAssetPriceBulkSyncClient: ListedAssetPriceBulkSyncClient = mock()
+    private val fundNavBulkSyncClient: FundNavBulkSyncClient = mock()
     private val assetRepository: AssetRepository = mock()
     private val assetDailyPriceRepository: AssetDailyPriceRepository = mock()
     private val marketIndicatorPointRepository: MarketIndicatorPointRepository = mock()
@@ -64,6 +66,7 @@ class MarketDataSyncServiceTest {
             syncControlRepository = syncControlRepository,
             financialDataSyncClient = financialDataSyncClient,
             listedAssetPriceBulkSyncClient = listedAssetPriceBulkSyncClient,
+            fundNavBulkSyncClient = fundNavBulkSyncClient,
             assetRepository = assetRepository,
             assetDailyPriceRepository = assetDailyPriceRepository,
             marketIndicatorPointRepository = marketIndicatorPointRepository,
@@ -78,6 +81,8 @@ class MarketDataSyncServiceTest {
             portfolioFlowEventService = portfolioFlowEventService,
             listedPriceBulkEnabled = true,
             listedPriceBatchSize = 2,
+            fundNavBulkEnabled = true,
+            fundNavBatchSize = 2,
         )
 
     @Test
@@ -99,7 +104,7 @@ class MarketDataSyncServiceTest {
 
         whenever(syncControlRepository.findByJobName(MarketDataSyncJobName.CVM_NAV)).thenReturn(null)
         whenever(syncControlRepository.upsert(any())).thenAnswer { it.arguments.first() }
-        whenever(assetRepository.findByFundCnpj("12345678000199")).thenReturn(asset(assetId))
+        whenever(assetRepository.findAllWithFundCnpj()).thenReturn(listOf(asset(assetId)))
         whenever(marketDataReadinessService.valuationReadiness()).thenReturn(
             MarketDataValuationReadiness(
                 safeValuationDate = null,
@@ -107,28 +112,32 @@ class MarketDataSyncServiceTest {
             ),
         )
         doAnswer { invocation ->
-            val consumer = invocation.getArgument<(List<FundDailyNavSyncNode>) -> Unit>(5)
+            val consumer = invocation.getArgument<(FundNavBulkSyncNode) -> Unit>(5)
             consumer(
-                listOf(
-                    FundDailyNavSyncNode(
-                        cnpj = "12345678000199",
-                        date = LocalDate.of(2026, 4, 1),
-                        closePrice = BigDecimal("100.00"),
-                    ),
-                    FundDailyNavSyncNode(
-                        cnpj = "12345678000199",
-                        date = LocalDate.of(2026, 4, 2),
-                        closePrice = BigDecimal("101.00"),
-                    ),
+                FundNavBulkSyncNode(
+                    cursor = "cursor-1",
+                    cnpj = "12345678000199",
+                    date = LocalDate.of(2026, 4, 1),
+                    closePrice = BigDecimal("100.00"),
+                    updatedAt = Instant.parse("2026-04-03T10:00:00Z"),
+                ),
+            )
+            consumer(
+                FundNavBulkSyncNode(
+                    cursor = "cursor-2",
+                    cnpj = "12345678000199",
+                    date = LocalDate.of(2026, 4, 2),
+                    closePrice = BigDecimal("101.00"),
+                    updatedAt = Instant.parse("2026-04-03T10:00:01Z"),
                 ),
             )
             Unit
-        }.whenever(financialDataSyncClient).forEachFundDailyNav(
+        }.whenever(fundNavBulkSyncClient).streamFundDailyNavs(
             from = eq(LocalDate.of(2026, 4, 1)),
             to = eq(LocalDate.of(2026, 4, 30)),
             updatedSince = isNull(),
-            cnpjs = isNull(),
-            pageSize = eq(250),
+            cnpjs = eq(setOf("12345678000199")),
+            after = isNull(),
             consumer = any(),
         )
 
@@ -165,7 +174,7 @@ class MarketDataSyncServiceTest {
 
         whenever(syncControlRepository.findByJobName(MarketDataSyncJobName.CVM_NAV)).thenReturn(null)
         whenever(syncControlRepository.upsert(any())).thenAnswer { it.arguments.first() }
-        whenever(assetRepository.findByFundCnpj("12345678000199")).thenReturn(asset(assetId))
+        whenever(assetRepository.findAllWithFundCnpj()).thenReturn(listOf(asset(assetId)))
         whenever(marketDataReadinessService.valuationReadiness()).thenReturn(
             MarketDataValuationReadiness(
                 safeValuationDate = safeDate,
@@ -226,23 +235,23 @@ class MarketDataSyncServiceTest {
         )
         whenever(transactionRepository.findEarliestTransactionDate(financialAccountId)).thenReturn(LocalDate.of(2026, 2, 15))
         doAnswer { invocation ->
-            val consumer = invocation.getArgument<(List<FundDailyNavSyncNode>) -> Unit>(5)
+            val consumer = invocation.getArgument<(FundNavBulkSyncNode) -> Unit>(5)
             consumer(
-                listOf(
-                    FundDailyNavSyncNode(
-                        cnpj = "12345678000199",
-                        date = safeDate,
-                        closePrice = BigDecimal("100.00"),
-                    ),
+                FundNavBulkSyncNode(
+                    cursor = "cursor-1",
+                    cnpj = "12345678000199",
+                    date = safeDate,
+                    closePrice = BigDecimal("100.00"),
+                    updatedAt = Instant.parse("2026-04-03T10:00:00Z"),
                 ),
             )
             Unit
-        }.whenever(financialDataSyncClient).forEachFundDailyNav(
+        }.whenever(fundNavBulkSyncClient).streamFundDailyNavs(
             from = eq(LocalDate.of(2026, 4, 1)),
             to = eq(LocalDate.of(2026, 4, 30)),
             updatedSince = isNull(),
-            cnpjs = isNull(),
-            pageSize = eq(250),
+            cnpjs = eq(setOf("12345678000199")),
+            after = isNull(),
             consumer = any(),
         )
 

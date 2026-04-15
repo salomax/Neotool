@@ -48,6 +48,8 @@ financialdata:
   market-data-export:
     listed-prices:
       fetch-size: ${FINANCIALDATA_LISTED_PRICES_EXPORT_FETCH_SIZE:1000}
+    fund-navs:
+      fetch-size: ${FINANCIALDATA_MARKET_DATA_EXPORT_FUND_NAVS_FETCH_SIZE:1000}
 
 datasources:
   default:

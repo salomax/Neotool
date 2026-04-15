@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Box, Typography } from "@mui/material";
 import { Logo, type LogoSize } from "@/shared/components/ui/primitives/Logo";
+import { FixedIncomeTypeAvatar } from "./FixedIncomeTypeAvatar";
 
 export interface HoldingIdentityProps {
   assetName: string;
@@ -46,6 +47,40 @@ export const HoldingIdentity: React.FC<HoldingIdentityProps> = ({ assetName, iss
         </Typography>
         {issuerName ? (
           <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2 }}>
+            {issuerName}
+          </Typography>
+        ) : null}
+      </Box>
+    </Box>
+  );
+};
+
+export interface FixedIncomeAssetIdentityProps {
+  assetType: string | null | undefined;
+  assetName: string;
+  issuerName?: string | null;
+  size?: number;
+  sx?: any;
+  "data-testid"?: string;
+}
+
+export const FixedIncomeAssetIdentity: React.FC<FixedIncomeAssetIdentityProps> = ({
+  assetType,
+  assetName,
+  issuerName,
+  size = 32,
+  sx,
+  "data-testid": dataTestId,
+}) => {
+  return (
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, ...sx }}>
+      <FixedIncomeTypeAvatar assetType={assetType} size={size} data-testid={dataTestId} />
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="body2" noWrap>
+          {assetName}
+        </Typography>
+        {issuerName ? (
+          <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2, display: "block" }}>
             {issuerName}
           </Typography>
         ) : null}

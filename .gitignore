@@ -25,6 +25,7 @@ web/tsconfig.tsbuildinfo
 .trae/
 .gradle/
 .gradle-home/
+.gradle-local/
 **/build/
 out/
 *.log

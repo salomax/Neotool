@@ -18,7 +18,6 @@ import {
 } from '@/lib/graphql/operations/banking/queries';
 import { DELETE_INVESTMENT_HOLDING } from '@/lib/graphql/operations/banking/mutations';
 import {
-  FinancialAccountsQuery,
   InvestmentCashBalanceQuery,
   InvestmentCashBalanceQueryVariables,
   InvestmentHoldingsQuery,
@@ -36,7 +35,6 @@ import { HoldingsGroupsSection } from './HoldingsGroupsSection';
 import { InvestmentEditDrawers } from '../InvestmentEditDrawers';
 import { RecordEquityHoldingDrawer } from '../RecordEquityHoldingDrawer';
 import { RecordFundHoldingDrawer } from '../RecordFundHoldingDrawer';
-import { RecordFixedIncomeRedemptionDrawer } from '../fixed-income/RecordFixedIncomeRedemptionDrawer';
 import { InvestmentHoldingActionsMenu } from './InvestmentHoldingActionsMenu';
 import { RecordCorporateEventDrawer, type CorporateEventType } from '../corporate-events/RecordCorporateEventDrawer';
 import type { IssuerSelectionAccount } from '../IssuerSelection';
@@ -64,11 +62,8 @@ const MaturityConfirmDrawer = dynamic(
   { loading: () => null },
 );
 
-type BankAccountRow = NonNullable<FinancialAccountsQuery['financialAccounts']>[number];
-
 interface InvestmentTableProps {
   selectedAccountId: string | null;
-  bankAccounts: BankAccountRow[];
   investmentAccounts?: IssuerSelectionAccount[];
   onRecordHolding?: () => void;
   searchQuery?: string;
@@ -128,7 +123,6 @@ function sortTransactionsByMostRecent(transactions: InvestmentTransaction[]): In
 
 export function InvestmentTable({
   selectedAccountId,
-  bankAccounts,
   investmentAccounts = [],
   searchQuery,
   onSelectSearchAsset,
@@ -156,7 +150,6 @@ export function InvestmentTable({
   const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
   const [isQuickEquityOpen, setIsQuickEquityOpen] = React.useState(false);
   const [isQuickFundOpen, setIsQuickFundOpen] = React.useState(false);
-  const [isQuickRedemptionOpen, setIsQuickRedemptionOpen] = React.useState(false);
   const [corporateEventState, setCorporateEventState] = React.useState<CorporateEventState>({ holding: null, eventType: null });
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
@@ -282,6 +275,7 @@ export function InvestmentTable({
 
     setMaturityConfirmHolding({
       id: holding.id,
+      financialAccountId: holding.financialAccountId,
       maturityDate: holding.maturityDate ? String(holding.maturityDate) : null,
       grossValue: holding.grossValue ?? null,
       netValue: holding.netValue ?? null,
@@ -289,7 +283,7 @@ export function InvestmentTable({
       iof: holding.iof ?? null,
       issuerName: holding.asset.issuerName ?? null,
       issuerLogoUrl: holding.asset.logoAsset?.publicUrl ?? holding.financialAccount?.issuer?.logoAsset?.publicUrl ?? null,
-      asset: { id: holding.asset.id, name: holding.asset.name },
+      asset: { id: holding.asset.id, name: holding.asset.name, assetType: holding.asset.assetType ?? null },
     });
     setMaturityConfirmOpen(true);
   }, []);
@@ -298,7 +292,6 @@ export function InvestmentTable({
     setQuickTransaction({ holding: null, direction: null });
     setIsQuickEquityOpen(false);
     setIsQuickFundOpen(false);
-    setIsQuickRedemptionOpen(false);
   }, []);
 
   const handleQuickBuy = React.useCallback((holding: HoldingRow) => {
@@ -315,6 +308,10 @@ export function InvestmentTable({
 
   const handleQuickSell = React.useCallback((holding: HoldingRow) => {
     const groupKey = getAssetGroupKey(holding.asset?.assetType);
+    if (groupKey === 'fixedIncome') {
+      handleOpenMaturityConfirmDrawer(holding);
+      return;
+    }
     setQuickTransaction({ holding, direction: 'sell' });
     if (groupKey === 'variableIncome') {
       setIsQuickEquityOpen(true);
@@ -324,10 +321,7 @@ export function InvestmentTable({
       setIsQuickFundOpen(true);
       return;
     }
-    if (groupKey === 'bankFixedIncome' || groupKey === 'creditFixedIncome') {
-      setIsQuickRedemptionOpen(true);
-    }
-  }, []);
+  }, [handleOpenMaturityConfirmDrawer]);
 
   const handleRecordCorporateEvent = React.useCallback((holding: HoldingRow, eventType: CorporateEventType) => {
     setCorporateEventState({ holding, eventType });
@@ -529,8 +523,7 @@ export function InvestmentTable({
       ? t('investments.transactions.sell')
       : actionHoldingGroupKey === 'mutualFunds' ||
           actionHoldingGroupKey === 'pension' ||
-          actionHoldingGroupKey === 'bankFixedIncome' ||
-          actionHoldingGroupKey === 'creditFixedIncome'
+          actionHoldingGroupKey === 'fixedIncome'
         ? t('investments.transactions.redeem')
         : undefined;
   const quickFinancialAccountId = quickTransaction.holding ? resolveFinancialAccountId(quickTransaction.holding) : null;
@@ -614,6 +607,7 @@ export function InvestmentTable({
             groups={groups}
             expandedGroups={expandedGroups}
             hideGroupHeader={hideGroupHeader}
+            selectedAccountId={selectedAccountId}
             locale={locale}
             onToggleGroup={toggleGroup}
             onOpenDetail={handleOpenDetail}
@@ -689,7 +683,7 @@ export function InvestmentTable({
         open={maturityConfirmOpen}
         onClose={closeMaturityConfirmDrawer}
         holding={maturityConfirmHolding}
-        bankAccounts={bankAccounts}
+        investmentAccounts={investmentAccounts}
         onSuccess={refreshInvestmentData}
       />
 
@@ -746,25 +740,6 @@ export function InvestmentTable({
         }
         initialDirection={
           quickTransaction.direction === 'sell' ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
-        }
-        onRecorded={refreshInvestmentData}
-      />
-
-      <RecordFixedIncomeRedemptionDrawer
-        open={isQuickRedemptionOpen}
-        onClose={closeQuickTransaction}
-        holding={
-          quickTransaction.holding?.asset?.id && quickTransaction.holding?.financialAccount?.id
-            ? {
-                id: quickTransaction.holding.id,
-                quantity: quickTransaction.holding.quantity,
-                grossValue: quickTransaction.holding.grossValue ?? null,
-                netValue: quickTransaction.holding.netValue ?? null,
-                isTaxExempt: Boolean(quickTransaction.holding.isTaxExempt),
-                financialAccountId: quickTransaction.holding.financialAccount.id,
-                assetId: quickTransaction.holding.asset.id,
-              }
-            : null
         }
         onRecorded={refreshInvestmentData}
       />

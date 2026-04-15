@@ -12,6 +12,8 @@ import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkCode
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.graphql.investment.BenchmarkPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPointDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
 import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
@@ -43,6 +45,41 @@ class PortfolioPerformanceQueryService(
     private val assetRepository: AssetRepository,
     private val investmentTransactionRepository: InvestmentTransactionRepository,
 ) {
+    fun getGridClassTwrSeries(
+        financialAccountId: UUID?,
+        accountId: UUID,
+        gridClassKey: String,
+        period: GridClassTwrPeriod = GridClassTwrPeriod.ONE_YEAR,
+    ): List<GridClassTwrPointDTO> {
+        if (gridClassKey !in GridClassMapping.ALL_KEYS) return emptyList()
+        val today = LocalDate.now()
+        val from = gridClassSeriesStartDate(period, today)
+
+        // Cash has no holding-level asset type — it is tracked as ASSET_GROUP/cash by the
+        // recalculation engine (via the portfolio-level cash balance, not individual holdings).
+        // All other grid classes are stored as GRID_CLASS rows.
+        val effectiveDimensionType =
+            if (gridClassKey == GridClassMapping.CASH) PortfolioDimensionType.ASSET_GROUP
+            else PortfolioDimensionType.GRID_CLASS
+
+        return if (financialAccountId != null) {
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = effectiveDimensionType,
+                dimensionKey = gridClassKey,
+                from = from,
+                to = today,
+            ).map { quota ->
+                GridClassTwrPointDTO(
+                    date = quota.quotaDate,
+                    quotaValue = quota.quotaValue.toDouble(),
+                )
+            }
+        } else {
+            buildConsolidatedGridClassSeries(accountId, gridClassKey, effectiveDimensionType, from, today)
+        }
+    }
+
     private val logger = KotlinLogging.logger {}
 
     @Suppress("UNUSED_PARAMETER")
@@ -630,6 +667,42 @@ class PortfolioPerformanceQueryService(
             .filter { it.type == FinancialAccountType.INVESTMENT }
             .mapNotNull { it.id }
 
+    private fun buildConsolidatedGridClassSeries(
+        accountId: UUID,
+        gridClassKey: String,
+        effectiveDimensionType: PortfolioDimensionType,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<GridClassTwrPointDTO> {
+        val financialAccountIds = investmentAccountIds(accountId)
+        if (financialAccountIds.isEmpty()) return emptyList()
+
+        val summedByDate =
+            portfolioQuotaRepository.findByAccountsAndDateRange(
+                financialAccountIds = financialAccountIds,
+                dimensionType = effectiveDimensionType,
+                dimensionKey = gridClassKey,
+                from = from,
+                to = to,
+            )
+                .groupBy({ it.quotaDate }, { it.totalPortfolioValue })
+                .mapValues { (_, values) -> values.fold(BigDecimal.ZERO, BigDecimal::add) }
+                .toSortedMap()
+
+        if (summedByDate.isEmpty()) return emptyList()
+        val base = summedByDate.values.first()
+        if (base.compareTo(BigDecimal.ZERO) <= 0) return emptyList()
+
+        // Consolidated sparkline is normalized from summed market values across accounts.
+        // This is a practical approximation for visuals, but not a true multi-account TWR.
+        return summedByDate.entries.map { (date, totalValue) ->
+            GridClassTwrPointDTO(
+                date = date,
+                quotaValue = totalValue.divide(base, 8, RoundingMode.HALF_UP).toDouble(),
+            )
+        }
+    }
+
     private fun signedFlowAmount(
         eventType: PortfolioFlowEventType,
         grossAmount: BigDecimal,
@@ -701,4 +774,12 @@ class PortfolioPerformanceQueryService(
                 InvestmentTransactionType.QUOTA_TRANSFER,
             )
     }
+
+    private fun gridClassSeriesStartDate(period: GridClassTwrPeriod, today: LocalDate): LocalDate =
+        when (period) {
+            GridClassTwrPeriod.SIX_MONTHS -> today.minusMonths(6)
+            GridClassTwrPeriod.ONE_YEAR -> today.minusYears(1)
+            GridClassTwrPeriod.THREE_YEARS -> today.minusYears(3)
+            GridClassTwrPeriod.ALL -> LocalDate.of(1970, 1, 1)
+        }
 }

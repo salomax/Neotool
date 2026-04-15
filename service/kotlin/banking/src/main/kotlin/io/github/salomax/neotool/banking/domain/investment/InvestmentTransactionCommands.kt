@@ -67,3 +67,34 @@ data class ManualFundValuation(
     val grossValue: BigDecimal,
     val valuedAt: LocalDate,
 )
+
+/**
+ * Command to update an existing MANUAL investment transaction.
+ *
+ * This updates both transaction attributes and holding contractual terms, then
+ * recomputes the holding from its full transaction history.
+ */
+data class UpdateInvestmentTransactionCommand(
+    val direction: InvestmentTransactionDirection,
+    val type: InvestmentTransactionType,
+    val typeAdditionalInfo: String? = null,
+    val quantity: BigDecimal? = null,
+    val unitPrice: BigDecimal? = null,
+    val grossValue: BigDecimal,
+    val netValue: BigDecimal? = null,
+    val incomeTax: BigDecimal? = null,
+    val iof: BigDecimal? = null,
+    val indexerPercentage: BigDecimal? = null,
+    val fixedAnnualRate: BigDecimal? = null,
+    val priceFactor: BigDecimal? = null,
+    val tradeDate: LocalDate,
+    val settlementDate: LocalDate? = null,
+    val brokerNote: BrokerNote? = null,
+    val indexer: Indexer? = null,
+    val issueDate: LocalDate? = null,
+    val maturityDate: LocalDate? = null,
+    val gracePeriodDate: LocalDate? = null,
+    val isTaxExempt: Boolean? = null,
+    val pricingMode: HoldingPricingMode? = null,
+    val manualValuation: ManualFundValuation? = null,
+)

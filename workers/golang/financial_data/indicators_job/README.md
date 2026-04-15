@@ -229,6 +229,17 @@ INDICATOR_FILTER=TRADE_BALANCE VARIATION_FILTER=VALUE \
 make run-cronjob
 ```
 
+### Run SGS safely (recommended settings)
+
+```
+INDICATORS_MAX_WORKERS=1 \
+SGS_MIN_INTERVAL_MS=2000 \
+INDICATOR_FILTER=PRIMARY_RESULT VARIATION_FILTER=YTD \
+make run-cronjob
+```
+
+For full runs against SGS-heavy sets, prefer low concurrency and spacing between requests to reduce gateway/WAF rejections.
+
 ## How to test
 
 ```

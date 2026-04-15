@@ -58,7 +58,7 @@ func (p *MarketDataPublisher) Publish(event domain.MarketDataJobSucceededEvent) 
 		return fmt.Errorf("publish event: %w", err)
 	}
 
-	p.logger.Info("market data event published", "job_name", event.JobName, "last_data_date", event.LastDataDate.Format("2006-01-02"))
+	p.logger.Info("market data event published", "job_name", event.JobName, "last_data_date", event.LastDataDate)
 	return nil
 }
 

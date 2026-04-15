@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
@@ -492,6 +493,24 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "gridClassTwrSeries",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
+                        val gridClassKey =
+                            env.getArgument<String>("gridClassKey")
+                                ?: throw IllegalArgumentException("gridClassKey is required")
+                        val period = env.getArgument<String?>("period")
+                        investmentResolver.gridClassTwrSeries(
+                            financialAccountId = financialAccountId,
+                            gridClassKey = gridClassKey,
+                            period = period?.let(GridClassTwrPeriod::valueOf),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
                 "investmentHoldingPerformance",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
@@ -852,7 +871,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "createInvestmentAsset",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -861,9 +880,21 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "updateInvestmentAsset",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        val id = env.getArgument<String>("id") ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.updateInvestmentAsset(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "recordInvestmentTransaction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -872,9 +903,21 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "updateInvestmentTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        val id = env.getArgument<String>("id") ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.updateInvestmentTransaction(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "createInvestmentCashTransaction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -885,7 +928,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "updateInvestmentCashTransaction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val id = env.getArgument<String>("id") ?: throw IllegalArgumentException("id is required")
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
@@ -897,7 +940,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "deleteInvestmentCashTransaction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val id = env.getArgument<String>("id") ?: throw IllegalArgumentException("id is required")
                         investmentResolver.deleteInvestmentCashTransaction(id, principal)
                     }
@@ -928,7 +971,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "deleteInvestmentTransaction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
@@ -939,7 +982,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "deleteInvestmentHolding",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
@@ -950,7 +993,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "triggerPortfolioRecalculation",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val financialAccountId = env.getArgument<String?>("financialAccountId")
                         val recalculateFrom = env.getArgument<String?>("recalculateFrom")
                         investmentResolver.triggerPortfolioRecalculation(financialAccountId, recalculateFrom, principal)
@@ -1137,7 +1180,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "attachFileToHolding",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -1148,7 +1191,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "removeHoldingAttachment",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_DELETE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val attachmentId =
                             env.getArgument<String>("attachmentId")
                                 ?: throw IllegalArgumentException("attachmentId is required")
@@ -1159,7 +1202,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "confirmHoldingMaturity",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         @Suppress("UNCHECKED_CAST")
                         val command =
                             env.getArgument<Map<String, Any?>>("command")
@@ -1171,7 +1214,7 @@ class BankingWiringFactory(
             .dataFetcher(
                 "dismissPendingAction",
                 createValidatedDataFetcher { env ->
-                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_CREATE) { principal ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")

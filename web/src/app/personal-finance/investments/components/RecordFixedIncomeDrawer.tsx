@@ -8,7 +8,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
-import { CREATE_INVESTMENT_ASSET, DELETE_INVESTMENT_TRANSACTION, RECORD_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION, UPDATE_INVESTMENT_ASSET, UPDATE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import {
   INVESTMENT_CASH_BALANCE,
   INVESTMENT_HOLDINGS,
@@ -17,8 +17,6 @@ import {
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
-  DeleteInvestmentTransactionMutation,
-  DeleteInvestmentTransactionMutationVariables,
   RecordInvestmentTransactionMutation,
   RecordInvestmentTransactionMutationVariables,
 } from "@/lib/graphql/operations/banking/mutations.generated";
@@ -102,6 +100,31 @@ type RecordFixedIncomeFormData = {
   tradeDate?: Date;
   maturityDate?: Date;
   isTaxExempt: boolean;
+};
+
+type UpdateInvestmentAssetMutationData = { updateInvestmentAsset: { id: string } };
+type UpdateInvestmentAssetMutationVars = {
+  id: string;
+  input: { name: string; assetType: AssetType; issuerName?: string; currencyCode?: string };
+};
+type UpdateInvestmentTransactionMutationData = { updateInvestmentTransaction: { id: string } };
+type UpdateInvestmentTransactionMutationVars = {
+  id: string;
+  input: {
+    direction: InvestmentTransactionDirection;
+    type: InvestmentTransactionType;
+    quantity: number;
+    unitPrice: number;
+    grossValue: number;
+    tradeDate: string;
+    settlementDate: string;
+    indexer: Indexer;
+    indexerPercentage?: number;
+    fixedAnnualRate?: number;
+    issueDate: string;
+    maturityDate: string;
+    isTaxExempt: boolean;
+  };
 };
 
 function escapeRegExp(value: string): string {
@@ -338,7 +361,8 @@ export function RecordFixedIncomeDrawer({
   const watchedGrossValue = useWatch({ control: methods.control, name: "grossValue" });
   const isTreasury = watchedAssetType === AssetType.Treasury;
   const isPreFixed = watchedIndexer === Indexer.PreFixado;
-const isEdit = Boolean(editHolding && editTransaction);
+  const isEdit = Boolean(editHolding && editTransaction);
+  const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
   const currencyFormatter = React.useMemo(() => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }), [locale]);
 
   const assetTypeTokens = React.useMemo(
@@ -362,6 +386,7 @@ const isEdit = Boolean(editHolding && editTransaction);
 
   useEffect(() => {
     if (!open) {
+      lastEditSeedRef.current = null;
       reset();
     }
   }, [open, reset]);
@@ -394,30 +419,33 @@ const isEdit = Boolean(editHolding && editTransaction);
     CreateInvestmentAssetMutationVariables
   >(CREATE_INVESTMENT_ASSET);
 
-  const [deleteInvestmentTransaction, { loading: deletingTx, error: deleteTxError }] = useMutation<
-    DeleteInvestmentTransactionMutation,
-    DeleteInvestmentTransactionMutationVariables
-  >(DELETE_INVESTMENT_TRANSACTION);
-
   const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
   >(RECORD_INVESTMENT_TRANSACTION);
+  const [updateAsset, { loading: updatingAsset, error: updateAssetError }] = useMutation<
+    UpdateInvestmentAssetMutationData,
+    UpdateInvestmentAssetMutationVars
+  >(UPDATE_INVESTMENT_ASSET);
+  const [updateTransaction, { loading: updatingTx, error: updateTxError }] = useMutation<
+    UpdateInvestmentTransactionMutationData,
+    UpdateInvestmentTransactionMutationVars
+  >(UPDATE_INVESTMENT_TRANSACTION);
 
   const completeRecording = React.useCallback(() => {
+    success(t("investments.recordHolding.success"));
+    onRecorded?.();
+    onClose();
+
     void apolloClient
       .refetchQueries({
         include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE],
       })
-      .finally(() => {
-        success(t("investments.recordHolding.success"));
-        onRecorded?.();
-        onClose();
-      });
+      .catch(() => undefined);
   }, [apolloClient, onClose, onRecorded, success, t]);
 
-  const isSubmitting = creatingAsset || deletingTx || recordingTx;
-  const mutationError = createAssetError || deleteTxError || recordTxError;
+  const isSubmitting = creatingAsset || recordingTx || updatingAsset || updatingTx;
+  const mutationError = createAssetError || recordTxError || updateAssetError || updateTxError;
 
   const assetTypeOptions = React.useMemo(
     () =>
@@ -446,6 +474,21 @@ const isEdit = Boolean(editHolding && editTransaction);
 
     const quantity = typeof data.quantity === "number" && Number.isFinite(data.quantity) && data.quantity >= 0 ? data.quantity : 1;
     const unitPrice = quantity > 0 ? data.grossValue / quantity : data.grossValue;
+    const txInput = {
+      direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
+      type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
+      quantity,
+      unitPrice,
+      grossValue: data.grossValue,
+      tradeDate,
+      settlementDate: tradeDate,
+      indexer: data.indexer!,
+      indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
+      fixedAnnualRate: data.indexer === Indexer.PreFixado ? data.fixedAnnualRate! / 100 : undefined,
+      issueDate: tradeDate,
+      maturityDate,
+      isTaxExempt: data.isTaxExempt,
+    };
 
     const assetId = isEdit ? editHolding!.asset.id : null;
     const resolvedAssetId =
@@ -466,30 +509,40 @@ const isEdit = Boolean(editHolding && editTransaction);
     if (!resolvedAssetId) return;
 
     try {
-      await recordTransaction({
-        variables: {
-          input: {
-            financialAccountId: resolvedFinancialAccountId,
-            assetId: resolvedAssetId,
-            direction: isEdit ? editTransaction!.direction : InvestmentTransactionDirection.Inflow,
-            type: isEdit ? editTransaction!.type : InvestmentTransactionType.Purchase,
-            quantity,
-            unitPrice,
-            grossValue: data.grossValue,
-            tradeDate,
-            settlementDate: tradeDate,
-            indexer: data.indexer!,
-            indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
-            fixedAnnualRate: data.indexer === Indexer.PreFixado ? data.fixedAnnualRate! / 100 : undefined,
-            issueDate: tradeDate,
-            maturityDate,
-            isTaxExempt: data.isTaxExempt,
-          },
-        },
-      });
-
       if (isEdit) {
-        await deleteInvestmentTransaction({ variables: { id: editTransaction!.id } });
+        const assetChanged =
+          data.assetName !== editHolding!.asset.name ||
+          data.assetType !== editHolding!.asset.assetType ||
+          data.issuerName !== (editHolding!.asset.issuerName ?? "");
+        if (assetChanged) {
+          await updateAsset({
+            variables: {
+              id: resolvedAssetId,
+              input: {
+                name: data.assetName,
+                assetType: data.assetType!,
+                issuerName: data.issuerName,
+                currencyCode: "BRL",
+              },
+            },
+          });
+        }
+        await updateTransaction({
+          variables: {
+            id: editTransaction!.id,
+            input: txInput,
+          },
+        });
+      } else {
+        await recordTransaction({
+          variables: {
+            input: {
+              financialAccountId: resolvedFinancialAccountId,
+              assetId: resolvedAssetId,
+              ...txInput,
+            },
+          },
+        });
       }
 
       completeRecording();
@@ -501,6 +554,16 @@ const isEdit = Boolean(editHolding && editTransaction);
   useEffect(() => {
     if (!open) return;
     if (!isEdit) return;
+
+    const holdingId = editHolding?.id ?? null;
+    const transactionId = editTransaction?.id ?? null;
+    if (
+      lastEditSeedRef.current?.holdingId === holdingId &&
+      lastEditSeedRef.current?.transactionId === transactionId
+    ) {
+      return;
+    }
+    lastEditSeedRef.current = { holdingId, transactionId };
 
     reset(
       {

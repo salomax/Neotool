@@ -24,6 +24,7 @@ export { StatusIndicator } from './StatusIndicator';
 export { Amount } from './Amount';
 export { CurrencyAmountParts } from './CurrencyAmountParts';
 export { InfoField } from './InfoField';
+export { FinancialAccountIdentity } from './FinancialAccountIdentity';
 export { TagChips } from './TagChips';
 export { PercentageGain } from './PercentageGain';
 export { ValueOriginIndicator } from './ValueOriginIndicator';
@@ -50,6 +51,7 @@ export type { StatusIndicatorProps } from './StatusIndicator';
 export type { FinancialMetricItemProps } from './FinancialMetricItem';
 export type { MetricDetailsDrawerProps } from './MetricDetailsDrawer';
 export type { ChartTooltipProps } from './ChartTooltip';
+export type { FinancialAccountIdentityAccount, FinancialAccountIdentityProps } from './FinancialAccountIdentity';
 
 // Re-export MetricValueType from the canonical source
 export type { MetricValueType } from '@/shared/utils/formatMetricValue';

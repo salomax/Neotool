@@ -1356,6 +1356,21 @@ export enum FundTaxProfile {
   VariableIncome_15 = 'VARIABLE_INCOME_15'
 }
 
+export enum GridClassTwrPeriod {
+  All = 'ALL',
+  OneYear = 'ONE_YEAR',
+  SixMonths = 'SIX_MONTHS',
+  ThreeYears = 'THREE_YEARS'
+}
+
+/** A single point in a grid-class TWR quota time series. */
+export type GridClassTwrPoint = {
+  __typename: 'GridClassTwrPoint';
+  date: Scalars['Date']['output'];
+  /** Raw quota value. Normalize to % return as (quotaValue / firstPoint.quotaValue) - 1. */
+  quotaValue: Scalars['Float']['output'];
+};
+
 export type Group = {
   __typename: 'Group';
   createdAt: Scalars['String']['output'];
@@ -2225,8 +2240,12 @@ export type Mutation = {
   updateBankingUserPreferences: BankingUserPreferences;
   updateFinancialAccount: FinancialAccount;
   updateGroup: Group;
+  /** Updates an existing investment asset metadata. */
+  updateInvestmentAsset: InvestmentAsset;
   /** Updates a manual investment custodian cash ledger row (and its transfer peer amount/date when present). */
   updateInvestmentCashTransaction: Transaction;
+  /** Updates a MANUAL investment transaction and recomputes the holding state. */
+  updateInvestmentTransaction: InvestmentTransaction;
   updateProduct: Product;
   updateProductVariant: ProductVariant;
   updateRole: Role;
@@ -2607,9 +2626,21 @@ export type MutationUpdateGroupArgs = {
 };
 
 
+export type MutationUpdateInvestmentAssetArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateInvestmentAssetInput;
+};
+
+
 export type MutationUpdateInvestmentCashTransactionArgs = {
   id: Scalars['ID']['input'];
   input: UpdateInvestmentCashTransactionInput;
+};
+
+
+export type MutationUpdateInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateInvestmentTransactionInput;
 };
 
 
@@ -3024,6 +3055,11 @@ export type Query = {
   fixedIncomeComparison: FixedIncomeComparisonResult;
   fundDailyNavs: FundDailyNavConnection;
   fundNavSeries: Array<FundDailyNav>;
+  /**
+   * TWR quota time series for a grid card class (cash, fixed-income, funds, stocks, reits, crypto).
+   * Returns one point per recorded day, ascending. Returns empty list if no data is available.
+   */
+  gridClassTwrSeries: Array<GridClassTwrPoint>;
   group: Maybe<Group>;
   groups: GroupConnection;
   /** Generic performance series and valuation summary for a holding. */
@@ -3277,6 +3313,13 @@ export type QueryFundNavSeriesArgs = {
   cnpj: Scalars['String']['input'];
   from: Scalars['Date']['input'];
   to: Scalars['Date']['input'];
+};
+
+
+export type QueryGridClassTwrSeriesArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  gridClassKey: Scalars['String']['input'];
+  period?: InputMaybe<GridClassTwrPeriod>;
 };
 
 
@@ -4287,10 +4330,46 @@ export type UpdateGroupInput = {
   userIds?: InputMaybe<Array<Scalars['ID']['input']>>;
 };
 
+export type UpdateInvestmentAssetInput = {
+  assetType: AssetType;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  fundCnpj?: InputMaybe<Scalars['String']['input']>;
+  isinCode?: InputMaybe<Scalars['String']['input']>;
+  issuerName?: InputMaybe<Scalars['String']['input']>;
+  name: Scalars['String']['input'];
+  ticker?: InputMaybe<Scalars['String']['input']>;
+};
+
 export type UpdateInvestmentCashTransactionInput = {
   amount: Scalars['Float']['input'];
   date: Scalars['Date']['input'];
   description?: InputMaybe<Scalars['String']['input']>;
+};
+
+export type UpdateInvestmentTransactionInput = {
+  brokerNote?: InputMaybe<BrokerNoteInput>;
+  direction: InvestmentTransactionDirection;
+  fixedAnnualRate?: InputMaybe<Scalars['Float']['input']>;
+  gracePeriodDate?: InputMaybe<Scalars['Date']['input']>;
+  grossValue: Scalars['Float']['input'];
+  incomeTax?: InputMaybe<Scalars['Float']['input']>;
+  indexer?: InputMaybe<Indexer>;
+  indexerPercentage?: InputMaybe<Scalars['Float']['input']>;
+  iof?: InputMaybe<Scalars['Float']['input']>;
+  isTaxExempt?: InputMaybe<Scalars['Boolean']['input']>;
+  issueDate?: InputMaybe<Scalars['Date']['input']>;
+  manualValuation?: InputMaybe<ManualFundValuationInput>;
+  maturityDate?: InputMaybe<Scalars['Date']['input']>;
+  netValue?: InputMaybe<Scalars['Float']['input']>;
+  priceFactor?: InputMaybe<Scalars['Float']['input']>;
+  pricingMode?: InputMaybe<HoldingPricingMode>;
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  settlementDate?: InputMaybe<Scalars['Date']['input']>;
+  tradeDate: Scalars['Date']['input'];
+  type: InvestmentTransactionType;
+  /** Required when type = OTHER. */
+  typeAdditionalInfo?: InputMaybe<Scalars['String']['input']>;
+  unitPrice?: InputMaybe<Scalars['Float']['input']>;
 };
 
 export type UpdateProductInput = {

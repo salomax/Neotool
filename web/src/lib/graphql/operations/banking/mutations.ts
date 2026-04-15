@@ -126,10 +126,37 @@ export const CREATE_INVESTMENT_ASSET = gql`
   }
 `;
 
+export const UPDATE_INVESTMENT_ASSET = gql`
+  mutation UpdateInvestmentAsset($id: ID!, $input: UpdateInvestmentAssetInput!) {
+    updateInvestmentAsset(id: $id, input: $input) {
+      id
+      name
+      assetType
+      issuerName
+      currencyCode
+    }
+  }
+`;
+
 /** Record an investment transaction (creates/updates holding). */
 export const RECORD_INVESTMENT_TRANSACTION = gql`
   mutation RecordInvestmentTransaction($input: RecordInvestmentTransactionInput!) {
     recordInvestmentTransaction(input: $input) {
+      id
+      type
+      direction
+      quantity
+      unitPrice
+      grossValue
+      tradeDate
+      source
+    }
+  }
+`;
+
+export const UPDATE_INVESTMENT_TRANSACTION = gql`
+  mutation UpdateInvestmentTransaction($id: ID!, $input: UpdateInvestmentTransactionInput!) {
+    updateInvestmentTransaction(id: $id, input: $input) {
       id
       type
       direction

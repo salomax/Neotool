@@ -81,6 +81,43 @@ open class DefaultInvestmentTransactionRepository(
         return InvestmentTransactionMapper.toDomain(entityRepository.save(entity))
     }
 
+    @Transactional
+    override fun update(transaction: InvestmentTransaction): InvestmentTransaction {
+        val id = requireNotNull(transaction.id) { "InvestmentTransaction id is required for update" }
+        val existing =
+            entityRepository.findById(id).orElseThrow {
+                NoSuchElementException("InvestmentTransaction $id not found")
+            }
+        val updated = InvestmentTransactionMapper.toEntity(transaction)
+        existing.holdingId = updated.holdingId
+        existing.financialAccountId = updated.financialAccountId
+        existing.accountId = updated.accountId
+        existing.createdByUserId = updated.createdByUserId
+        existing.direction = updated.direction
+        existing.type = updated.type
+        existing.typeAdditionalInfo = updated.typeAdditionalInfo
+        existing.quantity = updated.quantity
+        existing.unitPrice = updated.unitPrice
+        existing.grossValue = updated.grossValue
+        existing.netValue = updated.netValue
+        existing.incomeTax = updated.incomeTax
+        existing.iof = updated.iof
+        existing.indexerPercentage = updated.indexerPercentage
+        existing.fixedAnnualRate = updated.fixedAnnualRate
+        existing.priceFactor = updated.priceFactor
+        existing.tradeDate = updated.tradeDate
+        existing.settlementDate = updated.settlementDate
+        existing.source = updated.source
+        existing.providerTransactionId = updated.providerTransactionId
+        existing.importJobId = updated.importJobId
+        existing.deletedAt = updated.deletedAt
+        existing.createdAt = updated.createdAt
+        existing.updatedAt = updated.updatedAt
+        existing.brokerNote = updated.brokerNote
+        existing.brokerNote?.investmentTransaction = existing
+        return InvestmentTransactionMapper.toDomain(entityRepository.update(existing))
+    }
+
     override fun softDelete(
         id: UUID,
         accountId: UUID,

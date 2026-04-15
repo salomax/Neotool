@@ -20,6 +20,7 @@ import org.junit.jupiter.api.Assumptions.assumeTrue
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
@@ -32,7 +33,9 @@ import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJo
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
+import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -423,7 +426,7 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "1.00000000",
                 totalPortfolioValue = "1000.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
         val afterSaleQuota =
             quota(
@@ -432,7 +435,7 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "0.00000000",
                 totalPortfolioValue = "0.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
         val afterRepurchaseQuota =
             quota(
@@ -441,7 +444,7 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "1.00000000",
                 totalPortfolioValue = "1000.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
         val endQuota =
             quota(
@@ -450,14 +453,14 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "1.10000000",
                 totalPortfolioValue = "1100.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
 
         whenever(
             portfolioQuotaRepository.findLatestBefore(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 date = LocalDate.now(),
             ),
         ).thenReturn(endQuota)
@@ -465,7 +468,7 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository.findLatestBefore(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 date = boundaryDate,
             ),
         ).thenReturn(startQuota)
@@ -473,7 +476,7 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository.findByAccountAndDateRange(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 from = boundaryDate,
                 to = endDate,
             ),
@@ -521,7 +524,7 @@ class PortfolioPerformanceQueryServiceTest {
             service.getAssetGroupPerformance(
                 financialAccountId = financialAccountId,
                 accountId = accountId,
-                groupKey = "bankFixedIncome",
+                groupKey = "fixedIncome",
                 period = PerformancePeriodDTO.YTD,
             )
 
@@ -1065,7 +1068,7 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "1.00000000",
                 totalPortfolioValue = "500.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
         val endQuota =
             quota(
@@ -1074,14 +1077,14 @@ class PortfolioPerformanceQueryServiceTest {
                 quotaValue = "1.10000000",
                 totalPortfolioValue = "550.00",
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
             )
 
         whenever(
             portfolioQuotaRepository.findLatestBefore(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 date = LocalDate.now(),
             ),
         ).thenReturn(endQuota)
@@ -1089,7 +1092,7 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository.findLatestBefore(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 date = ytdBoundary,
             ),
         ).thenReturn(null)
@@ -1097,7 +1100,7 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository.findByAccountAndDateRange(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 from = ytdBoundary.plusDays(1),
                 to = endDate,
             ),
@@ -1106,7 +1109,7 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioQuotaRepository.findByAccountAndDateRange(
                 financialAccountId = financialAccountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = "bankFixedIncome",
+                dimensionKey = "fixedIncome",
                 from = firstGroupQuotaDate,
                 to = endDate,
             ),
@@ -1119,7 +1122,7 @@ class PortfolioPerformanceQueryServiceTest {
             service.getAssetGroupPerformance(
                 financialAccountId = financialAccountId,
                 accountId = accountId,
-                groupKey = "bankFixedIncome",
+                groupKey = "fixedIncome",
                 period = PerformancePeriodDTO.YTD,
             )
 
@@ -1230,6 +1233,273 @@ class PortfolioPerformanceQueryServiceTest {
         assertThat(consolidated.twr!!).isBetween(0.10, 0.14)
     }
 
+    @Test
+    fun `grid class series returns empty for unknown key`() {
+        val result = service.getGridClassTwrSeries(
+            financialAccountId = UUID.randomUUID(),
+            accountId = UUID.randomUUID(),
+            gridClassKey = "unknown",
+        )
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `grid class series returns scoped rows in ascending order`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val d1 = LocalDate.of(2026, 1, 1)
+        val d2 = LocalDate.of(2026, 1, 2)
+        val expectedFrom = LocalDate.now().minusYears(1)
+
+        whenever(
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.FIXED_INCOME,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(
+            listOf(
+                quota(financialAccountId, d1, "1.00000000", "100.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.FIXED_INCOME),
+                quota(financialAccountId, d2, "1.05000000", "105.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.FIXED_INCOME),
+            ),
+        )
+
+        val result = service.getGridClassTwrSeries(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.FIXED_INCOME,
+        )
+
+        assertThat(result).hasSize(2)
+        assertThat(result.map { it.date }).containsExactly(d1, d2)
+        assertThat(result.map { it.quotaValue }).containsExactly(1.0, 1.05)
+    }
+
+    @Test
+    fun `grid class cash series uses ASSET_GROUP fallback`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val d1 = LocalDate.of(2026, 1, 1)
+        val expectedFrom = LocalDate.now().minusYears(1)
+
+        whenever(
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                dimensionKey = GridClassMapping.CASH,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(
+            listOf(
+                quota(
+                    financialAccountId = financialAccountId,
+                    quotaDate = d1,
+                    quotaValue = "1.00000000",
+                    totalPortfolioValue = "100.00",
+                    dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                    dimensionKey = GridClassMapping.CASH,
+                ),
+            ),
+        )
+
+        val result = service.getGridClassTwrSeries(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.CASH,
+        )
+
+        assertThat(result).hasSize(1)
+        assertThat(result.first().date).isEqualTo(d1)
+        assertThat(result.first().quotaValue).isEqualTo(1.0)
+
+        verify(portfolioQuotaRepository).findByAccountAndDateRange(
+            financialAccountId = eq(financialAccountId),
+            dimensionType = eq(PortfolioDimensionType.ASSET_GROUP),
+            dimensionKey = eq(GridClassMapping.CASH),
+            from = eq(expectedFrom),
+            to = eq(LocalDate.now()),
+        )
+    }
+
+    @Test
+    fun `grid class series consolidates by summed value and renormalizes`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountIdA = UUID.randomUUID()
+        val financialAccountIdB = UUID.randomUUID()
+        val d1 = LocalDate.of(2026, 1, 1)
+        val d2 = LocalDate.of(2026, 1, 2)
+        val expectedFrom = LocalDate.now().minusYears(1)
+
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+            listOf(
+                financialAccount(accountId, financialAccountIdA),
+                financialAccount(accountId, financialAccountIdB),
+            ),
+        )
+        whenever(
+            portfolioQuotaRepository.findByAccountsAndDateRange(
+                financialAccountIds = listOf(financialAccountIdA, financialAccountIdB),
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.STOCKS,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(
+            listOf(
+                quota(financialAccountIdA, d1, "1.00000000", "100.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(financialAccountIdA, d2, "1.10000000", "110.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(financialAccountIdB, d1, "1.00000000", "50.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(financialAccountIdB, d2, "1.10000000", "55.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+            ),
+        )
+
+        val result = service.getGridClassTwrSeries(
+            financialAccountId = null,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.STOCKS,
+        )
+
+        assertThat(result.map { it.date }).containsExactly(d1, d2)
+        assertThat(result.map { it.quotaValue.firstDecimal() }).containsExactly(1.0, 1.1)
+    }
+
+    @Test
+    fun `grid class series ONE_YEAR uses one-year window`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val expectedFrom = LocalDate.now().minusYears(1)
+
+        whenever(
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.STOCKS,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(emptyList())
+
+        service.getGridClassTwrSeries(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.STOCKS,
+            period = GridClassTwrPeriod.ONE_YEAR,
+        )
+
+        verify(portfolioQuotaRepository).findByAccountAndDateRange(
+            financialAccountId = eq(financialAccountId),
+            dimensionType = eq(PortfolioDimensionType.GRID_CLASS),
+            dimensionKey = eq(GridClassMapping.STOCKS),
+            from = eq(expectedFrom),
+            to = eq(LocalDate.now()),
+        )
+    }
+
+    @Test
+    fun `grid class series SIX_MONTHS uses six-month window`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val expectedFrom = LocalDate.now().minusMonths(6)
+
+        whenever(
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.STOCKS,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(emptyList())
+
+        service.getGridClassTwrSeries(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.STOCKS,
+            period = GridClassTwrPeriod.SIX_MONTHS,
+        )
+
+        verify(portfolioQuotaRepository).findByAccountAndDateRange(
+            financialAccountId = eq(financialAccountId),
+            dimensionType = eq(PortfolioDimensionType.GRID_CLASS),
+            dimensionKey = eq(GridClassMapping.STOCKS),
+            from = eq(expectedFrom),
+            to = eq(LocalDate.now()),
+        )
+    }
+
+    @Test
+    fun `grid class series ALL uses full history window`() {
+        val financialAccountId = UUID.randomUUID()
+        val accountId = UUID.randomUUID()
+        val expectedFrom = LocalDate.of(1970, 1, 1)
+
+        whenever(
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.STOCKS,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(emptyList())
+
+        service.getGridClassTwrSeries(
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.STOCKS,
+            period = GridClassTwrPeriod.ALL,
+        )
+
+        verify(portfolioQuotaRepository).findByAccountAndDateRange(
+            financialAccountId = eq(financialAccountId),
+            dimensionType = eq(PortfolioDimensionType.GRID_CLASS),
+            dimensionKey = eq(GridClassMapping.STOCKS),
+            from = eq(expectedFrom),
+            to = eq(LocalDate.now()),
+        )
+    }
+
+    @Test
+    fun `consolidated grid class normalization base uses first row inside requested period`() {
+        val accountId = UUID.randomUUID()
+        val financialAccountId = UUID.randomUUID()
+        val expectedFrom = LocalDate.now().minusYears(1)
+        val d1 = LocalDate.now().minusMonths(11)
+        val d2 = LocalDate.now().minusMonths(10)
+
+        whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(
+            listOf(financialAccount(accountId, financialAccountId)),
+        )
+        whenever(
+            portfolioQuotaRepository.findByAccountsAndDateRange(
+                financialAccountIds = listOf(financialAccountId),
+                dimensionType = PortfolioDimensionType.GRID_CLASS,
+                dimensionKey = GridClassMapping.STOCKS,
+                from = expectedFrom,
+                to = LocalDate.now(),
+            ),
+        ).thenReturn(
+            listOf(
+                quota(financialAccountId, d1, "9.00000000", "90.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(financialAccountId, d2, "10.80000000", "108.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+            ),
+        )
+
+        val result = service.getGridClassTwrSeries(
+            financialAccountId = null,
+            accountId = accountId,
+            gridClassKey = GridClassMapping.STOCKS,
+            period = GridClassTwrPeriod.ONE_YEAR,
+        )
+
+        assertThat(result.map { it.date }).containsExactly(d1, d2)
+        assertThat(result.map { it.quotaValue.firstDecimal() }).containsExactly(1.0, 1.2)
+    }
+
     private fun quota(
         financialAccountId: UUID,
         quotaDate: LocalDate,
@@ -1324,3 +1594,5 @@ class PortfolioPerformanceQueryServiceTest {
         source = InvestmentSource.MANUAL,
     )
 }
+
+private fun Double.firstDecimal(): Double = (this * 10.0).toInt() / 10.0

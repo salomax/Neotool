@@ -64,6 +64,24 @@ interface PortfolioQuotaEntityRepository : JpaRepository<InvestmentPortfolioQuot
     @Query(
         """
         SELECT q FROM InvestmentPortfolioQuotaEntity q
+        WHERE q.financialAccountId IN :financialAccountIds
+          AND q.dimensionType = :dimensionType
+          AND q.dimensionKey = :dimensionKey
+          AND q.quotaDate BETWEEN :from AND :to
+        ORDER BY q.quotaDate ASC
+        """,
+    )
+    fun findByAccountsAndDateRange(
+        financialAccountIds: List<UUID>,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentPortfolioQuotaEntity>
+
+    @Query(
+        """
+        SELECT q FROM InvestmentPortfolioQuotaEntity q
         WHERE q.financialAccountId = :financialAccountId
           AND q.dimensionType = :dimensionType
           AND q.dimensionKey = :dimensionKey

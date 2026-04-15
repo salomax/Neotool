@@ -70,6 +70,23 @@ open class DefaultPortfolioQuotaRepository(
             to = to,
         ).map(InvestmentPortfolioQuotaMapper::toDomain)
 
+    override fun findByAccountsAndDateRange(
+        financialAccountIds: List<UUID>,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentPortfolioQuota> {
+        if (financialAccountIds.isEmpty()) return emptyList()
+        return entityRepository.findByAccountsAndDateRange(
+            financialAccountIds = financialAccountIds,
+            dimensionType = dimensionType,
+            dimensionKey = dimensionKey.orEmpty(),
+            from = from,
+            to = to,
+        ).map(InvestmentPortfolioQuotaMapper::toDomain)
+    }
+
     /**
      * Upserts all [quotas] in a single DB round-trip using a multi-row VALUES clause.
      * Returns the input list — callers use it directly for next-iteration math without re-reading from DB.

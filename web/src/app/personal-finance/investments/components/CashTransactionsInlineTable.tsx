@@ -4,7 +4,6 @@ import React, { Fragment } from "react";
 import { useQuery } from "@apollo/client/react";
 import {
   alpha,
-  Avatar,
   Box,
   ButtonBase,
   CircularProgress,
@@ -24,9 +23,12 @@ import type {
   InvestmentCashTransactionsQueryVariables,
 } from "@/lib/graphql/operations/banking/queries.generated";
 import { CreditDebitType } from "@/lib/graphql/types/__generated__/graphql";
+import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useTranslation, i18n } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
+import { FinancialAccountIdentity } from "@/shared/components/ui/data-display/FinancialAccountIdentity";
 import { FINANCE_TABLE_BODY_FONT_SIZE } from "@/shared/components/ui/data-display/Table";
+import { formatTableDate } from "@/shared/utils/date";
 import { personalFinanceTranslations } from "../../i18n";
 import { formatFinanceDateGroupLabel, parseFinanceDateKey } from "../../utils/financeDateGroupLabel";
 import {
@@ -39,6 +41,7 @@ import {
   financeTransactionTableHeadSx,
   getFinanceTransactionTableSx,
 } from "../../utils/financeTransactionTableStyles";
+import { formatCashLedgerTransactionLabel } from "./cashTransactionLabels";
 import { CashTransactionRowActions } from "./CashTransactionRowActions";
 import { HoldingIdentity, resolveHoldingIdentity } from "./HoldingIdentity";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
@@ -66,12 +69,15 @@ export function CashTransactionsInlineTable({
   const theme = useTheme();
   const showFinancialAccountColumn = !financialAccountId;
   const headCellSx = financeTransactionHeadCellSx(theme);
-  const checkboxColSx = { width: 44, maxWidth: 44 };
-  const assetColSx = { width: 120, maxWidth: 120 };
-  const financialAccountColSx = { width: 140, maxWidth: 140 };
+  const assetColSx = {
+    width: showFinancialAccountColumn ? 220 : 260,
+    maxWidth: showFinancialAccountColumn ? 220 : 260,
+    overflow: "hidden",
+  };
+  const financialAccountColSx = { width: 160, maxWidth: 160, overflow: "hidden" };
   const amountColSx = { width: 160, maxWidth: 160, px: 2 };
   const tableBodyLabelFontSize = FINANCE_TABLE_BODY_FONT_SIZE;
-  const colSpan = showFinancialAccountColumn ? 6 : 5;
+  const colSpan = showFinancialAccountColumn ? 5 : 4;
 
   const accountsById = React.useMemo(
     () => new Map(investmentAccounts.map((account) => [account.id, account])),
@@ -154,6 +160,10 @@ export function CashTransactionsInlineTable({
 
   const linkRowHoverBg = React.useMemo(() => alpha(theme.palette.primary.main, 0.06), [theme.palette.primary.main]);
   const linkRowFocusBg = React.useMemo(() => alpha(theme.palette.primary.main, 0.08), [theme.palette.primary.main]);
+  const hoverBg = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
+  const focusBg = React.useMemo(() => alpha(theme.palette.primary.main, 0.055), [theme.palette.primary.main]);
+
+  const [detailRow, setDetailRow] = React.useState<CashEdge["node"] | null>(null);
 
   if (loading && !data?.investmentCashTransactions) {
     return (
@@ -202,8 +212,7 @@ export function CashTransactionsInlineTable({
       >
         <TableHead sx={financeTransactionTableHeadSx}>
           <TableRow sx={financeTransactionTableHeadRowSx}>
-            <TableCell padding="checkbox" sx={{ pl: 2, ...checkboxColSx, ...headCellSx }} />
-            <TableCell sx={headCellSx}>
+            <TableCell sx={{ pl: 2, ...headCellSx }}>
               <Label>{t("investments.cash.movements.columns.description")}</Label>
             </TableCell>
             <TableCell sx={{ ...assetColSx, ...headCellSx }}>
@@ -242,7 +251,7 @@ export function CashTransactionsInlineTable({
                 const account = accountsById.get(node.financialAccountId);
                 const relatedIdentity =
                   node.investmentTransactionId != null && node.linkedInvestmentAsset != null
-                    ? resolveHoldingIdentity({ asset: node.linkedInvestmentAsset })
+                    ? resolveHoldingIdentity({ asset: node.linkedInvestmentAsset, financialAccount: account })
                     : null;
                 const signedPrefix = node.creditDebitType === CreditDebitType.Credit ? "+" : "−";
                 const amountStr = formatCurrency(node.amount, node.currencyCode, locale);
@@ -254,10 +263,33 @@ export function CashTransactionsInlineTable({
                 return (
                   <TableRow
                     key={node.id}
-                    sx={financeTransactionBodyRowSx(theme, { isFirst, isLast })}
+                    onClick={() => setDetailRow(node)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        setDetailRow(node);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={t("investments.table.rowActions.viewDetails")}
+                    sx={{
+                      ...financeTransactionBodyRowSx(theme, { isFirst, isLast }),
+                      cursor: "pointer",
+                      transition: "background-color 120ms ease",
+                      "&:hover .MuiTableCell-root": {
+                        bgcolor: hoverBg,
+                      },
+                      "&:focus-visible": {
+                        outline: `2px solid ${alpha(theme.palette.primary.main, 0.35)}`,
+                        outlineOffset: 2,
+                      },
+                      "&:focus-visible .MuiTableCell-root": {
+                        bgcolor: focusBg,
+                      },
+                    }}
                   >
-                    <TableCell padding="checkbox" sx={{ pl: 2, ...checkboxColSx }} />
-                    <TableCell component="th" scope="row">
+                    <TableCell component="th" scope="row" sx={{ pl: 2 }}>
                       <Typography
                         variant="body2"
                         noWrap
@@ -270,7 +302,10 @@ export function CashTransactionsInlineTable({
                     <TableCell sx={assetColSx}>
                       {relatedIdentity ? (
                         <Box
-                          onClick={() => onSelectRelatedAsset?.(relatedIdentity.assetName)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            onSelectRelatedAsset?.(relatedIdentity.assetName);
+                          }}
                           role={onSelectRelatedAsset ? "button" : undefined}
                           tabIndex={onSelectRelatedAsset ? 0 : undefined}
                           aria-label={
@@ -280,6 +315,7 @@ export function CashTransactionsInlineTable({
                             if (!onSelectRelatedAsset) return;
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
+                              event.stopPropagation();
                               onSelectRelatedAsset(relatedIdentity.assetName);
                             }
                           }}
@@ -290,7 +326,11 @@ export function CashTransactionsInlineTable({
                                   borderRadius: 1,
                                   px: 0.5,
                                   py: 0.25,
-                                  display: "inline-flex",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  width: "100%",
+                                  minWidth: 0,
+                                  maxWidth: "100%",
                                   transition: "background-color 120ms ease, box-shadow 120ms ease",
                                   "&:hover": {
                                     bgcolor: alpha(theme.palette.primary.main, 0.08),
@@ -301,7 +341,7 @@ export function CashTransactionsInlineTable({
                                     bgcolor: alpha(theme.palette.primary.main, 0.1),
                                   },
                                 }
-                              : undefined
+                              : { width: "100%", minWidth: 0, maxWidth: "100%" }
                           }
                         >
                           <HoldingIdentity
@@ -309,6 +349,7 @@ export function CashTransactionsInlineTable({
                             issuerName={relatedIdentity.issuerName}
                             logoUrl={relatedIdentity.logoUrl}
                             size={24}
+                            sx={{ width: "100%", minWidth: 0 }}
                           />
                         </Box>
                       ) : (
@@ -319,37 +360,13 @@ export function CashTransactionsInlineTable({
                     </TableCell>
                     {showFinancialAccountColumn ? (
                       <TableCell align="right" sx={financialAccountColSx}>
-                        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 1, width: "100%" }}>
-                          <Avatar
-                            variant="rounded"
-                            src={account?.issuer?.logoAsset?.publicUrl || undefined}
-                            slotProps={{ img: { style: { objectFit: "contain" } } }}
-                            sx={{
-                              bgcolor: account?.issuer?.logoAsset?.publicUrl
-                                ? "transparent"
-                                : (account?.themeColor || "primary.main"),
-                              width: 24,
-                              height: 24,
-                              borderRadius: 1,
-                              flexShrink: 0,
-                            }}
-                          >
-                            {(account?.name || "?").slice(0, 1).toUpperCase()}
-                          </Avatar>
-                          <Box sx={{ minWidth: 0 }}>
-                            <Typography
-                              variant="body2"
-                              noWrap
-                              title={account?.name || node.financialAccountId}
-                              sx={{ fontSize: tableBodyLabelFontSize, lineHeight: 1.25 }}
-                            >
-                              {account?.name || "—"}
-                            </Typography>
-                            <Typography variant="caption" color="text.secondary" noWrap sx={{ lineHeight: 1.2 }}>
-                              {account?.issuer?.name || account?.issuerName || "—"}
-                            </Typography>
-                          </Box>
-                        </Box>
+                        <FinancialAccountIdentity
+                          account={account}
+                          justify="flex-end"
+                          avatarSize={24}
+                          nameTitle={account?.name || node.financialAccountId}
+                          data-testid={`cash-tx-financial-account-${node.id}`}
+                        />
                       </TableCell>
                     ) : null}
                     <TableCell align="right" sx={amountColSx}>
@@ -369,7 +386,11 @@ export function CashTransactionsInlineTable({
                       </Typography>
                     </TableCell>
                     <TableCell align="center" padding="none" sx={{ width: 88, maxWidth: 88 }}>
-                      <CashTransactionRowActions node={node} listContextAccountId={financialAccountId} />
+                      <CashTransactionRowActions
+                        node={node}
+                        listContextAccountId={financialAccountId}
+                        onViewDetails={(row) => setDetailRow(row)}
+                      />
                     </TableCell>
                   </TableRow>
                 );
@@ -417,6 +438,38 @@ export function CashTransactionsInlineTable({
           ) : null}
         </TableBody>
       </Table>
+
+      <Drawer open={Boolean(detailRow)} onClose={() => setDetailRow(null)} anchor="right" size="sm">
+        <Drawer.Header title={t("investments.cash.movements.detailTitle")} />
+        <Drawer.Body>
+          {detailRow ? (
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <Box>
+                <Label>{t("investments.cash.movements.columns.date")}</Label>
+                <Typography variant="body2">{formatTableDate(String(detailRow.date), locale)}</Typography>
+              </Box>
+              <Box>
+                <Label>{t("investments.cash.movements.columns.kind")}</Label>
+                <Typography variant="body2">
+                  {formatCashLedgerTransactionLabel(detailRow.type, detailRow.creditDebitType, (k) => t(k as never))}
+                </Typography>
+              </Box>
+              <Box>
+                <Label>{t("investments.cash.amount")}</Label>
+                <Typography variant="body2" sx={{ fontVariantNumeric: "tabular-nums" }}>
+                  {detailRow.creditDebitType === CreditDebitType.Credit ? "+" : "−"}
+                  {"\u00A0"}
+                  {formatCurrency(detailRow.amount, detailRow.currencyCode, locale)}
+                </Typography>
+              </Box>
+              <Box>
+                <Label>{t("investments.cash.description")}</Label>
+                <Typography variant="body2">{detailRow.description}</Typography>
+              </Box>
+            </Box>
+          ) : null}
+        </Drawer.Body>
+      </Drawer>
     </TableContainer>
   );
 }

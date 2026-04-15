@@ -8,6 +8,8 @@ export interface HoldingsGroupsSectionProps {
   groups: InvestmentHoldingGroup[];
   expandedGroups: Set<AssetGroupKey>;
   hideGroupHeader: boolean;
+  /** When null, portfolio is consolidated — fixed-income tables show the custodian column. */
+  selectedAccountId: string | null;
   locale: string;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
   onOpenDetail: (holding: HoldingRow) => void;
@@ -21,6 +23,7 @@ export function HoldingsGroupsSection({
   groups,
   expandedGroups,
   hideGroupHeader,
+  selectedAccountId,
   locale,
   onToggleGroup,
   onOpenDetail,
@@ -29,14 +32,17 @@ export function HoldingsGroupsSection({
   onBuy,
   onSell,
 }: HoldingsGroupsSectionProps) {
+  const showConsolidatedCustodianColumn = selectedAccountId == null;
+
   return (
     <>
-      {groups.map((group, index) => (
+      {groups.map((group) => (
         <InvestmentGroupTable
           key={group.key}
           group={group}
           expanded={hideGroupHeader ? true : expandedGroups.has(group.key)}
           locale={locale}
+          showConsolidatedCustodianColumn={showConsolidatedCustodianColumn}
           onToggleGroup={onToggleGroup}
           onOpenDetail={onOpenDetail}
           onOpenMaturityConfirm={onOpenMaturityConfirm}

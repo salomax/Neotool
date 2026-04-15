@@ -141,6 +141,23 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
                 }
                 .sortedBy { it.quotaDate }
 
+        override fun findByAccountsAndDateRange(
+            financialAccountIds: List<UUID>,
+            dimensionType: PortfolioDimensionType,
+            dimensionKey: String?,
+            from: LocalDate,
+            to: LocalDate,
+        ): List<InvestmentPortfolioQuota> =
+            rows
+                .filter {
+                    financialAccountIds.contains(it.financialAccountId) &&
+                        it.dimensionType == dimensionType &&
+                        it.dimensionKey == dimensionKey &&
+                        !it.quotaDate.isBefore(from) &&
+                        !it.quotaDate.isAfter(to)
+                }
+                .sortedBy { it.quotaDate }
+
         override fun deleteFromDate(financialAccountId: UUID, from: LocalDate): Int {
             val before = rows.size
             rows.removeAll { it.financialAccountId == financialAccountId && !it.quotaDate.isBefore(from) }

@@ -54,7 +54,7 @@ export const INVESTMENT_GRID_CLASS_DEFINITIONS: readonly InvestmentGridClassDefi
     primaryActionKey: "investments.transactions.apply",
     secondaryActionKey: "investments.transactions.redeem",
     includeCashCard: false,
-    visibleGroupKeys: ["bankFixedIncome", "creditFixedIncome"],
+    visibleGroupKeys: ["fixedIncome"],
   },
   {
     key: "funds",

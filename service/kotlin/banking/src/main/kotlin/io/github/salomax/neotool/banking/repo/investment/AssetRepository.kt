@@ -14,6 +14,8 @@ interface AssetRepository {
 
     fun findAllWithTicker(): List<Asset>
 
+    fun findAllWithFundCnpj(): List<Asset>
+
     fun findByTicker(ticker: String): Asset?
 
     fun findByIsinCode(isinCode: String): Asset?

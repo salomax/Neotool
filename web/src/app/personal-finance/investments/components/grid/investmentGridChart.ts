@@ -2,76 +2,98 @@ import type { InvestmentGridDataQuery } from "@/lib/graphql/operations/banking/q
 import type { TimeSeriesDataPoint } from "@/shared/types/charts";
 import type { InvestmentGridClassKey } from "./investmentGridConfig";
 
-type PerfPoint = { timestamp?: unknown; grossValue?: number | null };
-
-function timestampToSortable(ts: string): number {
-  const ms = new Date(ts).getTime();
-  return Number.isFinite(ms) ? ms : NaN;
-}
+type TwrPoint = { date?: unknown; quotaValue?: number | null };
+type LegacyPerfPoint = { timestamp?: unknown; grossValue?: number | null };
+type LegacyPerfSeries = { points?: readonly LegacyPerfPoint[] | null } | null | undefined;
 
 /**
- * Merges multiple performance series by timestamp (sums grossValue per bucket).
+ * Normalizes quota history into sparkline return points.
  */
-export function mergePerformancePointGroups(
-  ...groups: Array<readonly PerfPoint[] | null | undefined>
-): Array<{ timestamp: string; grossValue: number }> {
-  const acc = new Map<string, number>();
-  for (const group of groups) {
-    for (const point of group ?? []) {
-      const rawTs = point?.timestamp;
-      const ts = rawTs != null && rawTs !== "" ? String(rawTs) : null;
-      const value = typeof point?.grossValue === "number" ? point.grossValue : null;
-      if (!ts || value == null || !Number.isFinite(value)) continue;
-      if (!Number.isFinite(timestampToSortable(ts))) continue;
-      acc.set(ts, (acc.get(ts) ?? 0) + value);
-    }
-  }
-  return Array.from(acc.entries())
-    .map(([timestamp, grossValue]) => ({ timestamp, grossValue }))
-    .sort((a, b) => timestampToSortable(a.timestamp) - timestampToSortable(b.timestamp));
-}
-
-/**
- * Normalizes API performance points into sparkline-friendly series (labels reuse `quarter` field for timestamps).
- */
-export function performancePointsToSparklineSeries(
-  points: readonly PerfPoint[] | null | undefined,
+export function twrPointsToSparklineSeries(
+  points: readonly TwrPoint[] | null | undefined,
 ): TimeSeriesDataPoint[] {
-  const parsed = (points ?? [])
+  const valid = (points ?? [])
     .map((point, idx) => {
-      const rawTs = point?.timestamp;
-      const label = rawTs != null && rawTs !== "" ? String(rawTs) : `P${idx + 1}`;
-      const value = typeof point?.grossValue === "number" ? point.grossValue : null;
-      return { quarter: label, value, ts: rawTs != null && rawTs !== "" ? String(rawTs) : null };
+      const rawDate = point?.date;
+      const label = rawDate != null && rawDate !== "" ? String(rawDate) : `P${idx + 1}`;
+      const value = typeof point?.quotaValue === "number" ? point.quotaValue : null;
+      return { quarter: label, value };
     })
     .filter(
-      (point): point is { quarter: string; value: number; ts: string | null } =>
-        typeof point.value === "number" &&
-        Number.isFinite(point.value) &&
-        (point.ts == null || Number.isFinite(timestampToSortable(point.ts))),
+      (point): point is { quarter: string; value: number } =>
+        typeof point.value === "number" && Number.isFinite(point.value),
     )
     .map(({ quarter, value }) => ({ quarter, value }));
-  return parsed.length >= 1 ? parsed : [];
+
+  if (valid.length < 2) return [];
+  const base = valid[0]?.value;
+  if (base == null || !Number.isFinite(base) || base === 0) return [];
+
+  return valid.map((point) => ({
+    quarter: point.quarter,
+    value: point.value / base - 1,
+  }));
+}
+
+function perfPointsToSparklineSeries(points: readonly LegacyPerfPoint[] | null | undefined): TimeSeriesDataPoint[] {
+  const valid = (points ?? [])
+    .map((point, idx) => {
+      const rawDate = point?.timestamp;
+      const label = rawDate != null && rawDate !== "" ? String(rawDate) : `P${idx + 1}`;
+      const value = typeof point?.grossValue === "number" ? point.grossValue : null;
+      return { quarter: label, value };
+    })
+    .filter(
+      (point): point is { quarter: string; value: number } =>
+        typeof point.value === "number" && Number.isFinite(point.value),
+    );
+
+  if (valid.length < 2) return [];
+  const base = valid[0]?.value;
+  if (base == null || !Number.isFinite(base) || base === 0) return [];
+
+  return valid.map((point) => ({
+    quarter: point.quarter,
+    value: point.value / base - 1,
+  }));
+}
+
+function mergeLegacyPerfSeries(seriesList: readonly LegacyPerfSeries[]): LegacyPerfPoint[] {
+  const summedByTimestamp = new Map<string, number>();
+  for (const series of seriesList) {
+    for (const point of series?.points ?? []) {
+      const rawTimestamp = point?.timestamp;
+      if (rawTimestamp == null || rawTimestamp === "") continue;
+      const timestamp = String(rawTimestamp);
+      const grossValue = typeof point?.grossValue === "number" ? point.grossValue : null;
+      if (grossValue == null || !Number.isFinite(grossValue)) continue;
+      summedByTimestamp.set(timestamp, (summedByTimestamp.get(timestamp) ?? 0) + grossValue);
+    }
+  }
+
+  return Array.from(summedByTimestamp.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([timestamp, grossValue]) => ({ timestamp, grossValue }));
+}
+
+function twrOrLegacySeries(
+  twrPoints: readonly TwrPoint[] | null | undefined,
+  legacySeriesList: readonly LegacyPerfSeries[],
+): TimeSeriesDataPoint[] {
+  const twrSeries = twrPointsToSparklineSeries(twrPoints);
+  if (twrSeries.length > 0) return twrSeries;
+  return perfPointsToSparklineSeries(mergeLegacyPerfSeries(legacySeriesList));
 }
 
 export function buildChartSeriesByClass(
   gridData: InvestmentGridDataQuery | undefined | null,
 ): Record<InvestmentGridClassKey, TimeSeriesDataPoint[]> {
-  const mergedFixedIncome = mergePerformancePointGroups(
-    gridData?.perfBankFixedIncome?.points,
-    gridData?.perfCreditFixedIncome?.points,
-  );
-  const mergedFunds = mergePerformancePointGroups(
-    gridData?.perfMutualFunds?.points,
-    gridData?.perfPension?.points,
-  );
-
   return {
-    cash: performancePointsToSparklineSeries(gridData?.perfCash?.points),
-    "fixed-income": performancePointsToSparklineSeries(mergedFixedIncome),
-    funds: performancePointsToSparklineSeries(mergedFunds),
-    stocks: performancePointsToSparklineSeries(gridData?.perfStocks?.points),
-    reits: performancePointsToSparklineSeries(gridData?.perfReits?.points),
-    crypto: performancePointsToSparklineSeries(gridData?.perfCrypto?.points),
+    cash: twrOrLegacySeries(gridData?.twrCash, [gridData?.perfCash]),
+    "fixed-income": twrOrLegacySeries(gridData?.twrFixedIncome, [gridData?.perfBankFixedIncome, gridData?.perfCreditFixedIncome]),
+    funds: twrOrLegacySeries(gridData?.twrFunds, [gridData?.perfMutualFunds, gridData?.perfPension]),
+    stocks: twrOrLegacySeries(gridData?.twrStocks, [gridData?.perfStocks]),
+    reits: twrOrLegacySeries(gridData?.twrReits, [gridData?.perfReits]),
+    crypto: twrOrLegacySeries(gridData?.twrCrypto, [gridData?.perfCrypto]),
   };
 }

@@ -13,7 +13,7 @@ import { CloseIcon } from "@/shared/ui/mui-imports";
 import { FixedIncomeHoldingDetailContent } from "./fixed-income/FixedIncomeHoldingDetailContent";
 import { FixedIncomeHoldingDetailDocument } from "./fixed-income/api/queries.generated";
 import { buildFixedIncomeHoldingDetailViewModel } from "./fixed-income/fixedIncomeHoldingDetailAdapter";
-import { RecordFixedIncomeRedemptionDrawer } from "./fixed-income/RecordFixedIncomeRedemptionDrawer";
+import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "../MaturityConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
 import { FundHoldingDetailDocument } from "./fund/api/queries.generated";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
@@ -339,8 +339,7 @@ export function InvestmentHoldingDetailDrawer({
 
   type AssetGroupKey =
     | "variableIncome"
-    | "bankFixedIncome"
-    | "creditFixedIncome"
+    | "fixedIncome"
     | "mutualFunds"
     | "pension"
     | "structured"
@@ -356,8 +355,7 @@ export function InvestmentHoldingDetailDrawer({
       "ETF",
       "ETF_INTERNATIONAL",
     ],
-    bankFixedIncome: ["CDB", "RDB", "LCI", "LCA", "LC", "LF", "LIG", "ETF_FIXED_INCOME", "TREASURY"],
-    creditFixedIncome: ["DEBENTURES", "CRI", "CRA"],
+    fixedIncome: ["CDB", "RDB", "LCI", "LCA", "LC", "LF", "LIG", "ETF_FIXED_INCOME", "TREASURY", "DEBENTURES", "CRI", "CRA"],
     mutualFunds: ["MUTUAL_FUND", "FIXED_INCOME_FUND", "EQUITY_FUND", "MULTI_MARKET_FUND", "FOREX_FUND"],
     pension: ["PGBL", "VGBL"],
     structured: ["COE"],
@@ -374,11 +372,8 @@ export function InvestmentHoldingDetailDrawer({
     return match || "others";
   }
 
-  const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(["bankFixedIncome", "creditFixedIncome"]);
-
   const groupKey = getAssetGroupKey(resolvedAssetType);
-  const groupDisplayKey =
-    FIXED_INCOME_GROUP_KEYS.has(groupKey) ? "fixedIncome" : groupKey === "variableIncome" ? "variableIncome" : groupKey;
+  const groupDisplayKey = groupKey;
 
   const title =
     resolvedAssetType != null
@@ -445,30 +440,34 @@ export function InvestmentHoldingDetailDrawer({
     return parts.join(" • ");
   }, [assetTypeLabel, fundViewModel]);
 
-  const [redemptionDrawerOpen, setRedemptionDrawerOpen] = React.useState(false);
+  const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
 
-  const redemptionHolding = React.useMemo(() => {
+  const maturityHolding = React.useMemo<MaturityDrawerHolding | null>(() => {
     const h = fixedIncomeData?.investmentHolding;
     if (!h || !h.financialAccount?.id || !h.asset?.id) return null;
     return {
       id: h.id,
-      quantity: h.quantity,
+      financialAccountId: h.financialAccount.id,
+      maturityDate: h.maturityDate ? String(h.maturityDate) : null,
       grossValue: h.grossValue,
       netValue: h.netValue,
-      isTaxExempt: h.isTaxExempt,
-      financialAccountId: h.financialAccount.id,
-      assetId: h.asset.id,
+      incomeTax: h.incomeTax,
+      iof: h.iof,
+      issuerName: h.asset.issuerName ?? null,
+      issuerLogoUrl: h.asset.logoAsset?.publicUrl ?? h.financialAccount.issuer?.logoAsset?.publicUrl ?? null,
+      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
     };
   }, [fixedIncomeData?.investmentHolding]);
 
-  const canRegisterRedemption = kind === "fixedIncome" && Boolean(redemptionHolding) && (redemptionHolding?.quantity ?? 0) > 0;
+  const canRegisterRedemption =
+    kind === "fixedIncome" && Boolean(maturityHolding) && (fixedIncomeData?.investmentHolding?.quantity ?? 0) > 0;
 
   const strategy: HoldingDetailStrategy =
     kind === "fixedIncome"
       ? {
           headerActions: null,
           footerActions: canRegisterRedemption ? (
-            <Drawer.CancelButton onClick={() => setRedemptionDrawerOpen(true)}>
+            <Drawer.CancelButton onClick={() => setMaturityConfirmOpen(true)}>
               {t("investments.redemption.trigger")}
             </Drawer.CancelButton>
           ) : null,
@@ -487,11 +486,11 @@ export function InvestmentHoldingDetailDrawer({
             />
           ),
           extra: (
-            <RecordFixedIncomeRedemptionDrawer
-              open={redemptionDrawerOpen}
-              onClose={() => setRedemptionDrawerOpen(false)}
-              holding={redemptionHolding}
-              onRecorded={() => void fixedIncomeQuery.refetch()}
+            <MaturityConfirmDrawer
+              open={maturityConfirmOpen}
+              onClose={() => setMaturityConfirmOpen(false)}
+              holding={maturityHolding}
+              onSuccess={() => void fixedIncomeQuery.refetch()}
             />
           ),
           assetName,

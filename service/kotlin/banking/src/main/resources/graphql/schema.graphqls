@@ -1159,6 +1159,13 @@ enum PerformancePeriod {
   ALL
 }
 
+enum GridClassTwrPeriod {
+  SIX_MONTHS
+  ONE_YEAR
+  THREE_YEARS
+  ALL
+}
+
 """
 Indicates the origin and reliability of a holding's current value.
 """
@@ -1449,6 +1456,13 @@ type InvestmentPortfolioSummary {
   recalculationStatus: RecalculationStatus!
 }
 
+"""A single point in a grid-class TWR quota time series."""
+type GridClassTwrPoint {
+  date: Date!
+  """Raw quota value. Normalize to % return as (quotaValue / firstPoint.quotaValue) - 1."""
+  quotaValue: Float!
+}
+
 # ============================================================================
 # Investment Input Types
 # ============================================================================
@@ -1482,6 +1496,16 @@ input CreateInvestmentAssetInput {
   ticker: String
   isinCode: String
   """Defaults to BRL when omitted."""
+  currencyCode: String
+}
+
+input UpdateInvestmentAssetInput {
+  name: String!
+  assetType: AssetType!
+  issuerName: String
+  fundCnpj: String
+  ticker: String
+  isinCode: String
   currencyCode: String
 }
 
@@ -1521,6 +1545,32 @@ input RecordInvestmentTransactionInput {
   gracePeriodDate: Date
   isTaxExempt: Boolean
   providerInvestmentId: String
+  pricingMode: HoldingPricingMode
+  manualValuation: ManualFundValuationInput
+}
+
+input UpdateInvestmentTransactionInput {
+  direction: InvestmentTransactionDirection!
+  type: InvestmentTransactionType!
+  """Required when type = OTHER."""
+  typeAdditionalInfo: String
+  quantity: Float
+  unitPrice: Float
+  grossValue: Float!
+  netValue: Float
+  incomeTax: Float
+  iof: Float
+  indexerPercentage: Float
+  fixedAnnualRate: Float
+  priceFactor: Float
+  tradeDate: Date!
+  settlementDate: Date
+  brokerNote: BrokerNoteInput
+  indexer: Indexer
+  issueDate: Date
+  maturityDate: Date
+  gracePeriodDate: Date
+  isTaxExempt: Boolean
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
 }
@@ -2032,6 +2082,17 @@ extend type Query {
     resolution: HoldingPerformanceResolution
     includeProjection: Boolean
   ): PortfolioPerformanceSeries
+  """
+  TWR quota time series for a grid card class (cash, fixed-income, funds, stocks, reits, crypto).
+  Returns one point per recorded day, ascending. Returns empty list if no data is available.
+  """
+  gridClassTwrSeries(
+    """When set, restrict series to this custodian financial account (tenant-scoped)."""
+    financialAccountId: ID
+    gridClassKey: String!
+    """Lookback window. Defaults to ONE_YEAR when omitted."""
+    period: GridClassTwrPeriod
+  ): [GridClassTwrPoint!]!
   """Annualized IRR and total return summary for a holding."""
   investmentHoldingPerformance(holdingId: ID!): InvestmentHoldingPerformance
   """Pending items for the authenticated account (e.g. matured fixed income awaiting confirmation)."""
@@ -2101,8 +2162,12 @@ extend type Mutation {
   Creates the holding automatically on the first PURCHASE of an asset.
   """
   createInvestmentAsset(input: CreateInvestmentAssetInput!): InvestmentAsset!
+  """Updates an existing investment asset metadata."""
+  updateInvestmentAsset(id: ID!, input: UpdateInvestmentAssetInput!): InvestmentAsset!
   """Records an investment transaction and updates the holding's quantity and averageCost."""
   recordInvestmentTransaction(input: RecordInvestmentTransactionInput!): InvestmentTransaction!
+  """Updates a MANUAL investment transaction and recomputes the holding state."""
+  updateInvestmentTransaction(id: ID!, input: UpdateInvestmentTransactionInput!): InvestmentTransaction!
   """
   Records manual cash on an investment/benefit custodian account (aporte, saque, or balance adjustment).
   Categories are system-assigned for DEPOSIT/WITHDRAWAL; ADJUSTMENT has no category.

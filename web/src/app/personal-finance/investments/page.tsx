@@ -272,7 +272,11 @@ export default function PersonalFinanceInvestmentsPage() {
         </SidebarLayout>
       )}
 
-      <PendingActionsDrawer open={pendingActionsOpen} onClose={closePendingActions} bankAccounts={bankAccounts} />
+      <PendingActionsDrawer
+        open={pendingActionsOpen}
+        onClose={closePendingActions}
+        investmentAccounts={investmentAccounts}
+      />
 
       <CreateInvestmentAccountDrawer
         open={isCreateAccountOpen}
