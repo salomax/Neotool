@@ -82,16 +82,36 @@ export class FinanceTransactionsPage {
   /**
    * Opens the edit drawer for a specific account through the selector popover.
    */
-  async openEditAccountDrawer(accountName: string): Promise<CreateAccountDrawer> {
-    await this.page.getByTestId('account-selector').click();
-    const popover = this.page.getByTestId('account-selector-popover');
-    await popover.waitFor({ state: 'visible', timeout: 10_000 });
-    const accountNameCell = popover.getByText(accountName, { exact: true });
-    await accountNameCell.waitFor({ state: 'visible' });
-    const accountRow = accountNameCell.locator('xpath=ancestor::*[@role="button"][1]');
-    await accountRow.getByLabel(/editar|edit/i).click();
-    await this.createAccountDrawer.waitForOpen();
-    return this.createAccountDrawer;
+  async openEditAccountDrawer(accountName: string, accountId?: string): Promise<CreateAccountDrawer> {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      await this.page.getByTestId('account-selector').click();
+      const popover = this.page.getByTestId('account-selector-popover');
+      await popover.waitFor({ state: 'visible', timeout: 10_000 });
+      const accountRow = accountId
+        ? popover.locator(`[data-account-id="${accountId}"]`).first()
+        : popover
+            .getByText(accountName, { exact: true })
+            .locator('xpath=ancestor::*[@role="button"][1]');
+      await accountRow.waitFor({ state: 'visible' });
+      await accountRow.getByLabel(/editar|edit/i).click();
+      await this.createAccountDrawer.waitForOpen();
+
+      const removeVisible = await this.page
+        .getByTestId('create-account-drawer')
+        .getByTestId('account-form-remove')
+        .first()
+        .waitFor({ state: 'visible', timeout: 3000 })
+        .then(() => true)
+        .catch(() => false);
+      if (removeVisible) {
+        return this.createAccountDrawer;
+      }
+
+      await this.page.keyboard.press('Escape').catch(() => {});
+      await this.createAccountDrawer.waitForClose().catch(() => {});
+    }
+
+    throw new Error(`Could not open edit account drawer for "${accountName}" in edit mode`);
   }
 
   /**
@@ -194,7 +214,21 @@ export class FinanceTransactionsPage {
 
   /** Asserts that the account is NOT present in the selector (e.g. after soft-delete). */
   async expectAccountNotInSelector(accountName: string): Promise<void> {
-    await this.page.getByTestId('account-selector').click();
+    const selector = this.page.getByTestId('account-selector');
+    const emptyState = this.page.getByTestId('empty-accounts-state');
+    await expect
+      .poll(
+        async () =>
+          (await selector.isVisible().catch(() => false)) || (await emptyState.isVisible().catch(() => false)),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+
+    if (await emptyState.isVisible().catch(() => false)) {
+      return;
+    }
+
+    await selector.click();
     const popover = this.page.getByTestId('account-selector-popover');
     await popover.waitFor({ state: 'visible', timeout: 10_000 });
     await expect(popover.getByText(accountName, { exact: true })).toHaveCount(0);

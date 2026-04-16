@@ -22,12 +22,12 @@ export class CreateAccountDrawer {
   }
 
   /**
-   * `data-testid` is on the MUI Modal root; type tiles and the form render inside the
-   * Drawer Paper (`role="dialog"`). Waiting/querying only the modal root can race the
-   * slide-in transition — inner nodes stay non-visible while the root is already visible.
+   * Scope to the drawer paper only. Using a generic `[role="dialog"]:visible` chain can
+   * match the wrong surface when a nested/portaled confirm dialog is also a dialog, or
+   * when `.last()` flips between transitions — the remove button then "disappears" for the locator.
    */
   private drawerPanel(): Locator {
-    return this.drawer.getByRole('dialog').first();
+    return this.drawer.locator('.MuiDrawer-paper').first();
   }
 
   private submitButton(): Locator {
@@ -35,20 +35,48 @@ export class CreateAccountDrawer {
   }
 
   private visibleDeleteConfirmButton(): Locator {
-    return this.page.locator('[data-testid="account-delete-confirm"]:visible').first();
+    return this.page
+      .locator('[data-testid="account-delete-dialog"]:visible')
+      .last()
+      .getByRole('button', {
+        name: /remover conta|remove account|excluir conta|delete account|excluir|delete/i,
+      })
+      .first();
   }
 
   private visibleDeleteCancelButton(): Locator {
-    return this.page.locator('[data-testid="account-delete-cancel"]:visible').first();
+    return this.page
+      .locator('[data-testid="account-delete-dialog"]:visible')
+      .last()
+      .getByRole('button', { name: /cancelar|cancel/i })
+      .first();
   }
 
   async waitForOpen(): Promise<void> {
     await this.drawer.waitFor({ state: 'visible', timeout: 30000 });
-    await this.drawerPanel().waitFor({ state: 'visible', timeout: 30000 });
+    await expect
+      .poll(
+        async () =>
+          (await this.drawerPanel().getByTestId('account-form-submit').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-subtype-select').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-BANK').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-CARD').first().isVisible().catch(() => false)),
+        { timeout: 30000 },
+      )
+      .toBe(true);
   }
 
   async waitForClose(): Promise<void> {
-    await this.drawer.waitFor({ state: 'hidden', timeout: 60000 });
+    await expect
+      .poll(
+        async () =>
+          (await this.drawerPanel().getByTestId('account-form-submit').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-subtype-select').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-BANK').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-CARD').first().isVisible().catch(() => false)),
+        { timeout: 60000 },
+      )
+      .toBe(false);
   }
 
   /**
@@ -273,25 +301,37 @@ export class CreateAccountDrawer {
   }
 
   async clickRemoveAccount(): Promise<void> {
-    const removeButton = this.drawerPanel().getByTestId('account-form-remove');
-    await expect(removeButton).toBeVisible();
-    await expect(removeButton).toBeEnabled();
-    await removeButton.scrollIntoViewIfNeeded();
-
+    await this.waitForOpen();
     const confirmButton = this.visibleDeleteConfirmButton();
-    for (let attempt = 0; attempt < 3; attempt++) {
+
+    for (let attempt = 0; attempt < 4; attempt++) {
       if (await confirmButton.isVisible().catch(() => false)) return;
 
+      const removeButton = this.drawer.getByTestId('account-form-remove').first();
+      await expect(removeButton).toBeVisible({ timeout: 10000 });
+      await expect(removeButton).toBeEnabled();
+      await removeButton.scrollIntoViewIfNeeded();
+
       if (attempt === 0) {
-        await removeButton.click();
+        await removeButton.click({ timeout: 5000 }).catch(() => {});
       } else if (attempt === 1) {
-        await removeButton.click({ force: true });
+        await removeButton.click({ force: true, timeout: 5000 }).catch(() => {});
+      } else if (attempt === 2) {
+        await removeButton.dispatchEvent('click');
       } else {
-        await removeButton.focus();
-        await this.page.keyboard.press('Enter');
+        await removeButton.evaluate((el: HTMLElement) => {
+          el.click();
+        });
       }
 
-      const opened = await confirmButton.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false);
+      const drawerStillOpen = await this.drawerPanel()
+        .getByTestId('account-form-submit')
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (!drawerStillOpen) return;
+
+      const opened = await confirmButton.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
       if (opened) return;
     }
 
@@ -308,7 +348,9 @@ export class CreateAccountDrawer {
 
   async removeAccount(): Promise<void> {
     await this.clickRemoveAccount();
-    await this.confirmRemoveAccount();
+    if (await this.visibleDeleteConfirmButton().isVisible().catch(() => false)) {
+      await this.confirmRemoveAccount();
+    }
   }
 
   // ── Assertions ──────────────────────────────────────────────────────────────

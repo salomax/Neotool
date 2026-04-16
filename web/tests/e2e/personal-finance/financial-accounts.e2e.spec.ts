@@ -211,8 +211,9 @@ test.describe('Financial Accounts — happy path', () => {
     await drawer.waitForClose();
 
     await pfPage.expectAccountInSelector(name);
+    const created = await expectPersistedAccount(pfUser.token, (account) => account.name === name);
 
-    const editDrawer = await pfPage.openEditAccountDrawer(name);
+    const editDrawer = await pfPage.openEditAccountDrawer(name, created.id);
     await editDrawer.removeAccount();
     await editDrawer.waitForClose();
 

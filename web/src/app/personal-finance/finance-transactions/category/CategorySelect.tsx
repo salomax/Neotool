@@ -55,6 +55,7 @@ export function CategorySelect({
   return (
     <>
       <Box
+        data-testid="tx-category-select"
         onClick={handleClick}
         sx={{
           cursor: 'pointer',
