@@ -13,6 +13,7 @@ import {
   MenuItem,
   Stack,
   TextField,
+  Typography,
   useMediaQuery,
   useTheme,
 } from '@mui/material';
@@ -24,6 +25,8 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Link from 'next/link';
 import { UploadIcon } from '@/shared/ui/mui-imports';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -44,8 +47,8 @@ interface ImportAlertState {
   error?: unknown;
   accountId: string | null;
   onRetry: () => void;
-  reviewRequiredJob: { id: string; duplicateReviewCount: number } | null;
-  onOpenReviewJob: (jobId: string) => void;
+  reviewRequiredJobs: Array<{ id: string; duplicateReviewCount: number | null }> | null;
+  onOpenReviewJobs: (jobIds: string[]) => void;
 }
 
 interface NavigationState {
@@ -75,7 +78,13 @@ interface FinanceTransactionsHeaderBarProps {
 }
 
 export function FinanceTransactionsHeaderBar({
-  importAlerts: { error: importsError, accountId: effectiveSelectedAccountId, onRetry: onRetryImports, reviewRequiredJob, onOpenReviewJob },
+  importAlerts: {
+    error: importsError,
+    accountId: effectiveSelectedAccountId,
+    onRetry: onRetryImports,
+    reviewRequiredJobs,
+    onOpenReviewJobs,
+  },
   navigation: { isCalendarMode, selectedMonth, selectedYear, onDateChange, bills, selectedBillId, onSelectBill },
   searchQuery,
   onSearchQueryChange,
@@ -211,20 +220,61 @@ export function FinanceTransactionsHeaderBar({
           {extractErrorMessage(importsError, tCommon('errors.default'))}
         </Alert>
       )}
-      {reviewRequiredJob && (
-        <Alert
-          severity="info"
-          sx={{ width: '100%', mb: 2 }}
-          action={
-            <Button size="small" onClick={() => onOpenReviewJob(reviewRequiredJob.id)}>
-              {t('financeTransactions.duplicateReview.bannerAction')}
-            </Button>
-          }
+      {reviewRequiredJobs && reviewRequiredJobs.length > 0 && (
+        <Box
+          sx={{
+            width: '100%',
+            mb: 4,
+            borderRadius: 1.5,
+            border: '1px solid',
+            borderColor: alpha(theme.palette.warning.main, 0.35),
+            bgcolor: 'background.paper',
+            px: { xs: 1.5, sm: 2 },
+            py: { xs: 1.25, sm: 1.5 },
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 2,
+          }}
         >
-          {t('financeTransactions.duplicateReview.header', {
-            count: reviewRequiredJob.duplicateReviewCount ?? 1,
-          })}
-        </Alert>
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ minWidth: 0 }}>
+            <Box
+              sx={{
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === 'dark' ? 0.22 : 0.12),
+                color: 'warning.main',
+                flexShrink: 0,
+              }}
+            >
+              <WarningAmberIcon fontSize="small" />
+            </Box>
+            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+              {t('financeTransactions.duplicateReview.header', {
+                count: reviewRequiredJobs.reduce((sum, j) => sum + (j.duplicateReviewCount ?? 1), 0),
+              })}
+            </Typography>
+          </Stack>
+
+          <Button
+            size="medium"
+            variant="text"
+            onClick={() => onOpenReviewJobs(reviewRequiredJobs.map((j) => j.id))}
+            endIcon={<ChevronRightIcon fontSize="small" />}
+            sx={{
+              fontWeight: 600,
+              color: 'warning.main',
+              flexShrink: 0,
+              '&:hover': { bgcolor: alpha(theme.palette.warning.main, theme.palette.mode === 'dark' ? 0.18 : 0.08) },
+            }}
+          >
+            {t('financeTransactions.duplicateReview.bannerAction')}
+          </Button>
+        </Box>
       )}
       <Stack
         direction="row"

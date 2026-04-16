@@ -49,7 +49,7 @@ export default function FinanceTransactionsPage() {
   const [isNfceImportDrawerOpen, setIsNfceImportDrawerOpen] = useState(false);
   const [nfceDocumentTransactionId, setNfceDocumentTransactionId] = useState<string | null>(null);
   const [isCreateDrawerFromImport, setIsCreateDrawerFromImport] = useState(false);
-  const [reviewJobId, setReviewJobId] = useState<string | null>(null);
+  const [reviewJobIds, setReviewJobIds] = useState<string[] | null>(null);
   const [selectedAccountId, setSelectedAccountId] = useState<string | null>(null);
   const [editingAccount, setEditingAccount] = useState<FinancialAccount | null>(null);
   const [initialType, setInitialType] = useState<'BANK' | 'CARD' | null>(null);
@@ -155,12 +155,23 @@ export default function FinanceTransactionsPage() {
     skip: displayMode.kind !== 'calendar',
   });
 
-  const { data: importsData, error: importsError, refetch: refetchImports } = useQuery<{ transactionImports: Array<{ id: string; status: string; duplicateReviewCount: number }> }>(TRANSACTION_IMPORTS, {
+  const { data: importsData, error: importsError, refetch: refetchImports } = useQuery<{
+    transactionImports: Array<{
+      id: string;
+      status: string;
+      duplicateReviewCount: number | null;
+      createdAt: string;
+    }>;
+  }>(TRANSACTION_IMPORTS, {
     variables: { financialAccountId: effectiveSelectedAccountId },
-    skip: !effectiveSelectedAccountId,
+    skip: !accountsResolved,
     errorPolicy: 'all',
   });
-  const reviewRequiredJob = importsData?.transactionImports?.find((j) => j.status === 'REVIEW_REQUIRED');
+  const reviewRequiredJobs = useMemo(() => {
+    const jobs = (importsData?.transactionImports ?? []).filter((j) => j.status === 'REVIEW_REQUIRED');
+    // Server returns only REVIEW_REQUIRED, but order is not guaranteed; latest is by createdAt.
+    return jobs.slice().sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
+  }, [importsData]);
 
   const pagination = usePaginatedTransactions(transactionsData, transactionsLoading, fetchMore);
 
@@ -219,10 +230,10 @@ export default function FinanceTransactionsPage() {
   const refreshAfterImport = useCallback(() => {
     void (async () => {
       if (canQueryTransactions) await refetchTransactions();
-      if (effectiveSelectedAccountId) await refetchImports();
+      await refetchImports();
       await refetchSummary();
     })();
-  }, [canQueryTransactions, effectiveSelectedAccountId, refetchImports, refetchSummary, refetchTransactions]);
+  }, [canQueryTransactions, refetchImports, refetchSummary, refetchTransactions]);
 
   useOnTransactionsImported(refreshAfterImport);
 
@@ -260,25 +271,30 @@ export default function FinanceTransactionsPage() {
     })();
   }, [refetchFinancialAccounts, refetchSummary]);
 
+  const handleAccountDeleted = useCallback(() => {
+    setSelectedAccountId(null);
+    void refetchFinancialAccounts();
+  }, [refetchFinancialAccounts]);
+
   // --- Import drawers ---
-  const handleOpenReviewJob = useCallback((jobId: string) => {
-    setReviewJobId(jobId);
+  const handleOpenReviewJobs = useCallback((jobIds: string[]) => {
+    setReviewJobIds(jobIds);
     setIsImportDrawerOpen(true);
   }, []);
 
   const handleOpenImportTransactions = useCallback(() => {
-    setReviewJobId(null);
+    setReviewJobIds(null);
     setIsImportDrawerOpen(true);
   }, []);
 
   const handleCloseImportDrawer = useCallback(() => {
     setIsImportDrawerOpen(false);
-    setReviewJobId(null);
+    setReviewJobIds(null);
   }, []);
 
   const handleRequestCreateAccountFromImport = useCallback((type?: 'BANK' | 'CARD') => {
     setIsImportDrawerOpen(false);
-    setReviewJobId(null);
+    setReviewJobIds(null);
     setIsCreateDrawerFromImport(true);
     handleOpenDrawer(type);
   }, [handleOpenDrawer]);
@@ -351,6 +367,7 @@ export default function FinanceTransactionsPage() {
           initialType={initialType}
           accountToEdit={editingAccount}
           onCreated={handleAccountCreated}
+          onDeleted={handleAccountDeleted}
         />
       </>
     );
@@ -421,8 +438,8 @@ export default function FinanceTransactionsPage() {
               error: importsError,
               accountId: effectiveSelectedAccountId,
               onRetry: refetchImports,
-              reviewRequiredJob: reviewRequiredJob ?? null,
-              onOpenReviewJob: handleOpenReviewJob,
+              reviewRequiredJobs: reviewRequiredJobs.length > 0 ? reviewRequiredJobs : null,
+              onOpenReviewJobs: handleOpenReviewJobs,
             }}
             navigation={{
               isCalendarMode: displayMode.kind === 'calendar',
@@ -491,6 +508,7 @@ export default function FinanceTransactionsPage() {
           editingAccount,
           onBack: isCreateDrawerFromImport ? handleBackFromPrefilledType : undefined,
           onCreated: handleAccountCreated,
+          onDeleted: handleAccountDeleted,
         }}
         importDrawer={{
           isOpen: isImportDrawerOpen,
@@ -499,7 +517,7 @@ export default function FinanceTransactionsPage() {
           accountType: selectedAccount?.type ?? null,
           onCompleted: refreshAfterImport,
           onRequestCreateAccount: handleRequestCreateAccountFromImport,
-          reviewJobId: reviewJobId ?? undefined,
+          reviewJobIds: reviewJobIds ?? undefined,
         }}
         importBillDrawer={{
           isOpen: isImportBillDrawerOpen,

@@ -239,6 +239,44 @@ open class DefaultTransactionRepository(
             TransactionListQuery(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
+                includedFinancialAccountIds = null,
+                belongsToUserId = null,
+                belongsToName = null,
+                search = null,
+                tags = null,
+                billId = null,
+                categoryIds = null,
+                uncategorizedOnly = false,
+                creditDebitType =
+                    when (applicableTo) {
+                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        else -> null
+                    },
+                types = null,
+                startDate = LocalDate.of(year, month, 1),
+                endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
+                limit = 1,
+                offset = 0,
+            )
+
+        return getFilteredCategoryBreakdown(query, applicableTo)
+    }
+
+    @Transactional(readOnly = true)
+    override fun getCategoryBreakdownForAccounts(
+        accountId: UUID,
+        includedFinancialAccountIds: List<UUID>,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow> {
+        if (includedFinancialAccountIds.isEmpty()) return emptyList()
+        val query =
+            TransactionListQuery(
+                accountId = accountId,
+                financialAccountId = null,
+                includedFinancialAccountIds = includedFinancialAccountIds,
                 belongsToUserId = null,
                 belongsToName = null,
                 search = null,
@@ -356,6 +394,43 @@ open class DefaultTransactionRepository(
             TransactionListQuery(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
+                includedFinancialAccountIds = null,
+                belongsToUserId = null,
+                belongsToName = null,
+                search = null,
+                tags = null,
+                billId = null,
+                categoryIds = null,
+                uncategorizedOnly = false,
+                creditDebitType =
+                    when (applicableTo) {
+                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        else -> null
+                    },
+                types = null,
+                startDate = LocalDate.of(year, month, 1),
+                endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
+                limit = 1,
+                offset = 0,
+            )
+        return getFilteredTagBreakdown(query, applicableTo)
+    }
+
+    @Transactional(readOnly = true)
+    override fun getTagBreakdownForAccounts(
+        accountId: UUID,
+        includedFinancialAccountIds: List<UUID>,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow> {
+        if (includedFinancialAccountIds.isEmpty()) return emptyList()
+        val query =
+            TransactionListQuery(
+                accountId = accountId,
+                financialAccountId = null,
+                includedFinancialAccountIds = includedFinancialAccountIds,
                 belongsToUserId = null,
                 belongsToName = null,
                 search = null,
@@ -547,6 +622,16 @@ open class DefaultTransactionRepository(
     @Transactional(readOnly = true)
     override fun existsByInvestmentTransactionId(investmentTransactionId: UUID): Boolean =
         entityRepository.existsByInvestmentTransactionIdAndDeletedAtIsNull(investmentTransactionId)
+
+    @Transactional(readOnly = true)
+    override fun existsByImportJobId(importJobId: UUID): Boolean =
+        entityRepository.existsByImportJobIdAndDeletedAtIsNull(importJobId)
+
+    @Transactional
+    override fun clearProviderTransactionIdForDeleted(
+        financialAccountId: UUID,
+        providerTransactionId: String,
+    ): Int = entityRepository.clearProviderTransactionIdForDeleted(financialAccountId, providerTransactionId)
 
     @Transactional(readOnly = true)
     override fun findByInvestmentTransactionIds(
@@ -859,6 +944,9 @@ open class DefaultTransactionRepository(
         query.financialAccountId?.let {
             params["financialAccountId"] = it
             conditions += "t.financial_account_id = :financialAccountId"
+        }
+        if (!query.includedFinancialAccountIds.isNullOrEmpty()) {
+            conditions += buildInClause("t.financial_account_id", "includedFinancialAccountId", query.includedFinancialAccountIds, params)
         }
         query.belongsToUserId?.let {
             params["belongsToUserId"] = it

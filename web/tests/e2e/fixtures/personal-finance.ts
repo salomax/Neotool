@@ -4,8 +4,8 @@
  * Design decisions:
  * - pfUser and its storageState are worker-scoped to avoid N sign-ups per test.
  * - bankAccount / creditCardAccount / transactions are test-scoped (created per test).
- * - No DELETE_FINANCIAL_ACCOUNT mutation exists — test data accumulates in the test
- *   environment. Accounts are named with unique timestamps to avoid collisions.
+ * - deleteFinancialAccount now exists, but bankAccount includes an initial balance
+ *   transaction and cannot be deleted directly. Accounts are still named uniquely.
  * - twoTenants creates two isolated users for cross-tenant security tests.
  *
  * Initial balance date:
@@ -107,7 +107,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async (_, use) => {
+    async (_args, use) => {
       const user = await createPfUser();
       await use(user);
     },
@@ -131,7 +131,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
       pfUser.token
     );
     await use(account);
-    // Note: no DELETE_FINANCIAL_ACCOUNT mutation — data is left in test environment.
+    // account has initial balance transaction; deletion is intentionally skipped in fixture teardown.
   },
 
   /**

@@ -34,6 +34,14 @@ export class CreateAccountDrawer {
     return this.drawerPanel().getByTestId('account-form-submit');
   }
 
+  private visibleDeleteConfirmButton(): Locator {
+    return this.page.locator('[data-testid="account-delete-confirm"]:visible').first();
+  }
+
+  private visibleDeleteCancelButton(): Locator {
+    return this.page.locator('[data-testid="account-delete-cancel"]:visible').first();
+  }
+
   async waitForOpen(): Promise<void> {
     await this.drawer.waitFor({ state: 'visible', timeout: 30000 });
     await this.drawerPanel().waitFor({ state: 'visible', timeout: 30000 });
@@ -65,7 +73,9 @@ export class CreateAccountDrawer {
     if (await typeButton.first().isVisible().catch(() => false)) {
       const btn = typeButton.first();
       await btn.scrollIntoViewIfNeeded();
-      await btn.click({ force: true });
+      await btn.click({ force: true }).catch(async () => {
+        await btn.dispatchEvent('click');
+      });
     }
 
     await subtypeSelect.first().waitFor({ state: 'visible', timeout: 20000 });
@@ -231,6 +241,15 @@ export class CreateAccountDrawer {
     await input.fill(lastFourDigits);
   }
 
+  async setMultiCard(enabled: boolean): Promise<void> {
+    const toggle = this.drawerPanel().getByTestId('multi-card-toggle').locator('input[type="checkbox"]').first();
+    await expect(toggle).toBeVisible();
+    const checked = await toggle.isChecked();
+    if (checked !== enabled) {
+      await toggle.click();
+    }
+  }
+
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async submit(): Promise<void> {
@@ -251,6 +270,45 @@ export class CreateAccountDrawer {
 
   async cancel(): Promise<void> {
     await this.drawerPanel().getByTestId('account-form-cancel').click();
+  }
+
+  async clickRemoveAccount(): Promise<void> {
+    const removeButton = this.drawerPanel().getByTestId('account-form-remove');
+    await expect(removeButton).toBeVisible();
+    await expect(removeButton).toBeEnabled();
+    await removeButton.scrollIntoViewIfNeeded();
+
+    const confirmButton = this.visibleDeleteConfirmButton();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (await confirmButton.isVisible().catch(() => false)) return;
+
+      if (attempt === 0) {
+        await removeButton.click();
+      } else if (attempt === 1) {
+        await removeButton.click({ force: true });
+      } else {
+        await removeButton.focus();
+        await this.page.keyboard.press('Enter');
+      }
+
+      const opened = await confirmButton.waitFor({ state: 'visible', timeout: 3000 }).then(() => true).catch(() => false);
+      if (opened) return;
+    }
+
+    throw new Error('Delete confirmation dialog did not open after clicking remove account');
+  }
+
+  async confirmRemoveAccount(): Promise<void> {
+    await this.visibleDeleteConfirmButton().click();
+  }
+
+  async cancelRemoveAccount(): Promise<void> {
+    await this.visibleDeleteCancelButton().click();
+  }
+
+  async removeAccount(): Promise<void> {
+    await this.clickRemoveAccount();
+    await this.confirmRemoveAccount();
   }
 
   // ── Assertions ──────────────────────────────────────────────────────────────
@@ -293,6 +351,14 @@ export class CreateAccountDrawer {
   /** Asserts that the drawer is still open (form was not closed despite submit). */
   async expectStillOpen(): Promise<void> {
     await expect(this.drawer).toBeVisible();
+  }
+
+  async expectDeleteError(messagePattern?: string | RegExp): Promise<void> {
+    const alert = this.drawerPanel().locator('.MuiAlert-root').first();
+    await expect(alert).toBeVisible();
+    if (messagePattern) {
+      await expect(alert).toHaveText(messagePattern);
+    }
   }
 
   /**
@@ -338,11 +404,13 @@ export class CreateAccountDrawer {
     closingDay?: number;
     dueDay?: number;
     lastFourDigits?: string;
+    multiCard?: boolean;
     initialBalance?: number;
   }): Promise<void> {
     await this.selectSubtype(params.subtype ?? 'CREDIT_CARD');
     await this.selectFirstIssuer();
     await this.fillName(params.name);
+    if (params.multiCard !== undefined) await this.setMultiCard(params.multiCard);
     if (params.lastFourDigits !== undefined) await this.fillLastFourDigits(params.lastFourDigits);
     if (params.closingDay !== undefined) await this.fillClosingDay(params.closingDay);
     if (params.dueDay !== undefined) await this.fillDueDay(params.dueDay);

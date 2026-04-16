@@ -626,6 +626,97 @@ test.describe('Monthly Summary — alternative paths', () => {
 
     await deleteTransaction(tx.id, pfUser.token);
   });
+
+  test('MS-A-12: aggregate summary excludes voucher-card transactions from totals and breakdowns', async ({
+    twoTenants,
+  }) => {
+    const token = twoTenants.userA.token;
+    const checking = await createFinancialAccount(
+      {
+        name: uniqueDesc('Conta A12'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+      },
+      token,
+    );
+    const voucher = await createFinancialAccount(
+      {
+        name: uniqueDesc('Voucher A12'),
+        type: 'PAYMENT',
+        subtype: 'VOUCHER_CARD',
+      },
+      token,
+    );
+    expect(voucher.includeInNetWorth).toBe(false);
+
+    const keepTag = `ms-a12-keep-${Date.now()}`;
+    const excludedTag = `ms-a12-voucher-${Date.now()}`;
+    const regularTx = await createTransaction(
+      {
+        financialAccountId: checking.id,
+        description: uniqueDesc('Despesa conta A12'),
+        amount: 120,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: today(),
+        tags: [keepTag],
+      },
+      token,
+    );
+    const voucherTx = await createTransaction(
+      {
+        financialAccountId: voucher.id,
+        description: uniqueDesc('Despesa voucher A12'),
+        amount: 999,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: today(),
+        tags: [excludedTag],
+      },
+      token,
+    );
+
+    try {
+      const { executeGraphQL } = await import('../helpers/graphql');
+      const result = await executeGraphQL<{
+        monthSummary: {
+          totalExpenses: number;
+          closingBalance: number;
+          expensesByCategory: Array<{ totalAmount: number }>;
+          tagsSummary: Array<{ tag: string; totalAmount: number }>;
+        };
+      }>(
+        `
+        query MonthSummary($financialAccountId: ID, $year: Int, $month: Int) {
+          monthSummary(financialAccountId: $financialAccountId, year: $year, month: $month) {
+            totalExpenses
+            closingBalance
+            expensesByCategory { totalAmount }
+            tagsSummary { tag totalAmount }
+          }
+        }
+      `,
+        { financialAccountId: null, ...currentYM() },
+        token,
+      );
+
+      const summary = result.data?.monthSummary;
+      expect(summary).toBeDefined();
+      const categorySum = summary!.expensesByCategory.reduce((acc, row) => acc + row.totalAmount, 0);
+      const tags = summary!.tagsSummary.map((row) => row.tag);
+
+      expect(summary!.totalExpenses).toBeCloseTo(120, 2);
+      expect(summary!.closingBalance).toBeCloseTo(-120, 2);
+      expect(categorySum).toBeCloseTo(120, 2);
+      expect(tags).toContain(keepTag);
+      expect(tags).not.toContain(excludedTag);
+    } finally {
+      await Promise.all([
+        deleteTransaction(regularTx.id, token),
+        deleteTransaction(voucherTx.id, token),
+      ]);
+    }
+  });
 });
 
 // =============================================================================

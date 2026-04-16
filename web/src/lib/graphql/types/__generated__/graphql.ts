@@ -564,6 +564,8 @@ export type CardData = {
   closingDay: Maybe<Scalars['Int']['output']>;
   creditLimit: Maybe<Scalars['Float']['output']>;
   dueDay: Maybe<Scalars['Int']['output']>;
+  /** When true, this account represents multiple/virtual cards with no specific last-4. */
+  isMultiCard: Scalars['Boolean']['output'];
   /** Optional bank account that will receive the debit leg of bill-payment transfers. */
   linkedBankAccountId: Maybe<Scalars['ID']['output']>;
   maskedNumber: Maybe<Scalars['String']['output']>;
@@ -580,6 +582,8 @@ export type CardDataInput = {
   creditLimit?: InputMaybe<Scalars['Float']['input']>;
   /** Optional billing-cycle due day when known. */
   dueDay?: InputMaybe<Scalars['Int']['input']>;
+  /** Set to true to mark this account as an umbrella for multiple/virtual cards. */
+  isMultiCard?: InputMaybe<Scalars['Boolean']['input']>;
   /** Optional bank account that will receive the debit leg of bill-payment transfers. */
   linkedBankAccountId?: InputMaybe<Scalars['ID']['input']>;
   maskedNumber?: InputMaybe<Scalars['String']['input']>;
@@ -2186,6 +2190,7 @@ export type Mutation = {
    * Only the asset owner can delete the asset.
    */
   deleteAsset: Scalars['Boolean']['output'];
+  deleteFinancialAccount: Scalars['Boolean']['output'];
   deleteGroup: Scalars['Boolean']['output'];
   /** Soft-deletes a manual investment custodian cash ledger row and its transfer peer when present. */
   deleteInvestmentCashTransaction: Scalars['Boolean']['output'];
@@ -2418,6 +2423,11 @@ export type MutationCreateTransactionRuleArgs = {
 
 export type MutationDeleteAssetArgs = {
   assetId: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteFinancialAccountArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -3119,6 +3129,8 @@ export type Query = {
    */
   issuers: Array<Issuer>;
   listedAssetDailyPrices: ListedAssetDailyPriceConnection;
+  /** Merchant logo preview asset resolved through federation. */
+  merchantLogoPreview: Maybe<Asset>;
   /** Paginated merchants (system + user-created) available to the authenticated account. */
   merchants: MerchantConnection;
   /**
@@ -3455,6 +3467,11 @@ export type QueryListedAssetDailyPricesArgs = {
   tickers?: InputMaybe<Array<Scalars['String']['input']>>;
   to: Scalars['Date']['input'];
   updatedSince?: InputMaybe<Scalars['DateTime']['input']>;
+};
+
+
+export type QueryMerchantLogoPreviewArgs = {
+  domain: Scalars['String']['input'];
 };
 
 

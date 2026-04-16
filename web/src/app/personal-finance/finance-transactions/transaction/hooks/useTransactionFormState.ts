@@ -144,8 +144,8 @@ export function useTransactionFormState({
   }, [isBalanceAdjustmentEdit, selectedAccountId]);
 
   const amountGridColumn = isBalanceAdjustmentEdit
-    ? selectedAccountId ? '3 / -1' : '4 / -1'
-    : selectedAccountId ? '5 / -1' : '6 / -1';
+    ? (selectedAccountId ? '3 / 4' : '4 / 5')
+    : (selectedAccountId ? '5 / 6' : '6 / 7');
 
   const colSpan = selectedAccountId ? 7 : 8;
 

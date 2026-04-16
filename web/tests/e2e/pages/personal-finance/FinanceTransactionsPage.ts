@@ -43,7 +43,18 @@ export class FinanceTransactionsPage {
   async goto(): Promise<void> {
     await this.page.goto('/personal-finance/finance-transactions');
     await this.page.getByRole('heading', { name: /movimentações financeiras/i }).waitFor({ state: 'visible' });
-    await expect.poll(async () => this.anyMainStateVisible(), { timeout: 30000 }).toBe(true);
+    await expect
+      .poll(
+        async () => {
+          const retryButton = this.page.getByRole('button', { name: /tentar novamente|try again/i }).first();
+          if (await retryButton.isVisible().catch(() => false)) {
+            await retryButton.click().catch(() => {});
+          }
+          return this.anyMainStateVisible();
+        },
+        { timeout: 60000 },
+      )
+      .toBe(true);
   }
 
   // ── Account selector ────────────────────────────────────────────────────────

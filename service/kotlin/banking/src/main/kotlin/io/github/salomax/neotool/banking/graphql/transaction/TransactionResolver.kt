@@ -630,7 +630,7 @@ class TransactionResolver(
             sector = merchant.sector,
             isSystem = merchant.isSystem,
             isOwned = merchant.accountId != null,
-            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
+            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
         )
     }
 
@@ -653,7 +653,7 @@ class TransactionResolver(
                     sector = merchant.sector,
                     isSystem = merchant.isSystem,
                     isOwned = merchant.accountId != null,
-                    logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it) },
+                    logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
                 )
         }
     }

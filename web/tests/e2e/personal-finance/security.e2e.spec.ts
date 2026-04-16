@@ -134,18 +134,12 @@ test.describe('Security — Financial Accounts', () => {
       userA.token
     );
 
-    // GraphQL has no deleteFinancialAccount (see 01-financial-accounts.md); strongest write is update.
     const result = await executeGraphQL(`
-      mutation UpdateFinancialAccount($id: ID!, $input: UpdateFinancialAccountInput!) {
-        updateFinancialAccount(id: $id, input: $input) { id name }
+      mutation DeleteFinancialAccount($id: ID!) {
+        deleteFinancialAccount(id: $id)
       }
     `, {
       id: accountA.id,
-      input: {
-        type: 'BANK',
-        subtype: 'CONTA_CORRENTE',
-        name: `FA04 should never apply ${Date.now()}`,
-      },
     }, userB.token);
 
     expect(result.errors).toBeDefined();

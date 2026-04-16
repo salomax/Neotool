@@ -1,7 +1,7 @@
 /**
  * E2E tests — Financial Accounts
  *
- * Coverage: FA-H-01..08  |  FA-A-01..09  |  FA-N-01..12
+ * Coverage: FA-H-01..09  |  FA-A-01..09  |  FA-N-01..12
  * Security coverage is in security.e2e.spec.ts (SEC-FA-01..04).
  *
  * Each test creates its own account via the UI to exercise the full creation flow.
@@ -12,6 +12,7 @@
 import { test, expect } from '../fixtures/personal-finance';
 import { FinanceTransactionsPage } from '../pages/personal-finance/FinanceTransactionsPage';
 import {
+  createFinancialAccount,
   getFinancialAccounts,
   getMonthSummary,
   type FinancialAccount,
@@ -50,7 +51,22 @@ function dateOffsetBr(daysFromToday: number): string {
  */
 async function signIntoPage(page: import('@playwright/test').Page): Promise<void> {
   await page.goto('/');
-  await page.getByRole('button', { name: /account menu/i }).waitFor({ state: 'visible' });
+  await expect
+    .poll(
+      async () => {
+        const desktopAccountMenuVisible = await page
+          .getByRole('button', { name: /account menu/i })
+          .isVisible()
+          .catch(() => false);
+        const mobileBottomNavVisible = await page
+          .getByRole('navigation')
+          .isVisible()
+          .catch(() => false);
+        return desktopAccountMenuVisible || mobileBottomNavVisible;
+      },
+      { timeout: 30000 },
+    )
+    .toBe(true);
 }
 
 async function openFinancialAccountsPage(page: import('@playwright/test').Page): Promise<FinanceTransactionsPage> {
@@ -185,11 +201,57 @@ test.describe('Financial Accounts — happy path', () => {
   });
 
   test('FA-H-08: soft-deletes an account — it disappears from the selector', async ({
-    page: _page,
-    pfUser: _pfUser,
-    bankAccount: _bankAccount,
+    page,
+    pfUser,
   }) => {
-    test.skip(true, 'Delete account feature not yet implemented in the UI. Pending feature design.');
+    const pfPage = await openFinancialAccountsPage(page);
+    const drawer = await pfPage.openCreateAccountDrawer('BANK');
+    const name = uniqueName('Conta para Excluir H08');
+    await drawer.createBankAccount({ name });
+    await drawer.waitForClose();
+
+    await pfPage.expectAccountInSelector(name);
+
+    const editDrawer = await pfPage.openEditAccountDrawer(name);
+    await editDrawer.removeAccount();
+    await editDrawer.waitForClose();
+
+    await pfPage.expectAccountNotInSelector(name);
+
+    const accounts = await getFinancialAccounts(pfUser.token);
+    expect(accounts.find((account) => account.name === name)).toBeUndefined();
+  });
+
+  test('FA-H-09: creates a multi-card credit account and displays multiple-cards label', async ({
+    page,
+    pfUser,
+  }) => {
+    const pfPage = await openFinancialAccountsPage(page);
+    const drawer = await pfPage.openCreateAccountDrawer('CARD');
+    const name = uniqueName('Cartão Multi H09');
+
+    await drawer.selectSubtype('CREDIT_CARD');
+    await drawer.selectFirstIssuer();
+    await drawer.fillName(name);
+    await drawer.setMultiCard(true);
+    await expect(page.getByTestId('card-last-four-input')).toHaveCount(0);
+    await drawer.fillClosingDay(7);
+    await drawer.fillDueDay(15);
+    await drawer.submit();
+    await drawer.waitForClose();
+
+    await pfPage.expectAccountInSelector(name);
+
+    const created = await expectPersistedAccount(pfUser.token, (account) => account.name === name);
+    expect(created.cardData?.isMultiCard).toBe(true);
+    expect(created.cardData?.maskedNumber ?? null).toBeNull();
+
+    await page.getByTestId('account-selector').click();
+    const popover = page.getByTestId('account-selector-popover');
+    await popover.waitFor({ state: 'visible' });
+    await expect(popover.getByText(name, { exact: true })).toBeVisible();
+    await expect(popover.getByText(/Múltiplos cartões|Multiple cards/i)).toBeVisible();
+    await page.keyboard.press('Escape');
   });
 });
 
@@ -538,5 +600,28 @@ test.describe('Financial Accounts — negative paths', () => {
 
     await drawer.expectFieldError('initial-balance-date-input');
     await drawer.expectStillOpen();
+  });
+
+  test('FA-N-13: deleting account with transactions is blocked and drawer stays open', async ({
+    page,
+    pfUser,
+  }) => {
+    const account = await createFinancialAccount(
+      {
+        name: uniqueName('Conta Bloqueada N13'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+        initialBalance: 200,
+      },
+      pfUser.token,
+    );
+
+    const pfPage = await openFinancialAccountsPage(page);
+    await pfPage.selectAccount(account.name, account.id);
+    const drawer = await pfPage.openEditAccountDrawer(account.name);
+
+    await drawer.removeAccount();
+    await drawer.expectStillOpen();
+    await drawer.expectDeleteError(/transa[cç][aã]o|transactions/i);
   });
 });

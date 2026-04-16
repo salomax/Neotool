@@ -160,9 +160,9 @@ export function buildCardAccountOption(account: {
   issuer?: { id?: string | null; name?: string | null } | null;
   issuerName?: string | null;
   issuerId?: string | null;
-  cardData?: { maskedNumber?: string | null } | null;
+  cardData?: { maskedNumber?: string | null; isMultiCard?: boolean | null } | null;
 }): CardAccountOption {
-  const issuerId = account.issuer?.id ?? null;
+  const issuerId = account.issuer?.id ?? account.issuerId ?? null;
   const issuerName = account.issuer?.name ?? account.issuerName ?? null;
   return {
     id: account.id,
@@ -171,5 +171,6 @@ export function buildCardAccountOption(account: {
     issuerName,
     issuerKey: toIssuerKey(issuerId, issuerName),
     maskedNumber: account.cardData?.maskedNumber ?? null,
+    isMultiCard: account.cardData?.isMultiCard ?? false,
   };
 }

@@ -6,6 +6,8 @@ import type { FinancialAccount, Transaction } from '@/lib/graphql/types/__genera
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
 import { Logo } from '@/shared/components/ui/primitives';
 import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-display/Table';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '../../i18n';
 
 function isCardAccount(account: FinancialAccount): boolean {
   if (account.type === FinancialAccountType.Bank) return false;
@@ -18,11 +20,29 @@ function isCardAccount(account: FinancialAccount): boolean {
   );
 }
 
-function getCardLastFourDigits(account: FinancialAccount, transaction: Transaction): string | null {
-  const raw = transaction.cardIdentifier || account.cardData?.maskedNumber || '';
-  const digits = raw.replace(/\D/g, '');
-  const last4 = digits.slice(-4);
-  return last4.length === 4 ? last4 : null;
+interface CardDisplayState {
+  last4: string | null;
+  showMultipleCardsLabel: boolean;
+}
+
+function getCardDisplayState(account: FinancialAccount, transaction: Transaction): CardDisplayState {
+  const txRaw = transaction.cardIdentifier || '';
+  const txDigits = txRaw.replace(/\D/g, '').slice(-4);
+  if (txDigits.length === 4) {
+    return { last4: txDigits, showMultipleCardsLabel: false };
+  }
+
+  const isMultiCard = account.cardData?.isMultiCard ?? false;
+  if (isMultiCard) {
+    return { last4: null, showMultipleCardsLabel: true };
+  }
+
+  const accountRaw = account.cardData?.maskedNumber || '';
+  const accountDigits = accountRaw.replace(/\D/g, '').slice(-4);
+  return {
+    last4: accountDigits.length === 4 ? accountDigits : null,
+    showMultipleCardsLabel: false,
+  };
 }
 
 interface TransactionAccountCellProps {
@@ -34,10 +54,11 @@ export const TransactionAccountCell = memo(function TransactionAccountCell({
   account,
   transaction,
 }: TransactionAccountCellProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const logoUrl = account.issuer?.logoAsset?.publicUrl;
   const showCardDetails = isCardAccount(account);
-  const last4 = showCardDetails ? getCardLastFourDigits(account, transaction) : null;
+  const cardDisplay = showCardDetails ? getCardDisplayState(account, transaction) : null;
 
   return (
     <Stack direction="row" spacing={1} alignItems="center">
@@ -66,11 +87,15 @@ export const TransactionAccountCell = memo(function TransactionAccountCell({
         {showCardDetails && (
           <Stack direction="row" spacing={0.5} alignItems="center">
             <CardNetworkIcon network={account.cardData?.cardNetwork} size={18} />
-            {last4 && (
+            {cardDisplay?.last4 ? (
               <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                •••• {last4}
+                •••• {cardDisplay.last4}
               </Typography>
-            )}
+            ) : cardDisplay?.showMultipleCardsLabel ? (
+              <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+                {t('financeTransactions.multipleCards')}
+              </Typography>
+            ) : null}
           </Stack>
         )}
       </Stack>

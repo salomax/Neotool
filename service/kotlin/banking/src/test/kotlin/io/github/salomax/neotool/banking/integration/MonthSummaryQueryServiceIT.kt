@@ -226,4 +226,84 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         assertThat(summary.totalExpenses).isEqualByComparingTo(BigDecimal.ZERO)
         assertThat(snapshotRepository.findByYearMonth(financialAccountId, prev.year, prev.monthValue)).isNotNull()
     }
+
+    @Test
+    fun `aggregate summary excludes voucher card transactions from totals and breakdowns`() {
+        val regularAccount =
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.BANK,
+                    subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                    name = "Conta principal",
+                    issuerName = "Banco Teste",
+                ),
+                accountId = accountId,
+                userId = userId,
+            )
+        val voucherAccount =
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.PAYMENT,
+                    subtype = FinancialAccountSubtype.VOUCHER_CARD,
+                    name = "Vale refeicao",
+                    issuerName = "Alelo",
+                ),
+                accountId = accountId,
+                userId = userId,
+            )
+
+        assertThat(voucherAccount.includeInNetWorth).isFalse()
+        val regularId = requireNotNull(regularAccount.id)
+        val voucherId = requireNotNull(voucherAccount.id)
+        val today = LocalDate.now()
+
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = regularId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("120.00"),
+                date = today,
+                description = "Despesa conta principal",
+                tags = listOf("regular-tag"),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            ),
+        )
+        transactionRepository.save(
+            Transaction(
+                financialAccountId = voucherId,
+                accountId = accountId,
+                createdByUserId = userId,
+                creditDebitType = CreditDebitType.DEBIT,
+                type = TransactionType.OTHER_EXPENSE,
+                status = TransactionStatus.POSTED,
+                source = TransactionSource.MANUAL,
+                amount = BigDecimal("999.00"),
+                date = today,
+                description = "Despesa voucher",
+                tags = listOf("voucher-tag"),
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            ),
+        )
+
+        val summary =
+            monthSummaryQueryService.getAggregateMonthlySummary(
+                accountId = accountId,
+                year = today.year,
+                month = today.monthValue,
+            )
+
+        assertThat(summary.totalExpenses).isEqualByComparingTo("120.00")
+        assertThat(summary.closingBalance).isEqualByComparingTo("-120.00")
+        val categorySum = summary.expensesByCategory.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalAmount }
+        assertThat(categorySum).isEqualByComparingTo("120.00")
+        assertThat(summary.tagsSummary.map { it.tag }).contains("regular-tag")
+        assertThat(summary.tagsSummary.map { it.tag }).doesNotContain("voucher-tag")
+    }
 }

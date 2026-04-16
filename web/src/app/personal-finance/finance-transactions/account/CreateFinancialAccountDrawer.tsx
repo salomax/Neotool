@@ -12,6 +12,8 @@ import {
   IconButton,
   Stack,
   InputAdornment,
+  FormControlLabel,
+  Switch,
   Divider,
 } from '@mui/material';
 import {
@@ -23,7 +25,7 @@ import { IssuerSelect } from './IssuerSelect';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { FormTextField as TextField, SelectField, MoneyInput, DatePickerField } from '@/shared/components/ui/forms/form';
 import { ISSUERS } from '@/lib/graphql/operations/banking/queries';
-import { CREATE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
+import { CREATE_FINANCIAL_ACCOUNT, DELETE_FINANCIAL_ACCOUNT, UPDATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { useToast } from '@/shared/providers';
 import { ErrorAlert } from '@/shared/components/ui/feedback';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
@@ -31,8 +33,9 @@ import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
-import { extractErrorMessage } from '@/shared/utils/error';
+import { extractErrorCode, extractErrorMessage } from '@/shared/utils/error';
 import { FormStack } from '@/shared/components/ui/forms/components';
+import { ConfirmDialog } from '@/shared/components/ui/feedback/dialogs';
 
 // --- Types & Schemas ---
 
@@ -89,6 +92,7 @@ type CreateAccountFormData = {
   cardNetwork?: string;
   cardLevel?: string;
   maskedNumber?: string;
+  multiCard: boolean;
   creditLimit?: number;
   closingDay?: number;
   dueDay?: number;
@@ -147,6 +151,8 @@ interface CreateFinancialAccountDrawerProps {
     closingDay?: number;
     dueDay?: number;
   }) => void;
+  /** Called after successful deletion of an existing account. */
+  onDeleted?: () => void;
 }
 
 export function CreateFinancialAccountDrawer({
@@ -161,13 +167,22 @@ export function CreateFinancialAccountDrawer({
   initialIssuerId,
   initialIssuerName,
   onCreated,
+  onDeleted,
 }: CreateFinancialAccountDrawerProps) {
   const [step, setStep] = useState<1 | 2>(1);
   const [selectedType, setSelectedType] = useState<'BANK' | 'CARD' | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const { success } = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const isEditing = Boolean(accountToEdit?.id);
+  const resolvedEditType: 'BANK' | 'CARD' | null = isEditing
+    ? (accountToEdit?.type === 'BANK' ? 'BANK' : 'CARD')
+    : null;
+  const effectiveSelectedType = selectedType ?? resolvedEditType;
+  const isTypeSelectionStep = !isEditing && step === 1;
+  const showBackButton = isEditing || step === 2;
 
   // Zod Schema
   const createAccountSchema = React.useMemo(
@@ -197,6 +212,7 @@ export function CreateFinancialAccountDrawer({
           cardNetwork: z.string().optional(),
           cardLevel: z.string().optional(),
           maskedNumber: z.string().optional(),
+          multiCard: z.boolean().default(false),
           creditLimit: z.number().optional(),
           closingDay: z.preprocess(
             (val) => (val === '' || val === undefined || val === null ? undefined : Number(val)),
@@ -306,6 +322,12 @@ export function CreateFinancialAccountDrawer({
     refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
     awaitRefetchQueries: true,
   });
+  const [deleteFinancialAccount, { loading: deleting }] = useMutation<{
+    deleteFinancialAccount: boolean;
+  }>(DELETE_FINANCIAL_ACCOUNT, {
+    refetchQueries: [{ query: FINANCIAL_ACCOUNTS }],
+    awaitRefetchQueries: true,
+  });
   const methods = useForm<CreateAccountFormData>({
     mode: 'onChange',
     reValidateMode: 'onChange',
@@ -319,6 +341,7 @@ export function CreateFinancialAccountDrawer({
       themeColor: '#1976d2',
       includeInNetWorth: true,
       includeInDashboard: true,
+      multiCard: false,
     },
   });
 
@@ -326,7 +349,10 @@ export function CreateFinancialAccountDrawer({
   const { isValid } = formState;
   const watchedIssuerId = useWatch({ control, name: 'issuerId' });
   const watchedSubtype = useWatch({ control, name: 'subtype' });
+  const watchedMultiCard = useWatch({ control, name: 'multiCard' });
   const watchedCurrencyCode = useWatch({ control, name: 'currencyCode' });
+  // Backend accepts isMultiCard for CREDIT and PAYMENT accounts per spec.
+  // Product-wise, this form only exposes the toggle for billing-cycle card subtypes.
   const isBillingCycleCard = watchedSubtype === 'CREDIT_CARD' || watchedSubtype === 'CHARGE_CARD';
   const previousIssuerIdRef = useRef<string | undefined>(undefined);
   const { field: issuerIdField, fieldState: issuerIdFieldState } = useController({
@@ -334,6 +360,17 @@ export function CreateFinancialAccountDrawer({
     control,
   });
   const issuerIdValue = typeof issuerIdField.value === 'string' ? issuerIdField.value : undefined;
+
+  useEffect(() => {
+    if (!isBillingCycleCard && watchedMultiCard) {
+      setValue('multiCard', false, { shouldValidate: true });
+    }
+  }, [isBillingCycleCard, setValue, watchedMultiCard]);
+
+  useEffect(() => {
+    if (isEditing) return;
+    setValue('includeInNetWorth', watchedSubtype !== 'VOUCHER_CARD', { shouldValidate: true });
+  }, [watchedSubtype, isEditing, setValue]);
 
   // Reset on close
   const handleTypeSelect = React.useCallback(
@@ -353,8 +390,10 @@ export function CreateFinancialAccountDrawer({
       React.startTransition(() => {
         setStep(1);
         setSelectedType(null);
+        setDeleteConfirmOpen(false);
+        setDeleteError(null);
+        reset();
       });
-      reset();
       return;
     }
 
@@ -386,6 +425,7 @@ export function CreateFinancialAccountDrawer({
           cardNetwork: accountToEdit.cardData?.cardNetwork ?? undefined,
           cardLevel: accountToEdit.cardData?.cardLevel ?? undefined,
           maskedNumber: maskedNumberDigits,
+          multiCard: accountToEdit.cardData?.isMultiCard ?? false,
           creditLimit: accountToEdit.cardData?.creditLimit ?? undefined,
           closingDay: accountToEdit.cardData?.closingDay ?? undefined,
           dueDay: accountToEdit.cardData?.dueDay ?? undefined,
@@ -460,6 +500,8 @@ export function CreateFinancialAccountDrawer({
   }, [issuersData?.issuers, open, setValue, watchedIssuerId]);
 
   const handleClose = () => {
+    setDeleteConfirmOpen(false);
+    setDeleteError(null);
     onClose();
   };
 
@@ -479,7 +521,7 @@ export function CreateFinancialAccountDrawer({
   };
 
   const onSubmit = async (data: CreateAccountFormData) => {
-    if (data.type === 'CARD' && !isCardMaskedNumberValid(data.maskedNumber)) {
+    if (data.type === 'CARD' && !data.multiCard && !isCardMaskedNumberValid(data.maskedNumber)) {
       setError('maskedNumber', {
         type: 'manual',
         message: t('financeTransactions.createAccount.step2.validation.maskedNumberInvalid'),
@@ -500,6 +542,7 @@ export function CreateFinancialAccountDrawer({
         ? (data.name?.trim() || buildDefaultCardAccountName(data, t))
         : (data.name?.trim() || undefined);
     const normalizedMaskedNumber = (() => {
+      if (data.multiCard) return undefined;
       const raw = data.maskedNumber?.trim();
       if (!raw) return undefined;
       const digitsOnly = raw.replace(/\D/g, '');
@@ -538,6 +581,7 @@ export function CreateFinancialAccountDrawer({
         creditLimit: data.creditLimit,
         closingDay: data.closingDay,
         dueDay: data.dueDay,
+        isMultiCard: data.multiCard,
       };
     }
 
@@ -586,6 +630,35 @@ export function CreateFinancialAccountDrawer({
     }
   };
 
+  const handleDeleteConfirm = async () => {
+    if (!accountToEdit?.id) return;
+
+    setDeleteError(null);
+    try {
+      const result = await deleteFinancialAccount({ variables: { id: accountToEdit.id } });
+
+      if (!result.data?.deleteFinancialAccount) {
+        setDeleteError(t('errors.default', { ns: 'common' }));
+        return;
+      }
+
+      setDeleteConfirmOpen(false);
+      onDeleted?.();
+      handleClose();
+    } catch (error) {
+      const code = extractErrorCode(error);
+      if (code === 'FINANCIAL_ACCOUNT_HAS_TRANSACTIONS') {
+        setDeleteError(t('financeTransactions.errors.accountHasTransactions'));
+        return;
+      }
+      if (code === 'FINANCIAL_ACCOUNT_HAS_OPEN_BILLS') {
+        setDeleteError(t('financeTransactions.errors.accountHasOpenBills'));
+        return;
+      }
+      setDeleteError(extractErrorMessage(error, t('errors.default', { ns: 'common' })));
+    }
+  };
+
   const renderTypeSelection = () => (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4, p: 2, alignItems: 'stretch', justifyContent: 'flex-start', height: '100%' }}>
       {/* Title Section */}
@@ -600,22 +673,21 @@ export function CreateFinancialAccountDrawer({
     </Box>
   );
 
+  const mutationErrorMessage = isEditing
+    ? updateError
+      ? extractErrorMessage(updateError, t('errors.default', { ns: 'common' }))
+      : null
+    : createError
+      ? extractErrorMessage(createError, t('errors.default', { ns: 'common' }))
+      : null;
+  const formErrorMessage = deleteError ?? mutationErrorMessage;
+
   const renderForm = () => (
     <Box sx={{ p: 0 }}>
       <FormProvider {...methods}>
         <form id="create-financial-account-form" onSubmit={methods.handleSubmit(onSubmit)}>
           <FormStack>
-            <ErrorAlert
-              error={
-                isEditing
-                  ? updateError
-                    ? extractErrorMessage(updateError, t('errors.default', { ns: 'common' }))
-                    : null
-                  : createError
-                    ? extractErrorMessage(createError, t('errors.default', { ns: 'common' }))
-                    : null
-              }
-            />
+            <ErrorAlert error={formErrorMessage} />
 
             {/* Common Fields */}
             <IssuerSelect
@@ -636,17 +708,17 @@ export function CreateFinancialAccountDrawer({
             )}
 
             {/* Subtype Selection */}
-            {selectedType === 'BANK' && (
+            {effectiveSelectedType === 'BANK' && (
               <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={bankSubtypes} data-testid="account-subtype-select" size="medium" />
             )}
-            {selectedType === 'CARD' && (
+            {effectiveSelectedType === 'CARD' && (
               <SelectField name="subtype" label={t('financeTransactions.createAccount.step2.fields.subtype')} options={cardSubtypes} data-testid="account-subtype-select" size="medium" />
             )}
 
             <TextField name="name" label={t('financeTransactions.createAccount.step2.fields.accountName')} inputProps={{ 'data-testid': 'account-name-input' }} size="medium" />
 
             {/* Initial Balance — only for bank accounts */}
-            {selectedType !== 'CARD' && !isEditing && (
+            {effectiveSelectedType !== 'CARD' && !isEditing && (
               <Stack direction="row" spacing={2}>
                 <MoneyInput
                   name="initialBalance"
@@ -669,7 +741,7 @@ export function CreateFinancialAccountDrawer({
             )}
 
             {/* Bank Specific Fields (excluding subtype) */}
-            {selectedType === 'BANK' && (
+            {effectiveSelectedType === 'BANK' && (
               <Stack direction="row" spacing={2}>
                 <TextField
                   name="branchCode"
@@ -690,7 +762,7 @@ export function CreateFinancialAccountDrawer({
             )}
 
             {/* Card Specific Fields (excluding subtype) */}
-            {selectedType === 'CARD' && (
+            {effectiveSelectedType === 'CARD' && (
               <>
                 <SelectField name="cardNetwork" label={t('financeTransactions.createAccount.step2.fields.network')} options={cardNetworks} size="medium" />
                 
@@ -700,29 +772,38 @@ export function CreateFinancialAccountDrawer({
                 
                 {isBillingCycleCard && (
                   <>
-                    <Stack direction="row" spacing={2}>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={watchedMultiCard}
+                          onChange={(e) => setValue('multiCard', e.target.checked, { shouldValidate: true })}
+                          data-testid="multi-card-toggle"
+                        />
+                      }
+                      label={t('financeTransactions.createAccount.step2.fields.multiCard')}
+                    />
+                    {!watchedMultiCard && (
                       <TextField
                         name="maskedNumber"
                         label={t('financeTransactions.createAccount.step2.fields.maskedNumber')}
                         placeholder="1234"
                         InputProps={{ startAdornment: <InputAdornment position="start">••••</InputAdornment> }}
                         inputProps={{ 'data-testid': 'card-last-four-input' }}
-                        sx={{ flex: 1 }}
                         size="medium"
                       />
-                      {watchedSubtype === 'CREDIT_CARD' && (
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <MoneyInput
-                            name="creditLimit"
-                            label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
-                            currency={watchedCurrencyCode}
-                            locale={i18n.language}
-                            fullWidth
-                            size="medium"
-                          />
-                        </Box>
-                      )}
-                    </Stack>
+                    )}
+                    {watchedSubtype === 'CREDIT_CARD' && (
+                      <Box sx={{ minWidth: 0 }}>
+                        <MoneyInput
+                          name="creditLimit"
+                          label={t('financeTransactions.createAccount.step2.fields.creditLimit')}
+                          currency={watchedCurrencyCode}
+                          locale={i18n.language}
+                          fullWidth
+                          size="medium"
+                        />
+                      </Box>
+                    )}
                     <Stack direction="row" spacing={2}>
                       <TextField
                         name="closingDay"
@@ -762,16 +843,27 @@ export function CreateFinancialAccountDrawer({
               submitText={
                 isEditing
                   ? t('financeTransactions.actions.save')
-                  : (selectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard'))
+                  : (effectiveSelectedType === 'BANK' ? t('financeTransactions.actions.addAccount') : t('financeTransactions.actions.addCard'))
               }
               submittingText={t('financeTransactions.actions.saving')}
               onCancel={handleClose}
+              deleteText={isEditing ? t('financeTransactions.actions.deleteAccount') : undefined}
+              onDelete={
+                isEditing
+                  ? () => {
+                      setDeleteError(null);
+                      setDeleteConfirmOpen(true);
+                    }
+                  : undefined
+              }
               submitForm="create-financial-account-form"
-              cancelDisabled={creating || updating}
-              submitDisabled={creating || updating || !isValid}
+              cancelDisabled={creating || updating || deleting}
+              submitDisabled={creating || updating || deleting || !isValid}
+              deleteDisabled={creating || updating || deleting}
               submitting={creating || updating}
               cancelTestId="account-form-cancel"
               submitTestId="account-form-submit"
+              deleteTestId="account-form-remove"
             />
 
           </FormStack>
@@ -792,14 +884,14 @@ export function CreateFinancialAccountDrawer({
         title={
           isEditing
             ? t('financeTransactions.editAccount.title')
-            : (step === 1
+            : (isTypeSelectionStep
                 ? t('financeTransactions.createAccount.title')
-                : (selectedType === 'BANK'
+                : (effectiveSelectedType === 'BANK'
                     ? t('financeTransactions.createAccount.step1.bankAccount.label')
                     : t('financeTransactions.createAccount.step1.card.label')))
         }
         icon={
-          step === 2
+          showBackButton
             ? (
                 <IconButton onClick={handleBack} edge="start" aria-label={t('financeTransactions.actions.back')}>
                   <BackIcon />
@@ -810,8 +902,30 @@ export function CreateFinancialAccountDrawer({
         closeButtonAriaLabel={t('financeTransactions.actions.close')}
       />
       <Drawer.Body>
-        {step === 1 ? renderTypeSelection() : renderForm()}
+        {isTypeSelectionStep ? renderTypeSelection() : renderForm()}
       </Drawer.Body>
+
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title={t('financeTransactions.actions.deleteAccount')}
+        description={
+          <Stack spacing={2}>
+            <ErrorAlert error={deleteError} />
+            <Typography variant="body2" color="text.secondary">
+              {t('financeTransactions.actions.deleteAccountConfirm')}
+            </Typography>
+          </Stack>
+        }
+        confirmText={t('financeTransactions.actions.deleteAccount')}
+        confirmColor="error"
+        loading={deleting}
+        onConfirm={handleDeleteConfirm}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setDeleteError(null);
+        }}
+        data-testid="account-delete-dialog"
+      />
     </Drawer>
   );
 }

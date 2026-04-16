@@ -952,6 +952,8 @@
       "newAccountOrCard": "New account or card",
       "addAccount": "Add account",
       "addCard": "Add card",
+      "deleteAccount": "Remove account",
+      "deleteAccountConfirm": "Are you sure? This action cannot be undone.",
       "automation": "Automation",
       "reviewItems": "Review items",
       "edit": "Edit",
@@ -961,6 +963,10 @@
       "back": "Back",
       "close": "Close",
       "delete": "Delete"
+    },
+    "errors": {
+      "accountHasTransactions": "This account has transactions. Remove transactions before deleting the account.",
+      "accountHasOpenBills": "This account has open bills. Settle the bills before deleting the account."
     },
     "unmappedItems": {
       "title": "Unmapped items",
@@ -1091,6 +1097,7 @@
       "searchPlaceholder": "Search accounts...",
       "noAccountsFound": "No accounts found"
     },
+    "multipleCards": "Multiple cards",
     "emptyState": {
       "title": "Ready to get started?",
       "description": "Centralize your financial life. Add your bank accounts and cards to get a complete view of your spending, investments, and goals."
@@ -1131,6 +1138,7 @@
           "network": "Network",
           "level": "Level",
           "maskedNumber": "Last 4 digits",
+          "multiCard": "Multiple / virtual cards",
           "creditLimit": "Credit limit",
           "closingDay": "Closing day",
           "dueDay": "Due day"
@@ -1275,7 +1283,7 @@
         "description": "Associate each card found in the statement with an existing account.",
         "flatAssignmentBanner": "We imported the bill transactions, but the file did not include the card reference. Define the cards in this bill and assign the transactions before continuing.",
         "flatSteps": {
-          "issuerTitle": "Define card issuer",
+          "issuerTitle": "Define card",
           "issuerLabel": "Issuer name (bank)",
           "issuerSelectedTitle": "{{issuer}} selected",
           "loadingCards": "Loading cards...",
@@ -1364,7 +1372,9 @@
       }
     },
     "duplicateReview": {
-      "header": "{{count}} transaction(s) need review",
+      "header": "{{count}} transactions need review",
+      "header_one": "{{count}} transaction needs review",
+      "header_other": "{{count}} transactions need review",
       "newLabel": "New (imported)",
       "newLabelNfce": "NFC-e",
       "existingLabel": "Existing",
@@ -1391,7 +1401,7 @@
       "submit": "Import",
       "success": "NFC-e imported successfully",
       "reviewRequired": "We found a similar manual transaction. Review it to link the NFC-e.",
-      "alreadyImported": "Invoice already imported",
+      "alreadyImported": "This invoice was already imported and has a linked transaction",
       "sefazUnavailable": "Provider unavailable, please try again",
       "error": "Failed to import NFC-e"
     },

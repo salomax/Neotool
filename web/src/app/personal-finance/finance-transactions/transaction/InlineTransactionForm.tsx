@@ -84,7 +84,7 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
 
   const [shouldRender, setShouldRender] = useState(isOpen);
   useEffect(() => {
-    if (isOpen) setShouldRender(true);
+    if (isOpen) Promise.resolve().then(() => setShouldRender(true));
   }, [isOpen]);
   useEffect(() => {
     if (!isOpen && onExited) onExited();

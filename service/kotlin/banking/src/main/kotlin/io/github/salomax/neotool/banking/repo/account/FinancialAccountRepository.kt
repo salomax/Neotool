@@ -25,4 +25,9 @@ interface FinancialAccountRepository {
     fun save(account: FinancialAccount): FinancialAccount
 
     fun update(account: FinancialAccount): FinancialAccount
+
+    fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean
 }

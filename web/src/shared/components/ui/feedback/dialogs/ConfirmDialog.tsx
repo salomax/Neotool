@@ -6,48 +6,65 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   Typography,
 } from "@mui/material";
+import { Button } from "../../primitives/Button";
 
 export interface ConfirmDialogProps {
   open: boolean;
   title: React.ReactNode;
   description?: React.ReactNode;
-  confirmText?: string;
-  cancelText?: string;
-  tone?: "default" | "danger";
+  confirmText: React.ReactNode;
+  cancelText?: React.ReactNode;
+  confirmColor?: "primary" | "secondary" | "error" | "warning" | "info" | "success";
+  loading?: boolean;
   onConfirm: () => void;
-  onClose: () => void;
+  onCancel: () => void;
+  "data-testid"?: string;
 }
 
 export const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   open,
   title,
   description,
-  confirmText = "Confirm",
+  confirmText,
   cancelText = "Cancel",
-  tone = "default",
+  confirmColor = "primary",
+  loading = false,
   onConfirm,
-  onClose,
+  onCancel,
+  "data-testid": dataTestId,
 }) => {
   return (
-    <Dialog open={open} onClose={onClose} aria-labelledby="confirm-title">
+    <Dialog
+      open={open}
+      onClose={() => {
+        if (!loading) onCancel();
+      }}
+      aria-labelledby="confirm-title"
+      data-testid={dataTestId}
+    >
       <DialogTitle id="confirm-title">{title}</DialogTitle>
-      {description && (
+      {description ? (
         <DialogContent>
-          <Typography variant="body2" color="text.secondary">
-            {description}
-          </Typography>
+          {typeof description === "string" ? (
+            <Typography variant="body2" color="text.secondary">
+              {description}
+            </Typography>
+          ) : (
+            description
+          )}
         </DialogContent>
-      )}
+      ) : null}
       <DialogActions>
-        <Button onClick={onClose}>{cancelText}</Button>
         <Button
-          variant="contained"
-          color={tone === "danger" ? "error" : "primary"}
-          onClick={onConfirm}
+          onClick={onCancel}
+          variant="outlined"
+          disabled={loading}
         >
+          {cancelText}
+        </Button>
+        <Button onClick={onConfirm} color={confirmColor} variant="contained" loading={loading}>
           {confirmText}
         </Button>
       </DialogActions>

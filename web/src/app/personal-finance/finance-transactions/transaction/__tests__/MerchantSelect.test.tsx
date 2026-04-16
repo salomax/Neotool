@@ -15,3 +15,4 @@ describe("normalizeMerchantWebsiteDomain", () => {
     expect(normalizeMerchantWebsiteDomain("")).toBeNull();
   });
 });
+

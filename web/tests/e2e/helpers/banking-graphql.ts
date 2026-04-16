@@ -28,10 +28,12 @@ export interface FinancialAccount {
   subtype: string;
   name: string;
   currencyCode: string;
+  includeInNetWorth: boolean;
   cardData?: {
     closingDay?: number;
     dueDay?: number;
     maskedNumber?: string;
+    isMultiCard?: boolean;
   } | null;
   bankData?: {
     branchCode?: string;
@@ -80,6 +82,7 @@ export interface CreateFinancialAccountInput {
   name: string;
   type: string;
   subtype: string;
+  includeInNetWorth?: boolean;
   initialBalance?: number;
   /** Required for past-dated ledger tests when paired with `initialBalance`; helpers default to `today()` if omitted. */
   initialBalanceDate?: string;
@@ -99,6 +102,7 @@ export interface CreateFinancialAccountInput {
   };
   cardData?: {
     maskedNumber?: string;
+    isMultiCard?: boolean;
     bin?: string;
     cardNetwork?: string;
     cardLevel?: string;
@@ -168,6 +172,7 @@ function normalizeCreateFinancialAccountInput(input: CreateFinancialAccountInput
     type: input.type,
     subtype: input.subtype,
     currencyCode: input.currencyCode ?? 'BRL',
+    includeInNetWorth: input.includeInNetWorth,
     issuerId: input.issuerId,
     issuerName: input.issuerId ? undefined : input.issuerName ?? 'E2E Test Issuer',
   };
@@ -210,6 +215,7 @@ function normalizeUpdateFinancialAccountInput(
 
   if ('name' in input) normalized.name = input.name;
   if ('currencyCode' in input) normalized.currencyCode = input.currencyCode;
+  if ('includeInNetWorth' in input) normalized.includeInNetWorth = input.includeInNetWorth;
   if ('issuerId' in input) normalized.issuerId = input.issuerId;
   if ('issuerName' in input) normalized.issuerName = input.issuerName;
 
@@ -243,10 +249,12 @@ const FINANCIAL_ACCOUNT_FIELDS = `
   subtype
   name
   currencyCode
+  includeInNetWorth
   cardData {
     closingDay
     dueDay
     maskedNumber
+    isMultiCard
   }
   bankData {
     branchCode
@@ -305,6 +313,24 @@ export async function updateFinancialAccount(
   }
 
   return result.data.updateFinancialAccount;
+}
+
+export async function deleteFinancialAccount(id: string, token: string): Promise<void> {
+  const mutation = `
+    mutation DeleteFinancialAccount($id: ID!) {
+      deleteFinancialAccount(id: $id)
+    }
+  `;
+
+  const result = await executeGraphQL<{
+    deleteFinancialAccount: boolean;
+  }>(mutation, { id }, token);
+
+  if (result.errors || !result.data?.deleteFinancialAccount) {
+    throw new Error(
+      `deleteFinancialAccount failed: ${result.errors?.[0]?.message ?? 'Unknown error'}`
+    );
+  }
 }
 
 export async function getFinancialAccounts(token: string): Promise<FinancialAccount[]> {

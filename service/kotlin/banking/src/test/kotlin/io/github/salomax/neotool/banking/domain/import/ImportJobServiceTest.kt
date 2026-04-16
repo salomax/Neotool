@@ -946,6 +946,7 @@ class ImportJobServiceTest {
                     updatedAt = now,
                 )
             whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(existingJob)
+            whenever(transactionRepository.existsByImportJobId(requireNotNull(existingJob.id))).thenReturn(true)
 
             val result = service.importNfce(financialAccountId, accountId, userId, "https://example.com")
 
@@ -954,6 +955,97 @@ class ImportJobServiceTest {
             verify(nfceDocumentRepository, never()).save(any())
             verify(purchaseItemRepository, never()).saveAll(any())
             verify(importJobRepository, never()).save(any())
+        }
+
+        @Test
+        fun `duplicate chNFe with deleted original transaction allows fresh import`() {
+            val qrCodeUrl = "https://sefaz.example/nfce?p=reimport"
+            val chNFe = "35240112345678000199550010001234561123456789"
+            val existingJobId = UUID.randomUUID()
+            val existingJob =
+                ImportJob(
+                    id = existingJobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileHash = chNFe,
+                    status = ImportJobStatus.COMPLETED,
+                    importedCount = 1,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val nfce =
+                NfceData(
+                    chNFe = chNFe,
+                    dhEmi = now,
+                    vNF = BigDecimal("15.00"),
+                    cnpjEmitente = "12345678000190",
+                    nomeEmitente = "Store Name",
+                    municipio = "São Paulo",
+                    uf = "SP",
+                    items = emptyList(),
+                )
+            val pendingJobId = existingJobId
+            val pendingJob =
+                ImportJob(
+                    id = pendingJobId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    source = ImportSource.NFC_E,
+                    fileHash = chNFe,
+                    status = ImportJobStatus.PENDING,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val completedJob =
+                pendingJob.copy(
+                    status = ImportJobStatus.COMPLETED,
+                    totalRows = 1,
+                    importedCount = 1,
+                    skippedCount = 0,
+                    duplicateReviewCount = 0,
+                    errorCount = 0,
+                    completedAt = now,
+                    updatedAt = now,
+                )
+            whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
+            whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(existingJob)
+            whenever(transactionRepository.existsByImportJobId(existingJobId)).thenReturn(false)
+            whenever(sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL))).thenReturn(false)
+            whenever(importJobRepository.update(any())).thenReturn(pendingJob, completedJob)
+            whenever(transactionRepository.clearProviderTransactionIdForDeleted(financialAccountId, chNFe)).thenReturn(1)
+            whenever(transactionRepository.save(any())).thenAnswer {
+                it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
+            }
+            whenever(nfceDocumentRepository.deleteByAccessKeyAndAccountIdForDeletedTransactions(eq(chNFe), eq(accountId))).thenReturn(1)
+            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
+            whenever(nfceDocumentRepository.findByTransactionId(any(), eq(accountId))).thenAnswer {
+                NfceDocument(
+                    id = UUID.randomUUID(),
+                    transactionId = it.getArgument(0),
+                    accountId = accountId,
+                    accessKey = chNFe,
+                    issuerCnpj = "12345678000190",
+                    issuerName = "Store Name",
+                    emissionDate = now,
+                    totalValue = BigDecimal("15.00"),
+                    state = "SP",
+                    countryCode = "BR",
+                    createdAt = now,
+                )
+            }
+            whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+
+            val result = service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
+
+            assertThat(result.id).isEqualTo(existingJobId)
+            assertThat(result.status).isEqualTo(ImportJobStatus.COMPLETED)
+            verify(importJobRepository, never()).save(any())
+            verify(transactionRepository).clearProviderTransactionIdForDeleted(financialAccountId, chNFe)
+            verify(transactionRepository).save(any())
+            verify(nfceDocumentRepository).deleteByAccessKeyAndAccountIdForDeletedTransactions(chNFe, accountId)
         }
 
         @Test

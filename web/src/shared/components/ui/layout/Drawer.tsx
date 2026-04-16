@@ -14,7 +14,7 @@ import {
   useTheme,
   useMediaQuery,
 } from "@mui/material";
-import { CloseIcon, MenuIcon } from "../../../ui/mui-imports";
+import { CloseIcon, DeleteIcon, MenuIcon } from "../../../ui/mui-imports";
 import { RAIL_W } from "@/shared/ui/navigation/SidebarRail";
 import { Button, type ButtonProps } from "@/shared/components/ui/primitives/Button";
 
@@ -102,20 +102,56 @@ export interface DrawerActionButtonsProps {
   submitText: React.ReactNode;
   onCancel: () => void;
   onSubmit?: () => void;
+  deleteText?: React.ReactNode;
+  onDelete?: () => void;
   submitForm?: string;
   submitDisabled?: boolean;
   cancelDisabled?: boolean;
+  deleteDisabled?: boolean;
   submitting?: boolean;
   submittingText?: string;
   "data-testid"?: string;
   cancelTestId?: string;
   submitTestId?: string;
+  deleteTestId?: string;
 }
 
 export type DrawerCancelButtonProps = Omit<ButtonProps, "variant" | "type" | "loading" | "loadingText">;
 
 export const DrawerCancelButton: React.FC<DrawerCancelButtonProps> = (props) => {
   return <Button variant="outlined" {...props} />;
+};
+
+export type DrawerDeleteButtonProps = Omit<
+  ButtonProps,
+  "variant" | "type" | "loading" | "loadingText" | "color" | "startIcon"
+>;
+
+export const DrawerDeleteButton: React.FC<DrawerDeleteButtonProps> = ({ sx, ...props }) => {
+  const baseSx = (theme: any) => ({
+    textTransform: "none",
+    "&:hover": {
+      backgroundColor: alpha(theme.palette.error.main, 0.08),
+    },
+  });
+
+  const mergedSx =
+    typeof sx === "function"
+      ? (theme: any) => ({ ...baseSx(theme), ...(sx as any)(theme) })
+      : sx
+        ? (theme: any) => ({ ...baseSx(theme), ...(sx as any) })
+        : baseSx;
+
+  return (
+    <Button
+      type="button"
+      variant="text"
+      color="error"
+      startIcon={<DeleteIcon fontSize="small" />}
+      sx={mergedSx}
+      {...props}
+    />
+  );
 };
 
 export type DrawerSubmitButtonProps = Omit<ButtonProps, "variant"> & {
@@ -169,33 +205,53 @@ export const DrawerActionButtons: React.FC<DrawerActionButtonsProps> = ({
   submitText,
   onCancel,
   onSubmit,
+  deleteText,
+  onDelete,
   submitForm,
   submitDisabled = false,
   cancelDisabled = false,
+  deleteDisabled = false,
   submitting = false,
   submittingText,
   "data-testid": dataTestId,
   cancelTestId,
   submitTestId,
+  deleteTestId,
 }) => {
   const submitType = submitForm ? "submit" : "button";
+  const hasDelete = Boolean(deleteText && onDelete);
 
   return (
-    <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }} data-testid={dataTestId}>
-      <DrawerCancelButton onClick={onCancel} disabled={cancelDisabled} data-testid={cancelTestId}>
-        {cancelText}
-      </DrawerCancelButton>
-      <DrawerSubmitButton
-        type={submitType}
-        form={submitForm}
-        onClick={submitType === "button" ? onSubmit : undefined}
-        disabled={submitDisabled}
-        submitting={submitting}
-        submittingText={submittingText}
-        data-testid={submitTestId}
-      >
-        {submitText}
-      </DrawerSubmitButton>
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: hasDelete ? "space-between" : "flex-end",
+        gap: 2,
+      }}
+      data-testid={dataTestId}
+    >
+      {hasDelete ? (
+        <DrawerDeleteButton onClick={onDelete} disabled={deleteDisabled} data-testid={deleteTestId}>
+          {deleteText}
+        </DrawerDeleteButton>
+      ) : null}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 2 }}>
+        <DrawerCancelButton onClick={onCancel} disabled={cancelDisabled} data-testid={cancelTestId}>
+          {cancelText}
+        </DrawerCancelButton>
+        <DrawerSubmitButton
+          type={submitType}
+          form={submitForm}
+          onClick={submitType === "button" ? onSubmit : undefined}
+          disabled={submitDisabled}
+          submitting={submitting}
+          submittingText={submittingText}
+          data-testid={submitTestId}
+        >
+          {submitText}
+        </DrawerSubmitButton>
+      </Box>
     </Box>
   );
 };
@@ -348,6 +404,7 @@ const DrawerComponent: React.FC<DrawerProps> = ({
             </>
           )}
         </Box>
+        {otherChildren}
       </DrawerContext.Provider>
     </MUIDrawer>
   );

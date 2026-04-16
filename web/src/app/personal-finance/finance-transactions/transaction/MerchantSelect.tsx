@@ -20,6 +20,7 @@ import {
   Typography,
   alpha,
   useTheme,
+  IconButton,
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import SearchIcon from '@mui/icons-material/Search';
@@ -29,7 +30,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import CheckIcon from '@mui/icons-material/Check';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
 import { useDebounce } from '@/shared/hooks/ui';
-import { MERCHANTS } from '@/lib/graphql/operations/banking/queries';
+import { MERCHANTS, MERCHANT_LOGO_PREVIEW } from '@/lib/graphql/operations/banking/queries';
 import { CREATE_MERCHANT } from '@/lib/graphql/operations/banking/mutations';
 import { useTranslation } from '@/shared/i18n';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -37,6 +38,13 @@ import { personalFinanceTranslations } from '../../i18n';
 import type { Merchant } from '@/lib/graphql/types/__generated__/graphql';
 
 type MerchantPickerView = 'browse' | 'create' | 'confirm';
+
+type MerchantChipData = {
+  id: string;
+  name: string;
+  domain?: string | null;
+  logoAsset?: { publicUrl?: string | null } | null;
+};
 
 interface MerchantConnectionData {
   merchants: {
@@ -71,10 +79,21 @@ interface CreateMerchantVariables {
   };
 }
 
+interface MerchantLogoPreviewData {
+  merchantLogoPreview: {
+    id: string;
+    publicUrl: string | null;
+  } | null;
+}
+
+interface MerchantLogoPreviewVariables {
+  domain: string;
+}
+
 interface MerchantSelectProps {
   value: string | null;
   /** Pass `initialValues.merchant` so the chip renders without fetching the full list. */
-  initialMerchant?: Merchant | null;
+  initialMerchant?: MerchantChipData | null;
   onChange: (merchantId: string | null) => void;
   placeholder?: string;
 }
@@ -83,6 +102,7 @@ const PAGE_SIZE = 20;
 const CONFIRM_DURATION_MS = 1500;
 
 export function normalizeMerchantWebsiteDomain(raw: string): string | null {
+  // Keep this normalization aligned with MerchantWebsiteNormalizer on backend.
   const input = raw.trim();
   if (!input) return null;
   const withoutScheme = input.replace(/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//, '');
@@ -102,8 +122,9 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
   const [createName, setCreateName] = useState('');
   const [createWebsite, setCreateWebsite] = useState('');
   const [confirmName, setConfirmName] = useState<string | null>(null);
-  const [createdMerchant, setCreatedMerchant] = useState<Merchant | null>(null);
+  const [createdMerchant, setCreatedMerchant] = useState<MerchantChipData | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const browseListRef = useRef<HTMLUListElement | null>(null);
   const infiniteScrollSentinelRef = useRef<HTMLDivElement | null>(null);
   const lastFetchCursorRef = useRef<string | null>(null);
@@ -115,14 +136,10 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
     () => normalizeMerchantWebsiteDomain(debouncedWebsite),
     [debouncedWebsite],
   );
-
-  const logoDevToken = process.env.NEXT_PUBLIC_LOGO_DEV_TOKEN ?? '';
-  const logoPreviewUrl = useMemo(() => {
-    if (!normalizedPreviewDomain || !logoDevToken) return null;
-    const encodedDomain = encodeURIComponent(normalizedPreviewDomain);
-    const encodedToken = encodeURIComponent(logoDevToken);
-    return `https://img.logo.dev/${encodedDomain}?token=${encodedToken}&size=40&format=png`;
-  }, [logoDevToken, normalizedPreviewDomain]);
+  const [loadLogoPreview] = useLazyQuery<MerchantLogoPreviewData, MerchantLogoPreviewVariables>(
+    MERCHANT_LOGO_PREVIEW,
+    { fetchPolicy: 'no-cache' },
+  );
 
   const [loadMerchants, { data, loading, fetchMore, called }] = useLazyQuery<MerchantConnectionData, MerchantsVariables>(
     MERCHANTS,
@@ -142,7 +159,7 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
   const pageInfo = connection?.pageInfo;
   const isInitialBrowseLoading = !called || (loading && merchants.length === 0);
 
-  const selectedMerchant = useMemo(() => {
+  const selectedMerchant = useMemo<MerchantChipData | Merchant | null>(() => {
     if (!value) return null;
     return (
       merchants.find((m) => m.id === value) ??
@@ -227,10 +244,32 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
       setSearchInput('');
       setCreateName('');
       setCreateWebsite('');
+      setLogoPreviewUrl(null);
       setConfirmName(null);
       resetCreateState();
     }
   }, [open, resetCreateState]);
+
+  useEffect(() => {
+    if (view !== 'create') return;
+    if (!normalizedPreviewDomain) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+    let cancelled = false;
+    void loadLogoPreview({ variables: { domain: normalizedPreviewDomain } })
+      .then((result) => {
+        if (cancelled) return;
+        setLogoPreviewUrl(result.data?.merchantLogoPreview?.publicUrl ?? null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setLogoPreviewUrl(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadLogoPreview, normalizedPreviewDomain, view]);
 
   const handleOpen = useCallback((event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -424,14 +463,15 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
           bgcolor: alpha(theme.palette.primary.main, 0.04),
         }}
       >
-        <Button
+        <IconButton
+          data-testid="merchant-picker-back-button"
           size="small"
-          startIcon={<ArrowBackIcon fontSize="small" />}
           onClick={handleBackToBrowse}
-          data-testid="merchant-picker-back-btn"
+          aria-label={t('financeTransactions.actions.back')}
+          sx={{ mr: 0.5 }}
         >
-          {t('financeTransactions.actions.back')}
-        </Button>
+          <ArrowBackIcon fontSize="small" />
+        </IconButton>
         <Typography variant="subtitle1" fontWeight={600}>
           {t('financeTransactions.merchantPicker.createMerchant')}
         </Typography>
@@ -498,17 +538,16 @@ export function MerchantSelect({ value, initialMerchant, onChange, placeholder }
         </Box>
       </Stack>
 
-      <Box sx={{ borderTop: 1, borderColor: 'divider', p: 1, display: 'flex', gap: 1 }}>
-        <Button fullWidth variant="outlined" onClick={handleBackToBrowse} data-testid="merchant-picker-cancel-btn">
-          {t('financeTransactions.actions.cancel')}
-        </Button>
+      {/* Footer */}
+      <Box sx={{ borderTop: 1, borderColor: 'divider' }}>
         <Button
+          data-testid="merchant-picker-save-btn"
           fullWidth
           variant="contained"
-          onClick={() => void handleCreateSubmit()}
+          onClick={handleCreateSubmit}
           disabled={!createName.trim() || createLoading}
-          startIcon={createLoading ? <CircularProgress size={16} color="inherit" /> : undefined}
-          data-testid="merchant-picker-save-btn"
+          startIcon={createLoading ? <CircularProgress size={18} color="inherit" /> : undefined}
+          sx={{ height: 48, borderRadius: 0 }}
         >
           {createLoading ? t('financeTransactions.actions.saving') : t('financeTransactions.actions.save')}
         </Button>

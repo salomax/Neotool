@@ -7,6 +7,7 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -116,11 +117,25 @@ open class DefaultFinancialAccountRepository(
                 current.closingDay = data.closingDay
                 current.dueDay = data.dueDay
                 current.linkedBankAccountId = data.linkedBankAccountId
+                current.isMultiCard = data.isMultiCard
                 cardDataRepository.update(current)
             }
         }
 
         entityRepository.update(existing)
         return FinancialAccountMapper.toDomain(existing)
+    }
+
+    @Transactional
+    override fun softDelete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val existing = entityRepository.findByIdAndAccountIdAndDeletedAtIsNull(id, accountId) ?: return false
+        val now = Instant.now()
+        existing.deletedAt = now
+        existing.updatedAt = now
+        entityRepository.update(existing)
+        return true
     }
 }

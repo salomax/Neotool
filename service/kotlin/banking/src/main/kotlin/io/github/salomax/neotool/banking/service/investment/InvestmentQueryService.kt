@@ -1481,6 +1481,7 @@ class InvestmentQueryService(
                 closingDay = it.closingDay,
                 dueDay = it.dueDay,
                 linkedBankAccountId = it.linkedBankAccountId,
+                isMultiCard = it.isMultiCard,
             )
         },
         connectionStatus = connectionStatus,

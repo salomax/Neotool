@@ -80,7 +80,7 @@ open class DefaultMerchantRepository(
         return MerchantMapper.toDomain(merchantRepo.save(entity))
     }
 
-    override fun findLogoAssetIdByDomain(domain: String): String? =
+    override fun findLogoAssetIdByDomain(domain: String): UUID? =
         logoCacheRepo.findByDomain(domain)?.assetId
 
     override fun findLogoCacheByDomain(domain: String): MerchantLogoCacheEntry? =
@@ -92,7 +92,7 @@ open class DefaultMerchantRepository(
             )
         }
 
-    override fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String> =
+    override fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, UUID> =
         if (domains.isEmpty()) {
             emptyMap()
         } else {
@@ -101,7 +101,7 @@ open class DefaultMerchantRepository(
 
     override fun upsertLogoCache(
         domain: String,
-        assetId: String,
+        assetId: UUID,
         fetchedAt: Instant,
     ) {
         val existing = logoCacheRepo.findByDomainIgnoreCase(domain)

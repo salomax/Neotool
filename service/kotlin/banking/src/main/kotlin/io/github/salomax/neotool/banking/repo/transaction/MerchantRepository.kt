@@ -39,18 +39,18 @@ interface MerchantRepository {
     fun save(merchant: Merchant): Merchant
 
     /** Returns the asset_id for a cached domain logo, or null if not yet cached. */
-    fun findLogoAssetIdByDomain(domain: String): String?
+    fun findLogoAssetIdByDomain(domain: String): UUID?
 
     /** Returns full cache metadata for a domain logo, or null if missing. */
     fun findLogoCacheByDomain(domain: String): MerchantLogoCacheEntry?
 
     /** Batch-loads cached logo asset IDs keyed by domain. */
-    fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, String>
+    fun findLogoAssetIdsByDomains(domains: Collection<String>): Map<String, UUID>
 
     /** Inserts/updates the domain logo cache entry. */
     fun upsertLogoCache(
         domain: String,
-        assetId: String,
+        assetId: UUID,
         fetchedAt: Instant = Instant.now(),
     )
 

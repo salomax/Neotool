@@ -42,7 +42,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
           </Typography>
         )}
         {actionText && (
-          <Button variant="contained" onClick={onAction}>
+          <Button variant="contained" onClick={() => onAction?.()}>
             {actionText}
           </Button>
         )}
@@ -77,7 +77,7 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
           </Typography>
         )}
         {onRetry && (
-          <Button variant="contained" color="error" onClick={onRetry}>
+          <Button variant="contained" color="error" onClick={() => onRetry()}>
             {retryText}
           </Button>
         )}

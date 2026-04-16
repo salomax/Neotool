@@ -62,6 +62,7 @@ data class CardDataPatch(
     val closingDay: UpdateField<Int> = UpdateField.Absent,
     val dueDay: UpdateField<Int> = UpdateField.Absent,
     val linkedBankAccountId: UpdateField<UUID> = UpdateField.Absent,
+    val isMultiCard: UpdateField<Boolean> = UpdateField.Absent,
 )
 
 /**

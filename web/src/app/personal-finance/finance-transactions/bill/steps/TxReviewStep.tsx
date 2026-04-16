@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { CreditCard as CardIcon } from '@mui/icons-material';
-import { memo } from 'react';
+import React, { memo } from 'react';
 import dayjs from 'dayjs';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';

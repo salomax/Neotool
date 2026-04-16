@@ -30,6 +30,8 @@ data class CardData(
     val dueDay: Int? = null,
     /** Optional link to a bank account used to auto-create the debit leg of a bill-payment transfer. */
     val linkedBankAccountId: UUID? = null,
+    /** When true, this account represents multiple physical/virtual cards and does not store a single last-4. */
+    val isMultiCard: Boolean = false,
 )
 
 /**

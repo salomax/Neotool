@@ -30,4 +30,17 @@ interface NfceDocumentEntityRepository : JpaRepository<NfceDocumentEntity, UUID>
         accountId: UUID,
         transactionIds: List<UUID>,
     ): List<UUID>
+
+    @Query(
+        """
+        DELETE FROM banking.purchase_documents
+         WHERE account_id = :accountId
+           AND access_key = :accessKey
+        """,
+        nativeQuery = true,
+    )
+    fun deleteByAccessKeyAndAccountIdForDeletedTransactions(
+        accessKey: String,
+        accountId: UUID,
+    ): Int
 }

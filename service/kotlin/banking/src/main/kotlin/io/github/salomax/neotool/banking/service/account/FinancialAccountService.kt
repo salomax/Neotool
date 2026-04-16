@@ -4,6 +4,9 @@ import io.github.salomax.neotool.banking.domain.account.*
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
@@ -30,6 +33,9 @@ open class FinancialAccountService(
     private val financialAccountRepository: FinancialAccountRepository,
     private val issuerRepository: IssuerRepository,
     private val transactionService: TransactionService,
+    private val transactionEntityRepository: TransactionEntityRepository,
+    private val creditCardBillEntityRepository: CreditCardBillEntityRepository,
+    private val monthlyBalanceSnapshotEntityRepository: MonthlyBalanceSnapshotEntityRepository,
 ) {
     companion object {
         private const val MAX_FINANCIAL_ACCOUNT_NAME_LENGTH = 255
@@ -85,7 +91,13 @@ open class FinancialAccountService(
             closingDay = command.cardData?.closingDay,
             dueDay = command.cardData?.dueDay,
         )
-        val normalizedCreateCardMaskedNumber = normalizeCardMaskedNumber(command.cardData?.maskedNumber)
+        val isMultiCard = if (supportsMultiCard(command.type)) (command.cardData?.isMultiCard ?: false) else false
+        val normalizedCreateCardMaskedNumber =
+            if (isMultiCard) {
+                null
+            } else {
+                normalizeCardMaskedNumber(command.cardData?.maskedNumber)
+            }
 
         val issuer = command.issuerId?.let { issuerRepository.findById(it) }
 
@@ -118,7 +130,9 @@ open class FinancialAccountService(
                 subtype = command.subtype,
                 name = effectiveName,
                 currencyCode = command.currencyCode?.takeIf { it.isNotBlank() } ?: "BRL",
-                includeInNetWorth = command.includeInNetWorth ?: true,
+                includeInNetWorth =
+                    command.includeInNetWorth
+                        ?: (command.subtype != FinancialAccountSubtype.VOUCHER_CARD),
                 includeInDashboard = command.includeInDashboard ?: true,
                 includeCashInAllocation = command.includeCashInAllocation ?: true,
                 issuerId = command.issuerId,
@@ -129,7 +143,11 @@ open class FinancialAccountService(
                 issuerIspb = issuer?.ispb,
                 cardLastFourDigits = extractLastFourDigits(normalizedCreateCardMaskedNumber),
                 bankData = command.bankData,
-                cardData = command.cardData?.copy(maskedNumber = normalizedCreateCardMaskedNumber),
+                cardData =
+                    command.cardData?.copy(
+                        maskedNumber = normalizedCreateCardMaskedNumber,
+                        isMultiCard = isMultiCard,
+                    ),
                 createdAt = now,
                 updatedAt = now,
             )
@@ -227,8 +245,18 @@ open class FinancialAccountService(
             } else {
                 null
             }
-        val normalizedUpdateCardMaskedNumber = normalizeCardMaskedNumber(resolvedCardData?.maskedNumber)
-        val validatedResolvedCardData = resolvedCardData?.copy(maskedNumber = normalizedUpdateCardMaskedNumber)
+        val resolvedIsMultiCard = if (supportsMultiCard(command.type)) (resolvedCardData?.isMultiCard ?: false) else false
+        val normalizedUpdateCardMaskedNumber =
+            if (resolvedIsMultiCard) {
+                null
+            } else {
+                normalizeCardMaskedNumber(resolvedCardData?.maskedNumber)
+            }
+        val validatedResolvedCardData =
+            resolvedCardData?.copy(
+                maskedNumber = normalizedUpdateCardMaskedNumber,
+                isMultiCard = resolvedIsMultiCard,
+            )
         validateCardDayOfMonthFields(
             closingDay = validatedResolvedCardData?.closingDay,
             dueDay = validatedResolvedCardData?.dueDay,
@@ -286,6 +314,42 @@ open class FinancialAccountService(
         return financialAccountRepository.update(updated)
     }
 
+    @Transactional
+    open fun delete(
+        financialAccountId: UUID,
+        accountId: UUID,
+    ): Boolean {
+        financialAccountRepository.findById(financialAccountId, accountId)
+            ?: throw NotFoundException(
+                errorCode = CommonErrorCode.NOT_FOUND,
+                field = "id",
+                parameters = mapOf("financialAccountId" to financialAccountId.toString()),
+            )
+
+        val txCount = transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)
+        if (txCount > 0) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.FINANCIAL_ACCOUNT_HAS_TRANSACTIONS,
+                field = "id",
+                parameters = mapOf("count" to txCount),
+            )
+        }
+
+        val openBillCount = creditCardBillEntityRepository.countOpenByFinancialAccountId(financialAccountId)
+        if (openBillCount > 0) {
+            throw ValidationException(
+                errorCode = BankingErrorCode.FINANCIAL_ACCOUNT_HAS_OPEN_BILLS,
+                field = "id",
+                parameters = mapOf("count" to openBillCount),
+            )
+        }
+
+        monthlyBalanceSnapshotEntityRepository.deleteByFinancialAccountId(financialAccountId)
+        creditCardBillEntityRepository.softDeleteByFinancialAccountId(financialAccountId, Instant.now())
+
+        return financialAccountRepository.softDelete(financialAccountId, accountId)
+    }
+
     private fun mergeBankData(
         existing: BankData?,
         patch: BankDataPatch?,
@@ -304,6 +368,7 @@ open class FinancialAccountService(
         patch: CardDataPatch?,
     ): CardData? {
         if (patch == null) return existing
+        val resolvedIsMultiCard = patch.isMultiCard.resolve(existing?.isMultiCard) ?: false
         return CardData(
             maskedNumber = patch.maskedNumber.resolve(existing?.maskedNumber),
             bin = patch.bin.resolve(existing?.bin),
@@ -315,6 +380,7 @@ open class FinancialAccountService(
             closingDay = patch.closingDay.resolve(existing?.closingDay),
             dueDay = patch.dueDay.resolve(existing?.dueDay),
             linkedBankAccountId = patch.linkedBankAccountId.resolve(existing?.linkedBankAccountId),
+            isMultiCard = resolvedIsMultiCard,
         )
     }
 
@@ -377,5 +443,8 @@ open class FinancialAccountService(
         }
         return onlyDigits
     }
+
+    private fun supportsMultiCard(type: FinancialAccountType): Boolean =
+        type == FinancialAccountType.CREDIT || type == FinancialAccountType.PAYMENT
 
 }

@@ -11,6 +11,7 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
   const [createCardForIndex, setCreateCardForIndex] = useState<number | null>(null);
   const [isCreateCardDrawerOpen, setIsCreateCardDrawerOpen] = useState(false);
   const [createDraftCardId, setCreateDraftCardId] = useState<string | null>(null);
+  const [createForFlatSelection, setCreateForFlatSelection] = useState(false);
 
   const effectiveCardAccountOptions = useMemo<CardAccountOption[]>(() => {
     const mergedInline = inlineCreatedAccounts.filter(
@@ -22,12 +23,21 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
   const openCreateCardForIndex = useCallback((ci: number) => {
     setCreateCardForIndex(ci);
     setCreateDraftCardId(null);
+    setCreateForFlatSelection(false);
     setIsCreateCardDrawerOpen(true);
   }, []);
 
   const openCreateCardForDraft = useCallback((draftCardId: string) => {
     setCreateDraftCardId(draftCardId);
     setCreateCardForIndex(null);
+    setCreateForFlatSelection(false);
+    setIsCreateCardDrawerOpen(true);
+  }, []);
+
+  const openCreateCardForFlatSelection = useCallback(() => {
+    setCreateDraftCardId(null);
+    setCreateCardForIndex(null);
+    setCreateForFlatSelection(true);
     setIsCreateCardDrawerOpen(true);
   }, []);
 
@@ -35,6 +45,7 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
     setIsCreateCardDrawerOpen(false);
     setCreateCardForIndex(null);
     setCreateDraftCardId(null);
+    setCreateForFlatSelection(false);
   }, []);
 
   const addInlineAccount = useCallback((account: {
@@ -43,7 +54,7 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
     issuerId?: string | null;
     issuerName?: string | null;
     issuer?: { id?: string | null; name?: string | null } | null;
-    cardData?: { maskedNumber?: string | null } | null;
+    cardData?: { maskedNumber?: string | null; isMultiCard?: boolean | null } | null;
   }) => {
     const option = buildCardAccountOption(account);
     setInlineCreatedAccounts((prev) => {
@@ -57,6 +68,7 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
     setCreateCardForIndex(null);
     setIsCreateCardDrawerOpen(false);
     setCreateDraftCardId(null);
+    setCreateForFlatSelection(false);
   }, []);
 
   return {
@@ -65,8 +77,10 @@ export function useInlineCardCreation({ baseCardAccountOptions }: UseInlineCardC
     createCardForIndex,
     isCreateCardDrawerOpen,
     createDraftCardId,
+    createForFlatSelection,
     openCreateCardForIndex,
     openCreateCardForDraft,
+    openCreateCardForFlatSelection,
     close,
     addInlineAccount,
     reset,

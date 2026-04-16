@@ -9,6 +9,7 @@ import {
   Button,
   CircularProgress,
   Divider,
+  IconButton,
   Paper,
   Stack,
   Tab,
@@ -16,14 +17,16 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { CloudUpload as UploadIcon, QrCode2 as QrCode2Icon } from '@mui/icons-material';
-import { useMutation } from '@apollo/client/react';
+import { ArrowBack as ArrowBackIcon, Close as CloseIcon, CloudUpload as UploadIcon } from '@mui/icons-material';
+import { useMutation, useQuery } from '@apollo/client/react';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { IMPORT_NFCE } from '@/lib/graphql/operations/banking/mutations';
 import { ImportDuplicateReview } from './ImportDuplicateReview';
 import { extractErrorCode, extractErrorMessage, extractErrorParameters } from '@/shared/utils/error';
+import { FinancialAccountsDocument, type FinancialAccountsQuery } from '@/lib/graphql/operations/banking/queries.generated';
+import { IssuerSelection } from '../../investments/components/IssuerSelection';
 
 const ACCEPTED_IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png'];
 const ACCEPTED_IMAGE_TYPES = 'image/jpeg,image/png,.jpg,.jpeg,.png';
@@ -33,7 +36,7 @@ const SEFAZ_DOMAINS = [
   'nfe.fazenda.gov.br',
 ];
 
-type Step = 'input' | 'processing' | 'result' | 'review' | 'error';
+type Step = 'account' | 'input' | 'processing' | 'result' | 'review' | 'error';
 type EntryTab = 'upload' | 'url';
 type ResultKind = 'success' | 'info';
 
@@ -44,6 +47,7 @@ interface ImportNfceMutationData {
       status: 'COMPLETED' | 'REVIEW_REQUIRED' | string;
       importedCount: number | null;
       skippedCount: number | null;
+      completedAt: string | null;
     };
   };
 }
@@ -244,7 +248,8 @@ export function NfceImportDrawer({
 }: NfceImportDrawerProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [step, setStep] = useState<Step>('input');
+  const [step, setStep] = useState<Step>(selectedAccountId ? 'input' : 'account');
+  const [targetAccountId, setTargetAccountId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<EntryTab>('upload');
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -257,8 +262,21 @@ export function NfceImportDrawer({
 
   const [importNfce] = useMutation<ImportNfceMutationData, ImportNfceMutationVariables>(IMPORT_NFCE);
 
+  const { data: accountsData, loading: accountsLoading, error: accountsError } = useQuery<FinancialAccountsQuery>(
+    FinancialAccountsDocument,
+    {
+      skip: !open || Boolean(selectedAccountId),
+      errorPolicy: 'all',
+    },
+  );
+
+  const resolvedFinancialAccountId = selectedAccountId ?? targetAccountId;
+  const shouldShowAccountSelectionStep = !selectedAccountId && !resolvedFinancialAccountId;
+  const previousOpenRef = useRef(false);
+
   const resetState = useCallback(() => {
-    setStep('input');
+    setStep(selectedAccountId ? 'input' : 'account');
+    setTargetAccountId(null);
     setActiveTab('upload');
     setSelectedImage(null);
     setQrCodeUrl('');
@@ -268,7 +286,28 @@ export function NfceImportDrawer({
     setResultMessage(null);
     setShouldRefreshOnClose(false);
     setErrorMessage(null);
-  }, []);
+  }, [selectedAccountId]);
+
+  useEffect(() => {
+    if (!open) {
+      previousOpenRef.current = false;
+      return;
+    }
+    if (previousOpenRef.current) return;
+    previousOpenRef.current = true;
+
+    setStep(selectedAccountId ? 'input' : 'account');
+    setTargetAccountId(null);
+    setActiveTab('upload');
+    setSelectedImage(null);
+    setQrCodeUrl('');
+    setInputError(null);
+    setJobId(null);
+    setResultKind('success');
+    setResultMessage(null);
+    setShouldRefreshOnClose(false);
+    setErrorMessage(null);
+  }, [open, selectedAccountId]);
 
   const handleClose = useCallback(() => {
     if (shouldRefreshOnClose) {
@@ -279,9 +318,9 @@ export function NfceImportDrawer({
   }, [onClose, onImportCompleted, resetState, shouldRefreshOnClose]);
 
   const handleRetry = useCallback(() => {
-    setStep('input');
+    setStep(resolvedFinancialAccountId ? 'input' : 'account');
     setErrorMessage(null);
-  }, []);
+  }, [resolvedFinancialAccountId]);
 
   const handleUploadFile = useCallback(
     async (file: File) => {
@@ -334,12 +373,8 @@ export function NfceImportDrawer({
 
   const handleSubmit = useCallback(
     async (overrideUrl?: string) => {
+      if (!resolvedFinancialAccountId) return;
       const nextUrl = (overrideUrl ?? qrCodeUrl).trim();
-
-      if (!selectedAccountId) {
-        setInputError(t('financeTransactions.import.uploadStep.selectAccount'));
-        return;
-      }
 
       if (!nextUrl || !isValidSefazUrl(nextUrl)) {
         setInputError(t('financeTransactions.nfce.invalidUrl'));
@@ -350,10 +385,11 @@ export function NfceImportDrawer({
       setStep('processing');
       setShouldRefreshOnClose(false);
 
+      const importStartedAt = new Date();
       try {
         const result = await importNfce({
           variables: {
-            financialAccountId: selectedAccountId,
+            financialAccountId: resolvedFinancialAccountId,
             qrCodeUrl: nextUrl,
           },
         });
@@ -372,7 +408,11 @@ export function NfceImportDrawer({
           return;
         }
 
-        if ((payload.importedCount ?? 0) === 0 && (payload.skippedCount ?? 0) > 0) {
+        const isAlreadyImported =
+          ((payload.importedCount ?? 0) === 0 && (payload.skippedCount ?? 0) > 0) ||
+          (payload.completedAt != null && new Date(payload.completedAt) < importStartedAt);
+
+        if (isAlreadyImported) {
           setResultKind('info');
           setResultMessage(t('financeTransactions.nfce.alreadyImported'));
           setShouldRefreshOnClose(false);
@@ -414,8 +454,39 @@ export function NfceImportDrawer({
         setStep('error');
       }
     },
-    [importNfce, qrCodeUrl, selectedAccountId, t, tCommon],
+    [importNfce, qrCodeUrl, resolvedFinancialAccountId, t, tCommon],
   );
+
+  const renderAccountStep = () => {
+    if (accountsLoading) {
+      return (
+        <Stack spacing={2} alignItems="center" justifyContent="center" sx={{ minHeight: 260 }}>
+          <CircularProgress />
+        </Stack>
+      );
+    }
+
+    const accounts = accountsData?.financialAccounts ?? [];
+    const errorFallback = t('financeTransactions.nfce.error');
+
+    return (
+      <Stack spacing={2}>
+        {accountsError ? (
+          <Alert severity="error">{extractErrorMessage(accountsError, errorFallback)}</Alert>
+        ) : null}
+        <IssuerSelection
+          financialAccounts={accounts}
+          description={t('financeTransactions.import.accountStep.title')}
+          emptyState={t('financeTransactions.import.accountStep.noAccounts')}
+          onSelect={(accountId) => {
+            setTargetAccountId(accountId);
+            setStep('input');
+          }}
+          dataTestIdPrefix="nfce-import-account-"
+        />
+      </Stack>
+    );
+  };
 
   const renderInputStep = () => (
     <Box sx={{ p: 1 }}>
@@ -423,12 +494,6 @@ export function NfceImportDrawer({
         <Tab value="upload" label={t('financeTransactions.nfce.uploadTab')} />
         <Tab value="url" label={t('financeTransactions.nfce.urlTab')} />
       </Tabs>
-
-      {!selectedAccountId && (
-        <Alert severity="warning" sx={{ mb: 2 }}>
-          {t('financeTransactions.import.uploadStep.selectAccount')}
-        </Alert>
-      )}
 
       {activeTab === 'upload' ? (
         <Stack spacing={2}>
@@ -525,7 +590,7 @@ export function NfceImportDrawer({
         submittingText={t('financeTransactions.actions.saving')}
         onCancel={handleClose}
         onSubmit={() => handleSubmit()}
-        submitDisabled={!selectedAccountId || !qrCodeUrl.trim()}
+        submitDisabled={!resolvedFinancialAccountId || !qrCodeUrl.trim()}
       />
     </Box>
   );
@@ -553,7 +618,7 @@ export function NfceImportDrawer({
   const renderReviewStep = () =>
     jobId ? (
       <ImportDuplicateReview
-        jobId={jobId}
+        jobIds={[jobId]}
         onComplete={() => {
           onImportCompleted?.();
           onClose();
@@ -578,12 +643,57 @@ export function NfceImportDrawer({
 
   return (
     <Drawer open={open} onClose={handleClose} anchor="right" size="md" ariaLabel={t('financeTransactions.nfce.drawerTitle')}>
-      <Drawer.Header
-        title={t('financeTransactions.nfce.drawerTitle')}
-        showCloseButton
-        closeButtonAriaLabel={t('financeTransactions.actions.close')}
-      />
+      {shouldShowAccountSelectionStep ? (
+        <Drawer.Header
+          title={t('financeTransactions.nfce.drawerTitle')}
+          showCloseButton
+          closeButtonAriaLabel={t('financeTransactions.actions.close')}
+        />
+      ) : (
+        <Drawer.Header>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+              {!selectedAccountId ? (
+                <IconButton
+                  onClick={() => {
+                    setTargetAccountId(null);
+                    setStep('account');
+                    setActiveTab('upload');
+                    setSelectedImage(null);
+                    setQrCodeUrl('');
+                    setInputError(null);
+                    setJobId(null);
+                    setResultKind('success');
+                    setResultMessage(null);
+                    setShouldRefreshOnClose(false);
+                    setErrorMessage(null);
+                  }}
+                  size="small"
+                  aria-label={t('financeTransactions.actions.back')}
+                >
+                  <ArrowBackIcon />
+                </IconButton>
+              ) : null}
+              <Typography
+                variant="h5"
+                component="h2"
+                fontWeight={400}
+                noWrap
+                sx={{ letterSpacing: '0.05em', lineHeight: 1.15, color: 'action.active' }}
+              >
+                {t('financeTransactions.nfce.drawerTitle').toLocaleUpperCase(
+                  Intl.DateTimeFormat().resolvedOptions().locale,
+                )}
+              </Typography>
+            </Box>
+            <IconButton onClick={handleClose} size="small" aria-label={t('financeTransactions.actions.close')}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </Drawer.Header>
+      )}
       <Drawer.Body>
+        {step === 'account' && renderAccountStep()}
         {step === 'input' && renderInputStep()}
         {step === 'processing' && renderProcessingStep()}
         {step === 'result' && renderResultStep()}
