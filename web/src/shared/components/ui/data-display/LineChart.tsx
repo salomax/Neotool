@@ -545,9 +545,8 @@ function EventMarkersLayer({ markers, plotBottomOffset = 14, onHoverChange }: Ev
   const { x: plotX, y: plotY, width: plotW, height: plotH } = plotArea;
   const yPixel = plotY + plotH - plotBottomOffset;
 
-  const stroke = theme.palette.info.main;
-  const fill = theme.palette.background.paper;
-  const textFill = theme.palette.info.main;
+  const fill = theme.palette.info.main;
+  const textFill = theme.palette.getContrastText(theme.palette.info.main);
 
   return (
     <g>
@@ -578,7 +577,8 @@ function EventMarkersLayer({ markers, plotBottomOffset = 14, onHoverChange }: Ev
             }}
             style={{ cursor: m.onClick ? "pointer" : "default" }}
           >
-            <circle cx={xPixel} cy={yPixel} r={8} fill={fill} stroke={stroke} strokeWidth={1.5} />
+            <circle cx={xPixel} cy={yPixel} r={12} fill="transparent" stroke="transparent" strokeWidth={0} />
+            <circle cx={xPixel} cy={yPixel} r={8} fill={fill} stroke="none" />
             <text
               x={xPixel}
               y={yPixel + 0.5}
