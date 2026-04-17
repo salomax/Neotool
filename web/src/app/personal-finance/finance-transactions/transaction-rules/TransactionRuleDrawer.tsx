@@ -11,7 +11,6 @@ import {
   FormControl,
   InputLabel,
   FormHelperText,
-  InputAdornment,
   RadioGroup,
   FormControlLabel,
   Radio,
@@ -24,7 +23,6 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Autocomplete,
   Chip,
   Stack,
   alpha,
@@ -34,7 +32,6 @@ import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { TagsInput } from '@/shared/components/ui/forms/form/TagsInput';
 import {
   TRANSACTION_CATEGORIES,
-  MERCHANTS,
   TRANSACTION_TAGS,
 } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -52,7 +49,7 @@ import { useToast } from '@/shared/providers';
 import type { TransactionRule } from './types';
 import { CategoryIcon } from '../category/CategoryIcon';
 import { CategoryPicker } from '../category/CategoryPicker';
-import { Logo } from '@/shared/components/ui/primitives';
+import { MerchantSelect } from '../transaction/MerchantSelect';
 
 interface TransactionCategory {
   id: string;
@@ -64,20 +61,6 @@ interface TransactionCategory {
 
 interface CategoriesData {
   transactionCategories: TransactionCategory[];
-}
-
-interface Merchant {
-  id: string;
-  name: string;
-  domain?: string | null;
-  isSystem: boolean;
-  logoAsset?: { id: string; publicUrl?: string | null } | null;
-}
-
-interface MerchantsData {
-  merchants: {
-    edges: Array<{ node: Merchant }>;
-  };
 }
 
 interface TransactionTagsData {
@@ -134,14 +117,6 @@ function normalizeTags(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))].sort();
 }
 
-function upperFirst(value: string): string {
-  if (!value) return value;
-  const trimmedStart = value.trimStart();
-  if (!trimmedStart) return value;
-  const prefixLength = value.length - trimmedStart.length;
-  return `${value.slice(0, prefixLength)}${trimmedStart.charAt(0).toLocaleUpperCase()}${trimmedStart.slice(1)}`;
-}
-
 function formFromRule(rule: TransactionRule): FormState {
   return {
     pattern: rule.pattern,
@@ -185,11 +160,6 @@ function TransactionRuleDrawerInner({
 
   const { data: categoriesData } = useQuery<CategoriesData>(TRANSACTION_CATEGORIES, {
     skip: !open,
-  });
-
-  const { data: merchantsData } = useQuery<MerchantsData>(MERCHANTS, {
-    skip: !open,
-    variables: { first: 50 },
   });
 
   const { data: transactionTagsData } = useQuery<TransactionTagsData>(TRANSACTION_TAGS, {
@@ -308,8 +278,6 @@ function TransactionRuleDrawerInner({
   const { transactionCategories: categories = [] } = categoriesData ?? {};
   const selectedCategory = categories.find((c) => c.id === form.categoryId) ?? null;
 
-  const merchants = merchantsData?.merchants.edges.map((edge) => edge.node) ?? [];
-  const selectedMerchant = merchants.find((m) => m.id === form.merchantId) ?? null;
   const tagOptions = transactionTagsData?.transactionTags?.map((t) => t.tag).filter(Boolean) ?? [];
   const shouldShowPreview = showPreviewField && !!previewSample.trim() && !!form.pattern.trim();
   const previewError = shouldShowPreview
@@ -488,14 +456,11 @@ function TransactionRuleDrawerInner({
                   height: 56,
                   width: '100%',
                   borderRadius: `${theme.shape.borderRadius}px`,
-                  color: selectedCategory.color || 'text.primary',
-                  bgcolor: selectedCategory.color ? alpha(selectedCategory.color, 0.1) : 'action.selected',
-                  borderColor: selectedCategory.color ? alpha(selectedCategory.color, 0.3) : 'divider',
-                  borderWidth: 1,
-                  borderStyle: 'solid',
+                  color: 'text.primary',
+                  bgcolor: 'action.selected',
                   justifyContent: 'flex-start',
                   '&:hover': {
-                    bgcolor: selectedCategory.color ? alpha(selectedCategory.color, 0.2) : 'action.hover',
+                    bgcolor: 'action.hover',
                   },
                   transition: 'background-color 0.15s ease',
                   '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
@@ -517,8 +482,6 @@ function TransactionRuleDrawerInner({
                   borderRadius: `${theme.shape.borderRadius}px`,
                   borderStyle: 'dashed',
                   color: 'text.secondary',
-                  bgcolor: alpha(theme.palette.text.primary, 0.02),
-                  boxShadow: `inset 0 0 0 1px ${alpha(theme.palette.text.primary, 0.06)}`,
                   justifyContent: 'flex-start',
                   '&:hover': {
                     borderColor: 'primary.main',
@@ -551,84 +514,26 @@ function TransactionRuleDrawerInner({
             />
           </Box>
 
-          <Autocomplete
-            options={merchants}
-            value={selectedMerchant}
-            onChange={(_, value) => setField('merchantId', value?.id ?? null)}
-            getOptionLabel={(opt) => upperFirst(opt.name)}
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Comerciante"
-                placeholder="Nenhum"
-                InputProps={{
-                  ...params.InputProps,
-                  startAdornment: selectedMerchant?.logoAsset?.publicUrl ? (
-                    <>
-                      <InputAdornment position="start" sx={{ mr: 1 }}>
-                        <Logo
-                          src={selectedMerchant.logoAsset.publicUrl}
-                          alt={upperFirst(selectedMerchant.name)}
-                          size="sm"
-                        />
-                      </InputAdornment>
-                      {params.InputProps.startAdornment}
-                    </>
-                  ) : (
-                    params.InputProps.startAdornment
-                  ),
-                }}
-              />
-            )}
-            renderOption={(props, option) => (
-              <Box component="li" {...props} sx={{ gap: 1.5, alignItems: 'center', py: 1 }}>
-                {option.logoAsset?.publicUrl ? (
-                  <Logo
-                    src={option.logoAsset.publicUrl}
-                    alt={upperFirst(option.name)}
-                    size="md"
-                    sx={{ flexShrink: 0 }}
-                  />
-                ) : (
-                  <Box sx={{ width: 30, height: 30, flexShrink: 0 }} />
-                )}
-                <Box sx={{ minWidth: 0, flex: 1 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontSize: '0.95rem',
-                      fontWeight: 600,
-                      lineHeight: 1.2,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                    title={upperFirst(option.name)}
-                  >
-                    {upperFirst(option.name)}
-                  </Typography>
-                  {option.domain && (
-                    <Typography
-                      variant="caption"
-                      color="text.secondary"
-                      sx={{
-                        display: 'block',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.2,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                      title={option.domain}
-                    >
-                      {option.domain}
-                    </Typography>
-                  )}
-                </Box>
-              </Box>
-            )}
-            sx={{ mb: 2 }}
-          />
+          <Box
+            sx={{
+              mb: 2,
+              width: '100%',
+              '& [data-testid="merchant-select-trigger"]': { width: '100%' },
+              '& .MuiChip-root': {
+                height: '56px !important',
+                width: '100% !important',
+                borderRadius: `${theme.shape.borderRadius}px !important`,
+                justifyContent: 'flex-start',
+              },
+              '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
+            }}
+          >
+            <MerchantSelect
+              value={form.merchantId}
+              initialMerchant={rule?.merchant ?? undefined}
+              onChange={(merchantId) => setField('merchantId', merchantId)}
+            />
+          </Box>
 
           <TextField
             label="Prioridade"

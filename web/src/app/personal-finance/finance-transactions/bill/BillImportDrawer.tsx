@@ -123,6 +123,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
     createCardForIndex,
     isCreateCardDrawerOpen,
     createDraftCardId,
+    createForFlatSelection,
   } = inlineCardCreation;
 
   const cardAccountOptionsById = useMemo(
@@ -135,41 +136,6 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
   const issuerOptions = useMemo(
     () => (issuersData?.issuers ?? []).map((issuer) => ({ id: issuer.id, name: issuer.name })),
     [issuersData?.issuers],
-  );
-
-  const allIssuerOptions = useMemo(() => {
-    const options = (issuersData?.issuers ?? []).map((issuer) => ({
-      label: issuer.name,
-      value: issuer.id,
-      logo: issuer.logoAsset?.publicUrl ?? null,
-      compe: issuer.compeCode ?? null,
-    }));
-    return [
-      ...options,
-      { label: t('financeTransactions.createAccount.step2.fields.customIssuer'), value: 'custom', logo: null, compe: null },
-    ];
-  }, [issuersData?.issuers, t]);
-
-  const cardSubtypeOptions = useMemo(
-    () => CardSubtypeValues.map((value) => ({
-      value,
-      label: t(`financeTransactions.createAccount.step2.enums.cardSubtype.${value}`),
-    })),
-    [t],
-  );
-  const cardNetworkOptions = useMemo(
-    () => CardNetworkValues.map((value) => ({
-      value,
-      label: t(`financeTransactions.createAccount.step2.enums.cardNetwork.${value}`),
-    })),
-    [t],
-  );
-  const cardLevelOptions = useMemo(
-    () => CardLevelValues.map((value) => ({
-      value,
-      label: t(`financeTransactions.createAccount.step2.enums.cardLevel.${value}`),
-    })),
-    [t],
   );
 
   // ── TX review state ────────────────────────────────────────────────────────
@@ -297,33 +263,7 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
     [t],
   );
 
-  // ── Issuer-related derived values for FlatAssignmentStep ──────────────────
-
   const { selectedIssuerKey, sharedCardTemplate } = cardMatching;
-
-  const issuerCardsForSelection = useMemo(
-    () =>
-      selectedIssuerKey
-        ? cardAccountOptions
-            .filter((opt) => opt.issuerKey === selectedIssuerKey)
-            .filter((opt) => (opt.maskedNumber ?? '').trim().length >= 4)
-        : [],
-    [cardAccountOptions, selectedIssuerKey],
-  );
-
-  const issuerCardLastFourOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          issuerCardsForSelection
-            .map((opt) => (opt.maskedNumber ?? '').replace(/\D/g, '').slice(-4))
-            .filter((lastFour) => lastFour.length === 4),
-        ),
-      ).sort(),
-    [issuerCardsForSelection],
-  );
-
-  const issuerHasExistingCards = issuerCardLastFourOptions.length > 0;
 
   // ── handleConfirm ─────────────────────────────────────────────────────────
 
@@ -536,34 +476,21 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
 
       case 'card-matching':
         if (isFlatAssignmentMode && flatSourceCard) {
+          const selectedFlatCardOption = cardMatching.flatSelectedFinancialAccountId
+            ? cardAccountOptionsById.get(cardMatching.flatSelectedFinancialAccountId)
+            : undefined;
           return (
             <FlatAssignmentStep
               flatSourceCard={flatSourceCard}
               flatTxAssignments={cardMatching.flatTxAssignments}
               flatTxSelections={cardMatching.flatTxSelections}
               draftCards={cardMatching.draftCards}
-              draftBucketSummaries={cardMatching.draftBucketSummaries}
               assignmentLastFour={cardMatching.assignmentLastFour}
-              sharedCardTemplate={sharedCardTemplate}
-              templateError={cardMatching.templateError}
-              templateHasIssuer={cardMatching.templateHasIssuer}
-              templateRequiresBillingCycle={cardMatching.templateRequiresBillingCycle}
-              templatePreviewName={cardMatching.templatePreviewName}
-              allIssuerOptions={allIssuerOptions}
-              issuerOptions={issuerOptions}
-              cardSubtypeOptions={cardSubtypeOptions}
-              cardNetworkOptions={cardNetworkOptions}
-              cardLevelOptions={cardLevelOptions}
-              issuerHasExistingCards={issuerHasExistingCards}
-              issuerCardLastFourOptions={issuerCardLastFourOptions}
-              issuerCardsForSelection={issuerCardsForSelection}
-              canReviewTransactions={cardMatching.canReviewTransactions}
-              creatingTemplateCards={cardMatching.creatingTemplateCards}
-              accountsLoading={accountsLoading}
-              issuersLoading={issuersLoading}
-              moneyLocale={moneyLocale}
-              onTemplateFieldChange={cardMatching.handleTemplateFieldChange}
-              onAssignSelectedTransactions={cardMatching.assignSelectedTransactionsToBucket}
+              selectedCardAccountId={cardMatching.flatSelectedFinancialAccountId}
+              selectedCardIsMultiCard={selectedFlatCardOption?.isMultiCard ?? false}
+              onSelectCardAccount={cardMatching.selectFlatFinancialAccount}
+              onCreateCardAccount={inlineCardCreation.openCreateCardForFlatSelection}
+              onAssignSelectedTransactionsToExistingAccount={cardMatching.assignSelectedTransactionsToExistingAccount}
               onSelectAllTx={() => {
                 if (!flatSourceCard) return;
                 const next: typeof cardMatching.flatTxSelections = {};
@@ -572,13 +499,6 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
               }}
               onAssignmentLastFourChange={cardMatching.setAssignmentLastFour}
               onSetFlatTxSelections={cardMatching.setFlatTxSelections}
-              onResetDraftCards={() => {
-                cardMatching.setDraftCards([]);
-                cardMatching.setFlatTxAssignments({});
-                cardMatching.setAssignmentLastFour('');
-                cardMatching.setTemplateError(null);
-              }}
-              onContinue={cardMatching.handleFlatReview}
             />
           );
         }
@@ -670,6 +590,18 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
         initialIssuerName={cardMatching.selectedIssuerDefaults.issuerName}
         onClose={inlineCardCreation.close}
         onCreated={(account) => {
+          if (createForFlatSelection) {
+            inlineCardCreation.addInlineAccount({
+              id: account.id,
+              name: account.name,
+              issuerId: account.issuerId,
+              issuerName: account.issuerName,
+            });
+            cardMatching.selectFlatFinancialAccount(account.id);
+            inlineCardCreation.close();
+            return;
+          }
+
           inlineCardCreation.addInlineAccount({
             id: account.id,
             name: account.name,

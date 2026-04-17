@@ -1,6 +1,6 @@
 import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Typography, alpha } from '@mui/material';
 import { CloudUpload as UploadIcon, InsertDriveFile as FileIcon } from '@mui/icons-material';
-import { memo, type ChangeEvent, type DragEvent, type RefObject } from 'react';
+import React, { memo, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../billImportTypes';

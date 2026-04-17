@@ -42,6 +42,10 @@ class MonthSummaryQueryServiceTest {
         transactionRepository = mock()
         snapshotComputationService = mock()
         service = MonthSummaryQueryService(snapshotRepository, transactionRepository, snapshotComputationService)
+        whenever(transactionRepository.getCategoryBreakdownForAccounts(any(), any(), any(), any(), any()))
+            .thenReturn(emptyList())
+        whenever(transactionRepository.getTagBreakdownForAccounts(any(), any(), any(), any(), any()))
+            .thenReturn(emptyList())
     }
 
     // ── helpers ───────────────────────────────────────────────────────────────
@@ -369,6 +373,56 @@ class MonthSummaryQueryServiceTest {
             assertThat(result.totalExpenses).isEqualByComparingTo("300.00")
             assertThat(result.closingBalance).isEqualByComparingTo("3500.00")
             assertThat(result.openingBalance).isEqualByComparingTo("3000.00")
+        }
+
+        @Test
+        fun `aggregate breakdown queries are scoped to included financial account ids`() {
+            val faId1 = UUID.randomUUID()
+            val faId2 = UUID.randomUUID()
+            whenever(transactionRepository.findFinancialAccountIdsByAccount(accountId))
+                .thenReturn(listOf(faId1, faId2))
+            whenever(snapshotRepository.findByYearMonth(any(), eq(pastYear), eq(pastMonth)))
+                .thenReturn(
+                    MonthlyBalanceSnapshot(
+                        financialAccountId = faId1,
+                        accountId = accountId,
+                        year = pastYear,
+                        month = pastMonth,
+                        openingBalance = BigDecimal.ZERO,
+                        closingBalance = BigDecimal.ZERO,
+                        totalIncome = BigDecimal.ZERO,
+                        totalExpenses = BigDecimal.ZERO,
+                        computedAt = now,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            whenever(transactionRepository.getMonthTransferTotals(any(), any(), any())).thenReturn(transferTotals())
+            whenever(transactionRepository.getMonthTotals(any(), any(), any())).thenReturn(totals())
+
+            service.getAggregateMonthlySummary(accountId, pastYear, pastMonth)
+
+            verify(transactionRepository).getCategoryBreakdownForAccounts(
+                accountId,
+                listOf(faId1, faId2),
+                pastYear,
+                pastMonth,
+                CategoryApplicableTo.EXPENSE,
+            )
+            verify(transactionRepository).getCategoryBreakdownForAccounts(
+                accountId,
+                listOf(faId1, faId2),
+                pastYear,
+                pastMonth,
+                CategoryApplicableTo.INCOME,
+            )
+            verify(transactionRepository).getTagBreakdownForAccounts(
+                accountId,
+                listOf(faId1, faId2),
+                pastYear,
+                pastMonth,
+                null,
+            )
         }
 
         @Test

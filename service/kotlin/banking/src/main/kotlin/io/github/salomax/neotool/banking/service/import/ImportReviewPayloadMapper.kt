@@ -53,6 +53,9 @@ object ImportReviewPayloadMapper {
                 root.isObject -> parseObjectPayload(objectMapper, root as ObjectNode)
                 else -> null
             }
+        }.onFailure { e ->
+            org.slf4j.LoggerFactory.getLogger(ImportReviewPayloadMapper::class.java)
+                .error("Failed to deserialize review_payload", e)
         }.getOrNull()
     }
 
@@ -92,6 +95,9 @@ object ImportReviewPayloadMapper {
         if (node == null || !node.isArray) return emptyList()
         return runCatching {
             objectMapper.convertValue(node, duplicateCandidatesTypeRef)
+        }.onFailure { e ->
+            org.slf4j.LoggerFactory.getLogger(ImportReviewPayloadMapper::class.java)
+                .error("Failed to deserialize duplicate_candidates", e)
         }.getOrDefault(emptyList())
     }
 }

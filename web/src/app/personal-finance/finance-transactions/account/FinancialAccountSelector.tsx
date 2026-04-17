@@ -44,6 +44,11 @@ interface FinancialAccountSelectorProps {
   selectedAccountId?: string | null;
   onSelectAccount: (accountId: string | null) => void;
   accountTypes?: FinancialAccountType[];
+  allowedAccountIds?: string[];
+  showAllAccountsOption?: boolean;
+  showNewAccountAction?: boolean;
+  autoSelectSingleAccount?: boolean;
+  size?: 'small' | 'medium';
   allAccountsLabel?: string;
   consolidatedViewLabel?: string;
   newAccountLabel?: string;
@@ -61,11 +66,12 @@ const formatCurrency = (value: number, currency = 'BRL') => {
   }).format(value);
 };
 
-const getCardLastFourDigits = (account: FinancialAccount) => {
+const getCardSubtitle = (account: FinancialAccount, multipleCardsLabel: string): string | null => {
+  if (account.cardData?.isMultiCard) return multipleCardsLabel;
   const raw = account.cardData?.maskedNumber || '';
   const digits = raw.replace(/\D/g, '');
   const last4 = digits.slice(-4);
-  return last4.length === 4 ? last4 : null;
+  return last4.length === 4 ? `•••• ${last4}` : null;
 };
 
 const isCardAccount = (account: FinancialAccount) => {
@@ -79,6 +85,11 @@ export function FinancialAccountSelector({
   selectedAccountId, 
   onSelectAccount,
   accountTypes,
+  allowedAccountIds,
+  showAllAccountsOption = true,
+  showNewAccountAction = true,
+  autoSelectSingleAccount = true,
+  size = 'medium',
   allAccountsLabel,
   consolidatedViewLabel,
   newAccountLabel,
@@ -89,6 +100,7 @@ export function FinancialAccountSelector({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const borderRadius = (theme as any).custom?.radius?.lg ? `${(theme as any).custom.radius.lg}px` : '12px';
+  const isSmall = size === 'small';
   
   // State for Popover
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
@@ -102,9 +114,11 @@ export function FinancialAccountSelector({
 
   const scopedAccounts = useMemo(() => {
     const accounts = data?.financialAccounts || [];
-    if (!accountTypes?.length) return accounts;
-    return accounts.filter((account) => accountTypes.includes(account.type));
-  }, [accountTypes, data?.financialAccounts]);
+    const byType = accountTypes?.length ? accounts.filter((account) => accountTypes.includes(account.type)) : accounts;
+    if (!allowedAccountIds?.length) return byType;
+    const allowed = new Set(allowedAccountIds);
+    return byType.filter((account) => allowed.has(account.id));
+  }, [accountTypes, allowedAccountIds, data?.financialAccounts]);
 
   const allAccountsText = allAccountsLabel || t('financeTransactions.selector.allAccounts');
   const consolidatedViewText = consolidatedViewLabel || t('financeTransactions.selector.consolidatedView');
@@ -142,7 +156,7 @@ export function FinancialAccountSelector({
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
   
   // Selected Account Logic
-  const resolvedSelectedAccountId = selectedAccountId ?? singleAccount?.id ?? null;
+  const resolvedSelectedAccountId = selectedAccountId ?? (autoSelectSingleAccount ? singleAccount?.id : null) ?? null;
   const selectedAccount = resolvedSelectedAccountId
     ? allAccounts.find((a: FinancialAccount) => a.id === resolvedSelectedAccountId) 
     : null;
@@ -187,7 +201,7 @@ export function FinancialAccountSelector({
 
   // Loading State
   if (loading) {
-    return <Skeleton variant="rectangular" width="100%" height={72} sx={{ borderRadius: 2 }} />;
+    return <Skeleton variant="rectangular" width="100%" height={isSmall ? 56 : 72} sx={{ borderRadius: 2 }} />;
   }
 
   // Render Empty State (No accounts) -> Show Create Link directly?
@@ -222,7 +236,9 @@ export function FinancialAccountSelector({
   }
 
   // Render Dropdown Trigger (Multiple Accounts)
-  const selectedLast4 = selectedAccount ? getCardLastFourDigits(selectedAccount) : null;
+  const selectedCardSubtitle = selectedAccount
+    ? getCardSubtitle(selectedAccount, t('financeTransactions.multipleCards'))
+    : null;
   const showSelectedCardDetails = selectedAccount ? isCardAccount(selectedAccount) : false;
 
   return (
@@ -233,8 +249,8 @@ export function FinancialAccountSelector({
         onClick={handleClick}
         data-testid="account-selector"
         sx={{
-          p: 2,
-          minHeight: 80,
+          p: isSmall ? 1.25 : 2,
+          minHeight: isSmall ? 56 : 80,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -254,7 +270,9 @@ export function FinancialAccountSelector({
             src={selectedAccount?.issuer?.logoAsset?.publicUrl || undefined}
             sx={{ 
                 bgcolor: selectedAccount?.issuer?.logoAsset?.publicUrl ? 'transparent' : (selectedAccount?.themeColor || 'primary.main'),
-                borderRadius: borderRadius
+                borderRadius: borderRadius,
+                width: isSmall ? 32 : 40,
+                height: isSmall ? 32 : 40,
             }}
           >
              {selectedAccount ? (
@@ -266,7 +284,7 @@ export function FinancialAccountSelector({
              )}
           </Avatar>
           <Box>
-            <Typography variant="subtitle1" fontWeight="bold">
+            <Typography variant={isSmall ? 'body1' : 'subtitle1'} fontWeight="bold">
               {selectedAccount ? selectedAccount.name : allAccountsText}
             </Typography>
             <Typography variant="body2" color="text.secondary">
@@ -277,9 +295,9 @@ export function FinancialAccountSelector({
             {showSelectedCardDetails && (
               <Stack direction="row" spacing={0.5} alignItems="center">
                 <CardNetworkIcon network={selectedAccount?.cardData?.cardNetwork} size={14} />
-                {selectedLast4 && (
+                {selectedCardSubtitle && (
                   <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                    •••• {selectedLast4}
+                    {selectedCardSubtitle}
                   </Typography>
                 )}
               </Stack>
@@ -291,25 +309,27 @@ export function FinancialAccountSelector({
         </Stack>
       </Paper>
       
-      <Link
-        component="button"
-        variant="body1"
-        underline="none"
-        onClick={() => onNewAccount()}
-        data-testid="btn-new-account"
-        sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            fontWeight: 'medium',
-            mt: 2,
-            justifyContent: 'center',
-            width: '100%'
-        }}
-      >
-          <AddIcon fontSize="small" />
-          {newAccountText}
-        </Link>
+      {showNewAccountAction && (
+        <Link
+          component="button"
+          variant="body1"
+          underline="none"
+          onClick={() => onNewAccount()}
+          data-testid="btn-new-account"
+          sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1,
+              fontWeight: 'medium',
+              mt: 2,
+              justifyContent: 'center',
+              width: '100%'
+          }}
+        >
+            <AddIcon fontSize="small" />
+            {newAccountText}
+          </Link>
+      )}
 
       <Popover
         open={open}
@@ -338,27 +358,29 @@ export function FinancialAccountSelector({
         }}
       >
         <Box sx={{ overflowY: 'auto', flex: 1 }}>
-            {/* "All Accounts" Option */}
-            <ListItemButton 
-                selected={!resolvedSelectedAccountId}
-                onClick={() => handleSelect(null)}
-                sx={{ py: 2 }}
-            >
-                <ListItemIcon>
-                    <Avatar sx={{ bgcolor: 'primary.main', borderRadius: borderRadius }}>
-                        {renderConsolidatedViewIcon()}
-                    </Avatar>
-                </ListItemIcon>
-                <ListItemText 
-                    primary={allAccountsText}
-                    secondary={consolidatedViewText}
-                    primaryTypographyProps={{ fontWeight: 'bold' }}
-                />
-                 {/* Expand icon for "All accounts" acts as collapse? No, just selection */}
-                {!resolvedSelectedAccountId && <ExpandLessIcon color="action" />}
-            </ListItemButton>
+            {showAllAccountsOption && (
+              <>
+                <ListItemButton 
+                    selected={!resolvedSelectedAccountId}
+                    onClick={() => handleSelect(null)}
+                    sx={{ py: 2 }}
+                >
+                    <ListItemIcon>
+                        <Avatar sx={{ bgcolor: 'primary.main', borderRadius: borderRadius }}>
+                            {renderConsolidatedViewIcon()}
+                        </Avatar>
+                    </ListItemIcon>
+                    <ListItemText 
+                        primary={allAccountsText}
+                        secondary={consolidatedViewText}
+                        primaryTypographyProps={{ fontWeight: 'bold' }}
+                    />
+                    {!resolvedSelectedAccountId && <ExpandLessIcon color="action" />}
+                </ListItemButton>
 
-            <Divider />
+                <Divider />
+              </>
+            )}
             
             <Box>
                 <TextField 
@@ -426,7 +448,10 @@ export function FinancialAccountSelector({
                                     </Avatar>
                                 </ListItemIcon>
                                 {(() => {
-                                  const last4 = getCardLastFourDigits(account);
+                                  const cardSubtitle = getCardSubtitle(
+                                    account,
+                                    t('financeTransactions.multipleCards'),
+                                  );
                                   const showCardDetails = isCardAccount(account);
 
                                   return (
@@ -436,9 +461,9 @@ export function FinancialAccountSelector({
                                         showCardDetails ? (
                                             <Stack direction="row" spacing={0.5} alignItems="center">
                                               <CardNetworkIcon network={account.cardData?.cardNetwork} size={14} />
-                                              {last4 && (
+                                              {cardSubtitle && (
                                                 <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
-                                                  •••• {last4}
+                                                  {cardSubtitle}
                                                 </Typography>
                                               )}
                                             </Stack>
@@ -469,29 +494,30 @@ export function FinancialAccountSelector({
             ))}
         </Box>
 
-        {/* Footer: Create Link */}
-        <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
-             <Link
-                component="button"
-                variant="body1"
-                underline="none"
-                onClick={() => {
-                    handleClose();
-                    onNewAccount();
-                }}
-                sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 1, 
-                    fontWeight: 'medium',
-                    width: '100%',
-                    justifyContent: 'center'
-                }}
-             >
-                <AddIcon fontSize="small" />
-                {newAccountText}
-             </Link>
-        </Box>
+        {showNewAccountAction && (
+          <Box sx={{ p: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'background.paper' }}>
+               <Link
+                  component="button"
+                  variant="body1"
+                  underline="none"
+                  onClick={() => {
+                      handleClose();
+                      onNewAccount();
+                  }}
+                  sx={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: 1, 
+                      fontWeight: 'medium',
+                      width: '100%',
+                      justifyContent: 'center'
+                  }}
+               >
+                  <AddIcon fontSize="small" />
+                  {newAccountText}
+               </Link>
+          </Box>
+        )}
       </Popover>
     </Box>
   );

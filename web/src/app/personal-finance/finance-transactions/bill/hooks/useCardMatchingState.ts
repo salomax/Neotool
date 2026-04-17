@@ -56,6 +56,7 @@ export function useCardMatchingState({
   const [flatTxSelections, setFlatTxSelections] = useState<FlatTxSelections>({});
   const [flatTxInclusions, setFlatTxInclusions] = useState<FlatTxInclusions>({});
   const [assignmentLastFour, setAssignmentLastFour] = useState('');
+  const [flatSelectedFinancialAccountId, setFlatSelectedFinancialAccountId] = useState<string | null>(null);
   const [sharedCardTemplate, setSharedCardTemplate] = useState<SharedCardTemplate>(INITIAL_SHARED_CARD_TEMPLATE);
   const [billDateOverrides, setBillDateOverrides] = useState<BillDateOverrides>({ closingDate: '', dueDate: '' });
   const [templateError, setTemplateError] = useState<string | null>(null);
@@ -72,6 +73,10 @@ export function useCardMatchingState({
   // ── Derived state ──────────────────────────────────────────────────────────
 
   const selectedIssuerKey = useMemo(() => {
+    if (flatSelectedFinancialAccountId) {
+      const selected = cardAccountOptionsById.get(flatSelectedFinancialAccountId);
+      if (selected?.issuerKey) return selected.issuerKey;
+    }
     for (const resolution of cardResolutions) {
       if (!resolution?.financialAccountId) continue;
       const selected = cardAccountOptionsById.get(resolution.financialAccountId);
@@ -89,9 +94,14 @@ export function useCardMatchingState({
       return toIssuerKey(undefined, sharedCardTemplate.issuerName);
     }
     return null;
-  }, [cardResolutions, draftCards, cardAccountOptionsById, sharedCardTemplate]);
+  }, [flatSelectedFinancialAccountId, cardResolutions, draftCards, cardAccountOptionsById, sharedCardTemplate]);
 
   const selectedIssuerDefaults = useMemo(() => {
+    if (flatSelectedFinancialAccountId) {
+      const selected = cardAccountOptionsById.get(flatSelectedFinancialAccountId);
+      if (selected?.issuerId) return { issuerId: selected.issuerId, issuerName: undefined as string | undefined };
+      if (selected?.issuerName) return { issuerId: undefined as string | undefined, issuerName: selected.issuerName };
+    }
     for (const resolution of cardResolutions) {
       if (!resolution?.financialAccountId) continue;
       const selected = cardAccountOptionsById.get(resolution.financialAccountId);
@@ -113,7 +123,7 @@ export function useCardMatchingState({
       return { issuerId: undefined as string | undefined, issuerName: sharedCardTemplate.issuerName.trim() };
     }
     return { issuerId: undefined as string | undefined, issuerName: undefined as string | undefined };
-  }, [cardResolutions, draftCards, cardAccountOptionsById, sharedCardTemplate]);
+  }, [flatSelectedFinancialAccountId, cardResolutions, draftCards, cardAccountOptionsById, sharedCardTemplate]);
 
   const duplicateDraftLastFourDigits = useMemo(() => {
     const counts = new Map<string, number>();
@@ -191,14 +201,23 @@ export function useCardMatchingState({
     });
   }, [draftBucketSummaries, draftCards, flatSourceCard, isFlatAssignmentMode]);
 
+  const allAssignedBucketsLinkedToAccount = useMemo(() => {
+    if (!isFlatAssignmentMode || !flatSourceCard) return true;
+    return draftCards
+      .filter((draft) =>
+        draftBucketSummaries.some((bucket) => bucket.draftCardId === draft.draftCardId && bucket.count > 0),
+      )
+      .every((draft) => !!draft.financialAccountId);
+  }, [draftBucketSummaries, draftCards, flatSourceCard, isFlatAssignmentMode]);
+
   const allCardsResolved = isFlatAssignmentMode
     ? allDraftBucketsReady &&
       allFlatTransactionsAssigned &&
-      (!hasDraftBucketsNeedingCreation || templateReadyForCreation)
+      allAssignedBucketsLinkedToAccount
     : cardResolutions.length > 0 && cardResolutions.every((r) => r.financialAccountId !== null);
 
   const canReviewTransactions = isFlatAssignmentMode
-    ? allDraftBucketsReady && allFlatTransactionsAssigned
+    ? allCardsResolved
     : allCardsResolved;
 
   // ── Effects: clear mismatched issuer selections ────────────────────────────
@@ -240,6 +259,24 @@ export function useCardMatchingState({
     [],
   );
 
+  const selectFlatFinancialAccount = useCallback(
+    (financialAccountId: string | null) => {
+      setFlatSelectedFinancialAccountId(financialAccountId);
+      setDraftCards([]);
+      setFlatTxAssignments({});
+      setAssignmentLastFour(() => {
+        if (!financialAccountId) return '';
+        const selected = cardAccountOptionsById.get(financialAccountId);
+        if (!selected) return '';
+        if (selected.isMultiCard) return '';
+        const digits = (selected.maskedNumber ?? '').replace(/\D/g, '');
+        return digits.slice(-4);
+      });
+      setTemplateError(null);
+    },
+    [cardAccountOptionsById],
+  );
+
   const findExactAccountMatches = useCallback(
     (lastFourDigits: string) => {
       const exactMatches = cardAccountOptions.filter((option) =>
@@ -264,6 +301,7 @@ export function useCardMatchingState({
                 issuerName: null,
                 issuerKey: null,
                 maskedNumber: null,
+                isMultiCard: false,
               }
             );
           })
@@ -329,6 +367,79 @@ export function useCardMatchingState({
     },
     [draftCards, findExactAccountMatches, flatSourceCard, flatTxSelections],
   );
+
+  const assignSelectedTransactionsToExistingAccount = useCallback(
+    (financialAccountId: string, lastFourDigitsOverride?: string | null) => {
+      if (!flatSourceCard) return;
+      const selectedTransactionIndexes = flatSourceCard.transactions
+        .map((_, txIndex) => txIndex)
+        .filter((txIndex) => flatTxSelections[txIndex]);
+      if (selectedTransactionIndexes.length === 0) return;
+
+      const selectedAccount = cardAccountOptionsById.get(financialAccountId);
+      if (!selectedAccount) return;
+
+      const normalizedOverride = (lastFourDigitsOverride ?? '').replace(/\D/g, '').slice(0, 4);
+      const normalizedFromAccount = (selectedAccount.maskedNumber ?? '').replace(/\D/g, '').slice(-4);
+      const normalizedLastFour = normalizedOverride.length === 4 ? normalizedOverride : normalizedFromAccount;
+      const allowMissingLastFour = selectedAccount.isMultiCard || normalizedLastFour.length !== 4;
+
+      const existingDraft = draftCards.find((draft) => draft.financialAccountId === financialAccountId);
+      let nextDraftCardId = existingDraft?.draftCardId;
+      let nextDraftCards = draftCards;
+
+      if (!nextDraftCardId) {
+        nextDraftCardId = `draft-${crypto.randomUUID()}`;
+        nextDraftCards = [
+          ...draftCards,
+          {
+            draftCardId: nextDraftCardId,
+            lastFourDigits: normalizedLastFour.length === 4 ? normalizedLastFour : '',
+            financialAccountId,
+            allowMissingLastFour,
+          },
+        ];
+        setDraftCards(nextDraftCards);
+      } else if (normalizedOverride.length === 4 && existingDraft) {
+        setDraftCards((prev) =>
+          prev.map((draft) =>
+            draft.draftCardId === existingDraft.draftCardId
+              ? {
+                  ...draft,
+                  lastFourDigits: normalizedOverride,
+                  allowMissingLastFour: false,
+                }
+              : draft,
+          ),
+        );
+      }
+
+      setFlatTxAssignments((prev) => {
+        const next = { ...prev };
+        selectedTransactionIndexes.forEach((txIndex) => { next[txIndex] = nextDraftCardId!; });
+        return next;
+      });
+      setFlatTxSelections((prev) => {
+        const next = { ...prev };
+        selectedTransactionIndexes.forEach((txIndex) => { next[txIndex] = false; });
+        return next;
+      });
+
+      setAssignmentLastFour(normalizedLastFour.length === 4 ? normalizedLastFour : '');
+      setTemplateError(null);
+    },
+    [cardAccountOptionsById, draftCards, flatSourceCard, flatTxSelections],
+  );
+
+  const setDraftCardFinancialAccount = useCallback((draftCardId: string, financialAccountId: string | null) => {
+    setDraftCards((prev) =>
+      prev.map((draft) =>
+        draft.draftCardId === draftCardId
+          ? { ...draft, financialAccountId }
+          : draft,
+      ),
+    );
+  }, []);
 
   const materializeFlatAssignmentBuckets = useCallback(async (): Promise<boolean> => {
     const draftsToResolve = draftCards.filter(
@@ -484,6 +595,8 @@ export function useCardMatchingState({
         setFlatTxAssignments({});
         setFlatTxSelections(flatSelections);
         setFlatTxInclusions(flatInclusions);
+        setFlatSelectedFinancialAccountId(null);
+        setAssignmentLastFour('');
         setSharedCardTemplate((prev) => ({
           ...prev,
           subtype: prev.subtype || 'CREDIT_CARD',
@@ -516,6 +629,7 @@ export function useCardMatchingState({
     setFlatTxSelections({});
     setFlatTxInclusions({});
     setAssignmentLastFour('');
+    setFlatSelectedFinancialAccountId(null);
     setSharedCardTemplate(INITIAL_SHARED_CARD_TEMPLATE);
     setBillDateOverrides({ closingDate: '', dueDate: '' });
     setTemplateError(null);
@@ -535,6 +649,8 @@ export function useCardMatchingState({
     setFlatTxInclusions,
     assignmentLastFour,
     setAssignmentLastFour,
+    flatSelectedFinancialAccountId,
+    setFlatSelectedFinancialAccountId,
     sharedCardTemplate,
     billDateOverrides,
     setBillDateOverrides,
@@ -554,14 +670,18 @@ export function useCardMatchingState({
     allDraftBucketsReady,
     draftBucketSummaries,
     hasDraftBucketsNeedingCreation,
+    allAssignedBucketsLinkedToAccount,
     allCardsResolved,
     canReviewTransactions,
     defaultDraftCardBaseName,
     // Callbacks
     handleTemplateFieldChange,
+    selectFlatFinancialAccount,
     findExactAccountMatches,
     getAvailableOptionsForCard,
     assignSelectedTransactionsToBucket,
+    assignSelectedTransactionsToExistingAccount,
+    setDraftCardFinancialAccount,
     materializeFlatAssignmentBuckets,
     handleFlatReview,
     initFromJob,

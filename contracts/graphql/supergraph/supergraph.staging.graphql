@@ -646,6 +646,11 @@ type CardData
   Optional bank account that will receive the debit leg of bill-payment transfers.
   """
   linkedBankAccountId: ID
+
+  """
+  When true, this account represents multiple/virtual cards with no specific last-4.
+  """
+  isMultiCard: Boolean!
 }
 
 input CardDataInput
@@ -669,6 +674,11 @@ input CardDataInput
   Optional bank account that will receive the debit leg of bill-payment transfers.
   """
   linkedBankAccountId: ID
+
+  """
+  Set to true to mark this account as an umbrella for multiple/virtual cards.
+  """
+  isMultiCard: Boolean
 }
 
 """Category applicability (income, expense, transfer, or any)."""
@@ -2654,6 +2664,7 @@ type Mutation
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount! @join__field(graph: BANKING)
+  deleteFinancialAccount(id: ID!): Boolean! @join__field(graph: BANKING)
 
   """Create a new manual transaction."""
   createTransaction(input: CreateTransactionInput!): CreateTransactionPayload! @join__field(graph: BANKING)
@@ -3265,6 +3276,9 @@ type Query
 
   """Single transaction by ID (scoped to the authenticated account)."""
   transaction(id: ID!): Transaction @join__field(graph: BANKING)
+
+  """Merchant logo preview asset resolved through federation."""
+  merchantLogoPreview(domain: String!): Asset @join__field(graph: BANKING)
 
   """
   Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.

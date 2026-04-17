@@ -355,7 +355,7 @@ class TransactionCategoryResolver(
             sector = sector,
             isSystem = isSystem,
             isOwned = accountId != null,
-            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
+            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
         )
     }
 }

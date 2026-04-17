@@ -19,5 +19,10 @@ interface NfceDocumentRepository {
         transactionIds: List<UUID>,
     ): Set<UUID>
 
+    fun deleteByAccessKeyAndAccountIdForDeletedTransactions(
+        accessKey: String,
+        accountId: UUID,
+    ): Int
+
     fun save(document: NfceDocument): NfceDocument
 }

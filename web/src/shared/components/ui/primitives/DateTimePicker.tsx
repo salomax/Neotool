@@ -243,7 +243,11 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
         {label && (
           <FormLabel sx={{ mb: 1 }}>
             {label}
-            {required && <span style={{ color: 'red', marginLeft: 4 }}>*</span>}
+            {required && (
+              <Box component="span" sx={{ color: 'error.main', ml: 0.5 }}>
+                *
+              </Box>
+            )}
           </FormLabel>
         )}
         
@@ -257,6 +261,7 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
           format={getDisplayFormat()}
           disabled={disabled}
           readOnly={readOnly}
+          closeOnSelect={!showTime}
           openTo={showDate ? 'day' : 'hours'}
           views={showDate && showTime ? ['year', 'month', 'day', 'hours', 'minutes'] : 
                  showDate ? ['year', 'month', 'day'] : 
@@ -268,6 +273,13 @@ const DateTimePicker: React.FC<DateTimePickerProps> = ({
               fullWidth: true,
               ...(placeholder ? { placeholder } : {}),
             },
+            ...(!showTime
+              ? {
+                  actionBar: {
+                    actions: [],
+                  },
+                }
+              : {}),
           }}
         />
         

@@ -50,4 +50,6 @@ open class FinancialAccountCardDataEntity(
     open var dueDay: Int? = null,
     @Column(name = "linked_bank_account_id")
     open var linkedBankAccountId: UUID? = null,
+    @Column(name = "is_multi_card", nullable = false)
+    open var isMultiCard: Boolean = false,
 )

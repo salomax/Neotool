@@ -178,15 +178,15 @@ open class ImportJobService(
     ): ImportJob {
         validateFinancialAccountOwnership(financialAccountId, accountId)
         val nfce = nfceClient.fetch(qrCodeUrl)
-        val existingJob = importJobRepository.findByFileHash(financialAccountId, nfce.chNFe)
-        if (existingJob != null) return existingJob
-
-        if (sameSourceDedupService.isDuplicate(financialAccountId, nfce.chNFe, TransactionSource.MANUAL)) {
-            return createSkippedNfceJob(financialAccountId, accountId, userId, nfce.chNFe)
-        }
-
         val now = Instant.now()
         val nfceDate = LocalDate.ofInstant(nfce.dhEmi, ZoneId.systemDefault())
+        val existingJob = importJobRepository.findByFileHash(financialAccountId, nfce.chNFe)
+        if (existingJob != null && shouldReuseExistingNfceJob(existingJob)) return existingJob
+
+        if (sameSourceDedupService.isDuplicate(financialAccountId, nfce.chNFe, TransactionSource.MANUAL)) {
+            return createSkippedNfceJob(existingJob, financialAccountId, accountId, userId, nfce.chNFe, now)
+        }
+
         val manualCandidates =
             crossSourceDedupService.findManualNfceCandidates(
                 financialAccountId = financialAccountId,
@@ -227,7 +227,7 @@ open class ImportJobService(
                     createdAt = now,
                     updatedAt = now,
                 )
-            return importJobRepository.save(reviewJob)
+            return saveOrUpdateNfceJob(existingJob, reviewJob)
         }
 
         val job =
@@ -250,7 +250,7 @@ open class ImportJobService(
                 createdAt = now,
                 updatedAt = now,
             )
-        val pendingJob = importJobRepository.save(job)
+        val pendingJob = saveOrUpdateNfceJob(existingJob, job)
         val savedTransaction = createNfceTransaction(pendingJob, nfce, qrCodeUrl, now)
         val savedJob =
             importJobRepository.update(
@@ -497,12 +497,13 @@ open class ImportJobService(
         }
 
     private fun createSkippedNfceJob(
+        existingJob: ImportJob?,
         financialAccountId: UUID,
         accountId: UUID,
         userId: UUID,
         chNFe: String,
+        now: Instant,
     ): ImportJob {
-        val now = Instant.now()
         val job =
             ImportJob(
                 financialAccountId = financialAccountId,
@@ -521,7 +522,38 @@ open class ImportJobService(
                 createdAt = now,
                 updatedAt = now,
             )
-        return importJobRepository.save(job)
+        return saveOrUpdateNfceJob(existingJob, job)
+    }
+
+    private fun saveOrUpdateNfceJob(
+        existingJob: ImportJob?,
+        newJob: ImportJob,
+    ): ImportJob {
+        if (existingJob?.id == null) return importJobRepository.save(newJob)
+        return importJobRepository.update(
+            existingJob.copy(
+                createdByUserId = newJob.createdByUserId,
+                source = newJob.source,
+                fileName = newJob.fileName,
+                fileHash = newJob.fileHash,
+                status = newJob.status,
+                extractedText = newJob.extractedText,
+                extractionMetadata = newJob.extractionMetadata,
+                assistantResponse = newJob.assistantResponse,
+                totalRows = newJob.totalRows,
+                importedCount = newJob.importedCount,
+                skippedCount = newJob.skippedCount,
+                duplicateReviewCount = newJob.duplicateReviewCount,
+                errorCount = newJob.errorCount,
+                errorDetails = newJob.errorDetails,
+                reviewPayload = newJob.reviewPayload,
+                assistantRequestPublishedAt = newJob.assistantRequestPublishedAt,
+                dateFrom = newJob.dateFrom,
+                dateTo = newJob.dateTo,
+                completedAt = newJob.completedAt,
+                updatedAt = newJob.updatedAt,
+            ),
+        )
     }
 
     private fun handleExistingImportJob(
@@ -747,6 +779,19 @@ open class ImportJobService(
         qrCodeUrl: String,
         now: Instant,
     ): Transaction {
+        val clearedProviderIds =
+            transactionRepository.clearProviderTransactionIdForDeleted(
+                financialAccountId = job.financialAccountId,
+                providerTransactionId = nfce.chNFe,
+            )
+        if (clearedProviderIds > 0) {
+            log.info(
+                "Cleared provider_transaction_id on {} deleted transactions before NFC-e reimport: financialAccountId={}, providerTransactionId={}",
+                clearedProviderIds,
+                job.financialAccountId,
+                nfce.chNFe,
+            )
+        }
         val jobId = requireNotNull(job.id) { "ImportJob must have id after save" }
         val transaction = nfceToTransaction(nfce, job.financialAccountId, job.accountId, job.createdByUserId, jobId, now)
         val savedTransaction = transactionRepository.save(transaction)
@@ -820,6 +865,19 @@ open class ImportJobService(
         qrCodeUrl: String,
         now: Instant,
     ) {
+        val deletedDocumentRows =
+            nfceDocumentRepository.deleteByAccessKeyAndAccountIdForDeletedTransactions(
+                accessKey = nfce.chNFe,
+                accountId = accountId,
+            )
+        if (deletedDocumentRows > 0) {
+            log.info(
+                "Removed {} stale NFC-e documents for deleted transactions before reimport: accountId={}, accessKey={}",
+                deletedDocumentRows,
+                accountId,
+                nfce.chNFe,
+            )
+        }
         nfceDocumentRepository.save(
             NfceDocument(
                 transactionId = transactionId,
@@ -882,6 +940,11 @@ open class ImportJobService(
 
     private fun loadNfceReviewData(job: ImportJob): NfceData =
         nfceClient.fetch(loadNfceReviewMetadata(job).qrCodeUrl)
+
+    private fun shouldReuseExistingNfceJob(existingJob: ImportJob): Boolean {
+        val existingJobId = existingJob.id ?: return false
+        return transactionRepository.existsByImportJobId(existingJobId)
+    }
 
     private fun resolveProductVariant(
         item: NfceItem,

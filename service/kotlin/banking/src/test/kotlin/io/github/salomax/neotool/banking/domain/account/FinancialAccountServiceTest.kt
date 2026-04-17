@@ -2,6 +2,9 @@ package io.github.salomax.neotool.banking.domain.account
 
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import io.github.salomax.neotool.banking.service.account.*
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
@@ -11,6 +14,8 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -35,6 +40,9 @@ class FinancialAccountServiceTest {
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var issuerRepository: IssuerRepository
     private lateinit var transactionService: TransactionService
+    private lateinit var transactionEntityRepository: TransactionEntityRepository
+    private lateinit var creditCardBillEntityRepository: CreditCardBillEntityRepository
+    private lateinit var monthlyBalanceSnapshotEntityRepository: MonthlyBalanceSnapshotEntityRepository
     private lateinit var service: FinancialAccountService
 
     private val accountId = UUID.randomUUID()
@@ -47,11 +55,17 @@ class FinancialAccountServiceTest {
         financialAccountRepository = mock()
         issuerRepository = mock()
         transactionService = mock()
+        transactionEntityRepository = mock()
+        creditCardBillEntityRepository = mock()
+        monthlyBalanceSnapshotEntityRepository = mock()
         service =
             FinancialAccountService(
                 financialAccountRepository = financialAccountRepository,
                 issuerRepository = issuerRepository,
                 transactionService = transactionService,
+                transactionEntityRepository = transactionEntityRepository,
+                creditCardBillEntityRepository = creditCardBillEntityRepository,
+                monthlyBalanceSnapshotEntityRepository = monthlyBalanceSnapshotEntityRepository,
             )
     }
 
@@ -193,6 +207,62 @@ class FinancialAccountServiceTest {
         }
 
         @Test
+        fun `create multi-card account clears masked number and last four digits`() {
+            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+
+            service.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    issuerName = "Banco Teste",
+                    cardData =
+                        CardData(
+                            maskedNumber = "1234",
+                            closingDay = 7,
+                            dueDay = 15,
+                            isMultiCard = true,
+                        ),
+                ),
+                accountId,
+                userId,
+            )
+
+            val accountCaptor = argumentCaptor<FinancialAccount>()
+            verify(financialAccountRepository).save(accountCaptor.capture())
+            assertThat(accountCaptor.firstValue.cardLastFourDigits).isNull()
+            assertThat(accountCaptor.firstValue.cardData!!.maskedNumber).isNull()
+            assertThat(accountCaptor.firstValue.cardData!!.isMultiCard).isTrue()
+        }
+
+        @Test
+        fun `create single-card account keeps normalized last four digits`() {
+            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+
+            service.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    issuerName = "Banco Teste",
+                    cardData =
+                        CardData(
+                            maskedNumber = "  9876 ",
+                            closingDay = 7,
+                            dueDay = 15,
+                            isMultiCard = false,
+                        ),
+                ),
+                accountId,
+                userId,
+            )
+
+            val accountCaptor = argumentCaptor<FinancialAccount>()
+            verify(financialAccountRepository).save(accountCaptor.capture())
+            assertThat(accountCaptor.firstValue.cardLastFourDigits).isEqualTo("9876")
+            assertThat(accountCaptor.firstValue.cardData!!.maskedNumber).isEqualTo("9876")
+            assertThat(accountCaptor.firstValue.cardData!!.isMultiCard).isFalse()
+        }
+
+        @Test
         fun `fails when name exceeds 255 characters on create`() {
             val longName = "A".repeat(256)
             val command = command().copy(name = longName)
@@ -203,6 +273,67 @@ class FinancialAccountServiceTest {
             assertThat(ex.field).isEqualTo("name")
             verify(financialAccountRepository, never()).save(any())
             verify(transactionService, never()).create(any(), any(), any())
+        }
+
+        @Test
+        fun `create voucher card defaults includeInNetWorth to false`() {
+            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+
+            service.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.PAYMENT,
+                    subtype = FinancialAccountSubtype.VOUCHER_CARD,
+                    name = "Vale alimentacao",
+                    issuerName = "Alelo",
+                ),
+                accountId,
+                userId,
+            )
+
+            val accountCaptor = argumentCaptor<FinancialAccount>()
+            verify(financialAccountRepository).save(accountCaptor.capture())
+            assertThat(accountCaptor.firstValue.includeInNetWorth).isFalse()
+        }
+
+        @Test
+        fun `create voucher card allows overriding includeInNetWorth to true`() {
+            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+
+            service.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.PAYMENT,
+                    subtype = FinancialAccountSubtype.VOUCHER_CARD,
+                    name = "Vale alimentacao",
+                    issuerName = "Alelo",
+                    includeInNetWorth = true,
+                ),
+                accountId,
+                userId,
+            )
+
+            val accountCaptor = argumentCaptor<FinancialAccount>()
+            verify(financialAccountRepository).save(accountCaptor.capture())
+            assertThat(accountCaptor.firstValue.includeInNetWorth).isTrue()
+        }
+
+        @Test
+        fun `create credit card keeps includeInNetWorth default true`() {
+            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+
+            service.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.CREDIT,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = "Cartao",
+                    issuerName = "Banco Teste",
+                ),
+                accountId,
+                userId,
+            )
+
+            val accountCaptor = argumentCaptor<FinancialAccount>()
+            verify(financialAccountRepository).save(accountCaptor.capture())
+            assertThat(accountCaptor.firstValue.includeInNetWorth).isTrue()
         }
     }
 
@@ -511,6 +642,155 @@ class FinancialAccountServiceTest {
             assertThat(ex.errorCode).isEqualTo(BankingErrorCode.CARD_MASKED_NUMBER_INVALID)
             assertThat(ex.field).isEqualTo("maskedNumber")
             verify(financialAccountRepository, never()).update(any())
+        }
+
+        @Test
+        fun `update enables multi-card and clears masked number and last four digits`() {
+            val existing = existingCardAccount()
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+
+            val result =
+                service.update(
+                    financialAccountId = financialAccountId,
+                    command =
+                        UpdateFinancialAccountCommand(
+                            type = FinancialAccountType.CREDIT,
+                            subtype = FinancialAccountSubtype.CHARGE_CARD,
+                            issuerId = issuerId,
+                            cardData =
+                                CardDataPatch(
+                                    isMultiCard = UpdateField.Present(true),
+                                ),
+                        ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+
+            assertThat(result.cardData!!.isMultiCard).isTrue()
+            assertThat(result.cardData!!.maskedNumber).isNull()
+            assertThat(result.cardLastFourDigits).isNull()
+        }
+
+        @Test
+        fun `update disables multi-card and accepts a new masked number`() {
+            val base = existingCardAccount()
+            val existing =
+                base.copy(
+                    cardLastFourDigits = null,
+                    cardData =
+                        base.cardData!!.copy(
+                            maskedNumber = null,
+                            isMultiCard = true,
+                        ),
+                )
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
+
+            val result =
+                service.update(
+                    financialAccountId = financialAccountId,
+                    command =
+                        UpdateFinancialAccountCommand(
+                            type = FinancialAccountType.CREDIT,
+                            subtype = FinancialAccountSubtype.CHARGE_CARD,
+                            issuerId = issuerId,
+                            cardData =
+                                CardDataPatch(
+                                    isMultiCard = UpdateField.Present(false),
+                                    maskedNumber = UpdateField.Present("3344"),
+                                ),
+                        ),
+                    accountId = accountId,
+                    userId = userId,
+                )
+
+            assertThat(result.cardData!!.isMultiCard).isFalse()
+            assertThat(result.cardData!!.maskedNumber).isEqualTo("3344")
+            assertThat(result.cardLastFourDigits).isEqualTo("3344")
+        }
+    }
+
+    @Nested
+    @DisplayName("delete")
+    inner class DeleteTests {
+        private fun existingAccount() =
+            FinancialAccount(
+                id = financialAccountId,
+                accountId = accountId,
+                createdByUserId = userId,
+                type = FinancialAccountType.BANK,
+                subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                name = "Conta para exclusao",
+                currencyCode = "BRL",
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
+
+        @Test
+        fun `delete account with no transactions and no bills soft-deletes account and cleans up children`() {
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
+            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(0)
+            whenever(creditCardBillEntityRepository.countOpenByFinancialAccountId(financialAccountId)).thenReturn(0)
+            whenever(financialAccountRepository.softDelete(financialAccountId, accountId)).thenReturn(true)
+
+            val result = service.delete(financialAccountId, accountId)
+
+            assertThat(result).isTrue
+            verify(monthlyBalanceSnapshotEntityRepository).deleteByFinancialAccountId(financialAccountId)
+            verify(creditCardBillEntityRepository).softDeleteByFinancialAccountId(eq(financialAccountId), any())
+            verify(financialAccountRepository).softDelete(financialAccountId, accountId)
+        }
+
+        @Test
+        fun `delete account with active transactions throws validation exception`() {
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
+            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(2)
+
+            val ex = assertThrows<ValidationException> { service.delete(financialAccountId, accountId) }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.FINANCIAL_ACCOUNT_HAS_TRANSACTIONS)
+            assertThat(ex.field).isEqualTo("id")
+            verify(monthlyBalanceSnapshotEntityRepository, never()).deleteByFinancialAccountId(any())
+            verify(creditCardBillEntityRepository, never()).softDeleteByFinancialAccountId(any(), any())
+            verify(financialAccountRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `delete account with open credit card bills throws validation exception`() {
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
+            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(0)
+            whenever(creditCardBillEntityRepository.countOpenByFinancialAccountId(financialAccountId)).thenReturn(1)
+
+            val ex = assertThrows<ValidationException> { service.delete(financialAccountId, accountId) }
+
+            assertThat(ex.errorCode).isEqualTo(BankingErrorCode.FINANCIAL_ACCOUNT_HAS_OPEN_BILLS)
+            assertThat(ex.field).isEqualTo("id")
+            verify(monthlyBalanceSnapshotEntityRepository, never()).deleteByFinancialAccountId(any())
+            verify(creditCardBillEntityRepository, never()).softDeleteByFinancialAccountId(any(), any())
+            verify(financialAccountRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `delete account belonging to different tenant throws not found exception`() {
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(null)
+
+            val ex = assertThrows<NotFoundException> { service.delete(financialAccountId, accountId) }
+
+            assertThat(ex.errorCode).isEqualTo(CommonErrorCode.NOT_FOUND)
+            assertThat(ex.field).isEqualTo("id")
+            verify(financialAccountRepository, never()).softDelete(any(), any())
+        }
+
+        @Test
+        fun `delete already-deleted account throws not found exception`() {
+            whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(null)
+
+            val ex = assertThrows<NotFoundException> { service.delete(financialAccountId, accountId) }
+
+            assertThat(ex.errorCode).isEqualTo(CommonErrorCode.NOT_FOUND)
+            assertThat(ex.field).isEqualTo("id")
+            verify(financialAccountRepository, never()).softDelete(any(), any())
         }
     }
 }

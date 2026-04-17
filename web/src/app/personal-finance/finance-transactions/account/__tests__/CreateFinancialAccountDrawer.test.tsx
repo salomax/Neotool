@@ -2,13 +2,15 @@
 
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import dayjs from 'dayjs';
 import { CreateFinancialAccountDrawer } from '../CreateFinancialAccountDrawer';
 
 const mockCreateAccount = vi.fn();
+const mockUpdateAccount = vi.fn();
+const mockDeleteAccount = vi.fn();
 const mockUseQuery = vi.fn();
 
 vi.mock('@/shared/components/ui/forms/form', async () => {
@@ -48,14 +50,32 @@ vi.mock('@/shared/components/ui/forms/form', async () => {
 
 vi.mock('@apollo/client/react', () => ({
   useQuery: (query: unknown, options?: unknown) => mockUseQuery(query, options),
-  useMutation: vi.fn((_mutation: unknown, options?: { onCompleted?: (data: any) => void }) => [
-    (args: unknown) => {
-      mockCreateAccount(args);
-      options?.onCompleted?.({ createFinancialAccount: { id: 'acc-1', name: 'Conta 1' } });
-      return Promise.resolve({ data: { createFinancialAccount: { id: 'acc-1', name: 'Conta 1' } } });
-    },
-    { loading: false, error: null },
-  ]),
+  useMutation: vi.fn((mutation: any) => {
+    const operationName = mutation?.definitions?.[0]?.name?.value;
+
+    if (operationName === 'CreateFinancialAccount') {
+      return [
+        (args: unknown) => mockCreateAccount(args),
+        { loading: false, error: null },
+      ];
+    }
+
+    if (operationName === 'UpdateFinancialAccount') {
+      return [
+        (args: unknown) => mockUpdateAccount(args),
+        { loading: false, error: null },
+      ];
+    }
+
+    if (operationName === 'DeleteFinancialAccount') {
+      return [
+        (args: unknown) => mockDeleteAccount(args),
+        { loading: false, error: null },
+      ];
+    }
+
+    return [vi.fn(), { loading: false, error: null }];
+  }),
 }));
 
 vi.mock('@/shared/providers', () => ({
@@ -91,19 +111,32 @@ vi.mock('@/shared/components/ui/layout/Drawer', () => {
     cancelText,
     submitText,
     onCancel,
+    deleteText,
+    onDelete,
     submitForm,
     submitDisabled,
     cancelDisabled,
+    deleteDisabled,
+    deleteTestId,
   }: {
     cancelText: string;
     submitText: string;
     onCancel: () => void;
+    deleteText?: string;
+    onDelete?: () => void;
     submitForm?: string;
     submitDisabled?: boolean;
     cancelDisabled?: boolean;
+    deleteDisabled?: boolean;
+    deleteTestId?: string;
   }) {
     return (
       <div>
+        {deleteText && onDelete ? (
+          <button type="button" onClick={onDelete} disabled={deleteDisabled} data-testid={deleteTestId}>
+            {deleteText}
+          </button>
+        ) : null}
         <button type="button" onClick={onCancel} disabled={cancelDisabled}>
           {cancelText}
         </button>
@@ -131,6 +164,9 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCreateAccount.mockResolvedValue({ data: { createFinancialAccount: { id: 'acc-1', name: 'Conta 1' } } });
+    mockUpdateAccount.mockResolvedValue({ data: { updateFinancialAccount: { id: 'acc-1', name: 'Conta 1' } } });
+    mockDeleteAccount.mockResolvedValue({ data: { deleteFinancialAccount: true } });
     mockUseQuery.mockReturnValue({
       data: {
         issuers: [
@@ -249,6 +285,39 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
     await waitFor(() => {
       expect(screen.getByText('financeTransactions.createAccount.step2.validation.maskedNumberInvalid')).toBeInTheDocument();
     });
+  });
+
+  it('submits card as multi-card and hides last-four input when toggle is enabled', async () => {
+    const user = userEvent.setup();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer open onClose={vi.fn()} initialType="CARD" initialMaskedNumber="1234" />
+      </ThemeProvider>,
+    );
+
+    const issuerInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.issuer');
+    await user.click(issuerInput);
+    await user.click(screen.getByText('Banco Teste'));
+
+    const multiCardToggle = screen.getByRole('switch', {
+      name: 'financeTransactions.createAccount.step2.fields.multiCard',
+    });
+    await user.click(multiCardToggle);
+    expect(multiCardToggle).toBeChecked();
+    expect(
+      screen.queryByLabelText('financeTransactions.createAccount.step2.fields.maskedNumber'),
+    ).not.toBeInTheDocument();
+
+    const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.addCard' });
+    await waitFor(() => expect(submitButton).toBeEnabled());
+    await user.click(submitButton);
+
+    await waitFor(() => {
+      expect(mockCreateAccount).toHaveBeenCalled();
+    });
+    const payload = mockCreateAccount.mock.calls[0]?.[0]?.variables?.input?.cardData;
+    expect(payload?.isMultiCard).toBe(true);
+    expect(payload?.maskedNumber).toBeUndefined();
   });
 
   it('does not submit when account name exceeds 255 characters', async () => {
@@ -410,5 +479,115 @@ describe.sequential('CreateFinancialAccountDrawer', () => {
 
     const submitButton = screen.getByRole('button', { name: 'financeTransactions.actions.save' });
     await waitFor(() => expect(submitButton).toBeEnabled());
+  });
+
+  it('hydrates multi-card toggle in edit mode and keeps last-four hidden', async () => {
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={{
+            id: 'acc-card-multi',
+            type: 'CREDIT',
+            subtype: 'CREDIT_CARD',
+            name: 'Cartão Multi',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            cardData: {
+              isMultiCard: true,
+              maskedNumber: null,
+              closingDay: 7,
+              dueDay: 15,
+            },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    const multiCardToggle = await screen.findByRole('switch', {
+      name: 'financeTransactions.createAccount.step2.fields.multiCard',
+    });
+    expect(multiCardToggle).toBeChecked();
+    expect(
+      screen.queryByLabelText('financeTransactions.createAccount.step2.fields.maskedNumber'),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows remove account controls in edit mode and calls delete mutation on confirm', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    const onDeleted = vi.fn();
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={onClose}
+          onDeleted={onDeleted}
+          accountToEdit={{
+            id: 'acc-delete-1',
+            type: 'BANK',
+            subtype: 'CONTA_CORRENTE',
+            name: 'Conta para excluir',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    const removeButton = await screen.findByTestId('account-form-remove');
+    await user.click(removeButton);
+    const dialog = await screen.findByTestId('account-delete-dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'financeTransactions.actions.deleteAccount' }));
+
+    await waitFor(() => {
+      expect(mockDeleteAccount).toHaveBeenCalledWith({ variables: { id: 'acc-delete-1' } });
+    });
+    expect(onDeleted).toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it('shows inline error when delete is blocked by transactions', async () => {
+    const user = userEvent.setup();
+    mockDeleteAccount.mockRejectedValueOnce({
+      graphQLErrors: [{ extensions: { code: 'FINANCIAL_ACCOUNT_HAS_TRANSACTIONS' } }],
+    });
+    render(
+      <ThemeProvider theme={theme}>
+        <CreateFinancialAccountDrawer
+          open
+          onClose={vi.fn()}
+          accountToEdit={{
+            id: 'acc-delete-2',
+            type: 'BANK',
+            subtype: 'CONTA_CORRENTE',
+            name: 'Conta bloqueada',
+            issuerName: 'Banco Manual',
+            currencyCode: 'BRL',
+            includeInNetWorth: true,
+            includeInDashboard: true,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+          } as any}
+        />
+      </ThemeProvider>,
+    );
+
+    await user.click(await screen.findByTestId('account-form-remove'));
+    const dialog = await screen.findByTestId('account-delete-dialog');
+    await user.click(within(dialog).getByRole('button', { name: 'financeTransactions.actions.deleteAccount' }));
+
+    await waitFor(() => {
+      expect(screen.queryAllByText('financeTransactions.errors.accountHasTransactions').length).toBeGreaterThan(0);
+    });
   });
 });

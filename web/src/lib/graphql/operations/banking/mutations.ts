@@ -39,6 +39,7 @@ export const CREATE_FINANCIAL_ACCOUNT = gql`
         minimumPaymentPercentage
         closingDay
         dueDay
+        isMultiCard
       }
       connectionStatus
       consentExpiresAt
@@ -87,6 +88,7 @@ export const UPDATE_FINANCIAL_ACCOUNT = gql`
         minimumPaymentPercentage
         closingDay
         dueDay
+        isMultiCard
       }
       connectionStatus
       consentExpiresAt
@@ -94,6 +96,12 @@ export const UPDATE_FINANCIAL_ACCOUNT = gql`
       createdAt
       updatedAt
     }
+  }
+`;
+
+export const DELETE_FINANCIAL_ACCOUNT = gql`
+  mutation DeleteFinancialAccount($id: ID!) {
+    deleteFinancialAccount(id: $id)
   }
 `;
 
@@ -262,6 +270,7 @@ export const IMPORT_NFCE = gql`
         status
         importedCount
         skippedCount
+        completedAt
       }
     }
   }

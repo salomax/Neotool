@@ -146,6 +146,16 @@ enum class BankingErrorCode(
         "Transaction not found",
         404,
     ),
+    FINANCIAL_ACCOUNT_HAS_TRANSACTIONS(
+        "FINANCIAL_ACCOUNT_HAS_TRANSACTIONS",
+        "Financial account has transactions and cannot be deleted",
+        409,
+    ),
+    FINANCIAL_ACCOUNT_HAS_OPEN_BILLS(
+        "FINANCIAL_ACCOUNT_HAS_OPEN_BILLS",
+        "Financial account has open bills and cannot be deleted",
+        409,
+    ),
     CARD_MASKED_NUMBER_INVALID(
         "CARD_MASKED_NUMBER_INVALID",
         "Card last four digits must be empty or exactly 4 digits",

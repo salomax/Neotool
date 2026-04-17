@@ -77,27 +77,16 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
         applicableTo: CategoryApplicableTo?,
-    ): List<CategoryTotal> {
-        val rows =
+    ): List<CategoryTotal> =
+        toCategoryTotals(
             transactionRepository.getCategoryBreakdown(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
                 year = year,
                 month = month,
                 applicableTo = applicableTo,
-            )
-        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
-        return rows.map { row ->
-            val pct =
-                if (totalAmount > BigDecimal.ZERO) {
-                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
-                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
-                } else {
-                    0.0
-                }
-            CategoryTotal.fromRow(row, pct)
-        }
-    }
+            ),
+        )
 
     /**
      * Returns tag totals for the given period. Percentage is computed from sum of grouped tag amounts.
@@ -109,27 +98,16 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
         applicableTo: CategoryApplicableTo?,
-    ): List<TagTotal> {
-        val rows =
+    ): List<TagTotal> =
+        toTagTotals(
             transactionRepository.getTagBreakdown(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
                 year = year,
                 month = month,
                 applicableTo = applicableTo,
-            )
-        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
-        return rows.map { row ->
-            val pct =
-                if (totalAmount > BigDecimal.ZERO) {
-                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
-                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
-                } else {
-                    0.0
-                }
-            TagTotal.fromRow(row, pct)
-        }
-    }
+            ),
+        )
 
     /**
      * Returns the aggregated [MonthSummary] across **all** financial accounts for [accountId].
@@ -170,9 +148,36 @@ open class MonthSummaryQueryService(
         val summaries = financialAccountIds.map { faId -> getMonthSummary(faId, accountId, year, month) }
 
         val projectedClosingBalances = summaries.mapNotNull { it.projectedClosingBalance }
-        val expensesByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.EXPENSE)
-        val incomeByCategory = getCategoryBreakdown(accountId, null, year, month, CategoryApplicableTo.INCOME)
-        val tagsSummary = getTagBreakdown(accountId, null, year, month, null)
+        val expensesByCategory =
+            toCategoryTotals(
+                transactionRepository.getCategoryBreakdownForAccounts(
+                    accountId = accountId,
+                    includedFinancialAccountIds = financialAccountIds,
+                    year = year,
+                    month = month,
+                    applicableTo = CategoryApplicableTo.EXPENSE,
+                ),
+            )
+        val incomeByCategory =
+            toCategoryTotals(
+                transactionRepository.getCategoryBreakdownForAccounts(
+                    accountId = accountId,
+                    includedFinancialAccountIds = financialAccountIds,
+                    year = year,
+                    month = month,
+                    applicableTo = CategoryApplicableTo.INCOME,
+                ),
+            )
+        val tagsSummary =
+            toTagTotals(
+                transactionRepository.getTagBreakdownForAccounts(
+                    accountId = accountId,
+                    includedFinancialAccountIds = financialAccountIds,
+                    year = year,
+                    month = month,
+                    applicableTo = null,
+                ),
+            )
 
         return MonthSummary(
             year = year,
@@ -386,5 +391,33 @@ open class MonthSummaryQueryService(
         // only has activity this month), we must still materialize that month. Starting the chain
         // at earliestYm alone would skip the requested month and leave findByYearMonth null.
         return minOf(requestedYearMonth, earliestYm)
+    }
+
+    private fun toCategoryTotals(rows: List<CategoryBreakdownRow>): List<CategoryTotal> {
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                } else {
+                    0.0
+                }
+            CategoryTotal.fromRow(row, pct)
+        }
+    }
+
+    private fun toTagTotals(rows: List<TagBreakdownRow>): List<TagTotal> {
+        val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
+        return rows.map { row ->
+            val pct =
+                if (totalAmount > BigDecimal.ZERO) {
+                    (row.totalAmount.toDouble() / totalAmount.toDouble() * 100.0)
+                        .toBigDecimal().setScale(2, RoundingMode.HALF_UP).toDouble()
+                } else {
+                    0.0
+                }
+            TagTotal.fromRow(row, pct)
+        }
     }
 }

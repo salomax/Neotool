@@ -118,4 +118,6 @@ interface MonthlyBalanceSnapshotEntityRepository :
         year: Int,
         month: Int,
     )
+
+    fun deleteByFinancialAccountId(financialAccountId: UUID): Long
 }

@@ -187,7 +187,9 @@ export class InlineTransactionForm {
   }
 
   async selectAnyCategory(): Promise<void> {
-    await this.form.getByText(/categoria|category/i).click();
+    const trigger = this.form.getByTestId("tx-category-select");
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click({ force: true });
     await this.page
       .locator(".MuiPopover-root .MuiListItemButton-root")
       .nth(1)

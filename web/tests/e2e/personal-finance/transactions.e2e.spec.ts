@@ -66,16 +66,13 @@ import {
   navigateFinanceTransactionsToMonth,
   yearMonthFromIso,
 } from "../helpers/finance-transactions-e2e";
+import { signIntoPage } from "../helpers/navigation";
+import { TransactionBuilder } from "../builders/TransactionBuilder";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function uniqueDesc(prefix: string): string {
   return `${prefix} ${Date.now()}`;
-}
-
-function currentYearMonth(): { year: number; month: number } {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
 }
 
 /** Local calendar date, with noon anchor to avoid DST edge cases when adding days/years. */
@@ -93,27 +90,17 @@ function isoDateLocalYearsAgo(years: number): string {
   return formatLocalIsoDate(d);
 }
 
-async function signIntoPage(
-  page: import("@playwright/test").Page,
-  _token?: string,
-): Promise<void> {
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: /account menu/i })
-    .waitFor({ state: "visible" });
-}
-
 // =============================================================================
 // HAPPY PATH
 // =============================================================================
 
 test.describe("Transactions — happy path", () => {
-  test("TX-H-01: creates a POSTED expense — appears in table and increases totalExpenses", async ({
+  test("TX-H-01: creates a POSTED expense — appears in table and increases totalExpenses", { tag: ["@smoke", "@critical", "@balance"] }, async ({
     page,
     pfUser,
     bankAccount,
   }) => {
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
@@ -142,12 +129,12 @@ test.describe("Transactions — happy path", () => {
     );
   });
 
-  test("TX-H-02: creates a POSTED income — appears in table and increases totalIncome", async ({
+  test("TX-H-02: creates a POSTED income — appears in table and increases totalIncome", { tag: ["@smoke", "@critical", "@balance"] }, async ({
     page,
     pfUser,
     bankAccount,
   }) => {
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
@@ -181,19 +168,15 @@ test.describe("Transactions — happy path", () => {
   }) => {
     // PENDING status requires GraphQL creation — the UI form has no status field.
     const desc = uniqueDesc("Conta de Luz Pendente H03");
-    const tx = await createTransaction(
-      {
-        financialAccountId: bankAccount.id,
-        description: desc,
-        amount: 180,
-        creditDebitType: CreditDebitType.Debit,
-        status: TransactionStatus.Pending,
-        date: today(),
-      },
-      pfUser.token,
-    );
+    const tx = await new TransactionBuilder()
+      .forAccount(bankAccount.id)
+      .described(desc)
+      .amount(180)
+      .pending()
+      .on(today())
+      .create(pfUser.token);
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
@@ -201,7 +184,7 @@ test.describe("Transactions — happy path", () => {
     await pfPage.transactionTable.expectTransactionVisible(desc);
 
     // PENDING must affect closingBalance (it IS counted in balance, unlike FUTURE)
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -231,7 +214,7 @@ test.describe("Transactions — happy path", () => {
       pfUser.token,
     );
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
@@ -239,7 +222,7 @@ test.describe("Transactions — happy path", () => {
     await pfPage.transactionTable.expectTransactionVisible(desc);
 
     // FUTURE must NOT affect closingBalance
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -327,7 +310,7 @@ test.describe("Transactions — happy path", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const before = await getMonthSummary(
       bankAccount.id,
       year,
@@ -376,7 +359,7 @@ test.describe("Transactions — happy path", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const before = await getMonthSummary(
       bankAccount.id,
       year,
@@ -417,6 +400,9 @@ test.describe("Transactions — happy path", () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    // Calendar month can persist across specs; align with postedExpense date (today).
+    await navigateFinanceTransactionsToMonth(pfPage, localCalendarYearMonth());
+    await pfPage.transactionTable.waitForLoad();
 
     // Refetch can briefly show Skeleton again — parseCurrencyBr then reads 0 (see MonthSummarySection).
     await pfPage.summary.waitForMetricsReady();
@@ -573,15 +559,18 @@ test.describe("Transactions — happy path", () => {
       ),
     ]);
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    // Summary enters a skeleton state after account selection; wait before clicking chips.
+    await pfPage.summary.waitForMetricsReady();
 
-    await page
+    const categoryChip = page
       .getByTestId("month-summary-section")
-      .getByText(category.name, { exact: true })
-      .click();
+      .getByText(category.name, { exact: true });
+    await expect(categoryChip).toBeVisible();
+    await categoryChip.click();
 
     await pfPage.transactionTable.expectTransactionVisible(descWith);
     await pfPage.transactionTable.expectTransactionHidden(descWithout);
@@ -626,10 +615,11 @@ test.describe("Transactions — happy path", () => {
       ),
     ]);
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    await pfPage.summary.waitForMetricsReady();
 
     await page.getByTestId("month-summary-total-expenses").click();
 
@@ -682,15 +672,17 @@ test.describe("Transactions — happy path", () => {
       ),
     ]);
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    await pfPage.summary.waitForMetricsReady();
 
-    await page
+    const tagChip = page
       .getByTestId("month-summary-section")
-      .getByText(`#${tag}`, { exact: true })
-      .click();
+      .getByText(`#${tag}`, { exact: true });
+    await expect(tagChip).toBeVisible();
+    await tagChip.click();
 
     await pfPage.transactionTable.expectTransactionVisible(descTagged);
     await pfPage.transactionTable.expectTransactionHidden(descUntagged);
@@ -723,19 +715,26 @@ test.describe("Transactions — happy path", () => {
       ),
     );
 
-    await signIntoPage(page, pfUser.token);
+    await signIntoPage(page);
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    // waitForLoad ensures the first page has rendered before we snapshot the count.
+    // Without it, getRowCount() races the loading state and returns 0 — then
+    // the scroll poll trivially passes when the first page appears, not the second.
+    await pfPage.transactionTable.waitForLoad();
 
     const firstPageCount = await pfPage.transactionTable.getRowCount();
 
-    // Trigger next page (scroll to bottom or click "next page" button)
+    // Trigger infinite scroll / next-page load
     await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
-    await page.waitForLoadState("networkidle");
-
-    const secondPageCount = await pfPage.transactionTable.getRowCount();
-    expect(secondPageCount).toBeGreaterThanOrEqual(firstPageCount);
+    // Poll until more rows appear — networkidle is unreliable with SPAs that have WebSockets/polling.
+    await expect
+      .poll(
+        async () => pfPage.transactionTable.getRowCount(),
+        { timeout: 15_000, intervals: [500, 1000, 1000] },
+      )
+      .toBeGreaterThan(firstPageCount);
 
     // Cleanup
     await Promise.all(
@@ -884,7 +883,7 @@ test.describe("Transactions — alternative paths", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -927,7 +926,7 @@ test.describe("Transactions — alternative paths", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -1029,7 +1028,7 @@ test.describe("Transactions — alternative paths", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -1058,7 +1057,7 @@ test.describe("Transactions — alternative paths", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const summary = await getMonthSummary(
       bankAccount.id,
       year,
@@ -1138,7 +1137,7 @@ test.describe("Transactions — alternative paths", () => {
       pfUser.token,
     );
 
-    const { year, month } = currentYearMonth();
+    const { year, month } = localCalendarYearMonth();
     const before = await getMonthSummary(
       bankAccount.id,
       year,

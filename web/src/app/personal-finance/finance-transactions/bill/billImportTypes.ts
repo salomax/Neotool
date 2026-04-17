@@ -50,6 +50,7 @@ export const INITIAL_SHARED_CARD_TEMPLATE: SharedCardTemplate = {
 
 export type BillStep = 'upload' | 'processing' | 'card-matching' | 'tx-review' | 'result' | 'error';
 export type TxCategorySource = CategorySource | null;
+export type ReviewCreditDebitType = 'CREDIT' | 'DEBIT' | 'TRANSFER';
 
 // ── Card matching types ──────────────────────────────────────────────────────
 
@@ -65,6 +66,7 @@ export interface CardAccountOption {
   issuerName: string | null;
   issuerKey: string | null;
   maskedNumber: string | null;
+  isMultiCard: boolean;
 }
 
 export interface DraftCardResolution {
@@ -118,7 +120,7 @@ export interface ReviewTransaction {
   date?: string;
   description: string;
   amount: number;
-  creditDebitType: string;
+  creditDebitType: ReviewCreditDebitType;
   isBillPayment?: boolean;
   installment?: { current: number; total: number };
   categoryId?: string | null;

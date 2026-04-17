@@ -2,10 +2,13 @@ package io.github.salomax.neotool.banking.graphql.merchant
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.service.transaction.MerchantLogoHydrationService
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
 import io.github.salomax.neotool.banking.service.transaction.MerchantCursorCodec
+import io.github.salomax.neotool.banking.service.transaction.MerchantWebsiteNormalizer
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.util.UUID
 
 /**
@@ -15,7 +18,10 @@ import java.util.UUID
 class MerchantResolver(
     private val merchantService: MerchantService,
     private val merchantRepository: MerchantRepository,
+    private val merchantLogoHydrationService: MerchantLogoHydrationService,
 ) {
+    private val logger = KotlinLogging.logger {}
+
     // ── Queries ───────────────────────────────────────────────────────────────
 
     fun merchants(
@@ -81,6 +87,26 @@ class MerchantResolver(
         }
     }
 
+    fun merchantLogoPreview(
+        domain: String,
+        principal: RequestPrincipal,
+    ): Map<String, String>? {
+        requireNotNull(principal.currentAccountId) { "No active account in token" }
+        val normalizedDomain = MerchantWebsiteNormalizer.normalizeDomain(domain) ?: return null
+
+        val cachedAssetId = merchantRepository.findLogoAssetIdByDomain(normalizedDomain)
+        if (cachedAssetId != null) {
+            return mapOf("__typename" to "Asset", "id" to cachedAssetId.toString())
+        }
+
+        runCatching { merchantLogoHydrationService.hydrateForDomain(normalizedDomain) }
+            .onFailure { error ->
+                logger.warn(error) { "Merchant logo preview hydration failed for domain=$normalizedDomain" }
+            }
+        val hydratedAssetId = merchantRepository.findLogoAssetIdByDomain(normalizedDomain) ?: return null
+        return mapOf("__typename" to "Asset", "id" to hydratedAssetId.toString())
+    }
+
     // ── Mutations ─────────────────────────────────────────────────────────────
 
     fun createMerchant(
@@ -110,7 +136,7 @@ class MerchantResolver(
             sector = sector,
             isSystem = isSystem,
             isOwned = this.accountId == accountId,
-            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it) },
+            logoAsset = logoAssetId?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
         )
     }
 }

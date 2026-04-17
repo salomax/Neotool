@@ -123,8 +123,8 @@ export interface ImportTransactionsDrawerProps {
   selectedAccountType?: FinancialAccount['type'] | null;
   onImportCompleted?: () => void;
   onRequestCreateAccount?: (type: 'BANK' | 'CARD') => void;
-  /** When set, drawer opens directly on the duplicate review step for this job (e.g. from page load). */
-  reviewJobId?: string | null;
+  /** When set, drawer opens directly on the duplicate review step for these pending review jobs (e.g. from page load). */
+  reviewJobIds?: string[] | null;
 }
 
 export function ImportTransactionsDrawer({
@@ -134,7 +134,7 @@ export function ImportTransactionsDrawer({
   selectedAccountType,
   onImportCompleted,
   onRequestCreateAccount,
-  reviewJobId,
+  reviewJobIds,
 }: ImportTransactionsDrawerProps) {
   const { t, tCommon } = useTranslation(personalFinanceTranslations);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -144,6 +144,8 @@ export function ImportTransactionsDrawer({
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const jobIdRef = useRef<string | null>(null);
+  const [reviewJobIdsState, setReviewJobIdsState] = useState<string[] | null>(null);
   const [lastEvent, setLastEvent] = useState<ImportJobStatusPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [errorDetails, setErrorDetails] = useState<string | null>(null);
@@ -153,12 +155,19 @@ export function ImportTransactionsDrawer({
 
   React.useEffect(() => {
     if (!open) return;
-    if (reviewJobId) {
-      setJobId(reviewJobId);
+    if (reviewJobIds && reviewJobIds.length > 0) {
+      setReviewJobIdsState(reviewJobIds);
+      setJobId(null); // review mode doesn't poll upload import status
       setStep('review');
       setTargetAccountId(selectedAccountId);
+      setFile(null);
+      setFileError(null);
+      setLastEvent(null);
+      setErrorMessage(null);
+      setErrorDetails(null);
       return;
     }
+    setReviewJobIdsState(null);
     setTargetAccountId(canUseSelectedImportableAccount ? selectedAccountId : null);
     setStep(canUseSelectedImportableAccount ? 'upload' : 'account');
     setFile(null);
@@ -167,11 +176,15 @@ export function ImportTransactionsDrawer({
     setLastEvent(null);
     setErrorMessage(null);
     setErrorDetails(null);
-  }, [open, reviewJobId, selectedAccountId, canUseSelectedImportableAccount]);
+  }, [open, reviewJobIds, selectedAccountId, canUseSelectedImportableAccount]);
 
   React.useEffect(() => {
     latestTargetAccountIdRef.current = targetAccountId ?? selectedAccountId ?? null;
   }, [selectedAccountId, targetAccountId]);
+
+  React.useEffect(() => {
+    jobIdRef.current = jobId;
+  }, [jobId]);
 
   const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
@@ -186,7 +199,7 @@ export function ImportTransactionsDrawer({
 
   React.useEffect(() => {
     if (!open) return;
-    if (reviewJobId) return;
+    if (reviewJobIds && reviewJobIds.length > 0) return;
     if (canUseSelectedImportableAccount) return;
     if (step !== 'account') return;
     if (accountsLoading) return;
@@ -201,7 +214,7 @@ export function ImportTransactionsDrawer({
     setFileError(null);
   }, [
     open,
-    reviewJobId,
+    reviewJobIds,
     canUseSelectedImportableAccount,
     step,
     accountsLoading,
@@ -215,6 +228,7 @@ export function ImportTransactionsDrawer({
     setFile(null);
     setFileError(null);
     setJobId(null);
+    setReviewJobIdsState(null);
     setLastEvent(null);
     setErrorMessage(null);
     setErrorDetails(null);
@@ -228,6 +242,8 @@ export function ImportTransactionsDrawer({
       onImportCompleted?.();
     },
     onReviewRequired: () => {
+      const id = jobIdRef.current;
+      setReviewJobIdsState(id ? [id] : []);
       setStep('review');
     },
     onFailed: (details) => {
@@ -567,9 +583,9 @@ export function ImportTransactionsDrawer({
   );
 
   const renderReviewStep = () =>
-    jobId ? (
+    reviewJobIdsState && reviewJobIdsState.length > 0 ? (
       <ImportDuplicateReview
-        jobId={jobId}
+        jobIds={reviewJobIdsState}
         onComplete={() => {
           publishTransactionsImported({ source: 'file', financialAccountId: latestTargetAccountIdRef.current });
           onImportCompleted?.();

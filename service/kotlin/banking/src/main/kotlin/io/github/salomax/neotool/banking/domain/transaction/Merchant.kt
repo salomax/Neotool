@@ -25,7 +25,7 @@ data class Merchant(
 
 data class MerchantLogoCacheEntry(
     val domain: String,
-    val assetId: String,
+    val assetId: UUID,
     val fetchedAt: Instant,
 )
 

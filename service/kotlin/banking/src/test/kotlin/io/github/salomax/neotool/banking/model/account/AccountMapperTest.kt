@@ -133,6 +133,7 @@ class AccountMapperTest {
         assertThat(domain.cardData!!.dueDay).isEqualTo(22)
         assertThat(domain.cardData!!.cardNetwork).isEqualTo(CreditCardNetwork.VISA)
         assertThat(domain.cardData!!.minimumPaymentPercentage).isEqualByComparingTo("15.00")
+        assertThat(domain.cardData!!.isMultiCard).isFalse()
 
         val backEntity = FinancialAccountMapper.toEntity(domain)
         assertThat(backEntity.cardData).isNull()
@@ -165,14 +166,17 @@ class AccountMapperTest {
                 closingDay = 7,
                 dueDay = 15,
                 linkedBankAccountId = linkedBankId,
+                isMultiCard = true,
             )
         entity.cardData = cardDataEntity
 
         val domain = FinancialAccountMapper.toDomain(entity)
         assertThat(domain.cardData!!.linkedBankAccountId).isEqualTo(linkedBankId)
+        assertThat(domain.cardData!!.isMultiCard).isTrue()
 
         val roundTripped = FinancialAccountMapper.toCardDataEntity(domain.cardData!!, entity)
         assertThat(roundTripped.linkedBankAccountId).isEqualTo(linkedBankId)
+        assertThat(roundTripped.isMultiCard).isTrue()
     }
 
     @Test

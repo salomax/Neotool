@@ -15,6 +15,7 @@ interface AccountDrawerState {
   editingAccount: FinancialAccount | null;
   onBack?: () => void;
   onCreated: () => void;
+  onDeleted: () => void;
 }
 
 interface ImportDrawerState {
@@ -24,7 +25,7 @@ interface ImportDrawerState {
   accountType: FinancialAccount['type'] | null;
   onCompleted: () => void;
   onRequestCreateAccount: (type?: 'BANK' | 'CARD') => void;
-  reviewJobId?: string;
+  reviewJobIds?: string[];
 }
 
 interface ImportBillDrawerState {
@@ -72,6 +73,7 @@ export function FinanceTransactionsDialogs({
         accountToEdit={accountDrawer.editingAccount}
         onBackFromPrefilledType={accountDrawer.onBack}
         onCreated={accountDrawer.onCreated}
+        onDeleted={accountDrawer.onDeleted}
       />
       <ImportTransactionsDrawer
         open={importDrawer.isOpen}
@@ -80,7 +82,7 @@ export function FinanceTransactionsDialogs({
         selectedAccountType={importDrawer.accountType}
         onImportCompleted={importDrawer.onCompleted}
         onRequestCreateAccount={importDrawer.onRequestCreateAccount}
-        reviewJobId={importDrawer.reviewJobId}
+        reviewJobIds={importDrawer.reviewJobIds}
       />
       <BillImportDrawer
         open={importBillDrawer.isOpen}

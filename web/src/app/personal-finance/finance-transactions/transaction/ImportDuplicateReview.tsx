@@ -1,136 +1,205 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import {
+  Stack,
+  Alert,
   Box,
   Typography,
-  Stack,
-  Button,
-  Card,
-  CardContent,
-  Chip,
-  Collapse,
-  Alert,
+  IconButton,
+  useTheme,
 } from '@mui/material';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useQuery, useMutation } from '@apollo/client/react';
-import { useTranslation } from '@/shared/i18n';
+import { useApolloClient, useMutation } from '@apollo/client/react';
+import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
-import { TRANSACTION_IMPORT } from '@/lib/graphql/operations/banking/queries';
-import { RESOLVE_IMPORT_DUPLICATE } from '@/lib/graphql/operations/banking/mutations';
+import {
+  TransactionImportDocument,
+  type TransactionImportQuery,
+  type TransactionImportQueryVariables,
+} from '@/lib/graphql/operations/banking/queries.generated';
+import {
+  ResolveImportDuplicateDocument,
+  type ResolveImportDuplicateMutation,
+  type ResolveImportDuplicateMutationVariables,
+} from '@/lib/graphql/operations/banking/mutations.generated';
+import { CurrencyDisplay } from '@/shared/components/ui/CurrencyDisplay';
+import { Button } from '@/shared/components/ui/primitives/Button';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import LinkIcon from '@mui/icons-material/Link';
+import { DuplicateResolution } from '@/lib/graphql/types/__generated__/graphql';
 
-type DuplicateResolution = 'KEEP_BOTH' | 'USE_INCOMING' | 'KEEP_EXISTING';
-
-function formatAmount(amount: number, creditDebitType: string, currencyCode: string): string {
-  const sign = creditDebitType === 'CREDIT' ? '+' : '-';
-  return `${sign} ${currencyCode} ${Math.abs(amount).toFixed(2)}`;
+function resolveLocale() {
+  return i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || 'pt-BR';
 }
 
-const RESOLUTION_LABEL_KEYS: Record<DuplicateResolution, string> = {
-  KEEP_BOTH: 'financeTransactions.duplicateReview.keepBoth',
-  USE_INCOMING: 'financeTransactions.duplicateReview.useIncoming',
-  KEEP_EXISTING: 'financeTransactions.duplicateReview.keepExisting',
-};
+function formatDate(value: unknown): string {
+  if (value == null) return '';
+  const date = new Date(value as any);
+  if (Number.isNaN(date.getTime())) return String(value);
+
+  const locale = resolveLocale();
+  return new Intl.DateTimeFormat(locale, { day: '2-digit', month: 'long', year: 'numeric' }).format(date);
+}
 
 export interface ImportDuplicateReviewProps {
-  jobId: string;
+  jobIds: string[];
   onComplete?: () => void;
   onClose?: () => void;
 }
 
-export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDuplicateReviewProps) {
+export function ImportDuplicateReview({ jobIds, onComplete, onClose }: ImportDuplicateReviewProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
-  const [resolutions, setResolutions] = useState<Record<number, DuplicateResolution>>({});
-  const [resolvedRows, setResolvedRows] = useState<Set<number>>(new Set());
-  const [submitting, setSubmitting] = useState(false);
+  const theme = useTheme();
+  const [resolutions, setResolutions] = useState<Record<string, DuplicateResolution>>({});
+  const [resolvedRows, setResolvedRows] = useState<Set<string>>(new Set());
+  const [submittingRowKey, setSubmittingRowKey] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const { data, loading, error } = useQuery<{
-    transactionImport: {
-      id: string;
-      source: string;
-      status: string;
-      duplicateReviewCount: number;
-      duplicateCandidates: Array<{
-        rowIndex: number;
-        parsed: {
-          creditDebitType: string;
-          amount: number;
-          date: string;
-          description: string;
-          currencyCode: string;
-        };
-        candidates: Array<{
-          id: string;
-          date: string;
-          description: string;
-          amount: number;
-          creditDebitType: string;
-          currencyCode: string;
-          source: string;
-        }>;
-      }>;
-    };
-  }>(TRANSACTION_IMPORT, {
-    variables: { id: jobId },
-    skip: !jobId,
-  });
+  const apolloClient = useApolloClient();
+  const [jobsData, setJobsData] = useState<Record<string, TransactionImportQuery['transactionImport']>>({});
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<unknown>(null);
 
-  const [resolveDuplicate] = useMutation<unknown>(RESOLVE_IMPORT_DUPLICATE);
+  useEffect(() => {
+    let cancelled = false;
 
-  const job = data?.transactionImport;
-  const candidates = React.useMemo(() => job?.duplicateCandidates ?? [], [job?.duplicateCandidates]);
-  const isNfceReview = job?.source === 'NFC_E';
-  const count = candidates.length;
-  const allResolved = count > 0 && candidates.every((c) => resolutions[c.rowIndex] != null);
-  const canFinish = allResolved && !submitting;
-
-  const setResolution = useCallback((rowIndex: number, resolution: DuplicateResolution) => {
-    setResolutions((prev) => ({ ...prev, [rowIndex]: resolution }));
-    setResolvedRows((prev) => new Set(prev).add(rowIndex));
+    // Reset per-open state so we don't carry resolutions between job sets.
+    setResolutions({});
+    setResolvedRows(new Set());
+    setSubmittingRowKey(null);
     setSubmitError(null);
-  }, []);
 
-  const handleFinish = useCallback(async () => {
-    if (!canFinish || !jobId) return;
-    setSubmitting(true);
-    setSubmitError(null);
-    try {
-      for (const c of candidates) {
-        const resolution = resolutions[c.rowIndex];
-        if (resolution) {
-          await resolveDuplicate({
-            variables: {
-              input: { jobId, rowIndex: c.rowIndex, resolution },
-            },
-          });
-        }
-      }
-      onComplete?.();
-      onClose?.();
-    } catch (err) {
-      const message = extractErrorMessage(err, t('financeTransactions.import.errorStep.message'));
-      setSubmitError(message);
-      toast.error(message);
-    } finally {
-      setSubmitting(false);
+    if (!jobIds || jobIds.length === 0) {
+      setJobsData({});
+      setLoading(false);
+      setError(null);
+      return;
     }
-  }, [canFinish, jobId, candidates, resolutions, resolveDuplicate, onComplete, onClose, t, toast]);
+
+    setLoading(true);
+    setError(null);
+    setJobsData({});
+
+    void Promise.all(
+      jobIds.map(async (id) => {
+        const result = await apolloClient.query<TransactionImportQuery, TransactionImportQueryVariables>({
+          query: TransactionImportDocument,
+          variables: { id },
+          fetchPolicy: 'network-only',
+        });
+        return { id, import: result.data?.transactionImport ?? null };
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+        const map: Record<string, TransactionImportQuery['transactionImport']> = {};
+        for (const r of results) {
+          if (r.import) map[r.id] = r.import;
+        }
+        setJobsData(map);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err);
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [apolloClient, jobIds]);
+
+  const [resolveDuplicate] = useMutation<ResolveImportDuplicateMutation, ResolveImportDuplicateMutationVariables>(
+    ResolveImportDuplicateDocument,
+  );
+
+  type ReviewRow = {
+    jobId: string;
+    jobSource: string;
+    rowIndex: number;
+    parsed: unknown;
+    candidates: Array<{ source: string; date: unknown; description: string; amount: number; currencyCode: string }>;
+  };
+
+  const rows = useMemo<ReviewRow[]>(() => {
+    const out: ReviewRow[] = [];
+
+    for (const id of jobIds) {
+      const job = jobsData[id];
+      if (!job) continue;
+
+      for (const cand of job.duplicateCandidates ?? []) {
+        out.push({
+          jobId: id,
+          jobSource: job.source,
+          rowIndex: cand.rowIndex,
+          parsed: cand.parsed,
+          candidates: cand.candidates,
+        });
+      }
+    }
+
+    return out;
+  }, [jobIds, jobsData]);
+
+  const count = rows.length;
+  const isSubmitting = submittingRowKey != null;
+
+  const rowKeys = useMemo(() => rows.map((r) => `${r.jobId}:${r.rowIndex}`), [rows]);
+
+  const handleResolve = useCallback(
+    async (row: ReviewRow, resolution: DuplicateResolution) => {
+      if (isSubmitting) return;
+
+      const rowKey = `${row.jobId}:${row.rowIndex}`;
+      setSubmittingRowKey(rowKey);
+      setSubmitError(null);
+
+      try {
+        await resolveDuplicate({
+          variables: {
+            input: { jobId: row.jobId, rowIndex: row.rowIndex, resolution },
+          },
+        });
+
+        setResolutions((prev) => ({ ...prev, [rowKey]: resolution }));
+        const nextResolvedRows = new Set(resolvedRows);
+        nextResolvedRows.add(rowKey);
+        setResolvedRows(nextResolvedRows);
+
+        if (rowKeys.length > 0 && nextResolvedRows.size === rowKeys.length) {
+          onComplete?.();
+          onClose?.();
+        }
+      } catch (err) {
+        const message = extractErrorMessage(err, t('financeTransactions.import.errorStep.message'));
+        setSubmitError(message);
+        toast.error(message);
+      } finally {
+        setSubmittingRowKey(null);
+      }
+    },
+    [isSubmitting, onClose, onComplete, resolveDuplicate, resolvedRows, rowKeys, t, toast],
+  );
 
   if (loading) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Stack spacing={1} data-testid="import-duplicate-review">
         <Typography color="text.secondary">{t('financeTransactions.import.processingStep.title')}</Typography>
-      </Box>
+      </Stack>
     );
   }
 
-  if (error || !job) {
+  if (error) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Box data-testid="import-duplicate-review">
         <Typography color="error">{t('financeTransactions.import.errorStep.message')}</Typography>
       </Box>
     );
@@ -138,136 +207,219 @@ export function ImportDuplicateReview({ jobId, onComplete, onClose }: ImportDupl
 
   if (count === 0) {
     return (
-      <Box sx={{ p: 3 }}>
+      <Stack spacing={2} data-testid="import-duplicate-review">
         <Typography color="text.secondary">{t('financeTransactions.duplicateReview.resolved')}</Typography>
-        {onClose && (
-          <Button variant="contained" sx={{ mt: 2 }} onClick={onClose}>
-            {t('financeTransactions.import.resultStep.close')}
-          </Button>
-        )}
-      </Box>
+        {onClose ? (
+          <Box>
+            <Button variant="outlined" onClick={onClose}>
+              {t('financeTransactions.import.resultStep.close')}
+            </Button>
+          </Box>
+        ) : null}
+      </Stack>
     );
   }
 
+  const candidates = rows;
+  const isNfceReview = rows[0]?.jobSource === 'NFC_E';
+
+  const importedLabelKey = isNfceReview
+    ? 'financeTransactions.duplicateReview.newLabelNfce'
+    : 'financeTransactions.duplicateReview.newLabel';
+  const useIncomingLabelKey = isNfceReview
+    ? 'financeTransactions.duplicateReview.useIncomingLink'
+    : 'financeTransactions.duplicateReview.useIncoming';
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        {t('financeTransactions.duplicateReview.header', { count })}
+    <Stack spacing={2} data-testid="import-duplicate-review">
+      <Typography variant="body2" color="text.secondary">
+        
+        {t('financeTransactions.duplicateReview.resolved')}: {resolvedRows.size}/{count}
       </Typography>
+
       <Stack spacing={2}>
-        {candidates.map((cand) => {
-          const resolution = resolutions[cand.rowIndex];
-          const isResolved = resolvedRows.has(cand.rowIndex);
-          const parsed = cand.parsed;
-          const existing = cand.candidates[0];
+        {candidates.map((cand, index) => {
+          const rowIndex = cand.rowIndex;
+          const rowKey = `${cand.jobId}:${rowIndex}`;
+          const parsed = cand.parsed as any;
+          const isResolved = resolvedRows.has(rowKey);
+          const existingTx = cand.candidates[0] ?? null;
+          const resolution = resolutions[rowKey];
 
           return (
-            <Card key={cand.rowIndex} variant="outlined" sx={{ overflow: 'hidden' }}>
-              <CardContent>
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mb: 1 }}>
-                  {isResolved && (
-                    <CheckCircleIcon color="success" fontSize="small" />
-                  )}
-                  <Typography variant="subtitle2" color="text.secondary">
-                    #{cand.rowIndex + 1}
-                  </Typography>
-                </Stack>
-                <Collapse in={!isResolved}>
-                  <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
-                    <Card variant="outlined" sx={{ flex: 1, bgcolor: 'action.hover' }}>
-                      <CardContent>
-                        <Typography variant="caption" color="text.secondary">
-                          {t(isNfceReview ? 'financeTransactions.duplicateReview.newLabelNfce' : 'financeTransactions.duplicateReview.newLabel')}
-                        </Typography>
-                        <Typography variant="body2">{parsed.description}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {parsed.date} · {formatAmount(parsed.amount, parsed.creditDebitType, parsed.currencyCode)}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                    <Card variant="outlined" sx={{ flex: 1 }}>
-                      <CardContent>
-                        <Typography variant="caption" color="text.secondary">
-                          {t('financeTransactions.duplicateReview.existingLabel')}
-                        </Typography>
-                        {existing && (
-                          <>
-                            <Typography variant="body2">{existing.description}</Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {existing.date} · {formatAmount(existing.amount, existing.creditDebitType, existing.currencyCode)}
-                            </Typography>
-                            <Chip
-                              label={existing.source}
-                              size="small"
-                              sx={{ mt: 0.5 }}
-                              variant="outlined"
-                            />
-                          </>
-                        )}
-                      </CardContent>
-                    </Card>
+            <Box key={rowKey} sx={{ position: 'relative' }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <Box
+                  sx={{
+                    width: 28,
+                    height: 28,
+                    borderRadius: '50%',
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontWeight: 700,
+                    fontSize: 13,
+                    flexShrink: 0,
+                  }}
+                >
+                  #{index + 1}
+                </Box>
+              </Stack>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={0.75} alignItems="stretch">
+                <Box
+                  sx={{
+                    flex: 1,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'action.hover',
+                    p: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 150,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      {t(importedLabelKey)}
+                    </Typography>
+                    <ReceiptLongIcon fontSize="small" sx={{ color: 'text.secondary' }} />
                   </Stack>
-                  <Stack direction="row" flexWrap="wrap" gap={1} sx={{ mt: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {formatDate(parsed.date)}
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.5 }}>
+                    {parsed.description}
+                  </Typography>
+                  <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
+                    <CurrencyDisplay
+                      value={parsed.amount}
+                      currency={parsed.currencyCode}
+                      showColor={false}
+                      variant="h6"
+                      sx={{ fontWeight: 600 }}
+                    />
+                  </Box>
+                </Box>
+
+                <Box
+                  sx={{
+                    flex: 1,
+                    borderRadius: 1,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    p: 2,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    minHeight: 150,
+                  }}
+                >
+                  <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1} sx={{ mb: 1 }}>
+                    <Typography variant="overline" color="text.secondary">
+                      {t('financeTransactions.duplicateReview.existingLabel')}
+                    </Typography>
+                  </Stack>
+                  {existingTx ? (
+                    <>
+                      <Typography variant="body2" color="text.secondary">
+                        {formatDate(existingTx.date)}
+                      </Typography>
+                      <Typography variant="body2" sx={{ fontWeight: 700, mt: 0.5 }}>
+                        {existingTx.description}
+                      </Typography>
+                      <Box sx={{ mt: 'auto', display: 'flex', justifyContent: 'flex-end' }}>
+                        <CurrencyDisplay
+                          value={existingTx.amount}
+                          currency={existingTx.currencyCode}
+                          showColor={false}
+                          variant="h6"
+                          sx={{ fontWeight: 600 }}
+                        />
+                      </Box>
+                    </>
+                  ) : (
+                    <Typography variant="body2" color="text.secondary">
+                      {t('financeTransactions.import.errorStep.message')}
+                    </Typography>
+                  )}
+                </Box>
+              </Stack>
+
+              <IconButton
+                disabled
+                size="small"
+                sx={{
+                  position: 'absolute',
+                  left: '50%',
+                  top: '50%',
+                  transform: 'translate(-50%, -50%)',
+                  bgcolor: 'background.paper',
+                  border: '1px solid',
+                  borderColor: 'divider',
+                  boxShadow: theme.shadows[2],
+                  zIndex: 1,
+                  display: { xs: 'none', sm: 'inline-flex' },
+                  opacity: 1,
+                  '&.Mui-disabled': {
+                    opacity: 1,
+                    backgroundColor: theme.palette.background.paper,
+                    color: theme.palette.text.secondary,
+                  },
+                }}
+              >
+                <CompareArrowsIcon fontSize="small" />
+              </IconButton>
+
+              {!isResolved ? (
+                <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+                  {!isNfceReview ? (
                     <Button
+                      variant="outlined"
                       size="small"
-                      variant={resolution === 'KEEP_BOTH' ? 'contained' : 'outlined'}
-                      onClick={() => setResolution(cand.rowIndex, 'KEEP_BOTH')}
-                    >
-                      {t('financeTransactions.duplicateReview.keepBoth')}
-                    </Button>
-                    <Button
-                      size="small"
-                      variant={resolution === 'USE_INCOMING' ? 'contained' : 'outlined'}
-                      onClick={() => setResolution(cand.rowIndex, 'USE_INCOMING')}
-                      color={resolution === 'USE_INCOMING' ? 'warning' : 'primary'}
-                    >
-                      {t(isNfceReview ? 'financeTransactions.duplicateReview.useIncomingLink' : 'financeTransactions.duplicateReview.useIncoming')}
-                    </Button>
-                    <Button
-                      size="small"
-                      variant={resolution === 'KEEP_EXISTING' ? 'contained' : 'outlined'}
-                      onClick={() => setResolution(cand.rowIndex, 'KEEP_EXISTING')}
+                      onClick={() => handleResolve(cand, DuplicateResolution.KeepExisting)}
+                      disabled={isSubmitting}
+                      sx={{ textTransform: 'none', borderRadius: 1 }}
                     >
                       {t('financeTransactions.duplicateReview.keepExisting')}
                     </Button>
-                  </Stack>
-                  {resolution === 'USE_INCOMING' && (
-                    <Typography variant="caption" color="warning.main" display="block" sx={{ mt: 1 }}>
-                      {t(
-                        isNfceReview
-                          ? 'financeTransactions.duplicateReview.useIncomingLinkWarning'
-                          : 'financeTransactions.duplicateReview.useIncomingWarning',
-                      )}
-                    </Typography>
-                  )}
-                </Collapse>
-                <Collapse in={isResolved}>
-                  <Typography variant="body2" color="text.secondary">
-                    {t('financeTransactions.duplicateReview.resolved')}: {resolution ? t(RESOLUTION_LABEL_KEYS[resolution]) : ''}
-                  </Typography>
-                </Collapse>
-              </CardContent>
-            </Card>
+                  ) : null}
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => handleResolve(cand, DuplicateResolution.KeepBoth)}
+                    disabled={isSubmitting}
+                    sx={{ textTransform: 'none', borderRadius: 1 }}
+                  >
+                    {t('financeTransactions.duplicateReview.keepBoth')}
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    onClick={() => handleResolve(cand, DuplicateResolution.UseIncoming)}
+                    disabled={isSubmitting}
+                    startIcon={isNfceReview ? <LinkIcon fontSize="small" /> : undefined}
+                    sx={{ textTransform: 'none', borderRadius: 1 }}
+                  >
+                    {t(useIncomingLabelKey)}
+                  </Button>
+                </Stack>
+              ) : (
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  {t('financeTransactions.duplicateReview.resolved')}
+                  {resolution ? `: ${t(resolution === DuplicateResolution.KeepBoth ? 'financeTransactions.duplicateReview.keepBoth' : useIncomingLabelKey)}` : ''}
+                </Typography>
+              )}
+            </Box>
           );
         })}
       </Stack>
-      {submitError && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {submitError}
-        </Alert>
-      )}
-      <Stack direction="row" spacing={2} sx={{ mt: 3 }} justifyContent="flex-end">
-        {onClose && (
-          <Button onClick={onClose}>{t('financeTransactions.actions.cancel')}</Button>
-        )}
-        <Button
-          variant="contained"
-          onClick={handleFinish}
-          disabled={!canFinish}
-        >
-          {submitting ? t('financeTransactions.actions.saving') : t('financeTransactions.duplicateReview.finishReview')}
-        </Button>
-      </Stack>
-    </Box>
+
+      {submitError ? (
+        <Alert severity="error">{submitError}</Alert>
+      ) : null}
+    </Stack>
   );
 }

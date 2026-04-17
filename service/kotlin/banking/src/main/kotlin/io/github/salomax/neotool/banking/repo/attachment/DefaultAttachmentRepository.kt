@@ -19,6 +19,13 @@ open class DefaultTransactionAttachmentRepository(
         entityRepository.findByTransactionIdAndAccountId(transactionId, accountId)
             .map(TransactionAttachmentMapper::toDomain)
 
+    override fun findByTransactionIds(transactionIds: Collection<UUID>, accountId: UUID): Map<UUID, List<TransactionAttachment>> {
+        if (transactionIds.isEmpty()) return emptyMap()
+        return entityRepository.findByTransactionIdInAndAccountId(transactionIds, accountId)
+            .map(TransactionAttachmentMapper::toDomain)
+            .groupBy { it.transactionId }
+    }
+
     override fun findById(id: UUID, accountId: UUID): TransactionAttachment? =
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(TransactionAttachmentMapper::toDomain)

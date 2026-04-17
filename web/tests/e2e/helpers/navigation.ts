@@ -7,6 +7,17 @@ import { currentConfig } from '../config/environments';
 import { SELECTORS } from '../config/constants';
 
 /**
+ * Navigates to the app shell and waits for auth-aware UI to render.
+ * Authentication is injected by storageState fixtures.
+ */
+export async function signIntoPage(page: Page, _token?: string): Promise<void> {
+  await page.goto('/');
+  await page
+    .getByRole('button', { name: /account menu/i })
+    .waitFor({ state: 'visible', timeout: 30_000 });
+}
+
+/**
  * Navigate to the settings page
  */
 export async function navigateToSettings(page: Page): Promise<void> {

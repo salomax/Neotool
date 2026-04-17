@@ -296,6 +296,8 @@ type CardData {
   dueDay: Int
   """Optional bank account that will receive the debit leg of bill-payment transfers."""
   linkedBankAccountId: ID
+  """When true, this account represents multiple/virtual cards with no specific last-4."""
+  isMultiCard: Boolean!
 }
 
 """
@@ -712,6 +714,8 @@ input CardDataInput {
   dueDay: Int
   """Optional bank account that will receive the debit leg of bill-payment transfers."""
   linkedBankAccountId: ID
+  """Set to true to mark this account as an umbrella for multiple/virtual cards."""
+  isMultiCard: Boolean
 }
 
 input CreateFinancialAccountInput {
@@ -1988,6 +1992,8 @@ extend type Query {
   Single transaction by ID (scoped to the authenticated account).
   """
   transaction(id: ID!): Transaction
+  """Merchant logo preview asset resolved through federation."""
+  merchantLogoPreview(domain: String!): Asset
   """
   Monthly summary (entradas, saídas, saldo) for a financial account or all accounts.
   When financialAccountId is omitted, returns the aggregate across all accounts.
@@ -2226,6 +2232,7 @@ extend type Mutation {
   """
   createFinancialAccount(input: CreateFinancialAccountInput!): FinancialAccount!
   updateFinancialAccount(id: ID!, input: UpdateFinancialAccountInput!): FinancialAccount!
+  deleteFinancialAccount(id: ID!): Boolean!
   """
   Create a new manual transaction.
   """

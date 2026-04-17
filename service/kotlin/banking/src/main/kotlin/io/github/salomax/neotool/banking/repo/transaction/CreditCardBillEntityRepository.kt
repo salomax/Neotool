@@ -30,6 +30,33 @@ interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, U
         accountId: UUID,
     ): List<CreditCardBillEntity>
 
+    @Query(
+        """
+        SELECT COUNT(*)
+          FROM banking.credit_card_bills
+         WHERE financial_account_id = :financialAccountId
+           AND deleted_at IS NULL
+           AND status IN ('OPEN', 'CLOSED')
+        """,
+        nativeQuery = true,
+    )
+    fun countOpenByFinancialAccountId(financialAccountId: UUID): Long
+
+    @Query(
+        """
+        UPDATE banking.credit_card_bills
+           SET deleted_at = :now,
+               updated_at = :now
+         WHERE financial_account_id = :financialAccountId
+           AND deleted_at IS NULL
+        """,
+        nativeQuery = true,
+    )
+    fun softDeleteByFinancialAccountId(
+        financialAccountId: UUID,
+        now: Instant,
+    ): Int
+
     /**
      * Creates the bill if it does not already exist.
      * ON CONFLICT DO NOTHING is safe against the unique constraint

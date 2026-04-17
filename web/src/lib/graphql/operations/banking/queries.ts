@@ -42,6 +42,7 @@ export const FINANCIAL_ACCOUNTS = gql`
         closingDay
         dueDay
         linkedBankAccountId
+        isMultiCard
       }
       connectionStatus
       consentExpiresAt
@@ -148,6 +149,7 @@ export const TRANSACTIONS = gql`
           status
           financialAccountId
           billId
+          cardIdentifier
           installmentNumber
           totalInstallments
           attachments {
@@ -502,10 +504,12 @@ export const TRANSACTION_IMPORT = gql`
 /** List transaction import jobs (e.g. to show REVIEW_REQUIRED on page load). */
 export const TRANSACTION_IMPORTS = gql`
   query TransactionImports($financialAccountId: ID) {
-    transactionImports(financialAccountId: $financialAccountId) {
+    # Only return imports that still require duplicate review.
+    transactionImports: pendingReviewImports(financialAccountId: $financialAccountId) {
       id
       status
       duplicateReviewCount
+      createdAt
     }
   }
 `;
@@ -1074,6 +1078,15 @@ export const MERCHANTS = gql`
         endCursor
       }
       totalCount
+    }
+  }
+`;
+
+export const MERCHANT_LOGO_PREVIEW = gql`
+  query MerchantLogoPreview($domain: String!) {
+    merchantLogoPreview(domain: $domain) {
+      id
+      publicUrl
     }
   }
 `;

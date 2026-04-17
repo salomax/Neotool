@@ -26,6 +26,14 @@ class AttachmentResolver(
             .map { it.toDTO(accountId) }
     }
 
+    /**
+     * Maps pre-loaded [TransactionAttachment] domain objects to DTOs.
+     * Uses [TransactionAttachment.accountId] directly — no principal required, no permission check.
+     * Safe to call from batch field resolvers where the parent resource was already authorized.
+     */
+    fun mapAttachmentsToDTOs(attachments: List<TransactionAttachment>): List<TransactionAttachmentDTO> =
+        attachments.map { it.toDTO(it.accountId) }
+
     fun attachFileToTransaction(input: Map<String, Any?>, principal: RequestPrincipal): TransactionAttachmentDTO {
         val accountId = requireAccountId(principal)
         val transactionId = UUID.fromString(input["transactionId"] as String)

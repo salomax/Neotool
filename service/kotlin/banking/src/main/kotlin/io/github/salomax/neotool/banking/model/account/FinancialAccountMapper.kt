@@ -31,6 +31,7 @@ object FinancialAccountMapper {
                     closingDay = c.closingDay,
                     dueDay = c.dueDay,
                     linkedBankAccountId = c.linkedBankAccountId,
+                    isMultiCard = c.isMultiCard,
                 )
             }
         return FinancialAccount(
@@ -143,6 +144,7 @@ object FinancialAccountMapper {
             closingDay = data.closingDay,
             dueDay = data.dueDay,
             linkedBankAccountId = data.linkedBankAccountId,
+            isMultiCard = data.isMultiCard,
         )
     }
 

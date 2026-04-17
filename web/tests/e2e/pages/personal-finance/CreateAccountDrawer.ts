@@ -22,25 +22,61 @@ export class CreateAccountDrawer {
   }
 
   /**
-   * `data-testid` is on the MUI Modal root; type tiles and the form render inside the
-   * Drawer Paper (`role="dialog"`). Waiting/querying only the modal root can race the
-   * slide-in transition — inner nodes stay non-visible while the root is already visible.
+   * Scope to the drawer paper only. Using a generic `[role="dialog"]:visible` chain can
+   * match the wrong surface when a nested/portaled confirm dialog is also a dialog, or
+   * when `.last()` flips between transitions — the remove button then "disappears" for the locator.
    */
   private drawerPanel(): Locator {
-    return this.drawer.getByRole('dialog').first();
+    return this.drawer.locator('.MuiDrawer-paper').first();
   }
 
   private submitButton(): Locator {
     return this.drawerPanel().getByTestId('account-form-submit');
   }
 
+  private visibleDeleteConfirmButton(): Locator {
+    return this.page
+      .locator('[data-testid="account-delete-dialog"]:visible')
+      .last()
+      .getByRole('button', {
+        name: /remover conta|remove account|excluir conta|delete account|excluir|delete/i,
+      })
+      .first();
+  }
+
+  private visibleDeleteCancelButton(): Locator {
+    return this.page
+      .locator('[data-testid="account-delete-dialog"]:visible')
+      .last()
+      .getByRole('button', { name: /cancelar|cancel/i })
+      .first();
+  }
+
   async waitForOpen(): Promise<void> {
     await this.drawer.waitFor({ state: 'visible', timeout: 30000 });
-    await this.drawerPanel().waitFor({ state: 'visible', timeout: 30000 });
+    await expect
+      .poll(
+        async () =>
+          (await this.drawerPanel().getByTestId('account-form-submit').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-subtype-select').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-BANK').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-CARD').first().isVisible().catch(() => false)),
+        { timeout: 30000 },
+      )
+      .toBe(true);
   }
 
   async waitForClose(): Promise<void> {
-    await this.drawer.waitFor({ state: 'hidden', timeout: 60000 });
+    await expect
+      .poll(
+        async () =>
+          (await this.drawerPanel().getByTestId('account-form-submit').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-subtype-select').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-BANK').first().isVisible().catch(() => false)) ||
+          (await this.drawerPanel().getByTestId('account-type-CARD').first().isVisible().catch(() => false)),
+        { timeout: 60000 },
+      )
+      .toBe(false);
   }
 
   /**
@@ -65,7 +101,9 @@ export class CreateAccountDrawer {
     if (await typeButton.first().isVisible().catch(() => false)) {
       const btn = typeButton.first();
       await btn.scrollIntoViewIfNeeded();
-      await btn.click({ force: true });
+      await btn.click({ force: true }).catch(async () => {
+        await btn.dispatchEvent('click');
+      });
     }
 
     await subtypeSelect.first().waitFor({ state: 'visible', timeout: 20000 });
@@ -140,6 +178,10 @@ export class CreateAccountDrawer {
     const options = this.page.getByRole('option');
     await expect.poll(async () => (await options.count()) > 0, { timeout: 15000 }).toBe(true);
 
+    /** Matches only the synthetic "custom issuer" row, not bank names that contain "outro" as a substring. */
+    const isCustomIssuerOption = (text: string) =>
+      /^(outro\s*\/\s*personalizado|other\s*\/\s*custom)$/i.test(text.trim());
+
     const optionCount = await options.count();
     let preferredIssuer = options.first();
     let optionText = '';
@@ -151,9 +193,10 @@ export class CreateAccountDrawer {
 
       if (!optionText) {
         optionText = candidateText;
+        preferredIssuer = candidate;
       }
 
-      if (!/outro|personalizado|custom/i.test(candidateText)) {
+      if (!isCustomIssuerOption(candidateText)) {
         preferredIssuer = candidate;
         optionText = candidateText;
         break;
@@ -162,8 +205,9 @@ export class CreateAccountDrawer {
 
     await preferredIssuer.click();
 
-    if (/outro|personalizado|custom/i.test(optionText)) {
-      const customIssuerInput = this.drawerPanel().getByLabel(/nome da instituição|institution name/i).first();
+    if (isCustomIssuerOption(optionText)) {
+      const customIssuerInput = this.drawerPanel().locator('input[name="issuerName"]').first();
+      await expect(customIssuerInput).toBeVisible({ timeout: 10_000 });
       await customIssuerInput.fill('E2E Test Issuer');
     }
   }
@@ -231,6 +275,15 @@ export class CreateAccountDrawer {
     await input.fill(lastFourDigits);
   }
 
+  async setMultiCard(enabled: boolean): Promise<void> {
+    const toggle = this.drawerPanel().getByTestId('multi-card-toggle').locator('input[type="checkbox"]').first();
+    await expect(toggle).toBeVisible();
+    const checked = await toggle.isChecked();
+    if (checked !== enabled) {
+      await toggle.click();
+    }
+  }
+
   // ── Actions ─────────────────────────────────────────────────────────────────
 
   async submit(): Promise<void> {
@@ -253,11 +306,69 @@ export class CreateAccountDrawer {
     await this.drawerPanel().getByTestId('account-form-cancel').click();
   }
 
+  async clickRemoveAccount(): Promise<void> {
+    await this.waitForOpen();
+    const confirmButton = this.visibleDeleteConfirmButton();
+
+    for (let attempt = 0; attempt < 4; attempt++) {
+      if (await confirmButton.isVisible().catch(() => false)) return;
+
+      const removeButton = this.drawer.getByTestId('account-form-remove').first();
+      await expect(removeButton).toBeVisible({ timeout: 10000 });
+      await expect(removeButton).toBeEnabled();
+      await removeButton.scrollIntoViewIfNeeded();
+
+      if (attempt === 0) {
+        await removeButton.click({ timeout: 5000 }).catch(() => {});
+      } else if (attempt === 1) {
+        await removeButton.click({ force: true, timeout: 5000 }).catch(() => {});
+      } else if (attempt === 2) {
+        await removeButton.dispatchEvent('click');
+      } else {
+        await removeButton.evaluate((el: HTMLElement) => {
+          el.click();
+        });
+      }
+
+      const drawerStillOpen = await this.drawerPanel()
+        .getByTestId('account-form-submit')
+        .first()
+        .isVisible()
+        .catch(() => false);
+      if (!drawerStillOpen) return;
+
+      const opened = await confirmButton.waitFor({ state: 'visible', timeout: 4000 }).then(() => true).catch(() => false);
+      if (opened) return;
+    }
+
+    throw new Error('Delete confirmation dialog did not open after clicking remove account');
+  }
+
+  async confirmRemoveAccount(): Promise<void> {
+    await this.visibleDeleteConfirmButton().click();
+  }
+
+  async cancelRemoveAccount(): Promise<void> {
+    await this.visibleDeleteCancelButton().click();
+  }
+
+  async removeAccount(): Promise<void> {
+    await this.clickRemoveAccount();
+    if (await this.visibleDeleteConfirmButton().isVisible().catch(() => false)) {
+      await this.confirmRemoveAccount();
+    }
+  }
+
   // ── Assertions ──────────────────────────────────────────────────────────────
 
   /** Asserts that a validation error message is visible for the given field. */
   async expectFieldError(fieldTestId: string, messagePattern?: string | RegExp): Promise<void> {
-    const field = this.drawerPanel().getByTestId(fieldTestId);
+    const fieldCandidates = this.drawerPanel().getByTestId(fieldTestId);
+    const inputLikeField = fieldCandidates.locator('input, textarea, select').first();
+    const field =
+      (await inputLikeField.count()) > 0
+        ? inputLikeField
+        : fieldCandidates.first();
     const describedBy = await field.getAttribute('aria-describedby');
     const describedByIds = (describedBy ?? '')
       .split(' ')
@@ -293,6 +404,14 @@ export class CreateAccountDrawer {
   /** Asserts that the drawer is still open (form was not closed despite submit). */
   async expectStillOpen(): Promise<void> {
     await expect(this.drawer).toBeVisible();
+  }
+
+  async expectDeleteError(messagePattern?: string | RegExp): Promise<void> {
+    const alert = this.drawerPanel().locator('.MuiAlert-root').first();
+    await expect(alert).toBeVisible();
+    if (messagePattern) {
+      await expect(alert).toHaveText(messagePattern);
+    }
   }
 
   /**
@@ -338,11 +457,13 @@ export class CreateAccountDrawer {
     closingDay?: number;
     dueDay?: number;
     lastFourDigits?: string;
+    multiCard?: boolean;
     initialBalance?: number;
   }): Promise<void> {
     await this.selectSubtype(params.subtype ?? 'CREDIT_CARD');
     await this.selectFirstIssuer();
     await this.fillName(params.name);
+    if (params.multiCard !== undefined) await this.setMultiCard(params.multiCard);
     if (params.lastFourDigits !== undefined) await this.fillLastFourDigits(params.lastFourDigits);
     if (params.closingDay !== undefined) await this.fillClosingDay(params.closingDay);
     if (params.dueDay !== undefined) await this.fillDueDay(params.dueDay);

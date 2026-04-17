@@ -155,6 +155,18 @@ interface TransactionRepository {
     ): List<CategoryBreakdownRow>
 
     /**
+     * Returns category totals for the given period restricted to [includedFinancialAccountIds].
+     * Used by aggregate month summary to exclude accounts outside net-worth calculations.
+     */
+    fun getCategoryBreakdownForAccounts(
+        accountId: UUID,
+        includedFinancialAccountIds: List<UUID>,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow>
+
+    /**
      * Returns category totals for the exact filtered transaction set described by [query].
      * Used by transactions summary/filter UX so breakdown semantics stay aligned with
      * the paginated transactions query, including the explicit uncategorized row.
@@ -171,6 +183,18 @@ interface TransactionRepository {
     fun getTagBreakdown(
         accountId: UUID,
         financialAccountId: UUID?,
+        year: Int,
+        month: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<TagBreakdownRow>
+
+    /**
+     * Returns tag totals for one period restricted to [includedFinancialAccountIds].
+     * Used by aggregate month summary to exclude accounts outside net-worth calculations.
+     */
+    fun getTagBreakdownForAccounts(
+        accountId: UUID,
+        includedFinancialAccountIds: List<UUID>,
         year: Int,
         month: Int,
         applicableTo: CategoryApplicableTo?,
@@ -211,6 +235,20 @@ interface TransactionRepository {
      * Whether a non-deleted ledger row is already linked to this investment transaction (Open Finance dedup).
      */
     fun existsByInvestmentTransactionId(investmentTransactionId: UUID): Boolean
+
+    /**
+     * Whether at least one non-deleted transaction is linked to the given import job.
+     */
+    fun existsByImportJobId(importJobId: UUID): Boolean
+
+    /**
+     * Clears provider_transaction_id on soft-deleted rows for this financial account/provider id pair.
+     * Returns number of updated rows.
+     */
+    fun clearProviderTransactionIdForDeleted(
+        financialAccountId: UUID,
+        providerTransactionId: String,
+    ): Int
 
     /**
      * Custodian ledger rows linked to any of the given investment transactions (non-deleted).
@@ -291,6 +329,7 @@ interface TransactionCategoryRepository {
 data class TransactionListQuery(
     val accountId: UUID,
     val financialAccountId: UUID?,
+    val includedFinancialAccountIds: List<UUID>? = null,
     val belongsToUserId: UUID?,
     val belongsToName: String?,
     val search: String?,

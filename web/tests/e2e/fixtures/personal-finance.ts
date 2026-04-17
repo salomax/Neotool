@@ -4,8 +4,8 @@
  * Design decisions:
  * - pfUser and its storageState are worker-scoped to avoid N sign-ups per test.
  * - bankAccount / creditCardAccount / transactions are test-scoped (created per test).
- * - No DELETE_FINANCIAL_ACCOUNT mutation exists — test data accumulates in the test
- *   environment. Accounts are named with unique timestamps to avoid collisions.
+ * - deleteFinancialAccount now exists, but bankAccount includes an initial balance
+ *   transaction and cannot be deleted directly. Accounts are still named uniquely.
  * - twoTenants creates two isolated users for cross-tenant security tests.
  *
  * Initial balance date:
@@ -77,12 +77,29 @@ function uniqueEmail(): string {
   return `pf-test-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@test.neotool.com`;
 }
 
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 async function createPfUser(): Promise<PfUser> {
-  const email = uniqueEmail();
   const password = 'TestPassword123!';
-  const user = await createUser(email, password, 'PF Test User');
-  const session = await signInWithSession(email, password, true);
-  return { id: user.id, email, password, token: session.token, session };
+  const maxAttempts = 4;
+  let lastError: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      const email = uniqueEmail();
+      const user = await createUser(email, password, 'PF Test User');
+      const session = await signInWithSession(email, password, true);
+      return { id: user.id, email, password, token: session.token, session };
+    } catch (e) {
+      lastError = e;
+      const msg = e instanceof Error ? e.message : String(e);
+      const transient = /\b(502|503|504|Gateway Timeout)\b/i.test(msg);
+      if (!transient || attempt === maxAttempts - 1) break;
+      await sleep(400 * (attempt + 1));
+    }
+  }
+  throw lastError;
 }
 
 // ── Fixture definitions ───────────────────────────────────────────────────────
@@ -107,7 +124,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async (_, use) => {
+    async (_args, use) => {
       const user = await createPfUser();
       await use(user);
     },
@@ -131,7 +148,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
       pfUser.token
     );
     await use(account);
-    // Note: no DELETE_FINANCIAL_ACCOUNT mutation — data is left in test environment.
+    // account has initial balance transaction; deletion is intentionally skipped in fixture teardown.
   },
 
   /**
@@ -202,7 +219,9 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * userA creates a financial account; userB attempts to access/modify it.
    */
   twoTenants: async ({ browser }, use) => {
-    const [userA, userB] = await Promise.all([createPfUser(), createPfUser()]);
+    // Sequential sign-ups reduce gateway 504s when the banking stack is under parallel E2E load.
+    const userA = await createPfUser();
+    const userB = await createPfUser();
 
     const ctxA = await browser.newContext({ storageState: buildAuthStorageState(userA.session) });
     const ctxB = await browser.newContext({ storageState: buildAuthStorageState(userB.session) });

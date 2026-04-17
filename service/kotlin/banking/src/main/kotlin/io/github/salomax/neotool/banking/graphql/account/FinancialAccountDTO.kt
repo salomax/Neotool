@@ -27,6 +27,7 @@ data class CardDataDTO(
     val closingDay: Int?,
     val dueDay: Int?,
     val linkedBankAccountId: UUID?,
+    val isMultiCard: Boolean,
 )
 
 data class FinancialAccountDTO(

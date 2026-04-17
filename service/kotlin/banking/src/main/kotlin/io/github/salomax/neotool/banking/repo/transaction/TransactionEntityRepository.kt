@@ -68,6 +68,8 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
         accountId: UUID,
     ): TransactionEntity?
 
+    fun countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId: UUID): Long
+
     fun existsByFinancialAccountIdAndProviderTransactionIdAndSourceAndDeletedAtIsNull(
         financialAccountId: UUID,
         providerTransactionId: String,
@@ -75,6 +77,24 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
     ): Boolean
 
     fun existsByInvestmentTransactionIdAndDeletedAtIsNull(investmentTransactionId: UUID): Boolean
+
+    fun existsByImportJobIdAndDeletedAtIsNull(importJobId: UUID): Boolean
+
+    @Query(
+        """
+        UPDATE banking.transactions
+           SET provider_transaction_id = NULL,
+               updated_at = NOW()
+         WHERE financial_account_id = :financialAccountId
+           AND provider_transaction_id = :providerTransactionId
+           AND deleted_at IS NOT NULL
+        """,
+        nativeQuery = true,
+    )
+    fun clearProviderTransactionIdForDeleted(
+        financialAccountId: UUID,
+        providerTransactionId: String,
+    ): Int
 
     fun findByInvestmentTransactionIdInAndAccountIdAndDeletedAtIsNull(
         investmentTransactionIds: List<UUID>,
@@ -156,10 +176,13 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
 
     @Query(
         """
-        SELECT DISTINCT financial_account_id
-          FROM banking.transactions
-         WHERE account_id = :accountId
-           AND deleted_at IS NULL
+        SELECT DISTINCT t.financial_account_id
+          FROM banking.transactions t
+          JOIN banking.financial_accounts fa ON fa.id = t.financial_account_id
+         WHERE t.account_id = :accountId
+           AND t.deleted_at IS NULL
+           AND fa.include_in_net_worth = TRUE
+           AND fa.deleted_at IS NULL
         """,
         nativeQuery = true,
     )

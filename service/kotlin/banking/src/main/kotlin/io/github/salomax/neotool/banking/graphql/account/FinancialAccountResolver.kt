@@ -75,6 +75,14 @@ class FinancialAccountResolver(
         return saved.toDTO(issuer)
     }
 
+    fun delete(
+        id: String,
+        principal: RequestPrincipal,
+    ): Boolean {
+        val accountId = principal.resolveAccountId()
+        return service.delete(UUID.fromString(id), accountId)
+    }
+
     // ── Mapping helpers ──────────────────────────────────────────────────────
 
     private fun FinancialAccount.toDTO(issuer: Issuer?): FinancialAccountDTO =
@@ -112,6 +120,7 @@ class FinancialAccountResolver(
                         closingDay = it.closingDay,
                         dueDay = it.dueDay,
                         linkedBankAccountId = it.linkedBankAccountId,
+                        isMultiCard = it.isMultiCard,
                     )
                 },
             connectionStatus = connectionStatus,
@@ -184,6 +193,7 @@ class FinancialAccountResolver(
                         closingDay = it["closingDay"] as? Int,
                         dueDay = it["dueDay"] as? Int,
                         linkedBankAccountId = (it["linkedBankAccountId"] as? String)?.let { v -> UUID.fromString(v) },
+                        isMultiCard = (it["isMultiCard"] as? Boolean) ?: false,
                     )
                 },
             initialBalance = (this["initialBalance"] as? Number)?.let { BigDecimal(it.toString()) },
@@ -238,6 +248,7 @@ class FinancialAccountResolver(
                             it.updateField("linkedBankAccountId") { value ->
                                 (value as? String)?.let { raw -> UUID.fromString(raw) }
                             },
+                        isMultiCard = it.updateField("isMultiCard") { value -> value as? Boolean },
                     )
                 },
         )

@@ -10,7 +10,7 @@ import {
   Typography,
 } from '@mui/material';
 import { CreditCard as CardIcon } from '@mui/icons-material';
-import { memo, type Dispatch, type SetStateAction } from 'react';
+import React, { memo, type Dispatch, type SetStateAction } from 'react';
 import dayjs from 'dayjs';
 import { useTranslation } from '@/shared/i18n';
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';

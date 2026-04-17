@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -85,6 +86,7 @@ data class Transaction(
     val updatedAt: Instant,
 ) {
     /** Distinct rule ids that have been applied at least once, kept for compatibility with existing consumers. */
+    @get:JsonProperty(access = JsonProperty.Access.READ_ONLY)
     val appliedRuleIds: List<UUID>
         get() = appliedRuleHistory.map { it.ruleId }.distinct()
 }

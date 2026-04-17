@@ -47,6 +47,7 @@ import {
   TransactionType,
   type FinancialAccount,
 } from '../helpers/banking-graphql';
+import { signIntoPage } from '../helpers/navigation';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -95,13 +96,6 @@ async function financialAccountWithPastMonthOpening(
     },
     pfUser.token,
   );
-}
-
-async function signIntoPage(page: import('@playwright/test').Page, token: string): Promise<void> {
-  await page.goto('/');
-  await page.evaluate((t) => localStorage.setItem('auth_token', t), token);
-  await page.reload();
-  await page.waitForLoadState('networkidle');
 }
 
 // =============================================================================
@@ -215,6 +209,9 @@ test.describe('Monthly Summary — happy path', () => {
     const pfPage = new FinanceTransactionsPage(page);
     await pfPage.goto();
     await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+    // waitForLoad before asserting "hidden" — toHaveCount(0) resolves immediately
+    // during the loading state (0 rows rendered yet), giving a false "not found" pass.
+    await pfPage.transactionTable.waitForLoad();
 
     // Current month must NOT show the previous month transaction
     await pfPage.transactionTable.expectTransactionHidden(desc);
@@ -430,7 +427,7 @@ test.describe('Monthly Summary — alternative paths', () => {
     await deleteTransaction(tx.id, pfUser.token);
   });
 
-  test('MS-A-06: first month of account — openingBalance zero; closing reflects initialBalance', async ({
+  test('MS-A-06: first month of account — openingBalance zero; closing reflects initialBalance; no transfers', async ({
     pfUser,
     bankAccount,
   }) => {
@@ -444,6 +441,8 @@ test.describe('Monthly Summary — alternative paths', () => {
     expect(summary.closingBalance).toBeCloseTo(1000, 2);
     expect(summary.totalIncome).toBe(0);
     expect(summary.totalExpenses).toBe(0);
+    expect(summary.transfersIn).toBe(0);
+    expect(summary.transfersOut).toBe(0);
   });
 
   test('MS-A-07: transaction in a past month triggers chain recompute — all subsequent openingBalances update', async ({
@@ -626,6 +625,97 @@ test.describe('Monthly Summary — alternative paths', () => {
 
     await deleteTransaction(tx.id, pfUser.token);
   });
+
+  test('MS-A-12: aggregate summary excludes voucher-card transactions from totals and breakdowns', async ({
+    twoTenants,
+  }) => {
+    const token = twoTenants.userA.token;
+    const checking = await createFinancialAccount(
+      {
+        name: uniqueDesc('Conta A12'),
+        type: 'BANK',
+        subtype: 'CONTA_CORRENTE',
+      },
+      token,
+    );
+    const voucher = await createFinancialAccount(
+      {
+        name: uniqueDesc('Voucher A12'),
+        type: 'PAYMENT',
+        subtype: 'VOUCHER_CARD',
+      },
+      token,
+    );
+    expect(voucher.includeInNetWorth).toBe(false);
+
+    const keepTag = `ms-a12-keep-${Date.now()}`;
+    const excludedTag = `ms-a12-voucher-${Date.now()}`;
+    const regularTx = await createTransaction(
+      {
+        financialAccountId: checking.id,
+        description: uniqueDesc('Despesa conta A12'),
+        amount: 120,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: today(),
+        tags: [keepTag],
+      },
+      token,
+    );
+    const voucherTx = await createTransaction(
+      {
+        financialAccountId: voucher.id,
+        description: uniqueDesc('Despesa voucher A12'),
+        amount: 999,
+        creditDebitType: CreditDebitType.Debit,
+        status: TransactionStatus.Posted,
+        date: today(),
+        tags: [excludedTag],
+      },
+      token,
+    );
+
+    try {
+      const { executeGraphQL } = await import('../helpers/graphql');
+      const result = await executeGraphQL<{
+        monthSummary: {
+          totalExpenses: number;
+          closingBalance: number;
+          expensesByCategory: Array<{ totalAmount: number }>;
+          tagsSummary: Array<{ tag: string; totalAmount: number }>;
+        };
+      }>(
+        `
+        query MonthSummary($financialAccountId: ID, $year: Int, $month: Int) {
+          monthSummary(financialAccountId: $financialAccountId, year: $year, month: $month) {
+            totalExpenses
+            closingBalance
+            expensesByCategory { totalAmount }
+            tagsSummary { tag totalAmount }
+          }
+        }
+      `,
+        { financialAccountId: null, ...currentYM() },
+        token,
+      );
+
+      const summary = result.data?.monthSummary;
+      expect(summary).toBeDefined();
+      const categorySum = summary!.expensesByCategory.reduce((acc, row) => acc + row.totalAmount, 0);
+      const tags = summary!.tagsSummary.map((row) => row.tag);
+
+      expect(summary!.totalExpenses).toBeCloseTo(120, 2);
+      expect(summary!.closingBalance).toBeCloseTo(-120, 2);
+      expect(categorySum).toBeCloseTo(120, 2);
+      expect(tags).toContain(keepTag);
+      expect(tags).not.toContain(excludedTag);
+    } finally {
+      await Promise.all([
+        deleteTransaction(regularTx.id, token),
+        deleteTransaction(voucherTx.id, token),
+      ]);
+    }
+  });
 });
 
 // =============================================================================
@@ -688,20 +778,5 @@ test.describe('Monthly Summary — negative paths', () => {
     expect(result.errors).toBeDefined();
   });
 
-  test('MS-N-04: account with only initial balance — opening 0, closing = initial, income/expense zeros', async ({
-    pfUser,
-    bankAccount,
-  }) => {
-    // Fixture: initialBalance 1000 → one POSTED BALANCE_ADJUSTMENT on initialBalanceDate (today).
-    // Per 04-monthly-summaries.md, genesis-month openingBalance is 0; adjustment flows via credit/debit totals.
-    const { year, month } = currentYM();
-    const summary = await getMonthSummary(bankAccount.id, year, month, pfUser.token);
-
-    expect(summary.openingBalance).toBeCloseTo(0, 2);
-    expect(summary.totalIncome).toBe(0);
-    expect(summary.totalExpenses).toBe(0);
-    expect(summary.closingBalance).toBeCloseTo(1000, 2);
-    expect(summary.transfersIn).toBe(0);
-    expect(summary.transfersOut).toBe(0);
-  });
+  // MS-N-04 removed — covered by MS-A-06 (same scenario: initial-balance-only account).
 });

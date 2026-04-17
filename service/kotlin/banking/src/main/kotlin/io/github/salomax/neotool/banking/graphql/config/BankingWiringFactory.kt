@@ -159,6 +159,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "merchantLogoPreview",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val domain =
+                            env.getArgument<String>("domain")
+                                ?: throw IllegalArgumentException("domain is required")
+                        merchantResolver.merchantLogoPreview(domain, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "monthSummary",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
@@ -219,6 +230,16 @@ class BankingWiringFactory(
                         val ids = env.getArgument<List<String>>("ids")
                             ?: throw IllegalArgumentException("ids is required")
                         transactionCategoryResolver.transactionRulesByIds(ids, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "transactionRuleHistoricalMatchCount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
+                        val id = env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id is required")
+                        transactionCategoryResolver.transactionRuleHistoricalMatchCount(id, principal)
                     }
                 },
             )
@@ -683,6 +704,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "deleteFinancialAccount",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_ACCOUNT_CREATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        financialAccountResolver.delete(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "updateAccountPreferences",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_ACCOUNT_VIEW) { principal ->
@@ -1135,6 +1167,17 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "applyTransactionRuleToHistorical",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        transactionCategoryResolver.applyTransactionRuleToHistorical(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "reorderTransactionRules",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
@@ -1317,11 +1360,17 @@ class BankingWiringFactory(
                 type.dataFetcher(
                     "attachments",
                     createValidatedDataFetcher { env ->
+                        val transaction = env.getSource<TransactionDTO>()
+                            ?: return@createValidatedDataFetcher emptyList<Any>()
+                        // Fast path: attachments were pre-loaded in the batch list query.
+                        // The parent Transaction was already permission-checked — no redundant check here.
+                        val preloaded = transaction.attachments
+                        if (preloaded != null) {
+                            return@createValidatedDataFetcher attachmentResolver.mapAttachmentsToDTOs(preloaded)
+                        }
+                        // Fallback for single-transaction responses (mutations, individual fetches).
                         env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                            val transaction = env.getSource<TransactionDTO>()
-                            transaction?.id?.let {
-                                attachmentResolver.transactionAttachments(it.toString(), principal)
-                            } ?: emptyList<Any>()
+                            attachmentResolver.transactionAttachments(transaction.id.toString(), principal)
                         }
                     },
                 )

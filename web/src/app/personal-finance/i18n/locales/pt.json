@@ -1002,6 +1002,8 @@
       "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
+      "deleteAccount": "Remover conta",
+      "deleteAccountConfirm": "Tem certeza? Esta ação não pode ser desfeita.",
       "automation": "Automação",
       "reviewItems": "Revisar itens",
       "edit": "Editar",
@@ -1011,6 +1013,10 @@
       "back": "Voltar",
       "close": "Fechar",
       "delete": "Excluir"
+    },
+    "errors": {
+      "accountHasTransactions": "Esta conta possui transações. Remova as transações antes de excluir a conta.",
+      "accountHasOpenBills": "Esta conta possui faturas abertas. Quite as faturas antes de excluir a conta."
     },
     "unmappedItems": {
       "title": "Itens não mapeados",
@@ -1141,6 +1147,7 @@
       "searchPlaceholder": "Buscar contas...",
       "noAccountsFound": "Nenhuma conta encontrada"
     },
+    "multipleCards": "Múltiplos cartões",
     "emptyState": {
       "title": "Tudo pronto para começar?",
       "description": "Centralize sua vida financeira. Adicione suas contas bancárias e cartões para ter uma visão completa dos seus gastos, investimentos e metas."
@@ -1154,7 +1161,7 @@
           "subtitle": "Gerencie seus saldos, extratos automáticos e acompanhe o fluxo de caixa em tempo real."
         },
         "card": {
-          "label": "Cartão de Crédito",
+          "label": "Cartão",
           "subtitle": "Gerencie faturas, limites disponíveis e categorize seus gastos recorrentes facilmente."
         },
         "action": "Criar novo"
@@ -1181,6 +1188,7 @@
           "network": "Bandeira",
           "level": "Variante",
           "maskedNumber": "Últimos 4 dígitos",
+          "multiCard": "Múltiplos cartões / virtuais",
           "creditLimit": "Limite de crédito",
           "closingDay": "Dia de fechamento",
           "dueDay": "Dia de vencimento"
@@ -1329,7 +1337,7 @@
         "description": "Associe cada cartão identificado na fatura a uma conta cadastrada.",
         "flatAssignmentBanner": "Importamos as transações da fatura, mas o arquivo não trouxe a referência do cartão. Defina os cartões desta fatura e associe as transações antes de continuar.",
         "flatSteps": {
-          "issuerTitle": "Definir emissor do cartão",
+          "issuerTitle": "Definir cartão",
           "issuerLabel": "Nome do emissor (banco)",
           "issuerSelectedTitle": "{{issuer}} selecionado",
           "loadingCards": "Carregando cartões...",
@@ -1418,7 +1426,9 @@
       }
     },
     "duplicateReview": {
-      "header": "{{count}} transação(ões) precisam de revisão",
+      "header": "{{count}} transações precisam de revisão",
+      "header_one": "{{count}} transação precisa de revisão",
+      "header_other": "{{count}} transações precisam de revisão",
       "newLabel": "Nova (importada)",
       "newLabelNfce": "NFC-e",
       "existingLabel": "Existente",
@@ -1445,7 +1455,7 @@
       "submit": "Importar",
       "success": "NFC-e importada com sucesso",
       "reviewRequired": "Encontramos uma transação manual semelhante. Revise para vincular a NFC-e.",
-      "alreadyImported": "Nota já importada",
+      "alreadyImported": "Esta nota já foi importada e possui uma transação vinculada",
       "sefazUnavailable": "URL indisponível, tente novamente",
       "error": "Falha ao importar NFC-e"
     },

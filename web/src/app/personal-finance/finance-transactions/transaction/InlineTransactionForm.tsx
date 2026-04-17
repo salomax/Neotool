@@ -82,6 +82,16 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
     onRefresh,
   });
 
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  useEffect(() => {
+    if (isOpen) Promise.resolve().then(() => setShouldRender(true));
+  }, [isOpen]);
+  useEffect(() => {
+    if (!isOpen && onExited) onExited();
+  }, [isOpen, onExited]);
+
+  if (!shouldRender) return null;
+
   return (
     <>
       <TableRow sx={{ position: 'relative', zIndex: 3 }}>

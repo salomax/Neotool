@@ -36,6 +36,12 @@ open class DefaultNfceDocumentRepository(
     }
 
     @Transactional
+    override fun deleteByAccessKeyAndAccountIdForDeletedTransactions(
+        accessKey: String,
+        accountId: UUID,
+    ): Int = entityRepository.deleteByAccessKeyAndAccountIdForDeletedTransactions(accessKey, accountId)
+
+    @Transactional
     override fun save(document: NfceDocument): NfceDocument =
         entityRepository.save(NfceDocumentMapper.toEntity(document))
             .also { entityManager.flush() }

@@ -275,6 +275,28 @@ class BankingWiringFactoryTest {
             verify(merchantResolver).merchants(eq("uber"), eq("cursor-1"), eq(20), any())
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
         }
+
+        @Test
+        fun `merchantLogoPreview requires banking_transaction_view and forwards domain`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Query"]!!["merchantLogoPreview"]!!
+            whenever(merchantResolver.merchantLogoPreview(any(), any())).thenReturn(
+                mapOf(
+                    "__typename" to "Asset",
+                    "id" to "asset-id",
+                ),
+            )
+
+            val env =
+                envWithToken(
+                    arguments = mapOf("domain" to "netflix.com"),
+                )
+
+            dataFetcher.get(env)
+
+            verify(merchantResolver).merchantLogoPreview(eq("netflix.com"), any())
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_TRANSACTION_VIEW))
+        }
     }
 
     @Nested
@@ -290,6 +312,24 @@ class BankingWiringFactoryTest {
                     arguments =
                         mapOf(
                             "input" to emptyMap<String, Any?>(),
+                        ),
+                )
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_ACCOUNT_CREATE))
+        }
+
+        @Test
+        fun `deleteFinancialAccount requires banking_account_create permission`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["deleteFinancialAccount"]!!
+
+            val env =
+                envWithToken(
+                    arguments =
+                        mapOf(
+                            "id" to UUID.randomUUID().toString(),
                         ),
                 )
 

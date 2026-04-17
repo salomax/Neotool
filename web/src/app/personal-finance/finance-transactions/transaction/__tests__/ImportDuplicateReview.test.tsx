@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { useQuery, useMutation } from '@apollo/client/react';
+import { useMutation } from '@apollo/client/react';
 import { ImportDuplicateReview } from '../ImportDuplicateReview';
 
 const mockToast = {
@@ -73,9 +73,13 @@ const jobWithCandidates = {
   ],
 };
 
+const mockClientQuery = vi.fn();
+
 vi.mock('@apollo/client/react', () => ({
-  useQuery: vi.fn(),
   useMutation: vi.fn(),
+  useApolloClient: () => ({
+    query: mockClientQuery,
+  }),
 }));
 
 vi.mock('@/shared/providers', () => ({
@@ -90,112 +94,99 @@ describe.sequential('ImportDuplicateReview', () => {
     mockResolve.mockClear();
     onComplete.mockClear();
     onClose.mockClear();
+    mockClientQuery.mockReset();
     vi.mocked(useMutation).mockReturnValue([mockResolve, { loading: false, error: undefined }] as unknown as ReturnType<typeof useMutation>);
-    vi.mocked(useQuery).mockImplementation(((doc: unknown, opts?: { variables?: { id?: string }; skip?: boolean }) => {
-        const id = opts?.variables?.id;
-        const skip = opts?.skip ?? true;
-        if (skip || !id) return { data: null, loading: false, error: undefined };
-        return { data: { transactionImport: jobWithCandidates }, loading: false, error: undefined };
-      }) as typeof useQuery);
+
+    mockClientQuery.mockImplementation(async (opts: { variables?: { id?: string } }) => {
+      const id = opts?.variables?.id;
+      if (!id) return { data: { transactionImport: null } };
+      return { data: { transactionImport: jobWithCandidates } };
+    });
   });
 
-  it('givenCandidates_whenRendered_thenAllShown', async () => {
+  it('givenCandidates_whenRendered_thenShowsFirstCandidate', async () => {
     render(
-      <ImportDuplicateReview jobId="job-1" onComplete={onComplete} onClose={onClose} />,
+      <ImportDuplicateReview jobIds={['job-1']} onComplete={onComplete} onClose={onClose} />,
     );
     await waitFor(() => {
-      expect(
-        screen.getByText(
-          /transaction\(s\) need review|transação\(ões\) precisam de revisão/,
-        ),
-      ).toBeInTheDocument();
+      expect(screen.getByText('Imported purchase')).toBeInTheDocument();
     });
     expect(screen.getByText('Imported purchase')).toBeInTheDocument();
     expect(screen.getByText('Existing purchase')).toBeInTheDocument();
     expect(screen.getByText('Imported fee')).toBeInTheDocument();
     expect(screen.getByText('Existing fee')).toBeInTheDocument();
-    const newLabels = screen.getAllByText(/New \(imported\)|Nova \(importada\)/);
-    const existingLabels = screen.getAllByText(/Existing|Existente/);
-    expect(newLabels.length).toBeGreaterThanOrEqual(1);
-    expect(existingLabels.length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('givenNotAllResolved_whenConcluir_thenButtonDisabled', async () => {
+  it('givenFirstResolution_whenClicked_thenCallsMutation', async () => {
     render(
-      <ImportDuplicateReview jobId="job-1" onComplete={onComplete} onClose={onClose} />,
+      <ImportDuplicateReview jobIds={['job-1']} onComplete={onComplete} onClose={onClose} />,
     );
     await waitFor(() => {
       expect(
-        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length,
+        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length
       ).toBeGreaterThanOrEqual(1);
     });
-    const finishButton = screen.getByRole('button', {
-      name: /Finish review|Concluir revisão/,
-    });
-    expect(finishButton).toBeDisabled();
-    const keepBothButtons = screen.getAllByRole('button', { name: /Keep both|Manter ambas/ });
-    fireEvent.click(keepBothButtons[0]!);
-    await waitFor(() => {
-      expect(finishButton).toBeDisabled();
-    });
-  });
 
-  it('givenAllResolved_whenConcluir_thenMutationCalledForEach', async () => {
-    render(
-      <ImportDuplicateReview jobId="job-1" onComplete={onComplete} onClose={onClose} />,
-    );
-    await waitFor(() => {
-      expect(
-        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length,
-      ).toBe(2);
-    });
     const keepBothButtons = screen.getAllByRole('button', { name: /Keep both|Manter ambas/ });
     fireEvent.click(keepBothButtons[0]!);
-    fireEvent.click(keepBothButtons[1]!);
+
     await waitFor(() => {
-      const finishButton = screen.getByRole('button', {
-        name: /Finish review|Concluir revisão/,
-      });
-      expect(finishButton).not.toBeDisabled();
-    });
-    const finishButton = screen.getByRole('button', {
-      name: /Finish review|Concluir revisão/,
-    });
-    fireEvent.click(finishButton);
-    await waitFor(() => {
-      expect(mockResolve).toHaveBeenCalledTimes(2);
+      expect(mockResolve).toHaveBeenCalledTimes(1);
       expect(mockResolve).toHaveBeenCalledWith({
         variables: {
           input: { jobId: 'job-1', rowIndex: 0, resolution: 'KEEP_BOTH' },
         },
       });
-      expect(mockResolve).toHaveBeenCalledWith({
+    });
+  });
+
+  it('givenAllResolved_whenResolvedSequentially_thenCompletesAndCloses', async () => {
+    render(
+      <ImportDuplicateReview jobIds={['job-1']} onComplete={onComplete} onClose={onClose} />,
+    );
+    await waitFor(() => {
+      expect(
+        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length
+      ).toBeGreaterThanOrEqual(2);
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Keep both|Manter ambas/ })[0]!);
+
+    await waitFor(() => {
+      expect(mockResolve).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Keep both|Manter ambas/ })[0]!);
+
+    await waitFor(() => {
+      expect(mockResolve).toHaveBeenCalledTimes(2);
+      expect(mockResolve).toHaveBeenNthCalledWith(1, {
+        variables: {
+          input: { jobId: 'job-1', rowIndex: 0, resolution: 'KEEP_BOTH' },
+        },
+      });
+      expect(mockResolve).toHaveBeenNthCalledWith(2, {
         variables: {
           input: { jobId: 'job-1', rowIndex: 1, resolution: 'KEEP_BOTH' },
         },
       });
-      expect(onComplete).toHaveBeenCalled();
-      expect(onClose).toHaveBeenCalled();
+      expect(onComplete).toHaveBeenCalledTimes(1);
+      expect(onClose).toHaveBeenCalledTimes(1);
     });
   });
 
-  it('givenMutationError_whenFinish_thenShowsError', async () => {
+  it('givenMutationError_whenResolve_thenShowsError', async () => {
     mockResolve.mockRejectedValueOnce(new Error('network down'));
     render(
-      <ImportDuplicateReview jobId="job-1" onComplete={onComplete} onClose={onClose} />,
+      <ImportDuplicateReview jobIds={['job-1']} onComplete={onComplete} onClose={onClose} />,
     );
     await waitFor(() => {
       expect(
-        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length,
-      ).toBe(2);
+        screen.getAllByRole('button', { name: /Keep both|Manter ambas/ }).length
+      ).toBeGreaterThanOrEqual(1);
     });
-    const keepBothButtons = screen.getAllByRole('button', { name: /Keep both|Manter ambas/ });
-    fireEvent.click(keepBothButtons[0]!);
-    fireEvent.click(keepBothButtons[1]!);
-    const finishButton = screen.getByRole('button', {
-      name: /Finish review|Concluir revisão/,
-    });
-    fireEvent.click(finishButton);
+    fireEvent.click(screen.getAllByRole('button', { name: /Keep both|Manter ambas/ })[0]!);
 
     await waitFor(() => {
       expect(mockToast.error).toHaveBeenCalled();
