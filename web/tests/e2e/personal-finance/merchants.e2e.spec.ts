@@ -2,16 +2,7 @@ import { test, expect } from "../fixtures/personal-finance";
 import { FinanceTransactionsPage } from "../pages/personal-finance/FinanceTransactionsPage";
 import { InlineTransactionForm } from "../pages/personal-finance/InlineTransactionForm";
 import { executeGraphQL } from "../helpers/graphql";
-
-async function signIntoPage(page: import("@playwright/test").Page): Promise<void> {
-  await page.context().addCookies([
-    {
-      name: "auth_hint",
-      value: "1",
-      url: "http://localhost:3000",
-    },
-  ]);
-}
+import { signIntoPage } from "../helpers/navigation";
 
 function unique(value: string): string {
   return `${value} ${Date.now()}`;
@@ -22,7 +13,7 @@ test.describe("Merchants", () => {
   test.setTimeout(180_000);
   test.skip(({ isMobile }) => isMobile, "Merchant picker e2e currently targets desktop layouts.");
 
-  test("creates a merchant from picker and persists normalized website domain", async ({
+  test("creates a merchant from picker and persists normalized website domain", { tag: ["@critical"] }, async ({
     page,
     pfUser,
     bankAccount,
@@ -40,6 +31,7 @@ test.describe("Merchants", () => {
     await form.waitForOpen();
     await form.createMerchant(merchantName, "https://www.netflix.com/br/plans");
     await expect(page.getByTestId("merchant-select-trigger")).toContainText(merchantName);
+    expect.soft(await page.locator(".MuiChip-root").count()).toBeGreaterThan(0);
     await page.waitForTimeout(300);
 
     const descriptionInput = page.getByTestId("tx-description-input");

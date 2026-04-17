@@ -308,6 +308,18 @@ open class DefaultTransactionRepository(
         val base = buildTransactionsBaseSql(query)
         val params = LinkedHashMap(base.params)
         params["applicableTo"] = applicableTo?.name
+        val applicableToWhereClause =
+            if (applicableTo != null) {
+                """
+                AND (
+                    (ft.category_id IS NULL)
+                    OR tc.applicable_to = :applicableTo
+                    OR tc.applicable_to = 'ANY'
+                )
+                """.trimIndent()
+            } else {
+                ""
+            }
         @Suppress("UNCHECKED_CAST")
         val rows =
             applyParameters(
@@ -315,52 +327,41 @@ open class DefaultTransactionRepository(
                     """
                     WITH filtered_transactions AS (
                     ${base.sql}
-                    ),
-                    breakdown_source AS (
-                      SELECT
-                        ft.*,
-                        ft.category_id IS NULL AS is_uncategorized
-                      FROM filtered_transactions ft
                     )
                     SELECT
-                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.id END   AS category_id,
-                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.name END AS category_name,
-                      CASE WHEN bs.is_uncategorized THEN NULL ELSE tc.icon END AS category_icon,
+                      CASE WHEN (ft.category_id IS NULL) THEN NULL ELSE tc.id END   AS category_id,
+                      CASE WHEN (ft.category_id IS NULL) THEN NULL ELSE tc.name END AS category_name,
+                      CASE WHEN (ft.category_id IS NULL) THEN NULL ELSE tc.icon END AS category_icon,
                       CASE
-                        WHEN bs.is_uncategorized THEN NULL
+                        WHEN (ft.category_id IS NULL) THEN NULL
                         ELSE tc.color
                       END               AS category_color,
                       CASE
-                        WHEN bs.is_uncategorized THEN NULL
+                        WHEN (ft.category_id IS NULL) THEN NULL
                         ELSE tc.parent_id
                       END               AS parent_id,
                       CASE
-                        WHEN bs.is_uncategorized THEN COALESCE(CAST(:applicableTo AS text), 'ANY')
+                        WHEN (ft.category_id IS NULL) THEN COALESCE(CAST(:applicableTo AS text), 'ANY')
                         ELSE tc.applicable_to
                       END               AS applicable_to,
                       CASE
-                        WHEN bs.is_uncategorized THEN TRUE
+                        WHEN (ft.category_id IS NULL) THEN TRUE
                         ELSE tc.is_system
                       END               AS is_system,
                       CASE
-                        WHEN bs.is_uncategorized THEN :uncategorizedSortOrder
+                        WHEN (ft.category_id IS NULL) THEN :uncategorizedSortOrder
                         ELSE tc.sort_order
                       END               AS sort_order,
-                      bs.is_uncategorized AS is_uncategorized,
-                      SUM(bs.amount)    AS total_amount,
-                      COUNT(bs.id)      AS transaction_count
-                    FROM breakdown_source bs
-                    LEFT JOIN banking.transaction_categories tc ON bs.category_id = tc.id AND tc.deleted_at IS NULL
-                    WHERE bs.status IN ('POSTED', 'PENDING')
-                      AND (bs.is_uncategorized OR tc.id IS NOT NULL)
-                      AND (
-                           bs.is_uncategorized
-                           OR CAST(:applicableTo AS text) IS NULL
-                           OR tc.applicable_to = :applicableTo
-                           OR tc.applicable_to = 'ANY'
-                      )
+                      (ft.category_id IS NULL) AS is_uncategorized,
+                      SUM(ft.amount)    AS total_amount,
+                      COUNT(ft.id)      AS transaction_count
+                    FROM filtered_transactions ft
+                    LEFT JOIN banking.transaction_categories tc ON ft.category_id = tc.id AND tc.deleted_at IS NULL
+                    WHERE ft.status IN ('POSTED', 'PENDING')
+                      AND ((ft.category_id IS NULL) OR tc.id IS NOT NULL)
+                      $applicableToWhereClause
                     GROUP BY
-                      bs.is_uncategorized,
+                      (ft.category_id IS NULL),
                       tc.id,
                       tc.name,
                       tc.icon,
@@ -370,7 +371,7 @@ open class DefaultTransactionRepository(
                       tc.is_system,
                       tc.sort_order
                     ORDER BY
-                      bs.is_uncategorized ASC,
+                      (ft.category_id IS NULL) ASC,
                       total_amount DESC
                     """.trimIndent(),
                 ),
@@ -884,8 +885,9 @@ open class DefaultTransactionRepository(
                 listOf(buildBillScopedBranch(query, params))
             } else {
                 listOf(
-                    buildPeriodBranch(query, params, useBillDueDate = false),
-                    buildPeriodBranch(query, params, useBillDueDate = true),
+                    buildPeriodBranch(query, params),
+                    buildInstallmentWithBillBranch(query, params),
+                    buildInstallmentNoBillBranch(query, params),
                 )
             }
         return SqlWithParams(
@@ -910,25 +912,51 @@ open class DefaultTransactionRepository(
     private fun buildPeriodBranch(
         query: TransactionListQuery,
         params: MutableMap<String, Any?>,
-        useBillDueDate: Boolean,
     ): String {
         params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
         params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
         val conditions = buildCommonConditions(query, params).toMutableList()
-        val joins =
-            if (useBillDueDate) {
-                conditions += "t.installment_number > 1"
-                conditions += "COALESCE(b.due_date, t.date) >= :startDate"
-                conditions += "COALESCE(b.due_date, t.date) < :endDateExclusive"
-                listOf("LEFT JOIN banking.credit_card_bills b ON b.id = t.bill_id AND b.deleted_at IS NULL")
-            } else {
-                conditions += "(t.installment_number IS NULL OR t.installment_number <= 1)"
-                conditions += "t.date >= :startDate"
-                conditions += "t.date < :endDateExclusive"
-                emptyList()
-            }
+        conditions += "(t.installment_number IS NULL OR t.installment_number <= 1)"
+        conditions += "t.date >= :startDate"
+        conditions += "t.date < :endDateExclusive"
         return buildSelectSql(
-            joins = joins,
+            joins = emptyList(),
+            conditions = conditions,
+        )
+    }
+
+    // Installments tied to an active bill: filter by the bill's due_date so the transaction
+    // appears in the period when the bill is due, not when the purchase was made.
+    private fun buildInstallmentWithBillBranch(
+        query: TransactionListQuery,
+        params: MutableMap<String, Any?>,
+    ): String {
+        params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
+        params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
+        val conditions = buildCommonConditions(query, params).toMutableList()
+        conditions += "t.installment_number > 1"
+        conditions += "b.due_date >= :startDate"
+        conditions += "b.due_date < :endDateExclusive"
+        return buildSelectSql(
+            joins = listOf("JOIN banking.credit_card_bills b ON b.id = t.bill_id AND b.deleted_at IS NULL"),
+            conditions = conditions,
+        )
+    }
+
+    // Installments with no bill assigned: fall back to the transaction date.
+    private fun buildInstallmentNoBillBranch(
+        query: TransactionListQuery,
+        params: MutableMap<String, Any?>,
+    ): String {
+        params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
+        params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
+        val conditions = buildCommonConditions(query, params).toMutableList()
+        conditions += "t.installment_number > 1"
+        conditions += "t.bill_id IS NULL"
+        conditions += "t.date >= :startDate"
+        conditions += "t.date < :endDateExclusive"
+        return buildSelectSql(
+            joins = emptyList(),
             conditions = conditions,
         )
     }

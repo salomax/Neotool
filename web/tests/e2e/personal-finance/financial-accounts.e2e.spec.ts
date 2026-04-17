@@ -17,6 +17,7 @@ import {
   getMonthSummary,
   type FinancialAccount,
 } from '../helpers/banking-graphql';
+import { signIntoPage } from '../helpers/navigation';
 
 // The local/dev banking stack still returns 504 under the default 6-worker Playwright load
 // for account create/update flows. Keep this suite serial until the backend can absorb parallel E2E traffic.
@@ -44,30 +45,6 @@ function dateOffsetBr(daysFromToday: number): string {
 }
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
-
-/**
- * Signs the pfUser into the page before each test.
- * Uses localStorage injection to avoid a full UI sign-in on every test.
- */
-async function signIntoPage(page: import('@playwright/test').Page): Promise<void> {
-  await page.goto('/');
-  await expect
-    .poll(
-      async () => {
-        const desktopAccountMenuVisible = await page
-          .getByRole('button', { name: /account menu/i })
-          .isVisible()
-          .catch(() => false);
-        const mobileBottomNavVisible = await page
-          .getByRole('navigation')
-          .isVisible()
-          .catch(() => false);
-        return desktopAccountMenuVisible || mobileBottomNavVisible;
-      },
-      { timeout: 30000 },
-    )
-    .toBe(true);
-}
 
 async function openFinancialAccountsPage(page: import('@playwright/test').Page): Promise<FinanceTransactionsPage> {
   await signIntoPage(page);

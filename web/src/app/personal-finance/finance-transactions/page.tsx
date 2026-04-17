@@ -17,7 +17,11 @@ import { LoadingSpinner } from '@/shared/components/ui/primitives/LoadingSpinner
 import { CreateFinancialAccountDrawer } from './account/CreateFinancialAccountDrawer';
 import { EmptyFinancialAccountsState } from './account/EmptyFinancialAccountsState';
 import { FINANCIAL_ACCOUNTS, TRANSACTIONS, TRANSACTION_IMPORTS, MONTH_SUMMARY } from '@/lib/graphql/operations/banking/queries';
-import { TransactionsQuery } from '@/lib/graphql/operations/banking/queries.generated';
+import {
+  TransactionCategoriesDocument,
+  type TransactionCategoriesQuery,
+  TransactionsQuery,
+} from '@/lib/graphql/operations/banking/queries.generated';
 import { CreditDebitType, FinancialAccount, FinancialAccountType, TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import { CategoryFilterSelection, MonthSummaryData } from './summary/MonthSummary';
 import { useAccountDisplayMode } from './account/useAccountDisplayMode';
@@ -173,6 +177,22 @@ export default function FinanceTransactionsPage() {
     return jobs.slice().sort((a, b) => (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0));
   }, [importsData]);
 
+  const { data: transactionCategoriesData } = useQuery<TransactionCategoriesQuery>(TransactionCategoriesDocument, {
+    fetchPolicy: 'cache-first',
+    errorPolicy: 'all',
+  });
+
+  const transactionCategoryById = useMemo(() => {
+    const map = new Map<
+      string,
+      { id: string; name: string; icon: string | null; color: string | null }
+    >();
+    for (const category of transactionCategoriesData?.transactionCategories ?? []) {
+      map.set(category.id, category);
+    }
+    return map;
+  }, [transactionCategoriesData?.transactionCategories]);
+
   const pagination = usePaginatedTransactions(transactionsData, transactionsLoading, fetchMore);
 
   // --- Active filter chip accents ---
@@ -180,18 +200,40 @@ export default function FinanceTransactionsPage() {
   const summaryIncomeByCategory = monthSummaryData?.monthSummary?.incomeByCategory ?? null;
 
   const categoryFilterMeta = useMemo(() => {
-    if (!categoryFilter.value || (!summaryExpensesByCategory && !summaryIncomeByCategory)) return null;
+    if (!categoryFilter.value) return null;
+
+    if (categoryFilter.value.uncategorized) {
+      return {
+        name: t('financeTransactions.monthSummary.uncategorized'),
+        icon: null,
+        color: theme.palette.grey[600],
+      };
+    }
+
+    const categoryId = categoryFilter.value.categoryId;
+    if (categoryId) {
+      const resolved = transactionCategoryById.get(categoryId);
+      if (resolved) {
+        return {
+          name: resolved.name,
+          icon: resolved.icon,
+          color: resolved.color,
+        };
+      }
+    }
+
     const lists = [...(summaryExpensesByCategory ?? []), ...(summaryIncomeByCategory ?? [])];
-    const hit = lists.find((c) =>
-      categoryFilter.value!.uncategorized ? c.uncategorized : c.category?.id === categoryFilter.value!.categoryId,
-    );
+    const hit = lists.find((c) => c.category?.id === categoryId);
     if (!hit) return null;
-    return {
-      name: hit.uncategorized ? t('financeTransactions.monthSummary.uncategorized') : hit.category?.name,
-      icon: hit.uncategorized ? null : hit.category?.icon,
-      color: hit.uncategorized ? theme.palette.grey[600] : hit.category?.color,
-    };
-  }, [categoryFilter.value, summaryExpensesByCategory, summaryIncomeByCategory, t, theme]);
+    return { name: hit.category?.name, icon: hit.category?.icon, color: hit.category?.color };
+  }, [
+    categoryFilter.value,
+    summaryExpensesByCategory,
+    summaryIncomeByCategory,
+    t,
+    theme,
+    transactionCategoryById,
+  ]);
 
   const categoryChipAccent =
     categoryFilter.value?.uncategorized

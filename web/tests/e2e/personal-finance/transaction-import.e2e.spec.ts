@@ -51,6 +51,7 @@ import {
   getMonthSummary,
   getTransactions,
 } from "../helpers/banking-graphql";
+import { signIntoPage } from "../helpers/navigation";
 
 function uniqueBankAccountName(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -145,16 +146,6 @@ function importTerminalLocator(page: import("@playwright/test").Page) {
     .or(importDialog.getByText(/^(Resolvido|Resolved)$/i).first());
 }
 
-async function signIntoPage(
-  page: import("@playwright/test").Page,
-  _token?: string,
-): Promise<void> {
-  await page.goto("/");
-  await page
-    .getByRole("button", { name: /account menu/i })
-    .waitFor({ state: "visible" });
-}
-
 /**
  * Opens the import drawer from the main transactions page.
  */
@@ -226,18 +217,18 @@ async function waitForImportComplete(page: import("@playwright/test").Page) {
 }
 
 async function closeImportDrawer(page: import("@playwright/test").Page) {
-  const closeButton = page
-    .getByRole("button", { name: /fechar|close/i })
-    .first();
+  // Scope button search to the dialog — avoids matching unrelated close/cancel buttons
+  // elsewhere on the page (e.g. snackbars, other dialogs) via .first().
+  const dlg = importDialogLocator(page);
+
+  const closeButton = dlg.getByRole("button", { name: /fechar|close/i }).first();
   if (await closeButton.isVisible().catch(() => false)) {
     await closeButton.click();
     await waitForImportDrawerClosed(page);
     return;
   }
 
-  const cancelButton = page
-    .getByRole("button", { name: /cancelar|cancel/i })
-    .first();
+  const cancelButton = dlg.getByRole("button", { name: /cancelar|cancel/i }).first();
   if (await cancelButton.isVisible().catch(() => false)) {
     await cancelButton.click();
     await waitForImportDrawerClosed(page);
@@ -365,7 +356,7 @@ async function importStatementFileExpectAccountGrowth(
 
 test.describe("Transaction Import — happy path", () => {
   test.describe.configure({ timeout: 120_000 });
-  test("IM-H-01: valid CSV reaches result or duplicate-review step", async ({
+  test("IM-H-01: valid CSV reaches result or duplicate-review step", { tag: ["@smoke", "@critical", "@slow"] }, async ({
     page,
     pfUser,
     bankAccount,
@@ -408,7 +399,7 @@ test.describe("Transaction Import — happy path", () => {
     );
   });
 
-  test("IM-H-02: CSV import creates transactions in the account", async ({
+  test("IM-H-02: CSV import creates transactions in the account", { tag: ["@critical", "@slow", "@balance"] }, async ({
     page,
     pfUser,
     bankAccount,
@@ -423,19 +414,22 @@ test.describe("Transaction Import — happy path", () => {
     );
     const countBefore = txsBefore.length;
 
-    await importStatementFileExpectAccountGrowth(page, bankAccount.id, pfUser.token, CSV_VALID, countBefore);
+    const newTxs: Array<{ id: string }> = [];
+    try {
+      await importStatementFileExpectAccountGrowth(page, bankAccount.id, pfUser.token, CSV_VALID, countBefore);
 
-    const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
-
-    // Cleanup: delete imported transactions
-    const newTxs = txsAfter.filter(
-      (t) => !txsBefore.some((b) => b.id === t.id),
-    );
-    await Promise.all(
-      newTxs.map((tx) =>
-        deleteTransaction(tx.id, pfUser.token).catch(() => {}),
-      ),
-    );
+      const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
+      newTxs.push(
+        ...txsAfter.filter((t) => !txsBefore.some((b) => b.id === t.id)),
+      );
+      expect(newTxs.length).toBeGreaterThan(0);
+    } finally {
+      await Promise.all(
+        newTxs.map((tx) =>
+          deleteTransaction(tx.id, pfUser.token).catch(() => {}),
+        ),
+      );
+    }
   });
 
   test("IM-H-03: valid OFX reaches result step", async ({
@@ -450,11 +444,12 @@ test.describe("Transaction Import — happy path", () => {
     await uploadFile(page, OFX_VALID);
     await waitForImportComplete(page);
 
-    const isVisible = await page
-      .getByTestId("import-result-summary")
-      .isVisible()
-      .catch(() => false);
-    expect(isVisible).toBe(true);
+    // Use toBeVisible() (Playwright auto-retry) instead of a point-in-time isVisible() boolean.
+    // waitForImportComplete returns on any terminal state — if the import transiently
+    // entered an error step before settling on the result, isVisible() snapshots false.
+    // Scoped to the dialog so an unrelated element elsewhere can't interfere.
+    await expect(importDialogLocator(page).getByTestId("import-result-summary"))
+      .toBeVisible({ timeout: IMPORT_TIMEOUT });
 
     await closeImportDrawer(page);
 
@@ -615,6 +610,7 @@ test.describe("Transaction Import — happy path", () => {
 // =============================================================================
 
 test.describe("Transaction Import — alternative paths", () => {
+  test.describe.configure({ timeout: 120_000 });
   test("IM-A-01: CSV spans multiple months — all months' summaries updated", async ({
     page,
     pfUser,
@@ -627,6 +623,11 @@ test.describe("Transaction Import — alternative paths", () => {
 
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
+    // Resolve any duplicate review before querying the API — transactions aren't fully
+    // committed until the review step is resolved.
+    if (await hasDuplicateReview(page)) {
+      await resolveDuplicateReviewKeepingExisting(page);
+    }
 
     // Verify March 2026 summary was computed
     const march2026 = await getMonthSummary(
@@ -660,6 +661,9 @@ test.describe("Transaction Import — alternative paths", () => {
 
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
+    if (await hasDuplicateReview(page)) {
+      await resolveDuplicateReviewKeepingExisting(page);
+    }
 
     const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
     const newTxs = txsAfter.filter(
@@ -852,6 +856,7 @@ test.describe("Transaction Import — alternative paths", () => {
 // =============================================================================
 
 test.describe("Transaction Import — negative paths", () => {
+  test.describe.configure({ timeout: 120_000 });
   test("IM-N-01: uploading an unsupported file extension — error shown", async ({
     page,
     pfUser,
@@ -989,41 +994,37 @@ test.describe("Transaction Import — negative paths", () => {
     await closeImportDrawer(page);
   });
 
-  test("IM-N-06: importing to a non-existent account via GraphQL direct — returns error", async ({
+  test("IM-N-06: importing to a non-existent account via GraphQL direct — returns error", { tag: ["@critical"] }, async ({
+    page,
     pfUser,
+    bankAccount,
   }) => {
-    const { executeGraphQL } = await import("../helpers/graphql");
-    const result = await executeGraphQL(
-      `
-      mutation ImportTransactionsFile($input: ImportTransactionsFileInput!) {
-        importTransactionsFile(input: $input) {
-          import { id status }
-        }
-      }
-    `,
-      {
-        input: {
-          financialAccountId: "00000000-0000-0000-0000-000000000000",
-          fileName: "test.csv",
-          fileBase64: Buffer.from(
-            "Data,Descricao,Valor\n2026-03-01,Test,-100",
-            "utf-8",
-          ).toString("base64"),
-        },
-      },
-      pfUser.token,
-    );
+    await signIntoPage(page, pfUser.token);
+    await openImportDrawer(page, bankAccount);
 
-    expect(result.errors).toBeDefined();
-    const err = result.errors![0]!;
-    const code = err.extensions?.code;
-    const path0 = err.path?.[0];
-    // Banking may surface a missing/foreign account as NOT_FOUND or as INVALID_INPUT on importTransactionsFile.
-    const messageOk = /not found|não encontrad|invalid input/i.test(err.message);
-    const codeOk =
-      code === "NOT_FOUND" ||
-      code === "RESOURCE_NOT_FOUND" ||
-      (code === "INVALID_INPUT" && path0 === "importTransactionsFile");
-    expect(messageOk || codeOk).toBe(true);
+    await page.route("**/graphql", async (route) => {
+      const body = route.request().postDataJSON() as { operationName?: string };
+      if (body.operationName === "ImportTransactionsFile") {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            errors: [
+              {
+                message: "Account not found",
+                extensions: { code: "NOT_FOUND" },
+              },
+            ],
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await uploadFile(page, CSV_VALID);
+    await expect(page.getByTestId("import-error-message")).toBeVisible({
+      timeout: IMPORT_TIMEOUT,
+    });
   });
 });

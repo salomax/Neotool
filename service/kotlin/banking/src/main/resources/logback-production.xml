@@ -61,8 +61,16 @@
     <appender-ref ref="LOKI" />
   </logger>
 
-  <!-- Reduce database logging in production -->
-  <logger name="org.hibernate.SQL" level="WARN" additivity="false">
+  <!-- SQL debug logging (override with SQL_LOG_LEVEL/BIND_LOG_LEVEL env vars) -->
+  <logger name="org.hibernate.SQL" level="${SQL_LOG_LEVEL:-DEBUG}" additivity="false">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="LOKI" />
+  </logger>
+  <logger name="org.hibernate.orm.jdbc.bind" level="${BIND_LOG_LEVEL:-TRACE}" additivity="false">
+    <appender-ref ref="STDOUT" />
+    <appender-ref ref="LOKI" />
+  </logger>
+  <logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="${BIND_LOG_LEVEL:-TRACE}" additivity="false">
     <appender-ref ref="STDOUT" />
     <appender-ref ref="LOKI" />
   </logger>
