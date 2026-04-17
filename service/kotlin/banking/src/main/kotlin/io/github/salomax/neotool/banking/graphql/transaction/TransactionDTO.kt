@@ -7,6 +7,7 @@ import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import java.time.Instant
 import java.time.LocalDate
@@ -77,6 +78,8 @@ data class AppliedRuleHistoryEntryDTO(
 data class TransactionDTO(
     val id: UUID,
     val financialAccountId: UUID,
+    /** Pre-loaded attachments from a batch fetch. Null means not pre-loaded; the field resolver will query. */
+    val attachments: List<TransactionAttachment>? = null,
     val belongsToUserId: UUID?,
     val belongsToName: String?,
     val creditDebitType: CreditDebitType,

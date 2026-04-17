@@ -6,6 +6,7 @@ import java.util.UUID
 
 interface TransactionAttachmentRepository {
     fun findByTransactionId(transactionId: UUID, accountId: UUID): List<TransactionAttachment>
+    fun findByTransactionIds(transactionIds: Collection<UUID>, accountId: UUID): Map<UUID, List<TransactionAttachment>>
     fun findById(id: UUID, accountId: UUID): TransactionAttachment?
     fun countByTransactionId(transactionId: UUID, accountId: UUID): Int
     fun save(attachment: TransactionAttachment): TransactionAttachment

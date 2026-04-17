@@ -14,6 +14,8 @@ import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQuerySe
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
+import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
@@ -60,6 +62,7 @@ class TransactionResolver(
     private val transactionCategoryRepository: TransactionCategoryRepository,
     private val accountPreferencesService: AccountPreferencesService,
     private val nfceDocumentRepository: NfceDocumentRepository,
+    private val transactionAttachmentRepository: TransactionAttachmentRepository,
 ) {
     private val logger = LoggerFactory.getLogger(TransactionResolver::class.java)
 
@@ -130,24 +133,28 @@ class TransactionResolver(
             )
         val listFinishedAt = System.nanoTime()
 
+        val transactionIds = connection.edges.mapNotNull { it.node.id }
         val categoryIds = connection.edges.mapNotNull { it.node.categoryId }.toSet()
         val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
         val categoriesFinishedAt = System.nanoTime()
         val merchantDTOs = buildMerchantDTOMap(connection.edges.mapNotNull { it.node.merchantId }.toSet())
         val merchantsFinishedAt = System.nanoTime()
-        val nfceLinkedTransactionIds =
-            nfceDocumentRepository.findLinkedTransactionIds(
-                accountId,
-                connection.edges.mapNotNull { it.node.id },
-            )
+        val nfceLinkedTransactionIds = nfceDocumentRepository.findLinkedTransactionIds(accountId, transactionIds)
         val nfceFinishedAt = System.nanoTime()
+        val attachmentsByTxId = transactionAttachmentRepository.findByTransactionIds(transactionIds, accountId)
+        val attachmentsFinishedAt = System.nanoTime()
 
         val edges =
             connection.edges.map { edge ->
                 val tx = edge.node
                 val category = categories[tx.categoryId]
                 val merchant = merchantDTOs[tx.merchantId]
-                val dto = tx.toDTO(category, merchant, nfceLinkedTransactionIds.contains(tx.id))
+                val dto = tx.toDTO(
+                    category,
+                    merchant,
+                    nfceLinkedTransactionIds.contains(tx.id),
+                    attachmentsByTxId[tx.id] ?: emptyList(),
+                )
                 TransactionEdgeDTO(
                     node = dto,
                     cursor = edge.cursor,
@@ -165,7 +172,7 @@ class TransactionResolver(
         val responseFinishedAt = System.nanoTime()
         if (logger.isDebugEnabled) {
             logger.debug(
-                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} nfceMs={} dtoMapMs={} responseMs={} totalMs={}",
+                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} nfceMs={} attachmentsMs={} dtoMapMs={} responseMs={} totalMs={}",
                 accountId,
                 connection.edges.size,
                 connection.totalCount,
@@ -173,7 +180,8 @@ class TransactionResolver(
                 nanosToMillis(categoriesFinishedAt - listFinishedAt),
                 nanosToMillis(merchantsFinishedAt - categoriesFinishedAt),
                 nanosToMillis(nfceFinishedAt - merchantsFinishedAt),
-                nanosToMillis(mappingFinishedAt - nfceFinishedAt),
+                nanosToMillis(attachmentsFinishedAt - nfceFinishedAt),
+                nanosToMillis(mappingFinishedAt - attachmentsFinishedAt),
                 nanosToMillis(responseFinishedAt - mappingFinishedAt),
                 nanosToMillis(responseFinishedAt - startedAt),
             )
@@ -435,25 +443,24 @@ class TransactionResolver(
         return transaction.toDTO(category, merchant, hasNfceDocument = false)
     }
 
-    /** Batch mapping for paginated lists (categories, merchants, NFC-e flags loaded once). */
+    /** Batch mapping for paginated lists (categories, merchants, NFC-e flags, attachments loaded once). */
     fun toTransactionDTOBatch(
         transactions: List<Transaction>,
         accountId: UUID,
     ): List<TransactionDTO> {
         if (transactions.isEmpty()) return emptyList()
+        val transactionIds = transactions.mapNotNull { it.id }
         val categoryIds = transactions.mapNotNull { it.categoryId }.toSet()
         val categories = service.findAccessibleCategoriesByIds(categoryIds, accountId)
         val merchantDTOs = buildMerchantDTOMap(transactions.mapNotNull { it.merchantId }.toSet())
-        val nfceLinked =
-            nfceDocumentRepository.findLinkedTransactionIds(
-                accountId,
-                transactions.mapNotNull { it.id },
-            )
+        val nfceLinked = nfceDocumentRepository.findLinkedTransactionIds(accountId, transactionIds)
+        val attachmentsByTxId = transactionAttachmentRepository.findByTransactionIds(transactionIds, accountId)
         return transactions.map { tx ->
             tx.toDTO(
                 categories[tx.categoryId],
                 merchantDTOs[tx.merchantId],
                 nfceLinked.contains(tx.id),
+                attachmentsByTxId[tx.id] ?: emptyList(),
             )
         }
     }
@@ -579,9 +586,11 @@ class TransactionResolver(
         category: TransactionCategory?,
         merchant: MerchantDTO?,
         hasNfceDocument: Boolean,
+        attachments: List<TransactionAttachment>? = null,
     ): TransactionDTO =
         TransactionDTO(
             id = id!!,
+            attachments = attachments,
             financialAccountId = financialAccountId,
             belongsToUserId = belongsToUserId,
             belongsToName = belongsToName,

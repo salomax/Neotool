@@ -1296,11 +1296,17 @@ class BankingWiringFactory(
                 type.dataFetcher(
                     "attachments",
                     createValidatedDataFetcher { env ->
+                        val transaction = env.getSource<TransactionDTO>()
+                            ?: return@createValidatedDataFetcher emptyList<Any>()
+                        // Fast path: attachments were pre-loaded in the batch list query.
+                        // The parent Transaction was already permission-checked — no redundant check here.
+                        val preloaded = transaction.attachments
+                        if (preloaded != null) {
+                            return@createValidatedDataFetcher attachmentResolver.mapAttachmentsToDTOs(preloaded)
+                        }
+                        // Fallback for single-transaction responses (mutations, individual fetches).
                         env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                            val transaction = env.getSource<TransactionDTO>()
-                            transaction?.id?.let {
-                                attachmentResolver.transactionAttachments(it.toString(), principal)
-                            } ?: emptyList<Any>()
+                            attachmentResolver.transactionAttachments(transaction.id.toString(), principal)
                         }
                     },
                 )
