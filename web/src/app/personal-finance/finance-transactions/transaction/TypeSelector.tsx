@@ -6,7 +6,7 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha } from '@mui/material';
-import { memo, type ReactNode } from 'react';
+import { memo, type HTMLAttributes, type ReactNode } from 'react';
 import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
 import type { Theme } from '@mui/material/styles';
 

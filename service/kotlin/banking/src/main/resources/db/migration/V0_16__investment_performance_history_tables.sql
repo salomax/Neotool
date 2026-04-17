@@ -21,7 +21,7 @@ CREATE TABLE banking.investment_portfolio_quota (
     financial_account_id    UUID NOT NULL
                                 REFERENCES banking.financial_accounts(id) ON DELETE RESTRICT,
     dimension_type          VARCHAR(20) NOT NULL
-                                CHECK (dimension_type IN ('PORTFOLIO', 'ASSET_GROUP')),
+                                CHECK (dimension_type IN ('PORTFOLIO', 'ASSET_GROUP', 'GRID_CLASS')),
     -- Empty string is the normalized storage form for PORTFOLIO rows.
     dimension_key           VARCHAR(50) NOT NULL DEFAULT '',
     quota_date              DATE NOT NULL,

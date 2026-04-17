@@ -92,7 +92,8 @@ CREATE TABLE banking.financial_account_card_data (
     closing_day             SMALLINT CHECK (closing_day BETWEEN 1 AND 31),
     due_day                 SMALLINT CHECK (due_day BETWEEN 1 AND 31),
     linked_bank_account_id  UUID NULL
-        REFERENCES banking.financial_accounts(id) ON DELETE SET NULL
+        REFERENCES banking.financial_accounts(id) ON DELETE SET NULL,
+    is_multi_card           BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 -- ─── Credit card bills (faturas) ─────────────────────────────────────────────
@@ -140,4 +141,10 @@ CREATE INDEX idx_credit_card_bills_account_id
 
 CREATE INDEX idx_credit_card_bills_account_status
     ON banking.credit_card_bills(account_id, status)
+    WHERE deleted_at IS NULL;
+
+-- Speeds up the installment-with-bill branch: allows range scans on due_date
+-- after joining credit_card_bills to installment transactions.
+CREATE INDEX idx_credit_card_bills_due_date_active
+    ON banking.credit_card_bills(financial_account_id, due_date)
     WHERE deleted_at IS NULL;

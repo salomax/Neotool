@@ -499,6 +499,13 @@ export function BillImportDrawer({ open, onClose, onImportCompleted }: BillImpor
               }}
               onAssignmentLastFourChange={cardMatching.setAssignmentLastFour}
               onSetFlatTxSelections={cardMatching.setFlatTxSelections}
+              onResetDraftCards={() => {
+                cardMatching.setDraftCards([]);
+                cardMatching.setFlatTxAssignments({});
+                cardMatching.setFlatTxSelections({});
+                cardMatching.setFlatTxInclusions({});
+              }}
+              onContinue={() => setStep('tx-review')}
             />
           );
         }

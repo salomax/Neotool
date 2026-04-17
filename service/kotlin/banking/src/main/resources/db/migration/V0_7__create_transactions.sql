@@ -149,6 +149,18 @@ CREATE INDEX idx_transactions_import_fingerprint_active
     WHERE import_fingerprint IS NOT NULL
       AND deleted_at IS NULL;
 
+CREATE INDEX idx_transactions_import_job_active
+    ON banking.transactions(import_job_id)
+    WHERE import_job_id IS NOT NULL
+      AND deleted_at IS NULL;
+
+-- Speeds up the installment branch of period queries: filters to only installment rows
+-- (installment_number > 1) without scanning all transactions for a financial account.
+CREATE INDEX idx_transactions_installments_active
+    ON banking.transactions(financial_account_id, status)
+    WHERE installment_number > 1
+      AND deleted_at IS NULL;
+
 CREATE INDEX idx_transactions_merchant_id
     ON banking.transactions(merchant_id)
     WHERE merchant_id IS NOT NULL AND deleted_at IS NULL;

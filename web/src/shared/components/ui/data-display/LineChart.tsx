@@ -326,6 +326,9 @@ interface CustomTooltipProps {
   locale: string;
   xTickFormatter?: (value: any) => string;
   tooltipFormatter: (value: any, name: any, tooltipProps: any) => [string, string];
+  eventMarkers?: readonly LineChartEventMarker[];
+  xIsDate?: boolean;
+  xContinuous?: boolean;
 }
 
 const CustomTooltip: React.FC<CustomTooltipProps> = ({
@@ -339,6 +342,9 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
   locale,
   xTickFormatter,
   tooltipFormatter,
+  eventMarkers,
+  xIsDate,
+  xContinuous,
 }) => {
   const { byId, byDataKey, byName } = React.useMemo(() => {
     const byIdMap = new Map<string, LineChartSeries>();
@@ -393,6 +399,52 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
       .sort((a, b) => (order.get(a[0]) ?? 999) - (order.get(b[0]) ?? 999))
       .map(([, { entry }]) => entry);
   }, [safePayload, series]);
+
+  const eventGroups = React.useMemo(() => {
+    if (!eventMarkers || eventMarkers.length === 0) return [];
+    if (label == null) return [];
+
+    const byExact = new Map<string, LineChartEventMarker>();
+    const byMonth = new Map<string, LineChartEventMarker[]>();
+
+    const monthKeyFromTs = (ts: number): string => {
+      const d = new Date(ts);
+      const y = d.getUTCFullYear();
+      const m = String(d.getUTCMonth() + 1).padStart(2, "0");
+      return `${y}-${m}`;
+    };
+
+    for (const m of eventMarkers) {
+      const key = m?.xValue == null ? "" : String(m.xValue);
+      if (key) byExact.set(key, m);
+      if (typeof m.xValue === "number" && Number.isFinite(m.xValue)) {
+        const mk = monthKeyFromTs(m.xValue);
+        const arr = byMonth.get(mk);
+        if (arr) arr.push(m);
+        else byMonth.set(mk, [m]);
+      }
+    }
+
+    const exact = byExact.get(String(label));
+    if (exact) {
+      return [{ label: exact.label, items: exact.items }];
+    }
+
+    if (xIsDate && xContinuous && typeof label === "number" && Number.isFinite(label)) {
+      const mk = monthKeyFromTs(label);
+      const markers = byMonth.get(mk);
+      if (!markers || markers.length === 0) return [];
+      const sorted = [...markers].sort((a, b) => {
+        const av = typeof a.xValue === "number" ? a.xValue : Number.NaN;
+        const bv = typeof b.xValue === "number" ? b.xValue : Number.NaN;
+        if (Number.isFinite(av) && Number.isFinite(bv)) return av - bv;
+        return String(a.xValue).localeCompare(String(b.xValue));
+      });
+      return sorted.map((m) => ({ label: m.label, items: m.items }));
+    }
+
+    return [];
+  }, [eventMarkers, label, xContinuous, xIsDate]);
 
   if (!active || safePayload.length === 0) return null;
 
@@ -474,6 +526,34 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         );
       })}
 
+      {eventGroups.length > 0 ? (
+        <Box sx={{ mt: 1 }}>
+          {eventGroups.map((group, idx) => {
+            const showGroupLabel = eventGroups.length > 1 && String(group.label) !== String(formattedLabel);
+            return (
+              <Box key={`${group.label}-${idx}`} sx={{ mt: idx === 0 ? 0 : 1 }}>
+                {showGroupLabel ? (
+                  <Label component="div" sx={{ mb: 0.5 }}>
+                    {group.label}
+                  </Label>
+                ) : null}
+                {group.items.map((it) => (
+                  <Box key={it.id} sx={{ mt: 0.5, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                      {it.primary}
+                    </Typography>
+                    {it.secondary ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>
+                        {it.secondary}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                ))}
+              </Box>
+            );
+          })}
+        </Box>
+      ) : null}
     </Box>
   );
 };
@@ -527,14 +607,12 @@ const MemoCustomLegend = React.memo(CustomLegend);
 interface EventMarkersLayerProps {
   markers: readonly LineChartEventMarker[];
   plotBottomOffset?: number;
-  onHoverChange: (next: { marker: LineChartEventMarker; x: number; y: number } | null) => void;
 }
 
-function EventMarkersLayer({ markers, plotBottomOffset = 14, onHoverChange }: EventMarkersLayerProps) {
+function EventMarkersLayer({ markers, plotBottomOffset = 14 }: EventMarkersLayerProps) {
   const theme = useTheme();
   const xScale = useXAxisScale(0);
   const plotArea = usePlotArea();
-  const clearHover = React.useCallback(() => onHoverChange(null), [onHoverChange]);
 
   if (!xScale || !plotArea) return null;
   if (!markers || markers.length === 0) return null;
@@ -559,18 +637,6 @@ function EventMarkersLayer({ markers, plotBottomOffset = 14, onHoverChange }: Ev
         return (
           <g
             key={m.id}
-            onMouseEnter={(evt) => {
-              evt.stopPropagation();
-              onHoverChange({ marker: m, x: xPixel, y: yPixel });
-            }}
-            onMouseMove={(evt) => {
-              evt.stopPropagation();
-              onHoverChange({ marker: m, x: xPixel, y: yPixel });
-            }}
-            onMouseLeave={(evt) => {
-              evt.stopPropagation();
-              clearHover();
-            }}
             onClick={(evt) => {
               evt.stopPropagation();
               m.onClick?.();
@@ -645,11 +711,6 @@ export const LineChart: React.FC<LineChartProps> = ({
   isAnimationActive = true,
 }) => {
   const theme = useTheme();
-  const [eventMarkerHover, setEventMarkerHover] = React.useState<{
-    marker: LineChartEventMarker;
-    x: number;
-    y: number;
-  } | null>(null);
 
   const locale = React.useMemo(() => {
     if (localeProp) return localeProp;
@@ -958,8 +1019,6 @@ export const LineChart: React.FC<LineChartProps> = ({
   const axisPadding = { top: 16, bottom: 12 };
   const projectionStroke = theme.palette.text.disabled;
   const projectionLabelFill = theme.palette.getContrastText(projectionStroke);
-  const borderColor = (theme as any).custom?.palette?.inputBorder ?? theme.palette.divider;
-  const radius = (theme as any).custom?.radius?.md ?? theme.shape.borderRadius;
 
   return (
     <Box sx={{ p: 2, ...sx }}>
@@ -974,46 +1033,8 @@ export const LineChart: React.FC<LineChartProps> = ({
             minHeight: 0,
             flex: 1,
             height: xLabel && showXAxisTitle ? "calc(100% - 20px)" : "100%",
-            position: "relative",
           }}
         >
-          {eventMarkerHover ? (
-            <Box
-              sx={{
-                position: "absolute",
-                left: eventMarkerHover.x,
-                top: eventMarkerHover.y,
-                transform: "translate(-50%, calc(-100% - 10px))",
-                zIndex: 10,
-                pointerEvents: "none",
-              }}
-            >
-              <Box
-                sx={{
-                  bgcolor: theme.palette.background.paper,
-                  border: `1px solid ${borderColor}`,
-                  borderRadius: `${radius}px`,
-                  boxShadow: theme.shadows[2],
-                  p: 1.5,
-                  maxWidth: 320,
-                }}
-              >
-                <Label sx={{ mb: 0 }}>{eventMarkerHover.marker.label}</Label>
-                {eventMarkerHover.marker.items.map((it) => (
-                  <Box key={it.id} sx={{ mt: 0.75, minWidth: 0 }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                      {it.primary}
-                    </Typography>
-                    {it.secondary ? (
-                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>
-                        {it.secondary}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          ) : null}
           <ResponsiveContainer width="100%" height="100%">
             <RechartsComposedChart
               data={transformedData}
@@ -1159,6 +1180,9 @@ export const LineChart: React.FC<LineChartProps> = ({
                     locale={locale}
                     xTickFormatter={xTickFormatter}
                     tooltipFormatter={tooltipFormatter}
+                    eventMarkers={eventMarkers}
+                    xIsDate={xIsDate}
+                    xContinuous={xContinuous}
                   />
                 }
               />
@@ -1288,7 +1312,7 @@ export const LineChart: React.FC<LineChartProps> = ({
               />
             )}
             {eventMarkers && eventMarkers.length > 0 ? (
-              <MemoEventMarkersLayer markers={eventMarkers} onHoverChange={setEventMarkerHover} />
+              <MemoEventMarkersLayer markers={eventMarkers} />
             ) : null}
             </RechartsComposedChart>
           </ResponsiveContainer>
