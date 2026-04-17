@@ -31,6 +31,7 @@ import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FinancialAccount, Issuer } from '@/lib/graphql/types/__generated__/graphql';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../constants/dateWindow';
+import { formatDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { FormStack } from '@/shared/components/ui/forms/components';
 
@@ -521,7 +522,7 @@ export function CreateFinancialAccountDrawer({
 
     if (data.initialBalance !== undefined) {
       input.initialBalance = data.initialBalance;
-      input.initialBalanceDate = data.initialBalanceDate ? dayjs(data.initialBalanceDate).format('YYYY-MM-DD') : undefined;
+      input.initialBalanceDate = data.initialBalanceDate ? formatDateOnly(data.initialBalanceDate) : undefined;
     }
 
     if (data.type === 'BANK') {
@@ -661,7 +662,7 @@ export function CreateFinancialAccountDrawer({
                   name="initialBalanceDate"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
-                  maxDate={new Date()}
+                  maxDate={toStartOfDayLocal(new Date())}
                   data-testid="initial-balance-date-input"
                   pickerSlotProps={{ textField: { size: 'medium' } }}
                 />

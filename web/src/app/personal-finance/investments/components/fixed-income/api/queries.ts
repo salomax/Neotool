@@ -12,6 +12,7 @@ export const FIXED_INCOME_HOLDING_DETAIL = gql`
       netValue
       incomeTax
       iof
+      accruedInterest
       valuationSource
       valuationReferenceDate
       lastValuedAt
@@ -23,6 +24,24 @@ export const FIXED_INCOME_HOLDING_DETAIL = gql`
       indexer
       indexerPercentage
       fixedAnnualRate
+      couponFrequency
+      couponDayOfMonth
+      couponSchedule {
+        seriesNumber
+        scheduledDate
+        periodStart
+        periodEnd
+        isPartialPeriod
+        isPast
+        matchedTransaction {
+          id
+          tradeDate
+          grossValue
+          netValue
+          incomeTax
+          iof
+        }
+      }
       source
       financialAccount {
         id

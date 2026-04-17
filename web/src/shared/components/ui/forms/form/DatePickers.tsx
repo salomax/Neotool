@@ -16,6 +16,7 @@ import {
   mergeAppDatePickerSlotProps,
 } from "./appDatePickerConfig";
 import { TextField, type TextFieldProps } from "./TextField";
+import { toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 
 /** Same outlined input as `MoneyInput` / `FormTextField` (PickersTextField is a few px taller). */
 const DATE_PICKER_TEXT_FIELD_SLOTS = { textField: TextField } as const;
@@ -180,7 +181,7 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
         }
 
         if (!context.validationError) {
-          field.onChange((v as Dayjs).toDate());
+          field.onChange(toStartOfDayLocal((v as Dayjs).toDate()));
         }
       }}
       onError={setPickerError}
@@ -351,7 +352,9 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
-              onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
+              onChange={(v: Dayjs | null) =>
+                field.onChange(v ? toStartOfDayLocal(v.toDate()) : null)
+              }
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
                 textField: {
@@ -374,7 +377,9 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
               format={dateFormat}
               views={[...APP_DATE_PICKER_VIEWS]}
               value={field.value ? dayjs(field.value) : null}
-              onChange={(v: Dayjs | null) => field.onChange(v ? v.toDate() : null)}
+              onChange={(v: Dayjs | null) =>
+                field.onChange(v ? toStartOfDayLocal(v.toDate()) : null)
+              }
               slotProps={{
                 ...mergeAppDatePickerSlotProps(),
                 textField: {

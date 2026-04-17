@@ -32,7 +32,7 @@
     "rateModelCdi": "% CDI",
     "rateModelFixed": "PRÉ-FIXADO",
     "rateModelIpca": "IPCA + %",
-    "contractedRate": "Taxa do Título (%)",
+    "contractedRate": "Taxa contratada (%)",
     "startDate": "Data Início",
     "endDate": "Vencimento",
     "marketProjections": "Projeções de Mercado",

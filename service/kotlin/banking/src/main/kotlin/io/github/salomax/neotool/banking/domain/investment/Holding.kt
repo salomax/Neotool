@@ -45,6 +45,9 @@ data class Holding(
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,
     val isTaxExempt: Boolean = false,           // LCI, LCA, CRI, CRA are exempt for PF
+    val couponFrequency: CouponFrequency? = null,
+    /** Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro (BR-P2-5). */
+    val couponDayOfMonth: Int? = null,
 
     // ── Provider-cached valuations ────────────────────────────────────────────
     // Updated on Open Finance sync. Null until first sync.

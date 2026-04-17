@@ -90,7 +90,7 @@ export function buildChartSeriesByClass(
 ): Record<InvestmentGridClassKey, TimeSeriesDataPoint[]> {
   return {
     cash: twrOrLegacySeries(gridData?.twrCash, [gridData?.perfCash]),
-    "fixed-income": twrOrLegacySeries(gridData?.twrFixedIncome, [gridData?.perfBankFixedIncome, gridData?.perfCreditFixedIncome]),
+    "fixed-income": twrOrLegacySeries(gridData?.twrFixedIncome, [gridData?.perfFixedIncome]),
     funds: twrOrLegacySeries(gridData?.twrFunds, [gridData?.perfMutualFunds, gridData?.perfPension]),
     stocks: twrOrLegacySeries(gridData?.twrStocks, [gridData?.perfStocks]),
     reits: twrOrLegacySeries(gridData?.twrReits, [gridData?.perfReits]),

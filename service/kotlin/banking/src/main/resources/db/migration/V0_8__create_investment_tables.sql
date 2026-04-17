@@ -159,6 +159,12 @@ CREATE TABLE banking.investment_holdings (
     -- is_tax_exempt: true for LCI/LCA/CRI/CRA for individuals (isentos de IR).
     is_tax_exempt        BOOLEAN NOT NULL DEFAULT false,
 
+    -- coupon_frequency: interim coupon cadence; NULL = AT_MATURITY (bullet).
+    coupon_frequency     VARCHAR(15) NULL,
+    -- coupon_day_of_month: calendar day (1–31) for private-credit settlement; NULL for AT_MATURITY and Tesouro.
+    coupon_day_of_month  SMALLINT NULL
+                             CONSTRAINT chk_coupon_day_of_month CHECK (coupon_day_of_month IS NULL OR coupon_day_of_month BETWEEN 1 AND 31),
+
     -- ── Provider-cached valuations ────────────────────────────────────────────
     -- Populated on Open Finance sync. Null for manual-entry holdings until synced.
     -- gross_value  = quantity × current gross unit price (before taxes).
@@ -191,6 +197,11 @@ CREATE TABLE banking.investment_holdings (
 
     -- Uniqueness is enforced with partial unique indexes (active rows only).
 );
+
+COMMENT ON COLUMN banking.investment_holdings.coupon_frequency IS
+    'Coupon payment frequency. NULL is equivalent to AT_MATURITY (bullet bond).';
+COMMENT ON COLUMN banking.investment_holdings.coupon_day_of_month IS
+    'Day of month (1–31) on which coupon cash settles. NULL for AT_MATURITY and Tesouro Direto (system calendar).';
 
 -- Primary query: all holdings for an account
 CREATE INDEX idx_holdings_account

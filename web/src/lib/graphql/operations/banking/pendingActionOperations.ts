@@ -26,11 +26,17 @@ export const GET_PENDING_ACTIONS = gql`
       relatedHolding {
         id
         financialAccountId
+        quantity
+        averageCost
+        couponFrequency
+        issueDate
         maturityDate
+        isTaxExempt
         grossValue
         netValue
         incomeTax
         iof
+        accruedInterest
         asset {
           id
           name
@@ -52,6 +58,31 @@ export const CONFIRM_HOLDING_MATURITY = gql`
         id
         type
         grossValue
+        tradeDate
+      }
+      bankingTransaction {
+        id
+        amount
+        date
+        type
+      }
+      pendingAction {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const CONFIRM_COUPON_PAYMENT = gql`
+  mutation ConfirmCouponPayment($input: ConfirmCouponPaymentInput!) {
+    confirmCouponPayment(input: $input) {
+      couponTransaction {
+        id
+        type
+        grossValue
+        netValue
+        incomeTax
         tradeDate
       }
       bankingTransaction {

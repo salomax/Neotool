@@ -163,6 +163,7 @@ class InvestmentTransactionServiceTest {
             transactionCategoryEntityRepository,
             portfolioFlowEventService,
             holdingAttachmentRepository,
+            CouponScheduleService(),
         )
 
         // Default stubs used by most tests

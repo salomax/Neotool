@@ -214,7 +214,12 @@
     "pendingActions": {
       "panelTitle": "Ações pendentes",
       "registerMaturity": "Registrar vencimento",
+      "registerCoupon": "Registrar cupom",
       "markSeen": "Marcar como visto",
+      "couponDrawer": {
+        "irRateHint": "Alíquota estimada: {{rate}} (tabela regressiva)",
+        "taxExempt": "Isento de IR"
+      },
       "emptyTitle": "Nenhuma ação pendente",
       "emptyDescription": "Tudo em dia.",
       "informational": "Informativo",
@@ -244,6 +249,7 @@
         "bankAccount": "Conta bancária",
         "missingHoldingAccount": "Conta do investimento não encontrada.",
         "creditDestination": "Destino do crédito",
+        "values": "Valores",
         "creditDate": "Data do crédito",
         "amountMustBePositive": "O valor precisa ser maior que zero.",
         "submitClose": "Encerrar",
@@ -413,6 +419,8 @@
         "netTotal": "Total Líquido",
         "grossEarnings": "Rendimento Bruto",
         "totalReturn": "Rendimento Bruto",
+        "totalGain": "Ganho total",
+        "couponsReceivedNet": "Cupons recebidos (líq.)",
         "dividendsReceived": "Proventos",
         "incomeTax": "IR",
         "iof": "IOF",
@@ -440,6 +448,7 @@
         "principalLabel": "Principal investido",
         "grossLabel": "Valor bruto",
         "netLabel": "Valor líquido",
+        "couponTotalWealthNote": "Para títulos com cupom, este gráfico mostra posição + cupons líquidos já recebidos.",
         "period": {
           "1M": "1M",
           "3M": "3M",
@@ -480,11 +489,31 @@
         "title": "Linha do tempo",
         "emptyTitle": "Sem movimentações",
         "emptyDescription": "Nenhum evento foi encontrado para esta posição.",
+        "inflowLabel": "Entrada",
+        "outflowLabel": "Saída",
         "tradeDate": "Data: {{date}}",
         "settlementDate": "Liquidação: {{date}}",
         "netAmount": "Líquido: {{value}}",
         "incomeTax": "IR: {{value}}",
         "iof": "IOF: {{value}}"
+      },
+      "couponSchedule": {
+        "sectionTitle": "Pagamento de Juros (Cupom)",
+        "statusPaid": "Pago",
+        "statusExpected": "Previsto",
+        "statusOverdue": "Pendente",
+        "showHistory": "Ver histórico ({{count}})",
+        "hideHistory": "Ocultar histórico",
+        "register": "Registrar",
+        "showMore": "Mostrar mais",
+        "showLess": "Mostrar menos",
+        "updateSuccess": "Pagamento de cupom atualizado",
+        "deleteSuccess": "Pagamento de cupom removido",
+        "deleteConfirmation": {
+          "title": "Remover pagamento de cupom?",
+          "message": "Esta ação não pode ser desfeita."
+        },
+        "showAll": "Ver todos"
       },
       "transactionTypes": {
         "AMORTIZATION": "Amortização",
@@ -617,7 +646,16 @@
         "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
         "maturityDate": "Data de vencimento",
+        "couponFrequency": "Pagamento de Juros",
+        "couponDayOfMonth": "Dia do pagamento de juros",
         "isTaxExempt": "Isento de IR (LCI, LCA, CRI, CRA)"
+      },
+      "couponFrequencyOptions": {
+        "AT_MATURITY": "No vencimento",
+        "MONTHLY": "Mensal",
+        "QUARTERLY": "Trimestral",
+        "SEMI_ANNUAL": "Semestral",
+        "ANNUAL": "Anual"
       },
       "values": {
         "unitPriceInfo": "Valor por unidade: {{unitPrice}}"
@@ -658,7 +696,9 @@
         "tradeDateNotInFuture": "Data da aplicação não pode ser futura",
         "maturityDateRequired": "Data de vencimento é obrigatória",
         "maturityAfterTrade": "Vencimento deve ser após a data da aplicação",
-        "maturityDateTooFar": "Data de vencimento deve estar dentro dos próximos {{years}} anos"
+        "maturityDateTooFar": "Data de vencimento deve estar dentro dos próximos {{years}} anos",
+        "couponDayOfMonthRange": "Dia do pagamento deve ser entre 1 e 31",
+        "couponDayOfMonthRequired": "Informe o dia do mês do pagamento de juros"
       },
       "actions": {
         "submit": "Salvar",

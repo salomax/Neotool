@@ -22,6 +22,7 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import {
   AssetType,
+  CouponFrequency,
   Indexer,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
@@ -32,6 +33,7 @@ import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
+import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
@@ -54,10 +56,12 @@ interface RecordFixedIncomeDrawerProps {
       issuerName: string | null;
     };
     indexer: Indexer | null;
+    couponDayOfMonth: number | null;
     indexerPercentage: number | null;
     fixedAnnualRate: number | null;
     maturityDate: unknown | null;
     isTaxExempt: boolean;
+    couponFrequency: CouponFrequency | null;
   } | null;
   editTransaction?: InvestmentTransaction | null;
 }
@@ -89,6 +93,7 @@ const FIXED_INCOME_INDEXERS: readonly Indexer[] = [
 const TAX_EXEMPT_ASSET_TYPES: readonly AssetType[] = [AssetType.Lci, AssetType.Lca, AssetType.Cri, AssetType.Cra] as const;
 
 type RecordFixedIncomeFormData = {
+  couponDayOfMonth?: number;
   assetName: string;
   assetType?: AssetType;
   issuerName: string;
@@ -100,6 +105,7 @@ type RecordFixedIncomeFormData = {
   tradeDate?: Date;
   maturityDate?: Date;
   isTaxExempt: boolean;
+  couponFrequency: CouponFrequency;
 };
 
 type UpdateInvestmentAssetMutationData = { updateInvestmentAsset: { id: string } };
@@ -124,6 +130,8 @@ type UpdateInvestmentTransactionMutationVars = {
     issueDate: string;
     maturityDate: string;
     isTaxExempt: boolean;
+    couponFrequency?: CouponFrequency | null;
+    couponDayOfMonth?: number | null;
   };
 };
 
@@ -266,8 +274,22 @@ export function RecordFixedIncomeDrawer({
             }),
           ),
           isTaxExempt: z.boolean().default(false),
+          couponDayOfMonth: z
+            .number()
+            .int()
+            .min(1, t("investments.recordHolding.validation.couponDayOfMonthRange"))
+            .max(31, t("investments.recordHolding.validation.couponDayOfMonthRange"))
+            .optional(),
+          couponFrequency: z.nativeEnum(CouponFrequency).default(CouponFrequency.AtMaturity),
         })
         .superRefine((data, ctx) => {
+          if (data.couponFrequency !== CouponFrequency.AtMaturity && !data.couponDayOfMonth) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: t("investments.recordHolding.validation.couponDayOfMonthRequired"),
+              path: ["couponDayOfMonth"],
+            });
+          }
           if (!FIXED_INCOME_ASSET_TYPES.includes(data.assetType)) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -349,6 +371,8 @@ export function RecordFixedIncomeDrawer({
       tradeDate: undefined,
       maturityDate: undefined,
       isTaxExempt: false,
+      couponFrequency: CouponFrequency.AtMaturity,
+      couponDayOfMonth: undefined,
     },
   });
 
@@ -359,7 +383,9 @@ export function RecordFixedIncomeDrawer({
   const watchedTradeDate = useWatch({ control: methods.control, name: "tradeDate" });
   const watchedQuantity = useWatch({ control: methods.control, name: "quantity" });
   const watchedGrossValue = useWatch({ control: methods.control, name: "grossValue" });
+  const watchedCouponFrequency = useWatch({ control: methods.control, name: "couponFrequency" });
   const isTreasury = watchedAssetType === AssetType.Treasury;
+  const isAtMaturity = watchedCouponFrequency === CouponFrequency.AtMaturity;
   const isPreFixed = watchedIndexer === Indexer.PreFixado;
   const isEdit = Boolean(editHolding && editTransaction);
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
@@ -376,13 +402,6 @@ export function RecordFixedIncomeDrawer({
     if (watchedQuantity <= 1) return null;
     return watchedGrossValue / watchedQuantity;
   }, [watchedGrossValue, watchedQuantity]);
-
-  const toDateValue = React.useCallback((value: unknown) => {
-    if (!value) return undefined;
-    if (value instanceof Date) return value;
-    const d = new Date(String(value));
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -465,12 +484,35 @@ export function RecordFixedIncomeDrawer({
     [t],
   );
 
+  const handleCouponFrequencyChange = (value: CouponFrequency | null) => {
+    setValue("couponFrequency", value ?? CouponFrequency.AtMaturity, { shouldDirty: true, shouldValidate: true });
+    if (value && value !== CouponFrequency.AtMaturity) {
+      const current = methods.getValues("couponDayOfMonth");
+      if (!current) {
+        setValue("couponDayOfMonth", 15, { shouldDirty: true, shouldValidate: true });
+      }
+    } else {
+      setValue("couponDayOfMonth", undefined, { shouldDirty: true, shouldValidate: true });
+    }
+  };
+
+  const couponFrequencyOptions = React.useMemo(
+    () => [
+      { value: CouponFrequency.AtMaturity, label: t("investments.recordHolding.couponFrequencyOptions.AT_MATURITY") },
+      { value: CouponFrequency.Monthly, label: t("investments.recordHolding.couponFrequencyOptions.MONTHLY") },
+      { value: CouponFrequency.Quarterly, label: t("investments.recordHolding.couponFrequencyOptions.QUARTERLY") },
+      { value: CouponFrequency.SemiAnnual, label: t("investments.recordHolding.couponFrequencyOptions.SEMI_ANNUAL") },
+      { value: CouponFrequency.Annual, label: t("investments.recordHolding.couponFrequencyOptions.ANNUAL") },
+    ],
+    [t],
+  );
+
   const onSubmit = async (data: RecordFixedIncomeFormData) => {
     if (!resolvedFinancialAccountId) return;
     if (!data.tradeDate || !data.maturityDate) return;
 
-    const tradeDate = dayjs(data.tradeDate).format("YYYY-MM-DD");
-    const maturityDate = dayjs(data.maturityDate).format("YYYY-MM-DD");
+    const tradeDate = formatDateOnly(data.tradeDate);
+    const maturityDate = formatDateOnly(data.maturityDate);
 
     const quantity = typeof data.quantity === "number" && Number.isFinite(data.quantity) && data.quantity >= 0 ? data.quantity : 1;
     const unitPrice = quantity > 0 ? data.grossValue / quantity : data.grossValue;
@@ -488,6 +530,8 @@ export function RecordFixedIncomeDrawer({
       issueDate: tradeDate,
       maturityDate,
       isTaxExempt: data.isTaxExempt,
+      couponFrequency: data.couponFrequency,
+      couponDayOfMonth: data.couponFrequency === CouponFrequency.AtMaturity ? undefined : data.couponDayOfMonth ?? 15,
     };
 
     const assetId = isEdit ? editHolding!.asset.id : null;
@@ -579,13 +623,21 @@ export function RecordFixedIncomeDrawer({
           editHolding!.fixedAnnualRate != null && Number.isFinite(editHolding!.fixedAnnualRate) ? editHolding!.fixedAnnualRate * 100 : undefined,
         quantity: editTransaction!.quantity ?? 1,
         grossValue: editTransaction!.grossValue,
-        tradeDate: toDateValue(editTransaction!.tradeDate),
-        maturityDate: toDateValue(editHolding!.maturityDate),
+        tradeDate:
+          parseDateOnly(
+            editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
+          ) ?? undefined,
+        maturityDate:
+          parseDateOnly(
+            editHolding!.maturityDate != null ? String(editHolding!.maturityDate) : null,
+          ) ?? undefined,
+        couponDayOfMonth: editHolding!.couponDayOfMonth ?? undefined,
         isTaxExempt: editHolding!.isTaxExempt ?? false,
+        couponFrequency: editHolding!.couponFrequency ?? CouponFrequency.AtMaturity,
       },
       { keepDirty: false },
     );
-  }, [editHolding, editTransaction, isEdit, open, reset, toDateValue]);
+  }, [editHolding, editTransaction, isEdit, open, reset]);
 
   return (
     <InvestmentRecordDrawer
@@ -652,6 +704,7 @@ export function RecordFixedIncomeDrawer({
                     label={t("investments.recordHolding.fields.grossValue")}
                     currency="BRL"
                     data-testid="record-gross-value"
+                    size="medium"
                   />
                 </Box>
               </FormRowStack>
@@ -735,6 +788,32 @@ export function RecordFixedIncomeDrawer({
                     minDate={watchedTradeDate}
                     maxDate={maxMaturityDate.toDate()}
                     data-testid="record-maturity-date"
+                  />
+                </Box>
+              </FormRowStack>
+
+              <FormRowStack alignItems="flex-start">
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <SelectField
+                    name="couponFrequency"
+                    label={t("investments.recordHolding.fields.couponFrequency")}
+                    options={couponFrequencyOptions}
+                    data-testid="record-coupon-frequency"
+                    size="medium"
+                    onChange={handleCouponFrequencyChange}
+                  />
+                </Box>
+
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <NumberField
+                    name="couponDayOfMonth"
+                    label={t("investments.recordHolding.fields.couponDayOfMonth")}
+                    fullWidth
+                    size="medium"
+                    min={1}
+                    max={31}
+                    disabled={isAtMaturity || isTreasury}
+                    data-testid="record-coupon-day-of-month"
                   />
                 </Box>
               </FormRowStack>

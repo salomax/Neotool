@@ -41,6 +41,7 @@ class FixedIncomeValuationService(
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>> = emptyMap(),
         asOfDate: LocalDate = clock(),
         allowRateProjectionPastSeries: Boolean = false,
+        transactions: List<InvestmentTransaction> = emptyList(),
     ): HoldingValuationResult {
         if (holding.quantity <= BigDecimal.ZERO || holding.averageCost <= BigDecimal.ZERO) {
             logger.debug { "Holding ${holding.id}: quantity or averageCost <= 0 → UNAVAILABLE" }
@@ -55,6 +56,7 @@ class FixedIncomeValuationService(
             logger.debug { "Holding ${holding.id}: issueDate is null → UNAVAILABLE (set issueDate or record with tradeDate so it defaults)" }
             return unavailable()
         }
+        val accrualContext = resolveAccrualContext(holding, issueDate, asOfDate, transactions)
 
         val today = asOfDate
         val endDate =
@@ -62,8 +64,8 @@ class FixedIncomeValuationService(
                 if (today.isAfter(maturity)) maturity else today
             } ?: today
 
-        if (!endDate.isAfter(issueDate)) {
-            val principal = principal(holding)
+        if (!endDate.isAfter(accrualContext.accrualStart)) {
+            val principal = accrualContext.principal
             return HoldingValuationResult(
                 grossValue = principal,
                 incomeTax = BigDecimal.ZERO,
@@ -74,9 +76,9 @@ class FixedIncomeValuationService(
             )
         }
 
-        val calendarDays = calendarDaysBetween(issueDate, endDate)
-        val businessDays = businessDaysBetween(issueDate, endDate)
-        val principal = principal(holding)
+        val calendarDays = calendarDaysBetween(accrualContext.accrualStart, endDate)
+        val businessDays = businessDaysBetween(accrualContext.accrualStart, endDate)
+        val principal = accrualContext.principal
 
         val grossValue =
             when (indexer) {
@@ -113,7 +115,7 @@ class FixedIncomeValuationService(
                                 principal = principal,
                                 monthlySeries = historicalSeries,
                                 indexerPercentage = indexerPct,
-                                startDate = issueDate,
+                                startDate = accrualContext.accrualStart,
                                 endDate = historicalCoverageEnd,
                             )
                         if (historicalGross != null) {
@@ -172,14 +174,14 @@ class FixedIncomeValuationService(
                                     principal = principal,
                                     monthlySeries = series,
                                     indexerPercentage = BigDecimal.ONE,
-                                    startDate = issueDate,
+                                    startDate = accrualContext.accrualStart,
                                     endDate = historicalCoverageEnd,
                                 )
                             } else {
                                 principal.multiply(
                                     fullMonthFactor(
                                         series = series,
-                                        issueDate = issueDate,
+                                        issueDate = accrualContext.accrualStart,
                                         endDate = historicalCoverageEnd,
                                     ),
                                     mathContext,
@@ -284,6 +286,46 @@ class FixedIncomeValuationService(
 
     private fun principal(holding: Holding): BigDecimal =
         holding.quantity.multiply(holding.averageCost, mathContext)
+
+    private data class AccrualContext(
+        val accrualStart: LocalDate,
+        val principal: BigDecimal,
+    )
+
+    private fun resolveAccrualContext(
+        holding: Holding,
+        issueDate: LocalDate,
+        asOfDate: LocalDate,
+        transactions: List<InvestmentTransaction>,
+    ): AccrualContext {
+        val couponFrequency = holding.couponFrequency
+        val basePrincipal = principal(holding)
+        if (couponFrequency == null || couponFrequency == CouponFrequency.AT_MATURITY) {
+            return AccrualContext(
+                accrualStart = issueDate,
+                principal = basePrincipal,
+            )
+        }
+
+        val lastInterestPayment =
+            transactions
+                .asSequence()
+                .filter { tx -> tx.type == InvestmentTransactionType.INTEREST_PAYMENT }
+                .filter { tx -> !tx.tradeDate.isAfter(asOfDate) }
+                .maxByOrNull { tx -> tx.tradeDate }
+
+        return if (lastInterestPayment != null) {
+            AccrualContext(
+                accrualStart = lastInterestPayment.tradeDate,
+                principal = basePrincipal,
+            )
+        } else {
+            AccrualContext(
+                accrualStart = issueDate,
+                principal = basePrincipal,
+            )
+        }
+    }
 
     private fun valuationSourceFor(indexer: Indexer): ValuationSource =
         when (indexer) {

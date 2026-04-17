@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { Box, Divider } from "@mui/material";
-import EventNoteIcon from "@mui/icons-material/EventNote";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
 import { EmptyState, QueryErrorState } from "@/shared/components/ui/feedback";
@@ -116,7 +115,8 @@ export function FundHoldingDetailContent({
         title={t("investments.detailDrawer.timeline.title")}
         emptyTitle={t("investments.detailDrawer.timeline.emptyTitle")}
         emptyDescription={t("investments.detailDrawer.timeline.emptyDescription")}
-        icon={<EventNoteIcon sx={{ fontSize: 16, color: "primary.main" }} />}
+        inflowLabel={t("investments.detailDrawer.timeline.inflowLabel")}
+        outflowLabel={t("investments.detailDrawer.timeline.outflowLabel")}
         locale={locale}
         currencyCode={viewModel.currencyCode}
         items={viewModel.timelineItems}

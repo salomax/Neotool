@@ -33,7 +33,7 @@ open class AssetEntity(
     open var name: String,
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "asset_type", nullable = false, length = 30)
+    @Column(name = "asset_type", nullable = false, length = 48)
     open var assetType: AssetType,
 
     @Column(length = 10)

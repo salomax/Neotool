@@ -300,10 +300,12 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
           id: 'holding-1',
           asset: { id: 'asset-1', name: 'CDB Antigo', assetType: 'CDB' as any, issuerName: 'Banco Antigo' },
           indexer: 'CDI' as any,
+          couponDayOfMonth: null,
           indexerPercentage: 1.2,
           fixedAnnualRate: null,
           maturityDate: '2028-03-12',
           isTaxExempt: false,
+          couponFrequency: 'AT_MATURITY' as any,
         }}
         editTransaction={{
           id: 'tx-1',
@@ -548,6 +550,7 @@ describe.sequential('RecordFixedIncomeDrawer', () => {
             issueDate: '2026-03-12',
             maturityDate: '2028-03-12',
             isTaxExempt: false,
+            couponFrequency: 'AT_MATURITY',
           }),
         },
       }),

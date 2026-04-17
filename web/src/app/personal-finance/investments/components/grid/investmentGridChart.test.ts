@@ -55,7 +55,7 @@ describe("buildChartSeriesByClass", () => {
       twrReits: [],
       twrCrypto: [],
       perfCash: null,
-      perfBankFixedIncome: {
+      perfFixedIncome: {
         groupKey: "fixedIncome",
         label: "Bank fixed income",
         includedHoldingsCount: 1,
@@ -65,7 +65,6 @@ describe("buildChartSeriesByClass", () => {
         ],
         __typename: "PortfolioPerformanceSeries",
       },
-      perfCreditFixedIncome: null,
       perfMutualFunds: null,
       perfPension: null,
       perfStocks: null,

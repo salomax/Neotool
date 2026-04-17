@@ -27,7 +27,7 @@ import {
   CreditCard as CardIcon,
   HelpOutline as UnmatchedIcon,
 } from '@mui/icons-material';
-import { memo } from 'react';
+import { memo, type Dispatch, type SetStateAction } from 'react';
 import { NumericFormat } from 'react-number-format';
 import { useTranslation, i18n } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
@@ -72,7 +72,7 @@ interface FlatAssignmentStepProps {
   onAssignSelectedTransactions: (lastFourDigits: string | null) => void;
   onSelectAllTx: () => void;
   onAssignmentLastFourChange: (value: string) => void;
-  onSetFlatTxSelections: React.Dispatch<React.SetStateAction<FlatTxSelections>>;
+  onSetFlatTxSelections: Dispatch<SetStateAction<FlatTxSelections>>;
   onResetDraftCards: () => void;
   onContinue: () => void;
 }

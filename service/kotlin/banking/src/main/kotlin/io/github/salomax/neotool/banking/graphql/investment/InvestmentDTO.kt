@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.graphql.investment
 
 import io.github.salomax.neotool.banking.domain.investment.AnbimaCategory
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
@@ -9,6 +10,8 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.HoldingCloseReason
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
+import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import java.time.Instant
 import java.time.LocalDate
@@ -77,11 +80,16 @@ data class InvestmentHoldingDTO(
     val maturityDate: LocalDate?,
     val gracePeriodDate: LocalDate?,
     val isTaxExempt: Boolean,
+    val couponFrequency: CouponFrequency? = null,
+    val couponDayOfMonth: Int? = null,
+    val couponSchedule: List<CouponScheduleEntryDTO> = emptyList(),
     // Valuations
     val grossValue: Double?,
     val netValue: Double?,
     val incomeTax: Double?,
     val iof: Double?,
+    /** Accrued interest for the current coupon period = grossValue − principal. Null when unavailable. */
+    val accruedInterest: Double? = null,
     val lastValuedAt: Instant?,
     val pricingMode: HoldingPricingMode?,
     val valuationSource: ValuationSource,
@@ -95,6 +103,16 @@ data class InvestmentHoldingDTO(
     val source: InvestmentSource,
     val createdAt: Instant,
     val updatedAt: Instant,
+)
+
+data class CouponScheduleEntryDTO(
+    val seriesNumber: Int,
+    val scheduledDate: LocalDate,
+    val periodStart: LocalDate,
+    val periodEnd: LocalDate,
+    val isPartialPeriod: Boolean,
+    val isPast: Boolean,
+    val matchedTransaction: InvestmentTransactionDTO?,
 )
 
 // ── BrokerNote ────────────────────────────────────────────────────────────────
@@ -138,6 +156,12 @@ data class InvestmentTransactionDTO(
     val brokerNote: BrokerNoteDTO?,
     val createdAt: Instant,
     val updatedAt: Instant,
+)
+
+data class ConfirmCouponPaymentResultDTO(
+    val couponTransaction: InvestmentTransactionDTO,
+    val bankingTransaction: TransactionDTO?,
+    val pendingAction: AccountPendingActionDTO?,
 )
 
 data class HoldingPerformanceCapabilitiesDTO(

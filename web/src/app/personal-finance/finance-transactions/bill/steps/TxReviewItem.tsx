@@ -83,7 +83,11 @@ export const TxReviewItem = memo(function TxReviewItem({
                     value={categoryState.categoryId}
                     onChange={(categoryId) => onChangeCategory(selectionKey, categoryId)}
                     categories={allCategories}
-                    creditDebitType={tx.creditDebitType}
+                    creditDebitType={
+                      tx.creditDebitType === 'CREDIT' || tx.creditDebitType === 'DEBIT' || tx.creditDebitType === 'TRANSFER'
+                        ? tx.creditDebitType
+                        : 'DEBIT'
+                    }
                   />
                 </Stack>
               )}

@@ -1,19 +1,19 @@
 import { Alert, Box, Button, CircularProgress, Divider, Stack, TextField, Typography, alpha } from '@mui/material';
 import { CloudUpload as UploadIcon, InsertDriveFile as FileIcon } from '@mui/icons-material';
-import { memo } from 'react';
+import { memo, type ChangeEvent, type DragEvent, type RefObject } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
 import { ACCEPTED_TYPES, MAX_FILE_BYTES } from '../billImportTypes';
 
 interface UploadStepProps {
-  fileInputRef: React.RefObject<HTMLInputElement>;
+  fileInputRef: RefObject<HTMLInputElement>;
   file: File | null;
   fileError: string | null;
   isEncryptedPdf: boolean;
   pdfPassword: string;
   submitting: boolean;
-  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  onDrop: (e: React.DragEvent) => void;
+  onFileChange: (e: ChangeEvent<HTMLInputElement>) => void;
+  onDrop: (e: DragEvent) => void;
   onPdfPasswordChange: (value: string) => void;
   onSubmit: () => void;
   onCancel: () => void;

@@ -624,6 +624,8 @@ export const INVESTMENT_HOLDINGS = gql`
       indexer
       indexerPercentage
       fixedAnnualRate
+      couponFrequency
+      couponDayOfMonth
       issueDate
       maturityDate
       isTaxExempt

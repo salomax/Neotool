@@ -6,13 +6,13 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { alpha } from '@mui/material';
-import { memo } from 'react';
+import { memo, type HTMLAttributes, type ReactNode } from 'react';
 import { CreditDebitType } from '@/lib/graphql/types/__generated__/graphql';
 import type { Theme } from '@mui/material/styles';
 
 export type CreditDebitTypeExtended = CreditDebitType | 'TRANSFER_IN' | 'TRANSFER_OUT';
 
-export function resolveTypeIconProps(type: CreditDebitTypeExtended): { icon: React.ReactNode; paletteColor: 'error' | 'success' | 'info' } {
+export function resolveTypeIconProps(type: CreditDebitTypeExtended): { icon: ReactNode; paletteColor: 'error' | 'success' | 'info' } {
   switch (type) {
     case CreditDebitType.Debit:
       return { icon: <ArrowDownwardIcon fontSize="small" sx={{ color: 'error.main' }} />, paletteColor: 'error' };
@@ -68,7 +68,7 @@ export const TypeSelector = memo(function TypeSelector({ value, isReadonly, onCh
     <Select
       value={value}
       onChange={(e) => onChange(e.target.value as CreditDebitTypeExtended)}
-      SelectDisplayProps={{ 'data-testid': 'tx-credit-debit-type-select' } as React.HTMLAttributes<HTMLDivElement>}
+      SelectDisplayProps={{ 'data-testid': 'tx-credit-debit-type-select' } as HTMLAttributes<HTMLDivElement>}
       variant="standard"
       disableUnderline
       displayEmpty

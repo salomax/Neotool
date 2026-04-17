@@ -11,6 +11,7 @@ import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { FormStack } from '@/shared/components/ui/forms/components';
 import { Amount, InfoField, TagChips } from '@/shared/components/ui/data-display';
 import { Label, Logo } from '@/shared/components/ui/primitives';
+import { parseDateOnly } from '@/shared/utils/date/dateOnly';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { TRANSACTION_RULES_BY_IDS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -352,7 +353,9 @@ export function AppliedTransactionRulesDrawer({
   );
   const formattedDate = useMemo(() => {
     if (!transactionDate) return '';
-    return transactionDateFormatter.format(new Date(`${String(transactionDate)}T00:00:00Z`));
+    const parsedDate = parseDateOnly(String(transactionDate));
+    if (!parsedDate) return '';
+    return transactionDateFormatter.format(parsedDate);
   }, [transactionDate, transactionDateFormatter]);
 
   const appliedAtFormatter = useMemo(

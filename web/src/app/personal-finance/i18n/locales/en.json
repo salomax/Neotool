@@ -215,7 +215,12 @@
     "pendingActions": {
       "panelTitle": "Pending actions",
       "registerMaturity": "Record maturity",
+      "registerCoupon": "Record coupon",
       "markSeen": "Mark as seen",
+      "couponDrawer": {
+        "irRateHint": "Estimated rate: {{rate}} (regressive table)",
+        "taxExempt": "Tax exempt"
+      },
       "emptyTitle": "No pending actions",
       "emptyDescription": "You're all caught up.",
       "informational": "Informational",
@@ -414,6 +419,8 @@
         "netTotal": "Net total",
         "grossEarnings": "Gross earnings",
         "totalReturn": "Total return",
+        "totalGain": "Total gain",
+        "couponsReceivedNet": "Coupons received (net)",
         "dividendsReceived": "Income received",
         "incomeTax": "Income tax",
         "iof": "IOF",
@@ -441,6 +448,7 @@
         "principalLabel": "Invested principal",
         "grossLabel": "Gross value",
         "netLabel": "Net value",
+        "couponTotalWealthNote": "For coupon bonds, this chart includes position value plus net coupons already received.",
         "period": {
           "1M": "1M",
           "3M": "3M",
@@ -481,11 +489,31 @@
         "title": "Timeline",
         "emptyTitle": "No transactions yet",
         "emptyDescription": "No events were found for this position.",
+        "inflowLabel": "Inflow",
+        "outflowLabel": "Outflow",
         "tradeDate": "Trade date: {{date}}",
         "settlementDate": "Settlement: {{date}}",
         "netAmount": "Net: {{value}}",
         "incomeTax": "Income tax: {{value}}",
         "iof": "IOF: {{value}}"
+      },
+      "couponSchedule": {
+        "sectionTitle": "Interest Payment (Coupon)",
+        "statusPaid": "Paid",
+        "statusExpected": "Expected",
+        "statusOverdue": "Unregistered",
+        "showHistory": "Show history ({{count}})",
+        "hideHistory": "Hide history",
+        "register": "Record",
+        "showMore": "Show more",
+        "showLess": "Show less",
+        "updateSuccess": "Coupon payment updated",
+        "deleteSuccess": "Coupon payment deleted",
+        "deleteConfirmation": {
+          "title": "Delete coupon payment?",
+          "message": "This action cannot be undone."
+        },
+        "showAll": "Show all"
       },
       "transactionTypes": {
         "AMORTIZATION": "Amortization",
@@ -618,7 +646,16 @@
         "grossValue": "Invested amount (BRL)",
         "tradeDate": "Application date",
         "maturityDate": "Maturity date",
+        "couponFrequency": "Interest payment",
+        "couponDayOfMonth": "Interest payment day",
         "isTaxExempt": "Tax-exempt (LCI, LCA, CRI, CRA)"
+      },
+      "couponFrequencyOptions": {
+        "AT_MATURITY": "At maturity",
+        "MONTHLY": "Monthly",
+        "QUARTERLY": "Quarterly",
+        "SEMI_ANNUAL": "Semiannual",
+        "ANNUAL": "Annual"
       },
       "values": {
         "unitPriceInfo": "Unit price: {{unitPrice}}"
@@ -659,7 +696,9 @@
         "tradeDateNotInFuture": "Application date cannot be in the future",
         "maturityDateRequired": "Maturity date is required",
         "maturityAfterTrade": "Maturity must be after the application date",
-        "maturityDateTooFar": "Maturity date must be within the next {{years}} years"
+        "maturityDateTooFar": "Maturity date must be within the next {{years}} years",
+        "couponDayOfMonthRange": "Payment day must be between 1 and 31",
+        "couponDayOfMonthRequired": "Enter the day of month for interest payments"
       },
       "actions": {
         "submit": "Record",

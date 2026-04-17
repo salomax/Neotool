@@ -10,9 +10,10 @@ import {
   Typography,
 } from '@mui/material';
 import { CreditCard as CardIcon } from '@mui/icons-material';
-import { memo } from 'react';
+import { memo, type Dispatch, type SetStateAction } from 'react';
 import dayjs from 'dayjs';
 import { useTranslation } from '@/shared/i18n';
+import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../../i18n';
 import { DateTimePicker } from '@/shared/components/ui/primitives/DateTimePicker';
 import { getReviewCardLabel, txSelectionKey } from '../billImportUtils';
@@ -41,9 +42,9 @@ interface TxReviewStepProps {
   cardAccountOptions: CardAccountOption[];
   confirming: boolean;
   includedCount: number;
-  onSetTxSelections: React.Dispatch<React.SetStateAction<TxSelections>>;
-  onSetFlatTxInclusions: React.Dispatch<React.SetStateAction<FlatTxInclusions>>;
-  onSetBillDateOverrides: React.Dispatch<React.SetStateAction<BillDateOverrides>>;
+  onSetTxSelections: Dispatch<SetStateAction<TxSelections>>;
+  onSetFlatTxInclusions: Dispatch<SetStateAction<FlatTxInclusions>>;
+  onSetBillDateOverrides: Dispatch<SetStateAction<BillDateOverrides>>;
   onUpdateCategory: (key: string, categoryId: string | null) => void;
   onConfirm: () => void;
   onBack: () => void;
@@ -110,7 +111,7 @@ export const TxReviewStep = memo(function TxReviewStep({
               onChange={(v) =>
                 onSetBillDateOverrides((prev) => ({
                   ...prev,
-                  closingDate: v ? v.format('YYYY-MM-DD') : '',
+                  closingDate: v ? formatDateOnly(v.toDate()) : '',
                 }))
               }
               required
@@ -125,7 +126,7 @@ export const TxReviewStep = memo(function TxReviewStep({
               onChange={(v) =>
                 onSetBillDateOverrides((prev) => ({
                   ...prev,
-                  dueDate: v ? v.format('YYYY-MM-DD') : '',
+                  dueDate: v ? formatDateOnly(v.toDate()) : '',
                 }))
               }
               minDateTime={closingDateValue ?? undefined}

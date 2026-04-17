@@ -22,6 +22,7 @@ import { DatePickerField, FormTextField as TextField, MoneyInput, SelectField } 
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
+import { formatDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../i18n';
 import { IssuerSelect } from '../../finance-transactions/account/IssuerSelect';
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../../finance-transactions/constants/dateWindow';
@@ -276,7 +277,7 @@ export function CreateInvestmentAccountDrawer({
     const checkDigit = data.checkDigit?.trim() || undefined;
     const hasBankData = !!(branchCode || accountNumber || checkDigit);
     const initialBalanceDate =
-      data.initialBalanceDate instanceof Date ? dayjs(data.initialBalanceDate).format('YYYY-MM-DD') : undefined;
+      data.initialBalanceDate instanceof Date ? formatDateOnly(data.initialBalanceDate) : undefined;
     const type =
       data.subtype === 'FGTS' || data.subtype === 'INSS'
         ? ('BENEFIT' as unknown as FinancialAccountType)
@@ -379,7 +380,7 @@ export function CreateInvestmentAccountDrawer({
                   name="initialBalanceDate"
                   label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
                   minDate={minAllowedDate.toDate()}
-                  maxDate={new Date()}
+                  maxDate={toStartOfDayLocal(new Date())}
                   size="medium"
                 />
               </Stack>

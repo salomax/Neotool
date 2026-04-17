@@ -29,6 +29,7 @@ import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
+import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
@@ -92,7 +93,7 @@ function buildDefaultValues(): RecordFundFormData {
     unitPrice: undefined,
     grossValue: undefined,
     manualCurrentGrossValue: undefined,
-    manualValuedAt: new Date(),
+    manualValuedAt: toStartOfDayLocal(new Date()),
   };
 }
 
@@ -122,13 +123,6 @@ export function RecordFundHoldingDrawer({
   const [listingMode, setListingMode] = React.useState<ListingMode>("CVM");
   const isEdit = Boolean(editHolding && editTransaction);
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
-
-  const toDateValue = React.useCallback((value: unknown) => {
-    if (!value) return undefined;
-    if (value instanceof Date) return value;
-    const d = new Date(String(value));
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  }, []);
 
   const parseLocalizedNumber = React.useCallback(
     (value: unknown) => {
@@ -204,7 +198,7 @@ export function RecordFundHoldingDrawer({
   const grossValueValue = methods.watch("grossValue");
   const quantityValue = methods.watch("quantity");
   const tradeDateIso = React.useMemo(
-    () => (selectedTradeDate ? dayjs(selectedTradeDate).format("YYYY-MM-DD") : null),
+    () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
   );
 
@@ -382,7 +376,7 @@ export function RecordFundHoldingDrawer({
       }
     }
 
-    const tradeDate = dayjs(data.tradeDate).format("YYYY-MM-DD");
+    const tradeDate = formatDateOnly(data.tradeDate);
     const unitPrice = data.unitPrice ?? suggestedUnitPrice;
     if (!unitPrice) return;
     const quantity = valueFlow === "BY_AMOUNT" ? (data.grossValue ? data.grossValue / unitPrice : NaN) : Number(data.quantity);
@@ -445,7 +439,7 @@ export function RecordFundHoldingDrawer({
         pricingMode === HoldingPricingMode.Manual && data.manualCurrentGrossValue && data.manualValuedAt
           ? {
               grossValue: data.manualCurrentGrossValue,
-              valuedAt: dayjs(data.manualValuedAt).format("YYYY-MM-DD"),
+              valuedAt: formatDateOnly(data.manualValuedAt),
             }
           : undefined,
     };
@@ -527,15 +521,23 @@ export function RecordFundHoldingDrawer({
         manualFundCnpj: "",
         manualAssetType: editHolding!.asset.assetType,
         quantity: nextFlow === "BY_QUANTITY" ? editTransaction!.quantity ?? undefined : undefined,
-        tradeDate: toDateValue(editTransaction!.tradeDate),
+        tradeDate:
+          parseDateOnly(
+            editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
+          ) ?? undefined,
         unitPrice: editTransaction!.unitPrice ?? undefined,
         grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
         manualCurrentGrossValue: nextListingMode === "MANUAL" ? initialCurrentValue : undefined,
-        manualValuedAt: toDateValue(editHolding!.valuationReferenceDate) ?? new Date(),
+        manualValuedAt:
+          parseDateOnly(
+            editHolding!.valuationReferenceDate != null
+              ? String(editHolding!.valuationReferenceDate)
+              : null,
+          ) ?? toStartOfDayLocal(new Date()),
       },
       { keepDirty: false },
     );
-  }, [editHolding, editTransaction, isEdit, open, reset, toDateValue]);
+  }, [editHolding, editTransaction, isEdit, open, reset]);
 
   return (
     <InvestmentRecordDrawer

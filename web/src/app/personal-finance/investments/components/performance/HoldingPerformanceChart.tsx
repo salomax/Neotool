@@ -7,10 +7,10 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import { HoldingPerformanceResolution } from "@/lib/graphql/types/__generated__/graphql";
 import { LineChart } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
-import { Label } from '@/shared/components/ui/primitives/Label';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from "../../../i18n";
 import { FINANCE_TABLE_BODY_FONT_SIZE } from "@/shared/components/ui/data-display/Table";
+import { InvestmentSectionLabel } from "../InvestmentSectionLabel";
 
 const CHART_PROJECTED_STYLE = { lineDash: "6 4", areaOpacity: 0.1 } as const;
 const CHART_PARTIAL_STYLE = { lineDash: "6 5" } as const;
@@ -31,6 +31,13 @@ export interface HoldingPerformanceChartPoint {
   netValue: number | null;
 }
 
+export interface HoldingPerformanceChartEvent {
+  id: string;
+  timestamp: string;
+  title: string;
+  subtitle?: string | null;
+}
+
 interface HoldingPerformanceChartProps {
   points: HoldingPerformanceChartPoint[];
   currencyCode: string;
@@ -46,6 +53,8 @@ interface HoldingPerformanceChartProps {
   grossLabel: string;
   netLabel: string;
   projectionToggleLabel: string;
+  events?: readonly HoldingPerformanceChartEvent[];
+  onEventDayClick?: (dayKey: string) => void;
 }
 
 function capitalizeFirstLetter(text: string, locale: string): string {
@@ -129,6 +138,11 @@ function startOfLocalCalendarDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
 
+function calendarDayKey(raw: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(raw).trim());
+  return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
+}
+
 function endOfLocalMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0);
 }
@@ -210,6 +224,8 @@ export function HoldingPerformanceChart({
   grossLabel,
   netLabel,
   projectionToggleLabel,
+  events,
+  onEventDayClick,
 }: HoldingPerformanceChartProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
@@ -274,6 +290,32 @@ export function HoldingPerformanceChart({
     ];
   }, [grossLabel, isTaxExempt, netLabel, theme.palette.primary.main, theme.palette.success.main]);
 
+  const eventMarkers = React.useMemo(() => {
+    if (!events || events.length === 0) return [];
+    const labelFormatter = new Intl.DateTimeFormat(locale, { day: "2-digit", month: "short", year: "numeric" });
+    const byDay = new Map<string, HoldingPerformanceChartEvent[]>();
+    for (const ev of events) {
+      const key = calendarDayKey(ev.timestamp);
+      if (!key) continue;
+      const arr = byDay.get(key);
+      if (arr) arr.push(ev);
+      else byDay.set(key, [ev]);
+    }
+    const markers = Array.from(byDay.entries()).map(([dayKey, evs]) => {
+      const day = parseChartPointCalendarDate(dayKey);
+      if (!day) return null;
+      const xTs = Date.UTC(day.getFullYear(), day.getMonth(), day.getDate(), 12, 0, 0);
+      return {
+        id: dayKey,
+        xValue: xTs,
+        label: capitalizeFirstLetter(labelFormatter.format(day).replace(/\.$/, ""), locale),
+        items: evs.map((e) => ({ id: e.id, primary: e.title, secondary: e.subtitle })),
+        onClick: onEventDayClick ? () => onEventDayClick(dayKey) : undefined,
+      };
+    });
+    return markers.filter((m): m is NonNullable<typeof m> => Boolean(m));
+  }, [events, locale, onEventDayClick]);
+
   if (chartData.length === 0) {
     return (
       <EmptyState title={emptyTitle} description={emptyDescription} />
@@ -298,10 +340,10 @@ export function HoldingPerformanceChart({
               }}
             >
               {title ? (
-                <>
-                  <TimelineIcon sx={{ fontSize: 16, color: 'primary.main' }} />
-                  <Label sx={{ fontSize: '0.8rem', fontWeight: 500, mb: 0 }}>{title}</Label>
-                </>
+                <InvestmentSectionLabel
+                  title={title}
+                  icon={<TimelineIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
+                />
               ) : null}
               {partialMonthNotice ? (
                 <Typography
@@ -356,6 +398,7 @@ export function HoldingPerformanceChart({
           showLegend
           height={320}
           locale={locale}
+          eventMarkers={eventMarkers}
           axes={[
             {
               id: "value",

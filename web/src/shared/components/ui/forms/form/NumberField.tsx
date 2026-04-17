@@ -17,6 +17,7 @@ export interface NumberFieldProps {
   helperText?: React.ReactNode;
   fullWidth?: boolean;
   size?: TextFieldProps["size"];
+  disabled?: boolean;
   locale?: string;
   fractionDigits?: number;
   fixedDecimalScale?: boolean;
@@ -33,6 +34,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   helperText,
   fullWidth = true,
   size = "small",
+  disabled = false,
   locale = "en-US",
   fractionDigits,
   fixedDecimalScale,
@@ -76,6 +78,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
           {...(label && { label })}
           size={size}
           fullWidth={fullWidth}
+          disabled={disabled}
           error={!!fieldState.error}
           helperText={fieldState.error?.message ?? helperText}
           data-testid={dataTestId}

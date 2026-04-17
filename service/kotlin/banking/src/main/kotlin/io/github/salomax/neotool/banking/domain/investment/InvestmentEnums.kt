@@ -181,6 +181,27 @@ enum class Indexer {
 }
 
 /**
+ * How often a fixed income instrument pays interest (coupon / cupom).
+ * AT_MATURITY means bullet behavior (all interest realized at maturity/redemption).
+ */
+enum class CouponFrequency {
+    MONTHLY,
+    QUARTERLY,
+    SEMI_ANNUAL,
+    ANNUAL,
+    AT_MATURITY,
+}
+
+fun CouponFrequency.toStepMonths(): Long =
+    when (this) {
+        CouponFrequency.MONTHLY -> 1L
+        CouponFrequency.QUARTERLY -> 3L
+        CouponFrequency.SEMI_ANNUAL -> 6L
+        CouponFrequency.ANNUAL -> 12L
+        CouponFrequency.AT_MATURITY -> error("AT_MATURITY has no step — check before calling")
+    }
+
+/**
  * ANBIMA fund category. Required for correct come-cotas tax treatment.
  * RENDA_FIXA and MULTIMERCADO funds with long-term profile: come-cotas at 15%.
  * RENDA_FIXA and MULTIMERCADO funds with short-term profile: come-cotas at 20%.

@@ -20,6 +20,7 @@ import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components
 import { FinancialAccountIdentity } from "@/shared/components/ui/data-display/FinancialAccountIdentity";
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
+import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 import { personalFinanceTranslations } from "../i18n";
 import { FixedIncomeAssetIdentity } from "./components/HoldingIdentity";
 import type { IssuerSelectionAccount } from "./components/IssuerSelection";
@@ -109,7 +110,7 @@ export function MaturityConfirmDrawer({
     setStep1Error(null);
     const g = holding.grossValue ?? 0;
     const n = holding.netValue ?? g;
-    const defaultMaturityDate = holding.maturityDate ? dayjs(holding.maturityDate).toDate() : dayjs().toDate();
+    const defaultMaturityDate = parseDateOnly(holding.maturityDate) ?? toStartOfDayLocal(new Date());
     methods.reset({
       grossValue: g,
       netValue: n,
@@ -163,8 +164,8 @@ export function MaturityConfirmDrawer({
     }
 
     const { grossValue, netValue, incomeTax, iof, closeReason, maturityDate } = parsed.data;
-    const selectedMaturityDateStr = dayjs(maturityDate).format("YYYY-MM-DD");
-    const cashMovementDate = values.creditDate ? dayjs(values.creditDate).format("YYYY-MM-DD") : selectedMaturityDateStr;
+    const selectedMaturityDateStr = formatDateOnly(maturityDate);
+    const cashMovementDate = values.creditDate ? formatDateOnly(values.creditDate) : selectedMaturityDateStr;
     const cashMovementAmount = values.creditAmount ?? 0;
 
     const creditAccountId = holding.financialAccountId;

@@ -48,6 +48,7 @@ data class RecordInvestmentTransactionCommand(
     val source: InvestmentSource = InvestmentSource.MANUAL,
     val providerTransactionId: String? = null,
     val importJobId: UUID? = null,
+    val cashDestinationAccountId: UUID? = null,
 
     // ── Broker note (renda variável only) ─────────────────────────────────────
     val brokerNote: BrokerNote? = null,
@@ -58,6 +59,9 @@ data class RecordInvestmentTransactionCommand(
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,
     val isTaxExempt: Boolean = false,
+    val couponFrequency: CouponFrequency? = null,
+    /** 1–31 when private credit pays on a fixed calendar day; null for Tesouro and AT_MATURITY (BR-P2-5). */
+    val couponDayOfMonth: Int? = null,
     val providerInvestmentId: String? = null,
     val pricingMode: HoldingPricingMode? = null,
     val manualValuation: ManualFundValuation? = null,
@@ -95,6 +99,8 @@ data class UpdateInvestmentTransactionCommand(
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,
     val isTaxExempt: Boolean? = null,
+    val couponFrequency: CouponFrequency? = null,
+    val couponDayOfMonth: Int? = null,
     val pricingMode: HoldingPricingMode? = null,
     val manualValuation: ManualFundValuation? = null,
 )

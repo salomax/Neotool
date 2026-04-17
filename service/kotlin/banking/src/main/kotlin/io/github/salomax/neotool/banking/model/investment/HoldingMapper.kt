@@ -21,6 +21,8 @@ object HoldingMapper {
             maturityDate = entity.maturityDate,
             gracePeriodDate = entity.gracePeriodDate,
             isTaxExempt = entity.isTaxExempt,
+            couponFrequency = entity.couponFrequency,
+            couponDayOfMonth = entity.couponDayOfMonth,
             grossValue = entity.grossValue,
             netValue = entity.netValue,
             incomeTax = entity.incomeTax,
@@ -53,6 +55,8 @@ object HoldingMapper {
             maturityDate = domain.maturityDate,
             gracePeriodDate = domain.gracePeriodDate,
             isTaxExempt = domain.isTaxExempt,
+            couponFrequency = domain.couponFrequency,
+            couponDayOfMonth = domain.couponDayOfMonth,
             grossValue = domain.grossValue,
             netValue = domain.netValue,
             incomeTax = domain.incomeTax,
@@ -83,6 +87,8 @@ object HoldingMapper {
         entity.maturityDate = domain.maturityDate
         entity.gracePeriodDate = domain.gracePeriodDate
         entity.isTaxExempt = domain.isTaxExempt
+        entity.couponFrequency = domain.couponFrequency
+        entity.couponDayOfMonth = domain.couponDayOfMonth
         entity.grossValue = domain.grossValue
         entity.netValue = domain.netValue
         entity.incomeTax = domain.incomeTax

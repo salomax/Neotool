@@ -23,6 +23,7 @@ class FixedIncomeValuationServiceTest {
         maturityDate: LocalDate? = null,
         isTaxExempt: Boolean = false,
         indexerPercentage: String? = null,
+        couponFrequency: CouponFrequency? = null,
     ): Holding =
         Holding(
             id = UUID.randomUUID(),
@@ -37,6 +38,7 @@ class FixedIncomeValuationServiceTest {
             issueDate = issueDate,
             maturityDate = maturityDate,
             isTaxExempt = isTaxExempt,
+            couponFrequency = couponFrequency,
         )
 
     @Test
@@ -437,5 +439,48 @@ class FixedIncomeValuationServiceTest {
         assertThat(projected.grossValue).isNotNull
         assertThat(projected.grossValue!!).isGreaterThanOrEqualTo(historical.grossValue)
         assertThat(projected.netValue!!).isGreaterThanOrEqualTo(historical.netValue)
+    }
+
+    @Test
+    fun `coupon holdings accrue from last interest payment date`() {
+        val service = FixedIncomeValuationService { LocalDate.of(2026, 3, 30) }
+        val holding =
+            holding(
+                indexer = Indexer.CDI,
+                quantity = "10000.00",
+                averageCost = "1.00",
+                issueDate = LocalDate.of(2025, 1, 1),
+                indexerPercentage = "1.00",
+                couponFrequency = CouponFrequency.QUARTERLY,
+            )
+
+        val lastCouponPayment =
+            InvestmentTransaction(
+                id = UUID.randomUUID(),
+                holdingId = holding.id!!,
+                financialAccountId = holding.financialAccountId,
+                accountId = holding.accountId,
+                createdByUserId = UUID.randomUUID(),
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.INTEREST_PAYMENT,
+                grossValue = BigDecimal("200.00"),
+                tradeDate = LocalDate.of(2026, 1, 15),
+                source = InvestmentSource.MANUAL,
+            )
+
+        val withCoupon = service.estimate(
+            holding = holding,
+            indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
+            transactions = listOf(lastCouponPayment),
+        )
+        val withoutCoupon = service.estimate(
+            holding = holding,
+            indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
+        )
+
+        assertThat(withCoupon.grossValue).isNotNull
+        assertThat(withoutCoupon.grossValue).isNotNull
+        assertThat(withCoupon.grossValue!!).isGreaterThan(BigDecimal("10000.00"))
+        assertThat(withCoupon.grossValue!!).isLessThan(withoutCoupon.grossValue)
     }
 }

@@ -48,6 +48,7 @@ import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { useToast } from "@/shared/providers";
+import { formatDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { personalFinanceTranslations } from "../../i18n";
 
@@ -235,7 +236,7 @@ export function RecordCashForm({
     defaultValues: {
       movementType: InvestmentCashTransactionType.Deposit,
       amount: undefined,
-      date: new Date(),
+      date: toStartOfDayLocal(new Date()),
       description: "",
       peerFinancialAccountId: "",
       registerAsBalanceAdjustment: false,
@@ -281,7 +282,7 @@ export function RecordCashForm({
     reset({
       movementType: InvestmentCashTransactionType.Deposit,
       amount: undefined,
-      date: new Date(),
+      date: toStartOfDayLocal(new Date()),
       description: "",
       peerFinancialAccountId: "",
       registerAsBalanceAdjustment: false,
@@ -301,7 +302,7 @@ export function RecordCashForm({
       financialAccountId,
       type: data.movementType,
       amount: data.amount!,
-      date: dayjs(data.date).format("YYYY-MM-DD"),
+      date: formatDateOnly(data.date),
       description: data.description?.trim() || undefined,
       peerFinancialAccountId: !data.registerAsBalanceAdjustment && peerId ? peerId : undefined,
       registerAsBalanceAdjustment: data.registerAsBalanceAdjustment,

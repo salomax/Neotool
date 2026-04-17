@@ -20,6 +20,7 @@ import {
 import { PendingActionSeverity, PendingActionStatus, PendingActionType } from "@/lib/graphql/types/__generated__/graphql";
 import type { IssuerSelectionAccount } from "./components/IssuerSelection";
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "./MaturityConfirmDrawer";
+import { CouponPaymentConfirmDrawer, type CouponDrawerHolding } from "./CouponPaymentConfirmDrawer";
 import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 
 const SEVERITY_ORDER: Record<PendingActionSeverity, number> = {
@@ -60,6 +61,11 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
   const [maturityOpen, setMaturityOpen] = React.useState(false);
   const [maturityHolding, setMaturityHolding] = React.useState<MaturityDrawerHolding | null>(null);
 
+  const [couponOpen, setCouponOpen] = React.useState(false);
+  const [couponHolding, setCouponHolding] = React.useState<CouponDrawerHolding | null>(null);
+  const [couponPendingActionId, setCouponPendingActionId] = React.useState<string | null>(null);
+  const [couponDestinationAccount, setCouponDestinationAccount] = React.useState<IssuerSelectionAccount | null>(null);
+
   const sorted = React.useMemo(() => {
     const list = data?.pendingActions ?? [];
     return [...list].sort(
@@ -73,6 +79,8 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     switch (type) {
       case PendingActionType.InvestmentMatured:
         return t("investments.pendingActions.registerMaturity");
+      case PendingActionType.CouponPaymentDue:
+        return t("investments.pendingActions.registerCoupon");
       default:
         return type;
     }
@@ -153,7 +161,39 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
                         {t("investments.pendingActions.registerMaturity")}
                       </Button>
                     ) : null}
-                    {row.type !== PendingActionType.InvestmentMatured ? (
+                    {row.type === PendingActionType.CouponPaymentDue && row.relatedHolding ? (
+                      <Button
+                        size="small"
+                        variant="contained"
+                        data-testid="pending-action-register-coupon"
+                        onClick={() => {
+                          const related = row.relatedHolding;
+                          if (!related) return;
+                          setCouponHolding({
+                            id: related.id,
+                            financialAccountId: related.financialAccountId,
+                            quantity: related.quantity,
+                            averageCost: related.averageCost,
+                            couponFrequency: related.couponFrequency ?? null,
+                            issueDate: related.issueDate ? String(related.issueDate) : null,
+                            isTaxExempt: related.isTaxExempt,
+                            grossValue: related.grossValue ?? null,
+                            accruedInterest: related.accruedInterest ?? null,
+                            couponDate: null,
+                            issuerName: related.asset.issuerName ?? null,
+                            asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
+                          });
+                          setCouponPendingActionId(row.id);
+                          setCouponDestinationAccount(
+                            investmentAccounts.find((a) => a.id === related.financialAccountId) ?? null,
+                          );
+                          setCouponOpen(true);
+                        }}
+                      >
+                        {t("investments.pendingActions.registerCoupon")}
+                      </Button>
+                    ) : null}
+                    {row.type !== PendingActionType.InvestmentMatured && row.type !== PendingActionType.CouponPaymentDue ? (
                       <Button size="small" onClick={() => void handleDismiss(row.id)} disabled={dismissLoading}>
                         {t("investments.pendingActions.markSeen")}
                       </Button>
@@ -182,6 +222,26 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
         onSuccess={() => {
           setMaturityOpen(false);
           setMaturityHolding(null);
+          void refresh();
+        }}
+      />
+
+      <CouponPaymentConfirmDrawer
+        open={couponOpen}
+        onClose={() => {
+          setCouponOpen(false);
+          setCouponHolding(null);
+          setCouponPendingActionId(null);
+          setCouponDestinationAccount(null);
+        }}
+        holding={couponHolding}
+        pendingActionId={couponPendingActionId}
+        destinationAccount={couponDestinationAccount}
+        onSuccess={() => {
+          setCouponOpen(false);
+          setCouponHolding(null);
+          setCouponPendingActionId(null);
+          setCouponDestinationAccount(null);
           void refresh();
         }}
       />

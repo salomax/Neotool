@@ -1087,6 +1087,18 @@ enum Indexer {
 }
 
 """
+How often a fixed income instrument pays interest during its holding period.
+"""
+enum CouponFrequency {
+  MONTHLY
+  QUARTERLY
+  SEMI_ANNUAL
+  ANNUAL
+  "No interim payments — all interest accumulates and is paid at maturity or redemption."
+  AT_MATURITY
+}
+
+"""
 ANBIMA fund category. Required for correct tax treatment (come-cotas schedule).
 """
 enum AnbimaCategory {
@@ -1113,6 +1125,8 @@ enum HoldingCloseReason {
 
 enum PendingActionType {
   INVESTMENT_MATURED
+  """Coupon payment is due for a coupon-bearing fixed income holding."""
+  COUPON_PAYMENT_DUE
   """Bank account balance went negative after a paired investment cash transfer (informational)."""
   BANK_ACCOUNT_NEGATIVE_BALANCE
 }
@@ -1164,6 +1178,22 @@ type ConfirmHoldingMaturityResult {
   maturityTransaction: InvestmentTransaction!
   bankingTransaction: Transaction
   pendingAction: AccountPendingAction!
+}
+
+input ConfirmCouponPaymentInput {
+  holdingId: ID!
+  tradeDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float!
+  destinationAccountId: ID!
+  pendingActionId: ID
+}
+
+type ConfirmCouponPaymentResult {
+  couponTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+  pendingAction: AccountPendingAction
 }
 
 enum HoldingPricingMode {
@@ -1267,11 +1297,23 @@ type InvestmentHolding {
   gracePeriodDate: Date
   """True for LCI/LCA/CRI/CRA — exempt from IR for individuals."""
   isTaxExempt: Boolean!
+  "Coupon payment frequency. Null and AT_MATURITY are equivalent — no scheduled payments."
+  couponFrequency: CouponFrequency
+  "Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro Direto (system calendar)."
+  couponDayOfMonth: Int
+  "Projected coupon schedule from issueDate to maturityDate. Empty when no coupon schedule is applicable."
+  couponSchedule: [CouponScheduleEntry!]!
   # ── Provider-cached valuations (may be stale between syncs) ────────────────
   grossValue: Float
   netValue: Float
   incomeTax: Float
   iof: Float
+  """
+  Accrued interest for the current coupon period (grossValue − principal).
+  Non-null only for coupon-paying fixed income holdings with a valid valuation.
+  Use this as the pre-fill gross amount when registering a coupon payment.
+  """
+  accruedInterest: Float
   lastValuedAt: DateTime
   pricingMode: HoldingPricingMode
   valuationSource: ValuationSource!
@@ -1293,6 +1335,23 @@ type InvestmentHolding {
   attachments: [HoldingAttachment!]!
   createdAt: DateTime!
   updatedAt: DateTime!
+}
+
+type CouponScheduleEntry {
+  "1-based coupon index in the projected schedule (e.g. 3 of 12)."
+  seriesNumber: Int!
+  "Projected payment date."
+  scheduledDate: Date!
+  "Start of the accrual period for this coupon."
+  periodStart: Date!
+  "End of the accrual period (inclusive)."
+  periodEnd: Date!
+  "True when the accrual period is shorter than a full cycle (typically first period after mid-month purchase)."
+  isPartialPeriod: Boolean!
+  "Whether this date is in the past."
+  isPast: Boolean!
+  "The INTEREST_PAYMENT transaction matched to this coupon, if any."
+  matchedTransaction: InvestmentTransaction
 }
 
 """
@@ -1571,6 +1630,8 @@ input RecordInvestmentTransactionInput {
   maturityDate: Date
   gracePeriodDate: Date
   isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
   providerInvestmentId: String
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
@@ -1598,6 +1659,8 @@ input UpdateInvestmentTransactionInput {
   maturityDate: Date
   gracePeriodDate: Date
   isTaxExempt: Boolean
+  couponFrequency: CouponFrequency
+  couponDayOfMonth: Int
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
 }
@@ -2302,6 +2365,8 @@ extend type Mutation {
 
   """Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit."""
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
+  """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
+  confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction!
 }

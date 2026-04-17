@@ -3,7 +3,10 @@ package io.github.salomax.neotool.banking.graphql.investment
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
+import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.service.investment.CnpjValidator
+import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentCommand
+import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
@@ -44,6 +47,7 @@ import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingPer
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentPortfolioSummaryDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
+import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -63,6 +67,7 @@ class InvestmentResolver(
     private val portfolioPerformanceSeriesService: PortfolioPerformanceSeriesService,
     private val assetRepository: AssetRepository,
     private val investmentCashService: InvestmentCashService,
+    private val confirmCouponPaymentService: ConfirmCouponPaymentService,
     private val transactionResolver: TransactionResolver,
     private val portfolioFlowEventService: PortfolioFlowEventService,
     private val portfolioPerformanceQueryService: PortfolioPerformanceQueryService,
@@ -410,6 +415,39 @@ class InvestmentResolver(
         return investmentTransactionService.deleteHolding(UUID.fromString(id), accountId)
     }
 
+    fun confirmCouponPayment(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): ConfirmCouponPaymentResultDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+
+        fun Any?.toLocalDate(): LocalDate =
+            when (this) {
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> error("Expected LocalDate or ISO date string")
+            }
+
+        val command =
+            ConfirmCouponPaymentCommand(
+                holdingId = UUID.fromString(input["holdingId"] as String),
+                tradeDate = input["tradeDate"].toLocalDate(),
+                grossValue = BigDecimal((input["grossValue"] as Number).toString()),
+                netValue = BigDecimal((input["netValue"] as Number).toString()),
+                incomeTax = BigDecimal((input["incomeTax"] as Number).toString()),
+                destinationAccountId = UUID.fromString(input["destinationAccountId"] as String),
+                pendingActionId = (input["pendingActionId"] as? String)?.let(UUID::fromString),
+            )
+
+        val result = confirmCouponPaymentService.confirm(command, accountId, userId)
+        return ConfirmCouponPaymentResultDTO(
+            couponTransaction = result.couponTransaction.toDTO(),
+            bankingTransaction = result.bankingTransaction?.let { transactionResolver.toTransactionDTO(it, accountId) },
+            pendingAction = result.pendingAction?.toPendingActionDTO(),
+        )
+    }
+
     fun triggerPortfolioRecalculation(
         financialAccountId: String?,
         recalculateFrom: String?,
@@ -482,6 +520,19 @@ class InvestmentResolver(
             updatedAt = updatedAt,
         )
 
+    private fun io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction.toPendingActionDTO(): AccountPendingActionDTO =
+        AccountPendingActionDTO(
+            id = requireNotNull(id),
+            type = type.name,
+            severity = severity.name,
+            status = status.name,
+            entityType = entityType,
+            entityId = entityId,
+            payload = payload,
+            createdAt = createdAt,
+            expiresAt = expiresAt,
+        )
+
     private fun BrokerNote.toDTO() =
         BrokerNoteDTO(
             brokerNoteNumber = brokerNoteNumber,
@@ -530,11 +581,14 @@ class InvestmentResolver(
             settlementDate = this["settlementDate"].toLocalDateOrNull(),
             source = InvestmentSource.MANUAL,
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
+            cashDestinationAccountId = (this["cashDestinationAccountId"] as? String)?.let(UUID::fromString),
             indexer = (this["indexer"] as? String)?.let { Indexer.valueOf(it) },
             issueDate = this["issueDate"].toLocalDateOrNull(),
             maturityDate = this["maturityDate"].toLocalDateOrNull(),
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = (this["isTaxExempt"] as? Boolean) ?: false,
+            couponFrequency = (this["couponFrequency"] as? String)?.let { runCatching { CouponFrequency.valueOf(it) }.getOrNull() },
+            couponDayOfMonth = (this["couponDayOfMonth"] as? Number)?.toInt(),
             providerInvestmentId = this["providerInvestmentId"] as? String,
             pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
             manualValuation = manualValuationMap?.toManualFundValuation(),
@@ -585,6 +639,8 @@ class InvestmentResolver(
             maturityDate = this["maturityDate"].toLocalDateOrNull(),
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = this["isTaxExempt"] as? Boolean,
+            couponFrequency = (this["couponFrequency"] as? String)?.let { runCatching { CouponFrequency.valueOf(it) }.getOrNull() },
+            couponDayOfMonth = (this["couponDayOfMonth"] as? Number)?.toInt(),
             pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
             manualValuation = manualValuationMap?.toManualFundValuation(),
         )

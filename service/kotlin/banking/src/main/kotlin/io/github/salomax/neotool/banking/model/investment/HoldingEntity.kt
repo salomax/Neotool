@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.model.investment
 
 import io.github.salomax.neotool.banking.domain.investment.HoldingCloseReason
+import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
@@ -63,6 +64,13 @@ open class HoldingEntity(
 
     @Column(name = "is_tax_exempt", nullable = false)
     open var isTaxExempt: Boolean = false,
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "coupon_frequency", length = 15)
+    open var couponFrequency: CouponFrequency? = null,
+
+    @Column(name = "coupon_day_of_month")
+    open var couponDayOfMonth: Int? = null,
 
     // ── Provider-cached valuations ────────────────────────────────────────────
     @Column(name = "gross_value", precision = 18, scale = 4)

@@ -698,6 +698,23 @@ export type ConfirmBillReviewTransactionInput = {
   isBillPayment?: InputMaybe<Scalars['Boolean']['input']>;
 };
 
+export type ConfirmCouponPaymentInput = {
+  destinationAccountId: Scalars['ID']['input'];
+  grossValue: Scalars['Float']['input'];
+  holdingId: Scalars['ID']['input'];
+  incomeTax: Scalars['Float']['input'];
+  netValue: Scalars['Float']['input'];
+  pendingActionId?: InputMaybe<Scalars['ID']['input']>;
+  tradeDate: Scalars['Date']['input'];
+};
+
+export type ConfirmCouponPaymentResult = {
+  __typename: 'ConfirmCouponPaymentResult';
+  bankingTransaction: Maybe<Transaction>;
+  couponTransaction: InvestmentTransaction;
+  pendingAction: Maybe<AccountPendingAction>;
+};
+
 export type ConfirmHoldingMaturityInput = {
   cashMovement?: InputMaybe<MaturityCashMovementInput>;
   closeReason: HoldingCloseReason;
@@ -763,6 +780,34 @@ export enum ConversationStatus {
   Active = 'ACTIVE',
   Escalated = 'ESCALATED'
 }
+
+/** How often a fixed income instrument pays interest during its holding period. */
+export enum CouponFrequency {
+  Annual = 'ANNUAL',
+  /** No interim payments — all interest accumulates and is paid at maturity or redemption. */
+  AtMaturity = 'AT_MATURITY',
+  Monthly = 'MONTHLY',
+  Quarterly = 'QUARTERLY',
+  SemiAnnual = 'SEMI_ANNUAL'
+}
+
+export type CouponScheduleEntry = {
+  __typename: 'CouponScheduleEntry';
+  /** True when the accrual period is shorter than a full cycle (typically first period after mid-month purchase). */
+  isPartialPeriod: Scalars['Boolean']['output'];
+  /** Whether this date is in the past. */
+  isPast: Scalars['Boolean']['output'];
+  /** The INTEREST_PAYMENT transaction matched to this coupon, if any. */
+  matchedTransaction: Maybe<InvestmentTransaction>;
+  /** End of the accrual period (inclusive). */
+  periodEnd: Scalars['Date']['output'];
+  /** Start of the accrual period for this coupon. */
+  periodStart: Scalars['Date']['output'];
+  /** Projected payment date. */
+  scheduledDate: Scalars['Date']['output'];
+  /** 1-based coupon index in the projected schedule (e.g. 3 of 12). */
+  seriesNumber: Scalars['Int']['output'];
+};
 
 /** Input for creating a new asset upload. */
 export type CreateAssetUploadInput = {
@@ -1701,6 +1746,12 @@ export type InvestmentFundMarketSnapshot = {
  */
 export type InvestmentHolding = {
   __typename: 'InvestmentHolding';
+  /**
+   * Accrued interest for the current coupon period (grossValue − principal).
+   * Non-null only for coupon-paying fixed income holdings with a valid valuation.
+   * Use this as the pre-fill gross amount when registering a coupon payment.
+   */
+  accruedInterest: Maybe<Scalars['Float']['output']>;
   asset: InvestmentAsset;
   /** Attached files (corretagem, contracts, etc.). Max 3. */
   attachments: Array<HoldingAttachment>;
@@ -1708,6 +1759,12 @@ export type InvestmentHolding = {
   averageCost: Scalars['Float']['output'];
   closeReason: Maybe<HoldingCloseReason>;
   closedAt: Maybe<Scalars['Date']['output']>;
+  /** Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro Direto (system calendar). */
+  couponDayOfMonth: Maybe<Scalars['Int']['output']>;
+  /** Coupon payment frequency. Null and AT_MATURITY are equivalent — no scheduled payments. */
+  couponFrequency: Maybe<CouponFrequency>;
+  /** Projected coupon schedule from issueDate to maturityDate. Empty when no coupon schedule is applicable. */
+  couponSchedule: Array<CouponScheduleEntry>;
   createdAt: Scalars['DateTime']['output'];
   financialAccount: Maybe<FinancialAccount>;
   financialAccountId: Scalars['ID']['output'];
@@ -2123,6 +2180,8 @@ export type Mutation = {
    */
   confirmAssetUpload: Asset;
   confirmBillImport: BillImportJob;
+  /** Confirms a fixed-income coupon payment and optionally completes a pending coupon action. */
+  confirmCouponPayment: ConfirmCouponPaymentResult;
   /** Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit. */
   confirmHoldingMaturity: ConfirmHoldingMaturityResult;
   /**
@@ -2362,6 +2421,11 @@ export type MutationConfirmAssetUploadArgs = {
 
 export type MutationConfirmBillImportArgs = {
   input: ConfirmBillImportInput;
+};
+
+
+export type MutationConfirmCouponPaymentArgs = {
+  input: ConfirmCouponPaymentInput;
 };
 
 
@@ -2836,6 +2900,8 @@ export enum PendingActionStatus {
 export enum PendingActionType {
   /** Bank account balance went negative after a paired investment cash transfer (informational). */
   BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
+  /** Coupon payment is due for a coupon-bearing fixed income holding. */
+  CouponPaymentDue = 'COUPON_PAYMENT_DUE',
   InvestmentMatured = 'INVESTMENT_MATURED'
 }
 
@@ -3821,6 +3887,8 @@ export type RecalculationStatus = {
 export type RecordInvestmentTransactionInput = {
   assetId: Scalars['ID']['input'];
   brokerNote?: InputMaybe<BrokerNoteInput>;
+  couponDayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  couponFrequency?: InputMaybe<CouponFrequency>;
   direction: InvestmentTransactionDirection;
   financialAccountId: Scalars['ID']['input'];
   fixedAnnualRate?: InputMaybe<Scalars['Float']['input']>;
@@ -4414,6 +4482,8 @@ export type UpdateInvestmentCashTransactionInput = {
 
 export type UpdateInvestmentTransactionInput = {
   brokerNote?: InputMaybe<BrokerNoteInput>;
+  couponDayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  couponFrequency?: InputMaybe<CouponFrequency>;
   direction: InvestmentTransactionDirection;
   fixedAnnualRate?: InputMaybe<Scalars['Float']['input']>;
   gracePeriodDate?: InputMaybe<Scalars['Date']['input']>;

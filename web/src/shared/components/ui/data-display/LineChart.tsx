@@ -144,6 +144,20 @@ export interface LineChartReferenceLine {
   yAxisId?: string;
 }
 
+export interface LineChartEventMarkerItem {
+  id: string;
+  primary: string;
+  secondary?: string | null;
+}
+
+export interface LineChartEventMarker {
+  id: string;
+  xValue: number | string;
+  label: string;
+  items: readonly LineChartEventMarkerItem[];
+  onClick?: () => void;
+}
+
 export interface LineChartAxisConfig {
   id: string;
   side: "left" | "right";
@@ -207,6 +221,7 @@ export interface LineChartProps {
     left?: number;
   };
   referenceLines?: LineChartReferenceLine[];
+  eventMarkers?: readonly LineChartEventMarker[];
   sx?: any;
   locale?: string;
   /** Recharts Line/Area interpolation. Default `monotone` for smooth curves. */
@@ -509,6 +524,82 @@ const CustomLegend: React.FC<CustomLegendProps> = ({ payload }) => {
 
 const MemoCustomLegend = React.memo(CustomLegend);
 
+interface EventMarkersLayerProps {
+  markers: readonly LineChartEventMarker[];
+  plotBottomOffset?: number;
+  onHoverChange: (next: { marker: LineChartEventMarker; x: number; y: number } | null) => void;
+}
+
+function EventMarkersLayer({ markers, plotBottomOffset = 14, onHoverChange }: EventMarkersLayerProps) {
+  const theme = useTheme();
+  const xScale = useXAxisScale(0);
+  const plotArea = usePlotArea();
+  const clearHover = React.useCallback(() => onHoverChange(null), [onHoverChange]);
+
+  if (!xScale || !plotArea) return null;
+  if (!markers || markers.length === 0) return null;
+
+  const scaleAny = xScale as any;
+  const bandOffset = typeof scaleAny.bandwidth === "function" ? scaleAny.bandwidth() / 2 : 0;
+
+  const { x: plotX, y: plotY, width: plotW, height: plotH } = plotArea;
+  const yPixel = plotY + plotH - plotBottomOffset;
+
+  const stroke = theme.palette.info.main;
+  const fill = theme.palette.background.paper;
+  const textFill = theme.palette.info.main;
+
+  return (
+    <g>
+      {markers.map((m) => {
+        const xBase = (xScale as any)(m.xValue as any);
+        if (xBase == null) return null;
+        const xPixel = xBase + bandOffset;
+        if (xPixel < plotX - 2 || xPixel > plotX + plotW + 2) return null;
+
+        return (
+          <g
+            key={m.id}
+            onMouseEnter={(evt) => {
+              evt.stopPropagation();
+              onHoverChange({ marker: m, x: xPixel, y: yPixel });
+            }}
+            onMouseMove={(evt) => {
+              evt.stopPropagation();
+              onHoverChange({ marker: m, x: xPixel, y: yPixel });
+            }}
+            onMouseLeave={(evt) => {
+              evt.stopPropagation();
+              clearHover();
+            }}
+            onClick={(evt) => {
+              evt.stopPropagation();
+              m.onClick?.();
+            }}
+            style={{ cursor: m.onClick ? "pointer" : "default" }}
+          >
+            <circle cx={xPixel} cy={yPixel} r={8} fill={fill} stroke={stroke} strokeWidth={1.5} />
+            <text
+              x={xPixel}
+              y={yPixel + 0.5}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={11}
+              fontWeight={700}
+              fill={textFill}
+              pointerEvents="none"
+            >
+              i
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+const MemoEventMarkersLayer = React.memo(EventMarkersLayer);
+
 // --- Main Component ---
 
 export const LineChart: React.FC<LineChartProps> = ({
@@ -547,12 +638,18 @@ export const LineChart: React.FC<LineChartProps> = ({
   colors,
   margin = { top: 0, right: 0, left: 0, bottom: 24 },
   referenceLines,
+  eventMarkers,
   sx,
   locale: localeProp,
   curveType = "monotone",
   isAnimationActive = true,
 }) => {
   const theme = useTheme();
+  const [eventMarkerHover, setEventMarkerHover] = React.useState<{
+    marker: LineChartEventMarker;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const locale = React.useMemo(() => {
     if (localeProp) return localeProp;
@@ -861,6 +958,8 @@ export const LineChart: React.FC<LineChartProps> = ({
   const axisPadding = { top: 16, bottom: 12 };
   const projectionStroke = theme.palette.text.disabled;
   const projectionLabelFill = theme.palette.getContrastText(projectionStroke);
+  const borderColor = (theme as any).custom?.palette?.inputBorder ?? theme.palette.divider;
+  const radius = (theme as any).custom?.radius?.md ?? theme.shape.borderRadius;
 
   return (
     <Box sx={{ p: 2, ...sx }}>
@@ -875,8 +974,46 @@ export const LineChart: React.FC<LineChartProps> = ({
             minHeight: 0,
             flex: 1,
             height: xLabel && showXAxisTitle ? "calc(100% - 20px)" : "100%",
+            position: "relative",
           }}
         >
+          {eventMarkerHover ? (
+            <Box
+              sx={{
+                position: "absolute",
+                left: eventMarkerHover.x,
+                top: eventMarkerHover.y,
+                transform: "translate(-50%, calc(-100% - 10px))",
+                zIndex: 10,
+                pointerEvents: "none",
+              }}
+            >
+              <Box
+                sx={{
+                  bgcolor: theme.palette.background.paper,
+                  border: `1px solid ${borderColor}`,
+                  borderRadius: `${radius}px`,
+                  boxShadow: theme.shadows[2],
+                  p: 1.5,
+                  maxWidth: 320,
+                }}
+              >
+                <Label sx={{ mb: 0 }}>{eventMarkerHover.marker.label}</Label>
+                {eventMarkerHover.marker.items.map((it) => (
+                  <Box key={it.id} sx={{ mt: 0.75, minWidth: 0 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
+                      {it.primary}
+                    </Typography>
+                    {it.secondary ? (
+                      <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>
+                        {it.secondary}
+                      </Typography>
+                    ) : null}
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+          ) : null}
           <ResponsiveContainer width="100%" height="100%">
             <RechartsComposedChart
               data={transformedData}
@@ -1150,6 +1287,9 @@ export const LineChart: React.FC<LineChartProps> = ({
                 labelBackgroundFill={projectionStroke}
               />
             )}
+            {eventMarkers && eventMarkers.length > 0 ? (
+              <MemoEventMarkersLayer markers={eventMarkers} onHoverChange={setEventMarkerHover} />
+            ) : null}
             </RechartsComposedChart>
           </ResponsiveContainer>
         </Box>

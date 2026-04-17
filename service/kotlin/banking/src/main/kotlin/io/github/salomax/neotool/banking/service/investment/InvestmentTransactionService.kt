@@ -80,6 +80,7 @@ open class InvestmentTransactionService(
     private val transactionCategoryEntityRepository: TransactionCategoryEntityRepository,
     private val portfolioFlowEventService: PortfolioFlowEventService,
     private val holdingAttachmentRepository: HoldingAttachmentRepository,
+    private val couponScheduleService: CouponScheduleService,
 ) {
     private val logger = KotlinLogging.logger {}
 
@@ -128,6 +129,7 @@ open class InvestmentTransactionService(
         userId: UUID,
     ): InvestmentTransaction {
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
+        command.cashDestinationAccountId?.let { requireAccountOwnsFinancialAccount(it, accountId) }
         validateCommand(command)
 
         // Dedup: skip if already synced from the same provider
@@ -162,7 +164,7 @@ open class InvestmentTransactionService(
         val holding = existingHolding ?: createHolding(command, asset, accountId, now)
 
         // Apply the transaction effect: update quantity and average cost
-        val updatedHolding = applyEffect(holding, command, now)
+        val updatedHolding = applyEffect(holding, command, now, asset)
 
         // Persist the updated (or newly created) holding first to get its id
         val savedHolding =
@@ -202,8 +204,8 @@ open class InvestmentTransactionService(
                 updatedAt = now,
             )
 
-        val savedTx = investmentTransactionRepository.save(transaction)
-        syncInvestmentCashLedger(
+        var savedTx = investmentTransactionRepository.save(transaction)
+        val linkedCashTx = syncInvestmentCashLedger(
             savedTx = savedTx,
             command = command,
             asset = asset,
@@ -211,6 +213,7 @@ open class InvestmentTransactionService(
             userId = userId,
         )
         syncMaturityPendingAction(savedHolding, accountId)
+        syncCouponPendingAction(savedHolding, savedTx, accountId)
         syncPortfolioPerformance(savedHolding, savedTx, accountId)
         return savedTx
     }
@@ -252,7 +255,7 @@ open class InvestmentTransactionService(
                 brokerNote = command.brokerNote,
                 updatedAt = now,
             )
-        val savedTx = investmentTransactionRepository.update(updatedTx)
+        var savedTx = investmentTransactionRepository.update(updatedTx)
         removePortfolioFlowSideEffects(existingTx)
         removeCustodianLedgerLegsLinkedToInvestmentTransactions(listOf(id), accountId)
         val rebuiltHolding =
@@ -263,13 +266,14 @@ open class InvestmentTransactionService(
             assetRepository.findById(existingHolding.assetId)
                 ?: throw NoSuchElementException("Asset ${existingHolding.assetId} not found")
         val replayCommand = savedTx.toReplayCommand(rebuiltHolding)
-        syncInvestmentCashLedger(
+        val linkedCashTx = syncInvestmentCashLedger(
             savedTx = savedTx,
             command = replayCommand,
             asset = asset,
             accountId = accountId,
             userId = userId,
         )
+        syncCouponPendingAction(rebuiltHolding, savedTx, accountId)
         syncPortfolioPerformance(rebuiltHolding, savedTx, accountId)
         return savedTx
     }
@@ -292,12 +296,14 @@ open class InvestmentTransactionService(
         asset: Asset,
         accountId: UUID,
         userId: UUID,
-    ) {
-        val linkId = savedTx.id ?: return
-        if (transactionRepository.existsByInvestmentTransactionId(linkId)) return
+    ): Transaction? {
+        val linkId = savedTx.id ?: return null
+        if (transactionRepository.existsByInvestmentTransactionId(linkId)) {
+            return transactionRepository.findByInvestmentTransactionIds(listOf(linkId), accountId).firstOrNull()
+        }
 
         val cashAmount = savedTx.netValue ?: savedTx.grossValue
-        if (cashAmount.signum() <= 0) return
+        if (cashAmount.signum() <= 0) return null
 
         when (command.type) {
             PURCHASE, SUBSCRIPTION -> {
@@ -324,7 +330,7 @@ open class InvestmentTransactionService(
                         SUBSCRIPTION -> "Subscrição"
                         else -> "Compra / aplicação"
                     }
-                transactionService.create(
+                return transactionService.create(
                     CreateTransactionCommand(
                         financialAccountId = command.financialAccountId,
                         creditDebitType = CreditDebitType.DEBIT,
@@ -367,6 +373,8 @@ open class InvestmentTransactionService(
                             )
                         }
 
+                val destinationAccountId = command.cashDestinationAccountId ?: command.financialAccountId
+
                 val description =
                     when (command.type) {
                         DIVIDEND -> "Dividendos — $assetName"
@@ -378,9 +386,9 @@ open class InvestmentTransactionService(
                         else -> "Investimentos — $assetName"
                     }
 
-                transactionService.create(
+                return transactionService.create(
                     CreateTransactionCommand(
-                        financialAccountId = command.financialAccountId,
+                        financialAccountId = destinationAccountId,
                         creditDebitType = CreditDebitType.CREDIT,
                         type = TransactionType.INVESTMENT_RETURN,
                         amount = cashAmount,
@@ -394,7 +402,7 @@ open class InvestmentTransactionService(
                     userId = userId,
                 )
             }
-            else -> return
+            else -> return null
         }
     }
 
@@ -485,6 +493,145 @@ open class InvestmentTransactionService(
         }
     }
 
+    private fun syncCouponPendingAction(
+        holding: Holding,
+        savedTx: InvestmentTransaction?,
+        accountId: UUID,
+    ) {
+        val holdingId = holding.id ?: return
+        if (!holding.supportsCouponPendingAction()) {
+            pendingActionRepository.cancelByEntityAndType(
+                entityType = "HOLDING",
+                entityId = holdingId,
+                type = PendingActionType.COUPON_PAYMENT_DUE,
+            )
+            return
+        }
+
+        if (savedTx?.type == INTEREST_PAYMENT) {
+            completeCurrentCouponPendingAction(holding, savedTx.id)
+        }
+
+        upsertNextCouponPendingActionIfNeeded(
+            holding = holding,
+            today = savedTx?.tradeDate ?: LocalDate.now(),
+        )
+    }
+
+    fun upsertNextCouponPendingActionIfNeeded(
+        holding: Holding,
+        today: LocalDate = LocalDate.now(),
+    ) {
+        val holdingId = holding.id ?: return
+        if (!holding.supportsCouponPendingAction()) {
+            pendingActionRepository.cancelByEntityAndType(
+                entityType = "HOLDING",
+                entityId = holdingId,
+                type = PendingActionType.COUPON_PAYMENT_DUE,
+            )
+            return
+        }
+
+        val transactions = investmentTransactionRepository.findByHolding(holdingId, holding.accountId)
+        val lastInterestPaymentDate =
+            transactions
+                .asSequence()
+                .filter { tx -> tx.type == INTEREST_PAYMENT }
+                .map { it.tradeDate }
+                .maxOrNull()
+        val asset =
+            assetRepository.findById(holding.assetId)
+                ?: return
+        val schedule =
+            couponScheduleService
+                .generateSchedule(holding, asset.assetType, emptyList(), today)
+                .map { it.scheduledDate }
+        val nextCouponDate =
+            if (lastInterestPaymentDate != null) {
+                schedule.firstOrNull { date -> date.isAfter(lastInterestPaymentDate) }
+            } else {
+                schedule.firstOrNull()
+            }
+
+        if (nextCouponDate == null) {
+            pendingActionRepository.cancelByEntityAndType(
+                entityType = "HOLDING",
+                entityId = holdingId,
+                type = PendingActionType.COUPON_PAYMENT_DUE,
+            )
+            return
+        }
+
+        val visibleFrom = nextCouponDate.minusDays(7).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()
+        val now = Instant.now()
+        val payload =
+            mapOf(
+                "couponDate" to nextCouponDate.toString(),
+                "couponFrequency" to holding.couponFrequency?.name,
+            )
+
+        val existing = pendingActionRepository.findPendingByEntityAndType("HOLDING", holdingId, PendingActionType.COUPON_PAYMENT_DUE)
+        if (existing != null) {
+            if (existing.visibleFrom != visibleFrom || existing.payload != payload) {
+                pendingActionRepository.update(
+                    existing.copy(
+                        visibleFrom = visibleFrom,
+                        payload = payload,
+                        updatedAt = now,
+                    ),
+                )
+            }
+            return
+        }
+
+        pendingActionRepository.save(
+            AccountPendingAction(
+                accountId = holding.accountId,
+                type = PendingActionType.COUPON_PAYMENT_DUE,
+                severity = PendingActionSeverity.ACTION_REQUIRED,
+                status = AccountPendingActionStatus.PENDING,
+                entityType = "HOLDING",
+                entityId = holdingId,
+                relatedTransactionId = null,
+                payload = payload,
+                visibleFrom = visibleFrom,
+                notifiedAt = null,
+                dismissedAt = null,
+                completedAt = null,
+                cancelledAt = null,
+                expiresAt = null,
+                createdAt = now,
+                updatedAt = now,
+            ),
+        )
+    }
+
+    fun completeCurrentCouponPendingAction(holding: Holding) {
+        completeCurrentCouponPendingAction(holding, null)
+    }
+
+    private fun completeCurrentCouponPendingAction(
+        holding: Holding,
+        relatedTransactionId: UUID?,
+    ) {
+        val holdingId = holding.id ?: return
+        val existing =
+            pendingActionRepository.findPendingByEntityAndType(
+                entityType = "HOLDING",
+                entityId = holdingId,
+                type = PendingActionType.COUPON_PAYMENT_DUE,
+            ) ?: return
+        val now = Instant.now()
+        pendingActionRepository.update(
+            existing.copy(
+                status = AccountPendingActionStatus.COMPLETED,
+                relatedTransactionId = relatedTransactionId ?: existing.relatedTransactionId,
+                completedAt = now,
+                updatedAt = now,
+            ),
+        )
+    }
+
     fun delete(
         id: UUID,
         accountId: UUID,
@@ -558,6 +705,11 @@ open class InvestmentTransactionService(
             entityId = id,
             type = PendingActionType.INVESTMENT_MATURED,
         )
+        pendingActionRepository.cancelByEntityAndType(
+            entityType = "HOLDING",
+            entityId = id,
+            type = PendingActionType.COUPON_PAYMENT_DUE,
+        )
 
         val recalcFrom = transactions.minOfOrNull { it.tradeDate }
             ?: holding.issueDate
@@ -590,6 +742,7 @@ open class InvestmentTransactionService(
     private fun validateApplyEffectPreconditions(
         command: RecordInvestmentTransactionCommand,
         holding: Holding,
+        asset: Asset,
     ) {
         val qty = command.quantity
         val price = command.unitPrice
@@ -640,15 +793,17 @@ open class InvestmentTransactionService(
 
             else -> Unit
         }
+        CouponDayOfMonthRules.validate(asset.assetType, holding)
     }
 
     private fun applyEffect(
         holding: Holding,
         command: RecordInvestmentTransactionCommand,
         now: Instant,
+        asset: Asset,
     ): Holding {
         val effectiveHolding = holding.withMissingFixedIncomeTerms(command)
-        validateApplyEffectPreconditions(command, effectiveHolding)
+        validateApplyEffectPreconditions(command, effectiveHolding, asset)
         return HoldingPositionEvolution.evolve(effectiveHolding, PositionEvolutionInput.from(command))
             .copy(updatedAt = now)
     }
@@ -675,6 +830,8 @@ open class InvestmentTransactionService(
             maturityDate = command.maturityDate,
             gracePeriodDate = command.gracePeriodDate,
             isTaxExempt = command.isTaxExempt,
+            couponFrequency = command.couponFrequency,
+            couponDayOfMonth = command.couponDayOfMonth,
             pricingMode = command.pricingMode,
             manualGrossValue = command.manualValuation?.grossValue,
             manualValuedAt = command.manualValuation?.valuedAt,
@@ -751,6 +908,7 @@ open class InvestmentTransactionService(
         val rebuiltHolding = recomputeHoldingState(existingHolding, accountId, null, now)
         if (rebuiltHolding == null) {
             pendingActionRepository.cancelByEntityAndType("HOLDING", holdingId, PendingActionType.INVESTMENT_MATURED, now)
+            pendingActionRepository.cancelByEntityAndType("HOLDING", holdingId, PendingActionType.COUPON_PAYMENT_DUE, now)
             holdingRepository.softDelete(holdingId, accountId)
         }
     }
@@ -762,6 +920,9 @@ open class InvestmentTransactionService(
         now: Instant,
     ): Holding? {
         val holdingId = requireNotNull(existingHolding.id) { "Holding id must not be null for recomputation" }
+        val asset =
+            assetRepository.findById(existingHolding.assetId)
+                ?: throw NoSuchElementException("Asset ${existingHolding.assetId} not found for holding recomputation")
         val remainingTransactions =
             investmentTransactionRepository.findByHolding(holdingId, accountId)
                 .sortedWith(compareBy<InvestmentTransaction>({ it.tradeDate }, { it.createdAt }))
@@ -775,6 +936,8 @@ open class InvestmentTransactionService(
                 maturityDate = updateCommand?.maturityDate ?: existingHolding.maturityDate,
                 gracePeriodDate = updateCommand?.gracePeriodDate ?: existingHolding.gracePeriodDate,
                 isTaxExempt = updateCommand?.isTaxExempt ?: existingHolding.isTaxExempt,
+                couponFrequency = updateCommand?.couponFrequency ?: existingHolding.couponFrequency,
+                couponDayOfMonth = updateCommand?.couponDayOfMonth ?: existingHolding.couponDayOfMonth,
                 pricingMode = updateCommand?.pricingMode ?: existingHolding.pricingMode,
                 manualGrossValue = updateCommand?.manualValuation?.grossValue ?: existingHolding.manualGrossValue,
                 manualValuedAt = updateCommand?.manualValuation?.valuedAt ?: existingHolding.manualValuedAt,
@@ -786,10 +949,12 @@ open class InvestmentTransactionService(
                     holding = holding,
                     command = transaction.toReplayCommand(replayBase),
                     now = now,
+                    asset = asset,
                 )
             }
         val saved = holdingRepository.update(rebuiltHolding.copy(updatedAt = now))
         syncMaturityPendingAction(saved, accountId)
+        syncCouponPendingAction(saved, null, accountId)
         return saved
     }
 
@@ -909,6 +1074,8 @@ open class InvestmentTransactionService(
             source = source,
             providerTransactionId = providerTransactionId,
             providerInvestmentId = existingHolding.providerInvestmentId,
+            couponFrequency = existingHolding.couponFrequency,
+            couponDayOfMonth = existingHolding.couponDayOfMonth,
             brokerNote = brokerNote,
             pricingMode = existingHolding.pricingMode,
             manualValuation =
@@ -1018,8 +1185,17 @@ private fun Holding.withMissingFixedIncomeTerms(command: RecordInvestmentTransac
         maturityDate = maturityDate ?: command.maturityDate,
         gracePeriodDate = gracePeriodDate ?: command.gracePeriodDate,
         isTaxExempt = isTaxExempt || command.isTaxExempt,
+        couponFrequency = couponFrequency ?: command.couponFrequency,
+        couponDayOfMonth = couponDayOfMonth ?: command.couponDayOfMonth,
     )
 }
+
+private fun Holding.supportsCouponPendingAction(): Boolean =
+    quantity > BigDecimal.ZERO &&
+        maturityDate != null &&
+        issueDate != null &&
+        couponFrequency != null &&
+        couponFrequency != CouponFrequency.AT_MATURITY
 
 private fun AssetType.isFundAsset(): Boolean =
     this == AssetType.MUTUAL_FUND || this == AssetType.PGBL || this == AssetType.VGBL

@@ -4,6 +4,7 @@ import {
   type CardAccountOption,
   type SharedCardTemplate,
 } from './billImportTypes';
+import { parseDateOnly } from '@/shared/utils/date/dateOnly';
 
 // ── Issuer key helpers ───────────────────────────────────────────────────────
 
@@ -16,25 +17,16 @@ export function toIssuerKey(issuerId?: string | null, issuerName?: string | null
 // ── Date helpers ─────────────────────────────────────────────────────────────
 
 export function getDayOfMonthFromDateInput(date: string | null | undefined): number | undefined {
-  if (!date) return undefined;
-  const dateOnlyMatch = /^\d{4}-\d{2}-(\d{2})$/.exec(date);
-  if (dateOnlyMatch) {
-    const day = Number(dateOnlyMatch[1]);
-    return day >= 1 && day <= 31 ? day : undefined;
-  }
-  const parsed = new Date(date);
-  if (Number.isNaN(parsed.getTime())) return undefined;
+  const parsed = parseDateOnly(date);
+  if (!parsed) return undefined;
   const day = parsed.getDate();
   return day >= 1 && day <= 31 ? day : undefined;
 }
 
 export function formatTxDisplayDate(date: string | null | undefined, locale?: string): string {
   if (!date) return '-';
-  const dateOnlyMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
-  const dateObj = dateOnlyMatch
-    ? new Date(Number(dateOnlyMatch[1]), Number(dateOnlyMatch[2]) - 1, Number(dateOnlyMatch[3]))
-    : new Date(date);
-  if (Number.isNaN(dateObj.getTime())) return date;
+  const dateObj = parseDateOnly(date);
+  if (!dateObj) return date;
   return new Intl.DateTimeFormat(locale, { dateStyle: 'short' }).format(dateObj);
 }
 

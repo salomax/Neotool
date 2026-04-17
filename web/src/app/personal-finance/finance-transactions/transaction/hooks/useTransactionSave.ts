@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type KeyboardEvent } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
 import dayjs from 'dayjs';
 import {
@@ -8,6 +8,7 @@ import {
 } from '@/lib/graphql/operations/banking/mutations';
 import { SIMILAR_TRANSACTION_EDIT_PREVIEW } from '@/lib/graphql/operations/banking/queries';
 import { CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { usePreferences, useToast } from '@/shared/providers';
 import { resolveSimilarEditBehavior } from '../similarEditPreference';
@@ -107,7 +108,7 @@ export interface TransactionSaveState {
   pendingSimilarEditPrompt: PendingSimilarEditPrompt | null;
   canSave: boolean;
   handleSave: () => Promise<void>;
-  handleKeyDown: (e: React.KeyboardEvent) => void;
+  handleKeyDown: (e: KeyboardEvent) => void;
   handleTypeChange: (value: CreditDebitTypeExtended) => void;
   handleConfirmSimilarEdit: (applyToExisting: boolean, applyToFuture: boolean) => Promise<void>;
   handleDismissSimilarEditPrompt: () => Promise<void>;
@@ -168,6 +169,7 @@ export function useTransactionSave({
         : (creditDebitType as CreditDebitType);
 
     const formattedAmount = Math.abs(amount);
+    const formattedDate = formatDateOnly(date.toDate());
 
     let updateType: TransactionType | undefined = undefined;
     if (isTransferShortcut && initialValues?.type !== TransactionType.Transfer) {
@@ -181,7 +183,7 @@ export function useTransactionSave({
     const updateInput = isBalanceAdjustmentEdit
       ? { amount: formattedAmount }
       : {
-          date: date.format('YYYY-MM-DD'),
+          date: formattedDate,
           amount: formattedAmount,
           description,
           categoryId: categoryId || undefined,
@@ -244,7 +246,7 @@ export function useTransactionSave({
         await createTransaction({
           variables: {
             input: {
-              date: date.format('YYYY-MM-DD'),
+              date: formattedDate,
               amount: formattedAmount,
               description,
               financialAccountId: accountId,
@@ -281,7 +283,7 @@ export function useTransactionSave({
   ]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
+    (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
       const descOk = isBalanceAdjustmentEdit || description;

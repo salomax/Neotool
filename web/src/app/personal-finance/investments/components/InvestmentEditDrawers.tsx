@@ -51,6 +51,8 @@ export const InvestmentEditDrawers = React.memo(function InvestmentEditDrawers({
                 fixedAnnualRate: holding.fixedAnnualRate ?? null,
                 maturityDate: holding.maturityDate ?? null,
                 isTaxExempt: holding.isTaxExempt ?? false,
+                couponFrequency: holding.couponFrequency ?? null,
+                couponDayOfMonth: holding.couponDayOfMonth ?? null,
               }
             : null
         }

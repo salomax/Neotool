@@ -175,3 +175,5 @@ export function getCurrentLocale(): string {
   }
   return 'en-US';
 }
+
+export * from './dateOnly';

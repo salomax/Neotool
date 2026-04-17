@@ -8,7 +8,7 @@ import {
 } from "@/lib/graphql/types/__generated__/graphql";
 import { getHoldingValueOrigin, type ValueOriginLabel } from "@/shared/utils/holdingValueOrigin";
 import type { FixedIncomeHoldingDetailQuery } from "./api/queries.generated";
-import { isSameInvestmentEventAndSettlementDay } from "../timelineSettlementDay";
+import { investmentTransactionCalendarDayKey, isSameInvestmentEventAndSettlementDay } from "../timelineSettlementDay";
 import { withPartialMonthFlags } from "../performance/withPartialMonthFlags";
 
 type Translator = (key: string, options?: Record<string, unknown>) => string;
@@ -41,7 +41,10 @@ export interface FixedIncomeSummaryMetricViewModel {
 export interface FixedIncomeTimelineItemViewModel {
   id: string;
   title: string;
+  transactionType: InvestmentTransactionType;
+  isFirstApplication: boolean;
   tradeDateLabel: string;
+  tradeDateDayKey: string | null;
   settlementDateLabel: string | null;
   amount: number;
   netAmount: number | null;
@@ -69,6 +72,7 @@ export interface FixedIncomeHoldingDetailViewModel {
   xirr: number | null;
   xirrSinceLabel: string | null;
   totalReturnAbsolute: number | null;
+  couponsReceivedNet: number;
   indexerLabel: string;
   issueDateLabel: string;
   gracePeriodDateLabel: string;
@@ -180,6 +184,12 @@ export function buildFixedIncomeHoldingDetailViewModel(
     typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
       ? investmentHoldingPerformance.totalReturnAbsolute
       : null;
+  const couponsReceivedNet = transactions.reduce((acc, transaction) => {
+    if (transaction.type !== InvestmentTransactionType.InterestPayment) return acc;
+    if (transaction.direction !== InvestmentTransactionDirection.Inflow) return acc;
+    const amount = typeof transaction.netValue === "number" ? transaction.netValue : transaction.grossValue;
+    return acc + amount;
+  }, 0);
   const typeLabel = formatAssetType(holding.asset.assetType, t);
   const issuerLabel = buildIssuerLabel(holding);
   const accountLabel = buildAccountLabel(holding);
@@ -229,12 +239,27 @@ export function buildFixedIncomeHoldingDetailViewModel(
     },
   ];
 
-  const timelineItems = [...transactions]
-    .sort((a, b) => new Date(String(b.tradeDate)).getTime() - new Date(String(a.tradeDate)).getTime())
-    .map((transaction) => ({
+  const sortedTimelineTransactions = [...transactions]
+    .map((transaction, index) => ({ transaction, index }))
+    .sort((a, b) => {
+      const byDate = new Date(String(b.transaction.tradeDate)).getTime() - new Date(String(a.transaction.tradeDate)).getTime();
+      if (byDate !== 0) return byDate;
+      return b.index - a.index;
+    })
+    .map(({ transaction }) => transaction);
+
+  const firstApplicationId =
+    [...sortedTimelineTransactions]
+      .filter((item) => item.type === InvestmentTransactionType.Purchase)
+      .sort((a, b) => new Date(String(a.tradeDate)).getTime() - new Date(String(b.tradeDate)).getTime())[0]?.id ?? null;
+
+  const mappedTimelineItems = sortedTimelineTransactions.map((transaction) => ({
       id: transaction.id,
       title: formatTransactionType(transaction.type, t),
+      transactionType: transaction.type,
+      isFirstApplication: transaction.id === firstApplicationId,
       tradeDateLabel: formatDate(transaction.tradeDate, locale),
+      tradeDateDayKey: investmentTransactionCalendarDayKey(transaction.tradeDate),
       settlementDateLabel:
         transaction.settlementDate &&
         !isSameInvestmentEventAndSettlementDay(transaction.tradeDate, transaction.settlementDate)
@@ -247,17 +272,38 @@ export function buildFixedIncomeHoldingDetailViewModel(
       direction: transaction.direction,
     }));
 
+  const couponTimeline = [...transactions]
+    .filter(
+      (transaction) =>
+        transaction.type === InvestmentTransactionType.InterestPayment &&
+        transaction.direction === InvestmentTransactionDirection.Inflow,
+    )
+    .map((transaction) => ({
+      tradeDate: new Date(String(transaction.tradeDate)).getTime(),
+      amount: typeof transaction.netValue === "number" ? transaction.netValue : transaction.grossValue,
+    }))
+    .sort((a, b) => a.tradeDate - b.tradeDate);
+  let couponIndex = 0;
+  let cumulativeCoupons = 0;
   const chartPoints = withPartialMonthFlags(
-    (performance?.points ?? []).map((point) => ({
-      timestamp: String(point.timestamp),
-      isProjected: point.isProjected,
-      investedPrincipal: point.investedPrincipal,
-      grossValue:
+    (performance?.points ?? []).map((point) => {
+      const pointTime = new Date(String(point.timestamp)).getTime();
+      while (couponIndex < couponTimeline.length && couponTimeline[couponIndex]!.tradeDate <= pointTime) {
+        cumulativeCoupons += couponTimeline[couponIndex]!.amount;
+        couponIndex += 1;
+      }
+      const grossBase =
         holding.isTaxExempt && point.grossValue == null && typeof point.netValue === "number"
           ? point.netValue
-          : point.grossValue,
-      netValue: point.netValue,
-    })),
+          : point.grossValue;
+      return {
+        timestamp: String(point.timestamp),
+        isProjected: point.isProjected,
+        investedPrincipal: point.investedPrincipal,
+        grossValue: grossBase == null ? grossBase : grossBase + cumulativeCoupons,
+        netValue: point.netValue == null ? point.netValue : point.netValue + cumulativeCoupons,
+      };
+    }),
   );
 
   return {
@@ -279,6 +325,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
     xirr,
     xirrSinceLabel,
     totalReturnAbsolute,
+    couponsReceivedNet,
     indexerLabel: formatIndexer(holding, locale),
     issueDateLabel: formatDate(holding.issueDate, locale),
     gracePeriodDateLabel: formatDate(holding.gracePeriodDate, locale),
@@ -294,7 +341,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
       source: holding.source,
     }),
     summaryMetrics,
-    timelineItems,
+    timelineItems: mappedTimelineItems,
     chartPoints,
     supportsProjection: Boolean(performance?.capabilities.supportsProjection),
   };

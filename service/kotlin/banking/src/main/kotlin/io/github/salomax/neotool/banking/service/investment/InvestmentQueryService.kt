@@ -34,6 +34,7 @@ import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
 import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceCapabilitiesDTO
+import io.github.salomax.neotool.banking.graphql.investment.CouponScheduleEntryDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformancePointDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
@@ -41,6 +42,7 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceSu
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import jakarta.inject.Singleton
 import mu.KotlinLogging
@@ -82,6 +84,7 @@ class InvestmentQueryService(
     private val investmentTransactionRepository: InvestmentTransactionRepository,
     private val indicatorRateProvider: IndicatorRateProvider,
     private val transactionRepository: TransactionRepository,
+    private val couponScheduleService: CouponScheduleService = CouponScheduleService(),
     private val clock: () -> LocalDate = { LocalDate.now() },
 ) {
     private val logger = KotlinLogging.logger {}
@@ -114,7 +117,7 @@ class InvestmentQueryService(
             } else {
                 rawHoldings
             }
-        return mapHoldingsToDTO(holdings, accountId, assetsById)
+        return mapHoldingsToDTO(holdings, accountId, assetsById, includeCouponSchedule = false)
     }
 
     /**
@@ -223,7 +226,7 @@ class InvestmentQueryService(
 
     fun getHolding(id: UUID, accountId: UUID): InvestmentHoldingDTO? {
         val holding = holdingRepository.findById(id, accountId) ?: return null
-        return mapHoldingsToDTO(listOf(holding), accountId).first()
+        return mapHoldingsToDTO(listOf(holding), accountId, includeCouponSchedule = true).first()
     }
 
     fun getHoldingPerformance(
@@ -461,7 +464,18 @@ class InvestmentQueryService(
         val totalReturnAbsolute = cashFlows.sumOf(HoldingCashFlow::amount) + currentValue
         val totalReturnBase = totalInvested.takeIf { it > 0.0 } ?: currentCostBasis
         val totalReturn = if (totalReturnBase > 0.0) totalReturnAbsolute / totalReturnBase else 0.0
-        val dividendsReceived = transactions.sumOf { it.dividendLikeAmount() }
+        val dividendsReceived =
+            if (holding.couponFrequency != null && holding.couponFrequency != CouponFrequency.AT_MATURITY) {
+                transactions.sumOf { tx ->
+                    if (tx.type == InvestmentTransactionType.INTEREST_PAYMENT) {
+                        tx.cashFlowAmountMagnitude()
+                    } else {
+                        0.0
+                    }
+                }
+            } else {
+                transactions.sumOf { it.dividendLikeAmount() }
+            }
         val xirrSince = cashFlows.minOfOrNull(HoldingCashFlow::date)
         val terminalCashFlows = cashFlows + HoldingCashFlow(clock(), currentValue)
         val xirr =
@@ -490,6 +504,7 @@ class InvestmentQueryService(
         holdings: List<Holding>,
         accountId: UUID,
         preloadedAssetsById: Map<UUID, Asset>? = null,
+        includeCouponSchedule: Boolean = false,
     ): List<InvestmentHoldingDTO> {
         if (holdings.isEmpty()) return emptyList()
 
@@ -530,7 +545,14 @@ class InvestmentQueryService(
             }
             .toSet()
         val marketSnapshotsByCnpj = safeGetFundMarketSnapshots(marketDataCnpjs)
-        val holdingTransactionsById = loadHoldingTransactionsById(holdings, assetsById, marketSnapshotsByCnpj, accountId)
+        val holdingTransactionsById =
+            loadHoldingTransactionsById(
+                holdings = holdings,
+                assetsById = assetsById,
+                marketSnapshotsByCnpj = marketSnapshotsByCnpj,
+                accountId = accountId,
+                includeCouponSchedule = includeCouponSchedule,
+            )
         val rateMap = safeGetIndicatorRates()
         val refDate = indicatorRateProvider.getReferenceDate()
         val today = clock()
@@ -549,6 +571,7 @@ class InvestmentQueryService(
                 marketSnapshotsByCnpj = marketSnapshotsByCnpj,
                 holdingTransactionsById = holdingTransactionsById,
                 monthlySeries = monthlySeries,
+                includeCouponSchedule = includeCouponSchedule,
             )
         }
     }
@@ -606,6 +629,7 @@ class InvestmentQueryService(
         assetsById: Map<UUID, Asset>,
         marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
         accountId: UUID,
+        includeCouponSchedule: Boolean,
     ): Map<UUID, List<InvestmentTransaction>> {
         val marketDataHoldingIds = holdings
             .mapNotNull { holding ->
@@ -626,7 +650,27 @@ class InvestmentQueryService(
                 val holdingId = holding.id ?: return@mapNotNull null
                 holdingId.takeIf { holding.requiresFixedIncomeTransactionBackfill() }
             }
-        val holdingIds = (marketDataHoldingIds + fixedIncomeBackfillHoldingIds).distinct()
+        val couponValuationHoldingIds =
+            holdings
+                .mapNotNull { holding ->
+                    val holdingId = holding.id ?: return@mapNotNull null
+                    if (holding.couponFrequency != null && holding.couponFrequency != CouponFrequency.AT_MATURITY) {
+                        holdingId
+                    } else {
+                        null
+                    }
+                }
+        val couponScheduleHoldingIds =
+            if (!includeCouponSchedule) {
+                emptyList()
+            } else {
+                holdings
+                    .mapNotNull { holding ->
+                        val holdingId = holding.id ?: return@mapNotNull null
+                        holdingId.takeIf { holding.couponFrequency != null && holding.couponFrequency != CouponFrequency.AT_MATURITY }
+                    }
+            }
+        val holdingIds = (marketDataHoldingIds + fixedIncomeBackfillHoldingIds + couponValuationHoldingIds + couponScheduleHoldingIds).distinct()
         if (holdingIds.isEmpty()) return emptyMap()
         return investmentTransactionRepository.findByHoldingIds(holdingIds, accountId)
             .groupBy { it.holdingId }
@@ -644,6 +688,7 @@ class InvestmentQueryService(
         marketSnapshotsByCnpj: Map<String, FundMarketSnapshot>,
         holdingTransactionsById: Map<UUID, List<InvestmentTransaction>>,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+        includeCouponSchedule: Boolean,
     ): InvestmentHoldingDTO {
         val financialAccount = accountsById[financialAccountId]
         val asset = assetsById[assetId]
@@ -661,6 +706,25 @@ class InvestmentQueryService(
                 ?: providerValuation()
                 ?: estimatedFixedIncomeValuation(rateMap, fixedIncomeRefDate, monthlySeries, holdingTransactionsById)
                 ?: Valuation(null, null, null, null, ValuationSource.UNAVAILABLE, null)
+        val scheduleTransactions = id?.let { holdingId -> holdingTransactionsById[holdingId].orEmpty() }.orEmpty()
+        val couponSchedule =
+            if (includeCouponSchedule && asset != null) {
+                couponScheduleService
+                    .generateSchedule(this, asset.assetType, scheduleTransactions, today)
+                    .map { entry ->
+                        CouponScheduleEntryDTO(
+                            seriesNumber = entry.seriesNumber,
+                            scheduledDate = entry.scheduledDate,
+                            periodStart = entry.periodStart,
+                            periodEnd = entry.periodEnd,
+                            isPartialPeriod = entry.isPartialPeriod,
+                            isPast = entry.isPast,
+                            matchedTransaction = entry.matchedTransaction?.toDTO(),
+                        )
+                    }
+            } else {
+                emptyList()
+            }
 
         return InvestmentHoldingDTO(
             id = id!!,
@@ -678,10 +742,20 @@ class InvestmentQueryService(
             maturityDate = maturityDate,
             gracePeriodDate = gracePeriodDate,
             isTaxExempt = isTaxExempt,
+            couponFrequency = couponFrequency,
+            couponDayOfMonth = couponDayOfMonth,
+            couponSchedule = couponSchedule,
             grossValue = valuation.grossValue,
             netValue = valuation.netValue,
             incomeTax = valuation.incomeTax,
             iof = valuation.iof,
+            accruedInterest = run {
+                val gv = valuation.grossValue ?: return@run null
+                val principal = quantity.multiply(averageCost, mathContext).toDouble()
+                if (principal <= 0.0) return@run null
+                val interest = gv - principal
+                if (interest <= 0.0) null else interest
+            },
             lastValuedAt = lastValuedAt,
             pricingMode = pricingMode,
             valuationSource = valuation.source,
@@ -775,7 +849,15 @@ class InvestmentQueryService(
                 id?.let { holdingId ->
                     withBackfilledFixedIncomeTerms(holdingTransactionsById[holdingId].orEmpty())
                 } ?: this
-            val result = fixedIncomeValuationService.estimate(valuationHolding, rateMap, refDate, monthlySeries)
+            val holdingTransactions = id?.let { holdingId -> holdingTransactionsById[holdingId].orEmpty() }.orEmpty()
+            val result =
+                fixedIncomeValuationService.estimate(
+                    holding = valuationHolding,
+                    indicatorRates = rateMap,
+                    valuationReferenceDate = refDate,
+                    monthlySeries = monthlySeries,
+                    transactions = holdingTransactions,
+                )
             Valuation(
                 result.grossValue?.toDouble(),
                 result.netValue?.toDouble(),
@@ -819,6 +901,7 @@ class InvestmentQueryService(
         if (pointDates.isEmpty()) return emptyList()
 
         var txIndex = 0
+        val appliedTransactions = mutableListOf<InvestmentTransaction>()
         var state = holding.asEmptyPerformanceState()
         var investedPrincipal = BigDecimal.ZERO
         var netContributions = BigDecimal.ZERO
@@ -826,6 +909,7 @@ class InvestmentQueryService(
         return pointDates.map { pointDate ->
             while (txIndex < transactions.size && !transactions[txIndex].tradeDate.isAfter(pointDate.date)) {
                 val transaction = transactions[txIndex]
+                appliedTransactions += transaction
                 state = state.applyPerformanceTransaction(transaction)
                 if (transaction.isCapitalContributionForPerformance()) {
                     investedPrincipal += transaction.grossValue
@@ -844,6 +928,7 @@ class InvestmentQueryService(
                 rateMap = rateMap,
                 valuationReferenceDate = valuationReferenceDate,
                 monthlySeries = monthlySeries,
+                transactions = appliedTransactions,
             )
         }
     }
@@ -1095,6 +1180,7 @@ class InvestmentQueryService(
         rateMap: Map<Indexer, BigDecimal>,
         valuationReferenceDate: LocalDate?,
         monthlySeries: Map<Indexer, List<Pair<LocalDate, BigDecimal>>>,
+        transactions: List<InvestmentTransaction>,
     ): PerformancePoint {
         val currentCostBasis = holding.quantity.multiply(holding.averageCost, mathContext)
 
@@ -1125,14 +1211,32 @@ class InvestmentQueryService(
             monthlySeries = monthlySeries,
             asOfDate = pointDate.date,
             allowRateProjectionPastSeries = pointDate.isProjected,
+            transactions = transactions,
         )
         val grossValue = valuation.grossValue
         val netValue = valuation.netValue
-        val grossGain = grossValue?.subtract(currentCostBasis)
-        val netGain = netValue?.subtract(currentCostBasis)
+        val couponIncomeNet =
+            if (holding.couponFrequency != null && holding.couponFrequency != CouponFrequency.AT_MATURITY) {
+                transactions
+                    .asSequence()
+                    .filter { tx -> tx.type == InvestmentTransactionType.INTEREST_PAYMENT }
+                    .filter { tx -> tx.direction == InvestmentTransactionDirection.INFLOW }
+                    .filter { tx -> !tx.tradeDate.isAfter(pointDate.date) }
+                    .fold(BigDecimal.ZERO) { acc, tx -> acc + (tx.netValue ?: tx.grossValue) }
+            } else {
+                BigDecimal.ZERO
+            }
+        val grossGain = grossValue?.subtract(currentCostBasis)?.add(couponIncomeNet)
+        val netGain = netValue?.subtract(currentCostBasis)?.add(couponIncomeNet)
+        val gainPercentBase =
+            if (holding.couponFrequency != null && holding.couponFrequency != CouponFrequency.AT_MATURITY && investedPrincipal > BigDecimal.ZERO) {
+                investedPrincipal
+            } else {
+                currentCostBasis
+            }
         val grossGainPercent =
-            if (grossGain != null && currentCostBasis > BigDecimal.ZERO) {
-                grossGain.divide(currentCostBasis, mathContext)
+            if (grossGain != null && gainPercentBase > BigDecimal.ZERO) {
+                grossGain.divide(gainPercentBase, mathContext)
             } else {
                 null
             }
@@ -1253,19 +1357,15 @@ class InvestmentQueryService(
         (netValue ?: grossValue).abs().toDouble()
 
     private fun InvestmentTransaction.dividendLikeAmount(): Double =
-        if (direction == InvestmentTransactionDirection.INFLOW && type in DIVIDEND_LIKE_TYPES) {
-            cashFlowAmountMagnitude()
-        } else {
-            0.0
-        }
+        if (type in DIVIDEND_LIKE_TYPES) cashFlowAmountMagnitude() else 0.0
 
     private fun InvestmentTransaction.toHoldingCashFlow(): HoldingCashFlow? {
         val amount =
             when {
                 isCapitalContributionForPerformance() -> -cashFlowAmountMagnitude()
                 isCapitalWithdrawalForPerformance() -> cashFlowAmountMagnitude()
-                direction == InvestmentTransactionDirection.INFLOW && type in DIVIDEND_LIKE_TYPES -> cashFlowAmountMagnitude()
-                direction == InvestmentTransactionDirection.OUTFLOW && type in EXPENSE_LIKE_TYPES -> -cashFlowAmountMagnitude()
+                type in DIVIDEND_LIKE_TYPES -> cashFlowAmountMagnitude()
+                type in EXPENSE_LIKE_TYPES -> -cashFlowAmountMagnitude()
                 else -> null
             } ?: return null
         if (amount == 0.0) return null
@@ -1412,6 +1512,31 @@ class InvestmentQueryService(
         createdAt = createdAt,
         updatedAt = updatedAt,
     )
+
+    private fun InvestmentTransaction.toDTO(): InvestmentTransactionDTO =
+        InvestmentTransactionDTO(
+            id = id!!,
+            holdingId = holdingId,
+            financialAccountId = financialAccountId,
+            direction = direction,
+            type = type,
+            typeAdditionalInfo = typeAdditionalInfo,
+            quantity = quantity?.toDouble(),
+            unitPrice = unitPrice?.toDouble(),
+            grossValue = grossValue.toDouble(),
+            netValue = netValue?.toDouble(),
+            incomeTax = incomeTax?.toDouble(),
+            iof = iof?.toDouble(),
+            indexerPercentage = indexerPercentage?.toDouble(),
+            fixedAnnualRate = fixedAnnualRate?.toDouble(),
+            priceFactor = priceFactor?.toDouble(),
+            tradeDate = tradeDate,
+            settlementDate = settlementDate,
+            source = source,
+            brokerNote = null,
+            createdAt = createdAt,
+            updatedAt = updatedAt,
+        )
 
     private fun AssetType?.isFundAsset(): Boolean =
         this in FUND_ASSET_TYPES

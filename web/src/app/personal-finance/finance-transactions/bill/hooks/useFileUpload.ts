@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useRef, useState, type ChangeEvent, type DragEvent } from 'react';
 import { useMutation } from '@apollo/client/react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
@@ -70,7 +70,7 @@ export function useFileUpload({ onSubmitSuccess, onSubmitError }: UseFileUploadO
   );
 
   const handleFileChange = useCallback(
-    async (e: React.ChangeEvent<HTMLInputElement>) => {
+    async (e: ChangeEvent<HTMLInputElement>) => {
       const f = e.target.files?.[0];
       e.target.value = '';
       if (!f) return;
@@ -80,7 +80,7 @@ export function useFileUpload({ onSubmitSuccess, onSubmitError }: UseFileUploadO
   );
 
   const handleDrop = useCallback(
-    async (e: React.DragEvent) => {
+    async (e: DragEvent) => {
       e.preventDefault();
       const f = e.dataTransfer.files?.[0];
       if (!f) return;

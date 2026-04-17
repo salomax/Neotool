@@ -41,6 +41,7 @@ import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
+import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
@@ -235,7 +236,7 @@ export function RecordEquityHoldingDrawer({
   const otherFeesValue = methods.watch("otherFees");
 
   const tradeDateIso = React.useMemo(
-    () => (selectedTradeDate ? dayjs(selectedTradeDate).format("YYYY-MM-DD") : null),
+    () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
   );
 
@@ -368,13 +369,6 @@ export function RecordEquityHoldingDrawer({
     return computedGrossValue + computedTotalFees;
   }, [computedGrossValue, computedTotalFees]);
 
-  const toDateValue = React.useCallback((value: unknown) => {
-    if (!value) return undefined;
-    if (value instanceof Date) return value;
-    const d = new Date(String(value));
-    return Number.isNaN(d.getTime()) ? undefined : d;
-  }, []);
-
   const onSubmit = async (data: RecordEquityFormData) => {
     if (!resolvedFinancialAccountId) return;
     const asset = data.asset;
@@ -401,7 +395,7 @@ export function RecordEquityHoldingDrawer({
       }
     }
 
-    const tradeDate = dayjs(data.tradeDate).format("YYYY-MM-DD");
+    const tradeDate = formatDateOnly(data.tradeDate);
     const unitPrice = data.unitPrice ?? suggestedUnitPrice;
     if (!unitPrice) return;
 
@@ -448,7 +442,7 @@ export function RecordEquityHoldingDrawer({
       unitPrice,
       grossValue,
       tradeDate,
-      settlementDate: dayjs(data.tradeDate).add(2, "day").format("YYYY-MM-DD"),
+      settlementDate: formatDateOnly(dayjs(data.tradeDate).add(2, "day").toDate()),
     };
 
     try {
@@ -527,7 +521,10 @@ export function RecordEquityHoldingDrawer({
           isActive: true,
         },
         quantity: nextFlow === "BY_QUANTITY" ? editTransaction!.quantity ?? undefined : undefined,
-        tradeDate: toDateValue(editTransaction!.tradeDate),
+        tradeDate:
+          parseDateOnly(
+            editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
+          ) ?? undefined,
         unitPrice: nextFlow === "BY_QUANTITY" ? editTransaction!.unitPrice ?? undefined : editTransaction!.unitPrice ?? undefined,
         grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
         totalFees: undefined,
@@ -537,7 +534,7 @@ export function RecordEquityHoldingDrawer({
       },
       { keepDirty: false },
     );
-  }, [editHolding, editTransaction, isEdit, mapHoldingAssetTypeToB3, methods, open, toDateValue]);
+  }, [editHolding, editTransaction, isEdit, mapHoldingAssetTypeToB3, methods, open]);
 
   return (
     <InvestmentRecordDrawer

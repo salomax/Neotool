@@ -25,6 +25,7 @@ import { DatePickerField, FormTextField, MoneyInput } from "@/shared/components/
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { useToast } from "@/shared/providers";
+import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { personalFinanceTranslations } from "../../i18n";
 
@@ -132,7 +133,7 @@ export function EditCashForm({
     resolver: zodResolver(schema),
     defaultValues: {
       amount: initialAmount,
-      date: dayjs(initialDate).toDate(),
+      date: parseDateOnly(initialDate) ?? toStartOfDayLocal(new Date()),
       description: initialDescription ?? "",
     },
   });
@@ -142,7 +143,7 @@ export function EditCashForm({
   React.useEffect(() => {
     reset({
       amount: initialAmount,
-      date: dayjs(initialDate).toDate(),
+      date: parseDateOnly(initialDate) ?? toStartOfDayLocal(new Date()),
       description: initialDescription ?? "",
     });
   }, [transactionId, initialAmount, initialDate, initialDescription, resetSignal, reset]);
@@ -178,7 +179,7 @@ export function EditCashForm({
         id: transactionId,
         input: {
           amount: data.amount!,
-          date: dayjs(data.date).format("YYYY-MM-DD"),
+          date: formatDateOnly(data.date),
           description: data.description.trim() || undefined,
         },
       },

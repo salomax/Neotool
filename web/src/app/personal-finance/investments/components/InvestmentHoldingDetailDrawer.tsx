@@ -1,19 +1,25 @@
 "use client";
 
 import * as React from "react";
-import { useQuery } from "@apollo/client/react";
+import { useMutation, useQuery } from "@apollo/client/react";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { Avatar, Box, Divider, IconButton, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import { DELETE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { CurrencyAmountParts, GainPercent } from "@/shared/components/ui/data-display";
+import { useToast } from "@/shared/providers";
 import { personalFinanceTranslations } from "../../i18n";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { FixedIncomeHoldingDetailContent } from "./fixed-income/FixedIncomeHoldingDetailContent";
-import { FixedIncomeHoldingDetailDocument } from "./fixed-income/api/queries.generated";
+import {
+  FixedIncomeHoldingDetailDocument,
+  type FixedIncomeHoldingDetailQuery,
+} from "./fixed-income/api/queries.generated";
 import { buildFixedIncomeHoldingDetailViewModel } from "./fixed-income/fixedIncomeHoldingDetailAdapter";
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "../MaturityConfirmDrawer";
+import { CouponPaymentConfirmDrawer, type CouponDrawerHolding } from "../CouponPaymentConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
 import { FundHoldingDetailDocument } from "./fund/api/queries.generated";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
@@ -77,6 +83,17 @@ interface HoldingDetailDrawerShellProps {
   summaryCards: HoldingDetailSummaryCardViewModel[];
   body: React.ReactNode;
 }
+
+type FixedIncomeCouponScheduleEntry =
+  NonNullable<FixedIncomeHoldingDetailQuery["investmentHolding"]>["couponSchedule"][number];
+
+type DeleteInvestmentTransactionMutation = {
+  deleteInvestmentTransaction: boolean;
+};
+
+type DeleteInvestmentTransactionMutationVariables = {
+  id: string;
+};
 
 function HoldingDetailDrawerShell({
   open,
@@ -239,7 +256,7 @@ function HoldingDetailDrawerShell({
           ))}
         </Box>
 
-        <Divider sx={{ mb: 3 }} />
+        <Divider sx={{ my: 5 }} />
 
         {body}
       </Drawer.Body>
@@ -255,6 +272,36 @@ function HoldingDetailDrawerShell({
   );
 }
 
+/**
+ * Estimates the gross coupon amount for a specific coupon period using the holding's
+ * rate model and the actual period dates — NOT today's holding value.
+ *
+ * Only computes for PRE_FIXADO (pre-fixed rate); for CDI/SELIC/IPCA-indexed assets we
+ * can't estimate without historical rate series, so those return null (form left blank).
+ *
+ * Uses the 252 business-day convention approximated from calendar days (×252/365).
+ */
+function estimateCouponGrossForPeriod(
+  principal: number,
+  fixedAnnualRate: number | null | undefined,
+  periodStart: string | null,
+  couponDate: string | null,
+): number | null {
+  if (principal <= 0 || !fixedAnnualRate || fixedAnnualRate <= 0) return null;
+  if (!periodStart || !couponDate) return null;
+
+  const startMs = new Date(periodStart).getTime();
+  const endMs = new Date(couponDate).getTime();
+  const calendarDays = Math.max(0, Math.round((endMs - startMs) / 86_400_000));
+  if (calendarDays <= 0) return null;
+
+  // 252-day business-day convention approximated from calendar days
+  const approxBusinessDays = (calendarDays * 252) / 365;
+  const grossAtDate = principal * Math.pow(1 + fixedAnnualRate, approxBusinessDays / 252);
+  const interest = Number((grossAtDate - principal).toFixed(2));
+  return interest > 0 ? interest : null;
+}
+
 export function InvestmentHoldingDetailDrawer({
   open,
   holdingId,
@@ -268,6 +315,7 @@ export function InvestmentHoldingDetailDrawer({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { t } = useTranslation(personalFinanceTranslations);
+  const toast = useToast();
   const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
 
   const shouldFetchFixedIncome = open && kind === "fixedIncome" && Boolean(holdingId);
@@ -441,6 +489,27 @@ export function InvestmentHoldingDetailDrawer({
   }, [assetTypeLabel, fundViewModel]);
 
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
+  const [couponConfirmOpen, setCouponConfirmOpen] = React.useState(false);
+  const [couponConfirmHolding, setCouponConfirmHolding] = React.useState<CouponDrawerHolding | null>(null);
+  const [couponEditingTransaction, setCouponEditingTransaction] = React.useState<{
+    id: string;
+    tradeDate: string;
+    grossValue: number;
+    netValue?: number | null;
+    incomeTax?: number | null;
+    iof?: number | null;
+  } | null>(null);
+  const [couponDestinationAccount, setCouponDestinationAccount] = React.useState<{
+    id: string;
+    name: string;
+    issuerName?: string | null;
+    issuer?: { name?: string | null; logoAsset?: { publicUrl?: string | null } | null } | null;
+  } | null>(null);
+
+  const [deleteInvestmentTransaction, { loading: deletingCouponPayment }] = useMutation<
+    DeleteInvestmentTransactionMutation,
+    DeleteInvestmentTransactionMutationVariables
+  >(DELETE_INVESTMENT_TRANSACTION);
 
   const maturityHolding = React.useMemo<MaturityDrawerHolding | null>(() => {
     const h = fixedIncomeData?.investmentHolding;
@@ -461,6 +530,106 @@ export function InvestmentHoldingDetailDrawer({
 
   const canRegisterRedemption =
     kind === "fixedIncome" && Boolean(maturityHolding) && (fixedIncomeData?.investmentHolding?.quantity ?? 0) > 0;
+
+  const handleRegisterOverdueCoupon = React.useCallback((entry: FixedIncomeCouponScheduleEntry) => {
+    const h = fixedIncomeData?.investmentHolding;
+    if (!h?.financialAccount?.id || !h.asset?.id) return;
+    const scheduledRaw = entry.scheduledDate ? String(entry.scheduledDate) : null;
+    const scheduledDateOnly = scheduledRaw?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? scheduledRaw;
+
+    // Principal = sum of purchase transactions grossValue (reliable even when averageCost is stale/zero)
+    const txs = fixedIncomeData?.investmentTransactions ?? [];
+    const principal = txs
+      .filter((tx) => (tx.type as string) === "PURCHASE" || (tx.type as string) === "SUBSCRIPTION")
+      .reduce((sum, tx) => sum + tx.grossValue, 0);
+
+    // Coupon gross = interest accrued from periodStart → scheduledDate using the rate model.
+    // We use the entry's period dates, NOT today's holding value, so past coupons are correct.
+    const periodStartStr = entry.periodStart ? String(entry.periodStart).match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null : null;
+    const couponGross = estimateCouponGrossForPeriod(principal, h.fixedAnnualRate, periodStartStr, scheduledDateOnly);
+
+    setCouponEditingTransaction(null);
+    setCouponConfirmHolding({
+      id: h.id,
+      financialAccountId: h.financialAccount.id,
+      quantity: h.quantity,
+      averageCost: h.averageCost,
+      couponFrequency: h.couponFrequency ?? null,
+      issueDate: h.issueDate ? String(h.issueDate) : null,
+      isTaxExempt: h.isTaxExempt,
+      grossValue: h.grossValue ?? null,
+      accruedInterest: couponGross,
+      couponDate: scheduledDateOnly ?? null,
+      issuerName: h.asset.issuerName ?? null,
+      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
+    });
+    setCouponDestinationAccount({
+      id: h.financialAccount.id,
+      name: h.financialAccount.name,
+      issuerName: h.financialAccount.issuerName ?? null,
+      issuer: h.financialAccount.issuer
+        ? {
+            name: h.financialAccount.issuer.name ?? null,
+            logoAsset: h.financialAccount.issuer.logoAsset
+              ? { publicUrl: h.financialAccount.issuer.logoAsset.publicUrl ?? null }
+              : null,
+          }
+        : null,
+    });
+    setCouponConfirmOpen(true);
+  }, [fixedIncomeData?.investmentHolding, fixedIncomeData?.investmentTransactions]);
+
+  const handleEditCouponPayment = React.useCallback((entry: FixedIncomeCouponScheduleEntry) => {
+    const h = fixedIncomeData?.investmentHolding;
+    const tx = entry.matchedTransaction;
+    if (!h?.financialAccount?.id || !h.asset?.id || !tx?.id) return;
+    const tradeRaw = tx.tradeDate ? String(tx.tradeDate) : null;
+    const tradeDateOnly = tradeRaw?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? tradeRaw;
+
+    setCouponEditingTransaction({
+      id: tx.id,
+      tradeDate: tradeDateOnly ?? "",
+      grossValue: tx.grossValue ?? 0,
+      netValue: tx.netValue ?? null,
+      incomeTax: tx.incomeTax ?? null,
+      iof: tx.iof ?? null,
+    });
+    setCouponConfirmHolding({
+      id: h.id,
+      financialAccountId: h.financialAccount.id,
+      quantity: h.quantity,
+      averageCost: h.averageCost,
+      couponFrequency: h.couponFrequency ?? null,
+      issueDate: h.issueDate ? String(h.issueDate) : null,
+      isTaxExempt: h.isTaxExempt,
+      grossValue: h.grossValue ?? null,
+      accruedInterest: h.accruedInterest ?? null,
+      couponDate: tradeDateOnly ?? null,
+      issuerName: h.asset.issuerName ?? null,
+      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
+    });
+    setCouponDestinationAccount({
+      id: h.financialAccount.id,
+      name: h.financialAccount.name,
+      issuerName: h.financialAccount.issuerName ?? null,
+      issuer: h.financialAccount.issuer
+        ? {
+            name: h.financialAccount.issuer.name ?? null,
+            logoAsset: h.financialAccount.issuer.logoAsset
+              ? { publicUrl: h.financialAccount.issuer.logoAsset.publicUrl ?? null }
+              : null,
+          }
+        : null,
+    });
+    setCouponConfirmOpen(true);
+  }, [fixedIncomeData?.investmentHolding]);
+
+  const handleDeleteCouponPayment = React.useCallback(async (transactionId: string) => {
+    if (!transactionId) return;
+    await deleteInvestmentTransaction({ variables: { id: transactionId } });
+    toast.success(t("investments.detailDrawer.couponSchedule.deleteSuccess"));
+    await fixedIncomeQuery.refetch();
+  }, [deleteInvestmentTransaction, fixedIncomeQuery, t, toast]);
 
   const strategy: HoldingDetailStrategy =
     kind === "fixedIncome"
@@ -483,15 +652,41 @@ export function InvestmentHoldingDetailDrawer({
               onRetry={() => {
                 void fixedIncomeQuery.refetch();
               }}
+              onRegisterOverdueCoupon={handleRegisterOverdueCoupon}
+              onEditCouponPayment={handleEditCouponPayment}
+              onDeleteCouponPayment={handleDeleteCouponPayment}
+              deletingCouponPayment={deletingCouponPayment}
             />
           ),
           extra: (
-            <MaturityConfirmDrawer
-              open={maturityConfirmOpen}
-              onClose={() => setMaturityConfirmOpen(false)}
-              holding={maturityHolding}
-              onSuccess={() => void fixedIncomeQuery.refetch()}
-            />
+            <>
+              <MaturityConfirmDrawer
+                open={maturityConfirmOpen}
+                onClose={() => setMaturityConfirmOpen(false)}
+                holding={maturityHolding}
+                onSuccess={() => void fixedIncomeQuery.refetch()}
+              />
+              <CouponPaymentConfirmDrawer
+                open={couponConfirmOpen}
+                onClose={() => {
+                  setCouponConfirmOpen(false);
+                  setCouponConfirmHolding(null);
+                  setCouponDestinationAccount(null);
+                  setCouponEditingTransaction(null);
+                }}
+                pendingActionId={null}
+                holding={couponConfirmHolding}
+                destinationAccount={couponDestinationAccount}
+                editingTransaction={couponEditingTransaction}
+                onSuccess={() => {
+                  setCouponConfirmOpen(false);
+                  setCouponConfirmHolding(null);
+                  setCouponDestinationAccount(null);
+                  setCouponEditingTransaction(null);
+                  void fixedIncomeQuery.refetch();
+                }}
+              />
+            </>
           ),
           assetName,
           logoUrl,
@@ -514,8 +709,8 @@ export function InvestmentHoldingDetailDrawer({
                   : null,
               labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
             },
-            { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fixedIncomeViewModel?.totalReturnAbsolute ?? null },
-            { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fixedIncomeViewModel?.netGain ?? null },
+            { id: "totalGain", label: t("investments.detailDrawer.grid.totalGain"), value: fixedIncomeViewModel?.totalReturnAbsolute ?? null },
+            { id: "couponsReceivedNet", label: t("investments.detailDrawer.grid.couponsReceivedNet"), value: fixedIncomeViewModel?.couponsReceivedNet ?? null },
             { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fixedIncomeViewModel?.incomeTax ?? null },
             { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fixedIncomeViewModel?.iof ?? null },
           ],
