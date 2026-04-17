@@ -191,7 +191,7 @@ export function ImportDuplicateReview({ jobIds, onComplete, onClose }: ImportDup
 
   if (loading) {
     return (
-      <Stack spacing={1}>
+      <Stack spacing={1} data-testid="import-duplicate-review">
         <Typography color="text.secondary">{t('financeTransactions.import.processingStep.title')}</Typography>
       </Stack>
     );
@@ -199,13 +199,15 @@ export function ImportDuplicateReview({ jobIds, onComplete, onClose }: ImportDup
 
   if (error) {
     return (
-      <Typography color="error">{t('financeTransactions.import.errorStep.message')}</Typography>
+      <Box data-testid="import-duplicate-review">
+        <Typography color="error">{t('financeTransactions.import.errorStep.message')}</Typography>
+      </Box>
     );
   }
 
   if (count === 0) {
     return (
-      <Stack spacing={2}>
+      <Stack spacing={2} data-testid="import-duplicate-review">
         <Typography color="text.secondary">{t('financeTransactions.duplicateReview.resolved')}</Typography>
         {onClose ? (
           <Box>
@@ -229,7 +231,7 @@ export function ImportDuplicateReview({ jobIds, onComplete, onClose }: ImportDup
     : 'financeTransactions.duplicateReview.useIncoming';
 
   return (
-    <Stack spacing={2}>
+    <Stack spacing={2} data-testid="import-duplicate-review">
       <Typography variant="body2" color="text.secondary">
         
         {t('financeTransactions.duplicateReview.resolved')}: {resolvedRows.size}/{count}
@@ -373,6 +375,17 @@ export function ImportDuplicateReview({ jobIds, onComplete, onClose }: ImportDup
 
               {!isResolved ? (
                 <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+                  {!isNfceReview ? (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={() => handleResolve(cand, DuplicateResolution.KeepExisting)}
+                      disabled={isSubmitting}
+                      sx={{ textTransform: 'none', borderRadius: 1 }}
+                    >
+                      {t('financeTransactions.duplicateReview.keepExisting')}
+                    </Button>
+                  ) : null}
                   <Button
                     variant="outlined"
                     size="small"

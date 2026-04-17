@@ -144,6 +144,7 @@ export function ImportTransactionsDrawer({
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const jobIdRef = useRef<string | null>(null);
   const [reviewJobIdsState, setReviewJobIdsState] = useState<string[] | null>(null);
   const [lastEvent, setLastEvent] = useState<ImportJobStatusPayload | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -180,6 +181,10 @@ export function ImportTransactionsDrawer({
   React.useEffect(() => {
     latestTargetAccountIdRef.current = targetAccountId ?? selectedAccountId ?? null;
   }, [selectedAccountId, targetAccountId]);
+
+  React.useEffect(() => {
+    jobIdRef.current = jobId;
+  }, [jobId]);
 
   const [importFile, { loading: mutating }] = useMutation<{
     importTransactionsFile: { import: { id: string } };
@@ -237,6 +242,8 @@ export function ImportTransactionsDrawer({
       onImportCompleted?.();
     },
     onReviewRequired: () => {
+      const id = jobIdRef.current;
+      setReviewJobIdsState(id ? [id] : []);
       setStep('review');
     },
     onFailed: (details) => {

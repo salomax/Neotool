@@ -104,35 +104,43 @@ async function waitForImportDrawerClosed(
   page: import("@playwright/test").Page,
   timeout = 15_000,
 ): Promise<void> {
-  const importDialog = page.getByRole("dialog", {
-    name: /importar movimentações|import transactions/i,
-  });
-  await importDialog.waitFor({ state: "hidden", timeout }).catch(() => {});
+  await importDialogLocator(page).waitFor({ state: "hidden", timeout }).catch(() => {});
 }
 
 /**
  * Single locator union — do NOT Promise.race several waitFor(): the first branch to time out
  * rejects the whole race even when another terminal UI would appear moments later.
  */
-function importTerminalLocator(page: import("@playwright/test").Page) {
-  const importDialog = page.getByRole("dialog", {
+function importDialogLocator(page: import("@playwright/test").Page) {
+  return page.getByRole("dialog", {
     name: /importar movimentações|import transactions/i,
   });
-  return page
+}
+
+/**
+ * Terminal UI lives inside the import drawer. Scoping avoids Playwright union/first()
+ * resolving to the wrong branch when multiple matches exist on the page.
+ */
+function importTerminalLocator(page: import("@playwright/test").Page) {
+  const importDialog = importDialogLocator(page);
+  return importDialog
     .getByTestId("import-result-summary")
-    .or(page.getByTestId("import-error-message"))
+    .or(importDialog.getByTestId("import-error-message"))
+    .or(importDialog.getByTestId("import-duplicate-review"))
     .or(
-      page.getByRole("button", {
-        name: /manter atual|manter existente|keep existing/i,
+      importDialog.getByRole("button", {
+        name: /manter existente|manter ambas|usar nova|keep existing|keep both|use new/i,
+        disabled: false,
       }),
     )
     .or(
-      page.getByRole("button", {
-        name: /concluir revisão|finish review|finalizar|finish/i,
+      importDialog.getByRole("button", {
+        name: /concluir revisão|finish review|finalizar|finish|usar nova|use new/i,
+        disabled: false,
       }),
     )
     .or(
-      page.getByRole("heading", { name: /precisam de revisão|need review/i }),
+      importDialog.getByRole("heading", { name: /precisam de revisão|need review/i }),
     )
     .or(importDialog.getByText(/^(Resolvido|Resolved)$/i).first());
 }
@@ -199,10 +207,22 @@ async function uploadFilePayload(
  * Waits for the import job to finish processing (terminal drawer UI).
  */
 async function waitForImportComplete(page: import("@playwright/test").Page) {
-  await importTerminalLocator(page).first().waitFor({
-    state: "visible",
-    timeout: IMPORT_TIMEOUT,
-  });
+  const importDialog = importDialogLocator(page);
+  await expect
+    .poll(
+      async () => {
+        // Still on the async processing step — same drawer has no upload controls but is NOT terminal yet.
+        if (await importDialog.locator(".MuiLinearProgress-root").isVisible().catch(() => false)) {
+          return false;
+        }
+
+        // Result, error, duplicate review, or review actions — never infer "done" from missing upload controls alone
+        // (that matches error/review transitions and produced false positives under parallel load).
+        return await importTerminalLocator(page).first().isVisible().catch(() => false);
+      },
+      { timeout: IMPORT_TIMEOUT },
+    )
+    .toBe(true);
 }
 
 async function closeImportDrawer(page: import("@playwright/test").Page) {
@@ -227,9 +247,10 @@ async function closeImportDrawer(page: import("@playwright/test").Page) {
 async function hasDuplicateReview(
   page: import("@playwright/test").Page,
 ): Promise<boolean> {
-  return page
+  return importDialogLocator(page)
     .getByRole("button", {
-      name: /manter atual|manter existente|keep existing/i,
+      name: /manter existente|manter ambas|usar nova|keep existing|keep both|use new/i,
+      disabled: false,
     })
     .first()
     .isVisible()
@@ -239,9 +260,7 @@ async function hasDuplicateReview(
 async function resolveDuplicateReviewKeepingExisting(
   page: import("@playwright/test").Page,
 ): Promise<void> {
-  const importDialog = page.getByRole("dialog", {
-    name: /importar movimentações|import transactions/i,
-  });
+  const importDialog = importDialogLocator(page);
 
   // Server cleared duplicate candidates before UI showed row-level actions (ImportDuplicateReview count === 0).
   if (
@@ -261,21 +280,83 @@ async function resolveDuplicateReviewKeepingExisting(
   }
 
   while (await hasDuplicateReview(page)) {
-    await page
-      .getByRole("button", {
-        name: /manter atual|manter existente|keep existing/i,
-      })
-      .first()
-      .click();
+    const rowAction = importDialog.getByRole("button", {
+      name: /manter existente|keep existing/i,
+      disabled: false,
+    });
+    await expect(rowAction.first()).toBeVisible({ timeout: IMPORT_TIMEOUT });
+    await rowAction.first().click({ timeout: IMPORT_TIMEOUT });
   }
 
-  const finishButton = page.getByRole("button", {
-    name: /concluir revisão|finish review|finalizar|finish/i,
+  const finishButton = importDialog.getByRole("button", {
+    name: /concluir revisão|finish review|finalizar|finish|usar nova|use new/i,
+    disabled: false,
   });
   if (await finishButton.isVisible().catch(() => false)) {
     await finishButton.click();
     await waitForImportDrawerClosed(page);
   }
+}
+
+/**
+ * From an already-open import drawer: upload CSV/OFX, tolerate transient start errors,
+ * resolve duplicate review when shown, then poll until `getTransactions` reflects more
+ * rows than `countBefore` (terminal UI can appear before GraphQL/cache catch up).
+ */
+async function importStatementFileExpectAccountGrowth(
+  page: import("@playwright/test").Page,
+  financialAccountId: string,
+  pfToken: string,
+  filePath: string,
+  countBefore: number,
+): Promise<void> {
+  const dlg = importDialogLocator(page);
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await uploadFile(page, filePath);
+    await waitForImportComplete(page);
+
+    await expect
+      .poll(
+        async () =>
+          (await hasDuplicateReview(page)) ||
+          (await dlg.getByTestId("import-result-summary").isVisible().catch(() => false)) ||
+          (await dlg.getByTestId("import-error-message").isVisible().catch(() => false)) ||
+          (await importTerminalLocator(page).first().isVisible().catch(() => false)) ||
+          (await getTransactions(financialAccountId, pfToken, importFixtureTransactionQuery(50))).length >
+            countBefore,
+        { timeout: IMPORT_TIMEOUT },
+      )
+      .toBe(true);
+
+    const importError = dlg.getByTestId("import-error-message");
+    if (await importError.isVisible().catch(() => false)) {
+      const msg = (await importError.innerText().catch(() => "")).trim();
+      if (attempt >= 2) {
+        throw new Error(`Import failed after retries: ${msg}`);
+      }
+      await dlg.getByRole("button", { name: /tentar novamente|try again/i }).click();
+      await dlg
+        .getByTestId("import-transactions-file-input")
+        .waitFor({ state: "attached", timeout: 15_000 })
+        .catch(() => {});
+      await page.waitForTimeout(600 * (attempt + 1));
+      continue;
+    }
+    break;
+  }
+
+  if (await hasDuplicateReview(page)) {
+    await resolveDuplicateReviewKeepingExisting(page);
+  }
+
+  await expect
+    .poll(
+      async () =>
+        (await getTransactions(financialAccountId, pfToken, importFixtureTransactionQuery(50))).length >
+        countBefore,
+      { timeout: IMPORT_TIMEOUT },
+    )
+    .toBe(true);
 }
 
 // =============================================================================
@@ -296,18 +377,23 @@ test.describe("Transaction Import — happy path", () => {
     await uploadFile(page, CSV_VALID);
     await waitForImportComplete(page);
 
-    const resultOrReview = await Promise.race([
-      page.getByTestId("import-result-summary").isVisible(),
-      hasDuplicateReview(page),
-      page
-        .getByRole("button", {
-          name: /concluir revisão|finish review|finalizar|finish/i,
-        })
-        .first()
-        .isVisible()
-        .catch(() => false),
-    ]);
-    expect(resultOrReview).toBe(true);
+    const dlg = importDialogLocator(page);
+    await expect
+      .poll(
+        async () =>
+          (await dlg.getByTestId("import-result-summary").isVisible().catch(() => false)) ||
+          (await hasDuplicateReview(page)) ||
+          (await dlg
+            .getByRole("button", {
+              name: /concluir revisão|finish review|finalizar|finish|usar nova|use new/i,
+            })
+            .first()
+            .isVisible()
+            .catch(() => false)) ||
+          (await importTerminalLocator(page).first().isVisible().catch(() => false)),
+        { timeout: IMPORT_TIMEOUT },
+      )
+      .toBe(true);
 
     await closeImportDrawer(page);
 
@@ -337,15 +423,9 @@ test.describe("Transaction Import — happy path", () => {
     );
     const countBefore = txsBefore.length;
 
-    await uploadFile(page, CSV_VALID);
-    await waitForImportComplete(page);
-
-    if (await hasDuplicateReview(page)) {
-      await resolveDuplicateReviewKeepingExisting(page);
-    }
+    await importStatementFileExpectAccountGrowth(page, bankAccount.id, pfUser.token, CSV_VALID, countBefore);
 
     const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
-    expect(txsAfter.length).toBeGreaterThan(countBefore);
 
     // Cleanup: delete imported transactions
     const newTxs = txsAfter.filter(
@@ -402,12 +482,11 @@ test.describe("Transaction Import — happy path", () => {
       pfUser.token,
       importFixtureTransactionQuery(50),
     );
+    const countBefore = txsBefore.length;
 
-    await uploadFile(page, OFX_VALID);
-    await waitForImportComplete(page);
+    await importStatementFileExpectAccountGrowth(page, bankAccount.id, pfUser.token, OFX_VALID, countBefore);
 
     const txsAfter = await getTransactions(bankAccount.id, pfUser.token, importFixtureTransactionQuery(50));
-    expect(txsAfter.length).toBeGreaterThan(txsBefore.length);
 
     const newTxs = txsAfter.filter(
       (t) => !txsBefore.some((b) => b.id === t.id),

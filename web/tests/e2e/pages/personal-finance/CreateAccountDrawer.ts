@@ -178,6 +178,10 @@ export class CreateAccountDrawer {
     const options = this.page.getByRole('option');
     await expect.poll(async () => (await options.count()) > 0, { timeout: 15000 }).toBe(true);
 
+    /** Matches only the synthetic "custom issuer" row, not bank names that contain "outro" as a substring. */
+    const isCustomIssuerOption = (text: string) =>
+      /^(outro\s*\/\s*personalizado|other\s*\/\s*custom)$/i.test(text.trim());
+
     const optionCount = await options.count();
     let preferredIssuer = options.first();
     let optionText = '';
@@ -189,9 +193,10 @@ export class CreateAccountDrawer {
 
       if (!optionText) {
         optionText = candidateText;
+        preferredIssuer = candidate;
       }
 
-      if (!/outro|personalizado|custom/i.test(candidateText)) {
+      if (!isCustomIssuerOption(candidateText)) {
         preferredIssuer = candidate;
         optionText = candidateText;
         break;
@@ -200,8 +205,9 @@ export class CreateAccountDrawer {
 
     await preferredIssuer.click();
 
-    if (/outro|personalizado|custom/i.test(optionText)) {
-      const customIssuerInput = this.drawerPanel().getByLabel(/nome da instituição|institution name/i).first();
+    if (isCustomIssuerOption(optionText)) {
+      const customIssuerInput = this.drawerPanel().locator('input[name="issuerName"]').first();
+      await expect(customIssuerInput).toBeVisible({ timeout: 10_000 });
       await customIssuerInput.fill('E2E Test Issuer');
     }
   }
@@ -357,7 +363,12 @@ export class CreateAccountDrawer {
 
   /** Asserts that a validation error message is visible for the given field. */
   async expectFieldError(fieldTestId: string, messagePattern?: string | RegExp): Promise<void> {
-    const field = this.drawerPanel().getByTestId(fieldTestId);
+    const fieldCandidates = this.drawerPanel().getByTestId(fieldTestId);
+    const inputLikeField = fieldCandidates.locator('input, textarea, select').first();
+    const field =
+      (await inputLikeField.count()) > 0
+        ? inputLikeField
+        : fieldCandidates.first();
     const describedBy = await field.getAttribute('aria-describedby');
     const describedByIds = (describedBy ?? '')
       .split(' ')

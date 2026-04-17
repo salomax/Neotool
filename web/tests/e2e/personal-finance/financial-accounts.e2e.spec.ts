@@ -623,6 +623,6 @@ test.describe('Financial Accounts — negative paths', () => {
 
     await drawer.removeAccount();
     await drawer.expectStillOpen();
-    await drawer.expectDeleteError(/transa[cç][aã]o|transactions/i);
+    await drawer.expectDeleteError(/transa[cç](?:[aã]o|[õo]es)|transactions?/i);
   });
 });

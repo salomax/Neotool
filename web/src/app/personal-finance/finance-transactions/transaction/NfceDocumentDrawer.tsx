@@ -221,7 +221,15 @@ export function NfceDocumentDrawer({
                 {t('financeTransactions.nfceDocument.itemsCount', { count: items.length })}
               </Label>
             </Stack>
-            <Stack spacing={2}>
+            <Box
+              sx={{
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1.5,
+                overflow: 'hidden',
+                bgcolor: 'background.paper',
+              }}
+            >
               <List disablePadding>
                 {items.map((item, index) => {
                   const taxPercent =
@@ -237,11 +245,9 @@ export function NfceDocumentDrawer({
                         display: 'block',
                         px: 3,
                         py: 2.5,
-                        mb: index < items.length - 1 ? 1.5 : 0,
-                        borderRadius: 1.5,
-                        border: '1px solid',
-                        borderColor: 'divider',
-                        bgcolor: 'background.paper',
+                        borderBottom:
+                          index < items.length - 1 ? '1px solid' : 'none',
+                        borderBottomColor: 'divider',
                       }}
                     >
                       <Stack spacing={1}>
@@ -292,7 +298,7 @@ export function NfceDocumentDrawer({
                   );
                 })}
               </List>
-            </Stack>
+            </Box>
 
           </Stack>
 

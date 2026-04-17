@@ -67,12 +67,19 @@ export class FinanceTransactionsPage {
     await this.page.getByTestId('account-selector').click();
     const popover = this.page.getByTestId('account-selector-popover');
     await popover.waitFor({ state: 'visible', timeout: 10_000 });
-    if (accountId) {
-      await popover.locator(`[data-account-id="${accountId}"]`).click();
-    } else {
-      await popover.getByText(accountName, { exact: true }).click();
-    }
-    await expect(this.page.getByTestId('account-selector')).toContainText(accountName);
+    const row = accountId
+      ? popover.locator(`[data-account-id="${accountId}"]`).filter({ hasText: accountName }).first()
+      : popover.getByText(accountName, { exact: true }).locator('xpath=ancestor::*[@role="button"][1]');
+    await row.waitFor({ state: 'visible', timeout: 10_000 });
+    await row.scrollIntoViewIfNeeded();
+    await row.click({ force: true });
+    await expect
+      .poll(
+        async () =>
+          ((await this.page.getByTestId('account-selector').textContent()) ?? '').includes(accountName),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
     await Promise.all([
       this.summary.waitForMetricsReady(),
       this.transactionTable.waitForLoad(),
