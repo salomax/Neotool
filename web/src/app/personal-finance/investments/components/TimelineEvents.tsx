@@ -5,7 +5,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import EventNoteIcon from '@mui/icons-material/EventNote';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Paper, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
@@ -110,8 +110,13 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
   const directionLabel = isOutflow ? outflowLabel : inflowLabel;
   const directionColor = isOutflow ? 'error.main' : 'success.main';
   const amountValue = isOutflow ? (item.netAmount ?? item.amount) : item.amount;
+  const hasDifferentSettlementDate = Boolean(
+    item.settlementDateLabel &&
+      item.settlementDateLabel.trim() &&
+      item.settlementDateLabel.trim() !== item.tradeDateLabel.trim(),
+  );
   const settlementPart =
-    item.settlementDateLabel && settlementDateText
+    hasDifferentSettlementDate && settlementDateText && item.settlementDateLabel
       ? settlementDateText(item.settlementDateLabel)
       : null;
   const moneyParts = joinTimelineParts([
@@ -141,142 +146,142 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
   };
 
   return (
-    <Paper
-      variant="elevation"
-      elevation={0}
+    <Box
       onMouseEnter={hasActions ? () => setHovered(true) : undefined}
       onMouseLeave={hasActions ? () => setHovered(false) : undefined}
       sx={{
-        p: 2,
-        borderRadius: 2,
+        py: 1,
         minWidth: 0,
         width: '100%',
-        maxWidth: 420,
-        justifySelf: alignRightOnDesktop ? { xs: 'start', md: 'end' } : 'start',
         position: 'relative',
+        display: 'grid',
+        gridTemplateColumns: 'minmax(0, 1fr) auto',
+        columnGap: 2,
+        alignItems: 'flex-start',
       }}
     >
-      {hasActions ? (
-        <>
-          <IconButton
-            size="small"
-            aria-label={actionButtonAriaLabel}
-            onClick={handleOpenMenu}
-            sx={{
-              position: 'absolute',
-              top: 6,
-              right: 6,
-              zIndex: 1,
-              opacity: { xs: 1, md: actionsVisible ? 1 : 0 },
-              pointerEvents: { xs: 'auto', md: actionsVisible ? 'auto' : 'none' },
-              transition: 'opacity 0.15s ease',
-            }}
-          >
-            <MoreVertIcon fontSize="small" />
-          </IconButton>
-
-          <Menu
-            anchorEl={menuAnchor}
-            open={Boolean(menuAnchor)}
-            onClose={handleCloseMenu}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          >
-            <Tooltip
-              title={disabledTooltipTitle}
-              placement="left"
-              disableHoverListener={isEditable}
-              disableFocusListener={isEditable}
-              disableTouchListener={isEditable}
-            >
-              <span>
-                <MenuItem
-                  disabled={!isEditable || !onEditTransaction}
-                  onClick={() => {
-                    handleCloseMenu();
-                    if (!onEditTransaction || !isEditable) return;
-                    onEditTransaction(item.id);
-                  }}
-                >
-                  <ListItemIcon>
-                    <EditIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>{editLabel}</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
-
-            <Tooltip
-              title={disabledTooltipTitle}
-              placement="left"
-              disableHoverListener={isEditable}
-              disableFocusListener={isEditable}
-              disableTouchListener={isEditable}
-            >
-              <span>
-                <MenuItem
-                  disabled={!isEditable || !onDeleteTransaction}
-                  onClick={() => {
-                    handleCloseMenu();
-                    if (!onDeleteTransaction || !isEditable) return;
-                    onDeleteTransaction(item.id);
-                  }}
-                  sx={{
-                    color: 'error.main',
-                    '&:hover': {
-                      bgcolor: alpha(theme.palette.error.main, 0.08),
-                    },
-                    '&.Mui-focusVisible': {
-                      bgcolor: alpha(theme.palette.error.main, 0.08),
-                    },
-                  }}
-                >
-                  <ListItemIcon sx={{ color: 'inherit' }}>
-                    <DeleteOutlineIcon fontSize="small" />
-                  </ListItemIcon>
-                  <ListItemText>{deleteLabel}</ListItemText>
-                </MenuItem>
-              </span>
-            </Tooltip>
-          </Menu>
-        </>
-      ) : null}
-      <Typography
-        variant="caption"
-        noWrap
-        title={`${directionLabel} · ${item.tradeDateLabel}`}
-        sx={{ minWidth: 0, width: '100%', textAlign, display: 'block', pr: hasActions ? 4 : 0 }}
-      >
-        <Box component="span" sx={{ fontWeight: 700, color: directionColor }}>
-          {directionLabel}
-        </Box>
-        <Box component="span" sx={{ color: 'text.secondary' }}>
-          {' '}
-          · {item.tradeDateLabel}
-        </Box>
-      </Typography>
-      <Label sx={{ mb: 0.5, textAlign }} title={item.title}>
-        {item.title}
-      </Label>
-      {detailText ? (
-        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.75, display: 'block', textAlign }}>
-          {detailText}
+      <Box sx={{ minWidth: 0 }}>
+        <Typography variant="caption" noWrap title={`${directionLabel} · ${item.tradeDateLabel}`} sx={{ minWidth: 0, width: '100%', textAlign, display: 'block' }}>
+          <Box component="span" sx={{ fontWeight: 700, color: directionColor }}>
+            {directionLabel}
+          </Box>
+          <Box component="span" sx={{ color: 'text.secondary' }}>
+            {' '}
+            · {item.tradeDateLabel}
+          </Box>
         </Typography>
-      ) : null}
-      <CurrencyAmountParts
-        value={amountValue}
-        currency={currencyCode}
-        locale={locale}
-        variant="h6"
-        fontWeight={500}
-        noWrap
-        sx={{ mt: 1, display: 'block', textAlign, lineHeight: 1.1, color: directionColor }}
-      />
-    </Paper>
+        <Label sx={{ mb: 0.25, textAlign }} title={item.title}>
+          {item.title}
+        </Label>
+        {detailText ? (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.25, display: 'block', textAlign }}>
+            {detailText}
+          </Typography>
+        ) : null}
+      </Box>
+
+      <Stack direction="row" spacing={0.5} alignItems="flex-start" sx={{ minWidth: 0 }}>
+        <CurrencyAmountParts
+          value={amountValue}
+          currency={currencyCode}
+          locale={locale}
+          variant="h6"
+          fontWeight={500}
+          noWrap
+          sx={{ mt: 0.125, display: 'block', textAlign, lineHeight: 1.1, color: directionColor }}
+        />
+
+        {hasActions ? (
+          <>
+            <IconButton
+              size="small"
+              aria-label={actionButtonAriaLabel}
+              onClick={handleOpenMenu}
+              sx={{
+                opacity: { xs: 1, md: actionsVisible ? 1 : 0 },
+                pointerEvents: { xs: 'auto', md: actionsVisible ? 'auto' : 'none' },
+                transition: 'opacity 0.15s ease',
+              }}
+            >
+              <MoreVertIcon fontSize="small" />
+            </IconButton>
+
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={handleCloseMenu}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <Tooltip
+                title={disabledTooltipTitle}
+                placement="left"
+                disableHoverListener={isEditable}
+                disableFocusListener={isEditable}
+                disableTouchListener={isEditable}
+              >
+                <span>
+                  <MenuItem
+                    disabled={!isEditable || !onEditTransaction}
+                    onClick={() => {
+                      handleCloseMenu();
+                      if (!onEditTransaction || !isEditable) return;
+                      onEditTransaction(item.id);
+                    }}
+                  >
+                    <ListItemIcon>
+                      <EditIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>{editLabel}</ListItemText>
+                  </MenuItem>
+                </span>
+              </Tooltip>
+
+              <Tooltip
+                title={disabledTooltipTitle}
+                placement="left"
+                disableHoverListener={isEditable}
+                disableFocusListener={isEditable}
+                disableTouchListener={isEditable}
+              >
+                <span>
+                  <MenuItem
+                    disabled={!isEditable || !onDeleteTransaction}
+                    onClick={() => {
+                      handleCloseMenu();
+                      if (!onDeleteTransaction || !isEditable) return;
+                      onDeleteTransaction(item.id);
+                    }}
+                    sx={{
+                      color: 'error.main',
+                      '&:hover': {
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                      },
+                      '&.Mui-focusVisible': {
+                        bgcolor: alpha(theme.palette.error.main, 0.08),
+                      },
+                    }}
+                  >
+                    <ListItemIcon sx={{ color: 'inherit' }}>
+                      <DeleteOutlineIcon fontSize="small" />
+                    </ListItemIcon>
+                    <ListItemText>{deleteLabel}</ListItemText>
+                  </MenuItem>
+                </span>
+              </Tooltip>
+            </Menu>
+          </>
+        ) : null}
+      </Stack>
+    </Box>
   );
 });
 
-interface TimelineEventRowProps extends Omit<TimelineEventCardProps, 'alignRightOnDesktop'> {}
+interface TimelineEventRowProps extends Omit<TimelineEventCardProps, 'alignRightOnDesktop'> {
+  dividerColor?: string;
+  hoverColor: string;
+  isFirst: boolean;
+}
 
 const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function TimelineEventRow({
   item,
@@ -295,6 +300,9 @@ const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function Ti
   actionsAriaLabel,
   editActionLabel,
   deleteActionLabel,
+  dividerColor,
+  hoverColor,
+  isFirst,
 }) {
   const isOutflow = item.direction === OUTFLOW_DIRECTION;
 
@@ -304,19 +312,34 @@ const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function Ti
       tabIndex={-1}
       sx={{
         display: 'grid',
-        gridTemplateColumns: { xs: '16px minmax(0, 1fr)', md: 'minmax(0, 1fr) 32px minmax(0, 1fr)' },
+        gridTemplateColumns: '16px minmax(0, 1fr)',
         columnGap: 1.5,
         alignItems: 'stretch',
         scrollMarginTop: 96,
+        bgcolor: 'background.paper',
+        borderTopWidth: isFirst ? 0 : 1,
+        borderTopStyle: isFirst ? 'none' : 'solid',
+        borderTopColor: dividerColor ?? 'divider',
+        transition: 'background-color 150ms linear',
+        '&:hover': { bgcolor: hoverColor },
       }}
     >
-      <Box sx={{ position: 'relative', minHeight: '100%', gridColumn: { xs: 1, md: 2 } }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', pt: 2.75, height: '100%' }}>
-          <Box sx={{ width: 8, height: 8, borderRadius: 999, bgcolor: isOutflow ? 'error.main' : 'success.main' }} />
+      <Box sx={{ position: 'relative', minHeight: '100%', gridColumn: 1 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'flex-start', pt: 1.6, height: '100%' }}>
+          <Box
+            sx={{
+              width: 8,
+              height: 8,
+              borderRadius: 999,
+              bgcolor: isOutflow ? 'error.main' : 'success.main',
+              position: 'relative',
+              zIndex: 2,
+            }}
+          />
         </Box>
       </Box>
 
-      <Box sx={{ minWidth: 0, gridColumn: { xs: 2, md: isOutflow ? 3 : 1 } }}>
+      <Box sx={{ minWidth: 0, gridColumn: 2 }}>
         <TimelineEventCard
           item={item}
           locale={locale}
@@ -328,7 +351,7 @@ const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function Ti
           settlementDateText={settlementDateText}
           inflowLabel={inflowLabel}
           outflowLabel={outflowLabel}
-          alignRightOnDesktop={!isOutflow}
+          alignRightOnDesktop={false}
           onEditTransaction={onEditTransaction}
           onDeleteTransaction={onDeleteTransaction}
           notEditableTooltip={notEditableTooltip}
@@ -364,6 +387,10 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
   deleteActionLabel,
   sx,
 }) => {
+  const theme = useTheme();
+  const dividerColor = React.useMemo(() => alpha(theme.palette.divider, 0.7), [theme.palette.divider]);
+  const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
+
   if (items.length === 0) {
     return <EmptyState title={emptyTitle} description={emptyDescription} />;
   }
@@ -378,16 +405,17 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
             position: 'absolute',
             top: 0,
             bottom: 0,
-            left: { xs: 8, md: '50%' },
+            left: 8,
             width: 2,
             bgcolor: 'divider',
             transform: 'translateX(-1px)',
             pointerEvents: 'none',
+            zIndex: 1,
           }}
         />
 
-        <Stack spacing={1.5}>
-          {items.map((item) => (
+        <Stack spacing={0}>
+          {items.map((item, index) => (
             <TimelineEventRow
               key={item.id}
               item={item}
@@ -406,6 +434,9 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
               actionsAriaLabel={actionsAriaLabel}
               editActionLabel={editActionLabel}
               deleteActionLabel={deleteActionLabel}
+              dividerColor={dividerColor}
+              hoverColor={hoverColor}
+              isFirst={index === 0}
             />
           ))}
         </Stack>
