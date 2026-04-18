@@ -256,6 +256,22 @@
         "back": "Back"
       }
     },
+    "withholdingTax": {
+      "drawerTitle": "Record come-cotas",
+      "submit": "Record come-cotas",
+      "form": {
+        "tradeDate": "Come-cotas date",
+        "irValue": "Withheld tax (BRL)",
+        "quotasDeducted": "Redeemed quotas",
+        "estimatedQuotasHint": "≈ {{value}} quotas will be redeemed by the fund"
+      },
+      "success": "Come-cotas recorded successfully",
+      "validation": {
+        "irPositive": "Tax amount must be positive",
+        "quotasPositive": "Redeemed quotas must be positive",
+        "quotasMax": "Redeemed quotas cannot exceed current holding quantity"
+      }
+    },
     "assetTypes": {
       "STOCK": "Stocks",
       "STOCK_RIGHTS": "Stock rights",
@@ -389,6 +405,7 @@
       "rowActions": {
         "ariaLabel": "Holding actions",
         "viewDetails": "View details",
+        "recordWithholdingTax": "Record come-cotas",
         "edit": "Edit",
         "remove": "Delete"
       },

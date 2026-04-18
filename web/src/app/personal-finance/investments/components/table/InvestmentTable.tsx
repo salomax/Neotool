@@ -29,6 +29,7 @@ import {
   InvestmentTransactionDirection,
 } from '@/lib/graphql/types/__generated__/graphql';
 import type { MaturityDrawerHolding } from '../../MaturityConfirmDrawer';
+import type { WithholdingTaxDrawerHolding } from '../../WithholdingTaxDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
 import { CashMovementsSection } from './CashMovementsSection';
 import { HoldingsGroupsSection } from './HoldingsGroupsSection';
@@ -59,6 +60,11 @@ const InvestmentHoldingDetailDrawer = dynamic(
 
 const MaturityConfirmDrawer = dynamic(
   () => import('../../MaturityConfirmDrawer').then((mod) => ({ default: mod.MaturityConfirmDrawer })),
+  { loading: () => null },
+);
+
+const WithholdingTaxDrawer = dynamic(
+  () => import('../../WithholdingTaxDrawer').then((mod) => ({ default: mod.WithholdingTaxDrawer })),
   { loading: () => null },
 );
 
@@ -147,6 +153,8 @@ export function InvestmentTable({
   });
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
   const [maturityConfirmHolding, setMaturityConfirmHolding] = React.useState<MaturityDrawerHolding | null>(null);
+  const [withholdingTaxOpen, setWithholdingTaxOpen] = React.useState(false);
+  const [withholdingTaxHolding, setWithholdingTaxHolding] = React.useState<WithholdingTaxDrawerHolding | null>(null);
   const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
   const [isQuickEquityOpen, setIsQuickEquityOpen] = React.useState(false);
   const [isQuickFundOpen, setIsQuickFundOpen] = React.useState(false);
@@ -270,6 +278,11 @@ export function InvestmentTable({
     setMaturityConfirmHolding(null);
   }, []);
 
+  const closeWithholdingTaxDrawer = React.useCallback(() => {
+    setWithholdingTaxOpen(false);
+    setWithholdingTaxHolding(null);
+  }, []);
+
   const handleOpenMaturityConfirmDrawer = React.useCallback((holding: HoldingRow) => {
     if (!holding.asset?.id) return;
 
@@ -286,6 +299,29 @@ export function InvestmentTable({
       asset: { id: holding.asset.id, name: holding.asset.name, assetType: holding.asset.assetType ?? null },
     });
     setMaturityConfirmOpen(true);
+  }, []);
+
+  const handleOpenWithholdingTaxDrawer = React.useCallback((holding: HoldingRow) => {
+    if (!holding.asset?.id || holding.asset.assetType !== 'MUTUAL_FUND') return;
+
+    const currentNavPerQuota =
+      typeof holding.grossValue === 'number' && holding.quantity > 0
+        ? holding.grossValue / holding.quantity
+        : undefined;
+
+    setWithholdingTaxHolding({
+      id: holding.id,
+      financialAccountId: holding.financialAccountId,
+      quantity: holding.quantity,
+      averageCost: holding.averageCost,
+      currentNavPerQuota,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType ?? null,
+      },
+    });
+    setWithholdingTaxOpen(true);
   }, []);
 
   const closeQuickTransaction = React.useCallback(() => {
@@ -654,6 +690,10 @@ export function InvestmentTable({
           if (!actionMenu.holding) return;
           handleRecordCorporateEvent(actionMenu.holding, 'SUBSCRIPTION');
         }}
+        onRecordWithholdingTax={() => {
+          if (!actionMenu.holding) return;
+          handleOpenWithholdingTaxDrawer(actionMenu.holding);
+        }}
       />
 
       <ConfirmationDialog
@@ -684,6 +724,13 @@ export function InvestmentTable({
         onClose={closeMaturityConfirmDrawer}
         holding={maturityConfirmHolding}
         investmentAccounts={investmentAccounts}
+        onSuccess={refreshInvestmentData}
+      />
+
+      <WithholdingTaxDrawer
+        open={withholdingTaxOpen}
+        onClose={closeWithholdingTaxDrawer}
+        holding={withholdingTaxHolding}
         onSuccess={refreshInvestmentData}
       />
 

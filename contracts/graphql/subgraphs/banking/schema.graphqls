@@ -1200,6 +1200,19 @@ type ConfirmCouponPaymentResult {
   pendingAction: AccountPendingAction
 }
 
+input ConfirmWithholdingTaxInput {
+  holdingId: ID!
+  tradeDate: Date!
+  """Valor do IR retido em reais."""
+  irValue: Float!
+  """Quantidade de cotas resgatadas pelo fundo para pagar o IR."""
+  quotasDeducted: Float!
+}
+
+type ConfirmWithholdingTaxResult {
+  withholdingTaxTransaction: InvestmentTransaction!
+}
+
 enum HoldingPricingMode {
   MANUAL
   MARKET_DATA
@@ -2374,6 +2387,8 @@ extend type Mutation {
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
   """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
   confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
+  """Registra o come-cotas semestral de um fundo de investimento: reduz a quantidade de cotas pelo valor do IR retido."""
+  confirmWithholdingTax(input: ConfirmWithholdingTaxInput!): ConfirmWithholdingTaxResult!
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction!
 }

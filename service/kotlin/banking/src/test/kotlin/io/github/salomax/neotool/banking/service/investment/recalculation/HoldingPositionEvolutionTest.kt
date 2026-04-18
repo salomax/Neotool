@@ -56,6 +56,21 @@ class HoldingPositionEvolutionTest {
     }
 
     @Test
+    fun `withholding tax reduces quantity and leaves average cost unchanged`() {
+        val state = baseHolding("100", "10.00")
+        val input =
+            PositionEvolutionInput(
+                type = InvestmentTransactionType.WITHHOLDING_TAX,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                quantity = BigDecimal("2.5"),
+                unitPrice = BigDecimal("15.00"),
+            )
+        val next = HoldingPositionEvolution.evolve(state, input)
+        assertThat(next.quantity).isEqualByComparingTo("97.5")
+        assertThat(next.averageCost).isEqualByComparingTo("10.00")
+    }
+
+    @Test
     fun `maturity with null quantity closes full position`() {
         val state = baseHolding("100", "10.00")
         val input =
