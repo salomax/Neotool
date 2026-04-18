@@ -78,7 +78,7 @@ export function InvestmentGroupSection({
             </Box>
           ))}
           {/* Spacer matching action column */}
-          <Box sx={{ width: actionColWidth, flexShrink: 0 }} />
+          <Box sx={{ width: actionColWidth, flexShrink: 0, ml: 'auto' }} />
         </Box>
 
         {children}

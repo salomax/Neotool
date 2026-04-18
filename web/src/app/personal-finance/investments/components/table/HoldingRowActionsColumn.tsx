@@ -75,6 +75,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
     <Box
       sx={{
         width: actionColWidth,
+        ml: "auto",
         flexShrink: 0,
         display: "flex",
         justifyContent: "flex-end",

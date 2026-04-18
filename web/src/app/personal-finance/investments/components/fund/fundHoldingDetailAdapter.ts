@@ -2,6 +2,7 @@
 
 import {
   AssetType,
+  InvestmentSource,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
@@ -35,6 +36,7 @@ export interface FundTimelineItemViewModel {
   incomeTax: number | null;
   iof: number | null;
   direction: InvestmentTransactionDirection;
+  source: InvestmentSource | null;
 }
 
 export interface FundHoldingDetailViewModel {
@@ -258,6 +260,7 @@ export function buildFundHoldingDetailViewModel(
       incomeTax: typeof transaction.incomeTax === "number" ? transaction.incomeTax : null,
       iof: typeof transaction.iof === "number" ? transaction.iof : null,
       direction: transaction.direction,
+      source: transaction.source ?? null,
     }));
 
   const chartPoints = withPartialMonthFlags(

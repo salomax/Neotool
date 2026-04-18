@@ -3,8 +3,24 @@
 import * as React from "react";
 import { useMutation, useQuery } from "@apollo/client/react";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import { Avatar, Box, Divider, IconButton, Tooltip, Typography, useMediaQuery, useTheme } from "@mui/material";
+import {
+  Avatar,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
 import { DELETE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import { AssetType, InvestmentTransaction } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
@@ -21,8 +37,11 @@ import { buildFixedIncomeHoldingDetailViewModel } from "./fixed-income/fixedInco
 import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "../MaturityConfirmDrawer";
 import { CouponPaymentConfirmDrawer, type CouponDrawerHolding } from "../CouponPaymentConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
-import { FundHoldingDetailDocument } from "./fund/api/queries.generated";
+import { FundHoldingDetailDocument, type FundHoldingDetailQuery } from "./fund/api/queries.generated";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
+import { RecordEquityHoldingDrawer } from "./RecordEquityHoldingDrawer";
+import { RecordFixedIncomeDrawer } from "./RecordFixedIncomeDrawer";
+import { RecordFundHoldingDrawer } from "./RecordFundHoldingDrawer";
 import type { DetailPerformancePeriod } from "./performance/detailPerformancePeriods";
 import { parseUnknownDate, resolveDetailPerformanceWindow } from "./performance/detailPerformancePeriods";
 
@@ -94,6 +113,24 @@ type DeleteInvestmentTransactionMutation = {
 type DeleteInvestmentTransactionMutationVariables = {
   id: string;
 };
+
+type FixedIncomeDetailTransaction = FixedIncomeHoldingDetailQuery["investmentTransactions"][number];
+type FundDetailTransaction = FundHoldingDetailQuery["investmentTransactions"][number];
+type DetailTimelineTransaction = FixedIncomeDetailTransaction | FundDetailTransaction;
+
+function formatTimelineDate(value: unknown, locale: string): string {
+  if (!value) return "—";
+  const raw = String(value);
+  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (localDateMatch) {
+    const [, year, month, day] = localDateMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return date.toLocaleDateString(locale, { dateStyle: "medium" });
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(locale, { dateStyle: "medium" });
+}
 
 function HoldingDetailDrawerShell({
   open,
@@ -505,11 +542,68 @@ export function InvestmentHoldingDetailDrawer({
     issuerName?: string | null;
     issuer?: { name?: string | null; logoAsset?: { publicUrl?: string | null } | null } | null;
   } | null>(null);
+  const [editingTransactionId, setEditingTransactionId] = React.useState<string | null>(null);
+  const [deletingTransactionId, setDeletingTransactionId] = React.useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [deleteInProgress, setDeleteInProgress] = React.useState(false);
 
   const [deleteInvestmentTransaction, { loading: deletingCouponPayment }] = useMutation<
     DeleteInvestmentTransactionMutation,
     DeleteInvestmentTransactionMutationVariables
   >(DELETE_INVESTMENT_TRANSACTION);
+
+  const timelineTransactions = React.useMemo<readonly DetailTimelineTransaction[]>(
+    () =>
+      kind === "fixedIncome"
+        ? (fixedIncomeData?.investmentTransactions ?? [])
+        : (fundData?.investmentTransactions ?? []),
+    [fixedIncomeData?.investmentTransactions, fundData?.investmentTransactions, kind],
+  );
+
+  const editingTransaction = React.useMemo<InvestmentTransaction | null>(() => {
+    if (!editingTransactionId) return null;
+    const transaction = timelineTransactions.find((tx) => tx.id === editingTransactionId);
+    return (transaction as unknown as InvestmentTransaction | undefined) ?? null;
+  }, [editingTransactionId, timelineTransactions]);
+
+  const deletingTransaction = React.useMemo<DetailTimelineTransaction | null>(() => {
+    if (!deletingTransactionId) return null;
+    return timelineTransactions.find((tx) => tx.id === deletingTransactionId) ?? null;
+  }, [deletingTransactionId, timelineTransactions]);
+
+  const deletingTransactionSummary = React.useMemo(() => {
+    if (!deletingTransaction) return "";
+    const directionLabel =
+      deletingTransaction.direction === "INFLOW"
+        ? t("investments.detailDrawer.timeline.inflowLabel")
+        : t("investments.detailDrawer.timeline.outflowLabel");
+    const tradeDateLabel = formatTimelineDate(deletingTransaction.tradeDate, locale);
+    const currencyCode =
+      fixedIncomeViewModel?.currencyCode ??
+      fundViewModel?.currencyCode ??
+      fixedIncomeData?.investmentHolding?.asset.currencyCode ??
+      fundData?.investmentHolding?.asset.currencyCode ??
+      "BRL";
+    const valueLabel = new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode }).format(
+      deletingTransaction.grossValue,
+    );
+    return `${directionLabel} · ${tradeDateLabel} · ${valueLabel}`;
+  }, [
+    deletingTransaction,
+    fixedIncomeData?.investmentHolding?.asset.currencyCode,
+    fixedIncomeViewModel?.currencyCode,
+    fundData?.investmentHolding?.asset.currencyCode,
+    fundViewModel?.currencyCode,
+    locale,
+    t,
+  ]);
+
+  React.useEffect(() => {
+    setEditingTransactionId(null);
+    setDeletingTransactionId(null);
+    setDeleteConfirmOpen(false);
+    setDeleteInProgress(false);
+  }, [holdingId, kind, open]);
 
   const maturityHolding = React.useMemo<MaturityDrawerHolding | null>(() => {
     const h = fixedIncomeData?.investmentHolding;
@@ -631,6 +725,93 @@ export function InvestmentHoldingDetailDrawer({
     await fixedIncomeQuery.refetch();
   }, [deleteInvestmentTransaction, fixedIncomeQuery, t, toast]);
 
+  const handleEditTransaction = React.useCallback((transactionId: string) => {
+    setEditingTransactionId(transactionId);
+  }, []);
+
+  const handleRequestDeleteTransaction = React.useCallback((transactionId: string) => {
+    setDeletingTransactionId(transactionId);
+    setDeleteConfirmOpen(true);
+  }, []);
+
+  const handleCloseDeleteDialog = React.useCallback(() => {
+    if (deleteInProgress) return;
+    setDeleteConfirmOpen(false);
+    setDeletingTransactionId(null);
+  }, [deleteInProgress]);
+
+  const handleConfirmDeleteTransaction = React.useCallback(async () => {
+    if (!deletingTransactionId) return;
+    setDeleteInProgress(true);
+    try {
+      await deleteInvestmentTransaction({ variables: { id: deletingTransactionId } });
+      toast.success(t("investments.detailDrawer.timeline.deleteSuccess"));
+      if (kind === "fixedIncome") {
+        await fixedIncomeQuery.refetch();
+      } else {
+        await fundQuery.refetch();
+      }
+      setDeleteConfirmOpen(false);
+      setDeletingTransactionId(null);
+    } catch {
+      return;
+    } finally {
+      setDeleteInProgress(false);
+    }
+  }, [deleteInvestmentTransaction, deletingTransactionId, fixedIncomeQuery, fundQuery, kind, t, toast]);
+
+  const fixedIncomeEditHolding = React.useMemo(() => {
+    const holding = fixedIncomeData?.investmentHolding;
+    if (!holding) return null;
+    return {
+      id: holding.id,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType,
+        issuerName: holding.asset.issuerName ?? null,
+      },
+      indexer: holding.indexer ?? null,
+      indexerPercentage: holding.indexerPercentage ?? null,
+      fixedAnnualRate: holding.fixedAnnualRate ?? null,
+      maturityDate: holding.maturityDate ?? null,
+      isTaxExempt: holding.isTaxExempt,
+      couponFrequency: holding.couponFrequency ?? null,
+      couponDayOfMonth: holding.couponDayOfMonth ?? null,
+    };
+  }, [fixedIncomeData?.investmentHolding]);
+
+  const fundEditHolding = React.useMemo(() => {
+    const holding = fundData?.investmentHolding;
+    if (!holding) return null;
+    return {
+      id: holding.id,
+      pricingMode: null,
+      valuationReferenceDate: holding.valuationReferenceDate ?? null,
+      grossValue: holding.grossValue ?? null,
+      netValue: holding.netValue ?? null,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType as AssetType,
+      },
+    };
+  }, [fundData?.investmentHolding]);
+
+  const equityEditHolding = React.useMemo(() => {
+    const holding = fundData?.investmentHolding;
+    if (!holding) return null;
+    return {
+      id: holding.id,
+      asset: {
+        id: holding.asset.id,
+        ticker: null,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType as AssetType,
+      },
+    };
+  }, [fundData?.investmentHolding]);
+
   const strategy: HoldingDetailStrategy =
     kind === "fixedIncome"
       ? {
@@ -656,6 +837,8 @@ export function InvestmentHoldingDetailDrawer({
               onEditCouponPayment={handleEditCouponPayment}
               onDeleteCouponPayment={handleDeleteCouponPayment}
               deletingCouponPayment={deletingCouponPayment}
+              onEditTransaction={handleEditTransaction}
+              onDeleteTransaction={handleRequestDeleteTransaction}
             />
           ),
           extra: (
@@ -732,6 +915,8 @@ export function InvestmentHoldingDetailDrawer({
               onRetry={() => {
                 void fundQuery.refetch();
               }}
+              onEditTransaction={handleEditTransaction}
+              onDeleteTransaction={handleRequestDeleteTransaction}
             />
           ),
           extra: null,
@@ -787,6 +972,71 @@ export function InvestmentHoldingDetailDrawer({
       />
 
       {strategy.extra}
+
+      <RecordFixedIncomeDrawer
+        open={kind === "fixedIncome" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
+        onClose={() => setEditingTransactionId(null)}
+        financialAccountId={fixedIncomeData?.investmentHolding?.financialAccount?.id ?? null}
+        financialAccounts={[]}
+        editHolding={fixedIncomeEditHolding}
+        editTransaction={editingTransaction}
+        onRecorded={() => {
+          setEditingTransactionId(null);
+          void fixedIncomeQuery.refetch();
+        }}
+      />
+
+      <RecordFundHoldingDrawer
+        open={kind === "fund" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
+        onClose={() => setEditingTransactionId(null)}
+        financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
+        financialAccounts={[]}
+        editHolding={fundEditHolding}
+        editTransaction={editingTransaction}
+        onRecorded={() => {
+          setEditingTransactionId(null);
+          void fundQuery.refetch();
+        }}
+      />
+
+      <RecordEquityHoldingDrawer
+        open={kind === "equity" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
+        onClose={() => setEditingTransactionId(null)}
+        financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
+        financialAccounts={[]}
+        editHolding={equityEditHolding}
+        editTransaction={editingTransaction}
+        onRecorded={() => {
+          setEditingTransactionId(null);
+          void fundQuery.refetch();
+        }}
+      />
+
+      <Dialog open={deleteConfirmOpen} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
+        <DialogTitle>{t("investments.detailDrawer.timeline.deleteConfirmTitle")}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">{deletingTransactionSummary || "—"}</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1.5 }}>
+            {t("investments.detailDrawer.timeline.deleteConfirmWarning")}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} disabled={deleteInProgress}>
+            {t("actions.cancel")}
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => {
+              void handleConfirmDeleteTransaction();
+            }}
+            disabled={deleteInProgress || !deletingTransactionId}
+            startIcon={deleteInProgress ? <CircularProgress size={16} color="inherit" /> : undefined}
+          >
+            {t("actions.delete")}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 }

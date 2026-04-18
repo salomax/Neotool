@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Box, Divider } from "@mui/material";
+import { InvestmentSource } from "@/lib/graphql/types/__generated__/graphql";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
 import { EmptyState, QueryErrorState } from "@/shared/components/ui/feedback";
@@ -24,6 +25,8 @@ interface FundHoldingDetailContentProps {
   selectedPeriod: DetailPerformancePeriod;
   onSelectPeriod: (period: DetailPerformancePeriod) => void;
   onRetry?: () => void;
+  onEditTransaction?: (transactionId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
 export function FundHoldingDetailContent({
@@ -37,6 +40,8 @@ export function FundHoldingDetailContent({
   selectedPeriod,
   onSelectPeriod,
   onRetry,
+  onEditTransaction,
+  onDeleteTransaction,
 }: FundHoldingDetailContentProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -119,12 +124,22 @@ export function FundHoldingDetailContent({
         outflowLabel={t("investments.detailDrawer.timeline.outflowLabel")}
         locale={locale}
         currencyCode={viewModel.currencyCode}
-        items={viewModel.timelineItems}
+        items={viewModel.timelineItems.map((item) => ({
+          ...item,
+          source: item.source ?? undefined,
+          isEditable: item.source === InvestmentSource.Manual,
+        }))}
         formatCurrency={(value) => currencyFormatter?.format(value) ?? String(value)}
         netAmountText={(formattedValue) => t("investments.detailDrawer.timeline.netAmount", { value: formattedValue })}
         incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
         iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
         settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
+        onEditTransaction={onEditTransaction}
+        onDeleteTransaction={onDeleteTransaction}
+        notEditableTooltip={t("investments.detailDrawer.timeline.notEditableTooltip")}
+        actionsAriaLabel={t("investments.table.rowActions.ariaLabel")}
+        editActionLabel={t("actions.edit")}
+        deleteActionLabel={t("actions.delete")}
       />
     </Box>
   );

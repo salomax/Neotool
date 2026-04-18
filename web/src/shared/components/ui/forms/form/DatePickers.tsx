@@ -23,12 +23,16 @@ import { toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
  * so every future year appears disabled instead of omitted. Capping `maxDate` at end of today makes the
  * year view and month bounds match “no future” without relying only on per-cell disabled state.
  */
-function resolveMaxDateForDisableFuture(maxDate: Date | undefined, disableFuture: boolean): Date | undefined {
+function resolveMaxDateForDisableFuture(
+  maxDate: Date | undefined,
+  disableFuture: boolean,
+  now: Dayjs = dayjs(),
+): Date | undefined {
   if (!disableFuture) return maxDate;
-  const endOfToday = dayjs().endOf("day").toDate();
+  const endOfToday = now.endOf("day").toDate();
   if (maxDate == null) return endOfToday;
   const userEnd = dayjs(maxDate).endOf("day");
-  const todayStart = dayjs().startOf("day");
+  const todayStart = now.startOf("day");
   if (userEnd.isBefore(todayStart)) {
     return maxDate;
   }
@@ -253,9 +257,10 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   const effectiveMinDate = minDate ?? dayjs().subtract(10, "year").startOf("day").toDate();
   const disableFutureFlag = disableFuture === true;
   const todayCalendarKey = dayjs().format("YYYY-MM-DD");
+  const today = React.useMemo(() => dayjs(todayCalendarKey), [todayCalendarKey]);
   const resolvedMaxDate = React.useMemo(
-    () => resolveMaxDateForDisableFuture(maxDate, disableFutureFlag),
-    [maxDate, disableFutureFlag, todayCalendarKey],
+    () => resolveMaxDateForDisableFuture(maxDate, disableFutureFlag, today),
+    [maxDate, disableFutureFlag, today],
   );
   const effectiveLabel = label ?? t("datePicker.placeholder");
   const localeText = React.useMemo(

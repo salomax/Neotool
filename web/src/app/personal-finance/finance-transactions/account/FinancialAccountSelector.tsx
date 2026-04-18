@@ -161,6 +161,13 @@ export function FinancialAccountSelector({
     ? allAccounts.find((a: FinancialAccount) => a.id === resolvedSelectedAccountId) 
     : null;
 
+  React.useEffect(() => {
+    if (!autoSelectSingleAccount) return;
+    if (selectedAccountId != null) return;
+    if (!singleAccount?.id) return;
+    onSelectAccount(singleAccount.id);
+  }, [autoSelectSingleAccount, onSelectAccount, selectedAccountId, singleAccount?.id]);
+
   // Handlers
   const renderAccountTypeIcon = (type: FinancialAccountType, fontSize?: 'small' | 'medium' | 'large') => {
     if (type === FinancialAccountType.Bank) return <BankIcon fontSize={fontSize} />;

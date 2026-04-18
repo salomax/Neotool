@@ -495,7 +495,11 @@
         "settlementDate": "Settlement: {{date}}",
         "netAmount": "Net: {{value}}",
         "incomeTax": "Income tax: {{value}}",
-        "iof": "IOF: {{value}}"
+        "iof": "IOF: {{value}}",
+        "notEditableTooltip": "Synced automatically — this transaction cannot be edited",
+        "deleteSuccess": "Transaction deleted successfully",
+        "deleteConfirmTitle": "Delete transaction?",
+        "deleteConfirmWarning": "This will recalculate the asset's average cost and timeline history."
       },
       "couponSchedule": {
         "sectionTitle": "Interest Payment (Coupon)",

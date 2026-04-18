@@ -3,6 +3,7 @@
 import {
   AssetType,
   Indexer,
+  InvestmentSource,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
@@ -51,6 +52,7 @@ export interface FixedIncomeTimelineItemViewModel {
   incomeTax: number | null;
   iof: number | null;
   direction: InvestmentTransactionDirection;
+  source: InvestmentSource | null;
 }
 
 export interface FixedIncomeHoldingDetailViewModel {
@@ -270,6 +272,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
       incomeTax: transaction.incomeTax,
       iof: transaction.iof,
       direction: transaction.direction,
+      source: transaction.source ?? null,
     }));
 
   const couponTimeline = [...transactions]

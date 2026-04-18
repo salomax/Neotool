@@ -54,7 +54,7 @@ export function InvestmentGroupTableShell({
               {cell.content}
             </Box>
           ))}
-          <Box sx={{ width: actionColWidth, flexShrink: 0 }} />
+          <Box sx={{ width: actionColWidth, flexShrink: 0, ml: "auto" }} />
         </Box>
         {children}
       </Box>
