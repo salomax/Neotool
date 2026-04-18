@@ -83,6 +83,7 @@ Quick lookup and reference materials:
 |----------|------|------|----------|----------|
 | Investment Portfolio Blueprint | `03-features/investment-portfolio/investment-portfolio-blueprint.md` | feature | investment | investment, portfolio, holdings, performance, retail, advisory |
 | Holding Transaction Operations | `03-features/investment-portfolio/holding-transaction-operations.md` | feature | investment | aporte, resgate, compra, venda, holding, transaction, cash-flow, side-effect, portfolio |
+| Holding Events Roadmap | `03-features/investment-portfolio/holding-events-roadmap.md` | feature | investment | come-cotas, amortização, aluguel, transferência, dividendo, staking, roadmap, inventário, eventos |
 | Assets Service - Specification | `03-features/assets/asset-service/README.md` | feature | assets | assets, upload, cdn, storage, cloudflare-r2, s3, minio |
 | Assets Service - Decisions | `03-features/assets/asset-service/decisions.md` | feature | assets | assets, adr, decisions, trade-offs |
 | Billing Module Blueprint | `03-features/billing/README.md` | feature | billing | billing, subscriptions, payments, plans, entitlements |
