@@ -67,7 +67,7 @@ export function CashTransactionsInlineTable({
   const { t } = useTranslation(personalFinanceTranslations);
   const locale = getCurrentLocale();
   const theme = useTheme();
-  const showFinancialAccountColumn = !financialAccountId;
+  const showFinancialAccountColumn = financialAccountId == null;
   const headCellSx = financeTransactionHeadCellSx(theme);
   const assetColSx = {
     width: showFinancialAccountColumn ? 220 : 260,
