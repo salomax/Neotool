@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CloseIcon from "@mui/icons-material/Close";
 import { Box, Typography, IconButton } from "@mui/material";
@@ -36,8 +36,27 @@ export function InvestmentRecordDrawer({
 }: InvestmentRecordDrawerProps) {
   const locale = React.useMemo(() => Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
   const [userSelectedAccountId, setUserSelectedAccountId] = React.useState<string | null>(null);
-  const resolvedFinancialAccountId = open ? (userSelectedAccountId ?? initialFinancialAccountId ?? null) : null;
+
+  const effectiveInitialFinancialAccountId = useMemo(() => {
+    if (initialFinancialAccountId) return initialFinancialAccountId;
+    if (financialAccounts.length === 1) {
+      return financialAccounts[0]?.id ?? null;
+    }
+    return null;
+  }, [initialFinancialAccountId, financialAccounts]);
+
+  const resolvedFinancialAccountId = open
+    ? (userSelectedAccountId ?? effectiveInitialFinancialAccountId ?? null)
+    : null;
   const needsAccountSelection = !resolvedFinancialAccountId;
+  /** After picking among multiple accounts, user can go back to the list; not when the account is implied by props or a single-custodian list. */
+  const canReturnToAccountPicker = !initialFinancialAccountId && financialAccounts.length > 1;
+
+  useEffect(() => {
+    if (!open) {
+      setUserSelectedAccountId(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     onResolvedChange?.(resolvedFinancialAccountId);
@@ -47,7 +66,7 @@ export function InvestmentRecordDrawer({
     <Drawer open={open} onClose={onClose} anchor="right" size="md">
       {needsAccountSelection ? (
         <Drawer.Header title={title} />
-      ) : (
+      ) : canReturnToAccountPicker ? (
         <Drawer.Header>
           <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
             <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
@@ -75,6 +94,8 @@ export function InvestmentRecordDrawer({
             </IconButton>
           </Box>
         </Drawer.Header>
+      ) : (
+        <Drawer.Header title={title} />
       )}
       <Drawer.Body>
         {needsAccountSelection ? (

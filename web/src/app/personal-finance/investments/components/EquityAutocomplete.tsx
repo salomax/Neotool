@@ -2,14 +2,17 @@
 
 import React from "react";
 import { useQuery } from "@apollo/client/react";
-import { Autocomplete, Box, CircularProgress, TextField, Typography } from "@mui/material";
+import { Autocomplete, Box, CircularProgress, TextField, Typography, type TextFieldProps } from "@mui/material";
 import { Controller, useFormContext } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
 import { SEARCH_INVESTMENT_ASSETS_AUTOCOMPLETE } from "@/lib/graphql/operations/financial-data/queries";
+import { B3AssetType } from "@/lib/graphql/types/__generated__/graphql";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
 import { AssetTypeChip } from "./AssetTypeChip";
+import { Logo } from "@/shared/components/ui/primitives";
+import { getInvestmentIconKindFromAssetType, InvestmentAssetIcon } from "./InvestmentAssetIcon";
 
 export type EquityAutocompleteValue = {
   id: string;
@@ -22,11 +25,21 @@ export type EquityAutocompleteValue = {
 interface EquityAutocompleteProps {
   name: string;
   label?: string;
+  /** When set, restricts B3 autocomplete to this asset class (e.g. stocks vs FIIs). */
+  assetTypeFilter?: B3AssetType | null;
   disabled?: boolean;
+  size?: TextFieldProps["size"];
   "data-testid"?: string;
 }
 
-export function EquityAutocomplete({ name, label, disabled, "data-testid": dataTestId }: EquityAutocompleteProps) {
+export function EquityAutocomplete({
+  name,
+  label,
+  assetTypeFilter,
+  disabled,
+  size = "medium",
+  "data-testid": dataTestId,
+}: EquityAutocompleteProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { control } = useFormContext();
   const [inputValue, setInputValue] = React.useState("");
@@ -39,9 +52,12 @@ export function EquityAutocomplete({ name, label, disabled, "data-testid": dataT
         suggestions: Array<{ id: string; ticker: string; name: string; assetType: string; isActive: boolean }>;
       };
     },
-    { query: string }
+    { query: string; assetType?: B3AssetType }
   >(SEARCH_INVESTMENT_ASSETS_AUTOCOMPLETE, {
-    variables: { query: trimmed },
+    variables: {
+      query: trimmed,
+      ...(assetTypeFilter != null ? { assetType: assetTypeFilter } : {}),
+    },
     skip: trimmed.length === 0,
     fetchPolicy: "network-only",
     errorPolicy: "all",
@@ -89,31 +105,70 @@ export function EquityAutocomplete({ name, label, disabled, "data-testid": dataT
               sx={{
                 display: "flex",
                 alignItems: "center",
-                justifyContent: "space-between",
                 gap: 1,
                 py: 1,
               }}
             >
-              <Box sx={{ minWidth: 0 }}>
-                <Typography variant="body2" fontWeight={700} noWrap>
-                  {option.ticker}
-                </Typography>
-                <Typography variant="caption" color="text.secondary" noWrap>
-                  {option.name}
-                </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0, flex: "1 1 auto" }}>
+                <Logo
+                  size="xs"
+                  sx={{
+                    bgcolor: "action.hover",
+                    color: "text.secondary",
+                    flexShrink: 0,
+                  }}
+                >
+                  <InvestmentAssetIcon
+                    kind={getInvestmentIconKindFromAssetType(mapB3AssetType(option.assetType))}
+                    sx={{ fontSize: 16 }}
+                  />
+                </Logo>
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography variant="body2" fontWeight={700} noWrap>
+                    {option.ticker}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    {option.name}
+                  </Typography>
+                </Box>
               </Box>
-              <AssetTypeChip assetType={mapB3AssetType(option.assetType)} size="small" />
+              <AssetTypeChip sx={{ ml: "auto", flex: "0 0 auto" }} assetType={mapB3AssetType(option.assetType)} size="small" />
             </Box>
           )}
           renderInput={(params) => (
             <TextField
               {...params}
               label={label ?? t("investments.recordEquity.fields.asset")}
+              size={size}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               data-testid={dataTestId}
               InputProps={{
                 ...params.InputProps,
+                startAdornment:
+                  field.value != null ? (
+                    <>
+                      <Box component="span" sx={{ display: "inline-flex", alignItems: "center", mr: 1 }}>
+                        <Logo
+                          size="xs"
+                          sx={{
+                            bgcolor: "action.hover",
+                            color: "text.secondary",
+                          }}
+                        >
+                          <InvestmentAssetIcon
+                            kind={getInvestmentIconKindFromAssetType(
+                              mapB3AssetType((field.value as EquityAutocompleteValue).assetType),
+                            )}
+                            sx={{ fontSize: 16 }}
+                          />
+                        </Logo>
+                      </Box>
+                      {params.InputProps.startAdornment}
+                    </>
+                  ) : (
+                    params.InputProps.startAdornment
+                  ),
                 endAdornment: (
                   <>
                     {loading ? <CircularProgress size={16} /> : null}

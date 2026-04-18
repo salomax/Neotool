@@ -15,6 +15,15 @@ export type InvestmentGridClassKey = (typeof INVESTMENT_GRID_CLASS_KEYS)[number]
 
 export type GridRecordDrawer = "cash" | "fixedIncome" | "fund" | "equity" | null;
 
+/** Drives copy and B3 autocomplete filtering in the equity record drawer when opened from the grid. */
+export type EquityRecordVariant = "stock" | "fii" | "mixed";
+
+export function equityRecordVariantForGridClass(key: InvestmentGridClassKey): EquityRecordVariant {
+  if (key === "stocks") return "stock";
+  if (key === "reits") return "fii";
+  return "mixed";
+}
+
 /** Maps each grid class to the record drawer used for the primary "+ Investimento" CTA. */
 export const RECORD_DRAWER_BY_CLASS: Record<InvestmentGridClassKey, Exclude<GridRecordDrawer, null>> = {
   cash: "cash",

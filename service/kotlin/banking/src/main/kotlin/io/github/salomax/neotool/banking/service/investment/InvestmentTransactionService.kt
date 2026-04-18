@@ -287,6 +287,11 @@ open class InvestmentTransactionService(
      * deposited cash stays in the ledger while the position is also marked-to-market → double count
      * and nonsensical TWR.
      *
+     * The banking row [date][io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand.date]
+     * uses [RecordInvestmentTransactionCommand.settlementDate] when set (e.g. D+2 equities, D+1 RF),
+     * otherwise [RecordInvestmentTransactionCommand.tradeDate], so cash movements align with
+     * liquidation for all holding types.
+     *
      * Skips when a row already exists (Open Finance dedup) or amount is non-positive.
      * Fails fast if the required system category is missing (seed data); logs a warn with context first.
      */
@@ -304,6 +309,8 @@ open class InvestmentTransactionService(
 
         val cashAmount = savedTx.netValue ?: savedTx.grossValue
         if (cashAmount.signum() <= 0) return null
+
+        val cashLedgerDate = command.settlementDate ?: command.tradeDate
 
         when (command.type) {
             PURCHASE, SUBSCRIPTION -> {
@@ -336,7 +343,7 @@ open class InvestmentTransactionService(
                         creditDebitType = CreditDebitType.DEBIT,
                         type = TransactionType.TRANSFER,
                         amount = cashAmount,
-                        date = command.tradeDate,
+                        date = cashLedgerDate,
                         description = description,
                         categoryId = categoryId,
                         transactionSource = command.source.toLedgerTransactionSource(),
@@ -392,7 +399,7 @@ open class InvestmentTransactionService(
                         creditDebitType = CreditDebitType.CREDIT,
                         type = TransactionType.INVESTMENT_RETURN,
                         amount = cashAmount,
-                        date = command.tradeDate,
+                        date = cashLedgerDate,
                         description = description,
                         categoryId = categoryId,
                         transactionSource = command.source.toLedgerTransactionSource(),

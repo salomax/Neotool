@@ -788,13 +788,16 @@
       "success": "Fund recorded successfully"
     },
     "recordEquity": {
-      "title": "Record stock / FII",
+      "titles": {
+        "stock": "Record stock",
+        "fii": "Record FII",
+        "mixed": "Record stock / FII"
+      },
       "selectAccount": {
         "description": "Select an investment account to record the asset.",
         "emptyState": "No investment accounts available."
       },
       "sections": {
-        "assetData": "Asset",
         "values": "Values",
         "fees": "Fees & costs"
       },
@@ -804,7 +807,9 @@
       },
       "fields": {
         "asset": "Asset (ticker)",
-        "quantity": "Number of shares",
+        "quantityStock": "Number of shares",
+        "quantityFii": "Number of units (quotas)",
+        "quantityMixed": "Quantity (shares or quotas)",
         "unitPrice": "Unit price (BRL)",
         "tradeDate": "Trade date",
         "grossValue": "Total amount"
@@ -814,8 +819,12 @@
           "totalLabel": "Total trade value"
         },
         "byAmount": {
-          "estimatedShares": "~ Estimated shares",
-          "sharesUnit": "shares"
+          "estimatedStock": "~ Estimated shares",
+          "estimatedFii": "~ Estimated quotas",
+          "estimatedMixed": "~ Estimated shares or quotas",
+          "unitStock": "shares",
+          "unitFii": "quotas",
+          "unitMixed": "shares or quotas"
         }
       },
       "validation": {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Controller, useFormContext } from "react-hook-form";
-import { TextField } from "@mui/material";
+import { TextField, type TextFieldProps } from "@mui/material";
 import { NumericFormat } from "react-number-format";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 
@@ -11,6 +11,8 @@ export interface PercentFieldProps {
   label?: string;
   helperText?: React.ReactNode;
   fullWidth?: boolean;
+  /** Defaults to `medium` with other app form fields. */
+  size?: TextFieldProps["size"];
   min?: number;
   max?: number;
   step?: number;
@@ -27,6 +29,7 @@ export const PercentField: React.FC<PercentFieldProps> = ({
   label,
   helperText,
   fullWidth = true,
+  size = "medium",
   min = 0,
   max = 100,
   step,
@@ -57,7 +60,7 @@ export const PercentField: React.FC<PercentFieldProps> = ({
           <NumericFormat
             customInput={TextField}
             {...(label && { label })}
-            size="small"
+            size={size}
             fullWidth={fullWidth}
             error={!!fieldState.error}
             helperText={fieldState.error?.message ?? helperText}
