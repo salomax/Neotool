@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { InvestmentSource } from "@/lib/graphql/types/__generated__/graphql";
 import {
   Box,
   Divider,
@@ -36,6 +37,8 @@ interface FixedIncomeHoldingDetailContentProps {
   ) => void;
   onDeleteCouponPayment?: (transactionId: string) => Promise<void>;
   deletingCouponPayment?: boolean;
+  onEditTransaction?: (transactionId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
 }
 
 function LoadingSkeleton() {
@@ -68,6 +71,8 @@ export function FixedIncomeHoldingDetailContent({
   onEditCouponPayment,
   onDeleteCouponPayment,
   deletingCouponPayment,
+  onEditTransaction,
+  onDeleteTransaction,
 }: FixedIncomeHoldingDetailContentProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -223,12 +228,22 @@ export function FixedIncomeHoldingDetailContent({
         outflowLabel={outflowLabel}
         locale={locale}
         currencyCode={viewModel.currencyCode}
-        items={viewModel.timelineItems}
+        items={viewModel.timelineItems.map((item) => ({
+          ...item,
+          source: item.source ?? undefined,
+          isEditable: item.source === InvestmentSource.Manual,
+        }))}
         formatCurrency={(value) => currencyFormatter.format(value)}
         netAmountText={(formattedValue) => t("investments.detailDrawer.timeline.netAmount", { value: formattedValue })}
         incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
         iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
         settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
+        onEditTransaction={onEditTransaction}
+        onDeleteTransaction={onDeleteTransaction}
+        notEditableTooltip={t("investments.detailDrawer.timeline.notEditableTooltip")}
+        actionsAriaLabel={t("investments.table.rowActions.ariaLabel")}
+        editActionLabel={t("actions.edit")}
+        deleteActionLabel={t("actions.delete")}
       />
     </Stack>
   );

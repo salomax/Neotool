@@ -495,7 +495,11 @@
         "settlementDate": "Liquidação: {{date}}",
         "netAmount": "Líquido: {{value}}",
         "incomeTax": "IR: {{value}}",
-        "iof": "IOF: {{value}}"
+        "iof": "IOF: {{value}}",
+        "notEditableTooltip": "Sincronizado automaticamente — não pode ser editado",
+        "deleteSuccess": "Transação excluída com sucesso",
+        "deleteConfirmTitle": "Excluir transação?",
+        "deleteConfirmWarning": "Isso irá recalcular o custo médio e o histórico do ativo."
       },
       "couponSchedule": {
         "sectionTitle": "Pagamento de Juros (Cupom)",

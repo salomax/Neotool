@@ -1,8 +1,11 @@
 'use client';
 
 import * as React from 'react';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditIcon from '@mui/icons-material/Edit';
 import EventNoteIcon from '@mui/icons-material/EventNote';
-import { Box, Paper, Stack, Typography } from '@mui/material';
+import MoreVertIcon from '@mui/icons-material/MoreVert';
+import { Box, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, Paper, Stack, Tooltip, Typography, alpha, useTheme } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
@@ -29,6 +32,8 @@ export interface TimelineEventsItem {
   incomeTax?: number | null;
   iof?: number | null;
   direction: TimelineDirection;
+  source?: 'MANUAL' | 'OPEN_FINANCE' | 'FILE_IMPORT';
+  isEditable?: boolean;
 }
 
 export function timelineEventDomId(id: string): string {
@@ -51,6 +56,13 @@ export interface TimelineEventsProps {
   iofText: (formattedValue: string) => string;
   /** When set, shown before tax/net lines when `settlementDateLabel` is present on an item. */
   settlementDateText?: (settlementDateLabel: string) => string;
+  onEditTransaction?: (transactionId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
+  /** Tooltip shown on disabled menu items for non-manual transactions */
+  notEditableTooltip?: string;
+  actionsAriaLabel?: string;
+  editActionLabel?: string;
+  deleteActionLabel?: string;
   sx?: SxProps<Theme>;
 }
 
@@ -66,6 +78,12 @@ interface TimelineEventCardProps {
   inflowLabel: string;
   outflowLabel: string;
   alignRightOnDesktop: boolean;
+  onEditTransaction?: (transactionId: string) => void;
+  onDeleteTransaction?: (transactionId: string) => void;
+  notEditableTooltip?: string;
+  actionsAriaLabel?: string;
+  editActionLabel?: string;
+  deleteActionLabel?: string;
 }
 
 const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function TimelineEventCard({
@@ -80,7 +98,14 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
   inflowLabel,
   outflowLabel,
   alignRightOnDesktop,
+  onEditTransaction,
+  onDeleteTransaction,
+  notEditableTooltip,
+  actionsAriaLabel,
+  editActionLabel,
+  deleteActionLabel,
 }) {
+  const theme = useTheme();
   const isOutflow = item.direction === OUTFLOW_DIRECTION;
   const directionLabel = isOutflow ? outflowLabel : inflowLabel;
   const directionColor = isOutflow ? 'error.main' : 'success.main';
@@ -96,11 +121,31 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
   ]);
   const detailText = joinTimelineParts([settlementPart, moneyParts]);
   const textAlign = alignRightOnDesktop ? { xs: 'left', md: 'right' } : 'left';
+  const [menuAnchor, setMenuAnchor] = React.useState<null | HTMLElement>(null);
+  const [hovered, setHovered] = React.useState(false);
+  const hasActions = Boolean(onEditTransaction || onDeleteTransaction);
+  const isEditable = item.isEditable ?? item.source === 'MANUAL';
+  const actionsVisible = hovered || Boolean(menuAnchor);
+  const disabledTooltipTitle = !isEditable ? (notEditableTooltip ?? '') : '';
+  const actionButtonAriaLabel = actionsAriaLabel ?? 'Transaction actions';
+  const editLabel = editActionLabel ?? 'Edit';
+  const deleteLabel = deleteActionLabel ?? 'Delete';
+
+  const handleOpenMenu = (event: React.MouseEvent<HTMLElement>) => {
+    event.stopPropagation();
+    setMenuAnchor(event.currentTarget);
+  };
+
+  const handleCloseMenu = () => {
+    setMenuAnchor(null);
+  };
 
   return (
     <Paper
       variant="elevation"
       elevation={0}
+      onMouseEnter={hasActions ? () => setHovered(true) : undefined}
+      onMouseLeave={hasActions ? () => setHovered(false) : undefined}
       sx={{
         p: 2,
         borderRadius: 2,
@@ -108,13 +153,99 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
         width: '100%',
         maxWidth: 420,
         justifySelf: alignRightOnDesktop ? { xs: 'start', md: 'end' } : 'start',
+        position: 'relative',
       }}
     >
+      {hasActions ? (
+        <>
+          <IconButton
+            size="small"
+            aria-label={actionButtonAriaLabel}
+            onClick={handleOpenMenu}
+            sx={{
+              position: 'absolute',
+              top: 6,
+              right: 6,
+              zIndex: 1,
+              opacity: { xs: 1, md: actionsVisible ? 1 : 0 },
+              pointerEvents: { xs: 'auto', md: actionsVisible ? 'auto' : 'none' },
+              transition: 'opacity 0.15s ease',
+            }}
+          >
+            <MoreVertIcon fontSize="small" />
+          </IconButton>
+
+          <Menu
+            anchorEl={menuAnchor}
+            open={Boolean(menuAnchor)}
+            onClose={handleCloseMenu}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+            transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          >
+            <Tooltip
+              title={disabledTooltipTitle}
+              placement="left"
+              disableHoverListener={isEditable}
+              disableFocusListener={isEditable}
+              disableTouchListener={isEditable}
+            >
+              <span>
+                <MenuItem
+                  disabled={!isEditable || !onEditTransaction}
+                  onClick={() => {
+                    handleCloseMenu();
+                    if (!onEditTransaction || !isEditable) return;
+                    onEditTransaction(item.id);
+                  }}
+                >
+                  <ListItemIcon>
+                    <EditIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{editLabel}</ListItemText>
+                </MenuItem>
+              </span>
+            </Tooltip>
+
+            <Tooltip
+              title={disabledTooltipTitle}
+              placement="left"
+              disableHoverListener={isEditable}
+              disableFocusListener={isEditable}
+              disableTouchListener={isEditable}
+            >
+              <span>
+                <MenuItem
+                  disabled={!isEditable || !onDeleteTransaction}
+                  onClick={() => {
+                    handleCloseMenu();
+                    if (!onDeleteTransaction || !isEditable) return;
+                    onDeleteTransaction(item.id);
+                  }}
+                  sx={{
+                    color: 'error.main',
+                    '&:hover': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                    '&.Mui-focusVisible': {
+                      bgcolor: alpha(theme.palette.error.main, 0.08),
+                    },
+                  }}
+                >
+                  <ListItemIcon sx={{ color: 'inherit' }}>
+                    <DeleteOutlineIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{deleteLabel}</ListItemText>
+                </MenuItem>
+              </span>
+            </Tooltip>
+          </Menu>
+        </>
+      ) : null}
       <Typography
         variant="caption"
         noWrap
         title={`${directionLabel} · ${item.tradeDateLabel}`}
-        sx={{ minWidth: 0, width: '100%', textAlign, display: 'block' }}
+        sx={{ minWidth: 0, width: '100%', textAlign, display: 'block', pr: hasActions ? 4 : 0 }}
       >
         <Box component="span" sx={{ fontWeight: 700, color: directionColor }}>
           {directionLabel}
@@ -158,6 +289,12 @@ const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function Ti
   settlementDateText,
   inflowLabel,
   outflowLabel,
+  onEditTransaction,
+  onDeleteTransaction,
+  notEditableTooltip,
+  actionsAriaLabel,
+  editActionLabel,
+  deleteActionLabel,
 }) {
   const isOutflow = item.direction === OUTFLOW_DIRECTION;
 
@@ -192,6 +329,12 @@ const TimelineEventRow: React.FC<TimelineEventRowProps> = React.memo(function Ti
           inflowLabel={inflowLabel}
           outflowLabel={outflowLabel}
           alignRightOnDesktop={!isOutflow}
+          onEditTransaction={onEditTransaction}
+          onDeleteTransaction={onDeleteTransaction}
+          notEditableTooltip={notEditableTooltip}
+          actionsAriaLabel={actionsAriaLabel}
+          editActionLabel={editActionLabel}
+          deleteActionLabel={deleteActionLabel}
         />
       </Box>
     </Box>
@@ -213,6 +356,12 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
   incomeTaxText,
   iofText,
   settlementDateText,
+  onEditTransaction,
+  onDeleteTransaction,
+  notEditableTooltip,
+  actionsAriaLabel,
+  editActionLabel,
+  deleteActionLabel,
   sx,
 }) => {
   if (items.length === 0) {
@@ -251,6 +400,12 @@ export const TimelineEvents: React.FC<TimelineEventsProps> = ({
               settlementDateText={settlementDateText}
               inflowLabel={inflowLabel}
               outflowLabel={outflowLabel}
+              onEditTransaction={onEditTransaction}
+              onDeleteTransaction={onDeleteTransaction}
+              notEditableTooltip={notEditableTooltip}
+              actionsAriaLabel={actionsAriaLabel}
+              editActionLabel={editActionLabel}
+              deleteActionLabel={deleteActionLabel}
             />
           ))}
         </Stack>
