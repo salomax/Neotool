@@ -80,7 +80,7 @@ export function BaseMoneyInput({
   helperText,
   fullWidth = true,
   disabled,
-  size = "small",
+  size = "medium",
   InputProps,
   name,
   autoFocus,

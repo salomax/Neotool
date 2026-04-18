@@ -33,7 +33,7 @@ export const NumberField: React.FC<NumberFieldProps> = ({
   allowNegative = true,
   helperText,
   fullWidth = true,
-  size = "small",
+  size = "medium",
   disabled = false,
   locale = "en-US",
   fractionDigits,

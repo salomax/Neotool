@@ -45,7 +45,7 @@ export function TagsInput({
   label,
   variant = 'outlined',
   InputProps,
-  size = 'small',
+  size = 'medium',
 }: TagsInputProps) {
   return (
     <Autocomplete

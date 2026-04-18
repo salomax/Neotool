@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Divider, Paper, Tab, Tabs, TextField, Typography, alpha, useTheme } from "@mui/material";
+import { Box, Divider, Paper, Tab, TextField, Typography, alpha, useTheme } from "@mui/material";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
@@ -26,6 +26,7 @@ import {
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
+import { FormTabs } from "@/shared/components/ui/forms/components/FormTabs";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
@@ -256,11 +257,6 @@ export function RecordFundHoldingDrawer({
       { shouldDirty: false, shouldValidate: true },
     );
   }, [isEdit, methods, open, prefillHolding]);
-
-  useEffect(() => {
-    if (!open) return;
-    setResolvedFinancialAccountId(financialAccountId || null);
-  }, [financialAccountId, open]);
 
   useEffect(() => {
     if (isEdit) return;
@@ -563,33 +559,15 @@ export function RecordFundHoldingDrawer({
                 <Label sx={{ mb: 0 }}>
                   {t("investments.recordFund.sections.listing")}
                 </Label>
-                <Tabs
+                <FormTabs
                   value={listingMode}
                   onChange={(_, next: ListingMode) => {
                     setListingMode(next);
                   }}
-                  sx={{
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    "& .MuiTab-root": {
-                      textTransform: "none",
-                      fontWeight: theme.typography.button.fontWeight,
-                      fontSize: theme.typography.button.fontSize,
-                      letterSpacing: theme.typography.button.letterSpacing,
-                      lineHeight: theme.typography.button.lineHeight,
-                      px: 0,
-                      mr: 3,
-                      minHeight: 48,
-                      minWidth: "auto",
-                    },
-                    "& .MuiTabs-indicator": {
-                      height: 3,
-                      borderRadius: 2,
-                    },
-                  }}
                 >
                   <Tab value="CVM" label={t("investments.recordFund.modes.cvmListed")} disabled={isEdit} />
                   <Tab value="MANUAL" label={t("investments.recordFund.modes.notListed")} disabled={isEdit} />
-                </Tabs>
+                </FormTabs>
               </FormStack>
 
               {listingMode === "CVM" ? (
@@ -681,33 +659,15 @@ export function RecordFundHoldingDrawer({
                 <Typography variant="overline" color="text.secondary" sx={{ mb: 0 }}>
                   {t("investments.recordFund.sections.values")}
                 </Typography>
-                <Tabs
+                <FormTabs
                   value={valueFlow}
                   onChange={(_, next: ValueFlow) => {
                     setValueFlow(next);
                   }}
-                  sx={{
-                    borderBottom: `1px solid ${theme.palette.divider}`,
-                    "& .MuiTab-root": {
-                      textTransform: "none",
-                      fontWeight: theme.typography.button.fontWeight,
-                      fontSize: theme.typography.button.fontSize,
-                      letterSpacing: theme.typography.button.letterSpacing,
-                      lineHeight: theme.typography.button.lineHeight,
-                      px: 0,
-                      mr: 3,
-                      minHeight: 48,
-                      minWidth: "auto",
-                    },
-                    "& .MuiTabs-indicator": {
-                      height: 3,
-                      borderRadius: 2,
-                    },
-                  }}
                 >
                   <Tab value="BY_AMOUNT" label={t("investments.recordFund.flows.byAmount")} />
                   <Tab value="BY_QUANTITY" label={t("investments.recordFund.flows.byQuantity")} />
-                </Tabs>
+                </FormTabs>
               </FormStack>
 
               {valueFlow === "BY_AMOUNT" ? (

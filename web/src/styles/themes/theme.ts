@@ -191,6 +191,16 @@ export const createAppTheme = (mode: Mode) => {
       MuiLink: {
         defaultProps: { variant: "inherit" as any },
       },
+      MuiTextField: {
+        defaultProps: {
+          size: "medium",
+        },
+      },
+      MuiFormControl: {
+        defaultProps: {
+          size: "medium",
+        },
+      },
       MuiFormLabel: {
         styleOverrides: {
           root: {

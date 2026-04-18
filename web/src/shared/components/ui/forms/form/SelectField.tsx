@@ -42,7 +42,7 @@ export function SelectField<T = string>({
           select
           label={label}
           fullWidth={fullWidth}
-          size={size ?? "small"}
+          size={size ?? "medium"}
           value={field.value ?? ""}
           onChange={(e) => {
             const value = (e.target.value as any) ?? "";

@@ -12,6 +12,7 @@ export type MaskedFieldProps = {
   placeholder?: string;
   disabled?: boolean;
   fullWidth?: boolean;
+  size?: TextFieldProps["size"];
   inputProps?: TextFieldProps["inputProps"];
 };
 
@@ -62,6 +63,7 @@ export const MaskedField: React.FC<MaskedFieldProps> = ({
   placeholder,
   disabled,
   fullWidth = true,
+  size = "medium",
   inputProps,
 }) => {
   const { control } = useFormContext();
@@ -74,6 +76,7 @@ export const MaskedField: React.FC<MaskedFieldProps> = ({
           label={label}
           placeholder={placeholder}
           fullWidth={fullWidth}
+          size={size}
           disabled={disabled}
           error={!!fieldState.error}
           helperText={fieldState.error?.message}

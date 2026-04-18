@@ -18,6 +18,23 @@ import {
 import { TextField, type TextFieldProps } from "./TextField";
 import { toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
 
+/**
+ * When `disableFuture` is on, MUI still builds the year list from `minDate`–`maxDate` (default max is 2099),
+ * so every future year appears disabled instead of omitted. Capping `maxDate` at end of today makes the
+ * year view and month bounds match “no future” without relying only on per-cell disabled state.
+ */
+function resolveMaxDateForDisableFuture(maxDate: Date | undefined, disableFuture: boolean): Date | undefined {
+  if (!disableFuture) return maxDate;
+  const endOfToday = dayjs().endOf("day").toDate();
+  if (maxDate == null) return endOfToday;
+  const userEnd = dayjs(maxDate).endOf("day");
+  const todayStart = dayjs().startOf("day");
+  if (userEnd.isBefore(todayStart)) {
+    return maxDate;
+  }
+  return endOfToday;
+}
+
 /** Same outlined input as `MoneyInput` / `FormTextField` (PickersTextField is a few px taller). */
 const DATE_PICKER_TEXT_FIELD_SLOTS = { textField: TextField } as const;
 
@@ -27,7 +44,7 @@ export type DatePickerTextFieldSize = NonNullable<TextFieldProps["size"]>;
  * Outlined date field: match `./TextField` vertical padding for `size`, and `paddingRight: 0` so the
  * calendar `endAdornment` matches MUI’s adorned layout (shared `TextField` uses uniform padding otherwise).
  */
-export function getDatePickerOutlinedInputSx(size: DatePickerTextFieldSize = "small") {
+export function getDatePickerOutlinedInputSx(size: DatePickerTextFieldSize = "medium") {
   const vertical =
     size === "small" ? "10.5px" : size === "large" ? "16.5px" : "14.5px";
   return {
@@ -79,7 +96,7 @@ export interface DatePickerFieldProps {
   openTo?: DateView;
   /** Extra MUI `DatePicker` `slotProps` merged with app standards (`mergeAppDatePickerSlotProps`). `textField` merges with error/helper wiring. */
   pickerSlotProps?: DatePickerProps["slotProps"];
-  /** Input density; matches `FormTextField` / `MoneyInput`. Overrides `pickerSlotProps.textField.size` when set. */
+  /** Input density; matches `FormTextField` / `MoneyInput` (default `medium`). Overrides `pickerSlotProps.textField.size` when set. */
   size?: DatePickerTextFieldSize;
   'data-testid'?: string;
 }
@@ -152,9 +169,9 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
   } = pickerTextFieldRaw;
   const resolvedTextFieldSize: DatePickerTextFieldSize =
     textFieldSize ??
-    (pickerSlotTextFieldSize === "medium" || pickerSlotTextFieldSize === "large"
+    (pickerSlotTextFieldSize === "small" || pickerSlotTextFieldSize === "medium" || pickerSlotTextFieldSize === "large"
       ? pickerSlotTextFieldSize
-      : "small");
+      : "medium");
   const mergedTextFieldSx = [
     getDatePickerOutlinedInputSx(resolvedTextFieldSize),
     ...(pickerTextFieldSx != null
@@ -187,8 +204,8 @@ const DatePickerFieldInner: React.FC<DatePickerFieldInnerProps> = ({
       onError={setPickerError}
       minDate={minDate ? dayjs(minDate) : undefined}
       maxDate={maxDate ? dayjs(maxDate) : undefined}
-      disablePast={disablePast}
-      disableFuture={disableFuture}
+      disablePast={disablePast === true}
+      disableFuture={disableFuture === true}
       slotProps={{
         ...mergedNonTextFieldSlotProps,
         textField: {
@@ -234,6 +251,12 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
   const { adapterLocale, dateFormat } = useDatePickerI18nConfig();
   const [pickerError, setPickerError] = React.useState<string | null>(null);
   const effectiveMinDate = minDate ?? dayjs().subtract(10, "year").startOf("day").toDate();
+  const disableFutureFlag = disableFuture === true;
+  const todayCalendarKey = dayjs().format("YYYY-MM-DD");
+  const resolvedMaxDate = React.useMemo(
+    () => resolveMaxDateForDisableFuture(maxDate, disableFutureFlag),
+    [maxDate, disableFutureFlag, todayCalendarKey],
+  );
   const effectiveLabel = label ?? t("datePicker.placeholder");
   const localeText = React.useMemo(
     () => ({
@@ -256,8 +279,8 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
       });
     }
 
-    if (pickerError === "maxDate" && maxDate) {
-      return t("datePicker.errors.maxDate", { date: dayjs(maxDate).format(dateFormat) });
+    if (pickerError === "maxDate" && resolvedMaxDate) {
+      return t("datePicker.errors.maxDate", { date: dayjs(resolvedMaxDate).format(dateFormat) });
     }
 
     if (pickerError === "disablePast") {
@@ -269,7 +292,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
     }
 
     return t("datePicker.errors.invalidDate");
-  }, [dateFormat, effectiveMinDate, maxDate, pickerError, t]);
+  }, [dateFormat, effectiveMinDate, pickerError, resolvedMaxDate, t]);
   return (
     <LocalizationProvider
       dateAdapter={AdapterDayjs}
@@ -287,7 +310,7 @@ export const DatePickerField: React.FC<DatePickerFieldProps> = ({
             effectiveLabel={effectiveLabel}
             fullWidth={fullWidth}
             minDate={effectiveMinDate}
-            maxDate={maxDate}
+            maxDate={resolvedMaxDate}
             disablePast={disablePast}
             disableFuture={disableFuture}
             views={views}
@@ -320,7 +343,7 @@ export const DateRangeField: React.FC<DateRangeFieldProps> = ({
   nameEnd,
   labelStart,
   labelEnd,
-  size = "small",
+  size = "medium",
 }) => {
   const { t } = useTranslation(COMMON_NS);
   const { control } = useFormContext();

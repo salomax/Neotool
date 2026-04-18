@@ -17,6 +17,7 @@ import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
@@ -56,6 +57,7 @@ class TransactionResolverTest {
     private lateinit var transactionCategoryRepository: TransactionCategoryRepository
     private lateinit var accountPreferencesService: AccountPreferencesService
     private lateinit var nfceDocumentRepository: NfceDocumentRepository
+    private lateinit var transactionAttachmentRepository: TransactionAttachmentRepository
     private lateinit var resolver: TransactionResolver
 
     private val accountId = UUID.randomUUID()
@@ -84,6 +86,7 @@ class TransactionResolverTest {
         transactionCategoryRepository = mock()
         accountPreferencesService = mock()
         nfceDocumentRepository = mock()
+        transactionAttachmentRepository = mock()
         whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
             .thenReturn(emptyMap())
         whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
@@ -97,6 +100,7 @@ class TransactionResolverTest {
                 transactionCategoryRepository = transactionCategoryRepository,
                 accountPreferencesService = accountPreferencesService,
                 nfceDocumentRepository = nfceDocumentRepository,
+                transactionAttachmentRepository = transactionAttachmentRepository,
             )
     }
 

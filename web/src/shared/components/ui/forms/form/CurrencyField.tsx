@@ -38,7 +38,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
   onCurrencyChange,
   fractionDigits,
   InputProps,
-  size: _size, // Omit size - NumericFormat expects number, TextField uses "small"|"medium"
+  size = "medium",
   ...otherProps
 }) => {
   const { control } = useFormContext();
@@ -53,7 +53,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
   const Selector =
     currencyChoices && currencyChoices.length > 0 ? (
       <Select
-        size="small"
+        size="medium"
         value={cur}
         onChange={(e) => {
           setCur(e.target.value as string);
@@ -90,7 +90,7 @@ export const CurrencyField: React.FC<CurrencyFieldProps> = ({
                 return (
                   <TextField
                     {...restProps}
-                    {...(typeof inputSize === 'string' && { size: inputSize })}
+                    size={typeof inputSize === "string" ? inputSize : size}
                     {...(label && { label })}
                     fullWidth={fullWidth}
                     error={!!fieldState.error}

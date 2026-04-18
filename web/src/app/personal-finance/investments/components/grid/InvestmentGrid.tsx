@@ -80,6 +80,7 @@ export function InvestmentGrid({
 
       <InvestmentGridDrawers
         recordDrawer={grid.recordDrawer}
+        equityRecordVariant={grid.equityRecordVariant}
         onCloseRecordDrawer={grid.closeRecordDrawer}
         selectedAccountId={selectedAccountId}
         bankAccounts={bankAccounts}

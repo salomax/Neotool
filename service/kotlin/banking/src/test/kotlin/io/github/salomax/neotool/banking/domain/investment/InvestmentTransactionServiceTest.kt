@@ -660,7 +660,22 @@ class InvestmentTransactionServiceTest {
             assertThat(cmd.type).isEqualTo(TransactionType.TRANSFER)
             assertThat(cmd.description).isEqualTo("Compra / aplicação")
             assertThat(cmd.investmentTransactionId).isNotNull
+            assertThat(cmd.date).isEqualTo(today)
             verify(transactionCategoryEntityRepository).findSystemSubcategoryId("Investimento aplicado", "Ações")
+        }
+
+        @Test
+        fun `purchase cash leg posts on settlementDate when it differs from tradeDate`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val settlement = today.plusDays(2)
+            service.record(buyCommand("100", "28.50").copy(settlementDate = settlement), accountId, userId)
+
+            val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            assertThat(cmdCaptor.firstValue.date).isEqualTo(settlement)
         }
 
         @Test
@@ -787,6 +802,34 @@ class InvestmentTransactionServiceTest {
             assertThat(updated.quantity).isEqualByComparingTo("120")
             // averageCost must NOT change on sale
             assertThat(updated.averageCost).isEqualByComparingTo("30.25")
+        }
+
+        @Test
+        fun `sale cash leg posts on settlementDate when it differs from tradeDate`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(holdingWith("200", "30.25"))
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val settlement = today.plusDays(2)
+            val command = RecordInvestmentTransactionCommand(
+                financialAccountId = financialAccountId,
+                assetId = assetId,
+                direction = InvestmentTransactionDirection.OUTFLOW,
+                type = InvestmentTransactionType.SALE,
+                quantity = BigDecimal("80"),
+                unitPrice = BigDecimal("35.00"),
+                grossValue = BigDecimal("2800"),
+                tradeDate = today,
+                settlementDate = settlement,
+            )
+
+            service.record(command, accountId, userId)
+
+            val cmdCaptor = argumentCaptor<CreateTransactionCommand>()
+            verify(transactionService).create(cmdCaptor.capture(), eq(accountId), eq(userId))
+            assertThat(cmdCaptor.firstValue.type).isEqualTo(TransactionType.INVESTMENT_RETURN)
+            assertThat(cmdCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
+            assertThat(cmdCaptor.firstValue.date).isEqualTo(settlement)
         }
 
         @Test

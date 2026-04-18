@@ -8,10 +8,11 @@ import { RecordFundHoldingDrawer } from "../RecordFundHoldingDrawer";
 import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
 import { InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
 import type { IssuerSelectionAccount } from "../IssuerSelection";
-import type { GridRecordDrawer } from "./investmentGridConfig";
+import type { EquityRecordVariant, GridRecordDrawer } from "./investmentGridConfig";
 
 export interface InvestmentGridDrawersProps {
   recordDrawer: GridRecordDrawer;
+  equityRecordVariant: EquityRecordVariant;
   onCloseRecordDrawer: () => void;
   selectedAccountId: string | null;
   bankAccounts: NonNullable<FinancialAccountsQuery["financialAccounts"]>;
@@ -21,6 +22,7 @@ export interface InvestmentGridDrawersProps {
 
 export function InvestmentGridDrawers({
   recordDrawer,
+  equityRecordVariant,
   onCloseRecordDrawer,
   selectedAccountId,
   bankAccounts,
@@ -49,6 +51,7 @@ export function InvestmentGridDrawers({
         onClose={onCloseRecordDrawer}
         financialAccountId={selectedAccountId}
         financialAccounts={investmentAccounts}
+        equityRecordVariant={equityRecordVariant}
         initialDirection={InvestmentTransactionDirection.Inflow}
         onRecorded={onRecorded}
       />

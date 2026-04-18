@@ -13,11 +13,9 @@ import {
   ListItemButton,
   ListItemIcon,
   ListItemText,
-  Paper,
   Stack,
+  Tab,
   Typography,
-  alpha,
-  useTheme,
 } from "@mui/material";
 import { FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
@@ -33,24 +31,56 @@ import {
 } from "@/lib/graphql/operations/banking/mutations.generated";
 import {
   AssetType,
+  B3AssetType,
   InvestmentTransaction,
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
+import { CurrencyAmountParts } from "@/shared/components/ui/data-display";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
+import { FormInfoBox } from "@/shared/components/ui/forms/components/FormInfoBox";
+import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
+import { FormTabs } from "@/shared/components/ui/forms/components/FormTabs";
 import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
-import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { EquityAutocomplete, EquityAutocompleteValue } from "./EquityAutocomplete";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
+import type { EquityRecordVariant } from "./grid/investmentGridConfig";
+import SectionDivider from "@/shared/components/ui/layout/SectionDivider";
+import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
+
+function displayVariantFromGraphqlAssetType(assetType: AssetType): EquityRecordVariant | null {
+  switch (assetType) {
+    case AssetType.RealEstateFund:
+    case AssetType.AgribusinessFund:
+      return "fii";
+    case AssetType.Stock:
+    case AssetType.StockRights:
+    case AssetType.Bdr:
+    case AssetType.Etf:
+    case AssetType.EtfInternational:
+      return "stock";
+    case AssetType.Option:
+      return "mixed";
+    default:
+      return null;
+  }
+}
+
+function displayVariantFromB3String(b3: string): EquityRecordVariant | null {
+  if (b3 === "FII") return "fii";
+  if (b3 === "EQUITY") return "stock";
+  if (b3 === "OPTION_CALL" || b3 === "OPTION_PUT") return "mixed";
+  return null;
+}
 
 interface RecordEquityHoldingDrawerProps {
   open: boolean;
@@ -68,6 +98,8 @@ interface RecordEquityHoldingDrawerProps {
     asset: { id: string; ticker: string | null; name: string; assetType: AssetType };
   } | null;
   initialDirection?: InvestmentTransactionDirection;
+  /** When opening from the investments grid, narrows copy and ticker search to stocks vs FIIs. */
+  equityRecordVariant?: EquityRecordVariant;
 }
 
 type RecordEquityFormData = {
@@ -95,8 +127,8 @@ export function RecordEquityHoldingDrawer({
   editTransaction,
   prefillHolding,
   initialDirection,
+  equityRecordVariant = "mixed",
 }: RecordEquityHoldingDrawerProps) {
-  const theme = useTheme();
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
@@ -234,6 +266,61 @@ export function RecordEquityHoldingDrawer({
   const brokerageFeeValue = methods.watch("brokerageFee");
   const settlementFeeValue = methods.watch("settlementFee");
   const otherFeesValue = methods.watch("otherFees");
+
+  const displayVariant = React.useMemo<EquityRecordVariant>(() => {
+    if (selectedAsset?.assetType) {
+      const fromSelection = displayVariantFromB3String(selectedAsset.assetType);
+      if (fromSelection) return fromSelection;
+    }
+    const holding = editHolding ?? prefillHolding;
+    if (holding?.asset?.assetType != null) {
+      const fromHolding = displayVariantFromGraphqlAssetType(holding.asset.assetType);
+      if (fromHolding != null) return fromHolding;
+    }
+    return equityRecordVariant;
+  }, [editHolding, equityRecordVariant, prefillHolding, selectedAsset]);
+
+  const autocompleteB3Filter = React.useMemo(() => {
+    if (isEdit || prefillHolding) return undefined;
+    if (equityRecordVariant === "stock") return B3AssetType.Equity;
+    if (equityRecordVariant === "fii") return B3AssetType.Fii;
+    return undefined;
+  }, [equityRecordVariant, isEdit, prefillHolding]);
+
+  const drawerTitle = React.useMemo(
+    () => t(`investments.recordEquity.titles.${displayVariant}`),
+    [displayVariant, t],
+  );
+
+  const quantityFieldLabel = React.useMemo(() => {
+    const key =
+      displayVariant === "fii"
+        ? "investments.recordEquity.fields.quantityFii"
+        : displayVariant === "stock"
+          ? "investments.recordEquity.fields.quantityStock"
+          : "investments.recordEquity.fields.quantityMixed";
+    return t(key);
+  }, [displayVariant, t]);
+
+  const byAmountEstimatedLabel = React.useMemo(() => {
+    const key =
+      displayVariant === "fii"
+        ? "investments.recordEquity.values.byAmount.estimatedFii"
+        : displayVariant === "stock"
+          ? "investments.recordEquity.values.byAmount.estimatedStock"
+          : "investments.recordEquity.values.byAmount.estimatedMixed";
+    return t(key);
+  }, [displayVariant, t]);
+
+  const byAmountUnitLabel = React.useMemo(() => {
+    const key =
+      displayVariant === "fii"
+        ? "investments.recordEquity.values.byAmount.unitFii"
+        : displayVariant === "stock"
+          ? "investments.recordEquity.values.byAmount.unitStock"
+          : "investments.recordEquity.values.byAmount.unitMixed";
+    return t(key);
+  }, [displayVariant, t]);
 
   const tradeDateIso = React.useMemo(
     () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
@@ -540,7 +627,7 @@ export function RecordEquityHoldingDrawer({
     <InvestmentRecordDrawer
       open={open}
       onClose={onClose}
-      title={t("investments.recordEquity.title")}
+      title={drawerTitle}
       initialFinancialAccountId={financialAccountId || null}
       financialAccounts={financialAccounts}
       issuerSelection={{
@@ -570,13 +657,19 @@ export function RecordEquityHoldingDrawer({
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="subtitle2" color="text.secondary">
+            <Divider />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, pb: 2 }}>
+              <Typography variant="h3" color="text.secondary">
                 {t("investments.recordEquity.footer.total")}
               </Typography>
-              <Typography variant="h6" fontWeight={900}>
-                {computedTransactionTotal != null ? currencyFormatter.format(computedTransactionTotal) : "—"}
-              </Typography>
+              <CurrencyAmountParts
+                value={computedTransactionTotal}
+                currency="BRL"
+                locale={locale}
+                variant="h3"
+                fontWeight={900}
+              />
             </Box>
 
             <Drawer.ActionButtons
@@ -596,13 +689,10 @@ export function RecordEquityHoldingDrawer({
       {({ resolvedFinancialAccountId }) => (
         <FormProvider {...methods}>
           <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <Stack spacing={2}>
+            <FormStack>
               <ErrorAlert error={mutationError} />
 
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary">
-                    {t("investments.recordEquity.sections.assetData")}
-                  </Typography>
+                <FormStack>
                   <Box
                     sx={{
                       display: "grid",
@@ -612,6 +702,7 @@ export function RecordEquityHoldingDrawer({
                   >
                     <EquityAutocomplete
                       name="asset"
+                      assetTypeFilter={autocompleteB3Filter}
                       data-testid="record-equity-autocomplete"
                       disabled={isEdit || Boolean(prefillHolding)}
                     />
@@ -619,40 +710,37 @@ export function RecordEquityHoldingDrawer({
                       name="tradeDate"
                       label={t("investments.recordEquity.fields.tradeDate")}
                       minDate={minAllowedDate.toDate()}
+                      disableFuture={true}
                       data-testid="record-equity-trade-date"
                     />
                   </Box>
-                </Stack>
+                </FormStack>
 
-                <Divider />
-
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary">
-                    {t("investments.recordEquity.sections.values")}
-                  </Typography>
-                  <SegmentedControl
-                    fullWidth
+                <FormStack>
+                  <FormTabs
                     value={valueFlow}
-                    onChange={(v) => setValueFlow(v as "BY_AMOUNT" | "BY_QUANTITY")}
-                    options={[
-                      { value: "BY_QUANTITY", label: t("investments.recordEquity.flows.byQuantity") },
-                      { value: "BY_AMOUNT", label: t("investments.recordEquity.flows.byAmount") },
-                    ]}
-                  />
-                </Stack>
+                    onChange={(_, next: "BY_AMOUNT" | "BY_QUANTITY") => setValueFlow(next)}
+                    data-testid="record-equity-value-flow-tabs"
+                  >
+                    <Tab
+                      value="BY_QUANTITY"
+                      label={t("investments.recordEquity.flows.byQuantity")}
+                      data-testid="record-equity-flow-by-quantity"
+                    />
+                    <Tab
+                      value="BY_AMOUNT"
+                      label={t("investments.recordEquity.flows.byAmount")}
+                      data-testid="record-equity-flow-by-amount"
+                    />
+                  </FormTabs>
+                </FormStack>
 
                 {valueFlow === "BY_QUANTITY" ? (
-                  <Stack spacing={2}>
-                    <Box
-                      sx={{
-                        display: "grid",
-                        gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                        gap: 2,
-                      }}
-                    >
+                  <FormStack>
+                    <FormRowStack alignItems="flex-start">
                       <NumberField
                         name="quantity"
-                        label={t("investments.recordEquity.fields.quantity")}
+                        label={quantityFieldLabel}
                         fullWidth
                         locale={locale}
                         fractionDigits={0}
@@ -665,86 +753,69 @@ export function RecordEquityHoldingDrawer({
                         currency="BRL"
                         data-testid="record-equity-unit-price"
                       />
-                    </Box>
+                    </FormRowStack>
 
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                      }}
-                    >
+                    <FormInfoBox>
                       <Typography variant="body2" color="text.secondary">
                         {t("investments.recordEquity.values.byQuantity.totalLabel")}
                       </Typography>
                       <Typography variant="body2" fontWeight={800}>
                         {computedTotalByQuantity != null ? currencyFormatter.format(computedTotalByQuantity) : "—"}
                       </Typography>
-                    </Paper>
-                  </Stack>
+                    </FormInfoBox>
+                  </FormStack>
                 ) : (
-                  <Stack spacing={2}>
-                    <MoneyInput
-                      name="grossValue"
-                      label={t("investments.recordEquity.fields.grossValue")}
-                      currency="BRL"
-                      data-testid="record-equity-gross-value"
-                    />
+                  <FormStack>
+                    <FormRowStack alignItems="flex-start">
+                      <MoneyInput
+                        name="grossValue"
+                        label={t("investments.recordEquity.fields.grossValue")}
+                        currency="BRL"
+                        data-testid="record-equity-gross-value"
+                      />
 
-                    <MoneyInput
-                      name="unitPrice"
-                      label={t("investments.recordEquity.fields.unitPrice")}
-                      currency="BRL"
-                      data-testid="record-equity-unit-price"
-                    />
+                      <MoneyInput
+                        name="unitPrice"
+                        label={t("investments.recordEquity.fields.unitPrice")}
+                        currency="BRL"
+                        data-testid="record-equity-unit-price"
+                      />
+                    </FormRowStack>
 
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.primary.main, 0.04),
-                        borderColor: alpha(theme.palette.primary.main, 0.12),
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                      }}
-                    >
+                    <FormInfoBox>
                       <Typography variant="body2" color="text.secondary">
-                        {t("investments.recordEquity.values.byAmount.estimatedShares")}
+                        {byAmountEstimatedLabel}
                       </Typography>
                       <Typography variant="body2" fontWeight={700}>
                         {computedQuantityByAmount != null
                           ? computedQuantityByAmount.toLocaleString(locale, {
                               minimumFractionDigits: 0,
                               maximumFractionDigits: 0,
-                            }) + " " + t("investments.recordEquity.values.byAmount.sharesUnit")
+                            }) + " " + byAmountUnitLabel
                           : "—"}
                       </Typography>
-                    </Paper>
-                  </Stack>
+                    </FormInfoBox>
+                  </FormStack>
                 )}
 
-                <Divider />
-
-                <Stack spacing={1}>
-                  <Typography variant="overline" color="text.secondary">
-                    {t("investments.recordEquity.sections.fees")}
-                  </Typography>
-                  <SegmentedControl
+                <FormStack>
+                  <FormTabs
                     value={feesMode}
-                    onChange={(v) => setFeesMode(v as "SUMMARY" | "DETAILED")}
-                    options={[
-                      { value: "SUMMARY", label: t("investments.recordEquity.fees.modes.summary") },
-                      { value: "DETAILED", label: t("investments.recordEquity.fees.modes.detailed") },
-                    ]}
-                  />
-                </Stack>
+                    onChange={(_, next: "SUMMARY" | "DETAILED") => setFeesMode(next)}
+                    data-testid="record-equity-fees-mode-tabs"
+                  >
+                    <Tab
+                      value="SUMMARY"
+                      label={t("investments.recordEquity.fees.modes.summary")}
+                      data-testid="record-equity-fees-mode-summary"
+                    />
+                    <Tab
+                      value="DETAILED"
+                      label={t("investments.recordEquity.fees.modes.detailed")}
+                      data-testid="record-equity-fees-mode-detailed"
+                    />
+                  </FormTabs>
+                </FormStack>
 
                 {feesMode === "SUMMARY" ? (
                   <MoneyInput
@@ -754,7 +825,7 @@ export function RecordEquityHoldingDrawer({
                     data-testid="record-equity-fees-total"
                   />
                 ) : (
-                  <Stack spacing={2}>
+                  <FormStack>
                     <MoneyInput
                       name="brokerageFee"
                       label={t("investments.recordEquity.fees.brokerage")}
@@ -774,27 +845,17 @@ export function RecordEquityHoldingDrawer({
                       data-testid="record-equity-fees-other"
                     />
 
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                      }}
-                    >
+                    <FormInfoBox>
                       <Typography variant="body2" color="text.secondary">
                         {t("investments.recordEquity.fees.totalFees")}
                       </Typography>
                       <Typography variant="body2" fontWeight={800}>
                         {currencyFormatter.format(computedDetailedFees)}
                       </Typography>
-                    </Paper>
-                  </Stack>
+                    </FormInfoBox>
+                  </FormStack>
                 )}
-              </Stack>
+              </FormStack>
           </form>
         </FormProvider>
       )}

@@ -788,13 +788,16 @@
       "success": "Fundo registrado com sucesso"
     },
     "recordEquity": {
-      "title": "Registrar ação / FII",
+      "titles": {
+        "stock": "Registrar ação",
+        "fii": "Registrar FII",
+        "mixed": "Registrar ação / FII"
+      },
       "selectAccount": {
         "description": "Selecione uma conta de investimento para registrar o ativo.",
         "emptyState": "Nenhuma conta de investimento disponível."
       },
       "sections": {
-        "assetData": "Ativo",
         "values": "Valores",
         "fees": "Taxas e custos"
       },
@@ -804,7 +807,9 @@
       },
       "fields": {
         "asset": "Ativo (ticker)",
-        "quantity": "Quantidade de ações",
+        "quantityStock": "Quantidade de ações",
+        "quantityFii": "Quantidade de cotas",
+        "quantityMixed": "Quantidade (ações ou cotas)",
         "unitPrice": "Preço unitário (R$)",
         "tradeDate": "Data da operação",
         "grossValue": "Valor total"
@@ -814,8 +819,12 @@
           "totalLabel": "Total da operação"
         },
         "byAmount": {
-          "estimatedShares": "~ Ações estimadas",
-          "sharesUnit": "ações"
+          "estimatedStock": "~ Ações estimadas",
+          "estimatedFii": "~ Cotas estimadas",
+          "estimatedMixed": "~ Cotas ou ações estimadas",
+          "unitStock": "ações",
+          "unitFii": "cotas",
+          "unitMixed": "ações ou cotas"
         }
       },
       "validation": {
