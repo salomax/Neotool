@@ -55,14 +55,14 @@ export function CurrencyAmountParts({
 
   if (!hasNumber || !parts) {
     return (
-      <Typography sx={{ fontVariantNumeric: 'tabular-nums', ...sx }} {...typographyProps}>
+      <Typography sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', ...sx }} {...typographyProps}>
         {placeholder}
       </Typography>
     );
   }
 
   return (
-    <Typography sx={{ fontVariantNumeric: 'tabular-nums', ...sx }} {...typographyProps}>
+    <Typography sx={{ fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.03em', ...sx }} {...typographyProps}>
       {parts.map((part, index) => {
         const isMain = part.type === 'integer' || part.type === 'group';
         return (
