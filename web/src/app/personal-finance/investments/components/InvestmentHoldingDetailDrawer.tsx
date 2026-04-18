@@ -926,27 +926,47 @@ export function InvestmentHoldingDetailDrawer({
           netValue: fundViewModel?.netValue ?? null,
           currencyCode: (fundViewModel?.currencyCode ?? "BRL"),
           gainPercent: fundViewModel?.netGainPercent ?? null,
-          summaryCards: [
-            { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
-            { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
-            { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
-            {
-              id: "xirr",
-              label: t("investments.detailDrawer.performance.xirr"),
-              value: fundViewModel?.xirr ?? null,
-              valueKind: "percent",
-              caption:
-                fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
-                  ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
-                  : null,
-              labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
-            },
-            { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
-            { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fundViewModel?.netGain ?? null },
-            { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fundViewModel?.incomeTax ?? null },
-            { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fundViewModel?.iof ?? null },
-            { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
-          ],
+          // Equity: IR depends on monthly sale volume, 20k exemption, and trade type — cannot
+          // pre-calculate net value or income tax. IOF does not apply to equity assets.
+          // Funds: income is realised via quota appreciation (come-cotas), not separate dividends.
+          summaryCards: kind === "equity"
+            ? [
+                { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
+                { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
+                {
+                  id: "xirr",
+                  label: t("investments.detailDrawer.performance.xirr"),
+                  value: fundViewModel?.xirr ?? null,
+                  valueKind: "percent" as const,
+                  caption:
+                    fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
+                      ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
+                      : null,
+                  labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+                },
+                { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
+                { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
+              ]
+            : [
+                { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
+                { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
+                { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
+                {
+                  id: "xirr",
+                  label: t("investments.detailDrawer.performance.xirr"),
+                  value: fundViewModel?.xirr ?? null,
+                  valueKind: "percent" as const,
+                  caption:
+                    fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
+                      ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
+                      : null,
+                  labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+                },
+                { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
+                { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fundViewModel?.netGain ?? null },
+                { id: "incomeTax", label: t("investments.detailDrawer.grid.incomeTax"), value: fundViewModel?.incomeTax ?? null },
+                { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fundViewModel?.iof ?? null },
+              ],
         };
 
   return (

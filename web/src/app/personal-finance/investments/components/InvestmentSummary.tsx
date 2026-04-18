@@ -74,6 +74,7 @@ const TOTAL_PORTFOLIO_AMOUNT_TYPOGRAPHY_SX = {
   lineHeight: 1.05,
 } as const;
 const TOTAL_PORTFOLIO_LINE_BOX_HEIGHT = "calc(2.3rem * 1.05)";
+const DIVIDER_VERTICAL_SPACING = "1rem";
 
 function SummaryMetricRow({
   color,
@@ -251,7 +252,7 @@ export function InvestmentSummary({
       <Box data-testid="investment-summary-section" sx={{ width: "100%" }}>
         {error && !summary ? (
           <Stack
-            spacing={1.25}
+            spacing={1}
             alignItems="center"
             sx={{ py: 4, textAlign: "center" }}
           >
@@ -271,12 +272,11 @@ export function InvestmentSummary({
             </Button>
           </Stack>
         ) : (
-          <Stack spacing={2}>
+          <Stack spacing={0}>
             <Stack
               direction="row"
               alignItems="center"
               justifyContent="space-between"
-              spacing={2}
             >
               <Box>
                 <Label>{t("investments.summary.totalPortfolio")}</Label>
@@ -335,14 +335,14 @@ export function InvestmentSummary({
               </Box>
             </Stack>
 
-            <Divider />
+            <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
-            <Stack spacing={1}>
-              <Label>
+            <Stack spacing={0}>
+              <Label sx={{ mb: 1 }}>
                 {t("investments.summary.performance.portfolioReturn")}
               </Label>
 
-              <Stack spacing={1.5}>
+              <Stack spacing={1}>
                 <Box
                   sx={{
                     display: "flex",
@@ -387,13 +387,20 @@ export function InvestmentSummary({
                   {isCalculating ? (
                     <CircularProgress size={18} sx={{ mb: 0.25 }} />
                   ) : performance?.twr != null || summaryFetching ? (
-                    <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        position: "relative",
+                        top: (t) => t.spacing(0.25),
+                      }}
+                    >
                       <PercentageGain
                         loading={summaryFetching}
                         value={performance?.twr}
                         locale={locale}
                         iconSize={18}
-                        textSx={{ fontWeight: 700, fontSize: "1.05rem" }}
+                        textSx={{ fontWeight: 700, fontSize: "1rem" }}
                       />
                     </Box>
                   ) : (
@@ -434,7 +441,7 @@ export function InvestmentSummary({
                 ) : null}
               </Stack>
 
-              <Divider sx={{ my: 1 }} />
+              <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
               <SummaryMetricRow
                 color={theme.palette.text.primary}
                 label={t("investments.summary.totalContributed")}
@@ -442,7 +449,6 @@ export function InvestmentSummary({
                 currencyCode={currencyCode}
                 locale={locale}
                 loading={showSummarySkeletons}
-                rowSx={{ pt: 2, pb: 0.25 }}
                 amountTestId="investment-summary-total-contributed-amount"
               />
               <SummaryMetricRow
@@ -456,15 +462,13 @@ export function InvestmentSummary({
                 currencyCode={currencyCode}
                 locale={locale}
                 loading={showSummarySkeletons}
-                rowSx={{ pt: 0.25 }}
+                rowSx={{ pt: 0,  }}
                 amountTestId="investment-summary-cash-balance-amount"
               />
-            </Stack>
 
-            <Divider />
+              <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
-            <Stack spacing={1}>
-              <Label>{t("investments.summary.allocation")}</Label>
+              <Label sx={{ mb: 1 }}>{t("investments.summary.allocation")}</Label>
 
               {showSummarySkeletons
                 ? Array.from({ length: 4 }).map((_, index) => (

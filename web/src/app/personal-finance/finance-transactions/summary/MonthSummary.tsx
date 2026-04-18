@@ -24,6 +24,7 @@ const CURRENCY_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
   style: 'currency',
   currency: MONTH_SUMMARY_CURRENCY,
 };
+const DIVIDER_VERTICAL_SPACING = '1rem';
 
 interface MonthSummaryProps {
   summary: MonthSummaryData | undefined;
@@ -168,7 +169,7 @@ export function MonthSummary({
       </Box>
 
       {/* Closing balance */}
-      <Box sx={{ mb: 2 }}>
+      <Box>
         <Label>{t('financeTransactions.monthSummary.balance')}</Label>
         {isInitialLoad ? (
           <Typography
@@ -192,7 +193,7 @@ export function MonthSummary({
         )}
       </Box>
 
-      <Divider sx={{ mb: 3 }} />
+      <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
       {/* Income + expenses rows */}
       <Stack spacing={1.2}>
@@ -250,8 +251,8 @@ export function MonthSummary({
 
       {/* Transfers */}
       {summary && !loading && (summary.transfersIn > 0 || summary.transfersOut > 0) && (
-        <Box sx={{ mt: 2 }}>
-          <Divider sx={{ my: 3 }} />
+        <Box>
+          <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
           <Box sx={{ mb: 1 }}>
             <Label>{transfersTitle}</Label>
           </Box>

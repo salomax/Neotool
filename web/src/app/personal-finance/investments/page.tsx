@@ -84,7 +84,7 @@ export default function PersonalFinanceInvestmentsPage() {
           consolidatedViewLabel={t("investments.sidebar.consolidatedView")}
           newAccountLabel={t("investments.emptyState.primaryAction")}
         />
-        <Box sx={{ position: "relative", my: 3 }}>
+        <Box sx={{ position: "relative", my: '1rem' }}>
           <Divider />
           {summaryFetching ? (
             <Box
