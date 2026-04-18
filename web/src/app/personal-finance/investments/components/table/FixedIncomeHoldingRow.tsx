@@ -30,7 +30,9 @@ export interface FixedIncomeHoldingRowProps {
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
   onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
+  onBuy?: (holding: HoldingRow) => void;
   onSell?: (holding: HoldingRow) => void;
+  buyLabel?: string;
   sellLabel?: string;
 }
 
@@ -44,7 +46,9 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
   onOpenDetail,
   onOpenMaturityConfirm,
   onOpenActions,
+  onBuy,
   onSell,
+  buyLabel,
   sellLabel,
 }: FixedIncomeHoldingRowProps) {
   const theme = useTheme();
@@ -211,7 +215,9 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
         holding={holding}
         t={t}
         onOpenActions={onOpenActions}
+        onBuy={onBuy}
         onSell={onSell}
+        buyLabel={buyLabel}
         sellLabel={sellLabel}
       />
     </Box>

@@ -45,6 +45,7 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
         onOpenDetail={onOpenDetail}
         onOpenMaturityConfirm={onOpenMaturityConfirm}
         onOpenActions={onOpenActions}
+        onBuy={onBuy}
         onSell={onSell}
         hideGroupHeader={hideGroupHeader}
       />

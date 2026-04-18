@@ -21,6 +21,7 @@ export interface FixedIncomeHoldingsTableProps {
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
   onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
+  onBuy?: (holding: HoldingRow) => void;
   onSell?: (holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
@@ -34,6 +35,7 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
   onOpenDetail,
   onOpenMaturityConfirm,
   onOpenActions,
+  onBuy,
   onSell,
   hideGroupHeader = false,
 }: FixedIncomeHoldingsTableProps) {
@@ -48,6 +50,7 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
   const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
 
+  const buyLabel = t("investments.transactions.apply");
   const sellLabel = t("investments.transactions.redeem");
 
   const summaryAdornment = React.useMemo(() => {
@@ -134,7 +137,9 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
           onOpenDetail={onOpenDetail}
           onOpenMaturityConfirm={onOpenMaturityConfirm}
           onOpenActions={onOpenActions}
+          onBuy={buyLabel ? onBuy : undefined}
           onSell={sellLabel ? onSell : undefined}
+          buyLabel={buyLabel}
           sellLabel={sellLabel}
         />
       ))}

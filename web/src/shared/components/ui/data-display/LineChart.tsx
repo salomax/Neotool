@@ -540,7 +540,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
                 {group.items.map((it) => (
                   <Box key={it.id} sx={{ mt: 0.5, minWidth: 0 }}>
                     <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.2 }}>
-                      {it.primary}
+                      {"\u2022 "}{it.primary}
                     </Typography>
                     {it.secondary ? (
                       <Typography variant="caption" color="text.secondary" sx={{ display: "block", lineHeight: 1.2 }}>

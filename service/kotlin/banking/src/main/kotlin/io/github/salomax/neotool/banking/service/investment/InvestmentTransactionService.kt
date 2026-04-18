@@ -159,7 +159,6 @@ open class InvestmentTransactionService(
             )
 
         val now = Instant.now()
-        requireNotFixedIncomeDuplicatePurchase(existingHolding, asset, command)
 
         val holding = existingHolding ?: createHolding(command, asset, accountId, now)
 
@@ -870,35 +869,6 @@ open class InvestmentTransactionService(
         }
     }
 
-    /**
-     * Prevents adding a new PURCHASE to an existing fixed income holding.
-     *
-     * Each fixed income contract (CDB, LCA, LCI, etc.) is a unique instrument tied
-     * to specific terms (rate, maturity, issuer). A second application — even from
-     * the same issuer with the same rate — is a new contract and must be recorded as
-     * a new asset + holding. Merging two contracts into one holding would corrupt the
-     * IR regressive-table calculation (which depends on each contract's individual
-     * holding period) and lose the per-contract terms.
-     *
-     * Allowed on existing RF holdings: SALE, MATURITY, INTEREST_PAYMENT, AMORTIZATION,
-     * CANCELLATION, and all other non-purchase event types.
-     */
-    private fun requireNotFixedIncomeDuplicatePurchase(
-        existingHolding: Holding?,
-        asset: Asset,
-        command: RecordInvestmentTransactionCommand,
-    ) {
-        if (existingHolding == null) return
-        if (command.type != PURCHASE) return
-        if (asset.assetType !in FIXED_INCOME_ASSET_TYPES) return
-        throw IllegalArgumentException(
-            "Cannot add a new purchase to an existing ${asset.assetType} holding. " +
-                "Each fixed income contract must be recorded as a separate asset and holding, " +
-                "because each contract has its own terms (rate, maturity, IR holding period). " +
-                "Create a new asset for this contract instead.",
-        )
-    }
-
     private fun recomputeHoldingAfterDelete(
         existingHolding: Holding,
         accountId: UUID,
@@ -1109,12 +1079,7 @@ open class InvestmentTransactionService(
     }
 
     companion object {
-        /**
-         * Asset types for which each contract is a unique, non-fungible instrument.
-         * A second PURCHASE on an existing holding of these types is always a programming
-         * or user error — each application must be its own asset + holding so that
-         * per-contract IR holding-period calculations remain accurate.
-         */
+        /** Canonical fixed-income asset types (ledger subcategory and related checks). */
         val FIXED_INCOME_ASSET_TYPES: Set<AssetType> = setOf(
             AssetType.CDB,
             AssetType.RDB,

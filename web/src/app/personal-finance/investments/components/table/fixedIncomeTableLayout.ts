@@ -6,7 +6,7 @@ import type { SxProps, Theme } from "@mui/material";
 export const FIXED_INCOME_DATA_COL_PX = 144;
 
 /** Narrow column: overflow menu (+ quick actions on hover). */
-export const FIXED_INCOME_ACTION_COL_PX = 96;
+export const FIXED_INCOME_ACTION_COL_PX = 132;
 
 export interface FixedIncomeTableLayout {
   actionColWidth: number;

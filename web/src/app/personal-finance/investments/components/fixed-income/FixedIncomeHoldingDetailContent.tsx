@@ -200,18 +200,20 @@ export function FixedIncomeHoldingDetailContent({
 
       <Divider sx={{ mb: 5 }} />
 
-      <CouponScheduleSection
-        title={t("investments.detailDrawer.couponSchedule.sectionTitle")}
-        entries={holding.couponSchedule}
-        locale={locale}
-        currencyCode={viewModel.currencyCode}
-        onRegisterOverdue={onRegisterOverdueCoupon}
-        onEditPayment={onEditCouponPayment}
-        onDeletePayment={onDeleteCouponPayment}
-        deletingPayment={deletingCouponPayment}
-      />
-
-      <Divider sx={{ mb: 5 }} />
+      { holding.couponSchedule?.length > 0 && 
+        <>
+          <CouponScheduleSection
+            title={t("investments.detailDrawer.couponSchedule.sectionTitle")}
+            entries={holding.couponSchedule}
+            locale={locale}
+            currencyCode={viewModel.currencyCode}
+            onRegisterOverdue={onRegisterOverdueCoupon}
+            onEditPayment={onEditCouponPayment}
+            onDeletePayment={onDeleteCouponPayment}
+            deletingPayment={deletingCouponPayment}
+          />
+          <Divider sx={{ mb: 5 }} />
+        </>}
       
       <TimelineEvents
         title={t("investments.detailDrawer.timeline.title")}

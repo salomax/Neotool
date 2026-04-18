@@ -41,7 +41,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
       p: 0,
       borderRadius: "10px",
       color: alpha(theme.palette.success.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
-      bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.16 : 0.1),
+      bgcolor: "transparent",
       "&:hover": {
         bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
         color: theme.palette.success.main,
@@ -58,7 +58,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
     () => ({
       ...quickActionTileSx,
       color: alpha(theme.palette.error.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
-      bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.16 : 0.1),
+      bgcolor: "transparent",
       "&:hover": {
         bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
         color: theme.palette.error.main,
