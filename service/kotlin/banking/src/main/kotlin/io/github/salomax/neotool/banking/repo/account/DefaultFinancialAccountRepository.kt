@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.repo.account
 
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.model.account.FinancialAccountMapper
@@ -41,6 +40,11 @@ open class DefaultFinancialAccountRepository(
         entityRepository
             .findByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
             ?.let(FinancialAccountMapper::toDomain)
+
+    override fun existsByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean = entityRepository.existsByIdAndAccountIdAndDeletedAtIsNull(id, accountId)
 
     override fun findAllInvestmentAccounts(): List<FinancialAccount> =
         entityRepository.findByTypeAndDeletedAtIsNull(FinancialAccountType.INVESTMENT)

@@ -15,6 +15,11 @@ interface FinancialAccountRepository {
         accountId: UUID,
     ): FinancialAccount?
 
+    fun existsByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean
+
     fun findAllInvestmentAccounts(): List<FinancialAccount>
 
     fun findCardAccountsByLastFourDigits(

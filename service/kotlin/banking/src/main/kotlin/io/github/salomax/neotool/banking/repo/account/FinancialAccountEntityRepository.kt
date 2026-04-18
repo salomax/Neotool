@@ -21,6 +21,11 @@ interface FinancialAccountEntityRepository : JpaRepository<FinancialAccountEntit
         accountId: UUID,
     ): FinancialAccountEntity?
 
+    fun existsByIdAndAccountIdAndDeletedAtIsNull(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean
+
     fun findByAccountIdAndSubtypeInAndCardLastFourDigitsAndDeletedAtIsNull(
         accountId: UUID,
         subtypes: Collection<FinancialAccountSubtype>,
