@@ -207,6 +207,16 @@ export const DELETE_INVESTMENT_HOLDING = gql`
   }
 `;
 
+export const CONFIRM_WITHHOLDING_TAX = gql`
+  mutation ConfirmWithholdingTax($input: ConfirmWithholdingTaxInput!) {
+    confirmWithholdingTax(input: $input) {
+      withholdingTaxTransaction {
+        id
+      }
+    }
+  }
+`;
+
 /** Delete a transaction. */
 export const DELETE_TRANSACTION = gql`
   mutation DeleteTransaction($id: ID!) {

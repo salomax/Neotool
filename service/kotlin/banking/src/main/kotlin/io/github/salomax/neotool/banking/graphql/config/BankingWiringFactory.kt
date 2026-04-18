@@ -1270,6 +1270,18 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "confirmWithholdingTax",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.confirmWithholdingTax(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "dismissPendingAction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->

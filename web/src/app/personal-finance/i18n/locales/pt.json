@@ -256,6 +256,22 @@
         "back": "Voltar"
       }
     },
+    "withholdingTax": {
+      "drawerTitle": "Registrar come-cotas",
+      "submit": "Registrar come-cotas",
+      "form": {
+        "tradeDate": "Data do come-cotas",
+        "irValue": "IR retido (R$)",
+        "quotasDeducted": "Cotas resgatadas",
+        "estimatedQuotasHint": "≈ {{value}} cotas serão resgatadas pelo fundo"
+      },
+      "success": "Come-cotas registrado com sucesso",
+      "validation": {
+        "irPositive": "IR deve ser positivo",
+        "quotasPositive": "Cotas deduzidas devem ser positivas",
+        "quotasMax": "Cotas deduzidas não podem exceder a posição atual"
+      }
+    },
     "createAccount": {
       "title": "Criar conta de investimento",
       "fields": {
@@ -389,6 +405,7 @@
       "rowActions": {
         "ariaLabel": "Ações do ativo",
         "viewDetails": "Ver detalhes",
+        "recordWithholdingTax": "Registrar come-cotas",
         "edit": "Editar",
         "remove": "Excluir"
       },

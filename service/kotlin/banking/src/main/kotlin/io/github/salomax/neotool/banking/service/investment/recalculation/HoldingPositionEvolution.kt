@@ -93,6 +93,11 @@ object HoldingPositionEvolution {
                 }
             }
 
+            InvestmentTransactionType.WITHHOLDING_TAX -> {
+                if (qty == null || qty <= BigDecimal.ZERO) return state
+                state.copy(quantity = (state.quantity - qty).max(BigDecimal.ZERO))
+            }
+
             InvestmentTransactionType.STOCK_SPLIT,
             InvestmentTransactionType.BONUS_SHARES,
             -> {

@@ -10,6 +10,7 @@ import EventIcon from '@mui/icons-material/Event';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
+import PercentIcon from '@mui/icons-material/Percent';
 import { alpha, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
@@ -36,6 +37,7 @@ interface InvestmentHoldingActionsMenuProps {
   onRecordSplit?: () => void;
   onRecordBonus?: () => void;
   onRecordSubscription?: () => void;
+  onRecordWithholdingTax?: () => void;
 }
 
 export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldingActionsMenu({
@@ -55,6 +57,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   onRecordSplit,
   onRecordBonus,
   onRecordSubscription,
+  onRecordWithholdingTax,
 }: InvestmentHoldingActionsMenuProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -62,6 +65,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   const isFixedIncomeHolding = holdingGroup ? FIXED_INCOME_GROUP_KEYS.has(holdingGroup) : false;
   const showCorporateEvents = holdingGroup === 'variableIncome' || holdingGroup === 'mutualFunds' || holdingGroup === 'pension';
   const showExtendedCorporateEvents = holdingGroup === 'variableIncome';
+  const showWithholdingTaxAction = holding?.asset?.assetType === 'MUTUAL_FUND';
 
   return (
     <Menu
@@ -105,6 +109,22 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
             </MenuItem>
           ) : null}
         </>
+      ) : null}
+
+      {showWithholdingTaxAction ? (
+        <MenuItem
+          disabled={deleting || !holding || !onRecordWithholdingTax}
+          onClick={() => {
+            if (!holding || !onRecordWithholdingTax) return;
+            onClose();
+            onRecordWithholdingTax();
+          }}
+        >
+          <ListItemIcon>
+            <PercentIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.recordWithholdingTax')}</ListItemText>
+        </MenuItem>
       ) : null}
 
       <MenuItem

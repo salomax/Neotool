@@ -7,6 +7,8 @@ import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.service.investment.CnpjValidator
 import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentCommand
 import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
+import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxCommand
+import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
@@ -68,6 +70,7 @@ class InvestmentResolver(
     private val assetRepository: AssetRepository,
     private val investmentCashService: InvestmentCashService,
     private val confirmCouponPaymentService: ConfirmCouponPaymentService,
+    private val confirmWithholdingTaxService: ConfirmWithholdingTaxService,
     private val transactionResolver: TransactionResolver,
     private val portfolioFlowEventService: PortfolioFlowEventService,
     private val portfolioPerformanceQueryService: PortfolioPerformanceQueryService,
@@ -446,6 +449,32 @@ class InvestmentResolver(
             bankingTransaction = result.bankingTransaction?.let { transactionResolver.toTransactionDTO(it, accountId) },
             pendingAction = result.pendingAction?.toPendingActionDTO(),
         )
+    }
+
+    fun confirmWithholdingTax(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): ConfirmWithholdingTaxResultDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+
+        fun Any?.toLocalDate(): LocalDate =
+            when (this) {
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> error("Expected LocalDate or ISO date string")
+            }
+
+        val command =
+            ConfirmWithholdingTaxCommand(
+                holdingId = UUID.fromString(input["holdingId"] as String),
+                tradeDate = input["tradeDate"].toLocalDate(),
+                irValue = BigDecimal((input["irValue"] as Number).toString()),
+                quotasDeducted = BigDecimal((input["quotasDeducted"] as Number).toString()),
+            )
+
+        val result = confirmWithholdingTaxService.confirm(command, accountId, userId)
+        return ConfirmWithholdingTaxResultDTO(withholdingTaxTransaction = result.withholdingTaxTransaction.toDTO())
     }
 
     fun triggerPortfolioRecalculation(

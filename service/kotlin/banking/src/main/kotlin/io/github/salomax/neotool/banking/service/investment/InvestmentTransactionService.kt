@@ -20,6 +20,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SALE
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
 import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.domain.investment.UpdateInvestmentTransactionCommand
@@ -389,7 +390,8 @@ open class InvestmentTransactionService(
      * - **REVERSE_SPLIT**: quantity decreases; total cost basis preserved → averageCost concentrated.
      * - **CUSTODY_TRANSFER / OWNERSHIP_TRANSFER / QUOTA_TRANSFER**: INFLOW treated as PURCHASE;
      *   OUTFLOW treated as SALE.
-     * - **Income / tax / penalty events**: no quantity or cost change.
+     * - **WITHHOLDING_TAX**: quantity decreases by deducted quotas; averageCost unchanged.
+     * - **Other income / tax / penalty events**: no quantity or cost change.
      */
     private fun validateApplyEffectPreconditions(
         command: RecordInvestmentTransactionCommand,
@@ -440,6 +442,17 @@ open class InvestmentTransactionService(
                         }
                     }
                     else -> Unit
+                }
+            }
+
+            WITHHOLDING_TAX -> {
+                requireNotNull(qty) { "quantity (cotas deducted) is required for WITHHOLDING_TAX" }
+                require(qty > BigDecimal.ZERO) { "quantity must be positive for WITHHOLDING_TAX" }
+                require(holding.quantity >= qty) {
+                    "Come-cotas quantity ($qty) exceeds current holding quantity (${holding.quantity})"
+                }
+                require(asset.assetType == AssetType.MUTUAL_FUND) {
+                    "WITHHOLDING_TAX is only valid for MUTUAL_FUND holdings"
                 }
             }
 

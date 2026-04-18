@@ -164,6 +164,10 @@ data class ConfirmCouponPaymentResultDTO(
     val pendingAction: AccountPendingActionDTO?,
 )
 
+data class ConfirmWithholdingTaxResultDTO(
+    val withholdingTaxTransaction: InvestmentTransactionDTO,
+)
+
 data class HoldingPerformanceCapabilitiesDTO(
     val supportsProjection: Boolean,
     val projectionDefaultEnabled: Boolean,
