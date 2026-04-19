@@ -10,6 +10,7 @@ export interface ValueOriginIndicatorProps {
   title: React.ReactNode;
   description?: React.ReactNode;
   ariaLabel?: string;
+  color?: 'warning' | 'info';
   offsetPx?: number;
   sizePx?: number;
   sx?: SxProps<Theme>;
@@ -21,6 +22,7 @@ export function ValueOriginIndicator({
   title,
   description,
   ariaLabel,
+  color = 'warning',
   offsetPx = 18,
   sizePx = 6,
   sx,
@@ -29,8 +31,9 @@ export function ValueOriginIndicator({
   const theme = useTheme();
 
   const { baseColor, hoverColor } = React.useMemo(() => {
-    return { baseColor: theme.palette.warning.main, hoverColor: theme.palette.warning.dark };
-  }, [theme]);
+    const palette = color === 'info' ? theme.palette.info : theme.palette.warning;
+    return { baseColor: palette.main, hoverColor: palette.dark };
+  }, [color, theme.palette.info, theme.palette.warning]);
 
   const tooltipContent = (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, maxWidth: 320 }}>

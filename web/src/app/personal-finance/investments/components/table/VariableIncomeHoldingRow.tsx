@@ -54,6 +54,19 @@ export const VariableIncomeHoldingRow = React.memo(function VariableIncomeHoldin
   const gain = gross != null && principal != null ? gross - principal : null;
   const gainPercent = gross != null && principal != null && principal > 0 ? (gross - principal) / principal : null;
   const valueOriginKey = getHoldingValueOrigin(holding);
+  const latestPrice = React.useMemo(() => {
+    if (gross == null) return null;
+    if (typeof holding.quantity !== "number" || !Number.isFinite(holding.quantity) || holding.quantity <= 0) return null;
+    const computed = gross / holding.quantity;
+    return Number.isFinite(computed) ? computed : null;
+  }, [gross, holding.quantity]);
+
+  const latestPriceDateLabel = React.useMemo(() => {
+    if (!holding.valuationReferenceDate) return null;
+    const parsed = new Date(String(holding.valuationReferenceDate));
+    if (Number.isNaN(parsed.getTime())) return null;
+    return new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed);
+  }, [holding.valuationReferenceDate, locale]);
 
   return (
     <Box
@@ -76,17 +89,44 @@ export const VariableIncomeHoldingRow = React.memo(function VariableIncomeHoldin
         <HoldingIdentity assetName={identity.assetName} issuerName={identity.issuerName} logoUrl={identity.logoUrl} size="lg" />
       </Box>
 
-      <Box sx={{ ...layout.maturityColSx, minWidth: 0 }}>
+      <Box sx={{ ...layout.maturityColSx, minWidth: 0, textAlign: "right" }}>
         <Typography variant="body2" noWrap>
           {formatQuantity(holding.quantity, locale)}
         </Typography>
-        <Box sx={SECONDARY_ROW_SX} />
+        <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: "flex-end" }} />
       </Box>
 
-      <Box sx={{ width: layout.colWidth, minWidth: 0, textAlign: "right" }}>
+      <Box sx={{ ...layout.maturityColSx, minWidth: 0, textAlign: "right" }}>
         <Typography variant="body2" noWrap>
           {formatValueOrPlaceholder(holding.averageCost, holding.asset?.currencyCode, locale)}
         </Typography>
+        <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: "flex-end" }} />
+      </Box>
+
+      <Box sx={{ ...layout.maturityColSx, minWidth: 0, textAlign: "right" }}>
+        <Box
+          sx={{
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            width: "100%",
+            overflow: "visible",
+          }}
+        >
+          <Typography variant="body2" noWrap>
+            {formatValueOrPlaceholder(latestPrice, holding.asset?.currencyCode, locale)}
+          </Typography>
+          {latestPrice != null && latestPriceDateLabel != null ? (
+            <ValueOriginIndicator
+              origin={valueOriginKey}
+              title={t("investments.table.latestPriceInfo.title", { date: latestPriceDateLabel })}
+              ariaLabel={t("investments.table.latestPriceInfo.ariaLabel")}
+              color="info"
+              offsetPx={18}
+            />
+          ) : null}
+        </Box>
         <Box sx={{ ...SECONDARY_ROW_SX, justifyContent: "flex-end" }} />
       </Box>
 

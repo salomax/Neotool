@@ -68,14 +68,21 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
       },
       {
         key: "quantity",
+        align: "right" as const,
         sx: layout.maturityColSx,
         content: <Label>{t("investments.table.columns.quantity")}</Label>,
       },
       {
         key: "averagePrice",
         align: "right" as const,
-        sx: { width: layout.colWidth },
+        sx: layout.maturityColSx,
         content: <Label>{t("investments.table.columns.averagePrice")}</Label>,
+      },
+      {
+        key: "latestPrice",
+        align: "right" as const,
+        sx: layout.maturityColSx,
+        content: <Label>{t("investments.table.columns.latestPrice")}</Label>,
       },
       {
         key: "gain",

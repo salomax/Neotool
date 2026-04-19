@@ -1,12 +1,13 @@
 "use client";
 
 import type { SxProps, Theme } from "@mui/material";
+import { NON_FIXED_INCOME_ACTION_COL_PX } from "./investmentTableLayout";
 
 /** Fixed width for indexer / custodian / maturity / gain / gross (gain & gross use `equalNumericColSx`). */
 export const FIXED_INCOME_DATA_COL_PX = 144;
 
 /** Narrow column: overflow menu (+ quick actions on hover). */
-export const FIXED_INCOME_ACTION_COL_PX = 132;
+export const FIXED_INCOME_ACTION_COL_PX = NON_FIXED_INCOME_ACTION_COL_PX;
 
 export interface FixedIncomeTableLayout {
   actionColWidth: number;

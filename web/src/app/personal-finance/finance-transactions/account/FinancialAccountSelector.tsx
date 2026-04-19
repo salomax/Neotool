@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useQuery } from '@apollo/client/react';
 import i18n from 'i18next';
 import { 
+  alpha,
   Box, 
   Typography, 
   Paper, 
@@ -78,6 +79,130 @@ const isCardAccount = (account: FinancialAccount) => {
   if (account.cardData) return true;
   return account.type === FinancialAccountType.Credit;
 };
+
+const getAverageEdgeRgb = (img: HTMLImageElement) => {
+  const targetSize = 64;
+  const canvas = document.createElement('canvas');
+  canvas.width = targetSize;
+  canvas.height = targetSize;
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return null;
+
+  ctx.drawImage(img, 0, 0, targetSize, targetSize);
+
+  const samples: Uint8ClampedArray[] = [];
+
+  samples.push(ctx.getImageData(0, 0, targetSize, 1).data);
+  samples.push(ctx.getImageData(0, targetSize - 1, targetSize, 1).data);
+  samples.push(ctx.getImageData(0, 0, 1, targetSize).data);
+  samples.push(ctx.getImageData(targetSize - 1, 0, 1, targetSize).data);
+
+  let totalR = 0;
+  let totalG = 0;
+  let totalB = 0;
+  let count = 0;
+
+  for (const data of samples) {
+    for (let i = 0; i < data.length; i += 4) {
+      const a = data[i + 3] ?? 0;
+      if (a < 32) continue;
+      totalR += data[i] ?? 0;
+      totalG += data[i + 1] ?? 0;
+      totalB += data[i + 2] ?? 0;
+      count += 1;
+    }
+  }
+
+  if (count === 0) return null;
+  const r = Math.round(totalR / count);
+  const g = Math.round(totalG / count);
+  const b = Math.round(totalB / count);
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const useLogoBorderColor = (logoUrl?: string) => {
+  const [borderColor, setBorderColor] = useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!logoUrl) {
+      setBorderColor(null);
+      return;
+    }
+
+    let isActive = true;
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.decoding = 'async';
+
+    img.onload = () => {
+      try {
+        const computed = getAverageEdgeRgb(img);
+        if (!isActive) return;
+        setBorderColor(computed);
+      } catch {
+        if (!isActive) return;
+        setBorderColor(null);
+      }
+    };
+
+    img.onerror = () => {
+      if (!isActive) return;
+      setBorderColor(null);
+    };
+
+    img.src = logoUrl;
+
+    return () => {
+      isActive = false;
+    };
+  }, [logoUrl]);
+
+  return borderColor;
+};
+
+function IssuerAvatar({
+  logoUrl,
+  fallbackBgColor,
+  size,
+  borderRadius,
+  useComputedShadow = false,
+  children,
+}: {
+  logoUrl?: string;
+  fallbackBgColor: string;
+  size: number;
+  borderRadius: string;
+  useComputedShadow?: boolean;
+  children?: React.ReactNode;
+}) {
+  const computedBorderColor = useLogoBorderColor(useComputedShadow ? logoUrl : undefined);
+  const theme = useTheme();
+  const accentColor = computedBorderColor ?? theme.palette.divider;
+
+  return (
+    <Avatar
+      src={logoUrl || undefined}
+      sx={{
+        bgcolor: logoUrl ? 'transparent' : fallbackBgColor,
+        borderRadius,
+        width: size,
+        height: size,
+        border: 'none',
+        boxShadow:
+          useComputedShadow && computedBorderColor
+            ? `4px 4px 8px 3px ${alpha(accentColor, 0.18)}`
+            : 'none',
+        transition: theme.transitions.create(['box-shadow', 'border-color'], {
+          duration: theme.transitions.duration.shortest,
+        }),
+        boxSizing: 'border-box',
+      }}
+    >
+      {!logoUrl && children}
+    </Avatar>
+  );
+}
 
 export function FinancialAccountSelector({ 
   onNewAccount, 
@@ -273,23 +398,15 @@ export function FinancialAccountSelector({
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-          <Avatar 
-            src={selectedAccount?.issuer?.logoAsset?.publicUrl || undefined}
-            sx={{ 
-                bgcolor: selectedAccount?.issuer?.logoAsset?.publicUrl ? 'transparent' : (selectedAccount?.themeColor || 'primary.main'),
-                borderRadius: borderRadius,
-                width: isSmall ? 32 : 40,
-                height: isSmall ? 32 : 40,
-            }}
+          <IssuerAvatar
+            logoUrl={selectedAccount?.issuer?.logoAsset?.publicUrl || undefined}
+            fallbackBgColor={selectedAccount?.themeColor || 'primary.main'}
+            borderRadius={borderRadius}
+            size={isSmall ? 32 : 40}
+            useComputedShadow={Boolean(selectedAccount?.issuer?.logoAsset?.publicUrl)}
           >
-             {selectedAccount ? (
-                !selectedAccount.issuer?.logoAsset?.publicUrl && (
-                    renderAccountTypeIcon(selectedAccount.type)
-                )
-             ) : (
-                renderConsolidatedViewIcon()
-             )}
-          </Avatar>
+            {selectedAccount ? renderAccountTypeIcon(selectedAccount.type) : renderConsolidatedViewIcon()}
+          </IssuerAvatar>
           <Box>
             <Typography variant={isSmall ? 'body1' : 'subtitle1'} fontWeight="bold">
               {selectedAccount ? selectedAccount.name : allAccountsText}
@@ -373,9 +490,13 @@ export function FinancialAccountSelector({
                     sx={{ py: 2 }}
                 >
                     <ListItemIcon>
-                        <Avatar sx={{ bgcolor: 'primary.main', borderRadius: borderRadius }}>
-                            {renderConsolidatedViewIcon()}
-                        </Avatar>
+                        <IssuerAvatar
+                          fallbackBgColor="primary.main"
+                          borderRadius={borderRadius}
+                          size={40}
+                        >
+                          {renderConsolidatedViewIcon()}
+                        </IssuerAvatar>
                     </ListItemIcon>
                     <ListItemText 
                         primary={allAccountsText}
@@ -441,18 +562,14 @@ export function FinancialAccountSelector({
                                 sx={{ pl: 2 }}
                             >
                                 <ListItemIcon>
-                                    <Avatar 
-                                        src={account.issuer?.logoAsset?.publicUrl || undefined}
-                                        sx={{ 
-                                            width: 32, 
-                                            height: 32, 
-                                            bgcolor: account.issuer?.logoAsset?.publicUrl ? 'transparent' : (account.themeColor || 'grey.300'),
-                                            fontSize: '1rem',
-                                            borderRadius: borderRadius
-                                        }}
+                                    <IssuerAvatar
+                                      logoUrl={account.issuer?.logoAsset?.publicUrl || undefined}
+                                      fallbackBgColor={account.themeColor || 'grey.300'}
+                                      borderRadius={borderRadius}
+                                      size={32}
                                     >
-                                        {!account.issuer?.logoAsset?.publicUrl && renderAccountTypeIcon(account.type, 'small')}
-                                    </Avatar>
+                                      {renderAccountTypeIcon(account.type, 'small')}
+                                    </IssuerAvatar>
                                 </ListItemIcon>
                                 {(() => {
                                   const cardSubtitle = getCardSubtitle(

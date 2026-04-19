@@ -346,6 +346,7 @@
         "financialAccount": "Financial account",
         "quantity": "Quantity",
         "averagePrice": "Average price",
+        "latestPrice": "Latest price",
         "priceD1": "Price D+1",
         "currentValue": "Current value",
         "indexer": "Indexer",
@@ -394,6 +395,10 @@
           "externo": "Value sent by an external source.",
           "indisponivel": "We couldn't determine the current value of this investment."
         }
+      },
+      "latestPriceInfo": {
+        "ariaLabel": "Latest price date",
+        "title": "Price as of {{date}}"
       },
       "expiredBadge": "Expired",
       "maturityPendingBadge": "Maturity pending",

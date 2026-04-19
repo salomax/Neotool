@@ -57,7 +57,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
   const quickActionRedeemTileSx = React.useMemo(
     () => ({
       ...quickActionTileSx,
-      color: alpha(theme.palette.error.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
+      color: theme.palette.error.main,
       bgcolor: "transparent",
       "&:hover": {
         bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.26 : 0.16),

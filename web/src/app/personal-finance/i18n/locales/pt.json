@@ -346,6 +346,7 @@
         "financialAccount": "Conta financeira",
         "quantity": "Quantidade",
         "averagePrice": "Preço médio",
+        "latestPrice": "Último preço",
         "priceD1": "Preço D+1",
         "currentValue": "Valor atual",
         "indexer": "Indexador",
@@ -394,6 +395,10 @@
           "externo": "Valor enviado por uma fonte externa.",
           "indisponivel": "Não foi possível determinar o valor atual deste investimento."
         }
+      },
+      "latestPriceInfo": {
+        "ariaLabel": "Data do último preço",
+        "title": "Cotação em {{date}}"
       },
       "expiredBadge": "Expirado",
       "maturityPendingBadge": "Vencido",
