@@ -238,20 +238,20 @@ class PortfolioQuotaCalculationServiceTest {
         }
 
         @Test
-        fun `dividend flow event does not inflate quota`() {
-            // Portfolio was 10000. Dividend received of 500 added to portfolio.
-            // portfolioValueEnd = 10000 + 500 = 10500 (no investment return beyond the dividend)
+        fun `dividend flow event is neutralized when holdings drop on ex-dividend date`() {
+            // Holdings-only universe: ex-dividend typically reduces holdings value by the distributed amount.
+            // Previous portfolio = 10000, dividend = 500 (external distribution), end holdings = 9500.
             val result = service.calculateDayQuota(
                 financialAccountId = financialAccountId,
                 date = date,
                 previousPortfolioQuota = quota("1.00000000", "10000.00"),
                 previousGroupQuotas = emptyMap(),
-                holdingsValueByGroup = mapOf("stock" to groupValuation("10500.00")),
+                holdingsValueByGroup = mapOf("stock" to groupValuation("9500.00")),
                 flowEvents = listOf(flowEvent(PortfolioFlowEventType.DIVIDEND, "500.00")),
             )
 
             val portfolio = portfolioResult(result)
-            // dailyReturn = (10500 - 10000 - 500) / 10000 = 0
+            // dailyReturn = (9500 - 10000 - (-500)) / 10000 = 0
             assertThat(portfolio.quotaValue).isEqualByComparingTo("1.00000000")
         }
 

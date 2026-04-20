@@ -3,7 +3,6 @@ package io.github.salomax.neotool.banking.service.investment
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
@@ -129,7 +128,7 @@ open class InvestmentCashService(
                     userId = userId,
                     statusDefault = statusDefault,
                 )
-            syncPortfolioFlowForManualCash(financialAccountId, accountId, type, adjustment)
+            syncPortfolioFlowForManualCash(type, adjustment)
             return adjustment
         }
 
@@ -175,7 +174,7 @@ open class InvestmentCashService(
                     )
                     InvestmentCashTransactionType.ADJUSTMENT -> error("unreachable")
                 }
-            syncPortfolioFlowForManualCash(financialAccountId, accountId, type, peerTransaction)
+            syncPortfolioFlowForManualCash(type, peerTransaction)
             return peerTransaction
         }
 
@@ -249,7 +248,7 @@ open class InvestmentCashService(
                 }
             }
 
-        syncPortfolioFlowForManualCash(financialAccountId, accountId, type, savedTransaction)
+        syncPortfolioFlowForManualCash(type, savedTransaction)
 
         return savedTransaction
     }
@@ -310,6 +309,7 @@ open class InvestmentCashService(
             updated = saved,
             custodianFinancialAccountId = custodianFinancialAccountId,
             accountId = accountId,
+            peerTransactionId = peer?.id,
         )
         return saved
     }
@@ -417,6 +417,7 @@ open class InvestmentCashService(
         updated: Transaction,
         custodianFinancialAccountId: UUID,
         accountId: UUID,
+        peerTransactionId: UUID?,
     ) {
         val recalcFrom = if (previousDate.isBefore(updated.date)) previousDate else updated.date
         when (updated.type) {
@@ -427,29 +428,26 @@ open class InvestmentCashService(
                     recalculateFrom = recalcFrom,
                     triggeredBy = "cash_ledger_update:${updated.id}",
                 )
-            TransactionType.TRANSFER ->
-                when (updated.creditDebitType) {
-                    CreditDebitType.CREDIT ->
-                        portfolioFlowEventService.recordEvent(
-                            financialAccountId = custodianFinancialAccountId,
-                            accountId = accountId,
-                            eventDate = updated.date,
-                            eventType = PortfolioFlowEventType.DEPOSIT,
-                            grossAmount = updated.amount,
-                            sourceReferenceId = updated.id,
-                            sourceReferenceType = PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
-                        )
-                    CreditDebitType.DEBIT ->
-                        portfolioFlowEventService.recordEvent(
-                            financialAccountId = custodianFinancialAccountId,
-                            accountId = accountId,
-                            eventDate = updated.date,
-                            eventType = PortfolioFlowEventType.WITHDRAWAL,
-                            grossAmount = updated.amount,
-                            sourceReferenceId = updated.id,
-                            sourceReferenceType = PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
-                        )
+            TransactionType.TRANSFER -> {
+                updated.id?.let { transactionId ->
+                    portfolioFlowEventService.deleteEventBySourceReference(
+                        transactionId,
+                        PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                    )
                 }
+                peerTransactionId?.let { peerId ->
+                    portfolioFlowEventService.deleteEventBySourceReference(
+                        peerId,
+                        PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                    )
+                }
+                portfolioFlowEventService.requestRecalculation(
+                    financialAccountId = custodianFinancialAccountId,
+                    accountId = accountId,
+                    recalculateFrom = recalcFrom,
+                    triggeredBy = "cash_ledger_update:${updated.id}",
+                )
+            }
             else ->
                 portfolioFlowEventService.requestRecalculation(
                     financialAccountId = custodianFinancialAccountId,
@@ -461,39 +459,23 @@ open class InvestmentCashService(
     }
 
     private fun syncPortfolioFlowForManualCash(
-        financialAccountId: UUID,
-        accountId: UUID,
         type: InvestmentCashTransactionType,
         transaction: Transaction,
     ) {
         when (type) {
-            InvestmentCashTransactionType.DEPOSIT ->
-                portfolioFlowEventService.recordEvent(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    eventDate = transaction.date,
-                    eventType = PortfolioFlowEventType.DEPOSIT,
-                    grossAmount = transaction.amount,
-                    sourceReferenceId = transaction.id,
-                    sourceReferenceType = PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
-                )
-            InvestmentCashTransactionType.WITHDRAWAL ->
-                portfolioFlowEventService.recordEvent(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    eventDate = transaction.date,
-                    eventType = PortfolioFlowEventType.WITHDRAWAL,
-                    grossAmount = transaction.amount,
-                    sourceReferenceId = transaction.id,
-                    sourceReferenceType = PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
-                )
-            InvestmentCashTransactionType.ADJUSTMENT ->
-                portfolioFlowEventService.requestRecalculation(
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    recalculateFrom = transaction.date,
-                    triggeredBy = "cash_adjustment:${transaction.id}",
-                )
+            InvestmentCashTransactionType.DEPOSIT,
+            InvestmentCashTransactionType.WITHDRAWAL,
+            -> {
+                // Cash ledger movements are outside holdings-only TWR.
+                // Delete any legacy synthetic row keyed by this transaction id.
+                transaction.id?.let { transactionId ->
+                    portfolioFlowEventService.deleteEventBySourceReference(
+                        transactionId,
+                        PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION,
+                    )
+                }
+            }
+            InvestmentCashTransactionType.ADJUSTMENT -> Unit
         }
     }
 

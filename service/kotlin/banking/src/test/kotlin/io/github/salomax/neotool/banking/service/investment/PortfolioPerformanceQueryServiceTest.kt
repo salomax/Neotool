@@ -5,10 +5,6 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkCode
@@ -25,7 +21,6 @@ import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
-import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.portfolio.MarketBenchmarkDailyRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
@@ -51,7 +46,6 @@ class PortfolioPerformanceQueryServiceTest {
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository = mock()
     private val holdingRepository: HoldingRepository = mock()
     private val assetRepository: AssetRepository = mock()
-    private val investmentTransactionRepository: InvestmentTransactionRepository = mock()
 
     private val service =
         PortfolioPerformanceQueryService(
@@ -62,7 +56,6 @@ class PortfolioPerformanceQueryServiceTest {
             portfolioFlowEventRepository = portfolioFlowEventRepository,
             holdingRepository = holdingRepository,
             assetRepository = assetRepository,
-            investmentTransactionRepository = investmentTransactionRepository,
         )
 
     @Test
@@ -409,7 +402,7 @@ class PortfolioPerformanceQueryServiceTest {
     }
 
     @Test
-    fun `computes asset group TWR using inferred group flows instead of raw quota ratio`() {
+    fun `computes asset group TWR using scoped flow events instead of raw quota ratio`() {
         val accountId = UUID.randomUUID()
         val financialAccountId = UUID.randomUUID()
         val holdingId = UUID.randomUUID()
@@ -495,30 +488,37 @@ class PortfolioPerformanceQueryServiceTest {
         whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(
             listOf(asset(assetId, AssetType.CDB)),
         )
-        whenever(investmentTransactionRepository.findByHoldingIds(setOf(holdingId), accountId)).thenReturn(
-            listOf(
-                investmentTransaction(
-                    holdingId = holdingId,
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    type = InvestmentTransactionType.SALE,
-                    direction = InvestmentTransactionDirection.OUTFLOW,
-                    grossValue = BigDecimal("1000.00"),
-                    tradeDate = saleDate,
-                ),
-                investmentTransaction(
-                    holdingId = holdingId,
-                    financialAccountId = financialAccountId,
-                    accountId = accountId,
-                    type = InvestmentTransactionType.PURCHASE,
-                    direction = InvestmentTransactionDirection.INFLOW,
-                    grossValue = BigDecimal("1000.00"),
-                    tradeDate = repurchaseDate,
-                ),
-            ),
-        )
         whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, boundaryDate.plusDays(1), endDate))
-            .thenReturn(emptyList())
+            .thenReturn(
+                listOf(
+                    InvestmentPortfolioFlowEvent(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        eventDate = saleDate,
+                        eventType = PortfolioFlowEventType.WITHDRAWAL,
+                        grossAmount = BigDecimal("1000.00"),
+                        portfolioValueBefore = BigDecimal("1000.00"),
+                        quotaValueAtEvent = BigDecimal("1.00000000"),
+                        quotasTransacted = BigDecimal("-1000.00000000"),
+                        relatedHoldingId = holdingId,
+                        sourceReferenceId = UUID.randomUUID(),
+                        sourceReferenceType = "INVESTMENT_TRANSACTION",
+                    ),
+                    InvestmentPortfolioFlowEvent(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        eventDate = repurchaseDate,
+                        eventType = PortfolioFlowEventType.DEPOSIT,
+                        grossAmount = BigDecimal("1000.00"),
+                        portfolioValueBefore = BigDecimal.ZERO,
+                        quotaValueAtEvent = BigDecimal("1.00000000"),
+                        quotasTransacted = BigDecimal("1000.00000000"),
+                        relatedHoldingId = holdingId,
+                        sourceReferenceId = UUID.randomUUID(),
+                        sourceReferenceType = "INVESTMENT_TRANSACTION",
+                    ),
+                ),
+            )
 
         val twr =
             service.getAssetGroupPerformance(
@@ -1279,50 +1279,14 @@ class PortfolioPerformanceQueryServiceTest {
     }
 
     @Test
-    fun `grid class cash series uses ASSET_GROUP fallback`() {
-        val financialAccountId = UUID.randomUUID()
-        val accountId = UUID.randomUUID()
-        val d1 = LocalDate.of(2026, 1, 1)
-        val expectedFrom = LocalDate.now().minusYears(1)
-
-        whenever(
-            portfolioQuotaRepository.findByAccountAndDateRange(
-                financialAccountId = financialAccountId,
-                dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = GridClassMapping.CASH,
-                from = expectedFrom,
-                to = LocalDate.now(),
-            ),
-        ).thenReturn(
-            listOf(
-                quota(
-                    financialAccountId = financialAccountId,
-                    quotaDate = d1,
-                    quotaValue = "1.00000000",
-                    totalPortfolioValue = "100.00",
-                    dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                    dimensionKey = GridClassMapping.CASH,
-                ),
-            ),
-        )
-
+    fun `grid class cash series returns empty because cash is outside holdings-only TWR universe`() {
         val result = service.getGridClassTwrSeries(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
+            financialAccountId = UUID.randomUUID(),
+            accountId = UUID.randomUUID(),
             gridClassKey = GridClassMapping.CASH,
         )
 
-        assertThat(result).hasSize(1)
-        assertThat(result.first().date).isEqualTo(d1)
-        assertThat(result.first().quotaValue).isEqualTo(1.0)
-
-        verify(portfolioQuotaRepository).findByAccountAndDateRange(
-            financialAccountId = eq(financialAccountId),
-            dimensionType = eq(PortfolioDimensionType.ASSET_GROUP),
-            dimensionKey = eq(GridClassMapping.CASH),
-            from = eq(expectedFrom),
-            to = eq(LocalDate.now()),
-        )
+        assertThat(result).isEmpty()
     }
 
     @Test
@@ -1573,26 +1537,6 @@ class PortfolioPerformanceQueryServiceTest {
         updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
     )
 
-    private fun investmentTransaction(
-        holdingId: UUID,
-        financialAccountId: UUID,
-        accountId: UUID,
-        type: InvestmentTransactionType,
-        direction: InvestmentTransactionDirection,
-        grossValue: BigDecimal,
-        tradeDate: LocalDate,
-    ) = InvestmentTransaction(
-        holdingId = holdingId,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = UUID.randomUUID(),
-        direction = direction,
-        type = type,
-        grossValue = grossValue,
-        netValue = grossValue,
-        tradeDate = tradeDate,
-        source = InvestmentSource.MANUAL,
-    )
 }
 
 private fun Double.firstDecimal(): Double = (this * 10.0).toInt() / 10.0

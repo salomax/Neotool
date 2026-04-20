@@ -5,312 +5,200 @@
 
 ---
 
-```gherkin
-Feature: Aplicação em Fundo (PURCHASE / SUBSCRIPTION)
-  As a user
-  I want to record an application in a mutual fund
-  So that my fund holding is tracked with the correct quantity and cost basis
+## Aplicação / PURCHASE + SUBSCRIPTION — Happy Paths
 
-  Background:
-    Given I am authenticated
-    And I am on the /personal-finance/investments page
-    And I have at least one investment account selected
+### SC-01: First application in a CVM fund (MARKET_DATA mode) — creates PURCHASE
 
-  # ─── HAPPY PATHS — MARKET_DATA mode ──────────────────────────────────────
+**Setup:** RecordFundHoldingDrawer, INFLOW mode, account selected
 
-  Scenario: Record first application in a known CVM fund (MARKET_DATA mode)
-    Given the RecordFundHoldingDrawer is open in INFLOW mode
-    When I search for "Núcleo FIC FIM" in the fund autocomplete (by CNPJ or name)
-    And I select pricing mode "MARKET_DATA"
-    And I fill in:
-      | Trade date    | 2026-03-01    |
-      | Quantity      | 1234.56       |
-      | Unit price    | 10.50         |
-      | Gross value   | 12962.88      |
-    And I click "Aplicar"
-    Then the fund asset is created or found by fundCnpj
-    Then recordInvestmentTransaction is called with:
-      | direction    | INFLOW       |
-      | type         | PURCHASE     |
-      | quantity     | 1234.56      |
-      | unitPrice    | 10.50        |
-      | grossValue   | 12962.88     |
-      | tradeDate    | 2026-03-01   |
-      | source       | MANUAL       |
-    And a new holding is created with:
-      | pricingMode  | MARKET_DATA  |
-      | averageCost  | 10.50        |
-      | quantity     | 1234.56      |
+| Field         | Value              |
+|---|---|
+| Fund          | Núcleo FIC FIM (by CNPJ/name) |
+| Pricing mode  | MARKET_DATA        |
+| Trade date    | 2026-03-01         |
+| Quantity      | 1 234,56           |
+| Unit price    | 10,50              |
+| Gross value   | 12 962,88          |
 
-  Scenario: Additional application to same fund uses SUBSCRIPTION type
-    Given I already hold 1234.56 cotas in "Núcleo FIC FIM" at averageCost = R$ 10.50
-    When I record another application of 500 cotas at R$ 10.80
-    Then recordInvestmentTransaction is called with type = SUBSCRIPTION (not PURCHASE)
-    And the holding averageCost is updated via weighted average:
-      | newAverageCost = (1234.56 × 10.50 + 500 × 10.80) / 1734.56 |
+**Transaction input:** `{ type: PURCHASE, direction: INFLOW, quantity: 1234.56, unitPrice: 10.50, grossValue: 12962.88, source: MANUAL }`
 
-  Scenario: First application uses PURCHASE type
-    Given I have no position in the selected fund
-    When I apply to the fund for the first time
-    Then recordInvestmentTransaction is called with type = PURCHASE
+**Asserts:**
+- Fund asset found-or-created by `fundCnpj`
+- New holding: `pricingMode=MARKET_DATA, quantity=1234.56, averageCost=10.50`
 
-  # ─── HAPPY PATHS — MANUAL mode ────────────────────────────────────────────
+---
 
-  Scenario: Record a PGBL with manual valuation (MANUAL mode)
-    Given the RecordFundHoldingDrawer is open in INFLOW mode
-    When I select a PGBL fund
-    And I select pricing mode "MANUAL"
-    And I fill in:
-      | Trade date       | 2026-04-01   |
-      | Gross value      | 50000.00     |
-      | Valued at        | 2026-03-31   |
-      | Manual gross val | 50000.00     |
-    And I click "Aplicar"
-    Then the holding is created with:
-      | pricingMode      | MANUAL       |
-      | manualGrossValue | 50000.00     |
-      | manualValuedAt   | 2026-03-31   |
-    And the UI shows the value as "estimado" with the reference date
+### SC-02: Additional application to same fund — type changes to SUBSCRIPTION
 
-  Scenario: MANUAL mode — quantity and unit price fields are not required
-    Given the RecordFundHoldingDrawer is open in INFLOW mode with pricing mode = MANUAL
-    Then the quantity and unit price fields are not shown or not required
-    And the "Valued at" date and "Manual gross value" fields are required instead
+**Setup:** holding 1 234,56 cotas @ averageCost=10,50
 
-  Scenario: MARKET_DATA mode — quantity and unit price fields are required
-    Given the RecordFundHoldingDrawer is open in INFLOW mode with pricing mode = MARKET_DATA
-    Then the quantity and unit price fields are required
-    And the "Valued at" and "Manual gross value" fields are NOT required
+**Buy:** 500 cotas @ 10,80
 
+**Transaction input:** `{ type: SUBSCRIPTION }` (not PURCHASE)
 
-Feature: Resgate de Fundo (SALE)
-  As a user
-  I want to record the redemption of fund quotas
-  So that the net proceeds are credited and the holding quantity decreases
+**Expected averageCost:** `(1234.56 × 10.50 + 500 × 10.80) / 1734.56 = R$ 10,59`
 
-  Background:
-    Given I am authenticated
-    And I hold 1234.56 cotas in "Núcleo FIC FIM" at averageCost = R$ 10.50
+---
 
-  Scenario: Record a fund redemption — partial
-    Given the RecordFundHoldingDrawer is open in OUTFLOW mode
-    When I fill in:
-      | Trade date        | 2026-04-10   |
-      | Quantity redeemed | 500          |
-      | Net value         | 5200.00      |
-    And I click "Resgatar"
-    Then recordInvestmentTransaction is called with:
-      | direction    | OUTFLOW      |
-      | type         | SALE         |
-      | quantity     | 500          |
-      | netValue     | 5200.00      |
-      | tradeDate    | 2026-04-10   |
-    And a CREDIT of R$ 5200.00 is created on the custodian account
-    And the holding quantity decreases to 734.56
-    And the averageCost remains R$ 10.50 (SALE does not change averageCost)
+### SC-03: Record a PGBL with manual valuation (MANUAL mode)
 
-  Scenario: Net value on resgate is always user-confirmed — no auto-calculation
-    Given the RecordFundHoldingDrawer is open in OUTFLOW mode
-    And the fund has a latest VNA of R$ 10.80
-    When the form pre-suggests net value = 500 × R$ 10.80 = R$ 5400.00
-    Then the net value field is editable and user can override to any value
-    And the saved netValue is whatever the user confirms
+**Setup:** RecordFundHoldingDrawer, pricing mode = MANUAL
 
-  Scenario: Gross value is optional on resgate — can be derived from VNA
-    Given the RecordFundHoldingDrawer is open in OUTFLOW mode
-    When I leave gross value blank and fill only net value
-    Then the form is valid
-    And recordInvestmentTransaction is called with grossValue = null or omitted
+| Field            | Value      |
+|---|---|
+| Trade date       | 2026-04-01 |
+| Gross value      | 50 000,00  |
+| Valued at (date) | 2026-03-31 |
+| Manual value     | 50 000,00  |
 
-  Scenario: Holding quantity cannot go below zero
-    Given I hold 734.56 cotas
-    When I try to redeem 800 cotas
-    Then the service returns an error: "Quantidade insuficiente"
+**Asserts:**
+- Holding: `pricingMode=MANUAL, manualGrossValue=50000, manualValuedAt=2026-03-31`
+- UI shows "estimado" indicator with reference date
 
-  Scenario: Redemption to a different destination account
-    Given the RecordFundHoldingDrawer is open in OUTFLOW mode
-    When I select "Conta Corrente BTG" as the cash destination
-    And I submit
-    Then recordInvestmentTransaction is called with the selected destinationAccountId
+---
 
+### SC-04: MARKET_DATA vs MANUAL — conditional required fields
 
-Feature: Come-cotas (WITHHOLDING_TAX)
-  As a user
-  I want to record the semi-annual come-cotas quota deduction
-  So that my holding quantity is reduced by the correct amount and no cash movement is created
+| Mode        | Quantity | Unit price | Valued at | Manual value |
+|---|---|---|---|---|
+| MARKET_DATA | Required | Required   | Not shown | Not shown    |
+| MANUAL      | Not required | Not required | Required | Required |
 
-  Background:
-    Given I am authenticated
-    And I hold a MUTUAL_FUND with pricingMode = MARKET_DATA
-    And the fund has anbimaCategory = RENDA_FIXA (subject to come-cotas)
+---
 
-  Scenario: Record come-cotas — quota deduction on May 15
-    Given the WithholdingTaxDrawer is open for the fund holding
-    When I fill in:
-      | Trade date        | 2026-05-15   |
-      | IR value          | 425.00       |
-      | Quotas deducted   | 40.238       |
-    And I click "Confirmar"
-    Then ConfirmWithholdingTaxService records type = WITHHOLDING_TAX with:
-      | direction        | OUTFLOW      |
-      | quantity         | 40.238       |
-      | unitPrice        | 425 / 40.238 |
-      | tradeDate        | 2026-05-15   |
-    And the holding quantity decreases by 40.238
-    And NO cash ledger entry is created (come-cotas does not move cash — the fund pays the tax)
+## Resgate / SALE
 
-  Scenario: Come-cotas does NOT create a cash debit on the account
-    Given come-cotas is recorded with IR value = R$ 425.00
-    When the WITHHOLDING_TAX transaction is processed
-    Then CustodianCashLedgerHandler does NOT create a DEBIT for this transaction
-    And the account cash balance is UNCHANGED
+### SC-05: Record partial fund redemption
 
-  Scenario: Come-cotas is rejected for non-MUTUAL_FUND assets
-    Given I have a REAL_ESTATE_FUND holding
-    When the backend receives a confirmWithholdingTax request for it
-    Then the service returns an error: "Come-cotas aplicável apenas para fundos de investimento"
+**Setup:** holding 1 234,56 cotas @ averageCost=10,50
 
-  Scenario: IR value must be > 0
-    Given the WithholdingTaxDrawer is open
-    When I enter IR value = 0 and click "Confirmar"
-    Then I see a validation error: IR value must be > 0
-    And the mutation is NOT called
+| Field             | Value      |
+|---|---|
+| Trade date        | 2026-04-10 |
+| Quantity redeemed | 500        |
+| Net value         | 5 200,00   |
 
-  Scenario: Quotas deducted must be > 0
-    Given the WithholdingTaxDrawer is open
-    When I enter quotas deducted = 0
-    Then I see a validation error: quotas deducted must be > 0
+**Transaction input:** `{ type: SALE, direction: OUTFLOW, quantity: 500, netValue: 5200 }`
 
-  Scenario: Quotas deducted cannot exceed current holding quantity
-    Given I hold 40 cotas in the fund
-    When I enter quotas deducted = 50
-    Then the service returns an error: "Quantidade de cotas insuficiente"
+**Asserts:**
+- CREDIT R$ 5 200 on custodian account
+- Holding: `quantity → 734.56`, `averageCost = 10.50` (unchanged)
 
-  Scenario: Quotas deducted is auto-calculated from IR value and unit price
-    Given the WithholdingTaxDrawer is open
-    And the current VNA is R$ 10.57
-    When I enter IR value = 425.00
-    Then the quotas deducted field is auto-populated with 425.00 / 10.57 ≈ 40.208
-    And the user can confirm or override the value
+---
 
-  Scenario: Come-cotas applies to RENDA_FIXA, MULTIMERCADO, and CAMBIAL fund categories
-    Given I hold three funds:
-      | Fund type    | anbimaCategory  |
-      | FIC RF LP    | RENDA_FIXA      |
-      | FIC MM       | MULTIMERCADO    |
-      | FIC Cambial  | CAMBIAL         |
-    When come-cotas occurs in May
-    Then each fund's holding shows come-cotas options
+### SC-06: Net value is always user-confirmed — no auto-fill override
 
-  Scenario: Come-cotas does NOT apply to ACOES category funds
-    Given I hold a fund with anbimaCategory = ACOES
-    When come-cotas time arrives
-    Then no come-cotas option is available for this fund (ACOES funds are not subject to come-cotas)
+**Setup:** fund latest VNA = R$ 10,80; user enters 500 cotas
 
+**Asserts:**
+- Form may suggest `500 × 10.80 = R$ 5 400` but field is editable
+- Saved `netValue` = whatever user confirms (e.g., R$ 5 200)
 
-Feature: Transferência de Cotas (QUOTA_TRANSFER)
-  As a user
-  I want to transfer mutual fund quotas between my investment accounts
-  So that I can change custodians while preserving my cost basis
+---
 
-  Background:
-    Given I am authenticated
-    And I hold 1234.56 cotas of "Núcleo FIC FIM" at averageCost = R$ 10.50 in "XP Corretora"
-    And I have a second account "BTG Pactual"
+### SC-07: Gross value is optional on resgate
 
-  Scenario: Transfer full fund position from XP to BTG — uses QUOTA_TRANSFER
-    Given the TransferCustodyDrawer is open for the fund holding
-    When I select "BTG Pactual" as the destination
-    And I leave quantity blank (full transfer)
-    And I click "Transferir"
-    Then TransferCustodyService detects assetType = MUTUAL_FUND
-    And records QUOTA_TRANSFER OUT on XP and QUOTA_TRANSFER IN on BTG
-    And the transaction type is QUOTA_TRANSFER (NOT CUSTODY_TRANSFER)
-    And the XP holding quantity becomes 0
-    And a new holding at BTG is created with:
-      | quantity     | 1234.56  |
-      | averageCost  | 10.50    |
+**Asserts:**
+- Form valid when gross value left blank, only net value provided
+- `recordInvestmentTransaction` called with `grossValue = null` or omitted
 
-  Scenario: QUOTA_TRANSFER is used for MUTUAL_FUND — not CUSTODY_TRANSFER
-    Given I am transferring a MUTUAL_FUND holding
-    When TransferCustodyService processes the request
-    Then the transaction type is QUOTA_TRANSFER
-    And NOT CUSTODY_TRANSFER (which is used for equities, FIIs, fixed income, crypto)
+---
 
-  Scenario: averageCost is preserved during quota transfer
-    Given the source holding has averageCost = R$ 10.50
-    When I transfer to another account
-    Then the destination holding receives averageCost = R$ 10.50
+## Come-cotas / WITHHOLDING_TAX
 
-  Scenario: PGBL quota transfer uses QUOTA_TRANSFER type
-    Given I hold a PGBL fund
-    When I transfer it to another account
-    Then the transaction type is QUOTA_TRANSFER
+### SC-08: Record come-cotas — quota deduction on May 15
 
+**Setup:** MUTUAL_FUND holding, `anbimaCategory = RENDA_FIXA`
 
-Feature: Fund Valuation
-  As a user
-  I want to see my fund holdings valued at the latest CVM VNA
-  So that I can track portfolio performance
+| Field            | Value     |
+|---|---|
+| Trade date       | 2026-05-15 |
+| IR value         | 425,00    |
+| Quotas deducted  | 40,238    |
 
-  Background:
-    Given I am authenticated
-    And I hold two funds: one MARKET_DATA and one MANUAL pricing mode
+**Transaction input:** `{ type: WITHHOLDING_TAX, direction: OUTFLOW, quantity: 40.238, unitPrice: 425/40.238 }`
 
-  Scenario: MARKET_DATA fund is valued at latest CVM VNA
-    Given I hold 1234.56 cotas of a MARKET_DATA fund with latest VNA = R$ 10.80
-    When the portfolio page loads
-    Then the holding shows:
-      | grossValue         = 1234.56 × 10.80 = R$ 13332.85 |
-      | valuationSource    = MARKET_DATA                     |
-      | valuationReference = date of latest VNA              |
+**Asserts:**
+- Holding `quantity` decreases by 40,238
+- **NO cash ledger entry created** (`CustodianCashLedgerHandler` skips `WITHHOLDING_TAX`)
+- Account cash balance UNCHANGED
+- Quotas auto-calculated from `irValue / currentVNA`; user can confirm or override
 
-  Scenario: MANUAL fund shows user-entered value
-    Given I hold a PGBL with manualGrossValue = R$ 50000.00 and manualValuedAt = 2026-03-31
-    When the portfolio page loads
-    Then the holding shows:
-      | grossValue         = R$ 50000.00       |
-      | valuationSource    = MANUAL            |
-      | valuationReference = 2026-03-31        |
-    And a "estimado" indicator is shown
+---
 
-  Scenario: When VNA data is unavailable, valuationSource = UNAVAILABLE
-    Given the financial-data service has no VNA data for a fund
-    When the portfolio page loads
-    Then that fund shows valuationSource = UNAVAILABLE
+### SC-09: Come-cotas applicability by fund category
 
+| anbimaCategory | Come-cotas applies? |
+|---|---|
+| RENDA_FIXA     | ✅                  |
+| MULTIMERCADO   | ✅                  |
+| CAMBIAL        | ✅                  |
+| ACOES          | ❌                  |
 
-Feature: Fund — Validation Rules
-  As a user
-  I should receive clear errors when I provide invalid fund application data
+**Validation failure:** asset type ≠ MUTUAL_FUND → "Come-cotas aplicável apenas para fundos de investimento"
 
-  Background:
-    Given I am authenticated
+---
 
-  Scenario: Pricing mode is required — validation error if not selected
-    Given the RecordFundHoldingDrawer is open in INFLOW mode
-    When I submit without selecting a pricing mode
-    Then I see a validation error on the pricing mode field
+### SC-10: Come-cotas validation failures
 
-  Scenario: Gross value must be > 0
-    Given the RecordFundHoldingDrawer is open in INFLOW mode
-    When I enter gross value = 0
-    Then I see a validation error: gross value must be > 0
+| Scenario                            | Expected error                              |
+|---|---|
+| `irValue = 0`                      | "Valor do IR deve ser maior que zero"        |
+| `quotasDeducted = 0`               | Validation error: must be > 0               |
+| `quotasDeducted > holding.quantity`| "Quantidade de cotas insuficiente"           |
 
-  Scenario: Net value on resgate must be ≤ gross value and ≥ 0
-    Given the RecordFundHoldingDrawer is open in OUTFLOW mode
-    When I enter gross value = 5000.00 and net value = 6000.00
-    Then the service returns an error: net value cannot exceed gross value
+---
 
-  Scenario: MANUAL mode requires valuedAt date
-    Given the RecordFundHoldingDrawer is open with pricing mode = MANUAL
-    When I leave the "Valued at" date blank
-    And I submit
-    Then I see a validation error: "Data de valorização é obrigatória"
+## Transferência de Cotas / QUOTA_TRANSFER
 
-  Scenario: MANUAL mode requires manual gross value
-    Given the RecordFundHoldingDrawer is open with pricing mode = MANUAL
-    When I leave manual gross value blank
-    And I submit
-    Then I see a validation error: "Valor estimado é obrigatório"
-```
+### SC-11: Transfer full mutual fund position — uses QUOTA_TRANSFER
+
+**Setup:** 1 234,56 cotas @ averageCost=10,50 on "XP"; destination "BTG"
+
+**Asserts:**
+- `TransferCustodyService` detects `assetType = MUTUAL_FUND`
+- Transaction type = `QUOTA_TRANSFER` (NOT `CUSTODY_TRANSFER`)
+- `QUOTA_TRANSFER OUT` XP: `quantity=1234.56`
+- `QUOTA_TRANSFER IN` BTG: `quantity=1234.56, averageCost=10.50` (preserved)
+
+---
+
+### SC-12: QUOTA_TRANSFER vs CUSTODY_TRANSFER — type selection by asset
+
+| Asset type     | Transaction type used  |
+|---|---|
+| MUTUAL_FUND    | QUOTA_TRANSFER         |
+| PGBL / VGBL    | QUOTA_TRANSFER         |
+| STOCK / ETF / BDR | CUSTODY_TRANSFER   |
+| REAL_ESTATE_FUND  | CUSTODY_TRANSFER   |
+| CRYPTO         | CUSTODY_TRANSFER       |
+| CDB (fixed income) | CUSTODY_TRANSFER  |
+
+---
+
+## Valuation
+
+### SC-13: Fund valuation by pricing mode
+
+| Pricing mode | `valuationSource` | `grossValue`                      |
+|---|---|---|
+| MARKET_DATA  | MARKET_DATA       | `quantity × latestVNA`            |
+| MANUAL       | MANUAL            | `manualGrossValue`                |
+| No VNA data  | UNAVAILABLE       | Falls back to `averageCost × qty` |
+
+**Asserts for MANUAL:**
+- `valuationReferenceDate = manualValuedAt`
+- UI shows "estimado" indicator
+
+---
+
+## Validation — Negative Cases
+
+| SC    | Trigger                                        | Expected error                         | Mutation called? |
+|---|---|---|---|
+| SC-14 | No pricing mode selected                       | Validation error on pricing mode field | No               |
+| SC-15 | MARKET_DATA + gross value = 0                 | "Valor deve ser maior que zero"         | No               |
+| SC-16 | SALE: net value > gross value                 | Service error                           | No               |
+| SC-17 | SALE: quantity > holding.quantity             | "Quantidade insuficiente"               | No               |
+| SC-18 | MANUAL mode + valuedAt blank                  | "Data de valorização é obrigatória"     | No               |
+| SC-19 | MANUAL mode + manual gross value blank        | "Valor estimado é obrigatório"          | No               |

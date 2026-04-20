@@ -1,9 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
@@ -23,13 +20,11 @@ import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusD
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
-import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.portfolio.MarketBenchmarkDailyRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
 import jakarta.inject.Singleton
-import mu.KotlinLogging
 import java.math.BigDecimal
 import java.math.MathContext
 import java.math.RoundingMode
@@ -45,7 +40,6 @@ class PortfolioPerformanceQueryService(
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository,
     private val holdingRepository: HoldingRepository,
     private val assetRepository: AssetRepository,
-    private val investmentTransactionRepository: InvestmentTransactionRepository,
 ) {
     fun getGridClassTwrSeries(
         financialAccountId: UUID?,
@@ -54,35 +48,43 @@ class PortfolioPerformanceQueryService(
         period: GridClassTwrPeriod = GridClassTwrPeriod.ONE_YEAR,
     ): List<GridClassTwrPointDTO> {
         if (gridClassKey !in GridClassMapping.ALL_KEYS) return emptyList()
+        // Cash is outside the TWR universe (holdings-only).
+        if (gridClassKey == GridClassMapping.CASH) return emptyList()
         val today = LocalDate.now()
         val from = gridClassSeriesStartDate(period, today)
-
-        // Cash has no holding-level asset type — it is tracked as ASSET_GROUP/cash by the
-        // recalculation engine (via the portfolio-level cash balance, not individual holdings).
-        // All other grid classes are stored as GRID_CLASS rows.
-        val effectiveDimensionType =
-            if (gridClassKey == GridClassMapping.CASH) PortfolioDimensionType.ASSET_GROUP
-            else PortfolioDimensionType.GRID_CLASS
+        val effectiveDimensionType = PortfolioDimensionType.GRID_CLASS
 
         return if (financialAccountId != null) {
-            portfolioQuotaRepository.findByAccountAndDateRange(
+            val series =
+                portfolioQuotaRepository.findByAccountAndDateRange(
                 financialAccountId = financialAccountId,
                 dimensionType = effectiveDimensionType,
                 dimensionKey = gridClassKey,
                 from = from,
                 to = today,
-            ).map { quota ->
+            )
+            if (series.size < 2) return emptyList()
+            val aggregatedSeries = series.map { it.toAggregatedPoint() }
+            val flowAmountsByDate =
+                buildScopedDimensionFlowAmounts(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    dimensionType = effectiveDimensionType,
+                    dimensionKey = gridClassKey,
+                    from = aggregatedSeries.first().date.plusDays(1),
+                    to = aggregatedSeries.last().date,
+                )
+            val twrIndex = buildTimeWeightedIndexSeries(aggregatedSeries, flowAmountsByDate) ?: return emptyList()
+            twrIndex.map { point ->
                 GridClassTwrPointDTO(
-                    date = quota.quotaDate,
-                    quotaValue = quota.quotaValue.toDouble(),
+                    date = point.date,
+                    quotaValue = point.indexValue.toDouble(),
                 )
             }
         } else {
             buildConsolidatedGridClassSeries(accountId, gridClassKey, effectiveDimensionType, from, today)
         }
     }
-
-    private val logger = KotlinLogging.logger {}
 
     @Suppress("UNUSED_PARAMETER")
     fun getPortfolioPerformance(
@@ -122,7 +124,19 @@ class PortfolioPerformanceQueryService(
         }
 
         return PortfolioPerformanceDTO(
-            twr = computeTwr(window.start, window.end),
+            twr =
+                computeTimeWeightedReturn(
+                    series = window.series.map { it.toAggregatedPoint() },
+                    flowAmountsByDate =
+                        buildScopedDimensionFlowAmounts(
+                            financialAccountId = financialAccountId,
+                            accountId = null,
+                            dimensionType = PortfolioDimensionType.PORTFOLIO,
+                            dimensionKey = null,
+                            from = window.start.quotaDate.plusDays(1),
+                            to = window.end.quotaDate,
+                        ),
+                ),
             twrSince = window.start.quotaDate,
             twrAbsolute = null,
             period = period,
@@ -136,11 +150,7 @@ class PortfolioPerformanceQueryService(
         period: PerformancePeriodDTO,
         hasEstimatedValuesFallback: Boolean,
     ): PortfolioPerformanceDTO {
-        val window =
-            resolveConsolidatedPortfolioWindow(
-                accountId = accountId,
-                period = period,
-            )
+        val window = resolveConsolidatedValueWindow(accountId, PortfolioDimensionType.PORTFOLIO, null, period)
 
         if (window == null) {
             return PortfolioPerformanceDTO(
@@ -154,7 +164,18 @@ class PortfolioPerformanceQueryService(
         }
 
         return PortfolioPerformanceDTO(
-            twr = computeAggregatedPortfolioTwr(window.series, window.flowAmountsByDate),
+            twr =
+                computeTimeWeightedReturn(
+                    series = window.series,
+                    flowAmountsByDate =
+                        buildConsolidatedDimensionFlowAmounts(
+                            accountId = accountId,
+                            dimensionType = PortfolioDimensionType.PORTFOLIO,
+                            dimensionKey = null,
+                            from = window.startDate.plusDays(1),
+                            to = window.endDate,
+                        ),
+                ),
             twrSince = window.startDate,
             twrAbsolute = null,
             period = period,
@@ -169,8 +190,9 @@ class PortfolioPerformanceQueryService(
         accountId: UUID,
         groupKey: String,
         period: PerformancePeriodDTO,
-    ): Double? =
-        if (financialAccountId != null) {
+    ): Double? {
+        if (groupKey == AssetGroupMapping.CASH) return null
+        return if (financialAccountId != null) {
             val window =
                 resolvePerformanceWindow(
                     financialAccountId = financialAccountId,
@@ -179,27 +201,40 @@ class PortfolioPerformanceQueryService(
                     period = period,
                 ) ?: return null
 
-            computeGroupTwr(
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                groupKey = groupKey,
-                series = window.series,
+            computeTimeWeightedReturn(
+                series = window.series.map { it.toAggregatedPoint() },
+                flowAmountsByDate =
+                    buildScopedDimensionFlowAmounts(
+                        financialAccountId = financialAccountId,
+                        accountId = accountId,
+                        dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                        dimensionKey = groupKey,
+                        from = window.start.quotaDate.plusDays(1),
+                        to = window.end.quotaDate,
+                    ),
             )
         } else {
             val window =
                 resolveConsolidatedValueWindow(
                 accountId = accountId,
                 dimensionType = PortfolioDimensionType.ASSET_GROUP,
-                dimensionKey = groupKey,
-                period = period,
+                    dimensionKey = groupKey,
+                    period = period,
             ) ?: return null
 
-            computeConsolidatedGroupTwr(
-                accountId = accountId,
-                groupKey = groupKey,
+            computeTimeWeightedReturn(
                 series = window.series,
+                flowAmountsByDate =
+                    buildConsolidatedDimensionFlowAmounts(
+                        accountId = accountId,
+                        dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                        dimensionKey = groupKey,
+                        from = window.startDate.plusDays(1),
+                        to = window.endDate,
+                    ),
             )
         }
+    }
 
     fun getRecalculationStatus(accountId: UUID): RecalculationStatusDTO {
         val pendingJob = portfolioRecalculationJobRepository.findActiveByAccount(accountId)
@@ -326,165 +361,113 @@ class PortfolioPerformanceQueryService(
             date = boundaryDate,
         )
 
-    private fun computeTwr(
-        start: InvestmentPortfolioQuota,
-        end: InvestmentPortfolioQuota,
-    ): Double? {
-        if (start.quotaValue.compareTo(BigDecimal.ZERO) == 0) return null
-        return end.quotaValue
-            .divide(start.quotaValue, 8, RoundingMode.HALF_UP)
-            .subtract(BigDecimal.ONE)
-            .toDouble()
-    }
-
-    private fun computeAggregatedPortfolioTwr(
+    private fun computeTimeWeightedReturn(
         series: List<AggregatedValuePoint>,
         flowAmountsByDate: Map<LocalDate, BigDecimal>,
     ): Double? {
-        if (series.size < 2) return null
+        val indexSeries = buildTimeWeightedIndexSeries(series, flowAmountsByDate) ?: return null
+        return indexSeries.last().indexValue
+            .subtract(BigDecimal.ONE)
+            .setScale(8, RoundingMode.HALF_UP)
+            .toDouble()
+    }
 
+    private fun buildTimeWeightedIndexSeries(
+        series: List<AggregatedValuePoint>,
+        flowAmountsByDate: Map<LocalDate, BigDecimal>,
+    ): List<TimeWeightedIndexPoint>? {
+        if (series.size < 2) return null
         var previousValue = series.first().totalValue
         if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
 
-        val steps = mutableListOf<String>()
         var factor = BigDecimal.ONE
+        val points = mutableListOf(TimeWeightedIndexPoint(series.first().date, factor))
         series.drop(1).forEach { point ->
+            if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
             val netFlow = flowAmountsByDate[point.date] ?: BigDecimal.ZERO
-            if (previousValue.compareTo(BigDecimal.ZERO) <= 0) {
-                steps += "  ${point.date}: SKIPPED (previousValue <= 0), currentValue=${point.totalValue.toPlainString()}"
-                previousValue = point.totalValue
-                if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
-                return@forEach
-            }
             val dailyReturn =
                 point.totalValue
                     .subtract(previousValue)
                     .subtract(netFlow)
                     .divide(previousValue, 8, RoundingMode.HALF_UP)
             factor = factor.multiply(BigDecimal.ONE.add(dailyReturn), MathContext.DECIMAL64)
-            if (netFlow.compareTo(BigDecimal.ZERO) != 0) {
-                steps += "  ${point.date}: prev=${previousValue.toPlainString()}, cur=${point.totalValue.toPlainString()}, flow=${netFlow.toPlainString()}, dailyReturn=${dailyReturn.toPlainString()}, factor=${factor.toPlainString()} *** FLOW EVENT"
-            } else {
-                steps += "  ${point.date}: prev=${previousValue.toPlainString()}, cur=${point.totalValue.toPlainString()}, flow=0, dailyReturn=${dailyReturn.toPlainString()}, factor=${factor.toPlainString()}"
-            }
+            points += TimeWeightedIndexPoint(point.date, factor)
             previousValue = point.totalValue
         }
-
-        if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
-        val result = factor.subtract(BigDecimal.ONE).setScale(8, RoundingMode.HALF_UP).toDouble()
-        logger.debug {
-            buildString {
-                appendLine("[TWR] window=${series.first().date}..${series.last().date} points=${series.size} flowDates=${flowAmountsByDate.keys.sorted()}")
-                steps.forEach { appendLine(it) }
-                appendLine("  => TWR=$result (factor=${factor.toPlainString()})")
-            }
-        }
-        return result
+        return points
     }
 
-    private fun computeAggregatedValueTwr(series: List<AggregatedValuePoint>): Double? {
-        if (series.size < 2) return null
-        val startValue = series.first().totalValue
-        val endValue = series.last().totalValue
-        if (startValue.compareTo(BigDecimal.ZERO) <= 0) return null
-        return endValue.divide(startValue, 8, RoundingMode.HALF_UP).subtract(BigDecimal.ONE).toDouble()
-    }
-
-    private fun computeGroupTwr(
+    private fun buildScopedDimensionFlowAmounts(
         financialAccountId: UUID,
-        accountId: UUID,
-        groupKey: String,
-        series: List<InvestmentPortfolioQuota>,
-    ): Double? {
-        val aggregatedSeries =
-            series.map {
-                AggregatedValuePoint(
-                    date = it.quotaDate,
-                    totalValue = it.totalPortfolioValue,
-                    hasEstimatedValues = it.hasEstimatedValues,
-                )
-            }
-        val flowAmountsByDate =
-            buildScopedGroupFlowAmounts(
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                groupKey = groupKey,
-                from = series.first().quotaDate.plusDays(1),
-                to = series.last().quotaDate,
-            )
-        return computeAggregatedPortfolioTwr(aggregatedSeries, flowAmountsByDate)
-    }
-
-    private fun computeConsolidatedGroupTwr(
-        accountId: UUID,
-        groupKey: String,
-        series: List<AggregatedValuePoint>,
-    ): Double? {
-        val flowAmountsByDate =
-            investmentAccountIds(accountId)
-                .flatMap { financialAccountId ->
-                    buildScopedGroupFlowAmounts(
-                        financialAccountId = financialAccountId,
-                        accountId = accountId,
-                        groupKey = groupKey,
-                        from = series.first().date.plusDays(1),
-                        to = series.last().date,
-                    ).entries
-                }.groupBy({ it.key }, { it.value })
-                .mapValues { (_, values) -> values.fold(BigDecimal.ZERO, BigDecimal::add) }
-
-        return computeAggregatedPortfolioTwr(series, flowAmountsByDate)
-    }
-
-    private fun buildScopedGroupFlowAmounts(
-        financialAccountId: UUID,
-        accountId: UUID,
-        groupKey: String,
+        accountId: UUID?,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
         from: LocalDate,
         to: LocalDate,
     ): Map<LocalDate, BigDecimal> {
         if (from.isAfter(to)) return emptyMap()
-
-        val groupHoldingIds = groupHoldingIds(financialAccountId, accountId, groupKey)
-        if (groupHoldingIds.isEmpty()) return emptyMap()
-
-        val transactionFlows =
-            investmentTransactionRepository.findByHoldingIds(groupHoldingIds, accountId)
-                .asSequence()
-                .filter { !it.tradeDate.isBefore(from) && !it.tradeDate.isAfter(to) }
-                .mapNotNull { transaction ->
-                    transaction.toGroupNetFlowAmount()?.let { amount ->
-                        transaction.tradeDate to amount
-                    }
-                }
-
-        val eventFlows =
+        val events =
             portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, from, to)
-                .asSequence()
-                .filter { event -> event.relatedHoldingId != null && groupHoldingIds.contains(event.relatedHoldingId) }
-                .mapNotNull { event ->
-                    event.toGroupNetFlowAmount()?.let { amount ->
-                        event.eventDate to amount
-                    }
-                }
+            .asSequence()
+            .filterNot { it.sourceReferenceType == PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION }
+            .toList()
+        if (events.isEmpty()) return emptyMap()
 
-        return (transactionFlows + eventFlows)
+        val filteredHoldingIds = dimensionHoldingIds(financialAccountId, accountId, dimensionType, dimensionKey)
+        if (filteredHoldingIds != null && filteredHoldingIds.isEmpty()) return emptyMap()
+
+        return events
+            .asSequence()
+            .filter { event ->
+                filteredHoldingIds == null || (event.relatedHoldingId != null && filteredHoldingIds.contains(event.relatedHoldingId))
+            }
+            .mapNotNull { event -> event.toCanonicalNetFlowAmount()?.let { amount -> event.eventDate to amount } }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, amounts) -> amounts.fold(BigDecimal.ZERO, BigDecimal::add) }
     }
 
-    private fun groupHoldingIds(
-        financialAccountId: UUID,
+    private fun buildConsolidatedDimensionFlowAmounts(
         accountId: UUID,
-        groupKey: String,
-    ): Set<UUID> {
-        val holdings = holdingRepository.findByFinancialAccount(financialAccountId, accountId)
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
+        from: LocalDate,
+        to: LocalDate,
+    ): Map<LocalDate, BigDecimal> {
+        if (from.isAfter(to)) return emptyMap()
+        return investmentAccountIds(accountId)
+            .flatMap { financialAccountId ->
+                buildScopedDimensionFlowAmounts(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    dimensionType = dimensionType,
+                    dimensionKey = dimensionKey,
+                    from = from,
+                    to = to,
+                ).entries
+            }.groupBy({ it.key }, { it.value })
+            .mapValues { (_, values) -> values.fold(BigDecimal.ZERO, BigDecimal::add) }
+    }
+
+    private fun dimensionHoldingIds(
+        financialAccountId: UUID,
+        accountId: UUID?,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
+    ): Set<UUID>? {
+        if (dimensionType == PortfolioDimensionType.PORTFOLIO) return null
+        val scopedAccountId = accountId ?: return null
+        if (dimensionKey.isNullOrBlank()) return emptySet()
+        val holdings = holdingRepository.findByFinancialAccount(financialAccountId, scopedAccountId)
         if (holdings.isEmpty()) return emptySet()
         val assetsById = assetRepository.findByIds(holdings.map { it.assetId }.toSet()).associateBy { it.id }
         return holdings.asSequence()
             .filter { holding ->
                 val assetType = assetsById[holding.assetId]?.assetType
-                AssetGroupMapping.groupKeyFor(assetType) == groupKey
+                when (dimensionType) {
+                    PortfolioDimensionType.ASSET_GROUP -> AssetGroupMapping.groupKeyFor(assetType) == dimensionKey
+                    PortfolioDimensionType.GRID_CLASS -> GridClassMapping.gridClassFor(assetType) == dimensionKey
+                    PortfolioDimensionType.PORTFOLIO -> true
+                }
             }.mapNotNull { it.id }
             .toSet()
     }
@@ -528,63 +511,6 @@ class PortfolioPerformanceQueryService(
             MarketBenchmarkCode.IPCA -> "IPCA"
             MarketBenchmarkCode.IFIX -> "IFIX"
         }
-
-    private fun resolveConsolidatedPortfolioWindow(
-        accountId: UUID,
-        period: PerformancePeriodDTO,
-    ): ConsolidatedPortfolioWindow? {
-        val seriesWindow =
-            resolveConsolidatedValueWindow(
-                accountId = accountId,
-                dimensionType = PortfolioDimensionType.PORTFOLIO,
-                dimensionKey = null,
-                period = period,
-            ) ?: return null
-
-        // TWR universe = holdings only (custodian cash is excluded, matching benchmark methodology).
-        // Filter out cash-only flow events (relatedHoldingId == null): pure deposits/withdrawals on
-        // the custodian account do not move the holdings universe and would otherwise double-count
-        // against the daily return (the cash leg is invisible to the series, so the flow has nothing
-        // to subtract).
-        val rawFlowEvents: List<InvestmentPortfolioFlowEvent> =
-            investmentAccountIds(accountId)
-                .flatMap { financialAccountId ->
-                    portfolioFlowEventRepository.findByAccountAndDateRange(
-                        financialAccountId = financialAccountId,
-                        from = seriesWindow.startDate.plusDays(1),
-                        to = seriesWindow.endDate,
-                    )
-                }
-                .filter { it.relatedHoldingId != null }
-        val rawFlowEventsSorted = rawFlowEvents.sortedBy { event -> event.eventDate }
-        logger.debug {
-            if (rawFlowEventsSorted.isEmpty()) {
-                "[FLOWS] no flow events in window ${seriesWindow.startDate}..${seriesWindow.endDate}"
-            } else {
-                buildString {
-                    appendLine("[FLOWS] ${rawFlowEventsSorted.size} event(s) in window ${seriesWindow.startDate}..${seriesWindow.endDate}:")
-                    for (e in rawFlowEventsSorted) {
-                        appendLine("  ${e.eventDate}: type=${e.eventType} gross=${e.grossAmount.toPlainString()} sourceType=${e.sourceReferenceType} sourceId=${e.sourceReferenceId} relatedHolding=${e.relatedHoldingId}")
-                    }
-                }
-            }
-        }
-        val flowAmountsByDate =
-            rawFlowEvents
-                .groupBy { event -> event.eventDate }
-                .mapValues { (_, events) ->
-                    events.fold(BigDecimal.ZERO) { acc, event ->
-                        acc + signedFlowAmount(event.eventType, event.grossAmount)
-                    }
-                }
-
-        return ConsolidatedPortfolioWindow(
-            startDate = seriesWindow.startDate,
-            endDate = seriesWindow.endDate,
-            series = seriesWindow.series,
-            flowAmountsByDate = flowAmountsByDate,
-        )
-    }
 
     private fun resolveConsolidatedValueWindow(
         accountId: UUID,
@@ -692,32 +618,31 @@ class PortfolioPerformanceQueryService(
                 .toSortedMap()
 
         if (summedByDate.isEmpty()) return emptyList()
-        val base = summedByDate.values.first()
-        if (base.compareTo(BigDecimal.ZERO) <= 0) return emptyList()
-
-        // Consolidated sparkline is normalized from summed market values across accounts.
-        // This is a practical approximation for visuals, but not a true multi-account TWR.
-        return summedByDate.entries.map { (date, totalValue) ->
+        val series =
+            summedByDate.entries.map { (date, totalValue) ->
+                AggregatedValuePoint(
+                    date = date,
+                    totalValue = totalValue,
+                    hasEstimatedValues = false,
+                )
+            }
+        if (series.size < 2) return emptyList()
+        val flowAmountsByDate =
+            buildConsolidatedDimensionFlowAmounts(
+                accountId = accountId,
+                dimensionType = effectiveDimensionType,
+                dimensionKey = gridClassKey,
+                from = series.first().date.plusDays(1),
+                to = series.last().date,
+            )
+        val twrIndex = buildTimeWeightedIndexSeries(series, flowAmountsByDate) ?: return emptyList()
+        return twrIndex.map { point ->
             GridClassTwrPointDTO(
-                date = date,
-                quotaValue = totalValue.divide(base, 8, RoundingMode.HALF_UP).toDouble(),
+                date = point.date,
+                quotaValue = point.indexValue.toDouble(),
             )
         }
     }
-
-    private fun signedFlowAmount(
-        eventType: PortfolioFlowEventType,
-        grossAmount: BigDecimal,
-    ): BigDecimal =
-        when (eventType) {
-            PortfolioFlowEventType.DEPOSIT,
-            PortfolioFlowEventType.DIVIDEND,
-            PortfolioFlowEventType.CORPORATE_ACTION,
-            -> grossAmount
-            PortfolioFlowEventType.WITHDRAWAL,
-            PortfolioFlowEventType.INCOME_TAX,
-            -> grossAmount.negate()
-        }
 
     private data class PerformanceWindow(
         val start: InvestmentPortfolioQuota,
@@ -737,44 +662,30 @@ class PortfolioPerformanceQueryService(
         val series: List<AggregatedValuePoint>,
     )
 
-    private data class ConsolidatedPortfolioWindow(
-        val startDate: LocalDate,
-        val endDate: LocalDate,
-        val series: List<AggregatedValuePoint>,
-        val flowAmountsByDate: Map<LocalDate, BigDecimal>,
+    private data class TimeWeightedIndexPoint(
+        val date: LocalDate,
+        val indexValue: BigDecimal,
     )
 
-    private fun InvestmentTransaction.toGroupNetFlowAmount(): BigDecimal? {
-        if (type !in GROUP_TRANSACTION_FLOW_TYPES) return null
-        val amount = netValue ?: grossValue
-        return when (direction) {
-            InvestmentTransactionDirection.INFLOW -> amount
-            InvestmentTransactionDirection.OUTFLOW -> amount.negate()
-        }
-    }
-
-    private fun InvestmentPortfolioFlowEvent.toGroupNetFlowAmount(): BigDecimal? =
+    private fun InvestmentPortfolioFlowEvent.toCanonicalNetFlowAmount(): BigDecimal? =
         when (eventType) {
             PortfolioFlowEventType.DEPOSIT -> grossAmount
             PortfolioFlowEventType.WITHDRAWAL,
             PortfolioFlowEventType.DIVIDEND,
             PortfolioFlowEventType.INCOME_TAX,
-            PortfolioFlowEventType.CORPORATE_ACTION,
             -> grossAmount.negate()
+            PortfolioFlowEventType.CORPORATE_ACTION -> null
         }
 
+    private fun InvestmentPortfolioQuota.toAggregatedPoint(): AggregatedValuePoint =
+        AggregatedValuePoint(
+            date = quotaDate,
+            totalValue = totalPortfolioValue,
+            hasEstimatedValues = hasEstimatedValues,
+        )
+
     private companion object {
-        val GROUP_TRANSACTION_FLOW_TYPES =
-            setOf(
-                InvestmentTransactionType.PURCHASE,
-                InvestmentTransactionType.SALE,
-                InvestmentTransactionType.CANCELLATION,
-                InvestmentTransactionType.MATURITY,
-                InvestmentTransactionType.SUBSCRIPTION,
-                InvestmentTransactionType.CUSTODY_TRANSFER,
-                InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                InvestmentTransactionType.QUOTA_TRANSFER,
-            )
+        const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"
     }
 
     private fun gridClassSeriesStartDate(period: GridClassTwrPeriod, today: LocalDate): LocalDate =

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculation
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioRecalculationJobMapper
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
+import io.micronaut.data.model.Pageable
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.time.Instant
@@ -46,6 +47,14 @@ open class DefaultPortfolioRecalculationJobRepository(
     @Transactional
     override fun releaseZombieJobs(staleThreshold: Instant): Int =
         entityRepository.releaseZombieJobs(staleThreshold)
+
+    override fun findOldestPending(limit: Int): List<PortfolioRecalculationJob> {
+        val safeLimit = limit.coerceAtLeast(1)
+        return entityRepository.findByStatus(
+            status = PortfolioRecalculationStatus.PENDING,
+            pageable = Pageable.from(0, safeLimit),
+        ).map(InvestmentPortfolioRecalculationJobMapper::toDomain)
+    }
 
     override fun findPendingByAccount(accountId: UUID): PortfolioRecalculationJob? =
         entityRepository.findByAccountAndStatuses(

@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.repo.portfolio
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioRecalculationJobEntity
 import io.micronaut.data.annotation.Query
+import io.micronaut.data.model.Pageable
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
 import java.time.Instant
@@ -75,4 +76,16 @@ interface PortfolioRecalculationJobEntityRepository :
         """,
     )
     fun findLatestByAccount(accountId: UUID): List<InvestmentPortfolioRecalculationJobEntity>
+
+    @Query(
+        """
+        SELECT j FROM InvestmentPortfolioRecalculationJobEntity j
+        WHERE j.status = :status
+        ORDER BY j.createdAt ASC
+        """,
+    )
+    fun findByStatus(
+        status: PortfolioRecalculationStatus,
+        pageable: Pageable,
+    ): List<InvestmentPortfolioRecalculationJobEntity>
 }

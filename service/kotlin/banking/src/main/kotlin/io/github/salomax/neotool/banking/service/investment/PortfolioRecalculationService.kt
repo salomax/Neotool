@@ -217,6 +217,8 @@ class PortfolioRecalculationService(
                 .mapValues { (_, value) -> value.sortedWith(compareBy({ it.tradeDate }, { it.createdAt })) }
         val flowEventsByDate =
             portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, startDate, today)
+                .asSequence()
+                .filterNot { it.sourceReferenceType == PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION }
                 .groupBy { it.eventDate }
         val rateMap = safeGetIndicatorRates()
         val monthlySeries = safeGetMonthlySeries(holdings, today)
@@ -313,6 +315,7 @@ class PortfolioRecalculationService(
 
     private companion object {
         const val HEARTBEAT_INTERVAL_DAYS: Int = 30
+        private const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"
 
         /** Stable identity for this JVM instance — in k8s this resolves to the pod name. */
         val NODE_ID: String = runCatching { InetAddress.getLocalHost().hostName }

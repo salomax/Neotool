@@ -5,274 +5,191 @@
 
 ---
 
-```gherkin
-Feature: Create Investment Account
-  As a user
-  I want to create an investment custody account
-  So that I can track my investment portfolio in a specific brokerage, bank, or exchange
+## Create Account — Happy Paths
 
-  Background:
-    Given I am authenticated
-    And I am on the /personal-finance/investments page
+### SC-01: Create brokerage account with known issuer (name defaults to issuer)
 
-  # ─── EMPTY STATE ──────────────────────────────────────────────────────────
+**Setup:** investments page, no accounts exist → click "Criar conta de investimento"
 
-  Scenario: Empty state CTA is visible when user has no investment accounts
-    Given I have no investment accounts
-    Then I see a full-page empty state
-    And I see a prominent "Criar conta de investimento" button
-    And the account sidebar is NOT visible
+| Field    | Value            |
+|---|---|
+| Subtype  | BROKERAGE        |
+| Issuer   | XP Investimentos |
+| Name     | (blank)          |
 
-  Scenario: Open the account creation drawer from the empty state CTA
-    Given I have no investment accounts
-    When I click "Criar conta de investimento"
-    Then a drawer opens on the right side
-    And the form displays immediately — no type selection step
-    And I do NOT see a bank type selector (Conta Corrente, Cartão de Crédito, etc.)
+**Asserts:**
+- `createFinancialAccount` called with `{ type: INVESTMENT, subtype: BROKERAGE, issuerId: <XP UUID> }` — name NOT sent
+- Account name resolves to "XP Investimentos" (from issuer record)
+- Drawer closes; account appears in sidebar
 
-  # ─── HAPPY PATHS ──────────────────────────────────────────────────────────
+---
 
-  Scenario: Create a brokerage account with a known issuer — name defaults to issuer
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select issuer "XP Investimentos" from the autocomplete
-    And I leave the account name blank
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type     | INVESTMENT |
-      | subtype  | BROKERAGE  |
-      | issuerId | <XP UUID>  |
-      | name     | (omitted)  |
-    And the drawer closes
-    And the new account "XP Investimentos" appears in the account sidebar
-    And the page refreshes showing the account
+### SC-02: Create brokerage account with explicit custom name
 
-  Scenario: Create a brokerage account with an explicit custom name
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select issuer "XP Investimentos" from the autocomplete
-    And I type "Minha Carteira Principal" in the account name field
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type     | INVESTMENT              |
-      | subtype  | BROKERAGE               |
-      | issuerId | <XP UUID>               |
-      | name     | Minha Carteira Principal|
-    And the new account appears in the sidebar with name "Minha Carteira Principal"
+**Setup:** drawer open
 
-  Scenario: Create a brokerage account with a custom (unknown) institution
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select "Outro / Personalizado" in the issuer field
-    And I type "Modal Mais" in the institution name field
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type       | INVESTMENT |
-      | subtype    | BROKERAGE  |
-      | issuerId   | (omitted)  |
-      | issuerName | Modal Mais |
-    And the new account appears in the sidebar with name "Modal Mais"
+| Field   | Value                    |
+|---|---|
+| Subtype | BROKERAGE                |
+| Issuer  | XP Investimentos         |
+| Name    | Minha Carteira Principal |
 
-  Scenario: Create a fixed income bank account
-    Given the investment account drawer is open
-    When I select subtype "Renda Fixa"
-    And I select issuer "Banco Inter" from the autocomplete
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type    | INVESTMENT   |
-      | subtype | FIXED_INCOME |
-    And the drawer closes successfully
+**Asserts:**
+- `createFinancialAccount` called with `{ name: "Minha Carteira Principal", issuerId: <XP UUID> }`
+- Sidebar shows "Minha Carteira Principal"
 
-  Scenario: Create a pension (previdência) account
-    Given the investment account drawer is open
-    When I select subtype "Previdência Privada"
-    And I select issuer "Bradesco Vida e Previdência" from the autocomplete
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type    | INVESTMENT |
-      | subtype | PENSION    |
-    And the drawer closes successfully
+---
 
-  Scenario: Create a crypto exchange account
-    Given the investment account drawer is open
-    When I select subtype "Criptomoedas"
-    And I select issuer "Binance" from the autocomplete
-    And I click "Criar"
-    Then the mutation createFinancialAccount is called with:
-      | type    | INVESTMENT |
-      | subtype | CRYPTO     |
-    And the drawer closes successfully
+### SC-03: Create account with custom (unknown) institution
 
-  Scenario: Create a second brokerage account when one already exists
-    Given I already have one investment account "XP Investimentos"
-    And I click the "+" or "Adicionar conta" button in the sidebar
-    When the drawer opens
-    And I select subtype "Corretora de Valores"
-    And I select issuer "BTG Pactual" from the autocomplete
-    And I click "Criar"
-    Then both "XP Investimentos" and "BTG Pactual" appear in the sidebar
+**Setup:** drawer open, select "Outro / Personalizado" in issuer field
 
-  # ─── ISSUER RESOLUTION RULES ──────────────────────────────────────────────
+| Field          | Value      |
+|---|---|
+| Subtype        | BROKERAGE  |
+| Issuer field   | Personalizado |
+| Institution    | Modal Mais |
 
-  Scenario: issuerId overrides any issuerName entered by the user
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select issuer "XP Investimentos" (which sets issuerId)
-    Then the mutation sends issuerId only — issuerName is NOT sent in the payload
-    And the account name resolves to "XP Investimentos" from the issuer record
+**Asserts:**
+- `createFinancialAccount` called with `{ issuerName: "Modal Mais" }` — `issuerId` NOT sent
+- Account name = "Modal Mais"
 
-  Scenario: Custom name field appears only when "Outro / Personalizado" is selected
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I have not selected "Outro / Personalizado"
-    Then the free-text institution name field is NOT visible
-    When I select "Outro / Personalizado"
-    Then the free-text institution name field becomes visible
+---
 
-  # ─── FORM FIELD PRESENCE RULES ────────────────────────────────────────────
+### SC-04: Create all four subtypes
 
-  Scenario: Banking and card fields are never shown in the investment account drawer
-    Given the investment account drawer is open
-    Then I do NOT see any of the following fields:
-      | Agência (branch code)       |
-      | Número da conta             |
-      | Bandeira do cartão          |
-      | Limite de crédito           |
-      | Dia de fechamento           |
-      | Dia de vencimento           |
-      | Saldo inicial               |
+| Subtype      | Label PT              | Expected `subtype` |
+|---|---|---|
+| BROKERAGE    | Corretora de Valores  | BROKERAGE          |
+| FIXED_INCOME | Renda Fixa            | FIXED_INCOME       |
+| PENSION      | Previdência Privada   | PENSION            |
+| CRYPTO       | Criptomoedas          | CRYPTO             |
 
-  Scenario: The mutation payload never includes bankData, cardData, or initialBalance
-    Given the investment account drawer is open
-    When I complete a valid form and submit
-    Then the createFinancialAccount mutation payload does NOT include:
-      | bankData        |
-      | cardData        |
-      | initialBalance  |
+**Asserts for all:** `type = INVESTMENT` in every call; drawer closes; account visible in sidebar
 
-  Scenario: The mutation always sends type = INVESTMENT regardless of subtype
-    Given the investment account drawer is open
-    When I select any subtype (BROKERAGE, FIXED_INCOME, PENSION, or CRYPTO)
-    And I complete the form and submit
-    Then the mutation is called with type = INVESTMENT in all cases
+---
 
-  # ─── ACCOUNT SIDEBAR AND SELECTION ───────────────────────────────────────
+### SC-05: Create second account (sidebar already has accounts)
 
-  Scenario: Sidebar shows all INVESTMENT and BENEFIT accounts
-    Given I have the following investment accounts:
-      | Name          | Type       | Subtype      |
-      | XP Corretora  | INVESTMENT | BROKERAGE    |
-      | Banco Inter   | INVESTMENT | FIXED_INCOME |
-      | Binance       | INVESTMENT | CRYPTO       |
-    And I have a BENEFIT account "FGTS"
-    When the investments page loads
-    Then the sidebar lists all 4 accounts: XP Corretora, Banco Inter, Binance, FGTS
-    And I also see a "Todas as contas" consolidated option
+**Setup:** one account "XP Corretora" exists; click "+" or "Adicionar conta" in sidebar
 
-  Scenario: Selecting a single account scopes the portfolio view
-    Given I have two accounts: "XP Corretora" and "BTG Pactual"
-    When I click "XP Corretora" in the sidebar
-    Then the holdings grid shows only holdings from XP Corretora
-    And the portfolio summary shows totals for XP Corretora only
+**Asserts:**
+- Drawer opens (same flow as SC-01)
+- After creation, sidebar lists both accounts
 
-  Scenario: Consolidated view aggregates all accounts
-    Given I have two accounts each with holdings
-    When I select "Todas as contas" in the sidebar (selectedAccountId = null)
-    Then the holdings grid shows holdings from all accounts
-    And the portfolio summary shows combined totals
+---
 
-  Scenario: Newly created account starts with zero cash balance
-    Given I have just created a new account "Rico Investimentos"
-    When I select "Rico Investimentos" in the sidebar
-    Then the cash balance displayed is R$ 0,00
-    And no holdings are shown (empty holdings state)
+## Form Constraint Rules
 
-  # ─── VALIDATION — NEGATIVE CASES ─────────────────────────────────────────
+### SC-06: Banking and card fields never appear
 
-  Scenario: Subtype is required — validation error on submit
-    Given the investment account drawer is open
-    When I select issuer "XP Investimentos"
-    And I click "Criar" without selecting a subtype
-    Then a validation error appears: "Tipo de conta é obrigatório"
-    And the mutation createFinancialAccount is NOT called
+**Setup:** drawer open, any subtype selected
 
-  Scenario: Issuer is required — validation error when both fields are blank
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I leave the issuer autocomplete blank
-    And I do NOT select "Outro / Personalizado"
-    And I click "Criar"
-    Then a validation error appears: "Informe a corretora ou nome da instituição"
-    And the mutation createFinancialAccount is NOT called
+**Asserts — none of these fields are rendered:**
+- Agência / número da conta
+- Bandeira / limite / dia de fechamento / dia de vencimento
+- Saldo inicial
 
-  Scenario: Custom institution name is required when "Outro / Personalizado" is selected
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select "Outro / Personalizado" in the issuer field
-    And I leave the institution name field blank
-    And I click "Criar"
-    Then a validation error appears on the institution name field
-    And the mutation createFinancialAccount is NOT called
+---
 
-  Scenario: Empty form submission shows all required field errors
-    Given the investment account drawer is open
-    When I click "Criar" without filling in any field
-    Then I see a validation error for subtype
-    And I see a validation error for issuer/institution
-    And the mutation createFinancialAccount is NOT called
+### SC-07: Mutation payload never includes bankData, cardData, or initialBalance
 
-  # ─── EDGE CASES ───────────────────────────────────────────────────────────
+**Setup:** valid form submitted
 
-  Scenario: Account name with only whitespace is treated as blank (defaults to issuer name)
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select issuer "XP Investimentos"
-    And I type "   " (only spaces) in the account name field
-    And I click "Criar"
-    Then the mutation is called without a name field (or with name = undefined)
-    And the account resolves to name "XP Investimentos" from the issuer record
+**Asserts:**
+- `createFinancialAccount` input has no `bankData`, `cardData`, `initialBalance`
+- `type` is always `INVESTMENT`
+- `currencyCode = BRL`, `includeInNetWorth = true`, `includeInDashboard = true`
 
-  Scenario: Long institution name is stored verbatim
-    Given the investment account drawer is open
-    When I select subtype "Corretora de Valores"
-    And I select "Outro / Personalizado"
-    And I type a 100-character institution name
-    And I click "Criar"
-    Then the mutation is called with the full institution name
-    And the account is created successfully
+---
 
-  Scenario: Mutation error shows an error banner — drawer stays open
-    Given the investment account drawer is open
-    And the createFinancialAccount mutation will return a server error
-    When I fill in a valid form and click "Criar"
-    Then an error alert is shown inside the drawer
-    And the drawer remains open
-    And the form fields retain their values
+### SC-08: Custom name field only appears when "Outro / Personalizado" selected
 
-  Scenario: currencyCode defaults to BRL
-    Given the investment account drawer is open
-    When I complete a valid form and submit
-    Then the createFinancialAccount mutation is called with:
-      | currencyCode | BRL |
+**Asserts:**
+- Before selecting "Personalizado": free-text institution name field NOT visible
+- After selecting "Personalizado": field becomes visible and required
 
-  Scenario: includeInNetWorth and includeInDashboard default to true
-    Given the investment account drawer is open
-    When I complete a valid form and submit
-    Then the createFinancialAccount mutation is called with:
-      | includeInNetWorth  | true |
-      | includeInDashboard | true |
+---
 
-  Scenario: BENEFIT accounts are visible in the sidebar but not creatable via this drawer
-    Given I have a BENEFIT account "FGTS" pre-existing in my profile
-    When the investments page loads
-    Then "FGTS" appears in the sidebar account list
-    And I cannot create a BENEFIT account via "Criar conta de investimento"
+### SC-09: `issuerId` takes precedence — `issuerName` not sent when issuer is known
 
-  Scenario: Closing the drawer without submitting does not create an account
-    Given the investment account drawer is open
-    When I fill in a subtype and issuer
-    And I click the "×" close button or press Escape
-    Then the drawer closes
-    And no new account is created
-    And the createFinancialAccount mutation is NOT called
-```
+**Setup:** user selects a catalogued issuer (e.g., "Binance")
+
+**Asserts:**
+- Payload contains only `issuerId`; `issuerName` is omitted
+
+---
+
+### SC-10: Whitespace-only name treated as blank → defaults to issuer name
+
+**Setup:** Name field = `"   "` (three spaces)
+
+**Asserts:**
+- `name` is NOT sent (or sent as undefined)
+- Account resolves to issuer name
+
+---
+
+## Sidebar & Account Selection
+
+### SC-11: Sidebar lists INVESTMENT and BENEFIT accounts; excludes BANK
+
+**Setup:** 2 INVESTMENT accounts + 1 BENEFIT "FGTS" + 1 BANK "Nubank"
+
+**Asserts:**
+- Sidebar shows: XP, BTG, FGTS, "Todas as contas"
+- "Nubank" does NOT appear
+
+---
+
+### SC-12: Selecting account scopes summary and grid
+
+**Asserts:**
+- `investmentPortfolioSummary(financialAccountId: <selected>)` called
+- Grid shows only that account's holdings
+
+---
+
+### SC-13: "Todas as contas" triggers consolidated view
+
+**Asserts:**
+- `investmentPortfolioSummary(financialAccountId: null)` called
+- Grid shows holdings from all accounts
+
+---
+
+### SC-14: Newly created account starts with zero cash balance
+
+**Asserts:**
+- Selecting the new account: cash balance = R$ 0,00; holdings grid empty
+
+---
+
+## Validation — Negative Cases
+
+| SC   | Trigger                                          | Expected error                                   | Mutation called? |
+|---|---|---|---|
+| SC-15 | Submit without selecting subtype                | "Tipo de conta é obrigatório"                    | No               |
+| SC-16 | Submit with subtype but no issuer/name          | "Informe a corretora ou nome da instituição"     | No               |
+| SC-17 | "Personalizado" selected, institution name blank | Validation error on institution name field      | No               |
+| SC-18 | Completely empty form                            | Errors on subtype + issuer fields                | No               |
+| SC-19 | Server returns error                             | Error alert inside drawer; drawer stays open; form retains values | No |
+| SC-20 | Close drawer without submitting (click × or Escape) | No account created; mutation NOT called       | No               |
+
+---
+
+## Edge Cases
+
+### SC-21: BENEFIT accounts visible in sidebar but not creatable via this drawer
+
+**Asserts:**
+- Pre-existing "FGTS" appears in sidebar
+- "Criar conta de investimento" drawer subtypes list does NOT include BENEFIT options
+
+---
+
+### SC-22: Long institution name (100 chars) stored verbatim
+
+**Asserts:**
+- `createFinancialAccount` called with the full institution name
+- Account created successfully

@@ -207,13 +207,12 @@ class PortfolioQuotaCalculationService {
 
     private fun signedFlowAmount(event: InvestmentPortfolioFlowEvent): BigDecimal =
         when (event.eventType) {
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DEPOSIT,
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DIVIDEND,
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.CORPORATE_ACTION,
-            -> event.grossAmount
+            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DEPOSIT -> event.grossAmount
             io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.WITHDRAWAL,
             io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.INCOME_TAX,
             -> event.grossAmount.negate()
+            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DIVIDEND -> event.grossAmount.negate()
+            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.CORPORATE_ACTION -> BigDecimal.ZERO
         }
 
     private companion object {

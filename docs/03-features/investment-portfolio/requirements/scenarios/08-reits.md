@@ -5,311 +5,227 @@
 
 ---
 
-```gherkin
-Feature: Compra de FII/FIAGRO (PURCHASE)
-  As a user
-  I want to record the purchase of FII or FIAGRO quotas
-  So that my portfolio tracks my real estate and agribusiness fund positions
+## Compra / PURCHASE — Happy Paths
 
-  Background:
-    Given I am authenticated
-    And I am on the /personal-finance/investments page
-    And I have at least one BROKERAGE investment account selected
+### SC-01: Buy MXRF11 — first purchase, new holding
 
-  # ─── HAPPY PATHS ──────────────────────────────────────────────────────────
+**Setup:** INFLOW tab, BROKERAGE account selected
 
-  Scenario: Buy MXRF11 (FII) — first purchase creates new holding
-    Given the RecordEquityHoldingDrawer is open in INFLOW mode for FIIs
-    When I search for "MXRF11" in the asset autocomplete
-    And the autocomplete is filtered to show only REAL_ESTATE_FUND and AGRIBUSINESS_FUND
-    And I select "MXRF11 — Maxi Renda FII"
-    And I fill in:
-      | Trade date       | 2026-04-10   |
-      | Settlement date  | 2026-04-14   |
-      | Quantity (cotas) | 500          |
-      | Unit price       | 10.20        |
-      | Brokerage fee    | 7.00         |
-      | Net value        | 5093.00      |
-    And I click "Registrar"
-    Then recordInvestmentTransaction is called with:
-      | direction        | INFLOW       |
-      | type             | PURCHASE     |
-      | quantity         | 500          |
-      | unitPrice        | 10.20        |
-      | grossValue       | 5100.00      |
-      | netValue         | 5093.00      |
-      | tradeDate        | 2026-04-10   |
-    And a DEBIT of R$ 5093.00 is created on the custodian account
-    And a new MXRF11 holding is created with:
-      | quantity     | 500   |
-      | averageCost  | 10.20 |
+| Field            | Value      |
+|---|---|
+| Asset (B3)       | MXRF11     |
+| Trade date       | 2026-04-10 |
+| Settlement date  | 2026-04-14 |
+| Quantity (cotas) | 500        |
+| Unit price       | 10,20      |
+| Brokerage fee    | 7,00       |
+| Net value        | 5 093,00   |
 
-  Scenario: Buy HGLG11 (FII) — second purchase updates weighted average cost
-    Given I already hold 200 HGLG11 at averageCost = R$ 155.00
-    When I record a second purchase of 100 HGLG11 at R$ 165.00
-    Then the holding is updated:
-      | quantity     | 300                                              |
-      | averageCost  | (200 × 155 + 100 × 165) / 300 = R$ 158.33       |
+**Transaction input:** `{ type: PURCHASE, direction: INFLOW, quantity: 500, unitPrice: 10.20, grossValue: 5100, netValue: 5093 }`
 
-  Scenario: Buy a FIAGRO asset (AGRIBUSINESS_FUND)
-    Given the RecordEquityHoldingDrawer is open in INFLOW mode
-    When I search for a FIAGRO ticker (e.g., RURA11)
-    And I select it
-    Then the asset type is AGRIBUSINESS_FUND
-    And recordInvestmentTransaction is called successfully
+**Asserts:**
+- New holding: `quantity=500, averageCost=10.20`
+- DEBIT R$ 5 093 on custodian account
 
-  Scenario: The asset autocomplete filters to FII/FIAGRO only
-    Given the RecordEquityHoldingDrawer is opened from the FIIs/FIAGROs group
-    When I type a stock ticker (e.g., "PETR4") in the autocomplete
-    Then PETR4 does NOT appear in the suggestions
-    And only REAL_ESTATE_FUND and AGRIBUSINESS_FUND assets are shown
+---
 
-  Scenario: Broker note fields are available and stored
-    Given the RecordEquityHoldingDrawer is open in INFLOW mode
-    When I fill in brokerage fee = R$ 7.00 and clearing fee = R$ 0.50
-    Then the broker note is stored with the transaction
+### SC-02: Second purchase — weighted average cost update
 
-  Scenario: Settlement date defaults to T+2 for FII purchases
-    Given the RecordEquityHoldingDrawer is open in INFLOW mode
-    When I select trade date = 2026-04-10
-    Then the settlement date field is pre-filled with 2026-04-14
+**Setup:** 200 HGLG11 @ averageCost=155,00
 
+**Buy:** 100 more @ 165,00
 
-Feature: Venda de FII/FIAGRO (SALE)
-  As a user
-  I want to record the sale of FII or FIAGRO quotas
-  So that proceeds are credited and the holding quantity decreases
+**Expected:** `quantity=300, averageCost=(200×155 + 100×165)/300 = R$ 158,33`
 
-  Background:
-    Given I am authenticated
-    And I hold 500 MXRF11 at averageCost = R$ 10.20
+---
 
-  Scenario: Sell 200 MXRF11 — partial position
-    Given the RecordEquityHoldingDrawer is open in OUTFLOW mode
-    When I fill in:
-      | Trade date       | 2026-05-01  |
-      | Settlement date  | 2026-05-05  |
-      | Quantity         | 200         |
-      | Unit price       | 11.00       |
-      | Net value        | 2195.00     |
-    And I click "Vender"
-    Then recordInvestmentTransaction is called with type = SALE
-    And a CREDIT of R$ 2195.00 is created on the custodian account
-    And the MXRF11 quantity decreases to 300
-    And the averageCost remains R$ 10.20 (SALE does not change averageCost)
+### SC-03: Asset autocomplete filters to FII/FIAGRO only
 
+**Setup:** RecordEquityHoldingDrawer opened from FIIs/FIAGROs group
 
-Feature: Rendimentos / Proventos (DIVIDEND)
-  As a user
-  I want to record monthly rendimento income from FIIs
-  So that cash proceeds are credited and the holding position is unchanged
+**Asserts:**
+- Typing "PETR4" returns no results
+- Only `REAL_ESTATE_FUND` and `AGRIBUSINESS_FUND` assets appear
 
-  Background:
-    Given I am authenticated
-    And I hold 500 MXRF11 in "XP Corretora"
+---
 
-  Scenario: Record monthly rendimento — qualifying FII (IR-exempt)
-    Given the RecordCorporateEventDrawer is open with event type DIVIDEND
-    When I fill in:
-      | Trade date   | 2026-04-15   |
-      | Gross value  | 50.00        |
-      | Net value    | 50.00        |
-      | Income tax   | 0.00         |
-    And I click "Registrar"
-    Then recordInvestmentTransaction is called with:
-      | type         | DIVIDEND     |
-      | direction    | INFLOW       |
-      | grossValue   | 50.00        |
-      | netValue     | 50.00        |
-      | incomeTax    | 0.00         |
-    And a CREDIT of R$ 50.00 is created on the custodian account
-    And the MXRF11 holding quantity and averageCost are UNCHANGED
+### SC-04: Settlement date defaults to T+2
 
-  Scenario: Record rendimento for a non-qualifying FII — IR applies
-    Given the RecordCorporateEventDrawer is open for DIVIDEND
-    When I enter gross value = 100.00 and net value = 85.00 and income tax = 15.00
-    Then recordInvestmentTransaction is called with:
-      | netValue   | 85.00  |
-      | incomeTax  | 15.00  |
-    And a CREDIT of R$ 85.00 is created on the custodian account
+**Trade date:** 2026-04-10 → **Expected settlement:** 2026-04-14
 
-  Scenario: System does not enforce IR exemption criteria automatically
-    Given the RecordCorporateEventDrawer is open for DIVIDEND
-    When I enter income tax = 0.00 for a non-qualifying FII
-    Then the form accepts the value without validation warning
-    And the user is responsible for the correct tax amount
+---
 
+## Venda / SALE
 
-Feature: Amortização de Cota (AMORTIZATION)
-  As a user
-  I want to record an amortization payment from a FII
-  So that the principal return is credited to my account
+### SC-05: Sell 200 MXRF11 — partial position
 
-  Background:
-    Given I am authenticated
-    And I hold 200 HGLG11 (REAL_ESTATE_FUND) in "XP Corretora"
+**Setup:** 500 MXRF11 @ averageCost=10,20
 
-  Scenario: Record a FII amortization — happy path
-    Given the RecordAmortizationDrawer is open for HGLG11
-    When I fill in:
-      | Trade date   | 2026-04-01   |
-      | Gross value  | 200.00       |
-      | Net value    | 200.00       |
-      | Income tax   | 0.00         |
-    And I click "Registrar"
-    Then RecordAmortizationService records type = AMORTIZATION with:
-      | grossValue  | 200.00   |
-      | netValue    | 200.00   |
-    And a CREDIT of R$ 200.00 is created on the custodian account
-    And the HGLG11 holding quantity is UNCHANGED (V1 simplification)
-    And the averageCost is UNCHANGED (V1 simplification — cost basis overstated)
+| Field       | Value      |
+|---|---|
+| Quantity    | 200        |
+| Net value   | 2 195,00   |
 
-  Scenario: FIAGRO is amortizable
-    Given I have an AGRIBUSINESS_FUND holding
-    When I try to open RecordAmortizationDrawer
-    Then the amortization option is available
+**Asserts:**
+- CREDIT R$ 2 195 on account
+- Holding: `quantity → 300`, `averageCost = 10.20` (unchanged)
 
-  Scenario: Amortization gross value must be > 0
-    Given the RecordAmortizationDrawer is open
-    When I enter gross value = 0 and click "Registrar"
-    Then I see a validation error: gross value must be > 0
-    And the mutation is NOT called
+---
 
-  Scenario: Amortization net value must be ≤ gross value
-    Given the RecordAmortizationDrawer is open
-    When I enter gross value = 200.00 and net value = 250.00
-    Then the service returns an error: net value cannot exceed gross value
+## Rendimentos / DIVIDEND
 
+### SC-06: Record monthly rendimento — qualifying FII (IR-exempt)
 
-Feature: Subscrição de Cotas (SUBSCRIPTION)
-  As a user
-  I want to record exercising FII subscription rights
-  So that my holding quantity and cost basis are updated
+**Setup:** 500 MXRF11 on "XP Corretora"
 
-  Background:
-    Given I am authenticated
-    And I hold 200 HGLG11 at averageCost = R$ 155.00
+| Field       | Value      |
+|---|---|
+| Trade date  | 2026-04-15 |
+| Gross value | 50,00      |
+| Net value   | 50,00      |
+| Income tax  | 0,00       |
 
-  Scenario: Record a FII quota subscription
-    Given the RecordCorporateEventDrawer is open with event type SUBSCRIPTION
-    When I fill in:
-      | Trade date       | 2026-05-01  |
-      | Quantity         | 10          |
-      | Unit price       | 160.00      |
-      | Net value        | 1600.00     |
-    And I click "Registrar"
-    Then recordInvestmentTransaction is called with type = SUBSCRIPTION
-    And the holding averageCost is updated via weighted average:
-      | newAverageCost = (200 × 155 + 10 × 160) / 210 = R$ 155.24 |
-    And a DEBIT of R$ 1600.00 is created on the custodian account
+**Transaction input:** `{ type: DIVIDEND, direction: INFLOW, grossValue: 50, netValue: 50, incomeTax: 0 }`
 
+**Asserts:**
+- CREDIT R$ 50 on account
+- Holding `quantity` and `averageCost` UNCHANGED
+- System does NOT enforce IR exemption criteria — user enters values as received
 
-Feature: Desdobramento / Grupamento FII (STOCK_SPLIT / REVERSE_SPLIT)
-  As a user
-  I want to record a FII split or reverse split
-  So that the holding reflects the correct post-event quota count and cost per quota
+---
 
-  Background:
-    Given I am authenticated
-    And I hold 100 XPML11 at averageCost = R$ 120.00
+### SC-07: Record rendimento for non-qualifying FII — IR applies
 
-  Scenario: Record a 2:1 FII split
-    Given the RecordCorporateEventDrawer is open with event type STOCK_SPLIT
-    When I fill in trade date = 2026-06-01 and split ratio = 2:1
-    Then the holding is updated:
-      | quantity     | 200                             |
-      | averageCost  | (100 × 120) / 200 = R$ 60.00   |
-    And no cash movement is created
+| Gross | Net   | IR    |
+|---|---|---|
+| 100,00| 85,00 | 15,00 |
 
-  Scenario: Record a 1:2 FII reverse split
-    Given I hold 200 XPML11 at averageCost = R$ 60.00
-    When I record a REVERSE_SPLIT with ratio 1:2
-    Then the holding is updated:
-      | quantity     | 100                               |
-      | averageCost  | (200 × 60) / 100 = R$ 120.00     |
-    And no cash movement is created
+**Asserts:** CREDIT R$ 85; `incomeTax=15` stored
 
+---
 
-Feature: Aluguel de Cotas FII/FIAGRO (STOCK_LENDING)
-  As a user
-  I want to record BTC B3 lending income for my FII holdings
-  So that the net proceeds are credited
+## Amortização de Cota / AMORTIZATION
 
-  Background:
-    Given I am authenticated
-    And I hold 1000 MXRF11
+### SC-08: Record FII amortization — happy path
 
-  Scenario: Record stock lending income for a FII
-    Given the RecordStockLendingDrawer is open for MXRF11
-    When I fill in gross value = 80.00, net value = 68.00, income tax = 12.00
-    And I click "Registrar"
-    Then RecordStockLendingService accepts the request (FII is in LENDABLE_ASSET_TYPES)
-    And a CREDIT of R$ 68.00 is created on the custodian account
-    And the MXRF11 holding quantity and averageCost are UNCHANGED
+**Setup:** 200 HGLG11 (`REAL_ESTATE_FUND`)
 
-  Scenario: FIAGRO is also eligible for stock lending
-    Given I hold a AGRIBUSINESS_FUND holding
-    When I try to record stock lending for it
-    Then the service accepts the request (AGRIBUSINESS_FUND is in LENDABLE_ASSET_TYPES)
+| Field       | Value      |
+|---|---|
+| Trade date  | 2026-04-01 |
+| Gross value | 200,00     |
+| Net value   | 200,00     |
+| Income tax  | 0,00       |
 
+**Transaction input:** `{ type: AMORTIZATION, grossValue: 200, netValue: 200 }`
 
-Feature: Transferência de Custódia — FII/FIAGRO (CUSTODY_TRANSFER)
-  As a user
-  I want to transfer FII quotas between my investment accounts
-  So that I can change brokers while preserving my cost basis
+**Asserts:**
+- CREDIT R$ 200 on account
+- Holding `quantity` and `averageCost` UNCHANGED (V1 simplification)
 
-  Background:
-    Given I am authenticated
-    And I hold 200 MXRF11 at averageCost = R$ 10.20 in "XP Corretora"
-    And I have a second account "Rico Investimentos"
+---
 
-  Scenario: Transfer full MXRF11 position from XP to Rico
-    Given the TransferCustodyDrawer is open for the MXRF11 holding
-    When I select "Rico Investimentos" as the destination
-    And I leave quantity blank (full transfer)
-    And I click "Transferir"
-    Then TransferCustodyService records CUSTODY_TRANSFER (not QUOTA_TRANSFER) because assetType = REAL_ESTATE_FUND
-    And the XP holding quantity becomes 0
-    And a new MXRF11 holding is created at Rico with:
-      | quantity     | 200   |
-      | averageCost  | 10.20 |
+### SC-09: Amortization eligibility
 
-  Scenario: CUSTODY_TRANSFER type is used for FIIs (not QUOTA_TRANSFER)
-    Given I am transferring a REAL_ESTATE_FUND holding
-    When TransferCustodyService processes the request
-    Then the transaction type is CUSTODY_TRANSFER
-    And NOT QUOTA_TRANSFER (which is reserved for MUTUAL_FUND only)
+| Asset type         | Eligible? |
+|---|---|
+| REAL_ESTATE_FUND   | ✅        |
+| AGRIBUSINESS_FUND  | ✅        |
+| STOCK              | ❌ — "Tipo não suporta amortização" |
 
-  Scenario: averageCost is preserved during FII custody transfer
-    Given the source holding has averageCost = R$ 10.20
-    When I transfer to another account
-    Then the destination holding receives averageCost = R$ 10.20
+---
 
+### SC-10: Amortization validation failures
 
-Feature: FII/FIAGRO Valuation
-  As a user
-  I want to see my FII/FIAGRO holdings valued at current B3 prices
-  So that I can monitor portfolio performance
+| Scenario                   | Expected error                             |
+|---|---|
+| `grossValue = 0`          | "Valor bruto deve ser maior que zero"       |
+| `netValue > grossValue`   | "Valor líquido não pode exceder o bruto"    |
 
-  Background:
-    Given I am authenticated
-    And I hold MXRF11 and HGLG11
+---
 
-  Scenario: Holdings are valued with live B3 prices
-    When the portfolio page loads
-    Then each FII holding shows:
-      | grossValue      = quantity × latestPrice |
-      | valuationSource = MARKET_DATA             |
+## Subscrição / SUBSCRIPTION
 
-  Scenario: When market data is unavailable, cost basis is used as fallback
-    Given the financial-data service cannot return a price for MXRF11
-    When the portfolio page loads
-    Then MXRF11 shows:
-      | grossValue      = quantity × averageCost |
-      | valuationSource = UNAVAILABLE             |
+### SC-11: FII rights offering subscription
 
-  Scenario: FII rendimentos provisioned IR is not computed in V1
-    Given I hold a qualifying FII
-    When the valuation runs
-    Then incomeTax = 0 in the valuation output (IR on rendimentos is exempt; no IR provisioning)
-```
+**Setup:** 200 HGLG11 @ averageCost=155,00
+
+| Field       | Value      |
+|---|---|
+| Quantity    | 10         |
+| Unit price  | 160,00     |
+| Net value   | 1 600,00   |
+
+**Transaction input:** `{ type: SUBSCRIPTION, direction: INFLOW }`
+
+**Expected averageCost:** `(200×155 + 10×160) / 210 = R$ 155,24`
+**Asserts:** DEBIT R$ 1 600 on account
+
+---
+
+## Desdobramento / Grupamento
+
+### SC-12: 2:1 FII split
+
+**Setup:** 100 XPML11 @ averageCost=120,00 (total cost=R$ 12 000)
+
+**Expected:** `quantity=200, averageCost=60.00` (total cost preserved)
+**Asserts:** no cash ledger entry
+
+---
+
+### SC-13: 1:2 FII reverse split
+
+**Setup:** 200 XPML11 @ averageCost=60,00 (total cost=R$ 12 000)
+
+**Expected:** `quantity=100, averageCost=120.00` (total cost preserved)
+**Asserts:** no cash ledger entry
+
+---
+
+## Aluguel de Cotas / STOCK_LENDING
+
+### SC-14: Record BTC lending for a FII
+
+**Setup:** 1 000 MXRF11
+
+| Gross  | Net   | IR    |
+|---|---|---|
+| 80,00  | 68,00 | 12,00 |
+
+**Asserts:**
+- `RecordStockLendingService` accepts (FII in `LENDABLE_ASSET_TYPES`)
+- CREDIT R$ 68; holding unchanged
+
+---
+
+### SC-15: FIAGRO also eligible for stock lending
+
+**Asserts:** `AGRIBUSINESS_FUND` accepted by `RecordStockLendingService`
+
+---
+
+## Transferência de Custódia / CUSTODY_TRANSFER
+
+### SC-16: Transfer full MXRF11 position — XP → Rico
+
+**Setup:** 200 MXRF11 @ averageCost=10,20 on "XP Corretora"; destination "Rico Investimentos"
+
+**Asserts:**
+- Transaction type = `CUSTODY_TRANSFER` (NOT `QUOTA_TRANSFER` — that's only for `MUTUAL_FUND`)
+- `CUSTODY_TRANSFER OUT` XP: `quantity=200`
+- `CUSTODY_TRANSFER IN` Rico: `quantity=200, averageCost=10.20`
+- Atomic operation; `averageCost` preserved
+
+---
+
+## Valuation
+
+### SC-17: FII valuation sources
+
+| Scenario                    | `valuationSource` | `grossValue`                          |
+|---|---|---|
+| B3 price available          | MARKET_DATA       | `quantity × latestPrice`              |
+| B3 price unavailable        | UNAVAILABLE       | `quantity × averageCost`              |
+
+**Asserts:** `incomeTax = 0` in valuation (rendimento IR exemption; no IR provisioning in V1)

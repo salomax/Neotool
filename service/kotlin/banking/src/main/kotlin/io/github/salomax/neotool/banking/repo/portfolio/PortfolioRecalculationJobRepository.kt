@@ -25,6 +25,8 @@ interface PortfolioRecalculationJobRepository {
      */
     fun releaseZombieJobs(staleThreshold: Instant): Int
 
+    fun findOldestPending(limit: Int): List<PortfolioRecalculationJob>
+
     fun findPendingByAccount(accountId: UUID): PortfolioRecalculationJob?
 
     fun findActiveByAccount(accountId: UUID): PortfolioRecalculationJob?

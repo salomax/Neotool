@@ -104,6 +104,10 @@ CREATE INDEX idx_recalculation_job_zombie
     ON banking.investment_portfolio_recalculation_job(status, last_heartbeat_at)
     WHERE status = 'PROCESSING';
 
+CREATE INDEX IF NOT EXISTS idx_recalculation_job_pending_created_at
+    ON banking.investment_portfolio_recalculation_job (status, created_at)
+    WHERE status = 'PENDING';
+
 CREATE TABLE banking.market_benchmark_daily (
     benchmark_code  VARCHAR(10) NOT NULL
                         CHECK (benchmark_code IN ('CDI', 'IBOV', 'IPCA', 'IFIX')),

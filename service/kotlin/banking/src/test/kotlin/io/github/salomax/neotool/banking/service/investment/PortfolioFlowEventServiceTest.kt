@@ -5,9 +5,6 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
-import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
-import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
@@ -28,7 +25,6 @@ class PortfolioFlowEventServiceTest {
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository = mock()
     private val portfolioQuotaRepository: PortfolioQuotaRepository = mock()
     private val portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository = mock()
-    private val investmentQueryService: InvestmentQueryService = mock()
     private val recalculationRequestedEventPublisher: ApplicationEventPublisher<PortfolioRecalculationRequestedEvent> = mock()
 
     private val service =
@@ -36,7 +32,6 @@ class PortfolioFlowEventServiceTest {
             portfolioFlowEventRepository = portfolioFlowEventRepository,
             portfolioQuotaRepository = portfolioQuotaRepository,
             portfolioRecalculationJobRepository = portfolioRecalculationJobRepository,
-            investmentQueryService = investmentQueryService,
             recalculationRequestedEventPublisher = recalculationRequestedEventPublisher,
         )
 
@@ -47,10 +42,6 @@ class PortfolioFlowEventServiceTest {
         val sourceReferenceId = UUID.randomUUID()
         val eventDate = LocalDate.of(2026, 4, 3)
 
-        whenever(investmentQueryService.getHoldings(financialAccountId, accountId)).thenReturn(
-            listOf(holding(financialAccountId, accountId, grossValue = 1200.0)),
-        )
-        whenever(investmentQueryService.getInvestmentCashBalance(financialAccountId, accountId)).thenReturn(BigDecimal("300.00"))
         whenever(
             portfolioQuotaRepository.findLatestBefore(
                 financialAccountId = financialAccountId,
@@ -77,7 +68,7 @@ class PortfolioFlowEventServiceTest {
                 sourceReferenceType = "BANKING_TRANSACTION",
             )
 
-        assertThat(saved.portfolioValueBefore).isEqualByComparingTo("1300.00")
+        assertThat(saved.portfolioValueBefore).isEqualByComparingTo("1000.00")
         assertThat(saved.quotaValueAtEvent).isEqualByComparingTo("1.25000000")
         assertThat(saved.quotasTransacted).isEqualByComparingTo("160.00000000")
         verify(portfolioFlowEventRepository).deleteBySourceReference(sourceReferenceId, "BANKING_TRANSACTION")
@@ -153,44 +144,4 @@ class PortfolioFlowEventServiceTest {
         totalPortfolioValue = BigDecimal("1000.00"),
     )
 
-    private fun holding(
-        financialAccountId: UUID,
-        accountId: UUID,
-        grossValue: Double,
-    ): InvestmentHoldingDTO {
-        val now = Instant.parse("2026-04-03T12:00:00Z")
-        return InvestmentHoldingDTO(
-            id = UUID.randomUUID(),
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            assetId = UUID.randomUUID(),
-            asset = null,
-            financialAccount = null,
-            quantity = 1.0,
-            averageCost = 1.0,
-            indexer = null,
-            indexerPercentage = null,
-            fixedAnnualRate = null,
-            issueDate = null,
-            maturityDate = null,
-            gracePeriodDate = null,
-            isTaxExempt = false,
-            grossValue = grossValue,
-            netValue = grossValue,
-            incomeTax = null,
-            iof = null,
-            lastValuedAt = null,
-            pricingMode = null,
-            valuationSource = ValuationSource.MANUAL,
-            valuationReferenceDate = null,
-            isExpired = false,
-            isClosed = false,
-            isExpiredPending = false,
-            closedAt = null,
-            closeReason = null,
-            source = InvestmentSource.MANUAL,
-            createdAt = now,
-            updatedAt = now,
-        )
-    }
 }

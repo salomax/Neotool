@@ -23,7 +23,6 @@ open class PortfolioFlowEventService(
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository,
     private val portfolioQuotaRepository: PortfolioQuotaRepository,
     private val portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository,
-    private val investmentQueryService: InvestmentQueryService,
     private val recalculationRequestedEventPublisher: ApplicationEventPublisher<PortfolioRecalculationRequestedEvent>,
 ) {
     @Transactional
@@ -43,10 +42,16 @@ open class PortfolioFlowEventService(
             portfolioFlowEventRepository.deleteBySourceReference(sourceReferenceId, sourceReferenceType)
         }
 
-        val portfolioValueAfter = currentPortfolioValue(financialAccountId, accountId)
+        val latestQuota =
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.PORTFOLIO,
+                dimensionKey = null,
+                date = eventDate,
+            )
         val signedAmount = signedAmount(eventType, grossAmount)
-        val portfolioValueBefore = portfolioValueAfter.subtract(signedAmount)
-        val quotaValueAtEvent = quotaValueAtEvent(financialAccountId, eventDate)
+        val portfolioValueBefore = latestQuota?.totalPortfolioValue?.max(BigDecimal.ZERO) ?: BigDecimal.ZERO
+        val quotaValueAtEvent = latestQuota?.quotaValue ?: INITIAL_QUOTA_VALUE
         val quotasTransacted =
             if (quotaValueAtEvent.compareTo(BigDecimal.ZERO) == 0) {
                 BigDecimal.ZERO
@@ -145,37 +150,15 @@ open class PortfolioFlowEventService(
     ): Int =
         portfolioFlowEventRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, relatedHoldingId)
 
-    private fun currentPortfolioValue(
-        financialAccountId: UUID,
-        accountId: UUID,
-    ): BigDecimal {
-        val holdingsValue =
-            investmentQueryService.getHoldings(financialAccountId = financialAccountId, accountId = accountId)
-                .fold(BigDecimal.ZERO) { acc, holding ->
-                    acc.add(BigDecimal.valueOf(holding.grossValue ?: 0.0))
-                }
-        val cashBalance = investmentQueryService.getInvestmentCashBalance(financialAccountId = financialAccountId, accountId = accountId)
-        return holdingsValue.add(cashBalance)
-    }
-
-    private fun quotaValueAtEvent(
-        financialAccountId: UUID,
-        eventDate: LocalDate,
-    ): BigDecimal =
-        portfolioQuotaRepository.findLatestBefore(
-            financialAccountId = financialAccountId,
-            dimensionType = PortfolioDimensionType.PORTFOLIO,
-            dimensionKey = null,
-            date = eventDate,
-        )?.quotaValue ?: INITIAL_QUOTA_VALUE
-
     private fun signedAmount(
         eventType: PortfolioFlowEventType,
         grossAmount: BigDecimal,
     ): BigDecimal =
         when (eventType) {
-            PortfolioFlowEventType.DEPOSIT, PortfolioFlowEventType.DIVIDEND, PortfolioFlowEventType.CORPORATE_ACTION -> grossAmount
+            PortfolioFlowEventType.DEPOSIT -> grossAmount
             PortfolioFlowEventType.WITHDRAWAL, PortfolioFlowEventType.INCOME_TAX -> grossAmount.negate()
+            PortfolioFlowEventType.DIVIDEND -> grossAmount.negate()
+            PortfolioFlowEventType.CORPORATE_ACTION -> BigDecimal.ZERO
         }
 
     private fun buildTriggeredBy(
