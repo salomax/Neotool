@@ -802,16 +802,6 @@ export function InvestmentTable({
         onSuccess={refreshInvestmentData}
       />
 
-      <InvestmentEditDrawers
-        holding={editDrawer.holding}
-        transaction={editDrawer.transaction}
-        kind={editDrawer.kind}
-        financialAccountId={editDrawer.financialAccountId}
-        financialAccounts={investmentAccounts}
-        onClose={closeEditDrawer}
-        onRecorded={refreshInvestmentData}
-      />
-
       <RecordEquityHoldingDrawer
         open={isQuickEquityOpen}
         onClose={closeQuickTransaction}
