@@ -1,6 +1,9 @@
 package io.github.salomax.neotool.banking.service.import
 
 import io.github.salomax.neotool.banking.domain.import.*
+import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
+import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
+import io.github.salomax.neotool.banking.model.dto.imports.ImportRowError
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
@@ -22,34 +25,6 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
-
-/**
- * Result of processing a batch of [ParsedTransaction] rows for an [ImportJob].
- */
-data class ImportProcessingResult(
-    val imported: List<Transaction>,
-    val skipped: Int,
-    val duplicateCandidates: List<ImportDuplicateCandidate>,
-    val errors: List<ImportRowError>,
-)
-
-/**
- * A row that may be a duplicate of existing transaction(s) from another source (Level 2).
- * Not inserted; caller may present for review.
- */
-data class ImportDuplicateCandidate(
-    val rowIndex: Int,
-    val parsed: ParsedTransaction,
-    val candidates: List<Transaction>,
-)
-
-/**
- * Parse/validation failure for a single row.
- */
-data class ImportRowError(
-    val rowIndex: Int,
-    val reason: String,
-)
 
 /**
  * Maps [ImportSource] to [TransactionSource] for stored transactions.

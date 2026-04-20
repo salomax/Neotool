@@ -2,10 +2,11 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxResult
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.micronaut.transaction.annotation.Transactional
@@ -14,17 +15,6 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.LocalDate
 import java.util.UUID
-
-data class ConfirmWithholdingTaxCommand(
-    val holdingId: UUID,
-    val tradeDate: LocalDate,
-    val irValue: BigDecimal,
-    val quotasDeducted: BigDecimal,
-)
-
-data class ConfirmWithholdingTaxResult(
-    val withholdingTaxTransaction: InvestmentTransaction,
-)
 
 @Singleton
 open class ConfirmWithholdingTaxService(

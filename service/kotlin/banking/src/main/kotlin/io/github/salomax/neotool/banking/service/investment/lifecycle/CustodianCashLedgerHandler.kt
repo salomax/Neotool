@@ -11,9 +11,10 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.MATURITY
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.PURCHASE
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SALE
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_LENDING
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -145,7 +146,7 @@ open class CustodianCashLedgerHandler(
                 val assetName = context.asset.name
                 val (categoryParent, categoryChild) =
                     when (command.type) {
-                        DIVIDEND, INTEREST_ON_EQUITY -> "Renda Extra" to "Dividendos"
+                        DIVIDEND, INTEREST_ON_EQUITY, STOCK_LENDING -> "Renda Extra" to "Dividendos"
                         SALE, MATURITY -> "Investimentos" to "Resgate"
                         INTEREST_PAYMENT, AMORTIZATION -> "Investimentos" to "Rendimento"
                         else ->
@@ -170,6 +171,7 @@ open class CustodianCashLedgerHandler(
                     when (command.type) {
                         DIVIDEND -> "Dividendos — $assetName"
                         INTEREST_ON_EQUITY -> "JCP — $assetName"
+                        STOCK_LENDING -> "Aluguel B3 — $assetName"
                         SALE -> "Resgate / venda — $assetName"
                         MATURITY -> "Vencimento — $assetName"
                         INTEREST_PAYMENT -> "Rendimento (juros) — $assetName"
@@ -233,6 +235,30 @@ open class CustodianCashLedgerHandler(
             ledgerRows
                 .mapNotNull { tx -> tx.transferPeerTransactionId?.let { id -> id to tx } }
                 .toMap()
+        val unresolvedDirectPeerIds =
+            ledgerRows
+                .mapNotNull { ledgerTx ->
+                    val directPeerId = ledgerTx.transferPeerTransactionId ?: return@mapNotNull null
+                    if (localById.containsKey(directPeerId)) null else directPeerId
+                }
+                .toSet()
+        val unresolvedReversePeerIds =
+            ledgerRows
+                .mapNotNull { ledgerTx ->
+                    if (ledgerTx.transferPeerTransactionId != null) return@mapNotNull null
+                    val selfId = ledgerTx.id ?: return@mapNotNull null
+                    if (localByTransferPeer.containsKey(selfId)) null else selfId
+                }
+                .toSet()
+        val persistedDirectPeersById =
+            transactionRepository
+                .findByIds(unresolvedDirectPeerIds, accountId)
+                .associateBy { requireNotNull(it.id) { "peer transaction id must not be null" } }
+        val persistedReversePeersByTransferPeerId =
+            transactionRepository
+                .findByTransferPeerTransactionIds(unresolvedReversePeerIds, accountId)
+                .mapNotNull { peer -> peer.transferPeerTransactionId?.let { transferPeerId -> transferPeerId to peer } }
+                .toMap()
         val removedBankingIds = mutableSetOf<UUID>()
         for (ledgerTx in ledgerRows) {
             val bankingId = requireNotNull(ledgerTx.id) { "banking transaction id must not be null" }
@@ -245,7 +271,13 @@ open class CustodianCashLedgerHandler(
             }
             transactionService.delete(bankingId, accountId)
             removedBankingIds += bankingId
-            resolveLedgerPeerTransaction(ledgerTx, accountId, localById, localByTransferPeer)?.let { peer ->
+            resolveLedgerPeerTransaction(
+                tx = ledgerTx,
+                localById = localById,
+                localByTransferPeer = localByTransferPeer,
+                persistedDirectPeersById = persistedDirectPeersById,
+                persistedReversePeersByTransferPeerId = persistedReversePeersByTransferPeerId,
+            )?.let { peer ->
                 val peerId = requireNotNull(peer.id) { "peer transaction id must not be null" }
                 if (peerId !in removedBankingIds) {
                     if (peer.type == TransactionType.TRANSFER) {
@@ -263,16 +295,17 @@ open class CustodianCashLedgerHandler(
 
     private fun resolveLedgerPeerTransaction(
         tx: Transaction,
-        accountId: UUID,
         localById: Map<UUID, Transaction>,
         localByTransferPeer: Map<UUID, Transaction>,
+        persistedDirectPeersById: Map<UUID, Transaction>,
+        persistedReversePeersByTransferPeerId: Map<UUID, Transaction>,
     ): Transaction? {
         val directPeerId = tx.transferPeerTransactionId
         if (directPeerId != null) {
-            return localById[directPeerId] ?: transactionRepository.findById(directPeerId, accountId)
+            return localById[directPeerId] ?: persistedDirectPeersById[directPeerId]
         }
         val selfId = tx.id ?: return null
-        return localByTransferPeer[selfId] ?: transactionRepository.findByTransferPeerTransactionId(selfId, accountId)
+        return localByTransferPeer[selfId] ?: persistedReversePeersByTransferPeerId[selfId]
     }
 
     private fun resolveSystemSubcategoryId(
@@ -326,6 +359,7 @@ open class CustodianCashLedgerHandler(
                 MATURITY,
                 INTEREST_PAYMENT,
                 AMORTIZATION,
+                STOCK_LENDING,
             )
 
         private const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"

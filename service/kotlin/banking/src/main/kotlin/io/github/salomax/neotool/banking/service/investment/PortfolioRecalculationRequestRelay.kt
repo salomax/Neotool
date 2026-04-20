@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.client.investment.messaging.PortfolioRecalculationRequestedEvent as KafkaPortfolioRecalculationRequestedEvent
 import io.github.salomax.neotool.banking.client.investment.messaging.PortfolioRecalculationRequestedProducer
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationRequestedEvent
 import io.micronaut.context.annotation.Requires
 import io.micronaut.transaction.annotation.TransactionalEventListener
 import jakarta.inject.Singleton

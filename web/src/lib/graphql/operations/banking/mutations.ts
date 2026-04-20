@@ -217,6 +217,45 @@ export const CONFIRM_WITHHOLDING_TAX = gql`
   }
 `;
 
+export const RECORD_AMORTIZATION = gql`
+  mutation RecordAmortization($input: RecordAmortizationInput!) {
+    recordAmortization(input: $input) {
+      amortizationTransaction {
+        id
+      }
+      bankingTransaction {
+        id
+      }
+    }
+  }
+`;
+
+export const RECORD_STOCK_LENDING = gql`
+  mutation RecordStockLending($input: RecordStockLendingInput!) {
+    recordStockLending(input: $input) {
+      lendingTransaction {
+        id
+      }
+      bankingTransaction {
+        id
+      }
+    }
+  }
+`;
+
+export const TRANSFER_CUSTODY = gql`
+  mutation TransferCustody($input: TransferCustodyInput!) {
+    transferCustody(input: $input) {
+      outflowTransaction {
+        id
+      }
+      inflowTransaction {
+        id
+      }
+    }
+  }
+`;
+
 /** Delete a transaction. */
 export const DELETE_TRANSACTION = gql`
   mutation DeleteTransaction($id: ID!) {

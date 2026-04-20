@@ -3,8 +3,8 @@ package io.github.salomax.neotool.banking.service.billimport
 import io.github.salomax.neotool.banking.domain.billimport.*
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
-import io.github.salomax.neotool.banking.service.import.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.service.import.excel.ExcelExtractionService
 import io.github.salomax.neotool.banking.service.import.excel.ExcelDeterministicRoutingService
@@ -297,7 +297,7 @@ internal class ExcelBillInputStrategy(
 
     private fun submitAssistantFallback(
         request: BillImportSubmissionRequest,
-        extraction: io.github.salomax.neotool.banking.service.import.excel.ExcelExtractionResult,
+        extraction: io.github.salomax.neotool.banking.model.dto.imports.excel.ExcelExtractionResult,
         extractionMetadata: Map<String, Any?>,
         fileType: FingerprintFileType,
     ): BillImportJob {

@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.model.domain.transaction.MerchantWebsiteNormalizer
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import jakarta.inject.Singleton

@@ -9,6 +9,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.PRIZE
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.PURCHASE
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SALE
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_LENDING
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
@@ -108,6 +109,7 @@ private fun InvestmentTransaction.toPortfolioFlowEventType(): PortfolioFlowEvent
         INTEREST_PAYMENT,
         AMORTIZATION,
         PRIZE,
+        STOCK_LENDING,
         -> PortfolioFlowEventType.DIVIDEND
         WITHHOLDING_TAX -> PortfolioFlowEventType.INCOME_TAX
         else -> null

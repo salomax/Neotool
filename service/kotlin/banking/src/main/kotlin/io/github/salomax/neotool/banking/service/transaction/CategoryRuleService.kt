@@ -1,11 +1,14 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
+import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
-import io.github.salomax.neotool.banking.service.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -366,31 +369,3 @@ open class TransactionRuleService(
         }
     }
 }
-
-data class CreateTransactionRuleInput(
-    val categoryId: UUID? = null,
-    val merchantId: UUID? = null,
-    val descriptionOverride: String? = null,
-    val tagsOverride: List<String>? = null,
-    val pattern: String,
-    val patternType: PatternType,
-    val applicableTo: CategoryApplicableTo,
-    val priority: Int? = null,
-)
-
-data class UpdateTransactionRuleInput(
-    val categoryId: UUID? = null,
-    val merchantId: UUID? = null,
-    /** When true, merchantId is being explicitly set (possibly to null to clear it). */
-    val merchantIdProvided: Boolean = false,
-    val descriptionOverride: String? = null,
-    /** When true, descriptionOverride is being explicitly set (possibly to null to clear it). */
-    val descriptionOverrideProvided: Boolean = false,
-    val tagsOverride: List<String>? = null,
-    /** When true, tagsOverride is being explicitly set (possibly to null to clear it). */
-    val tagsOverrideProvided: Boolean = false,
-    val applicableTo: CategoryApplicableTo? = null,
-    val pattern: String? = null,
-    val patternType: PatternType? = null,
-    val priority: Int? = null,
-)

@@ -168,6 +168,21 @@ data class ConfirmWithholdingTaxResultDTO(
     val withholdingTaxTransaction: InvestmentTransactionDTO,
 )
 
+data class RecordAmortizationResultDTO(
+    val amortizationTransaction: InvestmentTransactionDTO,
+    val bankingTransaction: TransactionDTO?,
+)
+
+data class RecordStockLendingResultDTO(
+    val lendingTransaction: InvestmentTransactionDTO,
+    val bankingTransaction: TransactionDTO?,
+)
+
+data class TransferCustodyResultDTO(
+    val outflowTransaction: InvestmentTransactionDTO,
+    val inflowTransaction: InvestmentTransactionDTO,
+)
+
 data class HoldingPerformanceCapabilitiesDTO(
     val supportsProjection: Boolean,
     val projectionDefaultEnabled: Boolean,

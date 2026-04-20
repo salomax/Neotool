@@ -4,7 +4,7 @@ import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import java.math.BigDecimal
 import java.math.RoundingMode
 

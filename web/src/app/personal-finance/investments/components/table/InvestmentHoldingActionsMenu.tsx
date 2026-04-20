@@ -11,10 +11,15 @@ import TimelineIcon from '@mui/icons-material/Timeline';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
 import AssignmentIcon from '@mui/icons-material/Assignment';
 import PercentIcon from '@mui/icons-material/Percent';
+import PaymentsIcon from '@mui/icons-material/Payments';
+import SavingsIcon from '@mui/icons-material/Savings';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import { alpha, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
+  AMORTIZABLE_ASSET_TYPES,
+  LENDABLE_ASSET_TYPES,
   getAssetGroupKey,
   FIXED_INCOME_GROUP_KEYS,
   type HoldingRow,
@@ -38,6 +43,9 @@ interface InvestmentHoldingActionsMenuProps {
   onRecordBonus?: () => void;
   onRecordSubscription?: () => void;
   onRecordWithholdingTax?: () => void;
+  onRecordAmortization?: () => void;
+  onRecordStockLending?: () => void;
+  onTransferCustody?: () => void;
 }
 
 export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldingActionsMenu({
@@ -58,6 +66,9 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   onRecordBonus,
   onRecordSubscription,
   onRecordWithholdingTax,
+  onRecordAmortization,
+  onRecordStockLending,
+  onTransferCustody,
 }: InvestmentHoldingActionsMenuProps) {
   const { t } = useTranslation(personalFinanceTranslations);
 
@@ -66,6 +77,9 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   const showCorporateEvents = holdingGroup === 'variableIncome' || holdingGroup === 'mutualFunds' || holdingGroup === 'pension';
   const showExtendedCorporateEvents = holdingGroup === 'variableIncome';
   const showWithholdingTaxAction = holding?.asset?.assetType === 'MUTUAL_FUND';
+  const showAmortizationAction = AMORTIZABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
+  const showStockLendingAction = LENDABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
+  const showTransferCustodyAction = (holding?.quantity ?? 0) > 0;
 
   return (
     <Menu
@@ -124,6 +138,54 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
             <PercentIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>{t('investments.table.rowActions.recordWithholdingTax')}</ListItemText>
+        </MenuItem>
+      ) : null}
+
+      {showAmortizationAction ? (
+        <MenuItem
+          disabled={deleting || !holding || !onRecordAmortization}
+          onClick={() => {
+            if (!holding || !onRecordAmortization) return;
+            onClose();
+            onRecordAmortization();
+          }}
+        >
+          <ListItemIcon>
+            <PaymentsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.recordAmortization')}</ListItemText>
+        </MenuItem>
+      ) : null}
+
+      {showStockLendingAction ? (
+        <MenuItem
+          disabled={deleting || !holding || !onRecordStockLending}
+          onClick={() => {
+            if (!holding || !onRecordStockLending) return;
+            onClose();
+            onRecordStockLending();
+          }}
+        >
+          <ListItemIcon>
+            <SavingsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.recordStockLending')}</ListItemText>
+        </MenuItem>
+      ) : null}
+
+      {showTransferCustodyAction ? (
+        <MenuItem
+          disabled={deleting || !holding || !onTransferCustody}
+          onClick={() => {
+            if (!holding || !onTransferCustody) return;
+            onClose();
+            onTransferCustody();
+          }}
+        >
+          <ListItemIcon>
+            <SwapHorizIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t('investments.table.rowActions.transferCustody')}</ListItemText>
         </MenuItem>
       ) : null}
 

@@ -4,11 +4,20 @@ import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
-import io.github.salomax.neotool.banking.service.investment.CnpjValidator
-import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentCommand
+import io.github.salomax.neotool.banking.model.domain.investment.validation.CnpjValidator
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
+import io.github.salomax.neotool.banking.model.dto.investment.InvestmentCashTransactionCursor
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.RecordAmortizationCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
 import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
-import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxCommand
 import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
+import io.github.salomax.neotool.banking.service.investment.RecordAmortizationService
+import io.github.salomax.neotool.banking.service.investment.RecordStockLendingService
+import io.github.salomax.neotool.banking.service.investment.TransferCustodyService
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
@@ -24,7 +33,6 @@ import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionCursor
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
 import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
 import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
@@ -32,12 +40,10 @@ import io.github.salomax.neotool.banking.service.investment.PortfolioPerformance
 import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
 import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
 import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceQueryService
-import io.github.salomax.neotool.banking.service.investment.AssetGroupMapping
-import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSubgroupMapping
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.domain.investment.UpdateInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
 import io.github.salomax.neotool.banking.graphql.investment.BrokerNoteDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
@@ -71,6 +77,9 @@ class InvestmentResolver(
     private val investmentCashService: InvestmentCashService,
     private val confirmCouponPaymentService: ConfirmCouponPaymentService,
     private val confirmWithholdingTaxService: ConfirmWithholdingTaxService,
+    private val recordAmortizationService: RecordAmortizationService,
+    private val recordStockLendingService: RecordStockLendingService,
+    private val transferCustodyService: TransferCustodyService,
     private val transactionResolver: TransactionResolver,
     private val portfolioFlowEventService: PortfolioFlowEventService,
     private val portfolioPerformanceQueryService: PortfolioPerformanceQueryService,
@@ -475,6 +484,106 @@ class InvestmentResolver(
 
         val result = confirmWithholdingTaxService.confirm(command, accountId, userId)
         return ConfirmWithholdingTaxResultDTO(withholdingTaxTransaction = result.withholdingTaxTransaction.toDTO())
+    }
+
+    fun recordAmortization(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): RecordAmortizationResultDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+
+        fun Any?.toLocalDate(): LocalDate =
+            when (this) {
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> error("Expected LocalDate or ISO date string")
+            }
+
+        val command =
+            RecordAmortizationCommand(
+                holdingId = UUID.fromString(input["holdingId"] as String),
+                tradeDate = input["tradeDate"].toLocalDate(),
+                grossValue = BigDecimal((input["grossValue"] as Number).toString()),
+                netValue = BigDecimal((input["netValue"] as Number).toString()),
+                incomeTax = BigDecimal((input["incomeTax"] as Number).toString()),
+                iof =
+                    (input["iof"] as? Number)?.let { BigDecimal(it.toString()) }
+                        ?: BigDecimal.ZERO,
+                destinationAccountId =
+                    (input["destinationAccountId"] as? String)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(UUID::fromString),
+            )
+
+        val result = recordAmortizationService.confirm(command, accountId, userId)
+        return RecordAmortizationResultDTO(
+            amortizationTransaction = result.amortizationTransaction.toDTO(),
+            bankingTransaction = result.bankingTransaction?.let { transactionResolver.toTransactionDTO(it, accountId) },
+        )
+    }
+
+    fun recordStockLending(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): RecordStockLendingResultDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+
+        fun Any?.toLocalDate(): LocalDate =
+            when (this) {
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> error("Expected LocalDate or ISO date string")
+            }
+
+        val command =
+            RecordStockLendingCommand(
+                holdingId = UUID.fromString(input["holdingId"] as String),
+                tradeDate = input["tradeDate"].toLocalDate(),
+                grossValue = BigDecimal((input["grossValue"] as Number).toString()),
+                netValue = BigDecimal((input["netValue"] as Number).toString()),
+                incomeTax = BigDecimal((input["incomeTax"] as Number).toString()),
+                destinationAccountId =
+                    (input["destinationAccountId"] as? String)
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let(UUID::fromString),
+            )
+
+        val result = recordStockLendingService.confirm(command, accountId, userId)
+        return RecordStockLendingResultDTO(
+            lendingTransaction = result.lendingTransaction.toDTO(),
+            bankingTransaction = result.bankingTransaction?.let { transactionResolver.toTransactionDTO(it, accountId) },
+        )
+    }
+
+    fun transferCustody(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransferCustodyResultDTO {
+        val accountId = requireAccountId(principal)
+        val userId = requireNotNull(principal.userId) { "No user in token" }
+
+        fun Any?.toLocalDate(): LocalDate =
+            when (this) {
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> error("Expected LocalDate or ISO date string")
+            }
+
+        val command =
+            TransferCustodyCommand(
+                sourceHoldingId = UUID.fromString(input["sourceHoldingId"] as String),
+                destinationFinancialAccountId = UUID.fromString(input["destinationFinancialAccountId"] as String),
+                quantity = (input["quantity"] as? Number)?.let { BigDecimal(it.toString()) },
+                tradeDate = input["tradeDate"].toLocalDate(),
+            )
+
+        val result = transferCustodyService.transfer(command, accountId, userId)
+        return TransferCustodyResultDTO(
+            outflowTransaction = result.outflowTransaction.toDTO(),
+            inflowTransaction = result.inflowTransaction.toDTO(),
+        )
     }
 
     fun triggerPortfolioRecalculation(

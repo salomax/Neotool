@@ -250,6 +250,71 @@ enum class BankingErrorCode(
         "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here",
         422,
     ),
+    TRANSFER_CUSTODY_HOLDING_NOT_FOUND(
+        "TRANSFER_CUSTODY_HOLDING_NOT_FOUND",
+        "Source holding not found",
+        404,
+    ),
+    TRANSFER_CUSTODY_ASSET_NOT_FOUND(
+        "TRANSFER_CUSTODY_ASSET_NOT_FOUND",
+        "Asset for source holding not found",
+        404,
+    ),
+    TRANSFER_CUSTODY_DESTINATION_ACCOUNT_INVALID(
+        "TRANSFER_CUSTODY_DESTINATION_ACCOUNT_INVALID",
+        "Destination financial account not found or not owned by account",
+        422,
+    ),
+    TRANSFER_CUSTODY_SAME_ACCOUNT_NOT_ALLOWED(
+        "TRANSFER_CUSTODY_SAME_ACCOUNT_NOT_ALLOWED",
+        "Source and destination financial accounts must differ",
+        422,
+    ),
+    TRANSFER_CUSTODY_QUANTITY_MUST_BE_POSITIVE(
+        "TRANSFER_CUSTODY_QUANTITY_MUST_BE_POSITIVE",
+        "Transfer quantity must be positive",
+        422,
+    ),
+    TRANSFER_CUSTODY_QUANTITY_EXCEEDS_SOURCE_HOLDING(
+        "TRANSFER_CUSTODY_QUANTITY_EXCEEDS_SOURCE_HOLDING",
+        "Transfer quantity exceeds source holding quantity",
+        422,
+    ),
+    RECORD_STOCK_LENDING_HOLDING_NOT_FOUND(
+        "RECORD_STOCK_LENDING_HOLDING_NOT_FOUND",
+        "Holding not found for stock lending record",
+        404,
+    ),
+    RECORD_STOCK_LENDING_ASSET_NOT_FOUND(
+        "RECORD_STOCK_LENDING_ASSET_NOT_FOUND",
+        "Asset not found for stock lending record",
+        404,
+    ),
+    RECORD_STOCK_LENDING_ASSET_TYPE_NOT_SUPPORTED(
+        "RECORD_STOCK_LENDING_ASSET_TYPE_NOT_SUPPORTED",
+        "Asset type does not support stock lending",
+        422,
+    ),
+    RECORD_STOCK_LENDING_GROSS_VALUE_MUST_BE_POSITIVE(
+        "RECORD_STOCK_LENDING_GROSS_VALUE_MUST_BE_POSITIVE",
+        "Gross value must be positive",
+        422,
+    ),
+    RECORD_STOCK_LENDING_NET_VALUE_MUST_BE_NON_NEGATIVE(
+        "RECORD_STOCK_LENDING_NET_VALUE_MUST_BE_NON_NEGATIVE",
+        "Net value must be non-negative",
+        422,
+    ),
+    RECORD_STOCK_LENDING_INCOME_TAX_MUST_BE_NON_NEGATIVE(
+        "RECORD_STOCK_LENDING_INCOME_TAX_MUST_BE_NON_NEGATIVE",
+        "Income tax must be non-negative",
+        422,
+    ),
+    RECORD_STOCK_LENDING_NET_VALUE_EXCEEDS_GROSS_VALUE(
+        "RECORD_STOCK_LENDING_NET_VALUE_EXCEEDS_GROSS_VALUE",
+        "Net value must be less than or equal to gross value",
+        422,
+    ),
 
     BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE(
         "BALANCE_ADJUSTMENT_ONLY_AMOUNT_EDITABLE",

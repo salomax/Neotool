@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.rest.investment
 
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationStatusPayload
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
-import io.github.salomax.neotool.banking.service.investment.PortfolioRecalculationEventBus
-import io.github.salomax.neotool.banking.service.investment.PortfolioRecalculationStatusPayload
+import io.github.salomax.neotool.banking.service.investment.event.PortfolioRecalculationEventBus
 import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException

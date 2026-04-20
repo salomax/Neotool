@@ -1,6 +1,10 @@
 package io.github.salomax.neotool.banking.service.billimport
 
 import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantBillExtractionResult
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantBillInstallment
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedCard
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedTransaction
 import jakarta.inject.Singleton
 import java.text.Normalizer
 import java.time.LocalDate
@@ -560,33 +564,6 @@ class AssistantBillTransactionExtractor {
             )
     }
 }
-
-data class AssistantBillInstallment(val current: Int, val total: Int)
-
-data class AssistantExtractedTransaction(
-    val date: LocalDate,
-    val description: String,
-    val amount: Double,
-    /** ISO 4217 currency code inferred from the amount symbol: "BRL", "USD", "EUR", "GBP". */
-    val currencyCode: String,
-    val creditDebitType: String,
-    val cardLastFour: String,
-    val installment: AssistantBillInstallment?,
-    val isBillPayment: Boolean,
-)
-
-data class AssistantExtractedCard(
-    val lastFour: String,
-    val declaredTotal: Double?,
-    val computedTotal: Double,
-    val totalMatchesDeclared: Boolean,
-    val transactions: List<AssistantExtractedTransaction>,
-)
-
-data class AssistantBillExtractionResult(
-    val cards: List<AssistantExtractedCard>,
-    val warnings: List<String>,
-)
 
 private data class AssistantTransactionMatcher(
     val regex: Regex,

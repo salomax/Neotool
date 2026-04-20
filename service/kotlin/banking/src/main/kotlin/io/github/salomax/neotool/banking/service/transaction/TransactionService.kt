@@ -1,6 +1,11 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.SimilarTransactionEditPreview
+import io.github.salomax.neotool.banking.model.dto.transaction.SimilarTransactionEditResult
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
@@ -1249,20 +1254,3 @@ open class TransactionService(
         }
     }
 }
-
-/** Result of bulkCategorize mutation. */
-data class BulkCategorizeResult(
-    val affectedCount: Int,
-    val errors: List<String>,
-)
-
-data class SimilarTransactionEditPreview(
-    val similarCount: Int,
-    val matchDescription: String,
-    val supportsFuturePropagation: Boolean,
-)
-
-data class SimilarTransactionEditResult(
-    val affectedCount: Int,
-    val futureRuleCreated: Boolean,
-)

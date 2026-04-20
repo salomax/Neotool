@@ -1,6 +1,11 @@
 package io.github.salomax.neotool.banking.domain.investment
 
 import io.github.salomax.neotool.banking.service.investment.*
+import io.github.salomax.neotool.banking.service.investment.lifecycle.CouponPendingActionHandler
+import io.github.salomax.neotool.banking.service.investment.lifecycle.CustodianCashLedgerHandler
+import io.github.salomax.neotool.banking.service.investment.lifecycle.InvestmentTransactionLifecycleOrchestrator
+import io.github.salomax.neotool.banking.service.investment.lifecycle.MaturityPendingActionHandler
+import io.github.salomax.neotool.banking.service.investment.lifecycle.PortfolioFlowEventHandler
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
@@ -152,18 +157,34 @@ class InvestmentTransactionServiceTest {
         transactionCategoryEntityRepository = mock()
         portfolioFlowEventService = mock()
         holdingAttachmentRepository = mock()
+        val lifecycleOrchestrator =
+            InvestmentTransactionLifecycleOrchestrator(
+                listOf(
+                    CustodianCashLedgerHandler(
+                        transactionService = transactionService,
+                        transactionRepository = transactionRepository,
+                        transactionCategoryEntityRepository = transactionCategoryEntityRepository,
+                        portfolioFlowEventService = portfolioFlowEventService,
+                    ),
+                    PortfolioFlowEventHandler(portfolioFlowEventService),
+                    MaturityPendingActionHandler(pendingActionRepository),
+                    CouponPendingActionHandler(
+                        pendingActionRepository = pendingActionRepository,
+                        investmentTransactionRepository = investmentTransactionRepository,
+                        couponScheduleService = CouponScheduleService(),
+                        assetRepository = assetRepository,
+                    ),
+                ),
+            )
         service = InvestmentTransactionService(
             investmentTransactionRepository,
             holdingRepository,
             assetRepository,
             financialAccountRepository,
             pendingActionRepository,
-            transactionService,
-            transactionRepository,
-            transactionCategoryEntityRepository,
             portfolioFlowEventService,
             holdingAttachmentRepository,
-            CouponScheduleService(),
+            lifecycleOrchestrator,
         )
 
         // Default stubs used by most tests

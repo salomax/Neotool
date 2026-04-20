@@ -272,6 +272,61 @@
         "quotasMax": "Cotas deduzidas não podem exceder a posição atual"
       }
     },
+    "amortization": {
+      "drawerTitle": "Registrar amortização",
+      "submit": "Registrar amortização",
+      "success": "Amortização registrada com sucesso",
+      "form": {
+        "tradeDate": "Data do pagamento",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR retido",
+        "iof": "IOF",
+        "destinationAccount": "Creditar em conta",
+        "noDestinationAccount": "Não registrar agora"
+      },
+      "validation": {
+        "grossPositive": "Valor bruto deve ser positivo",
+        "netMin": "Valor líquido deve ser >= 0",
+        "netMax": "Valor líquido não pode exceder o valor bruto"
+      }
+    },
+    "stockLending": {
+      "drawerTitle": "Registrar aluguel B3",
+      "submit": "Registrar aluguel",
+      "success": "Aluguel registrado com sucesso",
+      "form": {
+        "tradeDate": "Data do pagamento",
+        "grossValue": "Valor bruto",
+        "netValue": "Valor líquido",
+        "incomeTax": "IR retido",
+        "destinationAccount": "Creditar em conta",
+        "noDestinationAccount": "Não registrar agora"
+      },
+      "validation": {
+        "grossPositive": "Valor bruto deve ser positivo",
+        "netMin": "Valor líquido deve ser >= 0",
+        "netMax": "Valor líquido não pode exceder o valor bruto"
+      }
+    },
+    "transferCustody": {
+      "drawerTitle": "Transferir custódia",
+      "submit": "Transferir",
+      "success": "Transferência registrada com sucesso",
+      "form": {
+        "tradeDate": "Data da transferência",
+        "destinationAccount": "Conta de destino",
+        "noDestinationAccountAvailable": "Nenhuma outra conta disponível",
+        "fullTransferToggle": "Transferir posição completa",
+        "quantity": "Quantidade a transferir",
+        "quantityHint": "Posição atual: {{quantity}} unidades"
+      },
+      "validation": {
+        "destinationRequired": "Selecione a conta de destino",
+        "quantityPositive": "Quantidade deve ser positiva",
+        "quantityMax": "Quantidade excede a posição atual"
+      }
+    },
     "createAccount": {
       "title": "Criar conta de investimento",
       "fields": {
@@ -414,6 +469,9 @@
         "viewCurrentPosition": "Ver posição atual",
         "editMovement": "Editar movimentações",
         "recordWithholdingTax": "Registrar come-cotas",
+        "recordAmortization": "Registrar amortização",
+        "recordStockLending": "Registrar aluguel",
+        "transferCustody": "Transferir custódia",
         "edit": "Editar",
         "remove": "Excluir"
       },

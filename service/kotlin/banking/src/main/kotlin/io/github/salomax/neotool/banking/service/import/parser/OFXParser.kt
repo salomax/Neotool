@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
 import io.github.salomax.neotool.banking.domain.import.*
+import io.github.salomax.neotool.banking.model.dto.imports.OfxParseResult
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import org.w3c.dom.Document
@@ -268,15 +269,6 @@ enum class OfxDocumentFormat {
     XML,
     UNKNOWN,
 }
-
-data class OfxParseResult(
-    val rows: List<ParsedTransaction>,
-    val statementIntent: OfxStatementIntent,
-    val format: OfxDocumentFormat,
-    val accountIdentifier: String? = null,
-    val statementFrom: LocalDate? = null,
-    val statementTo: LocalDate? = null,
-)
 
 private data class ParsedOfxDocument(
     val rows: List<ParsedTransaction> = emptyList(),

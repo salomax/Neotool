@@ -5,8 +5,8 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.client.import.nfce.sanitizeNfceUrl
 import io.github.salomax.neotool.banking.domain.import.DuplicateResolution
 import io.github.salomax.neotool.banking.domain.import.ImportJob
+import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.service.import.ImportJobService
-import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.isFileImportSource
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.graphql.transaction.AppliedRuleHistoryEntryDTO

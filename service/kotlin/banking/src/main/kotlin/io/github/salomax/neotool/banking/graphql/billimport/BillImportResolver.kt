@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.graphql.billimport
 
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillImportCommand
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewCardCommand
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.domain.billimport.DateRange
 import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReview

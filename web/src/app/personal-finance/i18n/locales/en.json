@@ -272,6 +272,61 @@
         "quotasMax": "Redeemed quotas cannot exceed current holding quantity"
       }
     },
+    "amortization": {
+      "drawerTitle": "Record amortization",
+      "submit": "Record amortization",
+      "success": "Amortization recorded successfully",
+      "form": {
+        "tradeDate": "Payment date",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Withheld tax",
+        "iof": "IOF",
+        "destinationAccount": "Credit to account",
+        "noDestinationAccount": "Skip for now"
+      },
+      "validation": {
+        "grossPositive": "Gross value must be positive",
+        "netMin": "Net value must be >= 0",
+        "netMax": "Net value cannot exceed gross value"
+      }
+    },
+    "stockLending": {
+      "drawerTitle": "Record stock lending (BTC B3)",
+      "submit": "Record lending income",
+      "success": "Lending income recorded successfully",
+      "form": {
+        "tradeDate": "Payment date",
+        "grossValue": "Gross value",
+        "netValue": "Net value",
+        "incomeTax": "Withheld tax",
+        "destinationAccount": "Credit to account",
+        "noDestinationAccount": "Skip for now"
+      },
+      "validation": {
+        "grossPositive": "Gross value must be positive",
+        "netMin": "Net value must be >= 0",
+        "netMax": "Net value cannot exceed gross value"
+      }
+    },
+    "transferCustody": {
+      "drawerTitle": "Transfer custody",
+      "submit": "Transfer",
+      "success": "Transfer recorded successfully",
+      "form": {
+        "tradeDate": "Transfer date",
+        "destinationAccount": "Destination account",
+        "noDestinationAccountAvailable": "No other account available",
+        "fullTransferToggle": "Transfer full position",
+        "quantity": "Quantity to transfer",
+        "quantityHint": "Current position: {{quantity}} units"
+      },
+      "validation": {
+        "destinationRequired": "Select a destination account",
+        "quantityPositive": "Quantity must be positive",
+        "quantityMax": "Quantity exceeds current position"
+      }
+    },
     "assetTypes": {
       "STOCK": "Stocks",
       "STOCK_RIGHTS": "Stock rights",
@@ -414,6 +469,9 @@
         "viewCurrentPosition": "View current position",
         "editMovement": "Edit transactions",
         "recordWithholdingTax": "Record come-cotas",
+        "recordAmortization": "Record amortization",
+        "recordStockLending": "Record stock lending",
+        "transferCustody": "Transfer custody",
         "edit": "Edit",
         "remove": "Delete"
       },

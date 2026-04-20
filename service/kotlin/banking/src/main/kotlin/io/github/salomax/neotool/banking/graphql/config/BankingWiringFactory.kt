@@ -1282,6 +1282,42 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "recordAmortization",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.recordAmortization(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "recordStockLending",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.recordStockLending(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "transferCustody",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->
+                        @Suppress("UNCHECKED_CAST")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        investmentResolver.transferCustody(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "dismissPendingAction",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_UPDATE) { principal ->

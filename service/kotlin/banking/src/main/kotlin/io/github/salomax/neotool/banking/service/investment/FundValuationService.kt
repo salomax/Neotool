@@ -1,6 +1,9 @@
 package io.github.salomax.neotool.banking.service.investment
 
 import io.github.salomax.neotool.banking.domain.investment.*
+import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianBusinessCalendar
+import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianFixedIncomeTaxRules
+import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.MathContext
@@ -8,15 +11,6 @@ import java.math.RoundingMode
 import java.time.LocalDate
 import java.time.Month
 import java.time.temporal.ChronoUnit
-
-data class FundValuationResult(
-    val grossValue: BigDecimal?,
-    val incomeTax: BigDecimal?,
-    val iof: BigDecimal?,
-    val netValue: BigDecimal?,
-    val valuationSource: ValuationSource,
-    val valuationReferenceDate: LocalDate?,
-)
 
 @Singleton
 class FundValuationService {

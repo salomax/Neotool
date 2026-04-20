@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
 import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.service.import.ImportTextDecoder
+import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.service.import.parser.csv.BankCsvReader
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvAmountPattern

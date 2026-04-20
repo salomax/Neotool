@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateCategoryInput
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateCategoryInput
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
@@ -138,19 +140,3 @@ open class TransactionCategoryService(
         parent: CategoryApplicableTo,
     ): Boolean = parent == CategoryApplicableTo.ANY || child == parent || child == CategoryApplicableTo.ANY
 }
-
-data class CreateCategoryInput(
-    val parentId: UUID?,
-    val name: String,
-    val applicableTo: CategoryApplicableTo,
-    val icon: String?,
-    val color: String?,
-    val sortOrder: Int?,
-)
-
-data class UpdateCategoryInput(
-    val name: String?,
-    val icon: String?,
-    val color: String?,
-    val sortOrder: Int?,
-)

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
 import io.github.salomax.neotool.banking.domain.import.*
+import io.github.salomax.neotool.banking.model.dto.imports.csv.CsvReaderSelectionResult
 /**
  * Scores registered readers and selects the best strategy for parsing.
  */
@@ -44,10 +45,3 @@ class CsvReaderRegistry(
         )
     }
 }
-
-data class CsvReaderSelectionResult(
-    val mode: CsvReaderSelectionMode,
-    val selectedReader: BankCsvReader?,
-    val selectedMatch: CsvReaderMatch?,
-    val rankedMatches: List<CsvReaderMatch>,
-)

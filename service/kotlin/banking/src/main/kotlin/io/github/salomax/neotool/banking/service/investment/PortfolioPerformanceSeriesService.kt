@@ -6,6 +6,8 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformancePo
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceSummaryDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceSeriesDTO
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository

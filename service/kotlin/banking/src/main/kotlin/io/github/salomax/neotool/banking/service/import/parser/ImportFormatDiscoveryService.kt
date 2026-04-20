@@ -2,15 +2,10 @@ package io.github.salomax.neotool.banking.service.import.parser
 
 import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.ImportSource
-import io.github.salomax.neotool.banking.service.import.ImportSourceDetector
-import io.github.salomax.neotool.banking.service.import.ImportTextDecoder
+import io.github.salomax.neotool.banking.model.dto.imports.ImportFormatDiscoveryResult
+import io.github.salomax.neotool.banking.model.domain.imports.ImportSourceDetector
+import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.isCsvSource
-
-data class ImportFormatDiscoveryResult(
-    val format: ImportFileFormat,
-    val detectedSource: ImportSource?,
-    val reason: String,
-)
 
 /**
  * Content-first format discovery to support source AUTO mode.
