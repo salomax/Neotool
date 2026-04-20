@@ -3,7 +3,15 @@
 import React from "react";
 import Box from "@mui/material/Box";
 
-export function LoadingSpinner({ message = "Loading" }: { message?: string }) {
+export function LoadingSpinner({
+  message = "Loading",
+  minHeight = 200,
+  size,
+}: {
+  message?: string;
+  minHeight?: string | number;
+  size?: number;
+}) {
   const [active, setActive] = React.useState(false);
 
   React.useEffect(() => {
@@ -50,13 +58,13 @@ export function LoadingSpinner({ message = "Loading" }: { message?: string }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        minHeight: "200px",
+        minHeight,
       }}
     >
       <Box
         sx={{
-          width: { xs: 96, sm: 112 },
-          height: { xs: 96, sm: 112 },
+          width: size ? size : { xs: 96, sm: 112 },
+          height: size ? size : { xs: 96, sm: 112 },
           color: "primary.main",
           "& .svg-elem-2": {
             fill: "transparent",

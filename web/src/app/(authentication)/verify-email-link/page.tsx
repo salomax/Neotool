@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Container, Box, Typography, Button, CircularProgress } from "@mui/material";
+import { Container, Box, Typography, Button } from "@mui/material";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { useAuth, useToast } from "@/shared/providers";
 import { Logo } from "@/shared/ui/brand";
 import { Paper } from "@/shared/components/ui/layout/Paper";
 import { Stack } from "@/shared/components/ui/layout/Stack";
 import { Link } from "@/shared/components/ui/navigation/Link";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { useTranslation } from "@/shared/i18n/hooks/useTranslation";
 import { verifyEmailLinkTranslations } from "./i18n";
 import { extractErrorMessage } from "@/shared/utils/error";
@@ -119,8 +120,8 @@ export default function VerifyEmailLinkPage() {
                   </Stack>
                 </>
               ) : loading && !data ? (
-                <Box sx={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 2, py: 2 }}>
-                  <CircularProgress size={24} />
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 2, py: 2 }}>
+                  <LoadingSpinner minHeight={0} size={72} message={t("loading")} />
                   <Typography color="text.secondary">{t("loading")}</Typography>
                 </Box>
               ) : success ? (

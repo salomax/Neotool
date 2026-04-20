@@ -138,7 +138,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
         <ListItemIcon>
           <QueryStatsIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText>{t('investments.table.rowActions.viewDetails')}</ListItemText>
+        <ListItemText>{t('investments.table.rowActions.viewCurrentPosition')}</ListItemText>
       </MenuItem>
 
       {showCorporateEvents ? (
@@ -219,7 +219,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
         <ListItemIcon>
           <EditIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText>{t('investments.table.rowActions.edit')}</ListItemText>
+        <ListItemText>{t('investments.table.rowActions.editMovement')}</ListItemText>
       </MenuItem>
 
       <MenuItem

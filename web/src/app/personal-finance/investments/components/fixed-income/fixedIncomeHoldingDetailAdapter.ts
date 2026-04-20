@@ -19,19 +19,6 @@ type Transaction = FixedIncomeHoldingDetailQuery["investmentTransactions"][numbe
 type HoldingPerformance = NonNullable<FixedIncomeHoldingDetailQuery["holdingPerformance"]>;
 type InvestmentHoldingPerformance = FixedIncomeHoldingDetailQuery["investmentHoldingPerformance"];
 
-const INDEXER_LABELS: Partial<Record<Indexer, string>> = {
-  [Indexer.Cdi]: "CDI",
-  [Indexer.Di]: "DI",
-  [Indexer.Ipca]: "IPCA+",
-  [Indexer.IgpM]: "IGP-M",
-  [Indexer.IgpDi]: "IGP-DI",
-  [Indexer.Inpc]: "INPC",
-  [Indexer.Tr]: "TR",
-  [Indexer.Selic]: "SELIC",
-  [Indexer.PreFixado]: "Prefixado",
-  [Indexer.Outros]: "Outro",
-};
-
 export interface FixedIncomeSummaryMetricViewModel {
   id: string;
   label: string;
@@ -99,8 +86,12 @@ function getCurrentLocale(): string {
   return Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
 }
 
-function formatDate(value: unknown, locale: string): string {
-  if (!value) return "—";
+function getNotAvailableLabel(t: Translator): string {
+  return t("investments.detailDrawer.common.notAvailable");
+}
+
+function formatDate(value: unknown, locale: string, t: Translator): string {
+  if (!value) return getNotAvailableLabel(t);
 
   const raw = String(value);
   const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
@@ -111,7 +102,7 @@ function formatDate(value: unknown, locale: string): string {
   }
 
   const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "—";
+  if (Number.isNaN(date.getTime())) return getNotAvailableLabel(t);
   return date.toLocaleDateString(locale);
 }
 
@@ -119,16 +110,20 @@ function formatAssetType(assetType: AssetType, t: Translator): string {
   return t(`investments.assetTypes.${assetType}`);
 }
 
-function formatIndexer(holding: Holding, locale: string): string {
-  if (!holding.indexer) return "—";
+function formatIndexer(holding: Holding, locale: string, t: Translator): string {
+  if (!holding.indexer) return getNotAvailableLabel(t);
 
   if (holding.indexer === Indexer.PreFixado) {
-    if (holding.fixedAnnualRate == null) return INDEXER_LABELS[Indexer.PreFixado] || "Prefixado";
+    if (holding.fixedAnnualRate == null) return t(`investments.detailDrawer.indexers.${Indexer.PreFixado}`);
     const annualRate = holding.fixedAnnualRate * 100;
-    return `${annualRate.toLocaleString(locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% a.a.`;
+    const formattedAnnualRate = annualRate.toLocaleString(locale, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+    return t("investments.detailDrawer.indexers.fixedAnnualRate", { rate: formattedAnnualRate });
   }
 
-  const label = INDEXER_LABELS[holding.indexer] || holding.indexer;
+  const label = t(`investments.detailDrawer.indexers.${holding.indexer}`);
   if (holding.indexerPercentage == null) return label;
 
   const percentValue = holding.indexerPercentage * 100;
@@ -138,24 +133,24 @@ function formatIndexer(holding: Holding, locale: string): string {
     minimumFractionDigits: 1,
     maximumFractionDigits: 2,
   });
-  return `${label} ${formattedPercent}%`;
+  return t("investments.detailDrawer.indexers.withPercentage", { label, percentage: formattedPercent });
 }
 
 function formatTransactionType(type: InvestmentTransactionType, t: Translator): string {
   return t(`investments.detailDrawer.transactionTypes.${type}`);
 }
 
-function buildIssuerLabel(holding: Holding): string {
+function buildIssuerLabel(holding: Holding, t: Translator): string {
   return (
     holding.financialAccount?.issuer?.name ??
     holding.financialAccount?.issuerName ??
     holding.asset?.issuerName ??
-    "—"
+    getNotAvailableLabel(t)
   );
 }
 
-function buildAccountLabel(holding: Holding): string {
-  return holding.financialAccount?.name ?? "—";
+function buildAccountLabel(holding: Holding, t: Translator): string {
+  return holding.financialAccount?.name ?? getNotAvailableLabel(t);
 }
 
 export function buildFixedIncomeHoldingDetailViewModel(
@@ -180,7 +175,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
   const netGainPercent = typeof netGain === "number" && typeof principal === "number" && principal > 0 ? netGain / principal : null;
   const xirr = typeof investmentHoldingPerformance?.xirr === "number" ? investmentHoldingPerformance.xirr : null;
   const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
-    ? formatDate(investmentHoldingPerformance.xirrSince, locale)
+    ? formatDate(investmentHoldingPerformance.xirrSince, locale, t)
     : null;
   const totalReturnAbsolute =
     typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
@@ -193,8 +188,8 @@ export function buildFixedIncomeHoldingDetailViewModel(
     return acc + amount;
   }, 0);
   const typeLabel = formatAssetType(holding.asset.assetType, t);
-  const issuerLabel = buildIssuerLabel(holding);
-  const accountLabel = buildAccountLabel(holding);
+  const issuerLabel = buildIssuerLabel(holding, t);
+  const accountLabel = buildAccountLabel(holding, t);
 
   const summaryMetrics: FixedIncomeSummaryMetricViewModel[] = [
     {
@@ -260,12 +255,12 @@ export function buildFixedIncomeHoldingDetailViewModel(
       title: formatTransactionType(transaction.type, t),
       transactionType: transaction.type,
       isFirstApplication: transaction.id === firstApplicationId,
-      tradeDateLabel: formatDate(transaction.tradeDate, locale),
+      tradeDateLabel: formatDate(transaction.tradeDate, locale, t),
       tradeDateDayKey: investmentTransactionCalendarDayKey(transaction.tradeDate),
       settlementDateLabel:
         transaction.settlementDate &&
         !isSameInvestmentEventAndSettlementDay(transaction.tradeDate, transaction.settlementDate)
-          ? formatDate(transaction.settlementDate, locale)
+          ? formatDate(transaction.settlementDate, locale, t)
           : null,
       amount: transaction.grossValue,
       netAmount: transaction.netValue,
@@ -329,10 +324,10 @@ export function buildFixedIncomeHoldingDetailViewModel(
     xirrSinceLabel,
     totalReturnAbsolute,
     couponsReceivedNet,
-    indexerLabel: formatIndexer(holding, locale),
-    issueDateLabel: formatDate(holding.issueDate, locale),
-    gracePeriodDateLabel: formatDate(holding.gracePeriodDate, locale),
-    maturityDateLabel: formatDate(holding.maturityDate, locale),
+    indexerLabel: formatIndexer(holding, locale, t),
+    issueDateLabel: formatDate(holding.issueDate, locale, t),
+    gracePeriodDateLabel: formatDate(holding.gracePeriodDate, locale, t),
+    maturityDateLabel: formatDate(holding.maturityDate, locale, t),
     taxExemptLabel: holding.isTaxExempt
       ? t("investments.detailDrawer.taxExempt.yes")
       : t("investments.detailDrawer.taxExempt.no"),

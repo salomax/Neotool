@@ -1,11 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Box, Typography, Button, Stack, CircularProgress } from "@mui/material";
+import { Box, Typography, Button, Stack } from "@mui/material";
 import SearchOffIcon from "@mui/icons-material/SearchOff";
 import ErrorOutlineIcon from "@mui/icons-material/ErrorOutline";
 import { useTranslation } from "react-i18next";
 import { extractErrorMessage } from "@/shared/utils/error";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 
 export interface EmptyStateProps {
   title: string;
@@ -158,16 +159,5 @@ export const LoadingState: React.FC<LoadingStateProps> = ({
     return null;
   }
 
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        minHeight,
-      }}
-    >
-      <CircularProgress size={size} />
-    </Box>
-  );
+  return <LoadingSpinner minHeight={minHeight} size={size} />;
 };

@@ -3,7 +3,7 @@
 import React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
-import { alpha, Box, Button, CircularProgress, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
+import { alpha, Box, Button, Container, Divider, LinearProgress, Stack, Typography, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import TrendingUpIcon from "@mui/icons-material/TrendingUp";
 import { Page } from "@/shared/components/ui/layout";
@@ -12,6 +12,7 @@ import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../i18n";
 import { usePageTitle } from "@/shared/hooks/ui/usePageTitle";
 import { QueryErrorState } from "@/shared/components/ui/feedback";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { FinancialAccountSelector } from "../finance-transactions/account/FinancialAccountSelector";
 import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import {
@@ -231,9 +232,7 @@ export default function PersonalFinanceInvestmentsPage() {
       <SidebarLayout side="left" size="sm" fullHeight sidebar={sidebar}>
         <Page>
           <Container maxWidth="xl" sx={{ py: 4 }}>
-            <Box sx={{ display: "flex", justifyContent: "center", py: 10 }}>
-              <CircularProgress />
-            </Box>
+            <LoadingSpinner minHeight={400} />
           </Container>
         </Page>
       </SidebarLayout>

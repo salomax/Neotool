@@ -1,7 +1,6 @@
 "use client";
 
 import React, { Suspense } from 'react';
-import { Box } from '@/shared/ui/mui-imports';
 import { LoadingSpinner } from '@/shared/components/ui/primitives/LoadingSpinner';
 
 interface LazyWrapperProps {
@@ -11,14 +10,7 @@ interface LazyWrapperProps {
 }
 
 const DefaultFallback = ({ minHeight = 200 }: { minHeight?: string | number }) => (
-  <Box 
-    display="flex" 
-    justifyContent="center" 
-    alignItems="center" 
-    minHeight={minHeight}
-  >
-    <LoadingSpinner />
-  </Box>
+  <LoadingSpinner minHeight={minHeight} />
 );
 
 export function LazyWrapper({ 

@@ -6,7 +6,6 @@ import { NetworkStatus } from '@apollo/client/core';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
 import { Box, Divider, LinearProgress, Paper, TableContainer, Typography } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
-import { useToast } from '@/shared/providers';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
@@ -14,7 +13,6 @@ import {
   INVESTMENT_GRID_DATA,
   INVESTMENT_HOLDINGS,
   INVESTMENT_PORTFOLIO_SUMMARY,
-  INVESTMENT_TRANSACTIONS,
 } from '@/lib/graphql/operations/banking/queries';
 import { DELETE_INVESTMENT_HOLDING } from '@/lib/graphql/operations/banking/mutations';
 import {
@@ -23,17 +21,13 @@ import {
   InvestmentHoldingsQuery,
   InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import {
-  InvestmentSource,
-  InvestmentTransaction,
-  InvestmentTransactionDirection,
-} from '@/lib/graphql/types/__generated__/graphql';
+import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
 import type { MaturityDrawerHolding } from '../../MaturityConfirmDrawer';
 import type { WithholdingTaxDrawerHolding } from '../../WithholdingTaxDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
 import { CashMovementsSection } from './CashMovementsSection';
 import { HoldingsGroupsSection } from './HoldingsGroupsSection';
-import { InvestmentEditDrawers } from '../InvestmentEditDrawers';
+import { InvestmentEventSelectorDrawer } from '../InvestmentEventSelectorDrawer';
 import { RecordEquityHoldingDrawer } from '../RecordEquityHoldingDrawer';
 import { RecordFundHoldingDrawer } from '../RecordFundHoldingDrawer';
 import { InvestmentHoldingActionsMenu } from './InvestmentHoldingActionsMenu';
@@ -92,9 +86,8 @@ interface DetailDrawerState {
   kind: InvestmentHoldingDetailKind | null;
 }
 
-interface EditDrawerState {
+interface EventSelectorDrawerState {
   holding: HoldingRow | null;
-  transaction: InvestmentTransaction | null;
   kind: HoldingKind;
   financialAccountId: string | null;
 }
@@ -111,22 +104,6 @@ interface CorporateEventState {
 
 const EMPTY_HOLDINGS: HoldingRow[] = [];
 
-function getTransactionTimestamp(transaction: InvestmentTransaction): number {
-  const rawValue = transaction.settlementDate ?? transaction.tradeDate;
-  if (!rawValue) return Number.NEGATIVE_INFINITY;
-
-  const timestamp = new Date(String(rawValue)).getTime();
-  return Number.isNaN(timestamp) ? Number.NEGATIVE_INFINITY : timestamp;
-}
-
-function sortTransactionsByMostRecent(transactions: InvestmentTransaction[]): InvestmentTransaction[] {
-  return [...transactions].sort((left, right) => {
-    const timestampDelta = getTransactionTimestamp(right) - getTransactionTimestamp(left);
-    if (timestampDelta !== 0) return timestampDelta;
-    return right.id.localeCompare(left.id);
-  });
-}
-
 export function InvestmentTable({
   selectedAccountId,
   investmentAccounts = [],
@@ -139,15 +116,13 @@ export function InvestmentTable({
   onHoldingsFetchingChange,
 }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
-  const toast = useToast();
   const locale = getCurrentLocale();
   const apolloClient = useApolloClient();
   const [actionMenu, setActionMenu] = React.useState<ActionMenuState>({ anchorEl: null, holding: null });
   const [holdingToRemove, setHoldingToRemove] = React.useState<HoldingRow | null>(null);
   const [detailDrawer, setDetailDrawer] = React.useState<DetailDrawerState>({ holdingId: null, kind: null });
-  const [editDrawer, setEditDrawer] = React.useState<EditDrawerState>({
+  const [eventSelectorDrawer, setEventSelectorDrawer] = React.useState<EventSelectorDrawerState>({
     holding: null,
-    transaction: null,
     kind: 'equity',
     financialAccountId: null,
   });
@@ -196,32 +171,6 @@ export function InvestmentTable({
     [selectedAccountId],
   );
 
-  const resolveManualTransactions = React.useCallback(
-    async (holdingId: string) => {
-      const result = await apolloClient.query<{ investmentTransactions: InvestmentTransaction[] }>({
-        query: INVESTMENT_TRANSACTIONS,
-        variables: { holdingId },
-        fetchPolicy: 'network-only',
-        errorPolicy: 'all',
-      });
-
-      const manualTransactions = (result.data?.investmentTransactions ?? []).filter(
-        (transaction) => transaction.source === InvestmentSource.Manual,
-      );
-
-      return sortTransactionsByMostRecent(manualTransactions);
-    },
-    [apolloClient],
-  );
-
-  const resolveLatestManualTransaction = React.useCallback(
-    async (holdingId: string) => {
-      const transactions = await resolveManualTransactions(holdingId);
-      return transactions[0] ?? null;
-    },
-    [resolveManualTransactions],
-  );
-
   const closeActionMenu = React.useCallback(() => {
     setActionMenu({ anchorEl: null, holding: null });
   }, []);
@@ -241,10 +190,9 @@ export function InvestmentTable({
     });
   }, []);
 
-  const closeEditDrawer = React.useCallback(() => {
-    setEditDrawer({
+  const closeEventSelectorDrawer = React.useCallback(() => {
+    setEventSelectorDrawer({
       holding: null,
-      transaction: null,
       kind: 'equity',
       financialAccountId: null,
     });
@@ -252,25 +200,13 @@ export function InvestmentTable({
 
   const handleOpenEdit = React.useCallback(
     async (holding: HoldingRow) => {
-      try {
-        const transaction = await resolveLatestManualTransaction(holding.id);
-
-        if (!transaction) {
-          toast.info('Esta posição não possui lançamento manual editável.');
-          return;
-        }
-
-        setEditDrawer({
-          holding,
-          transaction,
-          kind: getHoldingKind(holding.asset?.assetType),
-          financialAccountId: resolveFinancialAccountId(holding),
-        });
-      } catch {
-        toast.error('Não foi possível carregar os dados para edição.');
-      }
+      setEventSelectorDrawer({
+        holding,
+        kind: getHoldingKind(holding.asset?.assetType),
+        financialAccountId: resolveFinancialAccountId(holding),
+      });
     },
-    [resolveFinancialAccountId, resolveLatestManualTransaction, toast],
+    [resolveFinancialAccountId],
   );
 
   const closeMaturityConfirmDrawer = React.useCallback(() => {
@@ -554,14 +490,6 @@ export function InvestmentTable({
       : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension'
         ? t('investments.transactions.apply')
         : undefined;
-  const actionSellLabel =
-    actionHoldingGroupKey === 'variableIncome'
-      ? t('investments.transactions.sell')
-      : actionHoldingGroupKey === 'mutualFunds' ||
-          actionHoldingGroupKey === 'pension' ||
-          actionHoldingGroupKey === 'fixedIncome'
-        ? t('investments.transactions.redeem')
-        : undefined;
   const quickFinancialAccountId = quickTransaction.holding ? resolveFinancialAccountId(quickTransaction.holding) : null;
 
   const cashSection = React.useMemo(() => {
@@ -667,13 +595,8 @@ export function InvestmentTable({
           if (!actionMenu.holding) return;
           handleQuickBuy(actionMenu.holding);
         }}
-        onSell={() => {
-          if (!actionMenu.holding) return;
-          handleQuickSell(actionMenu.holding);
-        }}
         buyLabel={actionBuyLabel}
-        sellLabel={actionSellLabel}
-        showTransactionActions={Boolean(actionBuyLabel || actionSellLabel)}
+        showTransactionActions={Boolean(actionBuyLabel)}
         onRecordProvento={() => {
           if (!actionMenu.holding) return;
           handleRecordCorporateEvent(actionMenu.holding, 'PROVENTO');
@@ -734,13 +657,13 @@ export function InvestmentTable({
         onSuccess={refreshInvestmentData}
       />
 
-      <InvestmentEditDrawers
-        holding={editDrawer.holding}
-        transaction={editDrawer.transaction}
-        kind={editDrawer.kind}
-        financialAccountId={editDrawer.financialAccountId}
-        financialAccounts={investmentAccounts}
-        onClose={closeEditDrawer}
+      <InvestmentEventSelectorDrawer
+        open={Boolean(eventSelectorDrawer.holding)}
+        holding={eventSelectorDrawer.holding}
+        kind={eventSelectorDrawer.kind}
+        financialAccountId={eventSelectorDrawer.financialAccountId}
+        investmentAccounts={investmentAccounts}
+        onClose={closeEventSelectorDrawer}
         onRecorded={refreshInvestmentData}
       />
 

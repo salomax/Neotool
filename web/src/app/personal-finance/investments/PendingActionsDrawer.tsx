@@ -107,7 +107,7 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
         <Drawer.Header title={t("investments.pendingActions.panelTitle")} />
         <Drawer.Body>
           {error ? <QueryErrorState error={error} onRetry={() => void refresh()} /> : null}
-          {!error ? <LoadingState isLoading={loading && sorted.length === 0} minHeight={220} size={20} /> : null}
+          {!error ? <LoadingState isLoading={loading && sorted.length === 0} minHeight={220} /> : null}
           {!error && !loading && sorted.length === 0 ? (
             <EmptyState
               title={t("investments.pendingActions.emptyTitle")}

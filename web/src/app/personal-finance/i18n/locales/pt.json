@@ -410,6 +410,9 @@
       "rowActions": {
         "ariaLabel": "Ações do ativo",
         "viewDetails": "Ver detalhes",
+        "viewEvents": "Ver eventos",
+        "viewCurrentPosition": "Ver posição atual",
+        "editMovement": "Editar movimentações",
         "recordWithholdingTax": "Registrar come-cotas",
         "edit": "Editar",
         "remove": "Excluir"
@@ -427,6 +430,45 @@
       "recordFirstHolding": "Registrar primeiro ativo",
       "error": "Erro ao carregar investimentos"
     },
+    "eventSelector": {
+      "title": "Selecionar evento",
+      "subtitle": "Toque no evento que deseja editar",
+      "empty": {
+        "title": "Sem eventos registrados",
+        "description": "Nenhum evento encontrado para esta posição."
+      },
+      "notEditable": "Sincronizado — não editável"
+    },
+    "transactionTypes": {
+      "AMORTIZATION": "Amortização",
+      "APPLICATION": "Aplicação",
+      "BALANCE_ADJUSTMENT": "Ajuste de saldo",
+      "BONUS": "Bonificação",
+      "BONUS_SHARES": "Bonificação",
+      "CANCELLATION": "Cancelamento",
+      "CUSTODY_TRANSFER": "Transferência de custódia",
+      "DIVIDEND": "Dividendo",
+      "FINE": "Multa",
+      "INCOME": "Rendimento",
+      "INPLIT": "Grupamento",
+      "INTEREST_ON_EQUITY": "JCP",
+      "INTEREST_PAYMENT": "Juros / Cupom",
+      "JCP": "JCP",
+      "MATURITY": "Vencimento",
+      "OWNERSHIP_TRANSFER": "Transferência de titularidade",
+      "PRIZE": "Prêmio",
+      "PURCHASE": "Compra",
+      "QUOTA_TRANSFER": "Transferência de cotas",
+      "REDEMPTION": "Resgate",
+      "SALE": "Venda",
+      "SPLIT": "Desdobramento",
+      "STOCK_LENDING": "Aluguel",
+      "STOCK_SPLIT": "Desdobramento",
+      "SUBSCRIPTION": "Subscrição",
+      "SUBSCRIPTION_RIGHT": "Direito de subscrição",
+      "TRANSFER": "Transferência",
+      "WITHHOLDING_TAX": "Imposto retido"
+    },
     "detailDrawer": {
       "title": "Detalhes do investimento",
       "comingSoonTitle": "Detalhes em breve",
@@ -435,6 +477,23 @@
       "emptyTitle": "Ativo indisponível",
       "emptyDescription": "Não foi possível carregar os detalhes desta posição.",
       "netValue": "Total Líquido",
+      "common": {
+        "notAvailable": "—"
+      },
+      "indexers": {
+        "Cdi": "CDI",
+        "Di": "DI",
+        "Ipca": "IPCA+",
+        "IgpM": "IGP-M",
+        "IgpDi": "IGP-DI",
+        "Inpc": "INPC",
+        "Tr": "TR",
+        "Selic": "SELIC",
+        "PreFixado": "Prefixado",
+        "Outros": "Outro",
+        "withPercentage": "{{label}} {{percentage}}%",
+        "fixedAnnualRate": "{{rate}}% a.a."
+      },
       "grid": {
         "principal": "Principal",
         "grossTotal": "Total Bruto",
@@ -520,6 +579,7 @@
         "iof": "IOF: {{value}}",
         "notEditableTooltip": "Sincronizado automaticamente — não pode ser editado",
         "deleteSuccess": "Transação excluída com sucesso",
+        "deleteError": "Não foi possível excluir a transação. Tente novamente.",
         "deleteConfirmTitle": "Excluir transação?",
         "deleteConfirmWarning": "Isso irá recalcular o custo médio e o histórico do ativo."
       },
@@ -705,7 +765,7 @@
         "IPCA": "IPCA+",
         "IGP_M": "IGP-M+",
         "SELIC": "SELIC",
-        "PRE_FIXADO": "Prefixado",
+        "PRE_FIXADO": "Pré-fixado",
         "OUTROS": "Outro"
       },
       "validation": {

@@ -410,6 +410,9 @@
       "rowActions": {
         "ariaLabel": "Holding actions",
         "viewDetails": "View details",
+        "viewEvents": "View events",
+        "viewCurrentPosition": "View current position",
+        "editMovement": "Edit transactions",
         "recordWithholdingTax": "Record come-cotas",
         "edit": "Edit",
         "remove": "Delete"
@@ -427,6 +430,45 @@
       "recordFirstHolding": "Record first holding",
       "error": "Failed to load investments"
     },
+    "eventSelector": {
+      "title": "Select event",
+      "subtitle": "Tap the event you want to edit",
+      "empty": {
+        "title": "No recorded events",
+        "description": "No events were found for this position."
+      },
+      "notEditable": "Synced — not editable"
+    },
+    "transactionTypes": {
+      "AMORTIZATION": "Amortization",
+      "APPLICATION": "Application",
+      "BALANCE_ADJUSTMENT": "Balance adjustment",
+      "BONUS": "Bonus",
+      "BONUS_SHARES": "Bonus shares",
+      "CANCELLATION": "Cancellation",
+      "CUSTODY_TRANSFER": "Custody transfer",
+      "DIVIDEND": "Dividend",
+      "FINE": "Fine",
+      "INCOME": "Income",
+      "INPLIT": "Reverse split",
+      "INTEREST_ON_EQUITY": "Interest on equity",
+      "INTEREST_PAYMENT": "Interest / Coupon",
+      "JCP": "Interest on equity",
+      "MATURITY": "Maturity",
+      "OWNERSHIP_TRANSFER": "Ownership transfer",
+      "PRIZE": "Prize",
+      "PURCHASE": "Purchase",
+      "QUOTA_TRANSFER": "Unit transfer",
+      "REDEMPTION": "Redemption",
+      "SALE": "Sale",
+      "SPLIT": "Split",
+      "STOCK_LENDING": "Stock lending",
+      "STOCK_SPLIT": "Stock split",
+      "SUBSCRIPTION": "Subscription",
+      "SUBSCRIPTION_RIGHT": "Subscription right",
+      "TRANSFER": "Transfer",
+      "WITHHOLDING_TAX": "Withholding tax"
+    },
     "detailDrawer": {
       "title": "Investment details",
       "comingSoonTitle": "Details coming soon",
@@ -435,6 +477,23 @@
       "emptyTitle": "Asset unavailable",
       "emptyDescription": "We couldn't load the details for this position.",
       "netValue": "Net total",
+      "common": {
+        "notAvailable": "—"
+      },
+      "indexers": {
+        "Cdi": "CDI",
+        "Di": "DI",
+        "Ipca": "IPCA+",
+        "IgpM": "IGP-M",
+        "IgpDi": "IGP-DI",
+        "Inpc": "INPC",
+        "Tr": "TR",
+        "Selic": "SELIC",
+        "PreFixado": "Fixed rate",
+        "Outros": "Other",
+        "withPercentage": "{{label}} {{percentage}}%",
+        "fixedAnnualRate": "{{rate}}% p.a."
+      },
       "grid": {
         "principal": "Principal",
         "grossTotal": "Gross total",
@@ -520,6 +579,7 @@
         "iof": "IOF: {{value}}",
         "notEditableTooltip": "Synced automatically — this transaction cannot be edited",
         "deleteSuccess": "Transaction deleted successfully",
+        "deleteError": "Could not delete the transaction. Please try again.",
         "deleteConfirmTitle": "Delete transaction?",
         "deleteConfirmWarning": "This will recalculate the asset's average cost and timeline history."
       },

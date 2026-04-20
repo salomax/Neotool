@@ -81,14 +81,11 @@ export function InvestmentGridTabsPanel({
   const normalizedSearchQuery = React.useMemo(() => (searchQuery ?? "").trim().toLowerCase(), [searchQuery]);
   const hasSearchQuery = Boolean(normalizedSearchQuery);
 
-  const matchCountByClassKey = React.useMemo(() => {
-    if (!hasSearchQuery) return new Map<InvestmentGridClassKey, number>();
-
-    const result = new Map<InvestmentGridClassKey, number>();
-
-    INVESTMENT_GRID_CLASS_DEFINITIONS.forEach((def) => {
+  const scopeHoldingsForDefinition = React.useCallback(
+    (def: (typeof INVESTMENT_GRID_CLASS_DEFINITIONS)[number]) => {
       const visibleAssetTypes = def.visibleAssetTypes;
       const visibleGroupKeys = def.visibleGroupKeys;
+
       const scopedByAssetType =
         visibleAssetTypes && visibleAssetTypes.length > 0
           ? holdings.filter((holding) => {
@@ -97,12 +94,38 @@ export function InvestmentGridTabsPanel({
             })
           : holdings;
 
-      const scopedByGroupKey =
-        visibleGroupKeys && visibleGroupKeys.length > 0
-          ? scopedByAssetType.filter((holding) => visibleGroupKeys.includes(getAssetGroupKey(holding.asset?.assetType)))
-          : scopedByAssetType;
+      if (visibleGroupKeys === undefined) return scopedByAssetType;
+      if (visibleGroupKeys.length === 0) return EMPTY_HOLDINGS;
+      return scopedByAssetType.filter((holding) => visibleGroupKeys.includes(getAssetGroupKey(holding.asset?.assetType)));
+    },
+    [holdings],
+  );
 
-      const matched = scopedByGroupKey.filter((holding) => {
+  const holdingsCountByClassKey = React.useMemo(() => {
+    const result = new Map<InvestmentGridClassKey, number>();
+    INVESTMENT_GRID_CLASS_DEFINITIONS.forEach((def) => {
+      result.set(def.key, scopeHoldingsForDefinition(def).length);
+    });
+    return result;
+  }, [scopeHoldingsForDefinition]);
+
+  const visibleTabDefinitions = React.useMemo(
+    () =>
+      INVESTMENT_GRID_CLASS_DEFINITIONS.filter((def) => {
+        if (def.key === "cash") return true;
+        return (holdingsCountByClassKey.get(def.key) ?? 0) > 0;
+      }),
+    [holdingsCountByClassKey],
+  );
+
+  const matchCountByClassKey = React.useMemo(() => {
+    if (!hasSearchQuery) return new Map<InvestmentGridClassKey, number>();
+
+    const result = new Map<InvestmentGridClassKey, number>();
+
+    visibleTabDefinitions.forEach((def) => {
+      const scoped = scopeHoldingsForDefinition(def);
+      const matched = scoped.filter((holding) => {
         const haystack = [
           holding.asset?.name ?? "",
           holding.asset?.ticker ?? "",
@@ -120,17 +143,30 @@ export function InvestmentGridTabsPanel({
     });
 
     return result;
-  }, [hasSearchQuery, holdings, normalizedSearchQuery]);
+  }, [hasSearchQuery, normalizedSearchQuery, scopeHoldingsForDefinition, visibleTabDefinitions]);
 
   const activeDefinition = React.useMemo(
-    () => INVESTMENT_GRID_CLASS_DEFINITIONS.find((d) => d.key === selectedAssetClassKey) ?? null,
-    [selectedAssetClassKey],
+    () => visibleTabDefinitions.find((d) => d.key === selectedAssetClassKey) ?? null,
+    [selectedAssetClassKey, visibleTabDefinitions],
   );
 
   const selectedTabIndex = React.useMemo(() => {
-    const idx = INVESTMENT_GRID_CLASS_DEFINITIONS.findIndex((d) => d.key === selectedAssetClassKey);
+    const idx = visibleTabDefinitions.findIndex((d) => d.key === selectedAssetClassKey);
     return idx >= 0 ? idx + 1 : GRID_TAB_INDEX;
-  }, [selectedAssetClassKey]);
+  }, [selectedAssetClassKey, visibleTabDefinitions]);
+
+  React.useEffect(() => {
+    if (holdingsQuery.loading || holdingsQuery.error) return;
+    if (selectedAssetClassKey === "cash") return;
+    if (visibleTabDefinitions.some((def) => def.key === selectedAssetClassKey)) return;
+    onBackToGrid();
+  }, [
+    holdingsQuery.error,
+    holdingsQuery.loading,
+    onBackToGrid,
+    selectedAssetClassKey,
+    visibleTabDefinitions,
+  ]);
 
   const handleTabsChange = React.useCallback(
     (_: React.SyntheticEvent, value: number) => {
@@ -138,10 +174,10 @@ export function InvestmentGridTabsPanel({
         onBackToGrid();
         return;
       }
-      const def = INVESTMENT_GRID_CLASS_DEFINITIONS[value - 1];
+      const def = visibleTabDefinitions[value - 1];
       if (def) onClassChange(def.key);
     },
-    [onBackToGrid, onClassChange],
+    [onBackToGrid, onClassChange, visibleTabDefinitions],
   );
 
   return (
@@ -200,7 +236,7 @@ export function InvestmentGridTabsPanel({
               },
             }}
           />
-          {INVESTMENT_GRID_CLASS_DEFINITIONS.map((def, tabIdx) => (
+          {visibleTabDefinitions.map((def, tabIdx) => (
             <Tab
               key={def.key}
               value={tabIdx + 1}
@@ -265,6 +301,11 @@ export function InvestmentGridTabsPanel({
             onSearchQueryChange={(q: string) => onSelectSearchAsset?.(q)}
             placeholder={t("investments.table.searchPlaceholder")}
             ariaClearLabel={t("investments.table.actions.clearSearchAriaLabel")}
+            sx={{
+              "& .MuiOutlinedInput-root": {
+                bgcolor: "background.default",
+              },
+            }}
           />
           <DrawerSubmitButton
             type="button"
@@ -370,7 +411,11 @@ export function InvestmentGridTabsPanel({
       <Box
         role="tabpanel"
         id={TAB_PANEL_ID}
-        aria-labelledby={`investment-grid-class-tab-${selectedAssetClassKey}`}
+        aria-labelledby={
+          selectedTabIndex === GRID_TAB_INDEX
+            ? "investment-grid-class-tab-grid"
+            : `investment-grid-class-tab-${selectedAssetClassKey}`
+        }
       >
         {activeDefinition ? (
           <InvestmentTable

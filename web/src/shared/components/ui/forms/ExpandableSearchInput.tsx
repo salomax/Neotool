@@ -1,4 +1,5 @@
 import { alpha, IconButton, InputAdornment, TextField, useTheme } from '@mui/material';
+import type { SxProps, Theme } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 
@@ -7,6 +8,7 @@ interface ExpandableSearchInputProps {
   onSearchQueryChange: (query: string) => void;
   placeholder: string;
   ariaClearLabel: string;
+  sx?: SxProps<Theme>;
 }
 
 export function ExpandableSearchInput({
@@ -14,6 +16,7 @@ export function ExpandableSearchInput({
   onSearchQueryChange,
   placeholder,
   ariaClearLabel,
+  sx,
 }: ExpandableSearchInputProps) {
   const theme = useTheme();
   const normalizedSearchQuery = searchQuery.trim();
@@ -60,7 +63,8 @@ export function ExpandableSearchInput({
           </InputAdornment>
         ) : undefined,
       }}
-      sx={{
+      sx={[
+        {
         width: actionButtonsRevealCollapsedWidth,
         transition: actionButtonsRevealButtonTransition,
         '& .MuiOutlinedInput-root': {
@@ -164,7 +168,9 @@ export function ExpandableSearchInput({
             maxWidth: 240,
           },
         }),
-      }}
+        },
+        ...(sx ? [sx] : []),
+      ] as SxProps<Theme>}
     />
   );
 }

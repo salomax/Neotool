@@ -547,7 +547,7 @@ export function InvestmentHoldingDetailDrawer({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [deleteInProgress, setDeleteInProgress] = React.useState(false);
 
-  const [deleteInvestmentTransaction, { loading: deletingCouponPayment }] = useMutation<
+  const [deleteInvestmentTransaction, { loading: deleteMutationLoading }] = useMutation<
     DeleteInvestmentTransactionMutation,
     DeleteInvestmentTransactionMutationVariables
   >(DELETE_INVESTMENT_TRANSACTION);
@@ -563,6 +563,9 @@ export function InvestmentHoldingDetailDrawer({
   const editingTransaction = React.useMemo<InvestmentTransaction | null>(() => {
     if (!editingTransactionId) return null;
     const transaction = timelineTransactions.find((tx) => tx.id === editingTransactionId);
+    // Cast necessário: os fragments das queries de detalhe são parciais.
+    // Os drawers de edição tratam campos ausentes (ex: brokerNote) como undefined.
+    // Para equity, brokerNote não será pré-populado — ver requisito seção 6.7.
     return (transaction as unknown as InvestmentTransaction | undefined) ?? null;
   }, [editingTransactionId, timelineTransactions]);
 
@@ -597,6 +600,8 @@ export function InvestmentHoldingDetailDrawer({
     locale,
     t,
   ]);
+
+  const deletingCouponPayment = deleteMutationLoading && !deleteConfirmOpen;
 
   React.useEffect(() => {
     setEditingTransactionId(null);
@@ -753,7 +758,9 @@ export function InvestmentHoldingDetailDrawer({
       }
       setDeleteConfirmOpen(false);
       setDeletingTransactionId(null);
-    } catch {
+    } catch (error) {
+      void error;
+      toast.error(t("investments.detailDrawer.timeline.deleteError"));
       return;
     } finally {
       setDeleteInProgress(false);
