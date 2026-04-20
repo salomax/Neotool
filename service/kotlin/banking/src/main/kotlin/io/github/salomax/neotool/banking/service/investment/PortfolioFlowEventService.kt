@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationRequestedEvent
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository

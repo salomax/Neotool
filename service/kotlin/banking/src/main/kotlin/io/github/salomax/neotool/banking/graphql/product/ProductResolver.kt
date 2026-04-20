@@ -6,12 +6,12 @@ import io.github.salomax.neotool.banking.domain.import.nfce.ProductAlias
 import io.github.salomax.neotool.banking.domain.import.nfce.ProductVariant
 import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
 import io.github.salomax.neotool.banking.domain.import.nfce.UnmappedItemGroup
-import io.github.salomax.neotool.banking.service.import.nfce.CreateProductCommand
-import io.github.salomax.neotool.banking.service.import.nfce.CreateProductVariantCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductVariantCommand
 import io.github.salomax.neotool.banking.service.import.nfce.ProductAnalyticsService
 import io.github.salomax.neotool.banking.service.import.nfce.ProductCatalogService
-import io.github.salomax.neotool.banking.service.import.nfce.UpdateProductCommand
-import io.github.salomax.neotool.banking.service.import.nfce.UpdateProductVariantCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductVariantCommand
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal

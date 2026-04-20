@@ -9,9 +9,9 @@ import io.github.salomax.neotool.banking.graphql.investment.BrokerNoteDTO
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.AppliedRuleHistoryEntryDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
-import io.github.salomax.neotool.banking.service.investment.HoldingMaturityConfirmCommand
+import io.github.salomax.neotool.banking.model.dto.investment.HoldingMaturityConfirmCommand
+import io.github.salomax.neotool.banking.model.dto.investment.MaturityCashMovementCommand
 import io.github.salomax.neotool.banking.service.investment.HoldingMaturityConfirmService
-import io.github.salomax.neotool.banking.service.investment.MaturityCashMovementCommand
 import io.github.salomax.neotool.banking.service.pendingaction.AccountPendingActionService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton

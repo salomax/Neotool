@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.graphql.transaction
 
-import io.github.salomax.neotool.banking.service.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -20,7 +20,7 @@ import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.graphql.transaction.CategoryTotalDTO

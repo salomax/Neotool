@@ -259,6 +259,14 @@ interface TransactionRepository {
     ): List<Transaction>
 
     /**
+     * Loads non-deleted transactions by id for the same account.
+     */
+    fun findByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction>
+
+    /**
      * Net cash position: SUM(CREDIT amount) − SUM(DEBIT amount) for POSTED and PENDING rows across the given accounts.
      */
     fun sumLedgerBalance(
@@ -273,6 +281,14 @@ interface TransactionRepository {
         transferPeerTransactionId: UUID,
         accountId: UUID,
     ): Transaction?
+
+    /**
+     * Loads non-deleted transactions where [Transaction.transferPeerTransactionId] is in [transferPeerTransactionIds].
+     */
+    fun findByTransferPeerTransactionIds(
+        transferPeerTransactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction>
 
     /**
      * Investment custodian cash ledger rows: TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT on INVESTMENT/BENEFIT accounts.

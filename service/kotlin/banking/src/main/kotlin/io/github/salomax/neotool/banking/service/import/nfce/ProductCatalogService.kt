@@ -7,6 +7,10 @@ import io.github.salomax.neotool.banking.domain.import.nfce.ProductAliasSource
 import io.github.salomax.neotool.banking.domain.import.nfce.ProductVariant
 import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
 import io.github.salomax.neotool.banking.domain.import.nfce.UnmappedItemGroup
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductVariantCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductCommand
+import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductVariantCommand
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductAliasRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductRepository
@@ -19,42 +23,6 @@ import java.math.BigDecimal
 import java.math.RoundingMode
 import java.time.Instant
 import java.util.UUID
-
-data class CreateProductCommand(
-    val name: String,
-    val ncmCode: String? = null,
-    val defaultUnit: String? = null,
-    val category: String? = null,
-)
-
-data class UpdateProductCommand(
-    val name: String? = null,
-    val ncmCode: String? = null,
-    val defaultUnit: String? = null,
-    val category: String? = null,
-)
-
-data class CreateProductVariantCommand(
-    val productId: UUID,
-    val name: String,
-    val brand: String? = null,
-    val ean: String? = null,
-    val quantityValue: BigDecimal? = null,
-    val quantityUnit: String? = null,
-    val normalizedQuantityValue: BigDecimal? = null,
-    val normalizedQuantityUnit: String? = null,
-)
-
-data class UpdateProductVariantCommand(
-    val productId: UUID? = null,
-    val name: String? = null,
-    val brand: String? = null,
-    val ean: String? = null,
-    val quantityValue: BigDecimal? = null,
-    val quantityUnit: String? = null,
-    val normalizedQuantityValue: BigDecimal? = null,
-    val normalizedQuantityUnit: String? = null,
-)
 
 @Singleton
 open class ProductCatalogService(

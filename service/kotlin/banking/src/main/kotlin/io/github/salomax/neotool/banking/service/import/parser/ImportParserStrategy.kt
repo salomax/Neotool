@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.model.dto.imports.ImportFormatDiscoveryResult
 
 data class ImportParsingContext(
     val bytes: ByteArray,

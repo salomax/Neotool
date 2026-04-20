@@ -1185,6 +1185,19 @@ type ConfirmCouponPaymentResult {
   pendingAction: AccountPendingAction
 }
 
+input TransferCustodyInput {
+  sourceHoldingId: ID!
+  destinationFinancialAccountId: ID!
+  """Quantidade a transferir. Se omitido, transfere a posição completa."""
+  quantity: Float
+  tradeDate: Date!
+}
+
+type TransferCustodyResult {
+  outflowTransaction: InvestmentTransaction!
+  inflowTransaction: InvestmentTransaction!
+}
+
 enum HoldingPricingMode {
   MANUAL
   MARKET_DATA
@@ -2359,6 +2372,8 @@ extend type Mutation {
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
   """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
   confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
+  """Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio."""
+  transferCustody(input: TransferCustodyInput!): TransferCustodyResult!
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction!
 }

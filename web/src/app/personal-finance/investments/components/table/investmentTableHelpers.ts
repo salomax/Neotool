@@ -47,6 +47,24 @@ export const FIXED_INCOME_GROUP_KEYS = new Set<AssetGroupKey>(['fixedIncome']);
 
 export const FUND_GROUP_KEYS = new Set<AssetGroupKey>(['mutualFunds', 'pension']);
 
+export const AMORTIZABLE_ASSET_TYPES = new Set([
+  'DEBENTURES',
+  'CRI',
+  'CRA',
+  'TREASURY',
+  'REAL_ESTATE_FUND',
+  'AGRIBUSINESS_FUND',
+  'ETF_FIXED_INCOME',
+]);
+
+export const LENDABLE_ASSET_TYPES = new Set([
+  'STOCK',
+  'ETF',
+  'BDR',
+  'REAL_ESTATE_FUND',
+  'AGRIBUSINESS_FUND',
+]);
+
 export interface InvestmentHoldingGroup {
   key: AssetGroupKey;
   title: string;

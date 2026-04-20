@@ -21,9 +21,9 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
-import io.github.salomax.neotool.banking.domain.investment.ManualFundValuation
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.domain.investment.UpdateInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository

@@ -103,6 +103,19 @@ open class DefaultTransactionRepository(
             ?.let(TransactionMapper::toDomain)
             ?.let { withTags(listOf(it), accountId).first() }
 
+    override fun findByTransferPeerTransactionIds(
+        transferPeerTransactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction> {
+        if (transferPeerTransactionIds.isEmpty()) return emptyList()
+        return entityRepository
+            .findByTransferPeerTransactionIdInAndAccountIdAndDeletedAtIsNull(
+                transferPeerTransactionIds.distinct().toList(),
+                accountId,
+            )
+            .map(TransactionMapper::toDomain)
+    }
+
     @Transactional
     override fun save(transaction: Transaction): Transaction {
         val entity = TransactionMapper.toEntity(transaction)
@@ -645,6 +658,17 @@ open class DefaultTransactionRepository(
                 investmentTransactionIds.distinct().toList(),
                 accountId,
             )
+            .map(TransactionMapper::toDomain)
+    }
+
+    @Transactional(readOnly = true)
+    override fun findByIds(
+        ids: Collection<UUID>,
+        accountId: UUID,
+    ): List<Transaction> {
+        if (ids.isEmpty()) return emptyList()
+        return entityRepository
+            .findByIdInAndAccountIdAndDeletedAtIsNull(ids.distinct().toList(), accountId)
             .map(TransactionMapper::toDomain)
     }
 

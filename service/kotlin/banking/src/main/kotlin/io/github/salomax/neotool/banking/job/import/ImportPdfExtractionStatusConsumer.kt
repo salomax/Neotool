@@ -2,11 +2,11 @@ package io.github.salomax.neotool.banking.job.import
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.banking.domain.import.ImportJob
+import io.github.salomax.neotool.banking.model.dto.imports.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
-import io.github.salomax.neotool.banking.service.import.ImportEventBus
-import io.github.salomax.neotool.banking.service.import.ImportJobStatusPayload
+import io.github.salomax.neotool.banking.service.import.event.ImportEventBus
 import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
 import io.github.salomax.neotool.banking.job.import.ImportCallbackContext

@@ -2,16 +2,12 @@ package io.github.salomax.neotool.banking.service.import.statement
 
 import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.model.dto.imports.AssistantStatementExtractionResult
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.text.Normalizer
 import java.time.LocalDate
-
-data class AssistantStatementExtractionResult(
-    val rows: List<ParsedTransaction>,
-    val warnings: List<String> = emptyList(),
-)
 
 @Singleton
 class AssistantStatementTransactionExtractor {

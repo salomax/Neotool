@@ -1200,6 +1200,50 @@ type ConfirmCouponPaymentResult {
   pendingAction: AccountPendingAction
 }
 
+input RecordAmortizationInput {
+  holdingId: ID!
+  tradeDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float!
+  iof: Float
+  """Conta que receberá o crédito. Se omitido, apenas o evento de investimento é registrado."""
+  destinationAccountId: ID
+}
+
+type RecordAmortizationResult {
+  amortizationTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+}
+
+input RecordStockLendingInput {
+  holdingId: ID!
+  tradeDate: Date!
+  grossValue: Float!
+  netValue: Float!
+  incomeTax: Float!
+  """Conta que receberá o crédito. Se omitido, apenas o evento de investimento é registrado."""
+  destinationAccountId: ID
+}
+
+type RecordStockLendingResult {
+  lendingTransaction: InvestmentTransaction!
+  bankingTransaction: Transaction
+}
+
+input TransferCustodyInput {
+  sourceHoldingId: ID!
+  destinationFinancialAccountId: ID!
+  """Quantidade a transferir. Se omitido, transfere a posição completa."""
+  quantity: Float
+  tradeDate: Date!
+}
+
+type TransferCustodyResult {
+  outflowTransaction: InvestmentTransaction!
+  inflowTransaction: InvestmentTransaction!
+}
+
 input ConfirmWithholdingTaxInput {
   holdingId: ID!
   tradeDate: Date!
@@ -2387,6 +2431,12 @@ extend type Mutation {
   confirmHoldingMaturity(command: ConfirmHoldingMaturityInput!): ConfirmHoldingMaturityResult!
   """Confirms a fixed-income coupon payment and optionally completes a pending coupon action."""
   confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult!
+  """Registra uma amortização: pagamento parcial de principal de RF crédito ou FII de papel."""
+  recordAmortization(input: RecordAmortizationInput!): RecordAmortizationResult!
+  """Registra receita de aluguel de ações via BTC B3."""
+  recordStockLending(input: RecordStockLendingInput!): RecordStockLendingResult!
+  """Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio."""
+  transferCustody(input: TransferCustodyInput!): TransferCustodyResult!
   """Registra o come-cotas semestral de um fundo de investimento: reduz a quantidade de cotas pelo valor do IR retido."""
   confirmWithholdingTax(input: ConfirmWithholdingTaxInput!): ConfirmWithholdingTaxResult!
   """Dismiss a pending action (e.g. mark informational item as seen)."""

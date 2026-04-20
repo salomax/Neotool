@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.transaction
 
 import io.github.salomax.neotool.banking.client.assets.AssetsServiceClient
 import io.github.salomax.neotool.banking.client.assets.PresignedUrlHttpClient
+import io.github.salomax.neotool.banking.model.domain.transaction.MerchantWebsiteNormalizer
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton

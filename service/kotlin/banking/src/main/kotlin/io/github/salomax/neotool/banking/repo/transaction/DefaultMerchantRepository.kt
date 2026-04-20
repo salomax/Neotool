@@ -4,9 +4,9 @@ import io.github.salomax.neotool.banking.domain.transaction.Merchant
 import io.github.salomax.neotool.banking.domain.transaction.MerchantLogoCacheEntry
 import io.github.salomax.neotool.banking.domain.transaction.MerchantSearchPage
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
+import io.github.salomax.neotool.banking.model.dto.transaction.MerchantCursorCodec
 import io.github.salomax.neotool.banking.model.transaction.MerchantMapper
 import io.github.salomax.neotool.banking.model.transaction.MerchantLogoCacheEntity
-import io.github.salomax.neotool.banking.service.transaction.MerchantCursorCodec
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.Instant

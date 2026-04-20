@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.billimport
 
 import io.github.salomax.neotool.banking.domain.billimport.*
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import jakarta.inject.Singleton
 import java.math.BigDecimal

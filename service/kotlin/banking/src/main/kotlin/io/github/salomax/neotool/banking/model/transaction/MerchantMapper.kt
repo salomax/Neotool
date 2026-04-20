@@ -1,7 +1,7 @@
 package io.github.salomax.neotool.banking.model.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
-import io.github.salomax.neotool.banking.service.transaction.TransactionDescriptionNormalizer
+import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 
 object MerchantMapper {
 

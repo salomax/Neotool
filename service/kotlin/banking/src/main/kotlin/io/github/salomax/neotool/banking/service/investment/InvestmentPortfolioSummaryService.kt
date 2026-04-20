@@ -6,6 +6,7 @@ import io.github.salomax.neotool.banking.graphql.investment.InvestmentPortfolioS
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusDTO
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.RoundingMode

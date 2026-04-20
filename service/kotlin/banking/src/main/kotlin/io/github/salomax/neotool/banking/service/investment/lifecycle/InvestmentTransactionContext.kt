@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.service.investment.lifecycle
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import java.util.UUID
 
 data class InvestmentTransactionContext(

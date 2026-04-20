@@ -29,6 +29,9 @@ import {
   InvestmentTransactionDirection,
 } from '@/lib/graphql/types/__generated__/graphql';
 import type { MaturityDrawerHolding } from '../../MaturityConfirmDrawer';
+import type { AmortizationDrawerHolding } from '../../RecordAmortizationDrawer';
+import type { StockLendingDrawerHolding } from '../../RecordStockLendingDrawer';
+import type { TransferCustodyDrawerHolding } from '../../TransferCustodyDrawer';
 import type { WithholdingTaxDrawerHolding } from '../../WithholdingTaxDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
 import { CashMovementsSection } from './CashMovementsSection';
@@ -42,6 +45,8 @@ import type { IssuerSelectionAccount } from '../IssuerSelection';
 import { useInvestmentCardExpansion } from './useInvestmentCardExpansion';
 import {
   ASSET_GROUP_ORDER,
+  AMORTIZABLE_ASSET_TYPES,
+  LENDABLE_ASSET_TYPES,
   formatCurrency,
   getAssetGroupKey,
   getCurrentLocale,
@@ -65,6 +70,21 @@ const MaturityConfirmDrawer = dynamic(
 
 const WithholdingTaxDrawer = dynamic(
   () => import('../../WithholdingTaxDrawer').then((mod) => ({ default: mod.WithholdingTaxDrawer })),
+  { loading: () => null },
+);
+
+const RecordAmortizationDrawer = dynamic(
+  () => import('../../RecordAmortizationDrawer').then((mod) => ({ default: mod.RecordAmortizationDrawer })),
+  { loading: () => null },
+);
+
+const RecordStockLendingDrawer = dynamic(
+  () => import('../../RecordStockLendingDrawer').then((mod) => ({ default: mod.RecordStockLendingDrawer })),
+  { loading: () => null },
+);
+
+const TransferCustodyDrawer = dynamic(
+  () => import('../../TransferCustodyDrawer').then((mod) => ({ default: mod.TransferCustodyDrawer })),
   { loading: () => null },
 );
 
@@ -153,6 +173,12 @@ export function InvestmentTable({
   });
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
   const [maturityConfirmHolding, setMaturityConfirmHolding] = React.useState<MaturityDrawerHolding | null>(null);
+  const [amortizationOpen, setAmortizationOpen] = React.useState(false);
+  const [amortizationHolding, setAmortizationHolding] = React.useState<AmortizationDrawerHolding | null>(null);
+  const [stockLendingOpen, setStockLendingOpen] = React.useState(false);
+  const [stockLendingHolding, setStockLendingHolding] = React.useState<StockLendingDrawerHolding | null>(null);
+  const [transferCustodyOpen, setTransferCustodyOpen] = React.useState(false);
+  const [transferCustodyHolding, setTransferCustodyHolding] = React.useState<TransferCustodyDrawerHolding | null>(null);
   const [withholdingTaxOpen, setWithholdingTaxOpen] = React.useState(false);
   const [withholdingTaxHolding, setWithholdingTaxHolding] = React.useState<WithholdingTaxDrawerHolding | null>(null);
   const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
@@ -283,6 +309,21 @@ export function InvestmentTable({
     setWithholdingTaxHolding(null);
   }, []);
 
+  const closeAmortizationDrawer = React.useCallback(() => {
+    setAmortizationOpen(false);
+    setAmortizationHolding(null);
+  }, []);
+
+  const closeStockLendingDrawer = React.useCallback(() => {
+    setStockLendingOpen(false);
+    setStockLendingHolding(null);
+  }, []);
+
+  const closeTransferCustodyDrawer = React.useCallback(() => {
+    setTransferCustodyOpen(false);
+    setTransferCustodyHolding(null);
+  }, []);
+
   const handleOpenMaturityConfirmDrawer = React.useCallback((holding: HoldingRow) => {
     if (!holding.asset?.id) return;
 
@@ -322,6 +363,61 @@ export function InvestmentTable({
       },
     });
     setWithholdingTaxOpen(true);
+  }, []);
+
+  const handleOpenAmortizationDrawer = React.useCallback((holding: HoldingRow) => {
+    if (!holding.asset?.id) return;
+    if (!AMORTIZABLE_ASSET_TYPES.has(holding.asset.assetType ?? '')) return;
+
+    setAmortizationHolding({
+      id: holding.id,
+      financialAccountId: holding.financialAccountId,
+      grossValue: holding.grossValue ?? null,
+      issuerName: holding.asset.issuerName ?? null,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType ?? null,
+        isTaxExempt: holding.isTaxExempt,
+      },
+    });
+    setAmortizationOpen(true);
+  }, []);
+
+  const handleOpenStockLendingDrawer = React.useCallback((holding: HoldingRow) => {
+    if (!holding.asset?.id) return;
+    if (!LENDABLE_ASSET_TYPES.has(holding.asset.assetType ?? '')) return;
+
+    setStockLendingHolding({
+      id: holding.id,
+      financialAccountId: holding.financialAccountId,
+      issuerName: holding.asset.issuerName ?? null,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType ?? null,
+      },
+    });
+    setStockLendingOpen(true);
+  }, []);
+
+  const handleOpenTransferCustodyDrawer = React.useCallback((holding: HoldingRow) => {
+    if (!holding.asset?.id) return;
+    if (holding.quantity <= 0) return;
+
+    setTransferCustodyHolding({
+      id: holding.id,
+      financialAccountId: holding.financialAccountId,
+      quantity: holding.quantity,
+      averageCost: holding.averageCost,
+      issuerName: holding.asset.issuerName ?? null,
+      asset: {
+        id: holding.asset.id,
+        name: holding.asset.name,
+        assetType: holding.asset.assetType ?? null,
+      },
+    });
+    setTransferCustodyOpen(true);
   }, []);
 
   const closeQuickTransaction = React.useCallback(() => {
@@ -694,6 +790,18 @@ export function InvestmentTable({
           if (!actionMenu.holding) return;
           handleOpenWithholdingTaxDrawer(actionMenu.holding);
         }}
+        onRecordAmortization={() => {
+          if (!actionMenu.holding) return;
+          handleOpenAmortizationDrawer(actionMenu.holding);
+        }}
+        onRecordStockLending={() => {
+          if (!actionMenu.holding) return;
+          handleOpenStockLendingDrawer(actionMenu.holding);
+        }}
+        onTransferCustody={() => {
+          if (!actionMenu.holding) return;
+          handleOpenTransferCustodyDrawer(actionMenu.holding);
+        }}
       />
 
       <ConfirmationDialog
@@ -731,6 +839,43 @@ export function InvestmentTable({
         open={withholdingTaxOpen}
         onClose={closeWithholdingTaxDrawer}
         holding={withholdingTaxHolding}
+        onSuccess={refreshInvestmentData}
+      />
+
+      <RecordAmortizationDrawer
+        open={amortizationOpen}
+        onClose={closeAmortizationDrawer}
+        holding={amortizationHolding}
+        financialAccounts={investmentAccounts.map((account) => ({
+          id: account.id,
+          name: account.name,
+          institutionName: account.issuer?.name ?? account.issuerName ?? null,
+        }))}
+        onSuccess={refreshInvestmentData}
+      />
+
+      <RecordStockLendingDrawer
+        open={stockLendingOpen}
+        onClose={closeStockLendingDrawer}
+        holding={stockLendingHolding}
+        financialAccounts={investmentAccounts.map((account) => ({
+          id: account.id,
+          name: account.name,
+          institutionName: account.issuer?.name ?? account.issuerName ?? null,
+        }))}
+        onSuccess={refreshInvestmentData}
+      />
+
+      <TransferCustodyDrawer
+        open={transferCustodyOpen}
+        onClose={closeTransferCustodyDrawer}
+        holding={transferCustodyHolding}
+        investmentAccounts={investmentAccounts.map((account) => ({
+          id: account.id,
+          name: account.name,
+          institutionName: account.issuer?.name ?? account.issuerName ?? null,
+          subtype: account.subtype,
+        }))}
         onSuccess={refreshInvestmentData}
       />
 

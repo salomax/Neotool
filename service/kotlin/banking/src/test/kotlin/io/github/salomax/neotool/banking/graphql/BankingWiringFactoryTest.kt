@@ -413,5 +413,26 @@ class BankingWiringFactoryTest {
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_UPDATE))
         }
+
+        @Test
+        fun `transferCustody requires banking_investment_update permission and forwards input`() {
+            val wiring = wiringFactory.build()
+            val dataFetcher = wiring.dataFetchers["Mutation"]!!["transferCustody"]!!
+            val input =
+                mapOf(
+                    "sourceHoldingId" to UUID.randomUUID().toString(),
+                    "destinationFinancialAccountId" to UUID.randomUUID().toString(),
+                    "quantity" to 10.5,
+                    "tradeDate" to "2026-04-20",
+                )
+            whenever(investmentResolver.transferCustody(any(), any())).thenReturn(mock())
+
+            val env = envWithToken(arguments = mapOf("input" to input))
+
+            dataFetcher.get(env)
+
+            verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_UPDATE))
+            verify(investmentResolver).transferCustody(eq(input), any())
+        }
     }
 }

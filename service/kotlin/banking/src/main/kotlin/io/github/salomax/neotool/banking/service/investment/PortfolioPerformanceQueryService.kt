@@ -16,6 +16,8 @@ import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPointDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
 import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository

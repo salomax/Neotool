@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.service.investment.recalculation
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.service.investment.DailyGroupValuation
-import io.github.salomax.neotool.banking.service.investment.GridClassMapping
+import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.TreeMap

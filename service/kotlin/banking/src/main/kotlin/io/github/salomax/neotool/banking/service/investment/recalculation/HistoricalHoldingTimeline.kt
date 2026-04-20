@@ -7,7 +7,7 @@ import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
-import io.github.salomax.neotool.banking.service.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.service.investment.DailyGroupValuation
 import io.github.salomax.neotool.banking.service.investment.FixedIncomeValuationService
 import io.github.salomax.neotool.banking.service.investment.ValuationSource

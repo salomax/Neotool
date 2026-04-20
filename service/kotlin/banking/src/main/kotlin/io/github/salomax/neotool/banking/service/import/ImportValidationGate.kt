@@ -1,25 +1,11 @@
 package io.github.salomax.neotool.banking.service.import
 
-import io.github.salomax.neotool.banking.domain.import.*
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
+import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationCounters
+import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationPreDecision
+import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationQuality
 import jakarta.inject.Singleton
-
-data class ImportValidationQuality(
-    val processorType: CanonicalProcessorType?,
-    val warnings: List<String> = emptyList(),
-)
-
-data class ImportValidationPreDecision(
-    val status: ImportJobStatus,
-    val reason: String,
-    val details: Map<String, Any?>,
-)
-
-data class ImportValidationCounters(
-    val importedCount: Int,
-    val skippedCount: Int,
-    val duplicateReviewCount: Int,
-    val errorCount: Int,
-)
 
 @Singleton
 open class ImportValidationGate {

@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.banking.graphql.merchant
 
 import io.github.salomax.neotool.banking.domain.transaction.Merchant
+import io.github.salomax.neotool.banking.model.domain.transaction.MerchantWebsiteNormalizer
+import io.github.salomax.neotool.banking.model.dto.transaction.MerchantCursorCodec
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.service.transaction.MerchantLogoHydrationService
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
-import io.github.salomax.neotool.banking.service.transaction.MerchantCursorCodec
-import io.github.salomax.neotool.banking.service.transaction.MerchantWebsiteNormalizer
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import mu.KotlinLogging

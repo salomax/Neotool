@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.transaction
 
+import io.github.salomax.neotool.banking.model.domain.transaction.MerchantWebsiteNormalizer
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import java.net.URLEncoder
