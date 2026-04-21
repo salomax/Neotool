@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.dto.investment.RecordAmortizationCommand
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.Holding
@@ -7,7 +8,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
@@ -19,10 +20,10 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.assertThrows
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
@@ -187,13 +188,12 @@ class RecordAmortizationServiceTest {
                 destinationAccountId = destinationAccountId,
             )
 
-        assertThatThrownBy { service.confirm(command, accountId, userId) }
-            .isInstanceOf(ValidationException::class.java)
-            .satisfies { ex ->
-                val error = ex as ValidationException
-                assertThat(error.errorCode).isEqualTo(CommonErrorCode.INVALID_STATE)
-                assertThat(error.field).isEqualTo("holdingId")
+        val ex =
+            assertThrows<ValidationException> {
+                service.confirm(command, accountId, userId)
             }
+        assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_STATE)
+        assertThat(ex.field).isEqualTo("holdingId")
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
     }
@@ -210,13 +210,12 @@ class RecordAmortizationServiceTest {
                 destinationAccountId = destinationAccountId,
             )
 
-        assertThatThrownBy { service.confirm(command, accountId, userId) }
-            .isInstanceOf(ValidationException::class.java)
-            .satisfies { ex ->
-                val error = ex as ValidationException
-                assertThat(error.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
-                assertThat(error.field).isEqualTo("grossValue")
+        val ex =
+            assertThrows<ValidationException> {
+                service.confirm(command, accountId, userId)
             }
+        assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+        assertThat(ex.field).isEqualTo("grossValue")
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
     }
@@ -233,13 +232,12 @@ class RecordAmortizationServiceTest {
                 destinationAccountId = destinationAccountId,
             )
 
-        assertThatThrownBy { service.confirm(command, accountId, userId) }
-            .isInstanceOf(ValidationException::class.java)
-            .satisfies { ex ->
-                val error = ex as ValidationException
-                assertThat(error.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
-                assertThat(error.field).isEqualTo("netValue")
+        val ex =
+            assertThrows<ValidationException> {
+                service.confirm(command, accountId, userId)
             }
+        assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+        assertThat(ex.field).isEqualTo("netValue")
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
     }

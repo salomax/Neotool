@@ -15,7 +15,9 @@ import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRe
 import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus

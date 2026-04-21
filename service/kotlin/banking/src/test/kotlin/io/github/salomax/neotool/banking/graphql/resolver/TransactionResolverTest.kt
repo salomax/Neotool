@@ -8,7 +8,7 @@ import io.github.salomax.neotool.banking.graphql.issuer.*
 import io.github.salomax.neotool.banking.graphql.merchant.*
 import io.github.salomax.neotool.banking.graphql.transaction.*
 import io.github.salomax.neotool.banking.graphql.config.*
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummary
@@ -26,7 +26,7 @@ import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngi
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import org.assertj.core.api.Assertions.assertThat

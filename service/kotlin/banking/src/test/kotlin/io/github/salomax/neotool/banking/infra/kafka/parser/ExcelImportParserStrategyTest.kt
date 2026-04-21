@@ -2,6 +2,7 @@ package io.github.salomax.neotool.banking.service.import.parser
 
 import io.github.salomax.neotool.banking.client.import.messaging.*
 import io.github.salomax.neotool.banking.job.import.*
+import io.github.salomax.neotool.banking.model.dto.imports.ImportFormatDiscoveryResult
 import io.github.salomax.neotool.banking.service.import.parser.*
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import org.apache.poi.hssf.usermodel.HSSFWorkbook

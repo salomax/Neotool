@@ -1,5 +1,10 @@
 package io.github.salomax.neotool.banking.domain.account
 
+import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
+import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.account.UpdateField
+import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
@@ -7,7 +12,7 @@ import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshot
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
 import io.github.salomax.neotool.banking.service.account.*
 import io.github.salomax.neotool.banking.service.transaction.*
-import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.service.transaction.TransactionService

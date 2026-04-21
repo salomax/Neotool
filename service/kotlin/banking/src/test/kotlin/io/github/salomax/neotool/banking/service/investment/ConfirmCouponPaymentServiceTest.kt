@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource

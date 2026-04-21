@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.integration
 
-import io.github.salomax.neotool.banking.domain.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype

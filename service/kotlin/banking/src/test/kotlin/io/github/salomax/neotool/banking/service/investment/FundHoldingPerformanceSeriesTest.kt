@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.domain.investment.performance.buildFundNavPerformancePoints
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile

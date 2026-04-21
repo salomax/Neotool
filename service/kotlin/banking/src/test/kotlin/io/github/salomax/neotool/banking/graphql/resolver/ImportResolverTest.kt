@@ -10,9 +10,9 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.graphql.import.ImportResolver
 import io.github.salomax.neotool.banking.graphql.import.ImportResultDTO
 import io.github.salomax.neotool.banking.graphql.import.TransactionImportDTO
-import io.github.salomax.neotool.banking.service.import.ImportDuplicateCandidate
+import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.service.import.ImportJobService
-import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
+import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal

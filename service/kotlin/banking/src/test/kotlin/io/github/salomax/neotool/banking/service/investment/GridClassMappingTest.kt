@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test

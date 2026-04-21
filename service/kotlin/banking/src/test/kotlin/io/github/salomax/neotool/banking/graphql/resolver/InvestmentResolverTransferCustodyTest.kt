@@ -20,8 +20,8 @@ import io.github.salomax.neotool.banking.service.investment.PortfolioPerformance
 import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSeriesService
 import io.github.salomax.neotool.banking.service.investment.RecordAmortizationService
 import io.github.salomax.neotool.banking.service.investment.RecordStockLendingService
-import io.github.salomax.neotool.banking.service.investment.TransferCustodyCommand
-import io.github.salomax.neotool.banking.service.investment.TransferCustodyResult
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyResult
 import io.github.salomax.neotool.banking.service.investment.TransferCustodyService
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal

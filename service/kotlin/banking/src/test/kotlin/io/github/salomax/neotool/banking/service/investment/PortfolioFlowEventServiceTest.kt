@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationRequestedEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType

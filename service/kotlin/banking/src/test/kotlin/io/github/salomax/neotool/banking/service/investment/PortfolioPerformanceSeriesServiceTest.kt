@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.Holding

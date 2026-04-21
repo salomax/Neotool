@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlo
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
+import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.data.Percentage
 import org.junit.jupiter.api.DisplayName
@@ -13,6 +14,7 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import kotlin.math.abs
 
 @DisplayName("PortfolioQuotaCalculationService")
 class PortfolioQuotaCalculationServiceTest {
@@ -294,6 +296,45 @@ class PortfolioQuotaCalculationServiceTest {
             // netFlows = +1000 - 200 = +800
             // dailyReturn = (10850 - 10000 - 800) / 10000 = 50/10000 = 0.5%
             assertThat(portfolio.quotaValue.toDouble()).isCloseTo(1.005, Percentage.withPercentage(0.01))
+        }
+
+        @Test
+        fun `quota day result matches independent oracle with mixed flow types`() {
+            val previous = quota("1.23456789", "10000.00")
+            val result = service.calculateDayQuota(
+                financialAccountId = financialAccountId,
+                date = date,
+                previousPortfolioQuota = previous,
+                previousGroupQuotas = emptyMap(),
+                holdingsValueByGroup = mapOf("fixedIncome" to groupValuation("10650.00")),
+                flowEvents = listOf(
+                    flowEvent(PortfolioFlowEventType.DEPOSIT, "1000.00"),
+                    flowEvent(PortfolioFlowEventType.WITHDRAWAL, "300.00"),
+                    flowEvent(PortfolioFlowEventType.DIVIDEND, "200.00"),
+                    flowEvent(PortfolioFlowEventType.INCOME_TAX, "50.00"),
+                ),
+            )
+            val portfolio = portfolioResult(result)
+
+            val expectedDailyReturn =
+                TwrTestOracle.computeTwr(
+                    series =
+                        listOf(
+                            TwrTestOracle.OracleValuePoint(date.minusDays(1), BigDecimal("10000.00")),
+                            TwrTestOracle.OracleValuePoint(date, BigDecimal("10650.00")),
+                        ),
+                    netFlowByDate =
+                        mapOf(
+                            date to BigDecimal("450.00"), // +1000 -300 -200 -50
+                        ),
+                )!!
+            val expectedQuota =
+                previous.quotaValue
+                    .multiply(BigDecimal.ONE.add(BigDecimal(expectedDailyReturn.toString())))
+                    .setScale(8, java.math.RoundingMode.HALF_UP)
+
+            assertThat(abs(portfolio.quotaValue.toDouble() - expectedQuota.toDouble()))
+                .isLessThanOrEqualTo(TwrTestTolerance.EPS_UNIT)
         }
     }
 

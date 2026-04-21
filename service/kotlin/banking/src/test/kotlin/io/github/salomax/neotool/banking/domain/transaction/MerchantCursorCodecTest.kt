@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-import io.github.salomax.neotool.banking.service.transaction.MerchantCursorCodec
+import io.github.salomax.neotool.banking.model.dto.transaction.MerchantCursorCodec
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.domain.import
 
-import io.github.salomax.neotool.banking.service.import.*
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.model.domain.imports.ImportSourceDetector
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

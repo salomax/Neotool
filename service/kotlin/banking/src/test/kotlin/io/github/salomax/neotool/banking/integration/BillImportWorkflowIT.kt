@@ -9,9 +9,9 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillImportCommand
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewCardCommand
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillReviewTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository

@@ -9,7 +9,7 @@ import io.github.salomax.neotool.banking.graphql.merchant.*
 import io.github.salomax.neotool.banking.graphql.transaction.*
 import io.github.salomax.neotool.banking.graphql.config.*
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.domain.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode

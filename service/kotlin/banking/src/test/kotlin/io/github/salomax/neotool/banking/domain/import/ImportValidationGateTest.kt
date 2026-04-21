@@ -1,5 +1,8 @@
 package io.github.salomax.neotool.banking.domain.import
 
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
+import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationCounters
+import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationQuality
 import io.github.salomax.neotool.banking.service.import.*
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName

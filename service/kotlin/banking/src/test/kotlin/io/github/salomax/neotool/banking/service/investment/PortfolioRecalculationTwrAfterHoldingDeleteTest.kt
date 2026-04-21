@@ -22,6 +22,7 @@ import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepositor
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
+import io.github.salomax.neotool.banking.service.investment.event.PortfolioRecalculationEventBus
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any

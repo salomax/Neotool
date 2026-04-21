@@ -1,5 +1,7 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository

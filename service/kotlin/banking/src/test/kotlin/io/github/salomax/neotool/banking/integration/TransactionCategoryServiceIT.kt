@@ -5,7 +5,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo.TRANSFER
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableToMismatchException
 import io.github.salomax.neotool.banking.domain.transaction.CategoryDepthExceededException
-import io.github.salomax.neotool.banking.service.transaction.CreateCategoryInput
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateCategoryInput
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateCategoryNameException
 import io.github.salomax.neotool.banking.domain.transaction.SystemCategoryNotEditableException
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
@@ -187,7 +187,7 @@ class TransactionCategoryServiceIT : BankingPostgresIntegrationTest() {
                 service.update(
                     id = requireNotNull(systemCategory.id),
                     input =
-                        io.github.salomax.neotool.banking.service.transaction.UpdateCategoryInput(
+                        io.github.salomax.neotool.banking.model.dto.transaction.UpdateCategoryInput(
                             name = "Alimentação Editada",
                             icon = null,
                             color = null,

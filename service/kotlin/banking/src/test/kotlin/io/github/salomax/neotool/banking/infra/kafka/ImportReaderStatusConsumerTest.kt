@@ -8,13 +8,13 @@ import io.github.salomax.neotool.banking.domain.import.ImportJob
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.service.import.ImportProcessor
-import io.github.salomax.neotool.banking.service.import.ImportProcessingResult
-import io.github.salomax.neotool.banking.service.import.ImportReviewPayloadMapper
+import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
+import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.service.import.ImportValidationGate
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
-import io.github.salomax.neotool.banking.service.import.ImportEventBus
+import io.github.salomax.neotool.banking.service.import.event.ImportEventBus
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat
