@@ -54,6 +54,7 @@ import org.postgresql.util.PSQLState
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import java.util.UUID
 
 @DisplayName("ImportJobService")
@@ -484,7 +485,7 @@ class ImportJobServiceTest {
                 RuntimeException(
                     "duplicate",
                     PSQLException(
-                        "duplicate key value violates unique constraint \"uq_transaction_imports_account_file_hash\"",
+                        "duplicate key value violates unique constraint \"uq_document_import_jobs_transaction_account_hash\"",
                         PSQLState.UNIQUE_VIOLATION,
                     ),
                 ),
@@ -683,6 +684,21 @@ class ImportJobServiceTest {
             }
             whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
             whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+            whenever(nfceDocumentRepository.findByTransactionId(any(), any())).thenAnswer { inv ->
+                val txId = inv.arguments[0] as UUID
+                val accId = inv.arguments[1] as UUID
+                NfceDocument(
+                    transactionId = txId,
+                    accountId = accId,
+                    accessKey = chNFe,
+                    issuerCnpj = "12345678000190",
+                    issuerName = "Store Name",
+                    emissionDate = now,
+                    totalValue = BigDecimal("99.99"),
+                    state = "SP",
+                    createdAt = now,
+                )
+            }
 
             val result = service.importNfce(financialAccountId, accountId, userId, qrCodeUrl)
             val documentCaptor = argumentCaptor<NfceDocument>()
@@ -770,6 +786,21 @@ class ImportJobServiceTest {
             }
             whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument(0) }
             whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
+            whenever(nfceDocumentRepository.findByTransactionId(any(), any())).thenAnswer { inv ->
+                val txId = inv.arguments[0] as UUID
+                val accId = inv.arguments[1] as UUID
+                NfceDocument(
+                    transactionId = txId,
+                    accountId = accId,
+                    accessKey = chNFe,
+                    issuerCnpj = "12345678000190",
+                    issuerName = "Store Name",
+                    emissionDate = now,
+                    totalValue = BigDecimal("60.00"),
+                    state = "SP",
+                    createdAt = now,
+                )
+            }
             whenever(productVariantEntityRepository.findByEan("789111")).thenReturn(
                 io.github.salomax.neotool.banking.model.import.nfce.ProductVariantEntity(
                     id = eanVariantId,
@@ -876,7 +907,7 @@ class ImportJobServiceTest {
                     creditDebitType = CreditDebitType.DEBIT,
                     type = TransactionType.OTHER_EXPENSE,
                     amount = BigDecimal("157.32"),
-                    date = today,
+                    date = LocalDate.ofInstant(now, ZoneId.systemDefault()),
                     description = "Compra mercado",
                     source = TransactionSource.MANUAL,
                     status = TransactionStatus.POSTED,
@@ -900,9 +931,9 @@ class ImportJobServiceTest {
             whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(null)
             whenever(
                 crossSourceDedupService.findManualNfceCandidates(
-                    financialAccountId = financialAccountId,
-                    amount = BigDecimal("157.32"),
-                    referenceDate = today,
+                    eq(financialAccountId),
+                    eq(BigDecimal("157.32")),
+                    any(),
                 ),
             ).thenReturn(listOf(existingTx))
             whenever(importJobRepository.save(any())).thenAnswer { invocation ->
@@ -1311,7 +1342,7 @@ class ImportJobServiceTest {
                             providerTransactionId = "35240112345678000199550010001234561123450000",
                             creditDebitType = CreditDebitType.DEBIT,
                             amount = BigDecimal("157.32"),
-                            date = today,
+                            date = LocalDate.ofInstant(now, ZoneId.systemDefault()),
                             description = "Supermercado Exemplo",
                             currencyCode = "BRL",
                         ),
@@ -1363,7 +1394,21 @@ class ImportJobServiceTest {
 
             whenever(importJobRepository.findById(jobId, accountId)).thenReturn(job)
             whenever(nfceClient.fetch("https://sefaz.example/nfce?p=link")).thenReturn(nfce)
-            whenever(nfceDocumentRepository.findByTransactionId(existingTxId, accountId)).thenReturn(null)
+            whenever(nfceDocumentRepository.findByTransactionId(existingTxId, accountId))
+                .thenReturn(null)
+                .thenReturn(
+                    NfceDocument(
+                        transactionId = existingTxId,
+                        accountId = accountId,
+                        accessKey = job.fileHash,
+                        issuerCnpj = "12345678000190",
+                        issuerName = "Supermercado Exemplo",
+                        emissionDate = now,
+                        totalValue = BigDecimal("157.32"),
+                        state = "SP",
+                        createdAt = now,
+                    ),
+                )
             whenever(transactionRepository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument(0) }
             whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }

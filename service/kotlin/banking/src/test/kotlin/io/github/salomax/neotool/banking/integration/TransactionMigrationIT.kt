@@ -70,8 +70,6 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                             "0.17",
                             "0.18",
                             "0.19",
-                            "0.20",
-                            "0.21",
                         )
                 }
                 conn.createStatement().executeQuery(

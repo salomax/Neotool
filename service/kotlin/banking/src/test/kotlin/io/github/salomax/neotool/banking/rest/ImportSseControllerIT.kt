@@ -11,7 +11,6 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Disabled
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Tag
 import org.junit.jupiter.api.Test
@@ -21,8 +20,9 @@ import java.sql.DriverManager
 import java.util.UUID
 
 /**
- * Integration test for [ImportSseController]: MicronautTest + TestHttpClient with streaming.
+ * Integration tests for [ImportSseController] error paths (MicronautTest + HTTP client).
  * Uses [io.github.salomax.neotool.banking.config.BankingTestTokenPrincipalDecoder] for auth when env=test.
+ * SSE happy-path streaming is covered by [ImportSseControllerTest].
  */
 @MicronautTest(startApplication = true)
 @DisplayName("ImportSseController IT")
@@ -61,23 +61,17 @@ class ImportSseControllerIT : BankingPostgresIntegrationTest() {
             jobId = UUID.randomUUID()
             conn.createStatement().executeUpdate(
                 """
-                INSERT INTO banking.transaction_imports (id, financial_account_id, account_id, created_by_user_id, source, file_hash, status, imported_count, skipped_count, duplicate_review_count, error_count, created_at, updated_at)
-                VALUES ('$jobId', '$financialAccountId', '$accountId', '$userId', 'OFX', 'sse-it-hash', 'COMPLETED', 5, 0, 0, 0, NOW(), NOW())
+                INSERT INTO banking.document_import_jobs (
+                    id, job_kind, financial_account_id, account_id, created_by_user_id,
+                    source, file_hash, status, imported_count, skipped_count, duplicate_review_count, error_count, created_at, updated_at
+                )
+                VALUES (
+                    '$jobId', 'TRANSACTION_IMPORT', '$financialAccountId', '$accountId', '$userId',
+                    'OFX', 'sse-it-hash', 'COMPLETED', 5, 0, 0, 0, NOW(), NOW()
+                )
                 """.trimIndent(),
             )
         }
-    }
-
-    @Test
-    @Disabled("SSE streaming + blocking client can fail; happy path covered by ImportSseControllerTest")
-    fun `GET imports jobId events returns 200 and text-event-stream when job is COMPLETED`() {
-        val request =
-            HttpRequest.GET<Any>("/imports/$jobId/events")
-                .header("Authorization", "Bearer ${BankingTestTokenPrincipalDecoder.TEST_TOKEN}")
-                .accept(MediaType.TEXT_EVENT_STREAM)
-        val body = client.toBlocking().retrieve(request)
-        assertThat(body).contains(jobId.toString())
-        assertThat(body).containsIgnoringCase("COMPLETED")
     }
 
     @Test

@@ -130,7 +130,7 @@ class ImportProcessorIT : BankingPostgresIntegrationTest() {
                     creditDebitType = CreditDebitType.DEBIT,
                     type = TransactionType.OTHER_EXPENSE,
                     status = TransactionStatus.POSTED,
-                    source = TransactionSource.MANUAL,
+                    source = TransactionSource.OFX,
                     amount = BigDecimal("50.00"),
                     date = today,
                     description = "Existing",

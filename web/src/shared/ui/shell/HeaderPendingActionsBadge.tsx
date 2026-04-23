@@ -57,8 +57,15 @@ export function HeaderPendingActionsBadge() {
         <IconButton
           aria-label={t("appHeader.pendingActions")}
           onClick={() => router.push("/personal-finance/investments?pendingActions=1")}
+          data-testid="header-pending-actions-button"
         >
-          <Badge badgeContent={total} color={badgeColor} max={99} invisible={total === 0}>
+          <Badge
+            badgeContent={total}
+            color={badgeColor}
+            max={99}
+            invisible={total === 0}
+            data-testid="header-pending-actions-badge"
+          >
             <NotificationsOutlinedIcon />
           </Badge>
         </IconButton>

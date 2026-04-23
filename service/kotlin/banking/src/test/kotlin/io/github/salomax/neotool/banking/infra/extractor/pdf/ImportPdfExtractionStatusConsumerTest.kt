@@ -21,7 +21,6 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.time.Instant
@@ -61,6 +60,7 @@ class ImportPdfExtractionStatusConsumerTest {
         val jobId = requireNotNull(job.id)
         whenever(importJobRepository.findById(eq(jobId), eq(job.accountId))).thenReturn(job)
         whenever(importJobRepository.markAssistantRequestPublished(eq(jobId))).thenReturn(true)
+        whenever(importJobRepository.update(any())).thenAnswer { it.getArgument<ImportJob>(0) }
 
         consumer.onExtractorExtracted(
             mapOf(
@@ -87,7 +87,7 @@ class ImportPdfExtractionStatusConsumerTest {
         assertThat(eventCaptor.firstValue.extracted_text).contains("linha 1")
         verify(importJobRepository).markAssistantRequestPublished(jobId)
         verify(fileStorage).delete(job.accountId, assetId)
-        verify(importJobRepository, never()).update(any())
+        verify(importJobRepository).update(any())
     }
 
     @Test

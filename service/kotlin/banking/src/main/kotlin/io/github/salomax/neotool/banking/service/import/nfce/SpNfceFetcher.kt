@@ -50,7 +50,16 @@ open class SpNfceFetcher : NfceFetcher {
     }
 
     internal fun fetchSummaryPage(qrCodeUrl: String): String {
-        val summaryPageUri = toSpSummaryPageUri(qrCodeUrl)
+        val summaryPageUri =
+            try {
+                toSpSummaryPageUri(qrCodeUrl)
+            } catch (e: IllegalArgumentException) {
+                throw NfceUnavailableException("Invalid NFC-e summary URL: ${e.message}", e)
+            }
+        val scheme = summaryPageUri.scheme?.lowercase()
+        if (scheme != "http" && scheme != "https") {
+            throw NfceUnavailableException("Invalid NFC-e summary URL: unsupported or missing HTTP scheme")
+        }
         val request = HttpRequest.newBuilder()
             .uri(summaryPageUri)
             .timeout(Duration.ofSeconds(10))

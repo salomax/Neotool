@@ -135,7 +135,7 @@ class PortfolioPerformanceQueryServiceTest {
                 hasEstimatedValuesFallback = false,
             )
 
-        assertThat(performance.twr).isEqualTo(0.15)
+        assertThat(performance.twr).isEqualTo(0.5)
         assertThat(performance.twrSince).isEqualTo(yearStartBoundary)
         assertThat(performance.hasEstimatedValues).isTrue()
         assertThat(performance.benchmarks).hasSize(4)

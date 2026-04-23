@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Box, Divider } from "@mui/material";
+import { Box, Divider, Paper, Stack, Typography } from "@mui/material";
 import { InvestmentSource } from "@/lib/graphql/types/__generated__/graphql";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
@@ -93,6 +93,36 @@ export function FundHoldingDetailContent({
 
   return (
     <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", md: "1fr" }, gap: 2 }}>
+      <Paper variant="outlined" sx={{ p: 2 }} data-testid="fund-detail-metadata">
+        <Stack
+          direction={{ xs: "column", md: "row" }}
+          spacing={2}
+          sx={{ justifyContent: "space-between" }}
+        >
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" color="text.secondary">
+              {t("investments.detailDrawer.fund.pricingModeLabel")}
+            </Typography>
+            <Typography variant="body2" fontWeight={600} data-testid="fund-detail-pricing-mode">
+              {viewModel.pricingModeLabel ?? "—"}
+            </Typography>
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="overline" color="text.secondary">
+              {t("investments.detailDrawer.fund.latestNavLabel")}
+            </Typography>
+            <Typography variant="body2" fontWeight={600} data-testid="fund-detail-latest-nav">
+              {viewModel.latestNavPerQuota != null ? currencyFormatter?.format(viewModel.latestNavPerQuota) ?? "—" : "—"}
+              {viewModel.latestNavReferenceDateLabel
+                ? ` • ${t("investments.detailDrawer.fund.referenceDate", {
+                    date: viewModel.latestNavReferenceDateLabel,
+                  })}`
+                : ""}
+            </Typography>
+          </Box>
+        </Stack>
+      </Paper>
+
       <HoldingPerformanceChart
         points={viewModel.chartPoints}
         currencyCode={viewModel.currencyCode}

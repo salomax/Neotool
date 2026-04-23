@@ -10,6 +10,7 @@ export interface ValueOriginIndicatorProps {
   title: React.ReactNode;
   description?: React.ReactNode;
   ariaLabel?: string;
+  dataTestId?: string;
   color?: 'warning' | 'info';
   offsetPx?: number;
   sizePx?: number;
@@ -22,6 +23,7 @@ export function ValueOriginIndicator({
   title,
   description,
   ariaLabel,
+  dataTestId,
   color = 'warning',
   offsetPx = 18,
   sizePx = 6,
@@ -54,6 +56,7 @@ export function ValueOriginIndicator({
         <Box
           component="span"
           aria-label={ariaLabel}
+          data-testid={dataTestId}
           sx={{
             display: 'grid',
             placeItems: 'center',

@@ -9,6 +9,10 @@ import jakarta.inject.Singleton
 
 @Singleton
 open class ImportValidationGate {
+    companion object {
+        const val LLM_MIN_CONFIDENCE: Double = 0.5
+    }
+
     fun evaluateBeforeCommit(
         quality: ImportValidationQuality,
         totalRows: Int,
@@ -38,6 +42,20 @@ open class ImportValidationGate {
                         "gate_reason" to "llm_invalid_rows",
                         "processor_type" to processorType.name,
                         "invalid_row_count" to invalidRowCount,
+                    ),
+            )
+        }
+
+        val confidence = quality.confidence
+        if (confidence != null && confidence < LLM_MIN_CONFIDENCE) {
+            return ImportValidationPreDecision(
+                status = ImportJobStatus.REVIEW_REQUIRED,
+                reason = "llm_low_confidence",
+                details =
+                    mapOf(
+                        "gate_reason" to "llm_low_confidence",
+                        "processor_type" to processorType.name,
+                        "confidence" to confidence,
                     ),
             )
         }

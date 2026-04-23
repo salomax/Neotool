@@ -128,7 +128,7 @@ class TransactionMapperTest {
     @Test
     fun `toDomain maps structured applied rule history when appliedAt is numeric epoch seconds`() {
         val ruleId = UUID.randomUUID()
-        val instant = Instant.parse("2026-04-05T21:29:22.549327Z")
+        val instant = Instant.parse("2026-04-06T13:29:22.549327Z")
         val entity =
             TransactionEntity(
                 id = UUID.randomUUID(),

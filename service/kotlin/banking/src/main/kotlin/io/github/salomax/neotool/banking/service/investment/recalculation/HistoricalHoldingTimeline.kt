@@ -6,6 +6,8 @@ import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.service.investment.DailyGroupValuation
@@ -38,13 +40,63 @@ class HistoricalHoldingTimeline(
 
     fun advanceTo(date: LocalDate) {
         while (cursor < transactions.size && !transactions[cursor].tradeDate.isAfter(date)) {
-            currentState =
-                HoldingPositionEvolution.evolve(
-                    currentState,
-                    PositionEvolutionInput.from(transactions[cursor]),
-                )
-            cursor += 1
+            val day = transactions[cursor].tradeDate
+            val dayTransactions = mutableListOf<InvestmentTransaction>()
+            while (cursor < transactions.size && transactions[cursor].tradeDate == day) {
+                dayTransactions += transactions[cursor]
+                cursor += 1
+            }
+
+            // Normalize same-day cost-adding inflows into one atomic position update to avoid
+            // permutation-dependent intermediate averageCost states during replay.
+            val normalizedInputs = normalizeDayInputs(dayTransactions)
+            normalizedInputs.forEach { input ->
+                currentState = HoldingPositionEvolution.evolve(currentState, input)
+            }
         }
+    }
+
+    private fun normalizeDayInputs(dayTransactions: List<InvestmentTransaction>): List<PositionEvolutionInput> {
+        val orderedDayTransactions =
+            dayTransactions.sortedWith(
+                compareBy<InvestmentTransaction>({ it.createdAt }, { it.id.toString() }, { it.type.name }, { it.direction.name }),
+            )
+
+        val (costAddingTransactions, passthroughTransactions) = orderedDayTransactions.partition { it.isCostAddingInflow() }
+
+        val aggregatedCostAddingInput = aggregateCostAddingInputs(costAddingTransactions)
+        return buildList {
+            if (aggregatedCostAddingInput != null) add(aggregatedCostAddingInput)
+            passthroughTransactions.mapTo(this, PositionEvolutionInput::from)
+        }
+    }
+
+    private fun aggregateCostAddingInputs(transactions: List<InvestmentTransaction>): PositionEvolutionInput? {
+        if (transactions.isEmpty()) return null
+        if (transactions.size == 1) return PositionEvolutionInput.from(transactions.first())
+
+        val totalQuantity = transactions.fold(BigDecimal.ZERO) { acc, tx -> acc + requireNotNull(tx.quantity) }
+
+        val weightedCost =
+            transactions.fold(BigDecimal.ZERO) { acc, tx ->
+                acc + requireNotNull(tx.quantity).multiply(requireNotNull(tx.unitPrice), MATH_CONTEXT)
+            }
+        val weightedUnitPrice = weightedCost.divide(totalQuantity, MATH_CONTEXT)
+        val firstType = transactions.first().type
+        val aggregatedType = if (transactions.all { it.type == firstType }) firstType else InvestmentTransactionType.PURCHASE
+
+        return PositionEvolutionInput(
+            type = aggregatedType,
+            direction = InvestmentTransactionDirection.INFLOW,
+            quantity = totalQuantity,
+            unitPrice = weightedUnitPrice,
+        )
+    }
+
+    private fun InvestmentTransaction.isCostAddingInflow(): Boolean {
+        if (direction != InvestmentTransactionDirection.INFLOW) return false
+        if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO || unitPrice <= BigDecimal.ZERO) return false
+        return type in COST_ADDING_INFLOW_TYPES
     }
 
     fun valueAt(
@@ -112,6 +164,14 @@ class HistoricalHoldingTimeline(
     }
 
     private companion object {
+        val COST_ADDING_INFLOW_TYPES: Set<InvestmentTransactionType> =
+            setOf(
+                InvestmentTransactionType.PURCHASE,
+                InvestmentTransactionType.SUBSCRIPTION,
+                InvestmentTransactionType.CUSTODY_TRANSFER,
+                InvestmentTransactionType.OWNERSHIP_TRANSFER,
+                InvestmentTransactionType.QUOTA_TRANSFER,
+            )
         val FIXED_INCOME_ASSET_TYPES: Set<AssetType> =
             setOf(
                 AssetType.CDB,

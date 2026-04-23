@@ -214,7 +214,9 @@ class PortfolioRecalculationService(
         val transactionsByHolding =
             investmentTransactionRepository.findByHoldingIds(holdings.mapNotNull { it.id }, accountId)
                 .groupBy { it.holdingId }
-                .mapValues { (_, value) -> value.sortedWith(compareBy({ it.tradeDate }, { it.createdAt })) }
+                .mapValues { (_, value) ->
+                    value.sortedWith(compareBy({ it.tradeDate }, { it.createdAt }, { it.id.toString() }))
+                }
         val flowEventsByDate =
             portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, startDate, today)
                 .asSequence()

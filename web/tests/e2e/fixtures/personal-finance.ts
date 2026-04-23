@@ -124,7 +124,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async (_args, use) => {
+    async ({}, use) => {
       const user = await createPfUser();
       await use(user);
     },

@@ -438,12 +438,18 @@ open class ImportJobService(
             }
         val newStatus = if (remaining.isEmpty()) ImportJobStatus.COMPLETED else ImportJobStatus.REVIEW_REQUIRED
         val now = Instant.now()
+        val reviewPayloadForUpdate =
+            if (remaining.isEmpty() && newStatus == ImportJobStatus.COMPLETED) {
+                null
+            } else {
+                newPayload
+            }
         val updated =
             job.copy(
                 status = newStatus,
                 importedCount = newImportedCount,
                 duplicateReviewCount = newDuplicateReviewCount,
-                reviewPayload = newPayload,
+                reviewPayload = reviewPayloadForUpdate,
                 completedAt = if (remaining.isEmpty()) now else job.completedAt,
                 updatedAt = now,
             )

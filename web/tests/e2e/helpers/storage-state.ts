@@ -15,6 +15,7 @@ export function buildAuthStorageState(
   options: BuildAuthStorageStateOptions = {}
 ): StorageState {
   const { rememberMe = true } = options;
+  const baseUrl = new URL(currentConfig.baseURL);
   const authEntries = [
     { name: 'auth_token', value: session.token },
     { name: 'auth_user', value: JSON.stringify(session.user) },
@@ -25,10 +26,21 @@ export function buildAuthStorageState(
   }
 
   return {
-    cookies: [],
+    cookies: [
+      {
+        name: 'auth_hint',
+        value: '1',
+        domain: baseUrl.hostname,
+        path: '/',
+        httpOnly: false,
+        secure: baseUrl.protocol === 'https:',
+        sameSite: 'Lax',
+        expires: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7,
+      },
+    ],
     origins: [
       {
-        origin: new URL(currentConfig.baseURL).origin,
+        origin: baseUrl.origin,
         localStorage: rememberMe ? authEntries : [],
       },
     ],

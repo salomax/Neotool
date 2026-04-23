@@ -484,9 +484,18 @@ open class ImportReaderStatusConsumer(
                 ?: CanonicalProcessorType.LLM
         val parseMetadataWarnings = parseWarnings(parseMetadata?.get("warnings"))
         val llmWarnings = parseWarnings(llmOutput["warnings"])
+        val confidence =
+            parseMetadata?.get("confidence")
+                ?.let { raw ->
+                    when (raw) {
+                        is Number -> raw.toDouble()
+                        else -> raw.toString().toDoubleOrNull()
+                    }
+                }
         return ImportValidationQuality(
             processorType = processorType,
             warnings = (parseMetadataWarnings + llmWarnings + parserWarnings).distinct(),
+            confidence = confidence,
         )
     }
 

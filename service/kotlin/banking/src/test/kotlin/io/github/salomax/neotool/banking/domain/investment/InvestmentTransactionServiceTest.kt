@@ -192,6 +192,8 @@ class InvestmentTransactionServiceTest {
         // Default stubs used by most tests
         whenever(financialAccountRepository.findByAccountId(accountId))
             .thenReturn(listOf(custodyAccount))
+        whenever(financialAccountRepository.existsByIdAndAccountId(financialAccountId, accountId))
+            .thenReturn(true)
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
         whenever(transactionRepository.existsByInvestmentTransactionId(any())).thenReturn(false)
@@ -1145,17 +1147,20 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
-        fun `WITHHOLDING_TAX (come-cotas) does not change quantity or averageCost`() {
+        fun `WITHHOLDING_TAX (come-cotas) reduces quantity by deducted quotas and leaves averageCost unchanged`() {
+            whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
             val holding = holdingWith("1000", "1.15")
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holding)
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
+            val deductedQuotas = BigDecimal("50")
             val command = RecordInvestmentTransactionCommand(
                 financialAccountId = financialAccountId,
                 assetId = assetId,
                 direction = InvestmentTransactionDirection.OUTFLOW,
                 type = InvestmentTransactionType.WITHHOLDING_TAX,
+                quantity = deductedQuotas,
                 grossValue = BigDecimal("50.00"),
                 tradeDate = today,
             )
@@ -1166,7 +1171,7 @@ class InvestmentTransactionServiceTest {
             verify(holdingRepository).update(captor.capture())
 
             val updated = captor.firstValue
-            assertThat(updated.quantity).isEqualByComparingTo("1000")
+            assertThat(updated.quantity).isEqualByComparingTo("950")
             assertThat(updated.averageCost).isEqualByComparingTo("1.15")
         }
     }
@@ -1316,6 +1321,8 @@ class InvestmentTransactionServiceTest {
         @Test
         fun `fails when financialAccountId does not belong to the caller accountId`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(emptyList())
+            whenever(financialAccountRepository.existsByIdAndAccountId(financialAccountId, accountId))
+                .thenReturn(false)
 
             assertThrows<IllegalArgumentException> {
                 service.record(buyCommand("100", "28.50"), accountId, userId)

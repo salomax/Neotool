@@ -29,10 +29,10 @@ Commands:
     Subcommands: sync, validate, generate, all
     Run '$0 graphql --help' for more information.
 
-  $(log "validate" "$GREEN") [options]
-    Run all validations (web and services).
-    Includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
-    Options: --web, --service [name], --skip-coverage, --no-parallel
+  $(log "validate" "$GREEN") [options | e2e]
+    Run code validations (web/services/security) or the investments TWR E2E pre-push bundle.
+    Default includes: lint, typecheck, test/testIntegration, coverage, and Trivy scan (if installed).
+    Options: --web, --service [name], --skip-coverage, --no-parallel, e2e
     Run '$0 validate --help' for more information.
 
   $(log "deploy" "$GREEN") <namespace> --tag <tag>
@@ -77,6 +77,7 @@ Examples:
   $0 graphql sync
   $0 graphql generate
   $0 validate
+  $0 validate e2e
   $0 validate --web
   $0 validate --service security
   $0 validate --no-parallel

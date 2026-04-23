@@ -73,6 +73,7 @@ show_help() {
 $(log "Validation Command" "$BRIGHT")
 
 Usage: $0 [options]
+Usage: $0 e2e
 
 Runs all validations for both frontend and backend:
   - Lint (frontend: eslint, backend: ktlint)
@@ -80,6 +81,21 @@ Runs all validations for both frontend and backend:
   - Tests (frontend: vitest, backend: test - includes unit and integration)
   - Coverage (frontend: vitest coverage, backend: kover)
   - Security scan (trivy fs, same as CI, when trivy is installed)
+
+Modes:
+  (default)          Full code validation (frontend + backend + security)
+  e2e                Pre-push E2E bundle for investments TWR:
+                     - tests/e2e/personal-finance/investments-twr.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase3-fixed-income.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase3-funds.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase3-equities.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase3-reits.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase3-crypto.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-phase4-ui.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-ui.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-stress.e2e.spec.ts
+                     - tests/e2e/personal-finance/investments-twr-hardening.e2e.spec.ts
 
 Options:
   --web              Run only web (frontend) validations
@@ -93,6 +109,7 @@ Options:
 
 Examples:
   $0                      # Run all validations
+  $0 e2e                  # Run pre-push investments TWR E2E bundle
   $0 --web                # Run only web validations
   $0 --service             # Run all service validations
   $0 --service security    # Run only security service validations
@@ -776,8 +793,102 @@ run_full_validations_parallel() {
     fi
 }
 
+# Run pre-push E2E bundle for investments TWR suites.
+run_investments_twr_e2e_validations() {
+    if [[ ! -d "$WEB_DIR" ]]; then
+        log_error "Error: Web directory not found at $WEB_DIR"
+        return 1
+    fi
+
+    cd "$WEB_DIR"
+
+    if ! command -v pnpm &> /dev/null; then
+        log_error "Error: pnpm is not installed or not in PATH"
+        return 1
+    fi
+
+    local cmd_api="pnpm exec playwright test tests/e2e/personal-finance/investments-twr.e2e.spec.ts --project=chromium"
+    local cmd_phase2="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase2.e2e.spec.ts --project=chromium"
+    local cmd_phase3_fixed_income="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-fixed-income.e2e.spec.ts --project=chromium"
+    local cmd_phase3_funds="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-funds.e2e.spec.ts --project=chromium"
+    local cmd_phase3_equities="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-equities.e2e.spec.ts --project=chromium"
+    local cmd_phase3_reits="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-reits.e2e.spec.ts --project=chromium"
+    local cmd_phase3_crypto="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase3-crypto.e2e.spec.ts --project=chromium"
+    local cmd_phase4_ui="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-phase4-ui.e2e.spec.ts --project=chromium"
+    local cmd_ui="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-ui.e2e.spec.ts --project=chromium"
+    local cmd_stress="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-stress.e2e.spec.ts --project=chromium"
+    local cmd_hardening="pnpm exec playwright test tests/e2e/personal-finance/investments-twr-hardening.e2e.spec.ts --project=chromium"
+
+    add_new_task "e2e twr api" "$cmd_api"
+    local task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_api" "e2e twr api" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase2" "$cmd_phase2"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase2" "e2e twr phase2" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase3 fixed income" "$cmd_phase3_fixed_income"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase3_fixed_income" "e2e twr phase3 fixed income" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase3 funds" "$cmd_phase3_funds"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase3_funds" "e2e twr phase3 funds" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase3 equities" "$cmd_phase3_equities"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase3_equities" "e2e twr phase3 equities" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase3 reits" "$cmd_phase3_reits"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase3_reits" "e2e twr phase3 reits" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase3 crypto" "$cmd_phase3_crypto"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase3_crypto" "e2e twr phase3 crypto" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr phase4 ui" "$cmd_phase4_ui"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_phase4_ui" "e2e twr phase4 ui" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr ui" "$cmd_ui"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_ui" "e2e twr ui" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr stress" "$cmd_stress"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_stress" "e2e twr stress" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+
+    add_new_task "e2e twr hardening" "$cmd_hardening"
+    task_idx=$CURRENT_TASK_INDEX
+    if ! run_command_silently "$cmd_hardening" "e2e twr hardening" "$task_idx"; then
+        VALIDATION_FAILED=true
+    fi
+}
+
 # Main function
 main() {
+    local validation_mode="default"
     local web_only=false
     local service_only=false
     local service_name=""
@@ -787,6 +898,10 @@ main() {
     # Parse arguments
     while [[ $# -gt 0 ]]; do
         case "$1" in
+            e2e)
+                validation_mode="e2e"
+                shift
+                ;;
             --web)
                 web_only=true
                 shift
@@ -827,45 +942,56 @@ main() {
         log_error "Error: --web and --service cannot be used together"
         exit 1
     fi
-    
-    # Validate service name if provided
-    if [[ -n "$service_name" ]]; then
-        local available_services
-        available_services=$(get_available_services)
-        if [[ $? -ne 0 ]]; then
-            log_error "Error: Failed to read available services from settings.gradle.kts"
+
+    if [[ "$validation_mode" == "e2e" ]]; then
+        if [[ "$web_only" == true || "$service_only" == true || "$skip_coverage" == true || "$parallel" == false ]]; then
+            log_error "Error: e2e mode does not accept --web, --service, --skip-coverage, or --no-parallel"
             exit 1
         fi
-        
-        # Check if service_name is in the list of available services
-        if ! echo "$available_services" | grep -qFx "$service_name"; then
-            local services_list
-            services_list=$(echo "$available_services" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
-            log_error "Error: Invalid service name: $service_name"
-            log_error "Available services: $services_list"
-            exit 1
-        fi
-    fi
-    
-    # Run validations
-    if [[ "$web_only" == true ]]; then
+
         init_validation_ui
         trap cleanup_ui EXIT
-        run_frontend_validations "$skip_coverage"
-    elif [[ "$service_only" == true ]]; then
-        init_validation_ui
-        trap cleanup_ui EXIT
-        run_backend_validations "$skip_coverage" "$service_name"
+        run_investments_twr_e2e_validations
     else
-        if [[ "$parallel" == true ]]; then
-            run_full_validations_parallel "$skip_coverage"
-        else
-            # Run full validation set sequentially (frontend, backend, and security scan)
+        # Validate service name if provided
+        if [[ -n "$service_name" ]]; then
+            local available_services
+            available_services=$(get_available_services)
+            if [[ $? -ne 0 ]]; then
+                log_error "Error: Failed to read available services from settings.gradle.kts"
+                exit 1
+            fi
+            
+            # Check if service_name is in the list of available services
+            if ! echo "$available_services" | grep -qFx "$service_name"; then
+                local services_list
+                services_list=$(echo "$available_services" | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+                log_error "Error: Invalid service name: $service_name"
+                log_error "Available services: $services_list"
+                exit 1
+            fi
+        fi
+    
+        # Run validations
+        if [[ "$web_only" == true ]]; then
             init_validation_ui
             trap cleanup_ui EXIT
             run_frontend_validations "$skip_coverage"
+        elif [[ "$service_only" == true ]]; then
+            init_validation_ui
+            trap cleanup_ui EXIT
             run_backend_validations "$skip_coverage" "$service_name"
-            run_security_validation
+        else
+            if [[ "$parallel" == true ]]; then
+                run_full_validations_parallel "$skip_coverage"
+            else
+                # Run full validation set sequentially (frontend, backend, and security scan)
+                init_validation_ui
+                trap cleanup_ui EXIT
+                run_frontend_validations "$skip_coverage"
+                run_backend_validations "$skip_coverage" "$service_name"
+                run_security_validation
+            fi
         fi
     fi
     

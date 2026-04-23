@@ -383,8 +383,19 @@ class PortfolioPerformanceQueryService(
         var factor = BigDecimal.ONE
         val points = mutableListOf(TimeWeightedIndexPoint(series.first().date, factor))
         series.drop(1).forEach { point ->
-            if (previousValue.compareTo(BigDecimal.ZERO) <= 0) return null
             val netFlow = flowAmountsByDate[point.date] ?: BigDecimal.ZERO
+            if (previousValue.compareTo(BigDecimal.ZERO) <= 0) {
+                if (point.totalValue.compareTo(BigDecimal.ZERO) <= 0) {
+                    previousValue = point.totalValue
+                    points += TimeWeightedIndexPoint(point.date, factor)
+                    return@forEach
+                }
+                // Portfolio value restarted from zero (e.g. full sale then redeposit); continue chain without
+                // dividing by zero — prior flows already neutralized the drop to zero.
+                previousValue = point.totalValue
+                points += TimeWeightedIndexPoint(point.date, factor)
+                return@forEach
+            }
             val dailyReturn =
                 point.totalValue
                     .subtract(previousValue)

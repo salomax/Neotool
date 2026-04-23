@@ -45,6 +45,9 @@ export interface FundHoldingDetailViewModel {
   issuerLabel: string;
   accountLabel: string;
   currencyCode: string;
+  pricingModeLabel: string | null;
+  latestNavPerQuota: number | null;
+  latestNavReferenceDateLabel: string | null;
   principal: number | null;
   currentCostBasis: number | null;
   grossValue: number | null;
@@ -224,6 +227,33 @@ export function buildFundHoldingDetailViewModel(
   const subtitle = formatAssetType(holding.asset.assetType, t);
   const issuerLabel = buildIssuerLabel(holding);
   const accountLabel = buildAccountLabel(holding);
+  const pricingModeLabel =
+    holding.valuationSource === "MANUAL"
+      ? t("investments.table.valueSource.MANUAL")
+      : holding.valuationSource === "PROVIDER"
+        ? t("investments.table.valueSource.PROVIDER")
+        : t("investments.table.valueSource.MARKET_DATA");
+
+  const latestNavPerQuota =
+    typeof grossValue === "number" &&
+    Number.isFinite(grossValue) &&
+    typeof holding.quantity === "number" &&
+    Number.isFinite(holding.quantity) &&
+    holding.quantity > 0
+      ? grossValue / holding.quantity
+      : null;
+  const latestTradeDate =
+    transactions.length > 0
+      ? [...transactions].sort(
+          (a, b) => new Date(String(b.tradeDate)).getTime() - new Date(String(a.tradeDate)).getTime(),
+        )[0]?.tradeDate ?? null
+      : null;
+  const latestReferenceDateRaw =
+    holding.valuationReferenceDate ??
+    latestTradeDate;
+  const latestNavReferenceDateLabel = latestReferenceDateRaw
+    ? formatDate(latestReferenceDateRaw, locale)
+    : null;
 
   const summaryMetrics: FundSummaryMetricViewModel[] = [
     { id: "principal", label: t("investments.detailDrawer.metrics.principal"), value: principal, tone: "neutral" },
@@ -279,6 +309,9 @@ export function buildFundHoldingDetailViewModel(
     issuerLabel,
     accountLabel,
     currencyCode,
+    pricingModeLabel,
+    latestNavPerQuota,
+    latestNavReferenceDateLabel,
     principal,
     currentCostBasis,
     grossValue,

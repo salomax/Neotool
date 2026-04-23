@@ -48,13 +48,15 @@ export function InvestmentGridTabsPanel({
   const theme = useTheme();
   const [holdingsFetching, setHoldingsFetching] = React.useState(false);
   const [recordPopoverAnchorEl, setRecordPopoverAnchorEl] = React.useState<HTMLElement | null>(null);
+  const recordDisabled = selectedAccountId == null;
 
   const recordPopoverOpen = Boolean(recordPopoverAnchorEl);
   const recordPopoverId = recordPopoverOpen ? "investment-grid-record-popover" : undefined;
 
   const handleOpenRecordPopover = React.useCallback((event: React.MouseEvent<HTMLElement>) => {
+    if (recordDisabled) return;
     setRecordPopoverAnchorEl(event.currentTarget);
-  }, []);
+  }, [recordDisabled]);
 
   const handleCloseRecordPopover = React.useCallback(() => {
     setRecordPopoverAnchorEl(null);
@@ -311,6 +313,7 @@ export function InvestmentGridTabsPanel({
             type="button"
             size="medium"
             onClick={handleOpenRecordPopover}
+            disabled={recordDisabled}
             data-testid="investment-grid-record-cta"
             aria-haspopup="dialog"
             aria-controls={recordPopoverId}

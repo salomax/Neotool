@@ -153,6 +153,7 @@ function HoldingDetailDrawerShell({
 }: HoldingDetailDrawerShellProps) {
   return (
     <Drawer
+      data-testid="investment-holding-detail-drawer"
       open={open}
       onClose={onClose}
       anchor="right"
@@ -195,6 +196,7 @@ function HoldingDetailDrawerShell({
             </Avatar>
             <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
               <Typography
+                data-testid="investment-holding-detail-asset-name"
                 variant="h6"
                 fontWeight={700}
                 sx={{
@@ -210,7 +212,12 @@ function HoldingDetailDrawerShell({
               >
                 {assetName}
               </Typography>
-              <Typography variant="body2" noWrap sx={{ mt: 0.25, minWidth: 0 }}>
+              <Typography
+                data-testid="investment-holding-detail-header-meta"
+                variant="body2"
+                noWrap
+                sx={{ mt: 0.25, minWidth: 0 }}
+              >
                 {headerMeta}
               </Typography>
             </Box>

@@ -8,6 +8,8 @@ import io.github.salomax.neotool.banking.graphql.issuer.*
 import io.github.salomax.neotool.banking.graphql.merchant.*
 import io.github.salomax.neotool.banking.graphql.transaction.*
 import io.github.salomax.neotool.banking.graphql.config.*
+import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -90,6 +92,8 @@ class TransactionResolverTest {
         whenever(service.findAccessibleCategoriesByIds(org.mockito.kotlin.any(), org.mockito.kotlin.any()))
             .thenReturn(emptyMap())
         whenever(service.findAccessibleCategory(anyOrNull(), org.mockito.kotlin.any())).thenReturn(null)
+        whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
+        whenever(transactionRuleEngine.preloadRules(accountId)).thenReturn(emptyList())
         resolver =
             TransactionResolver(
                 service = service,
@@ -140,13 +144,14 @@ class TransactionResolverTest {
                     createdAt = now,
                     updatedAt = now,
                 )
-            whenever(service.create(org.mockito.kotlin.any(), eq(accountId), eq(userId))).thenReturn(savedTx)
+            whenever(service.createTransactionOutcome(org.mockito.kotlin.any(), eq(accountId), eq(userId)))
+                .thenReturn(CreateTransactionOutcome(transaction = savedTx))
             whenever(service.findAccessibleCategory(null, accountId)).thenReturn(null)
 
             resolver.createTransaction(input, principal())
 
             val commandCaptor = argumentCaptor<CreateTransactionCommand>()
-            verify(service).create(commandCaptor.capture(), eq(accountId), eq(userId))
+            verify(service).createTransactionOutcome(commandCaptor.capture(), eq(accountId), eq(userId))
             val command = commandCaptor.firstValue
             assertThat(command.financialAccountId).isEqualTo(financialAccountId)
             assertThat(command.creditDebitType).isEqualTo(CreditDebitType.DEBIT)

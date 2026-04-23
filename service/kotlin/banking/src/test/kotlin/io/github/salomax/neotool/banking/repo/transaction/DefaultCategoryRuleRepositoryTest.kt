@@ -106,10 +106,11 @@ class DefaultCategoryRuleRepositoryTest {
         priority: Int = 10,
         matchCount: Int = 0,
         createdAt: Instant = Instant.now(),
+        categoryId: UUID? = UUID.randomUUID(),
     ) = CategoryRuleEntity(
         id = id,
         accountId = null,
-        categoryId = null,
+        categoryId = categoryId,
         merchantId = null,
         descriptionOverride = null,
         tagsOverrideJson = null,

@@ -198,8 +198,8 @@ const TimelineEventCard: React.FC<TimelineEventCardProps> = React.memo(function 
               aria-label={actionButtonAriaLabel}
               onClick={handleOpenMenu}
               sx={{
-                opacity: { xs: 1, md: actionsVisible ? 1 : 0 },
-                pointerEvents: { xs: 'auto', md: actionsVisible ? 'auto' : 'none' },
+                opacity: { xs: 1, md: actionsVisible ? 1 : 0.6 },
+                pointerEvents: 'auto',
                 transition: 'opacity 0.15s ease',
               }}
             >

@@ -155,7 +155,6 @@ object TransactionMapper {
         entity: TransactionEntity,
         domain: Transaction,
     ) {
-        entity.source = domain.source
         entity.creditDebitType = domain.creditDebitType
         entity.type = domain.type
         entity.status = domain.status

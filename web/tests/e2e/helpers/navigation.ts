@@ -12,9 +12,21 @@ import { SELECTORS } from '../config/constants';
  */
 export async function signIntoPage(page: Page, _token?: string): Promise<void> {
   await page.goto('/');
-  await page
-    .getByRole('button', { name: /account menu/i })
-    .waitFor({ state: 'visible', timeout: 30_000 });
+  await page.waitForLoadState('domcontentloaded');
+  await page.waitForURL((url) => !url.pathname.includes('/signin'), { timeout: 30_000 });
+
+  // Desktop renders an explicit "account menu" button, while mobile layouts can hide it.
+  // Consider auth-ready when either the desktop account menu or a core app shell marker appears.
+  await Promise.race([
+    page
+      .getByRole('button', { name: /account menu/i })
+      .waitFor({ state: 'visible', timeout: 30_000 }),
+    page.getByTestId('app-layout').waitFor({ state: 'visible', timeout: 30_000 }),
+    page.getByTestId('main-layout').waitFor({ state: 'visible', timeout: 30_000 }),
+  ]).catch(async () => {
+    // Last-resort fallback for mobile where only the URL transition is reliable.
+    await page.waitForLoadState('networkidle', { timeout: 10_000 }).catch(() => {});
+  });
 }
 
 /**

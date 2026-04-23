@@ -3,11 +3,10 @@
 import React, { useEffect } from 'react';
 import { useMutation, useQuery } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Box, Divider, Stack } from '@mui/material';
+import { Box, Divider } from '@mui/material';
 import { FormStack } from '@/shared/components/ui/forms/components';
 import { FormProvider, useController, useForm, useFormState, useWatch } from 'react-hook-form';
 import { z } from 'zod';
-import dayjs from 'dayjs';
 import { CREATE_FINANCIAL_ACCOUNT } from '@/lib/graphql/operations/banking/mutations';
 import { FINANCIAL_ACCOUNTS, ISSUERS } from '@/lib/graphql/operations/banking/queries';
 import {
@@ -16,16 +15,14 @@ import {
   Issuer,
   IssuerCategory,
 } from '@/lib/graphql/types/__generated__/graphql';
-import { i18n, useTranslation } from '@/shared/i18n';
+import { useTranslation } from '@/shared/i18n';
 import { ErrorAlert } from '@/shared/components/ui/feedback';
-import { DatePickerField, FormTextField as TextField, MoneyInput, SelectField } from '@/shared/components/ui/forms/form';
+import { FormTextField as TextField, SelectField } from '@/shared/components/ui/forms/form';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
-import { formatDateOnly, toStartOfDayLocal } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../../i18n';
 import { IssuerSelect } from '../../finance-transactions/account/IssuerSelect';
-import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from '../../finance-transactions/constants/dateWindow';
 
 interface CreateInvestmentAccountDrawerProps {
   open: boolean;
@@ -41,11 +38,6 @@ type CreateInvestmentAccountFormData = {
   issuerId?: string;
   issuerName?: string;
   name: string;
-  initialBalance?: number;
-  initialBalanceDate?: Date | null;
-  branchCode?: string;
-  accountNumber?: string;
-  checkDigit?: string;
 };
 
 export function CreateInvestmentAccountDrawer({
@@ -55,7 +47,6 @@ export function CreateInvestmentAccountDrawer({
 }: CreateInvestmentAccountDrawerProps) {
   const { success } = useToast();
   const { t } = useTranslation(personalFinanceTranslations);
-  const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
 
   const createAccountSchema = React.useMemo(
     () =>
@@ -67,11 +58,6 @@ export function CreateInvestmentAccountDrawer({
           issuerId: z.string().optional(),
           issuerName: z.string().optional(),
           name: z.string().default(''),
-          initialBalance: z.number().optional(),
-          initialBalanceDate: z.date().nullable().optional(),
-          branchCode: z.string().optional(),
-          accountNumber: z.string().optional(),
-          checkDigit: z.string().optional(),
         })
         .superRefine((data, ctx) => {
           const issuerName = data.issuerName?.trim();
@@ -92,37 +78,8 @@ export function CreateInvestmentAccountDrawer({
               path: ['issuerName'],
             });
           }
-
-          if (data.initialBalance !== undefined) {
-            if (data.initialBalance === 0) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t('financeTransactions.createAccount.step2.validation.initialBalanceNonZero'),
-                path: ['initialBalance'],
-              });
-            }
-            if (!data.initialBalanceDate) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t('financeTransactions.createAccount.step2.validation.initialBalanceDateRequired'),
-                path: ['initialBalanceDate'],
-              });
-            } else if (dayjs(data.initialBalanceDate).isBefore(minAllowedDate, 'day')) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS }),
-                path: ['initialBalanceDate'],
-              });
-            } else if (dayjs(data.initialBalanceDate).isAfter(dayjs(), 'day')) {
-              ctx.addIssue({
-                code: z.ZodIssueCode.custom,
-                message: t('financeTransactions.validation.dateNotInFuture'),
-                path: ['initialBalanceDate'],
-              });
-            }
-          }
         }),
-    [minAllowedDate, t]
+    [t]
   );
 
   const methods = useForm<CreateInvestmentAccountFormData>({
@@ -132,11 +89,6 @@ export function CreateInvestmentAccountDrawer({
       name: '',
       issuerId: undefined,
       issuerName: '',
-      initialBalance: undefined,
-      initialBalanceDate: null,
-      branchCode: '',
-      accountNumber: '',
-      checkDigit: '',
     },
   });
 
@@ -272,12 +224,6 @@ export function CreateInvestmentAccountDrawer({
   const onSubmit = (data: CreateInvestmentAccountFormData) => {
     const name = data.name.trim();
     const issuerName = data.issuerName?.trim();
-    const branchCode = data.branchCode?.trim() || undefined;
-    const accountNumber = data.accountNumber?.trim() || undefined;
-    const checkDigit = data.checkDigit?.trim() || undefined;
-    const hasBankData = !!(branchCode || accountNumber || checkDigit);
-    const initialBalanceDate =
-      data.initialBalanceDate instanceof Date ? formatDateOnly(data.initialBalanceDate) : undefined;
     const type =
       data.subtype === 'FGTS' || data.subtype === 'INSS'
         ? ('BENEFIT' as unknown as FinancialAccountType)
@@ -293,21 +239,6 @@ export function CreateInvestmentAccountDrawer({
           includeInNetWorth: true,
           includeInDashboard: true,
           ...(data.issuerId === 'custom' ? { issuerName } : { issuerId: data.issuerId }),
-          ...(data.initialBalance !== undefined
-            ? {
-                initialBalance: data.initialBalance,
-                initialBalanceDate,
-              }
-            : {}),
-          ...(hasBankData
-            ? {
-                bankData: {
-                  branchCode,
-                  number: accountNumber,
-                  checkDigit,
-                },
-              }
-            : {}),
         },
       },
     });
@@ -367,44 +298,6 @@ export function CreateInvestmentAccountDrawer({
                 inputProps={{ 'data-testid': 'investment-account-name-input' }}
                 size="medium"
               />
-
-              <Stack direction="row" spacing={2}>
-                <MoneyInput
-                  name="initialBalance"
-                  label={t('financeTransactions.createAccount.step2.fields.initialBalance')}
-                  currency="BRL"
-                  locale={i18n.language}
-                  size="medium"
-                />
-                <DatePickerField
-                  name="initialBalanceDate"
-                  label={t('financeTransactions.createAccount.step2.fields.initialBalanceDate')}
-                  minDate={minAllowedDate.toDate()}
-                  maxDate={toStartOfDayLocal(new Date())}
-                  size="medium"
-                />
-              </Stack>
-
-              <Stack direction="row" spacing={2}>
-                <TextField
-                  name="branchCode"
-                  label={t('financeTransactions.createAccount.step2.fields.branchCode')}
-                  sx={{ flex: 1 }}
-                  size="medium"
-                />
-                <TextField
-                  name="accountNumber"
-                  label={t('financeTransactions.createAccount.step2.fields.accountNumber')}
-                  sx={{ flex: 2 }}
-                  size="medium"
-                />
-                <TextField
-                  name="checkDigit"
-                  label={t('financeTransactions.createAccount.step2.fields.checkDigit')}
-                  sx={{ width: 80 }}
-                  size="medium"
-                />
-              </Stack>
 
               <Divider />
 

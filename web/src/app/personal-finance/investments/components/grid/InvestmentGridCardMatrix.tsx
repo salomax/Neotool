@@ -34,6 +34,8 @@ export function InvestmentGridCardMatrix({
         {INVESTMENT_GRID_CLASS_DEFINITIONS.map((def) => (
           <Box key={def.key}>
             <InvestmentCard
+              cardTestId={`investment-grid-card-${def.key}`}
+              grossValueTestId={`investment-grid-card-${def.key}-gross-value`}
               title={t(def.titleKey)}
               assetCount={assetCountByKey[def.key] ?? null}
               grossValue={metricsByKey[def.key]?.grossValue ?? 0}

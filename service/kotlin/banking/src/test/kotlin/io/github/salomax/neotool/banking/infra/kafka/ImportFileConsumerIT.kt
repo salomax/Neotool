@@ -755,7 +755,7 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
             conn.prepareStatement(
                 """
                 SELECT status
-                FROM banking.transaction_imports
+                FROM banking.document_import_jobs
                 WHERE id = ? AND account_id = ?
                 """.trimIndent(),
             ).use { stmt ->
@@ -778,7 +778,7 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
             conn.prepareStatement(
                 """
                 SELECT assistant_request_published_at
-                FROM banking.transaction_imports
+                FROM banking.document_import_jobs
                 WHERE id = ? AND account_id = ?
                 """.trimIndent(),
             ).use { stmt ->
@@ -811,7 +811,7 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
             conn.prepareStatement(
                 """
                 SELECT status, source, total_rows, imported_count, skipped_count, error_count, error_details
-                FROM banking.transaction_imports
+                FROM banking.document_import_jobs
                 WHERE id = ? AND account_id = ?
                 """.trimIndent(),
             ).use { stmt ->
@@ -847,12 +847,12 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
             conn.createStatement().executeUpdate(
                 """
-                INSERT INTO banking.transaction_imports (
-                    id, financial_account_id, account_id, created_by_user_id,
+                INSERT INTO banking.document_import_jobs (
+                    id, job_kind, financial_account_id, account_id, created_by_user_id,
                     source, status, file_hash, file_name, created_at, updated_at
                 )
                 VALUES (
-                    '$jobId', '$destinationFinancialAccountId', '$accountId', '$userId',
+                    '$jobId', 'TRANSACTION_IMPORT', '$destinationFinancialAccountId', '$accountId', '$userId',
                     '${source.name}', 'PENDING', 'it-$assetId', '$fileName', NOW(), NOW()
                 )
                 """.trimIndent(),
@@ -887,7 +887,7 @@ class ImportFileConsumerIT : BankingPostgresIntegrationTest(), KafkaIntegrationT
         DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
             conn.createStatement().executeUpdate(
                 """
-                UPDATE banking.transaction_imports
+                UPDATE banking.document_import_jobs
                 SET status = 'PROCESSING', updated_at = NOW()
                 WHERE id = '$jobId' AND account_id = '$accountId'
                 """.trimIndent(),

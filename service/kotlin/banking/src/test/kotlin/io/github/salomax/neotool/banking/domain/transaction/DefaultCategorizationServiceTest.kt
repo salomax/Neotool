@@ -59,7 +59,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "  São Paulo - Supermercado!!!  ", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -76,7 +83,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "IFOOD*BR  LTDA", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -93,7 +107,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "Mercado Extra Vila Madalena", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -110,7 +131,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "PIX Fulano", CreditDebitType.CREDIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -127,7 +155,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "UBER trip 1234", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 
@@ -154,7 +189,14 @@ class DefaultCategorizationServiceTest {
 
             val suggestion = service.suggest(accountId, "iFood pedido", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(validRule.id), validRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(validRule.id),
+                    categoryId = validRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(validRule.id)),
+                ),
+            )
             verify(ruleRepository, never()).incrementMatchCount(requireNotNull(invalidRegexRule.id))
             verify(ruleRepository).incrementMatchCount(requireNotNull(validRule.id))
         }
@@ -186,16 +228,18 @@ class DefaultCategorizationServiceTest {
 
             assertThat(debitSuggestion).isEqualTo(
                 RuleSuggestion(
-                    requireNotNull(expenseRule.id),
-                    expenseRule.categoryId,
-                    null,
+                    ruleId = requireNotNull(expenseRule.id),
+                    categoryId = expenseRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(expenseRule.id)),
                 ),
             )
             assertThat(creditSuggestion).isEqualTo(
                 RuleSuggestion(
-                    requireNotNull(incomeRule.id),
-                    incomeRule.categoryId,
-                    null,
+                    ruleId = requireNotNull(incomeRule.id),
+                    categoryId = incomeRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(incomeRule.id)),
                 ),
             )
         }
@@ -249,6 +293,7 @@ class DefaultCategorizationServiceTest {
                     merchantId = null,
                     descriptionOverride = "iFood",
                     tagsOverride = null,
+                    appliedRuleIds = listOf(requireNotNull(systemRule.id), requireNotNull(implicitRule.id)),
                 ),
             )
             verify(ruleRepository).incrementMatchCount(requireNotNull(systemRule.id))
@@ -273,7 +318,14 @@ class DefaultCategorizationServiceTest {
             val suggestion =
                 service.suggestFromRulesRecordingMatch(rules, "Pagamento PIX loja", CreditDebitType.DEBIT)
 
-            assertThat(suggestion).isEqualTo(RuleSuggestion(requireNotNull(matchedRule.id), matchedRule.categoryId, null))
+            assertThat(suggestion).isEqualTo(
+                RuleSuggestion(
+                    ruleId = requireNotNull(matchedRule.id),
+                    categoryId = matchedRule.categoryId,
+                    merchantId = null,
+                    appliedRuleIds = listOf(requireNotNull(matchedRule.id)),
+                ),
+            )
             verify(ruleRepository).incrementMatchCount(requireNotNull(matchedRule.id))
         }
 

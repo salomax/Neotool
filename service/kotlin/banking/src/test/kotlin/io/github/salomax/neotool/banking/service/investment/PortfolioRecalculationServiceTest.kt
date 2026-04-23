@@ -68,8 +68,9 @@ class PortfolioRecalculationServiceTest {
                 triggeredBy = "test",
             )
 
-        whenever(portfolioRecalculationJobRepository.findById(jobId)).thenReturn(job)
+        whenever(portfolioRecalculationJobRepository.tryClaimJob(eq(jobId), any())).thenReturn(job)
         whenever(portfolioRecalculationJobRepository.update(any())).thenAnswer { it.arguments[0] }
+        whenever(portfolioQuotaRepository.batchUpsert(any())).thenReturn(emptyList())
         whenever(holdingRepository.findByFinancialAccount(financialAccountId, accountId)).thenReturn(emptyList())
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(

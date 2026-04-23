@@ -490,9 +490,17 @@ open class TransactionService(
             }
 
         val isManualEntry = command.transactionSource == TransactionSource.MANUAL
+        val suppressRuleAutoApplyForManualCreate =
+            mode == RuleApplicationMode.ALWAYS_PROMPT &&
+                isManualEntry &&
+                command.categoryId == null &&
+                ruleSuggestion != null &&
+                categorySuggestionIsImplicitOnly(accountId, ruleSuggestion)
         val finalCategoryId =
             if (!skipRuleEngine && isManualEntry && command.categoryId != null) {
                 command.categoryId
+            } else if (suppressRuleAutoApplyForManualCreate) {
+                null
             } else {
                 command.categoryId ?: ruleSuggestion?.categoryId
             }
@@ -500,6 +508,7 @@ open class TransactionService(
         val finalCategorySource =
             when {
                 command.categoryId != null -> CategorySource.MANUAL
+                suppressRuleAutoApplyForManualCreate -> null
                 !skipRuleEngine && ruleSuggestion?.categoryId != null -> CategorySource.RULE
                 else -> null
             }
@@ -520,7 +529,10 @@ open class TransactionService(
                     AppliedRuleAuditSupport.resolveAppliedRuleIds(
                         suggestion = ruleSuggestion,
                         rules = loadRulesForAudit(accountId, ruleSuggestion.appliedRuleIds),
-                        appliedCategory = command.categoryId == null && ruleSuggestion.categoryId != null,
+                        appliedCategory =
+                            !suppressRuleAutoApplyForManualCreate &&
+                                command.categoryId == null &&
+                                ruleSuggestion.categoryId != null,
                         appliedMerchant = ruleSuggestion.merchantId != null,
                         appliedDescription = false,
                         appliedTags = normalizedTags.isEmpty() && !ruleSuggestion.tagsOverride.isNullOrEmpty(),
@@ -587,7 +599,11 @@ open class TransactionService(
         )
         val appliedRuleIds =
             if (mode == RuleApplicationMode.ALWAYS_PROMPT) {
-                appliedRuleHistory.map { it.ruleId }.distinct()
+                if (suppressRuleAutoApplyForManualCreate && ruleSuggestion != null) {
+                    ruleSuggestion.appliedRuleIds.distinct()
+                } else {
+                    appliedRuleHistory.map { it.ruleId }.distinct()
+                }
             } else {
                 emptyList()
             }
@@ -1052,6 +1068,22 @@ open class TransactionService(
         if (ruleIds.isEmpty()) return emptyList()
         val requestedIds = ruleIds.toSet()
         return transactionRuleEngine.preloadRules(accountId).filter { rule -> rule.id in requestedIds }
+    }
+
+    /**
+     * When [RuleApplicationMode.ALWAYS_PROMPT] is on, manual creates with no category should still
+     * auto-apply categories from system (or other non-implicit) rules, but defer only suggestions
+     * that come exclusively from implicit rules learned from prior manual assignments.
+     */
+    private fun categorySuggestionIsImplicitOnly(
+        accountId: UUID,
+        ruleSuggestion: RuleSuggestion,
+    ): Boolean {
+        val categoryId = ruleSuggestion.categoryId ?: return false
+        val contributors =
+            loadRulesForAudit(accountId, ruleSuggestion.appliedRuleIds)
+                .filter { it.categoryId == categoryId }
+        return contributors.isNotEmpty() && contributors.all { it.isImplicit }
     }
 
     private fun requireAccountOwnsFinancialAccount(

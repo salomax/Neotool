@@ -14,6 +14,8 @@ import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
 
 export interface InvestmentCardProps {
+  cardTestId?: string;
+  grossValueTestId?: string;
   title: string;
   assetCount?: number | null;
   grossValue: number;
@@ -33,6 +35,8 @@ export interface InvestmentCardProps {
 }
 
 export function InvestmentCard({
+  cardTestId,
+  grossValueTestId,
   title,
   assetCount,
   grossValue,
@@ -86,6 +90,7 @@ export function InvestmentCard({
 
   return (
     <Box
+      data-testid={cardTestId}
       sx={{
         "--investment-empty-icon-from": theme.palette.mode === "dark" ? theme.palette.grey[500] : theme.palette.grey[600],
         "--investment-empty-icon-to": theme.palette.mode === "dark" ? theme.palette.grey[300] : theme.palette.grey[400],
@@ -247,6 +252,7 @@ export function InvestmentCard({
                 value={grossValue}
                 currency={currency}
                 variant="h6"
+                data-testid={grossValueTestId}
                 sx={{ fontWeight: 700, lineHeight: 1.15 }}
               />
             </Box>

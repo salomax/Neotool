@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.integration
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
@@ -295,6 +296,136 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
     }
 
     @Test
+    fun `same-day equivalent purchase permutation is TWR-invariant`() {
+        val d1 = LocalDate.now().minusDays(4)
+
+        // Account A: 400 then 600
+        recordTransaction(
+            financialAccountId = financialAccountA,
+            tradeDate = d1,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "400.00",
+            grossValue = "400.00",
+        )
+        recordTransaction(
+            financialAccountId = financialAccountA,
+            tradeDate = d1,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "600.00",
+            grossValue = "600.00",
+        )
+        processPendingJobs()
+
+        // Account B: 600 then 400
+        recordTransaction(
+            financialAccountId = financialAccountB,
+            tradeDate = d1,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "600.00",
+            grossValue = "600.00",
+        )
+        recordTransaction(
+            financialAccountId = financialAccountB,
+            tradeDate = d1,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "400.00",
+            grossValue = "400.00",
+        )
+        processPendingJobs()
+
+        val snapshotA = scopedPortfolioSnapshot(financialAccountA)
+        val snapshotB = scopedPortfolioSnapshot(financialAccountB)
+        assertThat(snapshotA).isNotEmpty()
+        assertThat(snapshotA).containsExactlyElementsOf(snapshotB)
+    }
+
+    @Test
+    fun `same-day equivalent fixed-income purchase permutation is TWR-invariant`() {
+        val cdbAssetId = UUID.randomUUID()
+        openConnection().use { conn ->
+            insertAsset(conn, cdbAssetId, "TWR TEST CDB", "CDB")
+        }
+
+        val tradeDate = LocalDate.now().minusDays(30)
+        val maturityDate = LocalDate.now().plusDays(365)
+
+        // Account A: 400 then 600
+        recordTransaction(
+            financialAccountId = financialAccountA,
+            assetId = cdbAssetId,
+            tradeDate = tradeDate,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "400.00",
+            grossValue = "400.00",
+            indexer = Indexer.PRE_FIXADO,
+            fixedAnnualRate = "0.10",
+            issueDate = tradeDate,
+            maturityDate = maturityDate,
+        )
+        recordTransaction(
+            financialAccountId = financialAccountA,
+            assetId = cdbAssetId,
+            tradeDate = tradeDate,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "600.00",
+            grossValue = "600.00",
+            indexer = Indexer.PRE_FIXADO,
+            fixedAnnualRate = "0.10",
+            issueDate = tradeDate,
+            maturityDate = maturityDate,
+        )
+        processPendingJobs()
+
+        // Account B: 600 then 400
+        recordTransaction(
+            financialAccountId = financialAccountB,
+            assetId = cdbAssetId,
+            tradeDate = tradeDate,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "600.00",
+            grossValue = "600.00",
+            indexer = Indexer.PRE_FIXADO,
+            fixedAnnualRate = "0.10",
+            issueDate = tradeDate,
+            maturityDate = maturityDate,
+        )
+        recordTransaction(
+            financialAccountId = financialAccountB,
+            assetId = cdbAssetId,
+            tradeDate = tradeDate,
+            direction = InvestmentTransactionDirection.INFLOW,
+            type = InvestmentTransactionType.PURCHASE,
+            quantity = "1.00",
+            unitPrice = "400.00",
+            grossValue = "400.00",
+            indexer = Indexer.PRE_FIXADO,
+            fixedAnnualRate = "0.10",
+            issueDate = tradeDate,
+            maturityDate = maturityDate,
+        )
+        processPendingJobs()
+
+        val snapshotA = scopedPortfolioSnapshot(financialAccountA)
+        val snapshotB = scopedPortfolioSnapshot(financialAccountB)
+        assertThat(snapshotA).isNotEmpty()
+        assertThat(snapshotA).containsExactlyElementsOf(snapshotB)
+    }
+
+    @Test
     fun `mixed multi-asset timeline remains consistent with oracle`() {
         val fundAssetId = UUID.randomUUID()
         val cryptoAssetId = UUID.randomUUID()
@@ -448,6 +579,10 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
         quantity: String? = null,
         unitPrice: String? = null,
         netValue: String? = grossValue,
+        indexer: Indexer? = null,
+        fixedAnnualRate: String? = null,
+        issueDate: LocalDate? = null,
+        maturityDate: LocalDate? = null,
     ) {
         investmentTransactionService.record(
             command =
@@ -461,6 +596,10 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
                     grossValue = BigDecimal(grossValue),
                     netValue = netValue?.let(::BigDecimal),
                     tradeDate = tradeDate,
+                    indexer = indexer,
+                    fixedAnnualRate = fixedAnnualRate?.let(::BigDecimal),
+                    issueDate = issueDate,
+                    maturityDate = maturityDate,
                     source = InvestmentSource.MANUAL,
                 ),
             accountId = accountId,

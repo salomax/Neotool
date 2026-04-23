@@ -49,6 +49,25 @@ class ImportValidationGateTest {
     }
 
     @Test
+    fun `llm low confidence routes to review required`() {
+        val decision =
+            gate.evaluateBeforeCommit(
+                quality =
+                    ImportValidationQuality(
+                        processorType = CanonicalProcessorType.LLM,
+                        warnings = emptyList(),
+                        confidence = 0.42,
+                    ),
+                totalRows = 3,
+                invalidRowCount = 0,
+            )
+
+        assertThat(decision).isNotNull
+        assertThat(decision!!.status).isEqualTo(ImportJobStatus.REVIEW_REQUIRED)
+        assertThat(decision.reason).isEqualTo("llm_low_confidence")
+    }
+
+    @Test
     fun `deterministic reader has no pre-commit block`() {
         val decision =
             gate.evaluateBeforeCommit(

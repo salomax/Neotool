@@ -164,18 +164,20 @@ export function FixedIncomeHoldingDetailContent({
 
   return (
     <Stack>
-      <TimeProgress
-        percent={percent}
-        leftTitle={t("investments.detailDrawer.dates.elapsedTitle")}
-        leftValue={monthsPassed != null ? t("investments.detailDrawer.dates.elapsedValue", { count: monthsPassed }) : "—"}
-        rightTitle={t("investments.detailDrawer.dates.remainingTitle")}
-        rightValue={monthsLeft != null ? t("investments.detailDrawer.dates.remainingValue", { count: monthsLeft }) : "—"}
-        items={[
-          { label: t("investments.detailDrawer.terms.issueDate"), value: viewModel.issueDateLabel },
-          { label: t("investments.detailDrawer.terms.gracePeriodDate"), value: viewModel.gracePeriodDateLabel ?? "—" },
-          { label: t("investments.detailDrawer.terms.maturityDate"), value: viewModel.maturityDateLabel },
-        ]}
-      />
+      <Box data-testid="fixed-income-detail-terms-section">
+        <TimeProgress
+          percent={percent}
+          leftTitle={t("investments.detailDrawer.dates.elapsedTitle")}
+          leftValue={monthsPassed != null ? t("investments.detailDrawer.dates.elapsedValue", { count: monthsPassed }) : "—"}
+          rightTitle={t("investments.detailDrawer.dates.remainingTitle")}
+          rightValue={monthsLeft != null ? t("investments.detailDrawer.dates.remainingValue", { count: monthsLeft }) : "—"}
+          items={[
+            { label: t("investments.detailDrawer.terms.issueDate"), value: viewModel.issueDateLabel },
+            { label: t("investments.detailDrawer.terms.gracePeriodDate"), value: viewModel.gracePeriodDateLabel ?? "—" },
+            { label: t("investments.detailDrawer.terms.maturityDate"), value: viewModel.maturityDateLabel },
+          ]}
+        />
+      </Box>
 
       <Divider sx={{ my: 5 }} />
 
@@ -207,44 +209,48 @@ export function FixedIncomeHoldingDetailContent({
 
       { holding.couponSchedule?.length > 0 && 
         <>
-          <CouponScheduleSection
-            title={t("investments.detailDrawer.couponSchedule.sectionTitle")}
-            entries={holding.couponSchedule}
-            locale={locale}
-            currencyCode={viewModel.currencyCode}
-            onRegisterOverdue={onRegisterOverdueCoupon}
-            onEditPayment={onEditCouponPayment}
-            onDeletePayment={onDeleteCouponPayment}
-            deletingPayment={deletingCouponPayment}
-          />
+          <Box data-testid="fixed-income-detail-coupon-schedule-section">
+            <CouponScheduleSection
+              title={t("investments.detailDrawer.couponSchedule.sectionTitle")}
+              entries={holding.couponSchedule}
+              locale={locale}
+              currencyCode={viewModel.currencyCode}
+              onRegisterOverdue={onRegisterOverdueCoupon}
+              onEditPayment={onEditCouponPayment}
+              onDeletePayment={onDeleteCouponPayment}
+              deletingPayment={deletingCouponPayment}
+            />
+          </Box>
           <Divider sx={{ mb: 5 }} />
         </>}
       
-      <TimelineEvents
-        title={t("investments.detailDrawer.timeline.title")}
-        emptyTitle={t("investments.detailDrawer.timeline.emptyTitle")}
-        emptyDescription={t("investments.detailDrawer.timeline.emptyDescription")}
-        inflowLabel={inflowLabel}
-        outflowLabel={outflowLabel}
-        locale={locale}
-        currencyCode={viewModel.currencyCode}
-        items={viewModel.timelineItems.map((item) => ({
-          ...item,
-          source: item.source ?? undefined,
-          isEditable: item.source === InvestmentSource.Manual,
-        }))}
-        formatCurrency={(value) => currencyFormatter.format(value)}
-        netAmountText={(formattedValue) => t("investments.detailDrawer.timeline.netAmount", { value: formattedValue })}
-        incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
-        iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
-        settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
-        onEditTransaction={onEditTransaction}
-        onDeleteTransaction={onDeleteTransaction}
-        notEditableTooltip={t("investments.detailDrawer.timeline.notEditableTooltip")}
-        actionsAriaLabel={t("investments.table.rowActions.ariaLabel")}
-        editActionLabel={t("actions.edit")}
-        deleteActionLabel={t("actions.delete")}
-      />
+      <Box data-testid="fixed-income-detail-timeline-section">
+        <TimelineEvents
+          title={t("investments.detailDrawer.timeline.title")}
+          emptyTitle={t("investments.detailDrawer.timeline.emptyTitle")}
+          emptyDescription={t("investments.detailDrawer.timeline.emptyDescription")}
+          inflowLabel={inflowLabel}
+          outflowLabel={outflowLabel}
+          locale={locale}
+          currencyCode={viewModel.currencyCode}
+          items={viewModel.timelineItems.map((item) => ({
+            ...item,
+            source: item.source ?? undefined,
+            isEditable: item.source === InvestmentSource.Manual,
+          }))}
+          formatCurrency={(value) => currencyFormatter.format(value)}
+          netAmountText={(formattedValue) => t("investments.detailDrawer.timeline.netAmount", { value: formattedValue })}
+          incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
+          iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
+          settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
+          onEditTransaction={onEditTransaction}
+          onDeleteTransaction={onDeleteTransaction}
+          notEditableTooltip={t("investments.detailDrawer.timeline.notEditableTooltip")}
+          actionsAriaLabel={t("investments.table.rowActions.ariaLabel")}
+          editActionLabel={t("actions.edit")}
+          deleteActionLabel={t("actions.delete")}
+        />
+      </Box>
     </Stack>
   );
 }

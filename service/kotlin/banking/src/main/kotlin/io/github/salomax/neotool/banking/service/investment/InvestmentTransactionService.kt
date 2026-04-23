@@ -18,6 +18,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.QUOTA_TRANSFER
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.REVERSE_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SALE
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_LENDING
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
@@ -41,6 +42,16 @@ import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+
+/** Same eligibility as [RecordStockLendingService] for manual `recordInvestmentTransaction` paths. */
+private val STOCK_LENDING_ELIGIBLE_ASSET_TYPES: Set<AssetType> =
+    setOf(
+        AssetType.STOCK,
+        AssetType.ETF,
+        AssetType.BDR,
+        AssetType.REAL_ESTATE_FUND,
+        AssetType.AGRIBUSINESS_FUND,
+    )
 
 /**
  * Domain service for recording investment transactions and maintaining position state.
@@ -244,14 +255,27 @@ open class InvestmentTransactionService(
             requireNotNull(recomputeHoldingState(existingHolding, accountId, command, now)) {
                 "Holding ${existingHolding.id} cannot be empty after transaction update"
             }
+        val holdingAfterManualValuationUpdate =
+            if (command.pricingMode != null || command.manualValuation != null) {
+                holdingRepository.update(
+                    rebuiltHolding.copy(
+                        pricingMode = command.pricingMode ?: rebuiltHolding.pricingMode,
+                        manualGrossValue = command.manualValuation?.grossValue ?: rebuiltHolding.manualGrossValue,
+                        manualValuedAt = command.manualValuation?.valuedAt ?: rebuiltHolding.manualValuedAt,
+                        updatedAt = now,
+                    ),
+                )
+            } else {
+                rebuiltHolding
+            }
         val asset =
             assetRepository.findById(existingHolding.assetId)
                 ?: throw NoSuchElementException("Asset ${existingHolding.assetId} not found")
-        val replayCommand = savedTx.toReplayCommand(rebuiltHolding)
+        val replayCommand = savedTx.toReplayCommand(holdingAfterManualValuationUpdate)
         lifecycleOrchestrator.onUpdate(
             InvestmentTransactionContext(
                 transaction = savedTx,
-                holding = rebuiltHolding,
+                holding = holdingAfterManualValuationUpdate,
                 asset = asset,
                 command = replayCommand,
                 accountId = accountId,
@@ -262,7 +286,8 @@ open class InvestmentTransactionService(
         return savedTx
     }
 
-    fun delete(
+    @Transactional
+    open fun delete(
         id: UUID,
         accountId: UUID,
     ): Boolean {
@@ -307,7 +332,8 @@ open class InvestmentTransactionService(
      * `related_holding_id` orphans), **soft-deletes custodian ledger rows** linked via `investment_transaction_id`
      * (reversing cash on the custodian account), deletes holding attachments, and requests quota recalculation.
      */
-    fun deleteHolding(
+    @Transactional
+    open fun deleteHolding(
         id: UUID,
         accountId: UUID,
     ): Boolean {
@@ -453,6 +479,12 @@ open class InvestmentTransactionService(
                 }
                 require(asset.assetType == AssetType.MUTUAL_FUND) {
                     "WITHHOLDING_TAX is only valid for MUTUAL_FUND holdings"
+                }
+            }
+
+            STOCK_LENDING -> {
+                require(asset.assetType in STOCK_LENDING_ELIGIBLE_ASSET_TYPES) {
+                    "does not support stock lending for ${asset.assetType}"
                 }
             }
 

@@ -144,10 +144,11 @@ class TransactionCategoryResolverTest {
     private fun rule(
         id: UUID = UUID.randomUUID(),
         pattern: String = "rule",
+        categoryId: UUID? = UUID.randomUUID(),
     ) = TransactionRule(
         id = id,
         accountId = accountId,
-        categoryId = null,
+        categoryId = categoryId,
         merchantId = null,
         descriptionOverride = null,
         tagsOverride = null,

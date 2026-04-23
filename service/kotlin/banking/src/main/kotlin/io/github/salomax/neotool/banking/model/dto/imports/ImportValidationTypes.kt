@@ -6,6 +6,8 @@ import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 data class ImportValidationQuality(
     val processorType: CanonicalProcessorType?,
     val warnings: List<String> = emptyList(),
+    /** LLM parse_metadata.confidence when present (0..1). */
+    val confidence: Double? = null,
 )
 
 data class ImportValidationPreDecision(

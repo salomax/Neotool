@@ -325,6 +325,7 @@ export function InvestmentSummary({
                           ariaLabel={t(
                             "investments.table.valueOrigin.ariaLabel",
                           )}
+                          dataTestId="investment-summary-estimated-indicator"
                           offsetPx={16}
                           sizePx={7}
                         />
@@ -388,6 +389,7 @@ export function InvestmentSummary({
                     <CircularProgress size={18} sx={{ mb: 0.25 }} />
                   ) : performance?.twr != null || summaryFetching ? (
                     <Box
+                      data-testid="investment-summary-performance-twr"
                       sx={{
                         display: "flex",
                         justifyContent: "flex-end",

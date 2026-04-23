@@ -49,6 +49,7 @@ export function GroupProgressRow({
       }
       role={interactive ? "button" : undefined}
       tabIndex={interactive ? 0 : undefined}
+      data-testid={`investment-summary-allocation-group-${groupKey}`}
       sx={{
         display: "flex",
         alignItems: "center",

@@ -583,9 +583,21 @@ export function InvestmentTable({
   const actionBuyLabel =
     actionHoldingGroupKey === 'variableIncome'
       ? t('investments.transactions.buy')
+      : actionHoldingGroupKey === 'others'
+        ? t('investments.transactions.buy')
       : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension'
         ? t('investments.transactions.apply')
+        : actionHoldingGroupKey === 'fixedIncome'
+          ? t('investments.transactions.apply')
         : undefined;
+  const actionSellLabel =
+    actionHoldingGroupKey === 'variableIncome'
+      ? t('investments.transactions.sell')
+      : actionHoldingGroupKey === 'others'
+        ? t('investments.transactions.sell')
+        : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension' || actionHoldingGroupKey === 'fixedIncome'
+          ? t('investments.transactions.redeem')
+          : undefined;
   const quickFinancialAccountId = quickTransaction.holding ? resolveFinancialAccountId(quickTransaction.holding) : null;
 
   const cashSection = React.useMemo(() => {
@@ -691,7 +703,12 @@ export function InvestmentTable({
           if (!actionMenu.holding) return;
           handleQuickBuy(actionMenu.holding);
         }}
+        onSell={() => {
+          if (!actionMenu.holding) return;
+          handleQuickSell(actionMenu.holding);
+        }}
         buyLabel={actionBuyLabel}
+        sellLabel={actionSellLabel}
         showTransactionActions={Boolean(actionBuyLabel)}
         onRecordProvento={() => {
           if (!actionMenu.holding) return;
@@ -846,6 +863,16 @@ export function InvestmentTable({
         initialDirection={
           quickTransaction.direction === 'sell' ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
         }
+        onRecorded={refreshInvestmentData}
+      />
+
+      <InvestmentEventSelectorDrawer
+        open={Boolean(eventSelectorDrawer.holding && eventSelectorDrawer.kind)}
+        holding={eventSelectorDrawer.holding}
+        kind={eventSelectorDrawer.kind}
+        financialAccountId={eventSelectorDrawer.financialAccountId}
+        investmentAccounts={investmentAccounts}
+        onClose={closeEventSelectorDrawer}
         onRecorded={refreshInvestmentData}
       />
 

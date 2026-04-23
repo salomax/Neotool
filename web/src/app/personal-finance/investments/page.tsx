@@ -33,7 +33,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const searchParams = useSearchParams();
   const benefitAccountType = "BENEFIT" as unknown as FinancialAccountType;
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
-  const [selectedAccountId, setSelectedAccountId] = React.useState<string | null>(null);
+  const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
 
@@ -69,6 +69,11 @@ export default function PersonalFinanceInvestmentsPage() {
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
 
+  const effectiveSelectedAccountId = React.useMemo<string | null>(() => {
+    if (selectedAccountId !== undefined) return selectedAccountId;
+    return investmentAccounts[0]?.id ?? null;
+  }, [investmentAccounts, selectedAccountId]);
+
   React.useEffect(() => {
     if (isEmpty) setSummaryFetching(false);
   }, [isEmpty]);
@@ -78,7 +83,7 @@ export default function PersonalFinanceInvestmentsPage() {
       <Box sx={{ p: 3, pb: 2 }}>
         <FinancialAccountSelector
           onNewAccount={() => setIsCreateAccountOpen(true)}
-          selectedAccountId={selectedAccountId}
+          selectedAccountId={effectiveSelectedAccountId}
           onSelectAccount={setSelectedAccountId}
           accountTypes={[FinancialAccountType.Investment, benefitAccountType]}
           allAccountsLabel={t("investments.sidebar.allBrokers")}
@@ -108,7 +113,7 @@ export default function PersonalFinanceInvestmentsPage() {
         </Box>
         {!isEmpty ? (
           <InvestmentSummary
-            financialAccountId={selectedAccountId}
+            financialAccountId={effectiveSelectedAccountId}
             onSummaryFetchingChange={setSummaryFetching}
           />
         ) : null}
@@ -260,7 +265,7 @@ export default function PersonalFinanceInvestmentsPage() {
           <Page>
             <Container maxWidth="xl" sx={{ py: 4 }}>
               <InvestmentGrid
-                selectedAccountId={selectedAccountId}
+                selectedAccountId={effectiveSelectedAccountId}
                 bankAccounts={bankAccounts}
                 investmentAccounts={investmentAccounts}
                 searchQuery={holdingSearchQuery}

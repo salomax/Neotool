@@ -75,6 +75,7 @@ class TransactionCategorizationEngineTest {
 
         financialAccountRepository = mock()
         whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+        whenever(financialAccountRepository.existsByIdAndAccountId(financialAccountId, accountId)).thenReturn(true)
 
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
@@ -192,7 +193,7 @@ class TransactionCategorizationEngineTest {
 
             val updated = service.update(
                 id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
+                command = UpdateTransactionCommand(categoryId = categoryAlimentacao, categoryIdProvided = true),
                 accountId = accountId,
                 userId = userId,
             )
@@ -253,7 +254,7 @@ class TransactionCategorizationEngineTest {
 
             service.update(
                 id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
+                command = UpdateTransactionCommand(categoryId = categoryAlimentacao, categoryIdProvided = true),
                 accountId = accountId,
                 userId = userId,
             )
@@ -267,7 +268,7 @@ class TransactionCategorizationEngineTest {
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existingAfterFirst)
             service.update(
                 id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryPadaria),
+                command = UpdateTransactionCommand(categoryId = categoryPadaria, categoryIdProvided = true),
                 accountId = accountId,
                 userId = userId,
             )
@@ -311,7 +312,7 @@ class TransactionCategorizationEngineTest {
 
             service.update(
                 id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryDeleted),
+                command = UpdateTransactionCommand(categoryId = categoryDeleted, categoryIdProvided = true),
                 accountId = accountId,
                 userId = userId,
             )
@@ -357,7 +358,7 @@ class TransactionCategorizationEngineTest {
 
             service.update(
                 id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryAlimentacao),
+                command = UpdateTransactionCommand(categoryId = categoryAlimentacao, categoryIdProvided = true),
                 accountId = accountId,
                 userId = userId,
             )

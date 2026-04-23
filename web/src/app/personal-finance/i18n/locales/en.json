@@ -538,6 +538,11 @@
       "common": {
         "notAvailable": "—"
       },
+      "fund": {
+        "pricingModeLabel": "Pricing mode",
+        "latestNavLabel": "Latest NAV",
+        "referenceDate": "Ref.: {{date}}"
+      },
       "indexers": {
         "Cdi": "CDI",
         "Di": "DI",
