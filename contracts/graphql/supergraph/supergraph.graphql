@@ -681,6 +681,24 @@ input CardDataInput
   isMultiCard: Boolean
 }
 
+"""
+Single month data point for a cash-flow series (income vs expenses vs net).
+"""
+type CashFlowDataPoint
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
+  totalIncome: Float!
+  totalExpenses: Float!
+
+  """Net = totalIncome - totalExpenses."""
+  net: Float!
+
+  """Aggregate banking closing balance for the month."""
+  closingBalance: Float!
+}
+
 """Category applicability (income, expense, transfer, or any)."""
 enum CategoryApplicableTo
   @join__type(graph: BANKING)
@@ -1265,6 +1283,71 @@ enum CreditDebitType
   DEBIT @join__enumValue(graph: BANKING)
 }
 
+"""
+Aggregate summary across a date range (used by the dashboard period summary).
+"""
+type DashboardPeriodSummary
+  @join__type(graph: BANKING)
+{
+  totalIncome: Float!
+  totalExpenses: Float!
+
+  """net = totalIncome - totalExpenses"""
+  net: Float!
+
+  """
+  Number of months in the selected range (used by frontend for averages).
+  """
+  monthCount: Int!
+  avgMonthlyIncome: Float!
+  avgMonthlyExpenses: Float!
+
+  """avgMonthlySavings = net / monthCount."""
+  avgMonthlySavings: Float!
+
+  """(net / totalIncome) × 100. Null when totalIncome = 0."""
+  savingsRate: Float
+
+  """
+  Closing cash balance of the last month (banking accounts, excl. transfers).
+  """
+  closingCashBalance: Float!
+
+  """Investment portfolio gross value at end of period."""
+  closingPortfolioValue: Float!
+
+  """closingCashBalance + closingPortfolioValue."""
+  totalNetWorth: Float!
+
+  """
+  Aligned with investments summary totalCostBasis (all-time holdings cost basis).
+  """
+  totalInvested: Float!
+  avgMonthlyInvested: Float!
+
+  """Aligned with investments summary grossGain (all-time)."""
+  totalReturn: Float!
+
+  """Average monthly return amount (totalReturn / monthCount)."""
+  avgMonthlyReturn: Float!
+
+  """Investment portfolio gross value at start of period."""
+  openingPortfolioValue: Float!
+
+  """
+  Aligned with investments summary performance.twr for ALL period, in percentage points.
+  """
+  returnPct: Float
+
+  """
+  Deprecated alias for closingCashBalance. Keep for frontend compatibility.
+  """
+  closingBalance: Float!
+
+  """Opening balance of the first month in the range."""
+  openingBalance: Float!
+}
+
 type DataRestriction
   @join__type(graph: FINANCIALDATA)
 {
@@ -1484,6 +1567,11 @@ type FinancialAccount
   connectionStatus: ConnectionStatus
   consentExpiresAt: DateTime
   lastSyncAt: DateTime
+
+  """
+  Earliest month with account data (transactions or investment portfolio snapshots).
+  """
+  dataSince: YearMonth
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -2883,6 +2971,11 @@ type Mutation
   """
   confirmCouponPayment(input: ConfirmCouponPaymentInput!): ConfirmCouponPaymentResult! @join__field(graph: BANKING)
 
+  """
+  Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio.
+  """
+  transferCustody(input: TransferCustodyInput!): TransferCustodyResult! @join__field(graph: BANKING)
+
   """Dismiss a pending action (e.g. mark informational item as seen)."""
   dismissPendingAction(id: ID!): AccountPendingAction! @join__field(graph: BANKING)
   requestEmailSend(input: EmailSendRequestInput!): EmailSendResult! @join__field(graph: COMMS)
@@ -3094,6 +3187,26 @@ type PopularInstitutionTopMetricItem
   rank: Int!
   institution: BacenInstitutionSummaryItem!
   metricValue: Float
+}
+
+"""
+Monthly portfolio gross value snapshot for a date range (dashboard use).
+"""
+type PortfolioMonthlyValue
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
+
+  """
+  Market value of all positions. Does NOT include investment account cash balance.
+  """
+  grossValue: Float!
+
+  """
+  True when at least one holding used an estimated valuation for this month.
+  """
+  isEstimated: Boolean!
 }
 
 type PortfolioPerformance
@@ -3412,6 +3525,35 @@ type Query
     """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
     applicableTo: CategoryApplicableTo
   ): [CategoryTotal!]! @join__field(graph: BANKING)
+
+  """
+  Monthly cash-flow series (income, expenses, net) for a date range.
+  Returns one CashFlowDataPoint per month ordered by year/month ASC.
+  When financialAccountId is omitted, aggregates across all accounts.
+  startYear/startMonth and endYear/endMonth default to the current month when omitted.
+  """
+  cashFlowSeries(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): [CashFlowDataPoint!]! @join__field(graph: BANKING)
+
+  """
+  Aggregate dashboard summary (income, expenses, net, opening/closing balance) across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  dashboardPeriodSummary(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): DashboardPeriodSummary! @join__field(graph: BANKING)
+
+  """
+  Category breakdown (expense or income) aggregated across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  applicableTo defaults to EXPENSE when omitted.
+  """
+  categoryBreakdownForRange(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!, applicableTo: CategoryApplicableTo): [CategoryTotal!]! @join__field(graph: BANKING)
+
+  """
+  Monthly portfolio gross value series for the given date range.
+  One point per month (last available quota_date in the month).
+  Months with no quota data are omitted — use left-join by (year, month) on the client.
+  When financialAccountId is omitted, aggregates across all investment accounts.
+  """
+  portfolioNetWorthSeries(financialAccountId: ID, startYear: Int!, startMonth: Int!, endYear: Int!, endMonth: Int!): [PortfolioMonthlyValue!]! @join__field(graph: BANKING)
 
   """
   Tag totals for a period. Accepts the same filters as the
@@ -4316,6 +4458,24 @@ enum TransactionType
   BALANCE_ADJUSTMENT @join__enumValue(graph: BANKING)
 }
 
+input TransferCustodyInput
+  @join__type(graph: BANKING)
+{
+  sourceHoldingId: ID!
+  destinationFinancialAccountId: ID!
+
+  """Quantidade a transferir. Se omitido, transfere a posição completa."""
+  quantity: Float
+  tradeDate: Date!
+}
+
+type TransferCustodyResult
+  @join__type(graph: BANKING)
+{
+  outflowTransaction: InvestmentTransaction!
+  inflowTransaction: InvestmentTransaction!
+}
+
 type UnmappedItemGroup
   @join__type(graph: BANKING)
 {
@@ -4673,4 +4833,11 @@ type VerifyEmailPayload
   user: User
   message: String
   attemptsRemaining: Int
+}
+
+type YearMonth
+  @join__type(graph: BANKING)
+{
+  year: Int!
+  month: Int!
 }

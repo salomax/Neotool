@@ -589,6 +589,19 @@ export type CardDataInput = {
   maskedNumber?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** Single month data point for a cash-flow series (income vs expenses vs net). */
+export type CashFlowDataPoint = {
+  __typename: 'CashFlowDataPoint';
+  /** Aggregate banking closing balance for the month. */
+  closingBalance: Scalars['Float']['output'];
+  month: Scalars['Int']['output'];
+  /** Net = totalIncome - totalExpenses. */
+  net: Scalars['Float']['output'];
+  totalExpenses: Scalars['Float']['output'];
+  totalIncome: Scalars['Float']['output'];
+  year: Scalars['Int']['output'];
+};
+
 /** Category applicability (income, expense, transfer, or any). */
 export enum CategoryApplicableTo {
   Any = 'ANY',
@@ -1046,6 +1059,44 @@ export enum CreditDebitType {
   Debit = 'DEBIT'
 }
 
+/** Aggregate summary across a date range (used by the dashboard period summary). */
+export type DashboardPeriodSummary = {
+  __typename: 'DashboardPeriodSummary';
+  avgMonthlyExpenses: Scalars['Float']['output'];
+  avgMonthlyIncome: Scalars['Float']['output'];
+  avgMonthlyInvested: Scalars['Float']['output'];
+  /** Average monthly return amount (totalReturn / monthCount). */
+  avgMonthlyReturn: Scalars['Float']['output'];
+  /** avgMonthlySavings = net / monthCount. */
+  avgMonthlySavings: Scalars['Float']['output'];
+  /** Deprecated alias for closingCashBalance. Keep for frontend compatibility. */
+  closingBalance: Scalars['Float']['output'];
+  /** Closing cash balance of the last month (banking accounts, excl. transfers). */
+  closingCashBalance: Scalars['Float']['output'];
+  /** Investment portfolio gross value at end of period. */
+  closingPortfolioValue: Scalars['Float']['output'];
+  /** Number of months in the selected range (used by frontend for averages). */
+  monthCount: Scalars['Int']['output'];
+  /** net = totalIncome - totalExpenses */
+  net: Scalars['Float']['output'];
+  /** Opening balance of the first month in the range. */
+  openingBalance: Scalars['Float']['output'];
+  /** Investment portfolio gross value at start of period. */
+  openingPortfolioValue: Scalars['Float']['output'];
+  /** Aligned with investments summary performance.twr for ALL period, in percentage points. */
+  returnPct: Maybe<Scalars['Float']['output']>;
+  /** (net / totalIncome) × 100. Null when totalIncome = 0. */
+  savingsRate: Maybe<Scalars['Float']['output']>;
+  totalExpenses: Scalars['Float']['output'];
+  totalIncome: Scalars['Float']['output'];
+  /** Aligned with investments summary totalCostBasis (all-time holdings cost basis). */
+  totalInvested: Scalars['Float']['output'];
+  /** closingCashBalance + closingPortfolioValue. */
+  totalNetWorth: Scalars['Float']['output'];
+  /** Aligned with investments summary grossGain (all-time). */
+  totalReturn: Scalars['Float']['output'];
+};
+
 export type DataRestriction = {
   __typename: 'DataRestriction';
   isRestricted: Scalars['Boolean']['output'];
@@ -1208,6 +1259,8 @@ export type FinancialAccount = {
   consentExpiresAt: Maybe<Scalars['DateTime']['output']>;
   createdAt: Scalars['DateTime']['output'];
   currencyCode: Scalars['String']['output'];
+  /** Earliest month with account data (transactions or investment portfolio snapshots). */
+  dataSince: Maybe<YearMonth>;
   id: Scalars['ID']['output'];
   /** When true, idle cash on this custodian account counts toward allocation % in investments UI. */
   includeCashInAllocation: Scalars['Boolean']['output'];
@@ -2325,6 +2378,8 @@ export type Mutation = {
   signInWithOAuth: SignInPayload;
   signUp: SignUpPayload;
   submitBillImport: BillImportJob;
+  /** Transfere uma posição (total ou parcial) entre contas de custódia do mesmo usuário, preservando custo médio. */
+  transferCustody: TransferCustodyResult;
   /** Triggers a manual portfolio quota recalculation. Optionally scoped to a financialAccountId and recalculateFrom date (ISO-8601). Defaults to all INVESTMENT accounts recalculating from 10 years ago. */
   triggerPortfolioRecalculation: Scalars['Boolean']['output'];
   unmapItem: Scalars['Boolean']['output'];
@@ -2703,6 +2758,11 @@ export type MutationSubmitBillImportArgs = {
 };
 
 
+export type MutationTransferCustodyArgs = {
+  input: TransferCustodyInput;
+};
+
+
 export type MutationTriggerPortfolioRecalculationArgs = {
   financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   recalculateFrom?: InputMaybe<Scalars['String']['input']>;
@@ -2966,6 +3026,17 @@ export type PopularInstitutionTopMetricItem = {
   rank: Scalars['Int']['output'];
 };
 
+/** Monthly portfolio gross value snapshot for a date range (dashboard use). */
+export type PortfolioMonthlyValue = {
+  __typename: 'PortfolioMonthlyValue';
+  /** Market value of all positions. Does NOT include investment account cash balance. */
+  grossValue: Scalars['Float']['output'];
+  /** True when at least one holding used an estimated valuation for this month. */
+  isEstimated: Scalars['Boolean']['output'];
+  month: Scalars['Int']['output'];
+  year: Scalars['Int']['output'];
+};
+
 export type PortfolioPerformance = {
   __typename: 'PortfolioPerformance';
   benchmarks: Array<BenchmarkPerformance>;
@@ -3158,6 +3229,19 @@ export type Query = {
   bankingUserPreferences: BankingUserPreferences;
   billImportJob: Maybe<BillImportJob>;
   billImportJobs: Array<BillImportJob>;
+  /**
+   * Monthly cash-flow series (income, expenses, net) for a date range.
+   * Returns one CashFlowDataPoint per month ordered by year/month ASC.
+   * When financialAccountId is omitted, aggregates across all accounts.
+   * startYear/startMonth and endYear/endMonth default to the current month when omitted.
+   */
+  cashFlowSeries: Array<CashFlowDataPoint>;
+  /**
+   * Category breakdown (expense or income) aggregated across a date range.
+   * When financialAccountId is omitted, aggregates across all accounts.
+   * applicableTo defaults to EXPENSE when omitted.
+   */
+  categoryBreakdownForRange: Array<CategoryTotal>;
   checkPermission: AuthorizationResult;
   conversation: Maybe<Conversation>;
   /**
@@ -3171,6 +3255,11 @@ export type Query = {
    */
   creditCardBills: Array<CreditCardBill>;
   currentUser: Maybe<User>;
+  /**
+   * Aggregate dashboard summary (income, expenses, net, opening/closing balance) across a date range.
+   * When financialAccountId is omitted, aggregates across all accounts.
+   */
+  dashboardPeriodSummary: DashboardPeriodSummary;
   economicIndicatorVariationPoints: EconomicIndicatorPointConnection;
   economicIndicators: Array<EconomicIndicator>;
   /** All financial accounts belonging to the authenticated user's account. */
@@ -3250,6 +3339,13 @@ export type Query = {
   pendingReviewImports: Array<TransactionImport>;
   permissions: PermissionConnection;
   popularInstitutions: Array<PopularInstitution>;
+  /**
+   * Monthly portfolio gross value series for the given date range.
+   * One point per month (last available quota_date in the month).
+   * Months with no quota data are omitted — use left-join by (year, month) on the client.
+   * When financialAccountId is omitted, aggregates across all investment accounts.
+   */
+  portfolioNetWorthSeries: Array<PortfolioMonthlyValue>;
   /**
    * Aggregated performance series for the authenticated account's portfolio.
    * When [groupKey] is null, aggregates all holdings; when provided, aggregates
@@ -3383,6 +3479,25 @@ export type QueryBillImportJobsArgs = {
 };
 
 
+export type QueryCashFlowSeriesArgs = {
+  endMonth: Scalars['Int']['input'];
+  endYear: Scalars['Int']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  startMonth: Scalars['Int']['input'];
+  startYear: Scalars['Int']['input'];
+};
+
+
+export type QueryCategoryBreakdownForRangeArgs = {
+  applicableTo?: InputMaybe<CategoryApplicableTo>;
+  endMonth: Scalars['Int']['input'];
+  endYear: Scalars['Int']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  startMonth: Scalars['Int']['input'];
+  startYear: Scalars['Int']['input'];
+};
+
+
 export type QueryCheckPermissionArgs = {
   permission: Scalars['String']['input'];
   resourceId?: InputMaybe<Scalars['ID']['input']>;
@@ -3403,6 +3518,15 @@ export type QueryCreditCardBillArgs = {
 
 export type QueryCreditCardBillsArgs = {
   financialAccountId: Scalars['ID']['input'];
+};
+
+
+export type QueryDashboardPeriodSummaryArgs = {
+  endMonth: Scalars['Int']['input'];
+  endYear: Scalars['Int']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  startMonth: Scalars['Int']['input'];
+  startYear: Scalars['Int']['input'];
 };
 
 
@@ -3629,6 +3753,15 @@ export type QueryPermissionsArgs = {
 
 export type QueryPopularInstitutionsArgs = {
   anoMes?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPortfolioNetWorthSeriesArgs = {
+  endMonth: Scalars['Int']['input'];
+  endYear: Scalars['Int']['input'];
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  startMonth: Scalars['Int']['input'];
+  startYear: Scalars['Int']['input'];
 };
 
 
@@ -4432,6 +4565,20 @@ export enum TransactionType {
   Withdrawal = 'WITHDRAWAL'
 }
 
+export type TransferCustodyInput = {
+  destinationFinancialAccountId: Scalars['ID']['input'];
+  /** Quantidade a transferir. Se omitido, transfere a posição completa. */
+  quantity?: InputMaybe<Scalars['Float']['input']>;
+  sourceHoldingId: Scalars['ID']['input'];
+  tradeDate: Scalars['Date']['input'];
+};
+
+export type TransferCustodyResult = {
+  __typename: 'TransferCustodyResult';
+  inflowTransaction: InvestmentTransaction;
+  outflowTransaction: InvestmentTransaction;
+};
+
 export type UnmappedItemGroup = {
   __typename: 'UnmappedItemGroup';
   confidence: Maybe<Scalars['Float']['output']>;
@@ -4714,6 +4861,12 @@ export type VerifyEmailPayload = {
   message: Maybe<Scalars['String']['output']>;
   success: Scalars['Boolean']['output'];
   user: Maybe<User>;
+};
+
+export type YearMonth = {
+  __typename: 'YearMonth';
+  month: Scalars['Int']['output'];
+  year: Scalars['Int']['output'];
 };
 
 export enum Join__Graph {

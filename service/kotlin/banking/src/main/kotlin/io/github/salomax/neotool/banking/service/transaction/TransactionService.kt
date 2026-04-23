@@ -20,6 +20,7 @@ import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
@@ -46,6 +47,7 @@ open class TransactionService(
     private val transactionRuleEngine: TransactionRuleEngine,
     private val merchantService: MerchantService,
     private val financialAccountRepository: FinancialAccountRepository,
+    private val financialAccountGuard: FinancialAccountGuard,
     private val accountMembershipValidationPort: AccountMembershipValidationPort,
     private val snapshotComputationService: SnapshotComputationService,
     private val creditCardBillService: CreditCardBillService,
@@ -1049,7 +1051,6 @@ open class TransactionService(
 
     /**
      * Returns the [FinancialAccount] if it is a credit/charge card account, null otherwise.
-     * Reuses the accounts already fetched by [requireAccountOwnsFinancialAccount].
      */
     private fun resolveCardAccount(
         financialAccountId: UUID,
@@ -1089,12 +1090,7 @@ open class TransactionService(
     private fun requireAccountOwnsFinancialAccount(
         financialAccountId: UUID,
         accountId: UUID,
-    ) {
-        val accounts = financialAccountRepository.findByAccountId(accountId)
-        require(accounts.any { it.id == financialAccountId }) {
-            "Financial account $financialAccountId does not belong to account $accountId"
-        }
-    }
+    ) = financialAccountGuard.requireOwnership(financialAccountId, accountId)
 
     private fun requireBelongsToUserIsActiveMember(
         userId: UUID,

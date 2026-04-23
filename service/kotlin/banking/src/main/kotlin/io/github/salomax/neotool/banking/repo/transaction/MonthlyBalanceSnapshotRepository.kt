@@ -52,4 +52,30 @@ interface MonthlyBalanceSnapshotRepository {
         year: Int,
         month: Int,
     )
+
+    /**
+     * Returns all snapshots for [financialAccountId] within the inclusive range
+     * [startYear/startMonth, endYear/endMonth], ordered ASC.
+     * Used by dashboard analytics to build cash-flow series for a single account.
+     */
+    fun findByRange(
+        financialAccountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshot>
+
+    /**
+     * Returns all snapshots for all financial accounts belonging to [accountId]
+     * within the inclusive range, ordered ASC.
+     * Used by dashboard analytics to aggregate across all accounts.
+     */
+    fun findByRangeForAccount(
+        accountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshot>
 }

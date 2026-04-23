@@ -14,6 +14,7 @@ import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransaction
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -332,6 +333,84 @@ class CreditCardBillLifecycleIT : BankingPostgresIntegrationTest() {
             val found = creditCardBillService.findBill(cardAccountId, accountId, null)
             assertThat(found).isNotNull
             assertThat(found!!.closingDate).isEqualTo(bill.closingDate)
+        }
+
+        @Test
+        fun `listBills throws when financialAccountId belongs to another account`() {
+            val otherAccountId = UUID.randomUUID()
+            val otherCardId = UUID.randomUUID()
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().use { stmt ->
+                    stmt.executeUpdate(
+                        """
+                        INSERT INTO banking.financial_accounts (
+                            id, account_id, created_by_user_id, type, subtype, name, currency_code,
+                            include_in_net_worth, include_in_dashboard, created_at, updated_at
+                        )
+                        VALUES (
+                            '$otherCardId', '$otherAccountId', '$userId',
+                            'CREDIT', 'CREDIT_CARD',
+                            'Other Card', 'BRL',
+                            TRUE, TRUE, NOW(), NOW()
+                        )
+                        """.trimIndent(),
+                    )
+                }
+            }
+
+            assertThatThrownBy {
+                creditCardBillService.listBills(otherCardId, accountId)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("does not belong to account")
+        }
+
+        @Test
+        fun `listBills throws when financialAccountId does not exist`() {
+            assertThatThrownBy {
+                creditCardBillService.listBills(UUID.randomUUID(), accountId)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("does not belong to account")
+        }
+
+        @Test
+        fun `findBill throws when financialAccountId belongs to another account`() {
+            val otherAccountId = UUID.randomUUID()
+            val otherCardId = UUID.randomUUID()
+            val container = getPgContainer()
+            val jdbcUrl = buildJdbcUrlWithSslDisabled(container.jdbcUrl)
+            DriverManager.getConnection(jdbcUrl, container.username, container.password).use { conn ->
+                conn.createStatement().use { stmt ->
+                    stmt.executeUpdate(
+                        """
+                        INSERT INTO banking.financial_accounts (
+                            id, account_id, created_by_user_id, type, subtype, name, currency_code,
+                            include_in_net_worth, include_in_dashboard, created_at, updated_at
+                        )
+                        VALUES (
+                            '$otherCardId', '$otherAccountId', '$userId',
+                            'CREDIT', 'CREDIT_CARD',
+                            'Other Card Find', 'BRL',
+                            TRUE, TRUE, NOW(), NOW()
+                        )
+                        """.trimIndent(),
+                    )
+                }
+            }
+
+            assertThatThrownBy {
+                creditCardBillService.findBill(otherCardId, accountId, null)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("does not belong to account")
+        }
+
+        @Test
+        fun `findBill throws when financialAccountId does not exist`() {
+            assertThatThrownBy {
+                creditCardBillService.findBill(UUID.randomUUID(), accountId, null)
+            }.isInstanceOf(IllegalArgumentException::class.java)
+                .hasMessageContaining("does not belong to account")
         }
     }
 }

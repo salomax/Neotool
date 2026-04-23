@@ -7,6 +7,7 @@ import { alpha, Box, CircularProgress, Paper, TableContainer, Typography, useThe
 import { useTranslation } from '@/shared/i18n';
 import { useToast } from '@/shared/providers';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../../i18n';
 import {
   INVESTMENT_CASH_BALANCE,
@@ -258,7 +259,8 @@ export function InvestmentTable({
       await deleteInvestmentHolding({ variables: { id: holdingToRemove.id } });
       setHoldingToRemove(null);
       await refreshInvestmentData();
-    } catch {
+    } catch (error) {
+      toast.error(extractErrorMessage(error, t('errors.default', { ns: 'common' })));
       setHoldingToRemove(null);
     }
   };

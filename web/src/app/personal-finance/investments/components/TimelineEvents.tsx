@@ -12,7 +12,7 @@ import { EmptyState } from '@/shared/components/ui/feedback';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { InvestmentSectionLabel } from './InvestmentSectionLabel';
 
-const DEFAULT_TIMELINE_ICON = <EventNoteIcon />;
+const DEFAULT_TIMELINE_ICON = <EventNoteIcon sx={{ fontSize: 16 }} />;
 const OUTFLOW_DIRECTION = 'OUTFLOW' as const;
 
 type TimelineDirection = 'INFLOW' | 'OUTFLOW';

@@ -262,33 +262,100 @@ export function HoldingPerformanceChart({
   }, [chartData, t, throughDateFormatter]);
 
   const series = React.useMemo(() => {
-    const netColor = theme.palette.success.main;
+    const lastVisiblePoint = (() => {
+      for (let i = chartData.length - 1; i >= 0; i--) {
+        const p = chartData[i];
+        if (p && !p.isProjected) return p;
+      }
+      return chartData[chartData.length - 1] ?? null;
+    })();
+
     const netValueSeries = {
       id: "netValue",
       name: netLabel,
       dataKey: "netValue",
       yAxisId: "value",
-      color: netColor,
+      color: theme.palette.success.main,
       kind: "area" as const,
       areaOpacity: 1,
     };
 
     if (isTaxExempt) return [netValueSeries];
 
-    const grossColor = alpha(theme.palette.primary.main, GROSS_SERIES_ALPHA);
-    return [
-      {
-        id: "grossValue",
-        name: grossLabel,
-        dataKey: "grossValue",
-        yAxisId: "value",
-        color: grossColor,
-        kind: "area" as const,
-        areaOpacity: 0.2,
-      },
-      netValueSeries,
-    ];
-  }, [grossLabel, isTaxExempt, netLabel, theme.palette.primary.main, theme.palette.success.main]);
+    const hasGross = chartData.some((p) => typeof p.grossValue === "number" && Number.isFinite(p.grossValue));
+    const hasNet = chartData.some((p) => typeof p.netValue === "number" && Number.isFinite(p.netValue));
+    let netEqualsGross = false;
+    if (hasGross && hasNet) {
+      const EPS = 0.005;
+      let anyComparablePair = false;
+      for (const p of chartData) {
+        if (typeof p.grossValue !== "number" || typeof p.netValue !== "number") continue;
+        if (!Number.isFinite(p.grossValue) || !Number.isFinite(p.netValue)) continue;
+        anyComparablePair = true;
+        if (Math.abs(p.grossValue - p.netValue) > EPS) {
+          anyComparablePair = false;
+          break;
+        }
+      }
+      netEqualsGross = anyComparablePair;
+    }
+
+    const shouldShowNet = hasNet && !netEqualsGross;
+    const shouldShowGross = hasGross || !shouldShowNet;
+    if (!shouldShowNet && hasNet && !hasGross) return [netValueSeries];
+
+    const valueForGain = (() => {
+      if (!lastVisiblePoint) return null;
+      const value =
+        shouldShowNet && typeof lastVisiblePoint.netValue === "number"
+          ? lastVisiblePoint.netValue
+          : typeof lastVisiblePoint.grossValue === "number"
+            ? lastVisiblePoint.grossValue
+            : null;
+      return value != null && Number.isFinite(value) ? value : null;
+    })();
+
+    const principalForGain =
+      lastVisiblePoint && typeof lastVisiblePoint.investedPrincipal === "number" && Number.isFinite(lastVisiblePoint.investedPrincipal)
+        ? lastVisiblePoint.investedPrincipal
+        : null;
+
+    const percentageGain =
+      principalForGain != null && principalForGain > 0 && valueForGain != null ? (valueForGain - principalForGain) / principalForGain : null;
+
+    const toneColor =
+      percentageGain != null && Math.abs(percentageGain) > 0.0005
+        ? percentageGain > 0
+          ? theme.palette.success.main
+          : theme.palette.error.main
+        : null;
+
+    const effectiveNetColor = toneColor ?? theme.palette.success.main;
+    const effectiveGrossBase = toneColor ?? theme.palette.primary.main;
+    const grossColor = shouldShowNet ? alpha(effectiveGrossBase, GROSS_SERIES_ALPHA) : effectiveGrossBase;
+    const netSeries = { ...netValueSeries, color: effectiveNetColor };
+    const grossValueSeries = {
+      id: "grossValue",
+      name: grossLabel,
+      dataKey: "grossValue",
+      yAxisId: "value",
+      color: grossColor,
+      kind: "area" as const,
+      areaOpacity: shouldShowNet ? 0.2 : 0.25,
+    };
+
+    if (shouldShowGross && !shouldShowNet) return [grossValueSeries];
+    if (!shouldShowGross && shouldShowNet) return [netSeries];
+    return [grossValueSeries, netSeries];
+  }, [
+    chartData,
+    grossLabel,
+    isTaxExempt,
+    netLabel,
+    theme.palette.error.main,
+    theme.palette.primary.main,
+    theme.palette.success.main,
+  ]);
 
   const eventMarkers = React.useMemo(() => {
     if (!events || events.length === 0) return [];
@@ -342,7 +409,7 @@ export function HoldingPerformanceChart({
               {title ? (
                 <InvestmentSectionLabel
                   title={title}
-                  icon={<TimelineIcon sx={{ fontSize: 16, color: 'primary.main' }} />}
+                  icon={<TimelineIcon sx={{ fontSize: 16 }} />}
                 />
               ) : null}
               {partialMonthNotice ? (
@@ -395,7 +462,7 @@ export function HoldingPerformanceChart({
           partialKey="isPartialMonth"
           partialStyle={CHART_PARTIAL_STYLE}
           showDots={false}
-          showLegend
+          showLegend={series.length > 1}
           height={320}
           locale={locale}
           eventMarkers={eventMarkers}

@@ -1,8 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import RemoveIcon from "@mui/icons-material/Remove";
 import {
   Avatar,
   Box,
@@ -14,18 +19,30 @@ import {
   DialogTitle,
   Divider,
   IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
   Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { DELETE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import { AssetType, InvestmentTransaction } from "@/lib/graphql/types/__generated__/graphql";
+import { DELETE_INVESTMENT_HOLDING, DELETE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
+import {
+  InvestmentHoldingsDocument,
+  InvestmentPortfolioSummaryDocument,
+  type InvestmentHoldingsQuery,
+  type InvestmentHoldingsQueryVariables,
+} from "@/lib/graphql/operations/banking/queries.generated";
+import { AssetType, InvestmentTransaction, InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { CurrencyAmountParts, GainPercent } from "@/shared/components/ui/data-display";
+import { ConfirmationDialog } from "@/shared/components/ui/feedback";
 import { useToast } from "@/shared/providers";
+import { extractErrorMessage } from "@/shared/utils/error";
 import { personalFinanceTranslations } from "../../i18n";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { FixedIncomeHoldingDetailContent } from "./fixed-income/FixedIncomeHoldingDetailContent";
@@ -42,10 +59,24 @@ import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter
 import { RecordEquityHoldingDrawer } from "./RecordEquityHoldingDrawer";
 import { RecordFixedIncomeDrawer } from "./RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./RecordFundHoldingDrawer";
+import { InvestmentEventSelectorDrawer } from "./InvestmentEventSelectorDrawer";
+import type { HoldingKind, HoldingRow } from "./table/investmentTableHelpers";
 import type { DetailPerformancePeriod } from "./performance/detailPerformancePeriods";
 import { parseUnknownDate, resolveDetailPerformanceWindow } from "./performance/detailPerformancePeriods";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
+
+const DAILY_PRICED_ASSET_TYPES = new Set<AssetType>([
+  AssetType.Stock,
+  AssetType.StockRights,
+  AssetType.Bdr,
+  AssetType.RealEstateFund,
+  AssetType.AgribusinessFund,
+  AssetType.Etf,
+  AssetType.EtfInternational,
+  AssetType.MutualFund,
+  AssetType.Crypto,
+]);
 
 interface InvestmentHoldingDetailDrawerProps {
   open: boolean;
@@ -64,6 +95,7 @@ interface HoldingDetailSummaryCardViewModel {
   value: number | null;
   /** default: monetary amount; percent: annualized IRR / XIRR */
   valueKind?: "currency" | "percent";
+  currencyCode?: string;
   /** Shown under the main value (e.g. period start for TIR). */
   caption?: string | null;
   labelTooltip?: string;
@@ -77,7 +109,7 @@ interface HoldingDetailStrategy {
   assetName: string;
   logoUrl: string | undefined;
   headerMeta: string;
-  netValue: number | null;
+  grossValue: number | null;
   currencyCode: string;
   gainPercent: number | null;
   summaryCards: HoldingDetailSummaryCardViewModel[];
@@ -95,10 +127,14 @@ interface HoldingDetailDrawerShellProps {
   assetName: string;
   logoUrl: string | undefined;
   headerMeta: string;
-  netValueLabel: string;
-  netValue: number | null;
+  priceReferenceLabel: string | null;
+  priceReferenceValue: number | null;
+  priceReferenceCurrencyCode: string;
+  totalValueLabel: string;
+  totalValue: number | null;
   currencyCode: string;
   gainPercent: number | null;
+  actionBar?: React.ReactNode;
   summaryCards: HoldingDetailSummaryCardViewModel[];
   body: React.ReactNode;
 }
@@ -132,6 +168,20 @@ function formatTimelineDate(value: unknown, locale: string): string {
   return date.toLocaleDateString(locale, { dateStyle: "medium" });
 }
 
+function formatPriceReferenceDate(value: unknown, locale: string): string {
+  if (!value) return "—";
+  const raw = String(value);
+  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (localDateMatch) {
+    const [, year, month, day] = localDateMatch;
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+    return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
+  }
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
+}
+
 function HoldingDetailDrawerShell({
   open,
   onClose,
@@ -144,13 +194,31 @@ function HoldingDetailDrawerShell({
   assetName,
   logoUrl,
   headerMeta,
-  netValueLabel,
-  netValue,
+  priceReferenceLabel,
+  priceReferenceValue,
+  priceReferenceCurrencyCode,
+  totalValueLabel,
+  totalValue,
   currencyCode,
   gainPercent,
+  actionBar,
   summaryCards,
   body,
 }: HoldingDetailDrawerShellProps) {
+  const metricCards = React.useMemo(() => {
+    if (!priceReferenceLabel) return summaryCards;
+    return [
+      {
+        id: "priceReference",
+        label: priceReferenceLabel,
+        value: priceReferenceValue,
+        valueKind: "currency" as const,
+        currencyCode: priceReferenceCurrencyCode,
+      },
+      ...summaryCards,
+    ];
+  }, [priceReferenceCurrencyCode, priceReferenceLabel, priceReferenceValue, summaryCards]);
+
   return (
     <Drawer
       data-testid="investment-holding-detail-drawer"
@@ -224,9 +292,9 @@ function HoldingDetailDrawerShell({
           </Box>
 
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flex: "0 0 auto" }}>
-            <Label sx={{ mb: 0.25 }}>{netValueLabel}</Label>
+            <Label sx={{ mb: 0.25 }}>{totalValueLabel}</Label>
             <CurrencyAmountParts
-              value={netValue}
+              value={totalValue}
               currency={currencyCode}
               locale={locale}
               variant="h4"
@@ -246,15 +314,23 @@ function HoldingDetailDrawerShell({
           </Box>
         </Box>
 
+        {actionBar ? (
+          <>
+            <Divider sx={{ my: 2 }} />
+            {actionBar}
+            <Divider sx={{ my: 2 }} />
+          </>
+        ) : null}
+
         <Box
           sx={{
             display: "grid",
-            gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
+            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
             gap: 1.5,
             mb: 2,
           }}
         >
-          {summaryCards.map((card) => (
+          {metricCards.map((card) => (
             <Box key={card.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0 }}>
               <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.25 }}>
                 <Label sx={{ mb: 0 }}>{card.label}</Label>
@@ -288,7 +364,7 @@ function HoldingDetailDrawerShell({
               ) : (
                 <CurrencyAmountParts
                   value={card.value}
-                  currency={currencyCode}
+                  currency={card.currencyCode ?? currencyCode}
                   locale={locale}
                   variant="h6"
                   fontWeight={500}
@@ -360,6 +436,7 @@ export function InvestmentHoldingDetailDrawer({
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
+  const apolloClient = useApolloClient();
   const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
 
   const shouldFetchFixedIncome = open && kind === "fixedIncome" && Boolean(holdingId);
@@ -472,6 +549,48 @@ export function InvestmentHoldingDetailDrawer({
       ? t(`investments.assetGroups.${groupDisplayKey}`)
       : t("investments.detailDrawer.title");
 
+  const priceReference = React.useMemo(() => {
+    if (kind !== "fund" && kind !== "equity") return null;
+    const holding = fundData?.investmentHolding;
+    const assetType = holding?.asset.assetType;
+    if (!holding || assetType == null || !DAILY_PRICED_ASSET_TYPES.has(assetType)) return null;
+    const quantity = holding.quantity;
+    const grossValue = holding.grossValue;
+    if (
+      typeof quantity !== "number" ||
+      !Number.isFinite(quantity) ||
+      quantity <= 0 ||
+      typeof grossValue !== "number" ||
+      !Number.isFinite(grossValue)
+    ) {
+      return null;
+    }
+
+    const unitPrice = grossValue / quantity;
+    if (!Number.isFinite(unitPrice) || unitPrice <= 0) return null;
+
+    const notAvailable = t("investments.detailDrawer.common.notAvailable");
+    const dateLabel = holding.valuationReferenceDate
+      ? formatPriceReferenceDate(holding.valuationReferenceDate, locale)
+      : notAvailable;
+
+    const descriptorKey =
+      assetType === AssetType.Crypto
+        ? "cryptoPrice"
+        : assetType === AssetType.RealEstateFund || assetType === AssetType.AgribusinessFund
+          ? "fiiQuotaPrice"
+          : assetType === AssetType.MutualFund
+            ? "quotaValue"
+            : "unitPrice";
+    const descriptor = t(`investments.detailDrawer.priceReference.descriptors.${descriptorKey}`);
+
+    return {
+      label: t("investments.detailDrawer.priceReference.labelWithDate", { label: descriptor, date: dateLabel }),
+      value: unitPrice,
+      currencyCode: holding.asset.currencyCode || "BRL",
+    };
+  }, [fundData?.investmentHolding, kind, locale, t]);
+
   const assetTypeLabel =
     resolvedAssetType != null
       ? t(`investments.assetTypes.${resolvedAssetType}`)
@@ -553,11 +672,16 @@ export function InvestmentHoldingDetailDrawer({
   const [deletingTransactionId, setDeletingTransactionId] = React.useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [deleteInProgress, setDeleteInProgress] = React.useState(false);
+  const [quickTransactionDirection, setQuickTransactionDirection] = React.useState<"buy" | "sell" | null>(null);
+  const [moreActionsAnchorEl, setMoreActionsAnchorEl] = React.useState<HTMLElement | null>(null);
+  const [eventSelectorOpen, setEventSelectorOpen] = React.useState(false);
+  const [holdingRemoveConfirmOpen, setHoldingRemoveConfirmOpen] = React.useState(false);
 
   const [deleteInvestmentTransaction, { loading: deleteMutationLoading }] = useMutation<
     DeleteInvestmentTransactionMutation,
     DeleteInvestmentTransactionMutationVariables
   >(DELETE_INVESTMENT_TRANSACTION);
+  const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
 
   const timelineTransactions = React.useMemo<readonly DetailTimelineTransaction[]>(
     () =>
@@ -615,6 +739,10 @@ export function InvestmentHoldingDetailDrawer({
     setDeletingTransactionId(null);
     setDeleteConfirmOpen(false);
     setDeleteInProgress(false);
+    setQuickTransactionDirection(null);
+    setMoreActionsAnchorEl(null);
+    setEventSelectorOpen(false);
+    setHoldingRemoveConfirmOpen(false);
   }, [holdingId, kind, open]);
 
   const maturityHolding = React.useMemo<MaturityDrawerHolding | null>(() => {
@@ -636,6 +764,41 @@ export function InvestmentHoldingDetailDrawer({
 
   const canRegisterRedemption =
     kind === "fixedIncome" && Boolean(maturityHolding) && (fixedIncomeData?.investmentHolding?.quantity ?? 0) > 0;
+
+  const actionHoldingFinancialAccountId =
+    fixedIncomeData?.investmentHolding?.financialAccount?.id ?? fundData?.investmentHolding?.financialAccount?.id ?? null;
+
+  const holdingRowQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(InvestmentHoldingsDocument, {
+    variables: { financialAccountId: actionHoldingFinancialAccountId ?? undefined, assetClass: undefined },
+    skip: !open || !actionHoldingFinancialAccountId,
+    fetchPolicy: "cache-and-network",
+    errorPolicy: "all",
+  });
+
+  const actionHoldingRow: HoldingRow | null = React.useMemo(() => {
+    if (!holdingId) return null;
+    return holdingRowQuery.data?.investmentHoldings.find((h) => h.id === holdingId) ?? null;
+  }, [holdingId, holdingRowQuery.data?.investmentHoldings]);
+
+  const actionHoldingGroupKey = resolvedAssetType != null ? getAssetGroupKey(String(resolvedAssetType)) : null;
+  const buyLabel =
+    actionHoldingGroupKey === "variableIncome"
+      ? t("investments.transactions.buy")
+      : actionHoldingGroupKey === "mutualFunds" || actionHoldingGroupKey === "pension"
+        ? t("investments.transactions.apply")
+        : null;
+  const sellLabel =
+    actionHoldingGroupKey === "variableIncome"
+      ? t("investments.transactions.sell")
+      : actionHoldingGroupKey === "mutualFunds" || actionHoldingGroupKey === "pension"
+        ? t("investments.transactions.redeem")
+        : null;
+
+  const equityRecordVariant = React.useMemo(() => {
+    if (resolvedAssetType === AssetType.RealEstateFund || resolvedAssetType === AssetType.AgribusinessFund) return "fii" as const;
+    if (resolvedAssetType === AssetType.Stock || resolvedAssetType === AssetType.StockRights) return "stock" as const;
+    return "mixed" as const;
+  }, [resolvedAssetType]);
 
   const handleRegisterOverdueCoupon = React.useCallback((entry: FixedIncomeCouponScheduleEntry) => {
     const h = fixedIncomeData?.investmentHolding;
@@ -888,23 +1051,21 @@ export function InvestmentHoldingDetailDrawer({
           assetName,
           logoUrl,
           headerMeta: headerMetaFixedIncome,
-          netValue: fixedIncomeViewModel?.netValue ?? null,
+          grossValue: fixedIncomeViewModel?.grossValue ?? null,
           currencyCode: (fixedIncomeViewModel?.currencyCode ?? "BRL"),
           gainPercent: fixedIncomeViewModel?.netGainPercent ?? null,
           summaryCards: [
             { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fixedIncomeViewModel?.principal ?? null },
-            { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fixedIncomeViewModel?.grossValue ?? null },
             { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fixedIncomeViewModel?.netValue ?? null },
             {
               id: "xirr",
-              label: t("investments.detailDrawer.performance.xirr"),
+              label:
+                fixedIncomeViewModel?.xirr != null && fixedIncomeViewModel.xirrSinceYear
+                  ? `${t("investments.detailDrawer.performance.xirr")} (${fixedIncomeViewModel.xirrSinceYear})`
+                  : t("investments.detailDrawer.performance.xirr"),
               value: fixedIncomeViewModel?.xirr ?? null,
               valueKind: "percent",
-              caption:
-                fixedIncomeViewModel?.xirr != null && fixedIncomeViewModel.xirrSinceLabel
-                  ? `${t("investments.detailDrawer.performance.since")} ${fixedIncomeViewModel.xirrSinceLabel}`
-                  : null,
-              labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+              caption: null,
             },
             { id: "totalGain", label: t("investments.detailDrawer.grid.totalGain"), value: fixedIncomeViewModel?.totalReturnAbsolute ?? null },
             { id: "couponsReceivedNet", label: t("investments.detailDrawer.grid.couponsReceivedNet"), value: fixedIncomeViewModel?.couponsReceivedNet ?? null },
@@ -937,7 +1098,7 @@ export function InvestmentHoldingDetailDrawer({
           assetName,
           logoUrl,
           headerMeta: headerMetaFund,
-          netValue: fundViewModel?.netValue ?? null,
+          grossValue: fundViewModel?.grossValue ?? null,
           currencyCode: (fundViewModel?.currencyCode ?? "BRL"),
           gainPercent: fundViewModel?.netGainPercent ?? null,
           // Equity: IR depends on monthly sale volume, 20k exemption, and trade type — cannot
@@ -946,35 +1107,31 @@ export function InvestmentHoldingDetailDrawer({
           summaryCards: kind === "equity"
             ? [
                 { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
-                { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
                 {
                   id: "xirr",
-                  label: t("investments.detailDrawer.performance.xirr"),
+                  label:
+                    fundViewModel?.xirr != null && fundViewModel.xirrSinceYear
+                      ? `${t("investments.detailDrawer.performance.xirr")} (${fundViewModel.xirrSinceYear})`
+                      : t("investments.detailDrawer.performance.xirr"),
                   value: fundViewModel?.xirr ?? null,
                   valueKind: "percent" as const,
-                  caption:
-                    fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
-                      ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
-                      : null,
-                  labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+                  caption: null,
                 },
                 { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
                 { id: "dividendsReceived", label: t("investments.detailDrawer.grid.dividendsReceived"), value: fundViewModel?.dividendsReceived ?? null },
               ]
             : [
                 { id: "principal", label: t("investments.detailDrawer.grid.principal"), value: fundViewModel?.principal ?? null },
-                { id: "grossTotal", label: t("investments.detailDrawer.grid.grossTotal"), value: fundViewModel?.grossValue ?? null },
                 { id: "netTotal", label: t("investments.detailDrawer.grid.netTotal"), value: fundViewModel?.netValue ?? null },
                 {
                   id: "xirr",
-                  label: t("investments.detailDrawer.performance.xirr"),
+                  label:
+                    fundViewModel?.xirr != null && fundViewModel.xirrSinceYear
+                      ? `${t("investments.detailDrawer.performance.xirr")} (${fundViewModel.xirrSinceYear})`
+                      : t("investments.detailDrawer.performance.xirr"),
                   value: fundViewModel?.xirr ?? null,
                   valueKind: "percent" as const,
-                  caption:
-                    fundViewModel?.xirr != null && fundViewModel.xirrSinceLabel
-                      ? `${t("investments.detailDrawer.performance.since")} ${fundViewModel.xirrSinceLabel}`
-                      : null,
-                  labelTooltip: t("investments.detailDrawer.performance.xirrTooltip"),
+                  caption: null,
                 },
                 { id: "totalReturn", label: t("investments.detailDrawer.grid.totalReturn"), value: fundViewModel?.totalReturnAbsolute ?? null },
                 { id: "netEarnings", label: t("investments.detailDrawer.grid.netEarnings"), value: fundViewModel?.netGain ?? null },
@@ -982,6 +1139,82 @@ export function InvestmentHoldingDetailDrawer({
                 { id: "iof", label: t("investments.detailDrawer.grid.iof"), value: fundViewModel?.iof ?? null },
               ],
         };
+
+  const hasTransactionActions = Boolean(buyLabel && sellLabel);
+  const moreActionsLabel = t("investments.detailDrawer.actions.moreActions");
+
+  const openMoreActionsMenu = React.useCallback((anchorEl: HTMLElement) => {
+    setMoreActionsAnchorEl(anchorEl);
+  }, []);
+
+  const closeMoreActionsMenu = React.useCallback(() => {
+    setMoreActionsAnchorEl(null);
+  }, []);
+
+  const handleConfirmRemoveHolding = React.useCallback(async () => {
+    if (!actionHoldingRow) return;
+
+    try {
+      await deleteInvestmentHolding({ variables: { id: actionHoldingRow.id } });
+      setHoldingRemoveConfirmOpen(false);
+      closeMoreActionsMenu();
+      onClose();
+      await apolloClient.refetchQueries({ include: [InvestmentHoldingsDocument, InvestmentPortfolioSummaryDocument] });
+    } catch (error) {
+      toast.error(extractErrorMessage(error, t("errors.default", { ns: "common" })));
+      setHoldingRemoveConfirmOpen(false);
+    }
+  }, [
+    actionHoldingRow,
+    apolloClient,
+    closeMoreActionsMenu,
+    deleteInvestmentHolding,
+    onClose,
+    t,
+    toast,
+  ]);
+
+  const actionBar = React.useMemo(
+    () => (
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
+          {hasTransactionActions ? (
+            <>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<AddIcon />}
+                onClick={() => setQuickTransactionDirection("buy")}
+                size="small"
+              >
+                {buyLabel}
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                startIcon={<RemoveIcon />}
+                onClick={() => setQuickTransactionDirection("sell")}
+                size="small"
+              >
+                {sellLabel}
+              </Button>
+            </>
+          ) : null}
+        </Box>
+
+        <Button
+          variant="outlined"
+          size="small"
+          endIcon={<MoreVertIcon />}
+          onClick={(event) => openMoreActionsMenu(event.currentTarget)}
+          disabled={!actionHoldingRow}
+        >
+          {moreActionsLabel}
+        </Button>
+      </Box>
+    ),
+    [actionHoldingRow, buyLabel, hasTransactionActions, moreActionsLabel, openMoreActionsMenu, sellLabel],
+  );
 
   return (
     <>
@@ -997,12 +1230,109 @@ export function InvestmentHoldingDetailDrawer({
         assetName={strategy.assetName}
         logoUrl={strategy.logoUrl}
         headerMeta={strategy.headerMeta}
-        netValueLabel={t("investments.detailDrawer.netValue")}
-        netValue={strategy.netValue}
+        priceReferenceLabel={priceReference?.label ?? null}
+        priceReferenceValue={priceReference?.value ?? null}
+        priceReferenceCurrencyCode={priceReference?.currencyCode ?? strategy.currencyCode}
+        totalValueLabel={t("investments.detailDrawer.grid.grossTotal")}
+        totalValue={strategy.grossValue}
         currencyCode={strategy.currencyCode}
         gainPercent={strategy.gainPercent}
+        actionBar={actionBar}
         summaryCards={strategy.summaryCards}
         body={strategy.body}
+      />
+
+      <Menu
+        open={Boolean(moreActionsAnchorEl)}
+        anchorEl={moreActionsAnchorEl}
+        onClose={closeMoreActionsMenu}
+        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+        transformOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <MenuItem
+          disabled={!actionHoldingRow}
+          onClick={() => {
+            closeMoreActionsMenu();
+            setEventSelectorOpen(true);
+          }}
+        >
+          <ListItemIcon>
+            <EditIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t("investments.table.rowActions.editMovement")}</ListItemText>
+        </MenuItem>
+
+        <MenuItem
+          disabled={!actionHoldingRow}
+          onClick={() => {
+            closeMoreActionsMenu();
+            setHoldingRemoveConfirmOpen(true);
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon sx={{ color: "inherit" }}>
+            <DeleteOutlineIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>{t("investments.table.rowActions.remove")}</ListItemText>
+        </MenuItem>
+      </Menu>
+
+      <InvestmentEventSelectorDrawer
+        open={eventSelectorOpen}
+        holding={actionHoldingRow}
+        kind={(kind as HoldingKind | null) ?? null}
+        financialAccountId={actionHoldingRow?.financialAccountId ?? null}
+        investmentAccounts={[]}
+        onClose={() => setEventSelectorOpen(false)}
+        onRecorded={async () => {
+          setEventSelectorOpen(false);
+          if (kind === "fixedIncome") {
+            await fixedIncomeQuery.refetch();
+            return;
+          }
+          await fundQuery.refetch();
+        }}
+      />
+
+      <RecordFundHoldingDrawer
+        open={
+          kind === "fund" &&
+          Boolean(quickTransactionDirection) &&
+          !editingTransactionId &&
+          (actionHoldingGroupKey === "mutualFunds" || actionHoldingGroupKey === "pension")
+        }
+        onClose={() => setQuickTransactionDirection(null)}
+        financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
+        financialAccounts={[]}
+        prefillHolding={fundEditHolding ? { id: fundEditHolding.id, asset: fundEditHolding.asset } : null}
+        initialDirection={
+          quickTransactionDirection === "sell" ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
+        }
+        onRecorded={() => {
+          setQuickTransactionDirection(null);
+          void fundQuery.refetch();
+        }}
+      />
+
+      <RecordEquityHoldingDrawer
+        open={
+          kind === "equity" &&
+          Boolean(quickTransactionDirection) &&
+          !editingTransactionId &&
+          actionHoldingGroupKey === "variableIncome"
+        }
+        onClose={() => setQuickTransactionDirection(null)}
+        financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
+        financialAccounts={[]}
+        prefillHolding={equityEditHolding}
+        initialDirection={
+          quickTransactionDirection === "sell" ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
+        }
+        equityRecordVariant={equityRecordVariant}
+        onRecorded={() => {
+          setQuickTransactionDirection(null);
+          void fundQuery.refetch();
+        }}
       />
 
       {strategy.extra}
@@ -1071,6 +1401,18 @@ export function InvestmentHoldingDetailDrawer({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ConfirmationDialog
+        open={holdingRemoveConfirmOpen}
+        onClose={() => setHoldingRemoveConfirmOpen(false)}
+        onConfirm={handleConfirmRemoveHolding}
+        title={t("investments.deleteConfirmation.title")}
+        message={t("investments.deleteConfirmation.message")}
+        cancelText={t("actions.cancel")}
+        confirmText={t("actions.delete")}
+        confirmColor="error"
+        loading={deletingHolding}
+      />
     </>
   );
 }

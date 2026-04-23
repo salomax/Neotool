@@ -1619,6 +1619,7 @@ class InvestmentQueryService(
         connectionStatus = connectionStatus,
         consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
         lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
+        dataSince = null,
         createdAt = createdAt.atOffset(ZoneOffset.UTC),
         updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
     )

@@ -39,7 +39,7 @@ export interface SidebarLayoutProps extends LayoutComponentProps {
   side?: 'left' | 'right';
   /**
    * Top offset for the fixed sidebar, useful when there is a fixed header.
-   * Default: 73 (AppHeader height)
+   * Default: 80 (AppHeader min height)
    */
   headerHeight?: number | string;
   /**

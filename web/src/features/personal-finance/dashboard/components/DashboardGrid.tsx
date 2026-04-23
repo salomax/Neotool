@@ -4,6 +4,7 @@ import { Responsive, useContainerWidth } from 'react-grid-layout';
 import type { Layout, ResponsiveLayouts } from 'react-grid-layout';
 import { useDashboardStore } from '../store';
 import { getWidgetDefinition } from '../registry';
+import { WidgetDefinition, WidgetInstance } from '../types';
 import AddIcon from '@mui/icons-material/Add';
 import 'react-grid-layout/css/styles.css';
 import './DashboardGrid.css';
@@ -16,25 +17,60 @@ interface DashboardGridProps {
 }
 
 export const DashboardGrid: React.FC<DashboardGridProps> = ({ onAddWidget }) => {
-  const { widgets, layouts, isEditMode, updateLayouts } = useDashboardStore();
+  const { widgets, layouts, updateLayouts, resetLayout } = useDashboardStore();
   const { width, containerRef, mounted } = useContainerWidth();
-  const visibleWidgets = widgets.filter((w) => w.isVisible || isEditMode);
+  const visibleWidgets = widgets.filter((w) => w.isVisible);
+  const visibleDefinitions: Array<{ widget: WidgetInstance; definition: WidgetDefinition }> = visibleWidgets
+    .map((widget) => ({ widget, definition: getWidgetDefinition(widget.type) }))
+    .filter((entry): entry is { widget: WidgetInstance; definition: WidgetDefinition } => Boolean(entry.definition));
 
-  if (visibleWidgets.length === 0 && !isEditMode) {
+  if (visibleWidgets.length === 0 || visibleDefinitions.length === 0) {
     return (
       <Paper sx={{ p: 4, textAlign: 'center', bgcolor: 'background.default', borderStyle: 'dashed' }}>
         <Typography variant="h6" color="text.secondary" gutterBottom>
           No widgets visible
         </Typography>
-        <Button startIcon={<AddIcon />} onClick={onAddWidget} variant="contained">
-          Add Your First Widget
-        </Button>
+        <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+          <Button startIcon={<AddIcon />} onClick={onAddWidget} variant="contained">
+            Add Your First Widget
+          </Button>
+          <Button onClick={resetLayout} variant="outlined">
+            Reset Layout
+          </Button>
+        </Box>
       </Paper>
     );
   }
 
   return (
-    <Box sx={{ flexGrow: 1 }} ref={containerRef} className="dashboard-grid-layout">
+    <Box
+      sx={{
+        flexGrow: 1,
+        '& .react-resizable-handle': {
+          width: 22,
+          height: 22,
+          padding: 0,
+          backgroundImage: 'none',
+          color: 'action.active',
+          opacity: 0.4,
+          cursor: 'se-resize',
+          overflow: 'hidden',
+          '&:hover': { opacity: 0.9 },
+        },
+        '& .react-resizable-handle::after': {
+          content: '""',
+          position: 'absolute',
+          right: 4,
+          bottom: 4,
+          width: 8,
+          height: 8,
+          borderRight: '2px solid currentColor',
+          borderBottom: '2px solid currentColor',
+        },
+      }}
+      ref={containerRef}
+      className="dashboard-grid-layout"
+    >
       {mounted && (
         <Responsive
           className="layout"
@@ -44,12 +80,13 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ onAddWidget }) => 
           rowHeight={100}
           width={width}
           dragConfig={{
-            enabled: isEditMode,
+            enabled: true,
             handle: '.drag-handle',
             threshold: 3,
           }}
           resizeConfig={{
-            enabled: isEditMode,
+            enabled: true,
+            handles: ['se'],
           }}
           onLayoutChange={(_layout: Layout, allLayouts: ResponsiveLayouts) => {
             updateLayouts(allLayouts as { [key: string]: Layout });
@@ -57,13 +94,7 @@ export const DashboardGrid: React.FC<DashboardGridProps> = ({ onAddWidget }) => 
           margin={[24, 24]}
           containerPadding={[0, 0]}
         >
-          {visibleWidgets.map((widget) => {
-            const definition = getWidgetDefinition(widget.type);
-
-            if (!definition) {
-              return null;
-            }
-
+          {visibleDefinitions.map(({ widget, definition }) => {
             const WidgetComponent = definition.component;
 
             return (

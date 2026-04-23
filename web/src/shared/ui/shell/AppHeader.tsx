@@ -21,6 +21,8 @@ import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingAction
 import { UserProfileMenu } from "@/shared/ui/shell/UserProfileMenu";
 import type { RouteConfig } from "@/shared/components/ui/navigation/Breadcrumb";
 
+const APP_HEADER_MIN_HEIGHT_PX = 80;
+
 export function AppHeader() {
   const { t } = useTranslation();
   const theme = useTheme();
@@ -63,7 +65,7 @@ export function AppHeader() {
   React.useLayoutEffect(() => {
     const el = contentRef.current;
     if (!el) return;
-    setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+    setContentHeight(Math.max(APP_HEADER_MIN_HEIGHT_PX, Math.ceil(el.getBoundingClientRect().height)));
   }, []);
 
   React.useEffect(() => {
@@ -71,7 +73,7 @@ export function AppHeader() {
     if (!el) return;
 
     const update = () => {
-      setContentHeight(Math.ceil(el.getBoundingClientRect().height));
+      setContentHeight(Math.max(APP_HEADER_MIN_HEIGHT_PX, Math.ceil(el.getBoundingClientRect().height)));
     };
 
     const observer = new ResizeObserver(update);
@@ -95,8 +97,11 @@ export function AppHeader() {
         borderBottom: "1px solid",
         borderColor: "divider",
         backdropFilter: "blur(6px)",
-        display: { xs: "none", md: "block" }, // Hide on mobile as requested
+        display: { xs: "none", md: "flex" }, // Hide on mobile as requested
+        flexDirection: "column",
+        justifyContent: "center",
         height: contentHeight ? `${contentHeight}px` : "auto",
+        minHeight: APP_HEADER_MIN_HEIGHT_PX,
         overflow: "hidden",
         transition: prefersReducedMotion
           ? "none"
@@ -107,7 +112,7 @@ export function AppHeader() {
         willChange: prefersReducedMotion ? undefined : "height",
       }}
     >
-      <Box ref={contentRef}>
+      <Box ref={contentRef} sx={{ width: "100%" }}>
         <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
           <Box
             sx={{

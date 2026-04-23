@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.service.transaction
 import io.github.salomax.neotool.banking.domain.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -41,6 +42,7 @@ open class MonthSummaryQueryService(
     private val snapshotRepository: MonthlyBalanceSnapshotRepository,
     private val transactionRepository: TransactionRepository,
     private val snapshotComputationService: SnapshotComputationService,
+    private val financialAccountGuard: FinancialAccountGuard,
 ) {
     /**
      * Returns the [MonthSummary] for the given [financialAccountId], [year], and [month].
@@ -55,6 +57,7 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
     ): MonthSummary {
+        financialAccountGuard.requireOwnership(financialAccountId, accountId)
         val today = LocalDate.now()
         val currentYearMonth = YearMonth.of(today.year, today.monthValue)
         val requestedYearMonth = YearMonth.of(year, month)
@@ -77,8 +80,8 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
         applicableTo: CategoryApplicableTo?,
-    ): List<CategoryTotal> =
-        toCategoryTotals(
+    ): List<CategoryTotal> {
+        return toCategoryTotals(
             transactionRepository.getCategoryBreakdown(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
@@ -87,6 +90,7 @@ open class MonthSummaryQueryService(
                 applicableTo = applicableTo,
             ),
         )
+    }
 
     /**
      * Returns tag totals for the given period. Percentage is computed from sum of grouped tag amounts.
@@ -98,8 +102,8 @@ open class MonthSummaryQueryService(
         year: Int,
         month: Int,
         applicableTo: CategoryApplicableTo?,
-    ): List<TagTotal> =
-        toTagTotals(
+    ): List<TagTotal> {
+        return toTagTotals(
             transactionRepository.getTagBreakdown(
                 accountId = accountId,
                 financialAccountId = financialAccountId,
@@ -108,6 +112,7 @@ open class MonthSummaryQueryService(
                 applicableTo = applicableTo,
             ),
         )
+    }
 
     /**
      * Returns the aggregated [MonthSummary] across **all** financial accounts for [accountId].

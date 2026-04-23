@@ -120,4 +120,47 @@ interface MonthlyBalanceSnapshotEntityRepository :
     )
 
     fun deleteByFinancialAccountId(financialAccountId: UUID): Long
+
+    /**
+     * All snapshots for a single financial account within the inclusive [startYear/startMonth, endYear/endMonth] range.
+     * Ordered ASC so callers can build a series directly.
+     */
+    @Query(
+        """
+        SELECT s FROM MonthlyBalanceSnapshotEntity s
+        WHERE s.id.financialAccountId = :financialAccountId
+          AND (s.id.year > :startYear OR (s.id.year = :startYear AND s.id.month >= :startMonth))
+          AND (s.id.year < :endYear   OR (s.id.year = :endYear   AND s.id.month <= :endMonth))
+        ORDER BY s.id.year ASC, s.id.month ASC
+        """,
+    )
+    fun findByRange(
+        financialAccountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshotEntity>
+
+    /**
+     * All snapshots for all financial accounts belonging to [accountId] within the range.
+     * Used to aggregate across all accounts when financialAccountId is not specified.
+     * Ordered ASC so callers can build a series directly.
+     */
+    @Query(
+        """
+        SELECT s FROM MonthlyBalanceSnapshotEntity s
+        WHERE s.accountId = :accountId
+          AND (s.id.year > :startYear OR (s.id.year = :startYear AND s.id.month >= :startMonth))
+          AND (s.id.year < :endYear   OR (s.id.year = :endYear   AND s.id.month <= :endMonth))
+        ORDER BY s.id.year ASC, s.id.month ASC
+        """,
+    )
+    fun findByRangeForAccount(
+        accountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshotEntity>
 }

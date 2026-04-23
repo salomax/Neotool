@@ -16,6 +16,27 @@ import {
 import { useInvestmentGridData } from "./useInvestmentGridData";
 import type { TimeSeriesDataPoint } from "@/shared/types/charts";
 
+const SELECTED_CLASS_STORAGE_PREFIX = "investments.grid.selectedAssetClassKey";
+
+function buildSelectedClassStorageKey(financialAccountId: string | null): string {
+  return `${SELECTED_CLASS_STORAGE_PREFIX}:${financialAccountId ?? "all"}`;
+}
+
+function parseInvestmentGridClassKey(raw: string | null): InvestmentGridClassKey | null {
+  if (!raw) return null;
+  const match =
+    INVESTMENT_GRID_CLASS_DEFINITIONS.find((item) => item.key === raw)?.key ?? null;
+  return match;
+}
+
+function readSelectedAssetClassKey(storageKey: string): InvestmentGridClassKey | null {
+  try {
+    return parseInvestmentGridClassKey(sessionStorage.getItem(storageKey));
+  } catch {
+    return null;
+  }
+}
+
 export interface UseInvestmentGridResult {
   data: ReturnType<typeof useInvestmentGridData>["data"];
   loading: boolean;
@@ -42,9 +63,21 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
   const { data: gridData, loading: gridLoading, error: gridError, refetch, refreshGridQueries } =
     useInvestmentGridData(financialAccountId);
 
-  const [selectedAssetClassKey, setSelectedAssetClassKey] = React.useState<InvestmentGridClassKey | null>(null);
+  const selectedClassStorageKey = React.useMemo(
+    () => buildSelectedClassStorageKey(financialAccountId),
+    [financialAccountId],
+  );
+
+  const [selectedAssetClassKey, setSelectedAssetClassKey] = React.useState<InvestmentGridClassKey | null>(() => {
+    if (typeof window === "undefined") return null;
+    return readSelectedAssetClassKey(buildSelectedClassStorageKey(financialAccountId));
+  });
   const [recordDrawer, setRecordDrawer] = React.useState<GridRecordDrawer>(null);
   const [equityRecordVariant, setEquityRecordVariant] = React.useState<EquityRecordVariant>("mixed");
+
+  React.useEffect(() => {
+    setSelectedAssetClassKey(readSelectedAssetClassKey(selectedClassStorageKey));
+  }, [selectedClassStorageKey]);
 
   const openRecordDrawerForClassKey = React.useCallback((key: InvestmentGridClassKey) => {
     const drawer = RECORD_DRAWER_BY_CLASS[key];
@@ -66,13 +99,26 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
     openRecordDrawerForClassKey(selectedAssetClassKey);
   }, [openRecordDrawerForClassKey, selectedAssetClassKey]);
 
-  const selectAssetClass = React.useCallback((key: InvestmentGridClassKey) => {
-    setSelectedAssetClassKey(key);
-  }, []);
+  const selectAssetClass = React.useCallback(
+    (key: InvestmentGridClassKey) => {
+      setSelectedAssetClassKey(key);
+      try {
+        sessionStorage.setItem(selectedClassStorageKey, key);
+      } catch {
+        // ignore
+      }
+    },
+    [selectedClassStorageKey],
+  );
 
   const clearAssetClass = React.useCallback(() => {
     setSelectedAssetClassKey(null);
-  }, []);
+    try {
+      sessionStorage.removeItem(selectedClassStorageKey);
+    } catch {
+      // ignore
+    }
+  }, [selectedClassStorageKey]);
 
   const openRecordDrawerForCash = React.useCallback(() => {
     setRecordDrawer("cash");

@@ -30,6 +30,11 @@ data class CardDataDTO(
     val isMultiCard: Boolean,
 )
 
+data class YearMonthDTO(
+    val year: Int,
+    val month: Int,
+)
+
 data class FinancialAccountDTO(
     val id: UUID,
     val type: FinancialAccountType,
@@ -47,6 +52,7 @@ data class FinancialAccountDTO(
     val connectionStatus: ConnectionStatus?,
     val consentExpiresAt: OffsetDateTime?,
     val lastSyncAt: OffsetDateTime?,
+    val dataSince: YearMonthDTO?,
     val createdAt: OffsetDateTime,
     val updatedAt: OffsetDateTime,
 )

@@ -47,6 +47,10 @@ export const FINANCIAL_ACCOUNTS = gql`
       connectionStatus
       consentExpiresAt
       lastSyncAt
+      dataSince {
+        year
+        month
+      }
       createdAt
       updatedAt
     }
@@ -1213,6 +1217,127 @@ export const TRANSACTIONS_BY_BILL = gql`
         hasNextPage
         endCursor
       }
+    }
+  }
+`;
+
+/** Monthly cash-flow series (income, expenses, net) for a date range — single DB query. */
+export const CASH_FLOW_SERIES = gql`
+  query CashFlowSeries(
+    $financialAccountId: ID
+    $startYear: Int!
+    $startMonth: Int!
+    $endYear: Int!
+    $endMonth: Int!
+  ) {
+    cashFlowSeries(
+      financialAccountId: $financialAccountId
+      startYear: $startYear
+      startMonth: $startMonth
+      endYear: $endYear
+      endMonth: $endMonth
+    ) {
+      year
+      month
+      totalIncome
+      totalExpenses
+      net
+      closingBalance
+    }
+  }
+`;
+
+/** Monthly portfolio gross value series for dashboard net worth composition. */
+export const PORTFOLIO_NET_WORTH_SERIES = gql`
+  query PortfolioNetWorthSeries(
+    $financialAccountId: ID
+    $startYear: Int!
+    $startMonth: Int!
+    $endYear: Int!
+    $endMonth: Int!
+  ) {
+    portfolioNetWorthSeries(
+      financialAccountId: $financialAccountId
+      startYear: $startYear
+      startMonth: $startMonth
+      endYear: $endYear
+      endMonth: $endMonth
+    ) {
+      year
+      month
+      grossValue
+      isEstimated
+    }
+  }
+`;
+
+/** Aggregate dashboard summary for a date range (cash flow, net worth and investment KPIs). */
+export const DASHBOARD_PERIOD_SUMMARY = gql`
+  query DashboardPeriodSummary(
+    $financialAccountId: ID
+    $startYear: Int!
+    $startMonth: Int!
+    $endYear: Int!
+    $endMonth: Int!
+  ) {
+    dashboardPeriodSummary(
+      financialAccountId: $financialAccountId
+      startYear: $startYear
+      startMonth: $startMonth
+      endYear: $endYear
+      endMonth: $endMonth
+    ) {
+      totalIncome
+      totalExpenses
+      net
+      monthCount
+      avgMonthlyIncome
+      avgMonthlyExpenses
+      avgMonthlySavings
+      savingsRate
+      closingCashBalance
+      closingPortfolioValue
+      totalNetWorth
+      totalInvested
+      avgMonthlyInvested
+      totalReturn
+      avgMonthlyReturn
+      openingPortfolioValue
+      returnPct
+      closingBalance
+      openingBalance
+    }
+  }
+`;
+
+/** Category breakdown aggregated across a date range. */
+export const CATEGORY_BREAKDOWN_FOR_RANGE = gql`
+  query CategoryBreakdownForRange(
+    $financialAccountId: ID
+    $startYear: Int!
+    $startMonth: Int!
+    $endYear: Int!
+    $endMonth: Int!
+    $applicableTo: CategoryApplicableTo
+  ) {
+    categoryBreakdownForRange(
+      financialAccountId: $financialAccountId
+      startYear: $startYear
+      startMonth: $startMonth
+      endYear: $endYear
+      endMonth: $endMonth
+      applicableTo: $applicableTo
+    ) {
+      uncategorized
+      category {
+        id
+        name
+        icon
+        color
+      }
+      totalAmount
+      transactionCount
+      percentage
     }
   }
 `;

@@ -92,6 +92,7 @@ class TransactionCategorizationEngineTest {
                 transactionRuleEngine = transactionRuleEngine,
                 merchantService = merchantService,
                 financialAccountRepository = financialAccountRepository,
+                financialAccountGuard = mock(),
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,

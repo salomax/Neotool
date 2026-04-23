@@ -285,6 +285,11 @@ type CardData {
   isMultiCard: Boolean!
 }
 
+type YearMonth {
+  year: Int!
+  month: Int!
+}
+
 """
 A personal finance account or card belonging to the authenticated user's account.
 The tenant association is resolved from the JWT and is not exposed directly.
@@ -310,6 +315,8 @@ type FinancialAccount {
   connectionStatus: ConnectionStatus
   consentExpiresAt: DateTime
   lastSyncAt: DateTime
+  """Earliest month with account data (transactions or investment portfolio snapshots)."""
+  dataSince: YearMonth
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -563,6 +570,76 @@ type MonthSummary {
   incomeByCategory: [CategoryTotal!]!
   """Top tags for the month (ordered by totalAmount DESC)."""
   tagsSummary: [TagTotal!]!
+}
+
+"""
+Single month data point for a cash-flow series (income vs expenses vs net).
+"""
+type CashFlowDataPoint {
+  year: Int!
+  month: Int!
+  totalIncome: Float!
+  totalExpenses: Float!
+  """Net = totalIncome - totalExpenses."""
+  net: Float!
+  """Aggregate banking closing balance for the month."""
+  closingBalance: Float!
+}
+
+"""
+Aggregate summary across a date range (used by the dashboard period summary).
+"""
+type DashboardPeriodSummary {
+  # ── Fluxo de caixa ──────────────────────────────────────────────────────
+  totalIncome: Float!
+  totalExpenses: Float!
+  """net = totalIncome - totalExpenses"""
+  net: Float!
+  """Number of months in the selected range (used by frontend for averages)."""
+  monthCount: Int!
+  avgMonthlyIncome: Float!
+  avgMonthlyExpenses: Float!
+  """avgMonthlySavings = net / monthCount."""
+  avgMonthlySavings: Float!
+  """(net / totalIncome) × 100. Null when totalIncome = 0."""
+  savingsRate: Float
+
+  # ── Patrimônio ──────────────────────────────────────────────────────────
+  """Closing cash balance of the last month (banking accounts, excl. transfers)."""
+  closingCashBalance: Float!
+  """Investment portfolio gross value at end of period."""
+  closingPortfolioValue: Float!
+  """closingCashBalance + closingPortfolioValue."""
+  totalNetWorth: Float!
+
+  # ── Investimentos ────────────────────────────────────────────────────────
+  """Aligned with investments summary totalCostBasis (all-time holdings cost basis)."""
+  totalInvested: Float!
+  avgMonthlyInvested: Float!
+  """Aligned with investments summary grossGain (all-time)."""
+  totalReturn: Float!
+  """Average monthly return amount (totalReturn / monthCount)."""
+  avgMonthlyReturn: Float!
+  """Investment portfolio gross value at start of period."""
+  openingPortfolioValue: Float!
+  """Aligned with investments summary performance.twr for ALL period, in percentage points."""
+  returnPct: Float
+
+  # ── Campos mantidos para compatibilidade ────────────────────────────────
+  """Deprecated alias for closingCashBalance. Keep for frontend compatibility."""
+  closingBalance: Float!
+  """Opening balance of the first month in the range."""
+  openingBalance: Float!
+}
+
+"""Monthly portfolio gross value snapshot for a date range (dashboard use)."""
+type PortfolioMonthlyValue {
+  year: Int!
+  month: Int!
+  """Market value of all positions. Does NOT include investment account cash balance."""
+  grossValue: Float!
+  """True when at least one holding used an estimated valuation for this month."""
+  isEstimated: Boolean!
 }
 
 """
@@ -2048,6 +2125,56 @@ extend type Query {
     """Filter by INCOME or EXPENSE; omit for all categorized transactions."""
     applicableTo: CategoryApplicableTo
   ): [CategoryTotal!]!
+  """
+  Monthly cash-flow series (income, expenses, net) for a date range.
+  Returns one CashFlowDataPoint per month ordered by year/month ASC.
+  When financialAccountId is omitted, aggregates across all accounts.
+  startYear/startMonth and endYear/endMonth default to the current month when omitted.
+  """
+  cashFlowSeries(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): [CashFlowDataPoint!]!
+  """
+  Aggregate dashboard summary (income, expenses, net, opening/closing balance) across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  """
+  dashboardPeriodSummary(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): DashboardPeriodSummary!
+  """
+  Category breakdown (expense or income) aggregated across a date range.
+  When financialAccountId is omitted, aggregates across all accounts.
+  applicableTo defaults to EXPENSE when omitted.
+  """
+  categoryBreakdownForRange(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+    applicableTo: CategoryApplicableTo
+  ): [CategoryTotal!]!
+  """
+  Monthly portfolio gross value series for the given date range.
+  One point per month (last available quota_date in the month).
+  Months with no quota data are omitted — use left-join by (year, month) on the client.
+  When financialAccountId is omitted, aggregates across all investment accounts.
+  """
+  portfolioNetWorthSeries(
+    financialAccountId: ID
+    startYear: Int!
+    startMonth: Int!
+    endYear: Int!
+    endMonth: Int!
+  ): [PortfolioMonthlyValue!]!
   """
   Tag totals for a period. Accepts the same filters as the
   transactions query — the result reflects the tag breakdown of exactly those transactions.

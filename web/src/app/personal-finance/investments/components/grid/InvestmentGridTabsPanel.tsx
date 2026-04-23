@@ -7,6 +7,7 @@ import { Badge, Box, ButtonBase, LinearProgress, Popover, Tab, Tabs, Typography,
 import { DrawerSubmitButton } from "@/shared/components/ui/layout/Drawer";
 import { ExpandableSearchInput } from "@/shared/components/ui/forms/ExpandableSearchInput";
 import { Logo } from "@/shared/components/ui/primitives";
+import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { InvestmentAssetIcon } from "../InvestmentAssetIcon";
 import { InvestmentTable } from "../table/InvestmentTable";
 import { INVESTMENT_HOLDINGS } from "@/lib/graphql/operations/banking/queries";
@@ -80,6 +81,7 @@ export function InvestmentGridTabsPanel({
     () => holdingsQuery.data?.investmentHoldings ?? EMPTY_HOLDINGS,
     [holdingsQuery.data?.investmentHoldings],
   );
+  const tabsLoading = holdingsQuery.loading && holdingsQuery.data?.investmentHoldings == null;
   const normalizedSearchQuery = React.useMemo(() => (searchQuery ?? "").trim().toLowerCase(), [searchQuery]);
   const hasSearchQuery = Boolean(normalizedSearchQuery);
 
@@ -158,15 +160,15 @@ export function InvestmentGridTabsPanel({
   }, [selectedAssetClassKey, visibleTabDefinitions]);
 
   React.useEffect(() => {
-    if (holdingsQuery.loading || holdingsQuery.error) return;
+    if (tabsLoading || holdingsQuery.error) return;
     if (selectedAssetClassKey === "cash") return;
     if (visibleTabDefinitions.some((def) => def.key === selectedAssetClassKey)) return;
-    onBackToGrid();
+    onClassChange("cash");
   }, [
     holdingsQuery.error,
-    holdingsQuery.loading,
-    onBackToGrid,
+    onClassChange,
     selectedAssetClassKey,
+    tabsLoading,
     visibleTabDefinitions,
   ]);
 
@@ -184,6 +186,8 @@ export function InvestmentGridTabsPanel({
 
   return (
     <Box>
+      {tabsLoading ? <LoadingSpinner message={t("actions.loading")} minHeight={220} /> : null}
+      {!tabsLoading ? (
       <Box sx={{ position: "relative", mb: 2 }}>
         <Tabs
           value={selectedTabIndex}
@@ -410,31 +414,34 @@ export function InvestmentGridTabsPanel({
           </Popover>
         </Box>
       </Box>
+      ) : null}
 
-      <Box
-        role="tabpanel"
-        id={TAB_PANEL_ID}
-        aria-labelledby={
-          selectedTabIndex === GRID_TAB_INDEX
-            ? "investment-grid-class-tab-grid"
-            : `investment-grid-class-tab-${selectedAssetClassKey}`
-        }
-      >
-        {activeDefinition ? (
-          <InvestmentTable
-            key={selectedAssetClassKey}
-            selectedAccountId={selectedAccountId}
-            investmentAccounts={investmentAccounts}
-            searchQuery={searchQuery}
-            onSelectSearchAsset={onSelectSearchAsset}
-            visibleGroupKeys={activeDefinition.visibleGroupKeys}
-            visibleAssetTypes={activeDefinition.visibleAssetTypes}
-            includeCashCard={activeDefinition.includeCashCard ?? false}
-            hideGroupHeader
-            onHoldingsFetchingChange={setHoldingsFetching}
-          />
-        ) : null}
-      </Box>
+      {!tabsLoading ? (
+        <Box
+          role="tabpanel"
+          id={TAB_PANEL_ID}
+          aria-labelledby={
+            selectedTabIndex === GRID_TAB_INDEX
+              ? "investment-grid-class-tab-grid"
+              : `investment-grid-class-tab-${selectedAssetClassKey}`
+          }
+        >
+          {activeDefinition ? (
+            <InvestmentTable
+              key={selectedAssetClassKey}
+              selectedAccountId={selectedAccountId}
+              investmentAccounts={investmentAccounts}
+              searchQuery={searchQuery}
+              onSelectSearchAsset={onSelectSearchAsset}
+              visibleGroupKeys={activeDefinition.visibleGroupKeys}
+              visibleAssetTypes={activeDefinition.visibleAssetTypes}
+              includeCashCard={activeDefinition.includeCashCard ?? false}
+              hideGroupHeader
+              onHoldingsFetchingChange={setHoldingsFetching}
+            />
+          ) : null}
+        </Box>
+      ) : null}
     </Box>
   );
 }

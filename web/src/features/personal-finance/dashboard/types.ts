@@ -50,15 +50,17 @@ export interface WidgetProps {
 
 export interface WidgetDefinition {
   type: string;
-  defaultTitle: string;
+  defaultTitle?: string;
+  defaultTitleKey?: string;
   description?: string;
+  descriptionKey?: string;
   component: ComponentType<WidgetProps>;
   defaultSize: { w: WidgetSize, h: WidgetSize }; // w and h for different breakpoints
   defaultConfig?: WidgetConfig;
   icon?: ReactNode;
 }
 
-export type DateRangeOption = '90d' | '6m' | 'ytd' | '1y' | 'all' | 'custom';
+export type DateRangeOption = 'currentMonth' | '3m' | '6m' | '1y' | '3y' | 'all' | 'custom';
 
 export interface DashboardState {
   widgets: WidgetInstance[];

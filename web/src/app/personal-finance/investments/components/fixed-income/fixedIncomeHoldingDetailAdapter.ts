@@ -60,6 +60,7 @@ export interface FixedIncomeHoldingDetailViewModel {
   netGainPercent: number | null;
   xirr: number | null;
   xirrSinceLabel: string | null;
+  xirrSinceYear: string | null;
   totalReturnAbsolute: number | null;
   couponsReceivedNet: number;
   indexerLabel: string;
@@ -106,6 +107,16 @@ function formatDate(value: unknown, locale: string, t: Translator): string {
   return date.toLocaleDateString(locale);
 }
 
+function formatYear(value: unknown): string | null {
+  if (!value) return null;
+  const raw = String(value);
+  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (localDateMatch) return localDateMatch[1] ?? null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return String(date.getFullYear());
+}
+
 function formatAssetType(assetType: AssetType, t: Translator): string {
   return t(`investments.assetTypes.${assetType}`);
 }
@@ -120,10 +131,33 @@ function formatIndexer(holding: Holding, locale: string, t: Translator): string 
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     });
-    return t("investments.detailDrawer.indexers.fixedAnnualRate", { rate: formattedAnnualRate });
+    return t("investments.detailDrawer.indexers.fixedAnnualRate", {
+      rate: formattedAnnualRate,
+      defaultValue: `${formattedAnnualRate}% p.a.`,
+    });
   }
 
-  const label = t(`investments.detailDrawer.indexers.${holding.indexer}`);
+  const fallbackLabel =
+    holding.indexer === Indexer.Cdi
+      ? "CDI"
+      : holding.indexer === Indexer.Di
+        ? "DI"
+        : holding.indexer === Indexer.Ipca
+          ? "IPCA+"
+          : holding.indexer === Indexer.IgpM
+            ? "IGP-M"
+            : holding.indexer === Indexer.IgpDi
+              ? "IGP-DI"
+              : holding.indexer === Indexer.Inpc
+                ? "INPC"
+                : holding.indexer === Indexer.Tr
+                  ? "TR"
+                  : holding.indexer === Indexer.Selic
+                    ? "SELIC"
+                    : holding.indexer === Indexer.Outros
+                      ? "Outro"
+                      : String(holding.indexer);
+  const label = t(`investments.detailDrawer.indexers.${holding.indexer}`, { defaultValue: fallbackLabel });
   if (holding.indexerPercentage == null) return label;
 
   const percentValue = holding.indexerPercentage * 100;
@@ -133,7 +167,11 @@ function formatIndexer(holding: Holding, locale: string, t: Translator): string 
     minimumFractionDigits: 1,
     maximumFractionDigits: 2,
   });
-  return t("investments.detailDrawer.indexers.withPercentage", { label, percentage: formattedPercent });
+  return t("investments.detailDrawer.indexers.withPercentage", {
+    label,
+    percentage: formattedPercent,
+    defaultValue: `${label} ${formattedPercent}%`,
+  });
 }
 
 function formatTransactionType(type: InvestmentTransactionType, t: Translator): string {
@@ -177,6 +215,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
   const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
     ? formatDate(investmentHoldingPerformance.xirrSince, locale, t)
     : null;
+  const xirrSinceYear = investmentHoldingPerformance?.xirrSince ? formatYear(investmentHoldingPerformance.xirrSince) : null;
   const totalReturnAbsolute =
     typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
       ? investmentHoldingPerformance.totalReturnAbsolute
@@ -322,6 +361,7 @@ export function buildFixedIncomeHoldingDetailViewModel(
     netGainPercent,
     xirr,
     xirrSinceLabel,
+    xirrSinceYear,
     totalReturnAbsolute,
     couponsReceivedNet,
     indexerLabel: formatIndexer(holding, locale, t),

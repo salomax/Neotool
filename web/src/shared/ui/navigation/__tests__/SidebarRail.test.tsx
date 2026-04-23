@@ -97,9 +97,9 @@ vi.mock('@/shared/hooks/useFeatureFlag', () => ({
   useFeatureFlagEnabled: () => false,
 }));
 
-const renderSidebarRail = () => {
+const renderSidebarRail = (mode: 'light' | 'dark' = 'light') => {
   return render(
-    <AppThemeProvider>
+    <AppThemeProvider defaultMode={mode}>
       <SidebarRail />
     </AppThemeProvider>
   );
@@ -126,6 +126,14 @@ describe.sequential('SidebarRail', () => {
       const logoLink = screen.getByTestId('sidebar-rail-home-link');
       expect(logoLink).toBeInTheDocument();
       expect(logoLink).toHaveAttribute('href', '/');
+
+      const logo = screen.getByTestId('logo-mark');
+      expect(logo).toBeInTheDocument();
+      expect(logo).toHaveAttribute('data-variant', 'blue');
+    });
+    
+    it('renders white logo variant in dark mode', () => {
+      renderSidebarRail('dark');
 
       const logo = screen.getByTestId('logo-mark');
       expect(logo).toBeInTheDocument();

@@ -77,15 +77,15 @@ export function SidebarRail() {
         position: 'fixed',
         left: 0,
         top: 0,
-        height: '100vh',
+        bottom: 0,
         width: RAIL_W,
         bgcolor: sidebarBg,
         color: sidebarIcon,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        py: 2,
-        gap: 1,
+        py: 1.5,
+        gap: 0,
         zIndex: (t) => t.zIndex.drawer - 1,
         borderRight: '1px solid',
         borderColor: 'divider',
@@ -103,20 +103,16 @@ export function SidebarRail() {
             borderRadius: borderRadius,
             display: 'grid',
             placeItems: 'center',
-            bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'primary.main',
             mt: 0.5,
             cursor: 'pointer',
-            transition: 'background-color 0.2s',
-            '&:hover': {
-              bgcolor: theme.palette.mode === 'dark' ? 'transparent' : 'primary.dark',
-            },
+            bgcolor: 'transparent',
           }}
           aria-label="Go to home page"
         >
           <LogoMark 
-            variant="white"
-            width={32} 
-            height={30} 
+            variant={theme.palette.mode === 'dark' ? 'white' : 'blue'}
+            width={40} 
+            height={40} 
           />
         </Box>
       </Tooltip>

@@ -47,6 +47,8 @@ class SnapshotComputationServiceTest {
         totalDebit: BigDecimal = BigDecimal.ZERO,
         totalIncome: BigDecimal = BigDecimal.ZERO,
         totalExpenses: BigDecimal = BigDecimal.ZERO,
+        totalCreditExclTransfer: BigDecimal = totalCredit,
+        totalDebitExclTransfer: BigDecimal = totalDebit,
         year: Int = 2024,
         month: Int = 1,
     ) = MonthTransactionTotals(
@@ -57,6 +59,8 @@ class SnapshotComputationServiceTest {
         totalDebit = totalDebit,
         totalIncome = totalIncome,
         totalExpenses = totalExpenses,
+        totalCreditExclTransfer = totalCreditExclTransfer,
+        totalDebitExclTransfer = totalDebitExclTransfer,
         totalFutureCredit = BigDecimal.ZERO,
         totalFutureDebit = BigDecimal.ZERO,
         totalFutureIncome = BigDecimal.ZERO,
@@ -98,13 +102,15 @@ class SnapshotComputationServiceTest {
     @DisplayName("recomputeSnapshot")
     inner class RecomputeSnapshotTests {
         @Test
-        fun `closingBalance = openingBalance + totalCredit - totalDebit`() {
+        fun `closingBalance = openingBalance + totalCreditExclTransfer - totalDebitExclTransfer`() {
             val opening = BigDecimal("1000.00")
             whenever(transactionRepository.getMonthTotals(financialAccountId, 2024, 3))
                 .thenReturn(
                     totals(
                         totalCredit = BigDecimal("500.00"),
                         totalDebit = BigDecimal("200.00"),
+                        totalCreditExclTransfer = BigDecimal("450.00"),
+                        totalDebitExclTransfer = BigDecimal("150.00"),
                         year = 2024,
                         month = 3,
                     ),
@@ -117,9 +123,34 @@ class SnapshotComputationServiceTest {
             val captor = argumentCaptor<MonthlyBalanceSnapshot>()
             verify(snapshotRepository).upsert(captor.capture())
             assertThat(captor.firstValue.openingBalance).isEqualByComparingTo("1000.00")
-            assertThat(captor.firstValue.closingBalance).isEqualByComparingTo("1300.00") // 1000 + 500 - 200
+            assertThat(captor.firstValue.closingBalance).isEqualByComparingTo("1300.00") // 1000 + 450 - 150
             assertThat(captor.firstValue.isDirty).isFalse()
             assertThat(result).isSameAs(saved)
+        }
+
+        @Test
+        fun `closingBalance ignores transfer-only delta and keeps balance adjustment effects`() {
+            val opening = BigDecimal("1000.00")
+            whenever(transactionRepository.getMonthTotals(financialAccountId, 2024, 4))
+                .thenReturn(
+                    totals(
+                        totalCredit = BigDecimal("700.00"),
+                        totalDebit = BigDecimal("100.00"),
+                        totalCreditExclTransfer = BigDecimal("500.00"),
+                        totalDebitExclTransfer = BigDecimal("100.00"),
+                        year = 2024,
+                        month = 4,
+                    ),
+                )
+            val saved = snapshot(2024, 4, openingBalance = opening, closingBalance = BigDecimal("1400.00"))
+            whenever(snapshotRepository.upsert(any())).thenReturn(saved)
+
+            service.recomputeSnapshot(financialAccountId, accountId, 2024, 4, opening)
+
+            val captor = argumentCaptor<MonthlyBalanceSnapshot>()
+            verify(snapshotRepository).upsert(captor.capture())
+            assertThat(captor.firstValue.closingBalance).isEqualByComparingTo("1400.00")
+            assertThat(captor.firstValue.closingBalance).isNotEqualByComparingTo("1600.00")
         }
 
         @Test

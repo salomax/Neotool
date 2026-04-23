@@ -19,7 +19,7 @@ import java.util.UUID
 
 class CreditCardBillServiceTest {
     private val repository: CreditCardBillRepository = mock()
-    private val service = CreditCardBillService(repository)
+    private val service = CreditCardBillService(repository, mock())
 
     private val accountId = UUID.randomUUID()
     private val userId = UUID.randomUUID()

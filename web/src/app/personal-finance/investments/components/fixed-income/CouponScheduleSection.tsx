@@ -35,7 +35,7 @@ export function CouponScheduleSection({
 
   return (
     <>
-      <InvestmentSectionLabel title={title} icon={<TimelineIcon />} sx={{ mb: 1 }} />
+      <InvestmentSectionLabel title={title} icon={<TimelineIcon sx={{ fontSize: 16 }} />} sx={{ mb: 1 }} />
       <Stack sx={{ mb: 3 }}>
         <CouponScheduleTimeline
           entries={entries}

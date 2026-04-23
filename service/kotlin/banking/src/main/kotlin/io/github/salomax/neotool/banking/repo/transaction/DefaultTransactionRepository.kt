@@ -167,10 +167,12 @@ open class DefaultTransactionRepository(
             totalDebit = cols[1] as BigDecimal,
             totalIncome = cols[2] as BigDecimal,
             totalExpenses = cols[3] as BigDecimal,
-            totalFutureCredit = cols[4] as BigDecimal,
-            totalFutureDebit = cols[5] as BigDecimal,
-            totalFutureIncome = cols[6] as BigDecimal,
-            totalFutureExpenses = cols[7] as BigDecimal,
+            totalCreditExclTransfer = cols[4] as BigDecimal,
+            totalDebitExclTransfer = cols[5] as BigDecimal,
+            totalFutureCredit = cols[6] as BigDecimal,
+            totalFutureDebit = cols[7] as BigDecimal,
+            totalFutureIncome = cols[8] as BigDecimal,
+            totalFutureExpenses = cols[9] as BigDecimal,
         )
     }
 
@@ -201,6 +203,35 @@ open class DefaultTransactionRepository(
 
     override fun findEarliestTransactionDate(financialAccountId: UUID): LocalDate? =
         entityRepository.findEarliestTransactionDate(financialAccountId.toString())
+
+    override fun findEarliestTransactionDates(financialAccountIds: Collection<UUID>): Map<UUID, LocalDate> {
+        if (financialAccountIds.isEmpty()) return emptyMap()
+        val ids = financialAccountIds.toList()
+        val placeholders = ids.indices.joinToString(", ") { "CAST(:p$it AS uuid)" }
+        val sql = """
+            SELECT financial_account_id, MIN(date)
+              FROM banking.transactions
+             WHERE financial_account_id IN ($placeholders)
+               AND deleted_at IS NULL
+             GROUP BY financial_account_id
+        """.trimIndent()
+        val query = entityManager.createNativeQuery(sql)
+        ids.forEachIndexed { i, id -> query.setParameter("p$i", id.toString()) }
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.associate { row ->
+            val financialAccountId = when (val raw = row[0]) {
+                is UUID -> raw
+                else -> UUID.fromString(raw.toString())
+            }
+            val earliestDate = when (val raw = row[1]) {
+                is LocalDate -> raw
+                is java.sql.Date -> raw.toLocalDate()
+                else -> LocalDate.parse(raw.toString())
+            }
+            financialAccountId to earliestDate
+        }
+    }
 
     override fun findInDateRangeByCategoryIds(
         accountId: UUID,
@@ -306,6 +337,46 @@ open class DefaultTransactionRepository(
                 types = null,
                 startDate = LocalDate.of(year, month, 1),
                 endDateExclusive = LocalDate.of(year, month, 1).plusMonths(1),
+                limit = 1,
+                offset = 0,
+            )
+
+        return getFilteredCategoryBreakdown(query, applicableTo)
+    }
+
+    @Transactional(readOnly = true)
+    override fun getCategoryBreakdownForRange(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow> {
+        val startDate = LocalDate.of(startYear, startMonth, 1)
+        val endDateExclusive = LocalDate.of(endYear, endMonth, 1).plusMonths(1)
+        val query =
+            TransactionListQuery(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                includedFinancialAccountIds = null,
+                belongsToUserId = null,
+                belongsToName = null,
+                search = null,
+                tags = null,
+                billId = null,
+                categoryIds = null,
+                uncategorizedOnly = false,
+                creditDebitType =
+                    when (applicableTo) {
+                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        else -> null
+                    },
+                types = null,
+                startDate = startDate,
+                endDateExclusive = endDateExclusive,
                 limit = 1,
                 offset = 0,
             )
@@ -766,6 +837,10 @@ open class DefaultTransactionRepository(
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')
                                             AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
+              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status IN ('POSTED','PENDING')
+                                            AND type <> 'TRANSFER'), 0),
+              COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')
+                                            AND type <> 'TRANSFER'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'

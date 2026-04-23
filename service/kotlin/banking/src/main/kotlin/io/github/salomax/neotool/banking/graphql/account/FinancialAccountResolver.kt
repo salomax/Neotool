@@ -15,9 +15,11 @@ import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
+import io.github.salomax.neotool.banking.service.account.FinancialAccountDataSinceService
 import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
 import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
+import io.github.salomax.neotool.banking.graphql.account.YearMonthDTO
 import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -36,6 +38,7 @@ import java.util.UUID
 class FinancialAccountResolver(
     private val service: FinancialAccountService,
     private val issuerRepository: IssuerRepository,
+    private val dataSinceService: FinancialAccountDataSinceService,
 ) {
     fun listByAccount(principal: RequestPrincipal): List<FinancialAccountDTO> {
         val accountId = principal.resolveAccountId()
@@ -43,8 +46,17 @@ class FinancialAccountResolver(
 
         val issuerIds = accounts.mapNotNull { it.issuerId }.toSet()
         val issuersById = issuerRepository.findByIds(issuerIds).associateBy { it.id!! }
+        val financialAccountIds = accounts.mapNotNull { it.id }
+        val dataSinceByAccountId = dataSinceService.findDataSinceByFinancialAccountIds(financialAccountIds)
 
-        return accounts.map { it.toDTO(issuersById[it.issuerId]) }
+        return accounts.map { account ->
+            val financialAccountId = requireNotNull(account.id) { "Financial account id is required" }
+
+            account.toDTO(
+                issuer = issuersById[account.issuerId],
+                dataSince = dataSinceByAccountId[financialAccountId]?.let { YearMonthDTO(year = it.year, month = it.monthValue) },
+            )
+        }
     }
 
     fun create(
@@ -57,7 +69,7 @@ class FinancialAccountResolver(
         val command = input.toCommand()
         val saved = service.create(command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
-        return saved.toDTO(issuer)
+        return saved.toDTO(issuer = issuer, dataSince = null)
     }
 
     fun update(
@@ -72,7 +84,7 @@ class FinancialAccountResolver(
         val command = input.toUpdateCommand()
         val saved = service.update(financialAccountId, command, accountId, userId)
         val issuer = saved.issuerId?.let { issuerRepository.findById(it) }
-        return saved.toDTO(issuer)
+        return saved.toDTO(issuer = issuer, dataSince = null)
     }
 
     fun delete(
@@ -85,7 +97,10 @@ class FinancialAccountResolver(
 
     // ── Mapping helpers ──────────────────────────────────────────────────────
 
-    private fun FinancialAccount.toDTO(issuer: Issuer?): FinancialAccountDTO =
+    private fun FinancialAccount.toDTO(
+        issuer: Issuer?,
+        dataSince: YearMonthDTO?,
+    ): FinancialAccountDTO =
         FinancialAccountDTO(
             id = id!!,
             type = type,
@@ -126,6 +141,7 @@ class FinancialAccountResolver(
             connectionStatus = connectionStatus,
             consentExpiresAt = consentExpiresAt?.atOffset(ZoneOffset.UTC),
             lastSyncAt = lastSyncAt?.atOffset(ZoneOffset.UTC),
+            dataSince = dataSince,
             createdAt = createdAt.atOffset(ZoneOffset.UTC),
             updatedAt = updatedAt.atOffset(ZoneOffset.UTC),
         )
