@@ -1,38 +1,5 @@
 {
   "title": "Personal Finance",
-  "dashboard": {
-    "controls": {
-      "customize": "Customize",
-      "resetLayout": "Reset layout",
-      "done": "Done"
-    },
-    "timeRange": {
-      "ariaLabel": "Time range",
-      "options": {
-        "90d": "Last 90 days",
-        "6m": "Last 6 months",
-        "ytd": "Year to date",
-        "1y": "Last year",
-        "all": "All time",
-        "custom": "Custom"
-      }
-    },
-    "actions": {
-      "title": "Quick actions",
-      "financeMovements": {
-        "title": "Finance Transactions",
-        "description": "For quick income and expense tracking."
-      },
-      "investmentsPortfolio": {
-        "title": "Investment Portfolio",
-        "description": "For consolidated asset management."
-      },
-      "pricesConsumption": {
-        "title": "Prices & consumption",
-        "description": "Track product prices and spending over time."
-      }
-    }
-  },
   "investments": {
     "sidebar": {
       "allBrokers": "All brokers",
@@ -538,6 +505,15 @@
       "common": {
         "notAvailable": "—"
       },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Unit price",
+          "cryptoPrice": "Crypto price",
+          "fiiQuotaPrice": "FII quota price",
+          "quotaValue": "Quota value"
+        }
+      },
       "indexers": {
         "Cdi": "CDI",
         "Di": "DI",
@@ -577,8 +553,10 @@
       },
       "performance": {
         "xirr": "Annualized IRR",
-        "xirrTooltip": "Annualized internal rate of return considering the date and amount of each contribution.",
         "since": "Since"
+      },
+      "actions": {
+        "moreActions": "More actions"
       },
       "chart": {
         "title": "Investment progression",
@@ -1046,10 +1024,11 @@
     "timeRange": {
       "ariaLabel": "Time range",
       "options": {
-        "90d": "Last 90 days",
+        "currentMonth": "Current month",
+        "3m": "Last 3 months",
         "6m": "Last 6 months",
-        "ytd": "Year to date",
         "1y": "Last year",
+        "3y": "Last 3 years",
         "all": "All time",
         "custom": "Custom"
       }
@@ -1067,6 +1046,68 @@
       "pricesConsumption": {
         "title": "Prices & consumption",
         "description": "Track product prices and spending over time."
+      }
+    },
+    "widgets": {
+      "addDrawer": {
+        "title": "Add Widget"
+      },
+      "registry": {
+        "periodSummary": {
+          "title": "Summary",
+          "description": "Cash flow, net worth, and investments in the selected period."
+        },
+        "cashFlow": {
+          "title": "Cash Flow",
+          "description": "Income and expenses comparison by month."
+        },
+        "netWorth": {
+          "title": "Net Worth Trend",
+          "description": "Accumulated banking balance month by month."
+        },
+        "categoryDonut": {
+          "title": "Categories",
+          "description": "Distribution of expenses and income by category."
+        }
+      },
+      "menu": {
+        "refresh": "Refresh",
+        "settings": "Settings",
+        "hide": "Hide widget"
+      },
+      "kpi": {
+        "net": "Net"
+      },
+      "periodSummary": {
+        "totalNetWorth": "Total Net Worth",
+        "totalIncome": "Income",
+        "totalExpenses": "Expenses",
+        "net": "Net",
+        "closingCashBalance": "Cash Balance",
+        "totalInvested": "Total Invested",
+        "totalReturn": "Portfolio Return",
+        "totalReturnShort": "Return",
+        "monthlyAverage": "Monthly average: {{value}}",
+        "monthlyAveragePerMonth": "Avg {{value}}/month",
+        "monthlyAverageShort": "Avg",
+        "perMonthSuffix": "/month",
+        "savingsCapacityLabel": "Saving capacity",
+        "savingsRateLabel": "Savings rate",
+        "savingsRate": "Savings rate: {{value}}",
+        "returnPct": "Return: {{value}}",
+        "periodMonths": "{{count}} months in range",
+        "netWorthBreakdown": "Cash {{cash}} + Portfolio {{portfolio}}"
+      },
+      "cashFlow": {
+        "noData": "No data for this period",
+        "netSeries": "Net"
+      },
+      "netWorth": {
+        "bankingBalance": "Banking Balance",
+        "portfolioValue": "Investment Portfolio",
+        "totalNetWorth": "Total Net Worth",
+        "estimatedNote": "Estimated value",
+        "noData": "No data for the selected period."
       }
     }
   },
@@ -1725,6 +1766,7 @@
       "income": "Income",
       "expenses": "Expenses",
       "balance": "Current Balance",
+      "breakdownType": "Type",
       "total": "of total",
       "a11y": {
         "filterByMetric": "Filter transactions by",

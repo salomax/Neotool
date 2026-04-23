@@ -17,6 +17,29 @@ class InvestmentPortfolioSummaryService(
     private val investmentQueryService: InvestmentQueryService,
     private val portfolioPerformanceQueryService: PortfolioPerformanceQueryService,
 ) {
+    data class PortfolioHeadlineSummary(
+        val totalContributed: Double,
+        val totalReturn: Double,
+        /** Percentage points, e.g. 39.98 means 39.98%. */
+        val returnPct: Double?,
+    )
+
+    /**
+     * Returns portfolio headline KPIs using the exact same computation path as the
+     * investments summary screen ("todo período" / ALL).
+     */
+    fun getHeadlineSummary(
+        financialAccountId: UUID?,
+        accountId: UUID,
+    ): PortfolioHeadlineSummary {
+        val summary = getSummary(financialAccountId, accountId, PerformancePeriodDTO.ALL)
+        return PortfolioHeadlineSummary(
+            totalContributed = summary.totalCostBasis,
+            totalReturn = summary.grossGain,
+            returnPct = summary.performance.twr?.times(100.0),
+        )
+    }
+
     fun getSummary(
         financialAccountId: UUID?,
         accountId: UUID,

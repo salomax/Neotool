@@ -204,6 +204,7 @@ interface TransactionEntityRepository : JpaRepository<TransactionEntity, UUID> {
     )
     fun findEarliestTransactionDate(financialAccountId: String): LocalDate?
 
+
     @Query(
         """
         SELECT MIN(date)

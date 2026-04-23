@@ -4,6 +4,7 @@ import io.github.salomax.neotool.banking.domain.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import jakarta.inject.Singleton
 import java.time.LocalDate
 import java.util.UUID
@@ -23,6 +24,7 @@ import java.util.UUID
 @Singleton
 open class CreditCardBillService(
     private val billRepository: CreditCardBillRepository,
+    private val financialAccountGuard: FinancialAccountGuard,
 ) {
     companion object {
         /** Account subtypes for which billing cycle logic applies. */
@@ -186,7 +188,10 @@ open class CreditCardBillService(
     fun listBills(
         financialAccountId: UUID,
         accountId: UUID,
-    ): List<CreditCardBill> = billRepository.listByAccount(financialAccountId, accountId)
+    ): List<CreditCardBill> {
+        financialAccountGuard.requireOwnership(financialAccountId, accountId)
+        return billRepository.listByAccount(financialAccountId, accountId)
+    }
 
     /**
      * Finds a specific bill by [closingDate], or the current open/most-recent bill when
@@ -197,6 +202,7 @@ open class CreditCardBillService(
         accountId: UUID,
         closingDate: LocalDate?,
     ): CreditCardBill? {
+        financialAccountGuard.requireOwnership(financialAccountId, accountId)
         if (closingDate != null) {
             return billRepository.findByClosingDate(financialAccountId, accountId, closingDate)
         }

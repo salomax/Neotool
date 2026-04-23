@@ -250,6 +250,16 @@ enum class BankingErrorCode(
         "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here",
         422,
     ),
+    INVESTMENT_HOLDING_NOT_FOUND(
+        "INVESTMENT_HOLDING_NOT_FOUND",
+        "Investment holding not found",
+        404,
+    ),
+    INVESTMENT_HOLDING_DELETE_NOT_ALLOWED(
+        "INVESTMENT_HOLDING_DELETE_NOT_ALLOWED",
+        "Only manual holdings with only manual transactions can be deleted",
+        409,
+    ),
     TRANSFER_CUSTODY_HOLDING_NOT_FOUND(
         "TRANSFER_CUSTODY_HOLDING_NOT_FOUND",
         "Source holding not found",

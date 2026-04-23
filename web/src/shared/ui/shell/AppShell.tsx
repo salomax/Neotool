@@ -11,7 +11,7 @@ import { useElementHeight } from "@/shared/hooks/ui/useElementHeight";
 import { RequireAuthGuard } from "@/shared/hooks/auth/useRequireAuth";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
-  const headerHeight = useElementHeight("header");
+  const headerHeight = useElementHeight("header", 80);
   const theme = useTheme();
   const prefersReducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
@@ -52,7 +52,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             sx={{ 
               flex: 1,
               overflow: "auto", // Allow scrolling only in main content area
-              marginTop: { xs: 0, md: headerHeight ? `${headerHeight}px` : "73px" }, // Account for fixed header height only on desktop with fallback
+              marginTop: { xs: 0, md: `${headerHeight}px` }, // Account for fixed header height only on desktop
               transition: prefersReducedMotion
                 ? "none"
                 : theme.transitions.create("margin-top", {

@@ -41,7 +41,7 @@ class MonthSummaryQueryServiceTest {
         snapshotRepository = mock()
         transactionRepository = mock()
         snapshotComputationService = mock()
-        service = MonthSummaryQueryService(snapshotRepository, transactionRepository, snapshotComputationService)
+        service = MonthSummaryQueryService(snapshotRepository, transactionRepository, snapshotComputationService, mock())
         whenever(transactionRepository.getCategoryBreakdownForAccounts(any(), any(), any(), any(), any()))
             .thenReturn(emptyList())
         whenever(transactionRepository.getTagBreakdownForAccounts(any(), any(), any(), any(), any()))
@@ -78,6 +78,8 @@ class MonthSummaryQueryServiceTest {
         totalDebit: BigDecimal = BigDecimal.ZERO,
         totalIncome: BigDecimal = BigDecimal.ZERO,
         totalExpenses: BigDecimal = BigDecimal.ZERO,
+        totalCreditExclTransfer: BigDecimal = totalCredit,
+        totalDebitExclTransfer: BigDecimal = totalDebit,
         totalFutureCredit: BigDecimal = BigDecimal.ZERO,
         totalFutureDebit: BigDecimal = BigDecimal.ZERO,
         totalFutureIncome: BigDecimal = BigDecimal.ZERO,
@@ -90,6 +92,8 @@ class MonthSummaryQueryServiceTest {
         totalDebit = totalDebit,
         totalIncome = totalIncome,
         totalExpenses = totalExpenses,
+        totalCreditExclTransfer = totalCreditExclTransfer,
+        totalDebitExclTransfer = totalDebitExclTransfer,
         totalFutureCredit = totalFutureCredit,
         totalFutureDebit = totalFutureDebit,
         totalFutureIncome = totalFutureIncome,
@@ -540,6 +544,8 @@ class MonthSummaryQueryServiceTest {
             totalDebit = BigDecimal.ZERO,
             totalIncome = BigDecimal.ZERO,
             totalExpenses = BigDecimal.ZERO,
+            totalCreditExclTransfer = BigDecimal.ZERO,
+            totalDebitExclTransfer = BigDecimal.ZERO,
             totalFutureCredit = futureCredit,
             totalFutureDebit = futureDebit,
             totalFutureIncome = futureIncome,
@@ -757,6 +763,8 @@ class MonthSummaryQueryServiceTest {
                         year = twoMonthsAhead.year, month = twoMonthsAhead.monthValue,
                         totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
                         totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalCreditExclTransfer = BigDecimal.ZERO,
+                        totalDebitExclTransfer = BigDecimal.ZERO,
                         totalFutureCredit = BigDecimal("1000.00"),
                         totalFutureDebit = BigDecimal("200.00"),
                         totalFutureIncome = BigDecimal("1000.00"),
@@ -826,6 +834,8 @@ class MonthSummaryQueryServiceTest {
                         financialAccountId = faId1, year = nextMonth.year, month = nextMonth.monthValue,
                         totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
                         totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalCreditExclTransfer = BigDecimal.ZERO,
+                        totalDebitExclTransfer = BigDecimal.ZERO,
                         totalFutureCredit = BigDecimal("1000.00"), totalFutureDebit = BigDecimal.ZERO,
                         totalFutureIncome = BigDecimal("1000.00"), totalFutureExpenses = BigDecimal.ZERO,
                     ),
@@ -836,6 +846,8 @@ class MonthSummaryQueryServiceTest {
                         financialAccountId = faId2, year = nextMonth.year, month = nextMonth.monthValue,
                         totalCredit = BigDecimal.ZERO, totalDebit = BigDecimal.ZERO,
                         totalIncome = BigDecimal.ZERO, totalExpenses = BigDecimal.ZERO,
+                        totalCreditExclTransfer = BigDecimal.ZERO,
+                        totalDebitExclTransfer = BigDecimal.ZERO,
                         totalFutureCredit = BigDecimal("500.00"), totalFutureDebit = BigDecimal.ZERO,
                         totalFutureIncome = BigDecimal("500.00"), totalFutureExpenses = BigDecimal.ZERO,
                     ),

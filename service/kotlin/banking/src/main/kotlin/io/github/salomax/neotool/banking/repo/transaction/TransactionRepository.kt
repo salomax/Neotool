@@ -88,6 +88,12 @@ interface TransactionRepository {
     fun findEarliestTransactionDate(financialAccountId: UUID): LocalDate?
 
     /**
+     * Returns the earliest non-deleted transaction date per financial account.
+     * Accounts without transactions are omitted from the returned map.
+     */
+    fun findEarliestTransactionDates(financialAccountIds: Collection<UUID>): Map<UUID, LocalDate>
+
+    /**
      * Returns transactions in the given month/year for the account (optionally scoped to one financial account)
      * whose category_id is in [categoryIds]. Used for categoryId filter on transactions query.
      */
@@ -173,6 +179,21 @@ interface TransactionRepository {
      */
     fun getFilteredCategoryBreakdown(
         query: TransactionListQuery,
+        applicableTo: CategoryApplicableTo?,
+    ): List<CategoryBreakdownRow>
+
+    /**
+     * Returns category totals for a date range (CAT-14 multi-month variant).
+     * Aggregates POSTED/PENDING transactions from startYear/startMonth through endYear/endMonth inclusive.
+     * When financialAccountId is null, aggregates across all accounts.
+     */
+    fun getCategoryBreakdownForRange(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
         applicableTo: CategoryApplicableTo?,
     ): List<CategoryBreakdownRow>
 

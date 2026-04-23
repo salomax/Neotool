@@ -98,7 +98,7 @@ class BillImportServiceTest {
         snapshotComputationService = mock()
         creditCardBillRepository = mock()
         categorizationService = mock()
-        creditCardBillService = spy(CreditCardBillService(creditCardBillRepository))
+        creditCardBillService = spy(CreditCardBillService(creditCardBillRepository, mock()))
         billImportCommitPreparer = BillImportCommitPreparer(creditCardBillService)
         billAssetStorage = mock()
         submittedProducer = mock()

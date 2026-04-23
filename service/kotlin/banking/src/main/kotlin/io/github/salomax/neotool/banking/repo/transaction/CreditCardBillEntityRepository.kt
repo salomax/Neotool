@@ -3,7 +3,7 @@ package io.github.salomax.neotool.banking.repo.transaction
 import io.github.salomax.neotool.banking.model.transaction.CreditCardBillEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
-import io.micronaut.data.jpa.repository.JpaRepository
+import io.micronaut.data.repository.GenericRepository
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
@@ -13,7 +13,7 @@ import java.util.UUID
  * JPA repository for banking.credit_card_bills (entity layer).
  */
 @Repository
-interface CreditCardBillEntityRepository : JpaRepository<CreditCardBillEntity, UUID> {
+interface CreditCardBillEntityRepository : GenericRepository<CreditCardBillEntity, UUID> {
     fun findByIdAndAccountIdAndDeletedAtIsNull(
         id: UUID,
         accountId: UUID,

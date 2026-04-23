@@ -15,6 +15,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioValueWindow
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
@@ -103,6 +104,22 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
                 }
                 .maxByOrNull { it.quotaDate }
 
+        override fun findEarliestPortfolioDate(financialAccountId: UUID): LocalDate? =
+            rows
+                .asSequence()
+                .filter {
+                    it.financialAccountId == financialAccountId &&
+                        it.dimensionType == PortfolioDimensionType.PORTFOLIO &&
+                        (it.dimensionKey == null || it.dimensionKey == "")
+                }
+                .minByOrNull { it.quotaDate }
+                ?.quotaDate
+
+        override fun findEarliestPortfolioDates(financialAccountIds: Collection<UUID>): Map<UUID, LocalDate> =
+            financialAccountIds
+                .mapNotNull { id -> findEarliestPortfolioDate(id)?.let { id to it } }
+                .toMap()
+
         override fun findLatestBeforeAllDimensions(
             financialAccountId: UUID,
             date: LocalDate,
@@ -157,6 +174,57 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
                         !it.quotaDate.isAfter(to)
                 }
                 .sortedBy { it.quotaDate }
+
+        override fun findByTenantAndDateRange(
+            accountId: UUID,
+            dimensionType: PortfolioDimensionType,
+            dimensionKey: String?,
+            from: LocalDate,
+            to: LocalDate,
+        ): List<InvestmentPortfolioQuota> =
+            rows
+                .filter {
+                    it.dimensionType == dimensionType &&
+                        it.dimensionKey == dimensionKey &&
+                        !it.quotaDate.isBefore(from) &&
+                        !it.quotaDate.isAfter(to)
+                }
+                .sortedBy { it.quotaDate }
+
+        override fun findOpeningAndClosingPortfolioValues(
+            accountId: UUID,
+            financialAccountId: UUID?,
+            startYear: Int,
+            startMonth: Int,
+            endYear: Int,
+            endMonth: Int,
+        ): PortfolioValueWindow {
+            val from = LocalDate.of(startYear, startMonth, 1)
+            val to = LocalDate.of(endYear, endMonth, 1).plusMonths(1).minusDays(1)
+
+            val portfolioRows =
+                rows.filter {
+                    it.dimensionType == PortfolioDimensionType.PORTFOLIO &&
+                        (it.dimensionKey == null || it.dimensionKey == "") &&
+                        (financialAccountId == null || it.financialAccountId == financialAccountId)
+                }
+
+            val byAccount = portfolioRows.groupBy { it.financialAccountId }
+            val opening =
+                byAccount.values.fold(BigDecimal.ZERO) { acc, quotas ->
+                    acc + (quotas.filter { it.quotaDate < from }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
+                        ?: BigDecimal.ZERO)
+                }
+            val closing =
+                byAccount.values.fold(BigDecimal.ZERO) { acc, quotas ->
+                    acc + (quotas.filter { !it.quotaDate.isAfter(to) }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
+                        ?: BigDecimal.ZERO)
+                }
+            return PortfolioValueWindow(
+                openingPortfolioValue = opening,
+                closingPortfolioValue = closing,
+            )
+        }
 
         override fun deleteFromDate(financialAccountId: UUID, from: LocalDate): Int {
             val before = rows.size

@@ -242,6 +242,8 @@
     "INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE": "Manual investment cash transaction date cannot be in the future.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND": "Investment cash transaction not found.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE": "Only manual cash movements on investment or benefit custodian accounts can be edited or removed here.",
+    "INVESTMENT_HOLDING_NOT_FOUND": "Investment holding not found.",
+    "INVESTMENT_HOLDING_DELETE_NOT_ALLOWED": "This holding cannot be deleted because it is synced or has non-manual transactions.",
     "TRANSFER_CUSTODY_HOLDING_NOT_FOUND": "Source holding not found.",
     "TRANSFER_CUSTODY_ASSET_NOT_FOUND": "Asset for source holding not found.",
     "TRANSFER_CUSTODY_DESTINATION_ACCOUNT_INVALID": "Destination account is invalid.",

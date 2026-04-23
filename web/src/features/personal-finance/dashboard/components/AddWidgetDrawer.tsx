@@ -16,6 +16,8 @@ import CloseIcon from '@mui/icons-material/Close';
 import AddIcon from '@mui/icons-material/Add';
 import { AVAILABLE_WIDGETS } from '../registry';
 import { useDashboardStore } from '../store';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 
 interface AddWidgetDrawerProps {
   open: boolean;
@@ -24,6 +26,7 @@ interface AddWidgetDrawerProps {
 
 export const AddWidgetDrawer: React.FC<AddWidgetDrawerProps> = ({ open, onClose }) => {
   const { addWidget } = useDashboardStore();
+  const { t } = useTranslation(personalFinanceTranslations);
 
   const handleAdd = (type: string) => {
     addWidget(type);
@@ -40,7 +43,9 @@ export const AddWidgetDrawer: React.FC<AddWidgetDrawerProps> = ({ open, onClose 
       }}
     >
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="h6" sx={{ fontWeight: 400, color: 'action.active' }}>Add Widget</Typography>
+        <Typography variant="h6" sx={{ fontWeight: 400, color: 'action.active' }}>
+          {t('dashboard.widgets.addDrawer.title')}
+        </Typography>
         <IconButton onClick={onClose}>
           <CloseIcon />
         </IconButton>
@@ -72,13 +77,13 @@ export const AddWidgetDrawer: React.FC<AddWidgetDrawerProps> = ({ open, onClose 
                     {widget.icon}
                   </Box>
                   <Typography variant="subtitle1" fontWeight="bold">
-                    {widget.defaultTitle}
+                    {widget.defaultTitleKey ? t(widget.defaultTitleKey) : ''}
                   </Typography>
                   <Box sx={{ flexGrow: 1 }} />
                   <AddIcon color="primary" />
                 </Box>
                 <Typography variant="body2" color="text.secondary">
-                  {widget.description}
+                  {widget.descriptionKey ? t(widget.descriptionKey) : ''}
                 </Typography>
               </ListItemButton>
             </ListItem>

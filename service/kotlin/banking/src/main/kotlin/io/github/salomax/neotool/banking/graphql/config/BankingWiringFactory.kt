@@ -290,6 +290,83 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "cashFlowSeries",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.cashFlowSeries(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            startYear = env.getArgument<Int>("startYear")
+                                ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth = env.getArgument<Int>("startMonth")
+                                ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear = env.getArgument<Int>("endYear")
+                                ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth = env.getArgument<Int>("endMonth")
+                                ?: throw IllegalArgumentException("endMonth is required"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "dashboardPeriodSummary",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.dashboardPeriodSummary(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            startYear = env.getArgument<Int>("startYear")
+                                ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth = env.getArgument<Int>("startMonth")
+                                ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear = env.getArgument<Int>("endYear")
+                                ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth = env.getArgument<Int>("endMonth")
+                                ?: throw IllegalArgumentException("endMonth is required"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "categoryBreakdownForRange",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.categoryBreakdownForRange(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            startYear = env.getArgument<Int>("startYear")
+                                ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth = env.getArgument<Int>("startMonth")
+                                ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear = env.getArgument<Int>("endYear")
+                                ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth = env.getArgument<Int>("endMonth")
+                                ?: throw IllegalArgumentException("endMonth is required"),
+                            applicableTo = env.getArgument("applicableTo"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "portfolioNetWorthSeries",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        transactionResolver.portfolioNetWorthSeries(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            startYear = env.getArgument<Int>("startYear")
+                                ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth = env.getArgument<Int>("startMonth")
+                                ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear = env.getArgument<Int>("endYear")
+                                ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth = env.getArgument<Int>("endMonth")
+                                ?: throw IllegalArgumentException("endMonth is required"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
                 "transactionsByTag",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->

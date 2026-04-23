@@ -434,7 +434,7 @@ export function InvestmentSummary({
                       {t("investments.summary.performance.recalculatingDetail")}
                     </Typography>
                   </Box>
-                ) : performance?.twr == null ? (
+                ) : !summaryFetching && performance?.twr == null ? (
                   <Typography variant="caption" color="text.secondary">
                     {t("investments.summary.performance.noHistory")}
                   </Typography>

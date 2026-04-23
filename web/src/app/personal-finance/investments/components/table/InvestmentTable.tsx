@@ -6,7 +6,9 @@ import { NetworkStatus } from '@apollo/client/core';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
 import { Box, Divider, LinearProgress, Paper, TableContainer, Typography } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
+import { useToast } from '@/shared/providers';
 import { ConfirmationDialog } from '@/shared/components/ui/feedback';
+import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
   INVESTMENT_CASH_BALANCE,
@@ -136,6 +138,7 @@ export function InvestmentTable({
   onHoldingsFetchingChange,
 }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const toast = useToast();
   const locale = getCurrentLocale();
   const apolloClient = useApolloClient();
   const [actionMenu, setActionMenu] = React.useState<ActionMenuState>({ anchorEl: null, holding: null });
@@ -402,7 +405,8 @@ export function InvestmentTable({
       await deleteInvestmentHolding({ variables: { id: holdingToRemove.id } });
       setHoldingToRemove(null);
       await refreshInvestmentData();
-    } catch {
+    } catch (error) {
+      toast.error(extractErrorMessage(error, t('errors.default', { ns: 'common' })));
       setHoldingToRemove(null);
     }
   };

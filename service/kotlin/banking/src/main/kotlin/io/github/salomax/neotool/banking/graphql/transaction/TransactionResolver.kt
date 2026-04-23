@@ -10,6 +10,7 @@ import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -39,6 +40,7 @@ import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TagTotalDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionTagOptionDTO
+import io.github.salomax.neotool.banking.graphql.portfolio.PortfolioMonthlyValueDTO
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -56,6 +58,7 @@ import org.slf4j.LoggerFactory
 class TransactionResolver(
     private val service: TransactionService,
     private val monthSummaryQueryService: MonthSummaryQueryService,
+    private val dashboardAnalyticsService: DashboardAnalyticsService,
     private val creditCardBillService: CreditCardBillService,
     private val merchantRepository: MerchantRepository,
     private val transactionRuleEngine: TransactionRuleEngine,
@@ -294,6 +297,131 @@ class TransactionResolver(
                 applicableTo = applicableToEnum,
             )
         return breakdown.map { it.toCategoryTotalDTO() }
+    }
+
+    fun cashFlowSeries(
+        financialAccountId: String?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+        principal: RequestPrincipal,
+    ): List<CashFlowDataPointDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
+        require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
+        return dashboardAnalyticsService.getCashFlowSeries(
+            accountId = accountId,
+            financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+            startYear = startYear,
+            startMonth = startMonth,
+            endYear = endYear,
+            endMonth = endMonth,
+        ).map { point ->
+            CashFlowDataPointDTO(
+                year = point.year,
+                month = point.month,
+                totalIncome = point.totalIncome,
+                totalExpenses = point.totalExpenses,
+                net = point.net,
+                closingBalance = point.closingBalance,
+            )
+        }
+    }
+
+    fun dashboardPeriodSummary(
+        financialAccountId: String?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+        principal: RequestPrincipal,
+    ): DashboardPeriodSummaryDTO {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
+        require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
+        val summary = dashboardAnalyticsService.getDashboardPeriodSummary(
+            accountId = accountId,
+            financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+            startYear = startYear,
+            startMonth = startMonth,
+            endYear = endYear,
+            endMonth = endMonth,
+        )
+        return DashboardPeriodSummaryDTO(
+            totalIncome = summary.totalIncome,
+            totalExpenses = summary.totalExpenses,
+            net = summary.net,
+            monthCount = summary.monthCount,
+            avgMonthlyIncome = summary.avgMonthlyIncome,
+            avgMonthlyExpenses = summary.avgMonthlyExpenses,
+            avgMonthlySavings = summary.avgMonthlySavings,
+            savingsRate = summary.savingsRate,
+            closingCashBalance = summary.closingCashBalance,
+            closingPortfolioValue = summary.closingPortfolioValue,
+            totalNetWorth = summary.totalNetWorth,
+            totalInvested = summary.totalInvested,
+            avgMonthlyInvested = summary.avgMonthlyInvested,
+            totalReturn = summary.totalReturn,
+            avgMonthlyReturn = summary.avgMonthlyReturn,
+            openingPortfolioValue = summary.openingPortfolioValue,
+            returnPct = summary.returnPct,
+            closingBalance = summary.closingBalance,
+            openingBalance = summary.openingBalance,
+        )
+    }
+
+    fun categoryBreakdownForRange(
+        financialAccountId: String?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+        applicableTo: String?,
+        principal: RequestPrincipal,
+    ): List<CategoryTotalDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
+        require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
+        val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
+            ?: CategoryApplicableTo.EXPENSE
+        return dashboardAnalyticsService.getCategoryBreakdownForRange(
+            accountId = accountId,
+            financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+            startYear = startYear,
+            startMonth = startMonth,
+            endYear = endYear,
+            endMonth = endMonth,
+            applicableTo = applicableToEnum,
+        ).map { it.toCategoryTotalDTO() }
+    }
+
+    fun portfolioNetWorthSeries(
+        financialAccountId: String?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+        principal: RequestPrincipal,
+    ): List<PortfolioMonthlyValueDTO> {
+        val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
+        require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
+        require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
+        return dashboardAnalyticsService.getPortfolioNetWorthSeries(
+            accountId = accountId,
+            financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+            startYear = startYear,
+            startMonth = startMonth,
+            endYear = endYear,
+            endMonth = endMonth,
+        ).map { point ->
+            PortfolioMonthlyValueDTO(
+                year = point.year,
+                month = point.month,
+                grossValue = point.grossValue,
+                isEstimated = point.isEstimated,
+            )
+        }
     }
 
     fun transactionsByTag(

@@ -57,6 +57,7 @@ export interface FundHoldingDetailViewModel {
   netGainPercent: number | null;
   xirr: number | null;
   xirrSinceLabel: string | null;
+  xirrSinceYear: string | null;
   totalReturnAbsolute: number | null;
   dividendsReceived: number | null;
   valueOrigin: ValueOriginLabel;
@@ -85,6 +86,42 @@ function formatDate(value: unknown, locale: string): string {
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return "—";
   return date.toLocaleDateString(locale);
+}
+
+function formatYear(value: unknown): string | null {
+  if (!value) return null;
+  const raw = String(value);
+  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
+  if (localDateMatch) return localDateMatch[1] ?? null;
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return null;
+  return String(date.getFullYear());
+}
+
+function getLatestValuationPoint(points: readonly PerformancePoint[]): PerformancePoint | null {
+  let best: PerformancePoint | null = null;
+  let bestTime = -Infinity;
+  for (const point of points) {
+    if (point.isProjected) continue;
+    const time = new Date(String(point.timestamp)).getTime();
+    if (Number.isNaN(time)) continue;
+    if (time > bestTime) {
+      best = point;
+      bestTime = time;
+    }
+  }
+  if (best) return best;
+
+  for (const point of points) {
+    const time = new Date(String(point.timestamp)).getTime();
+    if (Number.isNaN(time)) continue;
+    if (time > bestTime) {
+      best = point;
+      bestTime = time;
+    }
+  }
+
+  return best;
 }
 
 function formatAssetType(assetType: AssetType, t: Translator): string {
@@ -167,10 +204,22 @@ export function buildFundHoldingDetailViewModel(
   if (grossValue == null && typeof holding.grossValue === "number" && Number.isFinite(holding.grossValue)) {
     grossValue = holding.grossValue;
   }
+  if (grossValue == null && performance?.points?.length) {
+    const latestPoint = getLatestValuationPoint(performance.points);
+    if (latestPoint && typeof latestPoint.grossValue === "number" && Number.isFinite(latestPoint.grossValue)) {
+      grossValue = latestPoint.grossValue;
+    }
+  }
 
   let netValue: number | null = typeof summary?.netValue === "number" ? summary.netValue : null;
   if (netValue == null && typeof holding.netValue === "number" && Number.isFinite(holding.netValue)) {
     netValue = holding.netValue;
+  }
+  if (netValue == null && performance?.points?.length) {
+    const latestPoint = getLatestValuationPoint(performance.points);
+    if (latestPoint && typeof latestPoint.netValue === "number" && Number.isFinite(latestPoint.netValue)) {
+      netValue = latestPoint.netValue;
+    }
   }
   if (netValue == null && grossValue != null) {
     netValue = grossValue;
@@ -212,6 +261,7 @@ export function buildFundHoldingDetailViewModel(
   const xirrSinceLabel = investmentHoldingPerformance?.xirrSince
     ? formatDate(investmentHoldingPerformance.xirrSince, locale)
     : null;
+  const xirrSinceYear = investmentHoldingPerformance?.xirrSince ? formatYear(investmentHoldingPerformance.xirrSince) : null;
   const totalReturnAbsolute =
     typeof investmentHoldingPerformance?.totalReturnAbsolute === "number"
       ? investmentHoldingPerformance.totalReturnAbsolute
@@ -291,6 +341,7 @@ export function buildFundHoldingDetailViewModel(
     netGainPercent,
     xirr,
     xirrSinceLabel,
+    xirrSinceYear,
     totalReturnAbsolute,
     dividendsReceived,
     valueOrigin: getHoldingValueOrigin({

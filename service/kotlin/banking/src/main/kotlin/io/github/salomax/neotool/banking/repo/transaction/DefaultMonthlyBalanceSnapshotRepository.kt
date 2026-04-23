@@ -70,4 +70,24 @@ open class DefaultMonthlyBalanceSnapshotRepository(
         // Native UPDATE bypasses first-level cache. Clear so subsequent reads observe dirty flags.
         entityManager.clear()
     }
+
+    override fun findByRange(
+        financialAccountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshot> =
+        entityRepository.findByRange(financialAccountId, startYear, startMonth, endYear, endMonth)
+            .map(MonthlyBalanceSnapshotMapper::toDomain)
+
+    override fun findByRangeForAccount(
+        accountId: UUID,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): List<MonthlyBalanceSnapshot> =
+        entityRepository.findByRangeForAccount(accountId, startYear, startMonth, endYear, endMonth)
+            .map(MonthlyBalanceSnapshotMapper::toDomain)
 }

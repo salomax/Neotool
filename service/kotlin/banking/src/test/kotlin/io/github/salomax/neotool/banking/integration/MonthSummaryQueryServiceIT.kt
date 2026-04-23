@@ -17,6 +17,7 @@ import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import jakarta.transaction.Transactional
 import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -52,6 +53,23 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         accountId = UUID.randomUUID()
         userId = UUID.randomUUID()
     }
+
+    private fun createBankAccount(
+        accountId: UUID = this.accountId,
+        name: String = "Conta teste",
+    ): UUID =
+        requireNotNull(
+            financialAccountService.create(
+                CreateFinancialAccountCommand(
+                    type = FinancialAccountType.BANK,
+                    subtype = FinancialAccountSubtype.CONTA_CORRENTE,
+                    name = name,
+                    issuerName = "Banco Teste",
+                ),
+                accountId = accountId,
+                userId = userId,
+            ).id,
+        )
 
     @Test
     fun `getMonthSummary computes missing snapshot without transaction session errors`() {
@@ -306,4 +324,69 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
         assertThat(summary.tagsSummary.map { it.tag }).contains("regular-tag")
         assertThat(summary.tagsSummary.map { it.tag }).doesNotContain("voucher-tag")
     }
+
+    @Test
+    fun `getMonthSummary throws when financialAccountId belongs to another account`() {
+        val otherAccountId = UUID.randomUUID()
+        val otherFinancialAccountId = createBankAccount(accountId = otherAccountId, name = "Conta outro tenant")
+        val today = LocalDate.now()
+
+        assertThatThrownBy {
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId = otherFinancialAccountId,
+                accountId = accountId,
+                year = today.year,
+                month = today.monthValue,
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("does not belong to account")
+    }
+
+    @Test
+    fun `getMonthSummary throws when financialAccountId does not exist`() {
+        val today = LocalDate.now()
+
+        assertThatThrownBy {
+            monthSummaryQueryService.getMonthSummary(
+                financialAccountId = UUID.randomUUID(),
+                accountId = accountId,
+                year = today.year,
+                month = today.monthValue,
+            )
+        }.isInstanceOf(IllegalArgumentException::class.java)
+            .hasMessageContaining("does not belong to account")
+    }
+
+    @Test
+    fun `getCategoryBreakdown accepts null financialAccountId`() {
+        val today = LocalDate.now()
+
+        val result =
+            monthSummaryQueryService.getCategoryBreakdown(
+                accountId = accountId,
+                financialAccountId = null,
+                year = today.year,
+                month = today.monthValue,
+                applicableTo = null,
+            )
+
+        assertThat(result).isEmpty()
+    }
+
+    @Test
+    fun `getTagBreakdown accepts null financialAccountId`() {
+        val today = LocalDate.now()
+
+        val result =
+            monthSummaryQueryService.getTagBreakdown(
+                accountId = accountId,
+                financialAccountId = null,
+                year = today.year,
+                month = today.monthValue,
+                applicableTo = null,
+            )
+
+        assertThat(result).isEmpty()
+    }
+
 }

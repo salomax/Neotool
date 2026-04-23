@@ -242,6 +242,8 @@
     "INVESTMENT_MANUAL_CASH_DATE_MUST_NOT_BE_IN_FUTURE": "A data da movimentação manual de caixa não pode ser futura.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_FOUND": "Movimentação de caixa de investimento não encontrada.",
     "INVESTMENT_MANUAL_CASH_TRANSACTION_NOT_EDITABLE": "Apenas movimentações manuais de caixa em contas de investimento ou benefícios podem ser editadas ou removidas aqui.",
+    "INVESTMENT_HOLDING_NOT_FOUND": "Posição de investimento não encontrada.",
+    "INVESTMENT_HOLDING_DELETE_NOT_ALLOWED": "Esta posição não pode ser removida porque foi sincronizada ou possui lançamentos não manuais.",
     "TRANSFER_CUSTODY_HOLDING_NOT_FOUND": "Posição de origem não encontrada.",
     "TRANSFER_CUSTODY_ASSET_NOT_FOUND": "Ativo da posição de origem não encontrado.",
     "TRANSFER_CUSTODY_DESTINATION_ACCOUNT_INVALID": "Conta de destino inválida.",

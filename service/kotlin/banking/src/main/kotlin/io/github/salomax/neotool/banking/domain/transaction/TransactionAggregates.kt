@@ -23,6 +23,10 @@ data class MonthTransactionTotals(
     val totalIncome: BigDecimal,
     /** SUM of DEBIT amounts WHERE type NOT IN (TRANSFER, BALANCE_ADJUSTMENT). */
     val totalExpenses: BigDecimal,
+    /** SUM of CREDIT amounts WHERE type <> TRANSFER (includes BALANCE_ADJUSTMENT). */
+    val totalCreditExclTransfer: BigDecimal,
+    /** SUM of DEBIT amounts WHERE type <> TRANSFER (includes BALANCE_ADJUSTMENT). */
+    val totalDebitExclTransfer: BigDecimal,
     /** SUM of FUTURE CREDIT amounts (for projectedClosingBalance). */
     val totalFutureCredit: BigDecimal,
     /** SUM of FUTURE DEBIT amounts (for projectedClosingBalance). */

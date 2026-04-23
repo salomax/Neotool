@@ -1,7 +1,10 @@
 package io.github.salomax.neotool.banking.repo.portfolio
 
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioValueWindow
+import io.github.salomax.neotool.banking.domain.toBigDecimalOrZero
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioQuotaMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
@@ -54,6 +57,39 @@ open class DefaultPortfolioQuotaRepository(
             date = date,
         ).firstOrNull()
             ?.let(InvestmentPortfolioQuotaMapper::toDomain)
+
+    override fun findEarliestPortfolioDate(financialAccountId: UUID): LocalDate? =
+        entityRepository.findEarliestPortfolioDate(financialAccountId)
+
+    override fun findEarliestPortfolioDates(financialAccountIds: Collection<UUID>): Map<UUID, LocalDate> {
+        if (financialAccountIds.isEmpty()) return emptyMap()
+        val ids = financialAccountIds.toList()
+        val placeholders = ids.indices.joinToString(", ") { "CAST(:p$it AS uuid)" }
+        val sql = """
+            SELECT financial_account_id, MIN(quota_date)
+              FROM banking.investment_portfolio_quota
+             WHERE financial_account_id IN ($placeholders)
+               AND dimension_type = 'PORTFOLIO'
+               AND dimension_key = ''
+             GROUP BY financial_account_id
+        """.trimIndent()
+        val query = entityManager.createNativeQuery(sql)
+        ids.forEachIndexed { i, id -> query.setParameter("p$i", id.toString()) }
+        @Suppress("UNCHECKED_CAST")
+        val rows = query.resultList as List<Array<Any?>>
+        return rows.associate { row ->
+            val financialAccountId = when (val raw = row[0]) {
+                is UUID -> raw
+                else -> UUID.fromString(raw.toString())
+            }
+            val earliestDate = when (val raw = row[1]) {
+                is LocalDate -> raw
+                is java.sql.Date -> raw.toLocalDate()
+                else -> LocalDate.parse(raw.toString())
+            }
+            financialAccountId to earliestDate
+        }
+    }
 
     override fun findByAccountAndDateRange(
         financialAccountId: UUID,
@@ -130,6 +166,95 @@ open class DefaultPortfolioQuotaRepository(
                 has_estimated_values  = EXCLUDED.has_estimated_values,
                 updated_at            = NOW()
         """.trimIndent()
+    }
+
+    override fun findByTenantAndDateRange(
+        accountId: UUID,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String?,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentPortfolioQuota> =
+        entityRepository.findByTenantAndDateRange(
+            accountId = accountId,
+            accountType = FinancialAccountType.INVESTMENT,
+            dimensionType = dimensionType,
+            dimensionKey = dimensionKey.orEmpty(),
+            from = from,
+            to = to,
+        ).map(InvestmentPortfolioQuotaMapper::toDomain)
+
+    override fun findOpeningAndClosingPortfolioValues(
+        accountId: UUID,
+        financialAccountId: UUID?,
+        startYear: Int,
+        startMonth: Int,
+        endYear: Int,
+        endMonth: Int,
+    ): PortfolioValueWindow {
+        val accountsFilter =
+            if (financialAccountId != null) {
+                """
+                id = CAST(:financialAccountId AS uuid)
+                  AND account_id = CAST(:accountId AS uuid)
+                """.trimIndent()
+            } else {
+                "account_id = CAST(:accountId AS uuid)"
+            }
+
+        val sql = """
+            WITH accounts AS (
+                SELECT id
+                FROM banking.financial_accounts
+                WHERE $accountsFilter
+                  AND type = 'INVESTMENT'
+                  AND deleted_at IS NULL
+            ),
+            opening AS (
+                SELECT DISTINCT ON (q.financial_account_id)
+                       q.financial_account_id,
+                       q.total_portfolio_value AS opening_value
+                FROM banking.investment_portfolio_quota q
+                JOIN accounts a ON a.id = q.financial_account_id
+                WHERE q.dimension_type = 'PORTFOLIO'
+                  AND q.dimension_key = ''
+                  AND q.quota_date < make_date(:startYear, :startMonth, 1)
+                ORDER BY q.financial_account_id, q.quota_date DESC
+            ),
+            closing AS (
+                SELECT DISTINCT ON (q.financial_account_id)
+                       q.financial_account_id,
+                       q.total_portfolio_value AS closing_value
+                FROM banking.investment_portfolio_quota q
+                JOIN accounts a ON a.id = q.financial_account_id
+                WHERE q.dimension_type = 'PORTFOLIO'
+                  AND q.dimension_key = ''
+                  AND q.quota_date <= make_date(:endYear, :endMonth, 1) + INTERVAL '1 month' - INTERVAL '1 day'
+                ORDER BY q.financial_account_id, q.quota_date DESC
+            )
+            SELECT
+                COALESCE(SUM(o.opening_value), 0) AS opening_portfolio_value,
+                COALESCE(SUM(c.closing_value), 0) AS closing_portfolio_value
+            FROM opening o
+            FULL OUTER JOIN closing c USING (financial_account_id)
+        """.trimIndent()
+
+        val query = entityManager.createNativeQuery(sql)
+        query.setParameter("accountId", accountId.toString())
+        if (financialAccountId != null) {
+            query.setParameter("financialAccountId", financialAccountId.toString())
+        }
+        query.setParameter("startYear", startYear)
+        query.setParameter("startMonth", startMonth)
+        query.setParameter("endYear", endYear)
+        query.setParameter("endMonth", endMonth)
+
+        @Suppress("UNCHECKED_CAST")
+        val row = query.singleResult as Array<Any?>
+        return PortfolioValueWindow(
+            openingPortfolioValue = row[0].toBigDecimalOrZero(),
+            closingPortfolioValue = row[1].toBigDecimalOrZero(),
+        )
     }
 
     override fun findLatestBeforeAllDimensions(

@@ -2,7 +2,6 @@ import React from 'react';
 import { 
   Paper, 
   Box, 
-  Typography, 
   IconButton, 
   Menu, 
   MenuItem, 
@@ -17,10 +16,14 @@ import RefreshIcon from '@mui/icons-material/Refresh';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SettingsIcon from '@mui/icons-material/Settings';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { Label } from '@/shared/components/ui/primitives/Label';
+import { useTranslation } from '@/shared/i18n';
+import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 
 export interface WidgetWrapperProps {
   title: string;
   icon?: React.ReactNode;
+  headerRight?: React.ReactNode;
   children: React.ReactNode;
   onRemove?: () => void;
   onRefresh?: () => void;
@@ -33,7 +36,7 @@ export interface WidgetWrapperProps {
 
 export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   title,
-  icon,
+  headerRight,
   children,
   onRemove,
   onRefresh,
@@ -44,6 +47,7 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
   dragHandleProps,
 }) => {
   const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
   const [anchorEl, setAnchorEl] = React.useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
 
@@ -64,14 +68,11 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
         display: 'flex',
         flexDirection: 'column',
         border: `1px solid ${theme.palette.divider}`,
-        borderRadius: 2,
+        borderRadius: 1.5,
+        borderBottomRightRadius: 1,
         overflow: 'hidden',
         position: 'relative',
-        transition: 'box-shadow 0.2s, border-color 0.2s',
-        '&:hover': {
-          borderColor: theme.palette.action.hover,
-          boxShadow: theme.shadows[1],
-        },
+        transition: 'border-color 0.2s',
         ...(isEditMode && {
           borderStyle: 'dashed',
           borderColor: theme.palette.primary.main,
@@ -80,50 +81,46 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
       }}
     >
       <Box
-        className={isEditMode ? 'drag-handle' : undefined}
-        {...(isEditMode ? dragHandleProps : {})}
         sx={{
-          p: 2,
+          p: 1,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           borderBottom: `1px solid ${theme.palette.divider}`,
           bgcolor: theme.palette.background.paper,
-          ...(isEditMode && {
-            cursor: 'grab',
-            touchAction: 'none',
-            '&:active': { cursor: 'grabbing' },
-            '&:hover': { bgcolor: 'action.hover' },
-          }),
+          '&:hover .widget-drag-handle': { opacity: 1, pointerEvents: 'auto' },
+          '&:focus-within .widget-drag-handle': { opacity: 1, pointerEvents: 'auto' },
+          '@media (hover: none)': {
+            '& .widget-drag-handle': { opacity: 1, pointerEvents: 'auto' },
+          },
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          {isEditMode && (
-            <Box
-              sx={{ 
-                display: 'flex', 
-                color: 'action.active',
-              }}
-            >
-              <DragIndicatorIcon />
-            </Box>
-          )}
-          {icon && (
-            <Box sx={{ color: theme.palette.text.secondary, display: 'flex' }}>
-              {icon}
-            </Box>
-          )}
-          <Typography variant="h6" component="div" sx={{ fontSize: '1rem', fontWeight: 600 }}>
+          <Box
+            className="drag-handle widget-drag-handle"
+            {...(dragHandleProps ?? {})}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              color: 'action.active',
+              opacity: .2,
+              transition: 'opacity 150ms ease',
+              cursor: 'grab',
+              userSelect: 'none',
+              touchAction: 'none',
+              pointerEvents: 'none',
+              '&:active': { cursor: 'grabbing' },
+            }}
+          >
+            <DragIndicatorIcon />
+          </Box>
+          <Label sx={{ fontSize: '.9rem', mb: 0, lineHeight: 1, display: 'flex', alignItems: 'center' }}>
             {title}
-          </Typography>
+          </Label>
         </Box>
 
-        <Box>
-          {onRefresh && !isEditMode && (
-            <IconButton size="small" onClick={onRefresh}>
-              <RefreshIcon fontSize="small" />
-            </IconButton>
-          )}
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          {headerRight}
           <IconButton size="small" onClick={handleMenuClick}>
             <MoreVertIcon fontSize="small" />
           </IconButton>
@@ -140,13 +137,13 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
         {onRefresh && (
           <MenuItem onClick={() => { onRefresh(); handleMenuClose(); }}>
             <ListItemIcon><RefreshIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Refresh</ListItemText>
+            <ListItemText>{t('dashboard.widgets.menu.refresh')}</ListItemText>
           </MenuItem>
         )}
         {onConfigure && (
           <MenuItem onClick={() => { onConfigure(); handleMenuClose(); }}>
             <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Settings</ListItemText>
+            <ListItemText>{t('dashboard.widgets.menu.settings')}</ListItemText>
           </MenuItem>
         )}
         {(onRemove || isEditMode) && (
@@ -154,7 +151,7 @@ export const WidgetWrapper: React.FC<WidgetWrapperProps> = ({
             <Divider />
             <MenuItem onClick={() => { onRemove?.(); handleMenuClose(); }} sx={{ color: 'error.main' }}>
               <ListItemIcon><VisibilityOffIcon fontSize="small" color="error" /></ListItemIcon>
-              <ListItemText>Hide Widget</ListItemText>
+              <ListItemText>{t('dashboard.widgets.menu.hide')}</ListItemText>
             </MenuItem>
           </>
         )}

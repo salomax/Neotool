@@ -37,7 +37,7 @@ export function resolveHoldingIdentity(source: HoldingIdentitySource) {
 export const HoldingIdentity: React.FC<HoldingIdentityProps> = ({ assetName, issuerName, logoUrl, size = 32, sx }) => {
   const fallback = (assetName ?? "—").slice(0, 1).toUpperCase();
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, ...sx }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, minWidth: 0, ...sx }}>
       <Logo src={logoUrl ?? undefined} alt={issuerName ?? assetName} size={size} sx={{ flexShrink: 0 }}>
         {fallback}
       </Logo>
@@ -73,7 +73,7 @@ export const FixedIncomeAssetIdentity: React.FC<FixedIncomeAssetIdentityProps> =
   "data-testid": dataTestId,
 }) => {
   return (
-    <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0, ...sx }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.25, minWidth: 0, ...sx }}>
       <FixedIncomeTypeAvatar assetType={assetType} size={size} data-testid={dataTestId} />
       <Box sx={{ minWidth: 0 }}>
         <Typography variant="body2" noWrap>

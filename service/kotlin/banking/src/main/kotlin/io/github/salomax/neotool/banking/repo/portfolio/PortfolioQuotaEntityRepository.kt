@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.repo.portfolio
 
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioQuotaEntity
 import io.micronaut.data.annotation.Query
@@ -27,6 +28,19 @@ interface PortfolioQuotaEntityRepository : JpaRepository<InvestmentPortfolioQuot
         dimensionKey: String,
         date: LocalDate,
     ): List<InvestmentPortfolioQuotaEntity>
+
+    @Query(
+        """
+        SELECT MIN(quota_date)
+        FROM banking.investment_portfolio_quota
+        WHERE financial_account_id = :financialAccountId
+          AND dimension_type = 'PORTFOLIO'
+          AND dimension_key = ''
+        """,
+        nativeQuery = true,
+    )
+    fun findEarliestPortfolioDate(financialAccountId: UUID): LocalDate?
+
 
     @Query(
         """
@@ -73,6 +87,29 @@ interface PortfolioQuotaEntityRepository : JpaRepository<InvestmentPortfolioQuot
     )
     fun findByAccountsAndDateRange(
         financialAccountIds: List<UUID>,
+        dimensionType: PortfolioDimensionType,
+        dimensionKey: String,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<InvestmentPortfolioQuotaEntity>
+
+    @Query(
+        """
+        SELECT q FROM InvestmentPortfolioQuotaEntity q
+        WHERE q.financialAccountId IN (
+            SELECT fa.id FROM FinancialAccountEntity fa
+            WHERE fa.accountId = :accountId
+              AND fa.type = :accountType
+        )
+          AND q.dimensionType = :dimensionType
+          AND q.dimensionKey  = :dimensionKey
+          AND q.quotaDate BETWEEN :from AND :to
+        ORDER BY q.quotaDate ASC
+        """,
+    )
+    fun findByTenantAndDateRange(
+        accountId: UUID,
+        accountType: FinancialAccountType,
         dimensionType: PortfolioDimensionType,
         dimensionKey: String,
         from: LocalDate,

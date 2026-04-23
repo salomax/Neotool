@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
 import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
@@ -44,6 +45,7 @@ class TransactionServiceTest {
     private lateinit var transactionRuleEngine: TransactionRuleEngine
     private lateinit var merchantService: MerchantService
     private lateinit var financialAccountRepository: FinancialAccountRepository
+    private lateinit var financialAccountGuard: FinancialAccountGuard
     private lateinit var accountMembershipValidationPort: AccountMembershipValidationPort
     private lateinit var snapshotComputationService: SnapshotComputationService
     private lateinit var creditCardBillService: CreditCardBillService
@@ -77,6 +79,7 @@ class TransactionServiceTest {
         transactionRuleEngine = mock()
         merchantService = mock()
         financialAccountRepository = mock()
+        financialAccountGuard = mock()
         accountMembershipValidationPort = mock()
         snapshotComputationService = mock()
         creditCardBillService = mock()
@@ -91,6 +94,7 @@ class TransactionServiceTest {
                 transactionRuleEngine = transactionRuleEngine,
                 merchantService = merchantService,
                 financialAccountRepository = financialAccountRepository,
+                financialAccountGuard = financialAccountGuard,
                 accountMembershipValidationPort = accountMembershipValidationPort,
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
@@ -227,7 +231,8 @@ class TransactionServiceTest {
 
         @Test
         fun `fails when financialAccountId does not belong to caller accountId`() {
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(emptyList())
+            whenever(financialAccountGuard.requireOwnership(financialAccountId, accountId))
+                .thenThrow(IllegalArgumentException("Financial account $financialAccountId does not belong to account $accountId"))
             val command =
                 CreateTransactionCommand(
                     financialAccountId = financialAccountId,
@@ -1318,7 +1323,8 @@ class TransactionServiceTest {
     inner class ListByFinancialAccountTests {
         @Test
         fun `listByFinancialAccount throws when financialAccountId does not belong to accountId`() {
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(emptyList())
+            whenever(financialAccountGuard.requireOwnership(financialAccountId, accountId))
+                .thenThrow(IllegalArgumentException("Financial account $financialAccountId does not belong to account $accountId"))
 
             val ex =
                 assertThrows<IllegalArgumentException> {

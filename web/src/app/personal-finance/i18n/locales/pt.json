@@ -1,38 +1,5 @@
 {
   "title": "Finanças pessoais",
-  "dashboard": {
-    "controls": {
-      "customize": "Personalizar",
-      "resetLayout": "Redefinir layout",
-      "done": "Concluir"
-    },
-    "timeRange": {
-      "ariaLabel": "Intervalo de tempo",
-      "options": {
-        "90d": "Últimos 90 dias",
-        "6m": "Últimos 6 meses",
-        "ytd": "Ano até hoje",
-        "1y": "Último ano",
-        "all": "Todo o período",
-        "custom": "Personalizado"
-      }
-    },
-    "actions": {
-      "title": "Ações rápidas",
-      "financeMovements": {
-        "title": "Movimentação Financeira",
-        "description": "Controle de receitas e despesas"
-      },
-      "investmentsPortfolio": {
-        "title": "Carteira de Investimentos",
-        "description": "Gestão dos ativos"
-      },
-      "pricesConsumption": {
-        "title": "Preços & Consumo",
-        "description": "Acompanhe preços de produtos e gastos ao longo do tempo."
-      }
-    }
-  },
   "investments": {
     "sidebar": {
       "allBrokers": "Todas as Corretoras",
@@ -538,6 +505,15 @@
       "common": {
         "notAvailable": "—"
       },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Preço unitário",
+          "cryptoPrice": "Preço do criptoativo",
+          "fiiQuotaPrice": "Preço da cota (FII/Fiagro)",
+          "quotaValue": "Valor da cota"
+        }
+      },
       "indexers": {
         "Cdi": "CDI",
         "Di": "DI",
@@ -577,8 +553,10 @@
       },
       "performance": {
         "xirr": "TIR anualizada",
-        "xirrTooltip": "Taxa Interna de Retorno anualizada considerando data e valor de cada aporte.",
         "since": "Desde"
+      },
+      "actions": {
+        "moreActions": "Mais ações"
       },
       "chart": {
         "title": "Evolução do investimento",
@@ -1046,10 +1024,11 @@
     "timeRange": {
       "ariaLabel": "Intervalo de tempo",
       "options": {
-        "90d": "Últimos 90 dias",
+        "currentMonth": "Mês atual",
+        "3m": "Últimos 3 meses",
         "6m": "Últimos 6 meses",
-        "ytd": "Ano até hoje",
         "1y": "Último ano",
+        "3y": "Últimos 3 anos",
         "all": "Todo o período",
         "custom": "Personalizado"
       }
@@ -1066,7 +1045,69 @@
       },
       "pricesConsumption": {
         "title": "Preços & Consumo",
-        "description": "Acompanhe preços de produtos e gastos ao longo do tempo."
+        "description": "Acompanhe seu perfil de consumo."
+      }
+    },
+    "widgets": {
+      "addDrawer": {
+        "title": "Adicionar widget"
+      },
+      "registry": {
+        "periodSummary": {
+          "title": "Resumo",
+          "description": "Fluxo de caixa, patrimônio e investimentos no período selecionado."
+        },
+        "cashFlow": {
+          "title": "Fluxo de Caixa",
+          "description": "Comparativo de receitas e despesas por mês."
+        },
+        "netWorth": {
+          "title": "Evolução do Patrimônio",
+          "description": "Saldo bancário acumulado mês a mês."
+        },
+        "categoryDonut": {
+          "title": "Categorias",
+          "description": "Distribuição de despesas e receitas por categoria."
+        }
+      },
+      "menu": {
+        "refresh": "Atualizar",
+        "settings": "Configurações",
+        "hide": "Ocultar widget"
+      },
+      "kpi": {
+        "net": "Líquido"
+      },
+      "periodSummary": {
+        "totalNetWorth": "Patrimônio Total",
+        "totalIncome": "Receitas",
+        "totalExpenses": "Despesas",
+        "net": "Líquido",
+        "closingCashBalance": "Saldo em Caixa",
+        "totalInvested": "Total Investido",
+        "totalReturn": "Rendimento da Carteira",
+        "totalReturnShort": "Rendimento",
+        "monthlyAverage": "Média mensal: {{value}}",
+        "monthlyAveragePerMonth": "Média {{value}}/mês",
+        "monthlyAverageShort": "Média",
+        "perMonthSuffix": "/mês",
+        "savingsCapacityLabel": "Capacidade de poupar",
+        "savingsRateLabel": "Essa é sua capacidade de poupar",
+        "savingsRate": "Taxa de poupança: {{value}}",
+        "returnPct": "Rentabilidade: {{value}}",
+        "periodMonths": "{{count}} meses no período",
+        "netWorthBreakdown": "Caixa {{cash}} + Carteira {{portfolio}}"
+      },
+      "cashFlow": {
+        "noData": "Nenhum dado para o período",
+        "netSeries": "Líquido"
+      },
+      "netWorth": {
+        "bankingBalance": "Saldo Bancário",
+        "portfolioValue": "Carteira de Investimentos",
+        "totalNetWorth": "Patrimônio Total",
+        "estimatedNote": "Valor estimado",
+        "noData": "Sem dados para o período selecionado."
       }
     }
   },
@@ -1149,7 +1190,6 @@
       "noSourceAccount": "Nenhuma",
       "invalidAmount": "Informe um valor válido maior que zero."
     },
-    "description": "Descrição",
     "backToCurrentMonth": "Voltar para o mês atual",
     "actions": {
       "newAccountOrCard": "Nova conta ou cartão",
@@ -1729,6 +1769,7 @@
       "income": "Receitas",
       "expenses": "Despesas",
       "balance": "Saldo",
+      "breakdownType": "Tipo",
       "total": "do total",
       "a11y": {
         "filterByMetric": "Filtrar transações por",

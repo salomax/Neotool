@@ -21,6 +21,7 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.STOCK_SPLIT
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.SUBSCRIPTION
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType.WITHHOLDING_TAX
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
@@ -35,6 +36,8 @@ import io.github.salomax.neotool.banking.service.investment.lifecycle.Investment
 import io.github.salomax.neotool.banking.service.investment.lifecycle.InvestmentTransactionLifecycleOrchestrator
 import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
 import io.github.salomax.neotool.banking.service.investment.recalculation.PositionEvolutionInput
+import io.github.salomax.neotool.common.error.ConflictException
+import io.github.salomax.neotool.common.error.NotFoundException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -262,7 +265,8 @@ open class InvestmentTransactionService(
         return savedTx
     }
 
-    fun delete(
+    @Transactional
+    open fun delete(
         id: UUID,
         accountId: UUID,
     ): Boolean {
@@ -307,20 +311,31 @@ open class InvestmentTransactionService(
      * `related_holding_id` orphans), **soft-deletes custodian ledger rows** linked via `investment_transaction_id`
      * (reversing cash on the custodian account), deletes holding attachments, and requests quota recalculation.
      */
-    fun deleteHolding(
+    @Transactional
+    open fun deleteHolding(
         id: UUID,
         accountId: UUID,
     ): Boolean {
         val holding =
             holdingRepository.findById(id, accountId)
-                ?: throw NoSuchElementException("Holding $id not found")
-        check(holding.source == InvestmentSource.MANUAL) {
-            "Only MANUAL holdings can be deleted; synced holdings must be managed via the provider"
+                ?: throw NotFoundException(
+                    errorCode = BankingErrorCode.INVESTMENT_HOLDING_NOT_FOUND,
+                    resourceType = "Holding",
+                    resourceId = id,
+                )
+        if (holding.source != InvestmentSource.MANUAL) {
+            throw ConflictException(
+                errorCode = BankingErrorCode.INVESTMENT_HOLDING_DELETE_NOT_ALLOWED,
+                field = "id",
+            )
         }
 
         val transactions = investmentTransactionRepository.findByHolding(id, accountId)
-        check(transactions.all { it.source == InvestmentSource.MANUAL }) {
-            "Only holdings with MANUAL transactions can be deleted as a whole"
+        if (!transactions.all { it.source == InvestmentSource.MANUAL }) {
+            throw ConflictException(
+                errorCode = BankingErrorCode.INVESTMENT_HOLDING_DELETE_NOT_ALLOWED,
+                field = "id",
+            )
         }
         val asset =
             assetRepository.findById(holding.assetId)
