@@ -534,19 +534,6 @@
         "withPercentage": "{{label}} {{percentage}}%",
         "fixedAnnualRate": "{{rate}}% a.a."
       },
-      "grid": {
-        "principal": "Principal",
-        "grossTotal": "Total Bruto",
-        "netTotal": "Total Líquido",
-        "grossEarnings": "Rendimento Bruto",
-        "totalReturn": "Rendimento Bruto",
-        "totalGain": "Ganho total",
-        "couponsReceivedNet": "Cupons recebidos (líq.)",
-        "dividendsReceived": "Proventos",
-        "incomeTax": "IR",
-        "iof": "IOF",
-        "netEarnings": "Rendimento Líquido"
-      },
       "metrics": {
         "principal": "Principal investido",
         "currentCostBasis": "Custo atual",
@@ -661,7 +648,7 @@
         "SUBSCRIPTION": "Subscrição",
         "WITHHOLDING_TAX": "Imposto retido"
       }
-    },
+    ,
     "deleteConfirmation": {
       "title": "Excluir ativo",
       "message": "Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."
