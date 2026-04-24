@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import AddIcon from "@mui/icons-material/Add";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
@@ -28,41 +27,26 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { DELETE_INVESTMENT_HOLDING, DELETE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
-import {
-  InvestmentHoldingsDocument,
-  InvestmentPortfolioSummaryDocument,
-  type InvestmentHoldingsQuery,
-  type InvestmentHoldingsQueryVariables,
-} from "@/lib/graphql/operations/banking/queries.generated";
-import { AssetType, InvestmentTransaction, InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
+import { AssetType, InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { i18n, useTranslation } from "@/shared/i18n";
+import { useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { CurrencyAmountParts, GainPercent } from "@/shared/components/ui/data-display";
 import { ConfirmationDialog } from "@/shared/components/ui/feedback";
-import { useToast } from "@/shared/providers";
-import { extractErrorMessage } from "@/shared/utils/error";
 import { personalFinanceTranslations } from "../../i18n";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { FixedIncomeHoldingDetailContent } from "./fixed-income/FixedIncomeHoldingDetailContent";
-import {
-  FixedIncomeHoldingDetailDocument,
-  type FixedIncomeHoldingDetailQuery,
-} from "./fixed-income/api/queries.generated";
+import { useHoldingDetailDrawer } from "./useHoldingDetailDrawer";
 import { buildFixedIncomeHoldingDetailViewModel } from "./fixed-income/fixedIncomeHoldingDetailAdapter";
-import { MaturityConfirmDrawer, type MaturityDrawerHolding } from "../MaturityConfirmDrawer";
-import { CouponPaymentConfirmDrawer, type CouponDrawerHolding } from "../CouponPaymentConfirmDrawer";
+import { MaturityConfirmDrawer } from "../MaturityConfirmDrawer";
+import { CouponPaymentConfirmDrawer } from "../CouponPaymentConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
-import { FundHoldingDetailDocument, type FundHoldingDetailQuery } from "./fund/api/queries.generated";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
 import { RecordEquityHoldingDrawer } from "./RecordEquityHoldingDrawer";
 import { RecordFixedIncomeDrawer } from "./RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./RecordFundHoldingDrawer";
 import { InvestmentEventSelectorDrawer } from "./InvestmentEventSelectorDrawer";
-import type { HoldingKind, HoldingRow } from "./table/investmentTableHelpers";
-import type { DetailPerformancePeriod } from "./performance/detailPerformancePeriods";
-import { parseUnknownDate, resolveDetailPerformanceWindow } from "./performance/detailPerformancePeriods";
+import { getAssetGroupKey, type HoldingKind } from "./table/investmentTableHelpers";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
 
@@ -139,47 +123,22 @@ interface HoldingDetailDrawerShellProps {
   body: React.ReactNode;
 }
 
-type FixedIncomeCouponScheduleEntry =
-  NonNullable<FixedIncomeHoldingDetailQuery["investmentHolding"]>["couponSchedule"][number];
-
-type DeleteInvestmentTransactionMutation = {
-  deleteInvestmentTransaction: boolean;
-};
-
-type DeleteInvestmentTransactionMutationVariables = {
-  id: string;
-};
-
-type FixedIncomeDetailTransaction = FixedIncomeHoldingDetailQuery["investmentTransactions"][number];
-type FundDetailTransaction = FundHoldingDetailQuery["investmentTransactions"][number];
-type DetailTimelineTransaction = FixedIncomeDetailTransaction | FundDetailTransaction;
-
-function formatTimelineDate(value: unknown, locale: string): string {
+function formatLocalDate(
+  value: unknown,
+  locale: string,
+  options: Intl.DateTimeFormatOptions,
+): string {
   if (!value) return "—";
   const raw = String(value);
   const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (localDateMatch) {
     const [, year, month, day] = localDateMatch;
     const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return date.toLocaleDateString(locale, { dateStyle: "medium" });
+    return date.toLocaleDateString(locale, options);
   }
   const date = new Date(raw);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(locale, { dateStyle: "medium" });
-}
-
-function formatPriceReferenceDate(value: unknown, locale: string): string {
-  if (!value) return "—";
-  const raw = String(value);
-  const localDateMatch = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
-  if (localDateMatch) {
-    const [, year, month, day] = localDateMatch;
-    const date = new Date(Number(year), Number(month) - 1, Number(day));
-    return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
-  }
-  const date = new Date(raw);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString(locale, { day: "2-digit", month: "2-digit", year: "2-digit" });
+  return date.toLocaleDateString(locale, options);
 }
 
 function HoldingDetailDrawerShell({
@@ -392,36 +351,6 @@ function HoldingDetailDrawerShell({
   );
 }
 
-/**
- * Estimates the gross coupon amount for a specific coupon period using the holding's
- * rate model and the actual period dates — NOT today's holding value.
- *
- * Only computes for PRE_FIXADO (pre-fixed rate); for CDI/SELIC/IPCA-indexed assets we
- * can't estimate without historical rate series, so those return null (form left blank).
- *
- * Uses the 252 business-day convention approximated from calendar days (×252/365).
- */
-function estimateCouponGrossForPeriod(
-  principal: number,
-  fixedAnnualRate: number | null | undefined,
-  periodStart: string | null,
-  couponDate: string | null,
-): number | null {
-  if (principal <= 0 || !fixedAnnualRate || fixedAnnualRate <= 0) return null;
-  if (!periodStart || !couponDate) return null;
-
-  const startMs = new Date(periodStart).getTime();
-  const endMs = new Date(couponDate).getTime();
-  const calendarDays = Math.max(0, Math.round((endMs - startMs) / 86_400_000));
-  if (calendarDays <= 0) return null;
-
-  // 252-day business-day convention approximated from calendar days
-  const approxBusinessDays = (calendarDays * 252) / 365;
-  const grossAtDate = principal * Math.pow(1 + fixedAnnualRate, approxBusinessDays / 252);
-  const interest = Number((grossAtDate - principal).toFixed(2));
-  return interest > 0 ? interest : null;
-}
-
 export function InvestmentHoldingDetailDrawer({
   open,
   holdingId,
@@ -435,67 +364,74 @@ export function InvestmentHoldingDetailDrawer({
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const { t } = useTranslation(personalFinanceTranslations);
-  const toast = useToast();
-  const apolloClient = useApolloClient();
-  const locale = i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR";
+  const {
+    fixedIncomeData,
+    fundData,
+    fixedIncomeLoading,
+    fundLoading,
+    fixedIncomeError,
+    fundError,
+    refetchFixedIncome,
+    refetchFund,
+    maturityOpen: maturityConfirmOpen,
+    maturityHolding,
+    openMaturity,
+    closeMaturity,
+    couponOpen: couponConfirmOpen,
+    couponHolding: couponConfirmHolding,
+    couponEditingTransaction,
+    couponDestinationAccount,
+    closeCoupon,
+    openCoupon: handleRegisterOverdueCoupon,
+    editCouponPayment: handleEditCouponPayment,
+    deleteCouponPayment: handleDeleteCouponPayment,
+    deletingCouponPayment,
+    editingTransactionId,
+    deletingTransactionId,
+    deleteConfirmOpen,
+    deleteInProgress,
+    editingTransaction,
+    deletingTransaction,
+    openEditTransaction: handleEditTransaction,
+    closeEditTransaction,
+    openDeleteTransaction: handleRequestDeleteTransaction,
+    closeDeleteConfirm: handleCloseDeleteDialog,
+    confirmDeleteTransaction: handleConfirmDeleteTransaction,
+    quickTransactionDirection,
+    setQuickTransactionDirection,
+    moreActionsAnchorEl,
+    openMoreActions: openMoreActionsMenu,
+    closeMoreActions: closeMoreActionsMenu,
+    eventSelectorOpen,
+    openEventSelector,
+    closeEventSelector,
+    holdingRemoveConfirmOpen,
+    openHoldingRemoveConfirm,
+    closeHoldingRemoveConfirm,
+    confirmRemoveHolding: handleConfirmRemoveHolding,
+    performancePeriod: fundPerformancePeriod,
+    setPerformancePeriod: setFundPerformancePeriod,
+    locale,
+    actionHoldingRow,
+    actionHoldingGroupKey,
+    buyLabel,
+    sellLabel,
+    deletingHolding,
+  } = useHoldingDetailDrawer({
+    open,
+    holdingId,
+    kind,
+    onClose,
+  });
 
-  const shouldFetchFixedIncome = open && kind === "fixedIncome" && Boolean(holdingId);
-  const shouldFetchFund = open && (kind === "fund" || kind === "equity") && Boolean(holdingId);
-  const [fundPerformancePeriod, setFundPerformancePeriod] = React.useState<DetailPerformancePeriod>("ALL");
-  const [fundFirstTradeDate, setFundFirstTradeDate] = React.useState<Date | null>(null);
-  const fundPerformanceWindow = React.useMemo(
-    () => resolveDetailPerformanceWindow(fundPerformancePeriod, fundFirstTradeDate),
-    [fundFirstTradeDate, fundPerformancePeriod],
+  const fixedIncomeQuery = React.useMemo(
+    () => ({ loading: fixedIncomeLoading, error: fixedIncomeError, refetch: refetchFixedIncome }),
+    [fixedIncomeError, fixedIncomeLoading, refetchFixedIncome],
   );
-
-  React.useEffect(() => {
-    if (!open) return;
-    setFundPerformancePeriod("ALL");
-    setFundFirstTradeDate(null);
-  }, [holdingId, kind, open]);
-
-  const fixedIncomeQuery = useQuery(FixedIncomeHoldingDetailDocument, {
-    variables: { holdingId: holdingId || "" },
-    skip: !shouldFetchFixedIncome,
-    errorPolicy: "all",
-    fetchPolicy: "cache-and-network",
-    nextFetchPolicy: "cache-and-network",
-    notifyOnNetworkStatusChange: true,
-  });
-
-  const fundQuery = useQuery(FundHoldingDetailDocument, {
-    variables: {
-      holdingId: holdingId || "",
-      performanceResolution: fundPerformanceWindow.resolution,
-      performanceFromDate: fundPerformanceWindow.fromDate ?? null,
-      performanceToDate: fundPerformanceWindow.toDate ?? null,
-    },
-    skip: !shouldFetchFund,
-    errorPolicy: "all",
-    fetchPolicy: "cache-and-network",
-    nextFetchPolicy: "cache-and-network",
-    notifyOnNetworkStatusChange: true,
-  });
-
-  const fixedIncomeData =
-    fixedIncomeQuery.data ??
-    (fixedIncomeQuery.previousData?.investmentHolding?.id === holdingId ? fixedIncomeQuery.previousData : undefined);
-  const fundData =
-    fundQuery.data ??
-    (fundQuery.previousData?.investmentHolding?.id === holdingId ? fundQuery.previousData : undefined);
-
-  React.useEffect(() => {
-    const tradeDates = (fundData?.investmentTransactions ?? [])
-      .map((transaction) => parseUnknownDate(transaction.tradeDate))
-      .filter((value): value is Date => value != null)
-      .sort((a, b) => a.getTime() - b.getTime());
-    const nextFirstTradeDate = tradeDates[0] ?? null;
-    setFundFirstTradeDate((current) => {
-      const currentTime = current?.getTime() ?? null;
-      const nextTime = nextFirstTradeDate?.getTime() ?? null;
-      return currentTime === nextTime ? current : nextFirstTradeDate;
-    });
-  }, [fundData?.investmentTransactions]);
+  const fundQuery = React.useMemo(
+    () => ({ loading: fundLoading, error: fundError, refetch: refetchFund }),
+    [fundError, fundLoading, refetchFund],
+  );
 
   const resolvedAssetType =
     (kind === "fixedIncome"
@@ -505,41 +441,6 @@ export function InvestmentHoldingDetailDrawer({
       : null) ||
     initialAssetType ||
     null;
-
-  type AssetGroupKey =
-    | "variableIncome"
-    | "fixedIncome"
-    | "mutualFunds"
-    | "pension"
-    | "structured"
-    | "others";
-
-  const ASSET_TYPES_BY_GROUP: Record<AssetGroupKey, readonly string[]> = {
-    variableIncome: [
-      "STOCK",
-      "STOCK_RIGHTS",
-      "BDR",
-      "REAL_ESTATE_FUND",
-      "AGRIBUSINESS_FUND",
-      "ETF",
-      "ETF_INTERNATIONAL",
-    ],
-    fixedIncome: ["CDB", "RDB", "LCI", "LCA", "LC", "LF", "LIG", "ETF_FIXED_INCOME", "TREASURY", "DEBENTURES", "CRI", "CRA"],
-    mutualFunds: ["MUTUAL_FUND", "FIXED_INCOME_FUND", "EQUITY_FUND", "MULTI_MARKET_FUND", "FOREX_FUND"],
-    pension: ["PGBL", "VGBL"],
-    structured: ["COE"],
-    others: ["CRYPTO", "OPTION", "DERIVATIVES", "OTHER"],
-  };
-
-  function getAssetGroupKey(assetType: string | null | undefined): AssetGroupKey {
-    if (!assetType) return "others";
-    const normalized = String(assetType);
-    const match =
-      (Object.keys(ASSET_TYPES_BY_GROUP) as AssetGroupKey[]).find((groupKey) =>
-        ASSET_TYPES_BY_GROUP[groupKey].includes(normalized),
-      ) || null;
-    return match || "others";
-  }
 
   const groupKey = getAssetGroupKey(resolvedAssetType);
   const groupDisplayKey = groupKey;
@@ -571,7 +472,7 @@ export function InvestmentHoldingDetailDrawer({
 
     const notAvailable = t("investments.detailDrawer.common.notAvailable");
     const dateLabel = holding.valuationReferenceDate
-      ? formatPriceReferenceDate(holding.valuationReferenceDate, locale)
+      ? formatLocalDate(holding.valuationReferenceDate, locale, { day: "2-digit", month: "2-digit", year: "2-digit" })
       : notAvailable;
 
     const descriptorKey =
@@ -651,67 +552,13 @@ export function InvestmentHoldingDetailDrawer({
     return parts.join(" • ");
   }, [assetTypeLabel, fundViewModel]);
 
-  const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
-  const [couponConfirmOpen, setCouponConfirmOpen] = React.useState(false);
-  const [couponConfirmHolding, setCouponConfirmHolding] = React.useState<CouponDrawerHolding | null>(null);
-  const [couponEditingTransaction, setCouponEditingTransaction] = React.useState<{
-    id: string;
-    tradeDate: string;
-    grossValue: number;
-    netValue?: number | null;
-    incomeTax?: number | null;
-    iof?: number | null;
-  } | null>(null);
-  const [couponDestinationAccount, setCouponDestinationAccount] = React.useState<{
-    id: string;
-    name: string;
-    issuerName?: string | null;
-    issuer?: { name?: string | null; logoAsset?: { publicUrl?: string | null } | null } | null;
-  } | null>(null);
-  const [editingTransactionId, setEditingTransactionId] = React.useState<string | null>(null);
-  const [deletingTransactionId, setDeletingTransactionId] = React.useState<string | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
-  const [deleteInProgress, setDeleteInProgress] = React.useState(false);
-  const [quickTransactionDirection, setQuickTransactionDirection] = React.useState<"buy" | "sell" | null>(null);
-  const [moreActionsAnchorEl, setMoreActionsAnchorEl] = React.useState<HTMLElement | null>(null);
-  const [eventSelectorOpen, setEventSelectorOpen] = React.useState(false);
-  const [holdingRemoveConfirmOpen, setHoldingRemoveConfirmOpen] = React.useState(false);
-
-  const [deleteInvestmentTransaction, { loading: deleteMutationLoading }] = useMutation<
-    DeleteInvestmentTransactionMutation,
-    DeleteInvestmentTransactionMutationVariables
-  >(DELETE_INVESTMENT_TRANSACTION);
-  const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
-
-  const timelineTransactions = React.useMemo<readonly DetailTimelineTransaction[]>(
-    () =>
-      kind === "fixedIncome"
-        ? (fixedIncomeData?.investmentTransactions ?? [])
-        : (fundData?.investmentTransactions ?? []),
-    [fixedIncomeData?.investmentTransactions, fundData?.investmentTransactions, kind],
-  );
-
-  const editingTransaction = React.useMemo<InvestmentTransaction | null>(() => {
-    if (!editingTransactionId) return null;
-    const transaction = timelineTransactions.find((tx) => tx.id === editingTransactionId);
-    // Cast necessário: os fragments das queries de detalhe são parciais.
-    // Os drawers de edição tratam campos ausentes (ex: brokerNote) como undefined.
-    // Para equity, brokerNote não será pré-populado — ver requisito seção 6.7.
-    return (transaction as unknown as InvestmentTransaction | undefined) ?? null;
-  }, [editingTransactionId, timelineTransactions]);
-
-  const deletingTransaction = React.useMemo<DetailTimelineTransaction | null>(() => {
-    if (!deletingTransactionId) return null;
-    return timelineTransactions.find((tx) => tx.id === deletingTransactionId) ?? null;
-  }, [deletingTransactionId, timelineTransactions]);
-
   const deletingTransactionSummary = React.useMemo(() => {
     if (!deletingTransaction) return "";
     const directionLabel =
       deletingTransaction.direction === "INFLOW"
         ? t("investments.detailDrawer.timeline.inflowLabel")
         : t("investments.detailDrawer.timeline.outflowLabel");
-    const tradeDateLabel = formatTimelineDate(deletingTransaction.tradeDate, locale);
+    const tradeDateLabel = formatLocalDate(deletingTransaction.tradeDate, locale, { dateStyle: "medium" });
     const currencyCode =
       fixedIncomeViewModel?.currencyCode ??
       fundViewModel?.currencyCode ??
@@ -732,210 +579,14 @@ export function InvestmentHoldingDetailDrawer({
     t,
   ]);
 
-  const deletingCouponPayment = deleteMutationLoading && !deleteConfirmOpen;
-
-  React.useEffect(() => {
-    setEditingTransactionId(null);
-    setDeletingTransactionId(null);
-    setDeleteConfirmOpen(false);
-    setDeleteInProgress(false);
-    setQuickTransactionDirection(null);
-    setMoreActionsAnchorEl(null);
-    setEventSelectorOpen(false);
-    setHoldingRemoveConfirmOpen(false);
-  }, [holdingId, kind, open]);
-
-  const maturityHolding = React.useMemo<MaturityDrawerHolding | null>(() => {
-    const h = fixedIncomeData?.investmentHolding;
-    if (!h || !h.financialAccount?.id || !h.asset?.id) return null;
-    return {
-      id: h.id,
-      financialAccountId: h.financialAccount.id,
-      maturityDate: h.maturityDate ? String(h.maturityDate) : null,
-      grossValue: h.grossValue,
-      netValue: h.netValue,
-      incomeTax: h.incomeTax,
-      iof: h.iof,
-      issuerName: h.asset.issuerName ?? null,
-      issuerLogoUrl: h.asset.logoAsset?.publicUrl ?? h.financialAccount.issuer?.logoAsset?.publicUrl ?? null,
-      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
-    };
-  }, [fixedIncomeData?.investmentHolding]);
-
   const canRegisterRedemption =
     kind === "fixedIncome" && Boolean(maturityHolding) && (fixedIncomeData?.investmentHolding?.quantity ?? 0) > 0;
-
-  const actionHoldingFinancialAccountId =
-    fixedIncomeData?.investmentHolding?.financialAccount?.id ?? fundData?.investmentHolding?.financialAccount?.id ?? null;
-
-  const holdingRowQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(InvestmentHoldingsDocument, {
-    variables: { financialAccountId: actionHoldingFinancialAccountId ?? undefined, assetClass: undefined },
-    skip: !open || !actionHoldingFinancialAccountId,
-    fetchPolicy: "cache-and-network",
-    errorPolicy: "all",
-  });
-
-  const actionHoldingRow: HoldingRow | null = React.useMemo(() => {
-    if (!holdingId) return null;
-    return holdingRowQuery.data?.investmentHoldings.find((h) => h.id === holdingId) ?? null;
-  }, [holdingId, holdingRowQuery.data?.investmentHoldings]);
-
-  const actionHoldingGroupKey = resolvedAssetType != null ? getAssetGroupKey(String(resolvedAssetType)) : null;
-  const buyLabel =
-    actionHoldingGroupKey === "variableIncome"
-      ? t("investments.transactions.buy")
-      : actionHoldingGroupKey === "mutualFunds" || actionHoldingGroupKey === "pension"
-        ? t("investments.transactions.apply")
-        : null;
-  const sellLabel =
-    actionHoldingGroupKey === "variableIncome"
-      ? t("investments.transactions.sell")
-      : actionHoldingGroupKey === "mutualFunds" || actionHoldingGroupKey === "pension"
-        ? t("investments.transactions.redeem")
-        : null;
 
   const equityRecordVariant = React.useMemo(() => {
     if (resolvedAssetType === AssetType.RealEstateFund || resolvedAssetType === AssetType.AgribusinessFund) return "fii" as const;
     if (resolvedAssetType === AssetType.Stock || resolvedAssetType === AssetType.StockRights) return "stock" as const;
     return "mixed" as const;
   }, [resolvedAssetType]);
-
-  const handleRegisterOverdueCoupon = React.useCallback((entry: FixedIncomeCouponScheduleEntry) => {
-    const h = fixedIncomeData?.investmentHolding;
-    if (!h?.financialAccount?.id || !h.asset?.id) return;
-    const scheduledRaw = entry.scheduledDate ? String(entry.scheduledDate) : null;
-    const scheduledDateOnly = scheduledRaw?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? scheduledRaw;
-
-    // Principal = sum of purchase transactions grossValue (reliable even when averageCost is stale/zero)
-    const txs = fixedIncomeData?.investmentTransactions ?? [];
-    const principal = txs
-      .filter((tx) => (tx.type as string) === "PURCHASE" || (tx.type as string) === "SUBSCRIPTION")
-      .reduce((sum, tx) => sum + tx.grossValue, 0);
-
-    // Coupon gross = interest accrued from periodStart → scheduledDate using the rate model.
-    // We use the entry's period dates, NOT today's holding value, so past coupons are correct.
-    const periodStartStr = entry.periodStart ? String(entry.periodStart).match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? null : null;
-    const couponGross = estimateCouponGrossForPeriod(principal, h.fixedAnnualRate, periodStartStr, scheduledDateOnly);
-
-    setCouponEditingTransaction(null);
-    setCouponConfirmHolding({
-      id: h.id,
-      financialAccountId: h.financialAccount.id,
-      quantity: h.quantity,
-      averageCost: h.averageCost,
-      couponFrequency: h.couponFrequency ?? null,
-      issueDate: h.issueDate ? String(h.issueDate) : null,
-      isTaxExempt: h.isTaxExempt,
-      grossValue: h.grossValue ?? null,
-      accruedInterest: couponGross,
-      couponDate: scheduledDateOnly ?? null,
-      issuerName: h.asset.issuerName ?? null,
-      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
-    });
-    setCouponDestinationAccount({
-      id: h.financialAccount.id,
-      name: h.financialAccount.name,
-      issuerName: h.financialAccount.issuerName ?? null,
-      issuer: h.financialAccount.issuer
-        ? {
-            name: h.financialAccount.issuer.name ?? null,
-            logoAsset: h.financialAccount.issuer.logoAsset
-              ? { publicUrl: h.financialAccount.issuer.logoAsset.publicUrl ?? null }
-              : null,
-          }
-        : null,
-    });
-    setCouponConfirmOpen(true);
-  }, [fixedIncomeData?.investmentHolding, fixedIncomeData?.investmentTransactions]);
-
-  const handleEditCouponPayment = React.useCallback((entry: FixedIncomeCouponScheduleEntry) => {
-    const h = fixedIncomeData?.investmentHolding;
-    const tx = entry.matchedTransaction;
-    if (!h?.financialAccount?.id || !h.asset?.id || !tx?.id) return;
-    const tradeRaw = tx.tradeDate ? String(tx.tradeDate) : null;
-    const tradeDateOnly = tradeRaw?.match(/^\d{4}-\d{2}-\d{2}/)?.[0] ?? tradeRaw;
-
-    setCouponEditingTransaction({
-      id: tx.id,
-      tradeDate: tradeDateOnly ?? "",
-      grossValue: tx.grossValue ?? 0,
-      netValue: tx.netValue ?? null,
-      incomeTax: tx.incomeTax ?? null,
-      iof: tx.iof ?? null,
-    });
-    setCouponConfirmHolding({
-      id: h.id,
-      financialAccountId: h.financialAccount.id,
-      quantity: h.quantity,
-      averageCost: h.averageCost,
-      couponFrequency: h.couponFrequency ?? null,
-      issueDate: h.issueDate ? String(h.issueDate) : null,
-      isTaxExempt: h.isTaxExempt,
-      grossValue: h.grossValue ?? null,
-      accruedInterest: h.accruedInterest ?? null,
-      couponDate: tradeDateOnly ?? null,
-      issuerName: h.asset.issuerName ?? null,
-      asset: { id: h.asset.id, name: h.asset.name, assetType: h.asset.assetType ?? null },
-    });
-    setCouponDestinationAccount({
-      id: h.financialAccount.id,
-      name: h.financialAccount.name,
-      issuerName: h.financialAccount.issuerName ?? null,
-      issuer: h.financialAccount.issuer
-        ? {
-            name: h.financialAccount.issuer.name ?? null,
-            logoAsset: h.financialAccount.issuer.logoAsset
-              ? { publicUrl: h.financialAccount.issuer.logoAsset.publicUrl ?? null }
-              : null,
-          }
-        : null,
-    });
-    setCouponConfirmOpen(true);
-  }, [fixedIncomeData?.investmentHolding]);
-
-  const handleDeleteCouponPayment = React.useCallback(async (transactionId: string) => {
-    if (!transactionId) return;
-    await deleteInvestmentTransaction({ variables: { id: transactionId } });
-    toast.success(t("investments.detailDrawer.couponSchedule.deleteSuccess"));
-    await fixedIncomeQuery.refetch();
-  }, [deleteInvestmentTransaction, fixedIncomeQuery, t, toast]);
-
-  const handleEditTransaction = React.useCallback((transactionId: string) => {
-    setEditingTransactionId(transactionId);
-  }, []);
-
-  const handleRequestDeleteTransaction = React.useCallback((transactionId: string) => {
-    setDeletingTransactionId(transactionId);
-    setDeleteConfirmOpen(true);
-  }, []);
-
-  const handleCloseDeleteDialog = React.useCallback(() => {
-    if (deleteInProgress) return;
-    setDeleteConfirmOpen(false);
-    setDeletingTransactionId(null);
-  }, [deleteInProgress]);
-
-  const handleConfirmDeleteTransaction = React.useCallback(async () => {
-    if (!deletingTransactionId) return;
-    setDeleteInProgress(true);
-    try {
-      await deleteInvestmentTransaction({ variables: { id: deletingTransactionId } });
-      toast.success(t("investments.detailDrawer.timeline.deleteSuccess"));
-      if (kind === "fixedIncome") {
-        await fixedIncomeQuery.refetch();
-      } else {
-        await fundQuery.refetch();
-      }
-      setDeleteConfirmOpen(false);
-      setDeletingTransactionId(null);
-    } catch (error) {
-      void error;
-      toast.error(t("investments.detailDrawer.timeline.deleteError"));
-      return;
-    } finally {
-      setDeleteInProgress(false);
-    }
-  }, [deleteInvestmentTransaction, deletingTransactionId, fixedIncomeQuery, fundQuery, kind, t, toast]);
 
   const fixedIncomeEditHolding = React.useMemo(() => {
     const holding = fixedIncomeData?.investmentHolding;
@@ -994,7 +645,7 @@ export function InvestmentHoldingDetailDrawer({
       ? {
           headerActions: null,
           footerActions: canRegisterRedemption ? (
-            <Drawer.CancelButton onClick={() => setMaturityConfirmOpen(true)}>
+            <Drawer.CancelButton onClick={openMaturity}>
               {t("investments.redemption.trigger")}
             </Drawer.CancelButton>
           ) : null,
@@ -1022,27 +673,19 @@ export function InvestmentHoldingDetailDrawer({
             <>
               <MaturityConfirmDrawer
                 open={maturityConfirmOpen}
-                onClose={() => setMaturityConfirmOpen(false)}
+                onClose={closeMaturity}
                 holding={maturityHolding}
                 onSuccess={() => void fixedIncomeQuery.refetch()}
               />
               <CouponPaymentConfirmDrawer
                 open={couponConfirmOpen}
-                onClose={() => {
-                  setCouponConfirmOpen(false);
-                  setCouponConfirmHolding(null);
-                  setCouponDestinationAccount(null);
-                  setCouponEditingTransaction(null);
-                }}
+                onClose={closeCoupon}
                 pendingActionId={null}
                 holding={couponConfirmHolding}
                 destinationAccount={couponDestinationAccount}
                 editingTransaction={couponEditingTransaction}
                 onSuccess={() => {
-                  setCouponConfirmOpen(false);
-                  setCouponConfirmHolding(null);
-                  setCouponDestinationAccount(null);
-                  setCouponEditingTransaction(null);
+                  closeCoupon();
                   void fixedIncomeQuery.refetch();
                 }}
               />
@@ -1143,37 +786,6 @@ export function InvestmentHoldingDetailDrawer({
   const hasTransactionActions = Boolean(buyLabel && sellLabel);
   const moreActionsLabel = t("investments.detailDrawer.actions.moreActions");
 
-  const openMoreActionsMenu = React.useCallback((anchorEl: HTMLElement) => {
-    setMoreActionsAnchorEl(anchorEl);
-  }, []);
-
-  const closeMoreActionsMenu = React.useCallback(() => {
-    setMoreActionsAnchorEl(null);
-  }, []);
-
-  const handleConfirmRemoveHolding = React.useCallback(async () => {
-    if (!actionHoldingRow) return;
-
-    try {
-      await deleteInvestmentHolding({ variables: { id: actionHoldingRow.id } });
-      setHoldingRemoveConfirmOpen(false);
-      closeMoreActionsMenu();
-      onClose();
-      await apolloClient.refetchQueries({ include: [InvestmentHoldingsDocument, InvestmentPortfolioSummaryDocument] });
-    } catch (error) {
-      toast.error(extractErrorMessage(error, t("errors.default", { ns: "common" })));
-      setHoldingRemoveConfirmOpen(false);
-    }
-  }, [
-    actionHoldingRow,
-    apolloClient,
-    closeMoreActionsMenu,
-    deleteInvestmentHolding,
-    onClose,
-    t,
-    toast,
-  ]);
-
   const actionBar = React.useMemo(
     () => (
       <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
@@ -1213,7 +825,7 @@ export function InvestmentHoldingDetailDrawer({
         </Button>
       </Box>
     ),
-    [actionHoldingRow, buyLabel, hasTransactionActions, moreActionsLabel, openMoreActionsMenu, sellLabel],
+    [actionHoldingRow, buyLabel, hasTransactionActions, moreActionsLabel, openMoreActionsMenu, sellLabel, setQuickTransactionDirection],
   );
 
   return (
@@ -1253,7 +865,7 @@ export function InvestmentHoldingDetailDrawer({
           disabled={!actionHoldingRow}
           onClick={() => {
             closeMoreActionsMenu();
-            setEventSelectorOpen(true);
+            openEventSelector();
           }}
         >
           <ListItemIcon>
@@ -1266,7 +878,7 @@ export function InvestmentHoldingDetailDrawer({
           disabled={!actionHoldingRow}
           onClick={() => {
             closeMoreActionsMenu();
-            setHoldingRemoveConfirmOpen(true);
+            openHoldingRemoveConfirm();
           }}
           sx={{ color: "error.main" }}
         >
@@ -1283,9 +895,9 @@ export function InvestmentHoldingDetailDrawer({
         kind={(kind as HoldingKind | null) ?? null}
         financialAccountId={actionHoldingRow?.financialAccountId ?? null}
         investmentAccounts={[]}
-        onClose={() => setEventSelectorOpen(false)}
+        onClose={closeEventSelector}
         onRecorded={async () => {
-          setEventSelectorOpen(false);
+          closeEventSelector();
           if (kind === "fixedIncome") {
             await fixedIncomeQuery.refetch();
             return;
@@ -1339,39 +951,39 @@ export function InvestmentHoldingDetailDrawer({
 
       <RecordFixedIncomeDrawer
         open={kind === "fixedIncome" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
-        onClose={() => setEditingTransactionId(null)}
+        onClose={closeEditTransaction}
         financialAccountId={fixedIncomeData?.investmentHolding?.financialAccount?.id ?? null}
         financialAccounts={[]}
         editHolding={fixedIncomeEditHolding}
         editTransaction={editingTransaction}
         onRecorded={() => {
-          setEditingTransactionId(null);
+          closeEditTransaction();
           void fixedIncomeQuery.refetch();
         }}
       />
 
       <RecordFundHoldingDrawer
         open={kind === "fund" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
-        onClose={() => setEditingTransactionId(null)}
+        onClose={closeEditTransaction}
         financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
         financialAccounts={[]}
         editHolding={fundEditHolding}
         editTransaction={editingTransaction}
         onRecorded={() => {
-          setEditingTransactionId(null);
+          closeEditTransaction();
           void fundQuery.refetch();
         }}
       />
 
       <RecordEquityHoldingDrawer
         open={kind === "equity" && Boolean(editingTransactionId) && Boolean(editingTransaction)}
-        onClose={() => setEditingTransactionId(null)}
+        onClose={closeEditTransaction}
         financialAccountId={fundData?.investmentHolding?.financialAccount?.id ?? null}
         financialAccounts={[]}
         editHolding={equityEditHolding}
         editTransaction={editingTransaction}
         onRecorded={() => {
-          setEditingTransactionId(null);
+          closeEditTransaction();
           void fundQuery.refetch();
         }}
       />
@@ -1404,7 +1016,7 @@ export function InvestmentHoldingDetailDrawer({
 
       <ConfirmationDialog
         open={holdingRemoveConfirmOpen}
-        onClose={() => setHoldingRemoveConfirmOpen(false)}
+        onClose={closeHoldingRemoveConfirm}
         onConfirm={handleConfirmRemoveHolding}
         title={t("investments.deleteConfirmation.title")}
         message={t("investments.deleteConfirmation.message")}
@@ -1416,5 +1028,3 @@ export function InvestmentHoldingDetailDrawer({
     </>
   );
 }
-
-export default InvestmentHoldingDetailDrawer;

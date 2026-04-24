@@ -489,6 +489,16 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
+                "portfolioTwrDebug",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->
+                        val financialAccountId = env.getArgument<String?>("financialAccountId")
+                        val period = env.getArgument<String?>("period")
+                        investmentResolver.portfolioTwrDebug(financialAccountId, period, principal)
+                    }
+                },
+            )
+            .dataFetcher(
                 "investmentCashTransactions",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_INVESTMENT_VIEW) { principal ->

@@ -16,7 +16,7 @@
  */
 
 /* eslint-disable react-hooks/rules-of-hooks */
-import { test as base, BrowserContext, type StorageState } from '@playwright/test';
+import { test as base, type BrowserContext } from '@playwright/test';
 import { signInWithSession, createUser, type AuthSession } from '../helpers/graphql';
 import { buildAuthStorageState } from '../helpers/storage-state';
 import {
@@ -41,6 +41,8 @@ export interface PfUser {
   session: AuthSession;
 }
 
+type StorageState = Awaited<ReturnType<BrowserContext['storageState']>>;
+
 export interface TwoTenants {
   userA: PfUser;
   userB: PfUser;
@@ -61,7 +63,7 @@ export interface PfFixtures {
   twoTenants: TwoTenants;
 }
 
-interface PfWorkerFixtures {
+export interface PfWorkerFixtures {
   /** A unique user with a valid JWT token, scoped per worker for speed. */
   pfUser: PfUser;
   workerStorageState: StorageState;
@@ -113,7 +115,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
   },
 
   workerStorageState: [
-    async ({ pfUser }, use) => {
+    async ({ pfUser }: { pfUser: PfUser }, use: (storageState: StorageState) => Promise<void>) => {
       await use(buildAuthStorageState(pfUser.session));
     },
     { scope: 'worker' },
@@ -124,7 +126,7 @@ export const test = base.extend<PfFixtures, PfWorkerFixtures>({
    * in the same worker process.
    */
   pfUser: [
-    async ({}, use) => {
+    async (_args, use) => {
       const user = await createPfUser();
       await use(user);
     },

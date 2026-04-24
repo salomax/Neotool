@@ -12,7 +12,11 @@ import io.github.salomax.neotool.banking.graphql.investment.BenchmarkPerformance
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPointDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
+import io.github.salomax.neotool.banking.graphql.investment.PortfolioTwrDebugDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.TwrDailyStepDTO
+import io.github.salomax.neotool.banking.graphql.investment.TwrFlowEventDTO
+import io.github.salomax.neotool.banking.graphql.investment.TwrQuotaPointDTO
 import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
@@ -98,6 +102,106 @@ class PortfolioPerformanceQueryService(
         } else {
             getConsolidatedPortfolioPerformance(accountId, period, hasEstimatedValuesFallback)
         }
+
+    @Suppress("UNUSED_PARAMETER")
+    fun getPortfolioTwrDebug(
+        financialAccountId: UUID?,
+        accountId: UUID,
+        period: PerformancePeriodDTO,
+    ): PortfolioTwrDebugDTO {
+        if (financialAccountId == null) {
+            return PortfolioTwrDebugDTO(null, null, null, emptyList(), emptyList(), emptyList())
+        }
+
+        val window =
+            resolvePerformanceWindow(
+                financialAccountId = financialAccountId,
+                dimensionType = PortfolioDimensionType.PORTFOLIO,
+                dimensionKey = null,
+                period = period,
+            ) ?: return PortfolioTwrDebugDTO(null, null, null, emptyList(), emptyList(), emptyList())
+
+        val seriesDTO =
+            window.series.map { quota ->
+                TwrQuotaPointDTO(
+                    date = quota.quotaDate,
+                    totalValue = quota.totalPortfolioValue.toDouble(),
+                )
+            }
+
+        val flowAmountsByDate =
+            buildScopedDimensionFlowAmounts(
+                financialAccountId = financialAccountId,
+                accountId = null,
+                dimensionType = PortfolioDimensionType.PORTFOLIO,
+                dimensionKey = null,
+                from = window.start.quotaDate.plusDays(1),
+                to = window.end.quotaDate,
+            )
+
+        val rawEvents =
+            portfolioFlowEventRepository
+                .findByAccountAndDateRange(financialAccountId, window.start.quotaDate.plusDays(1), window.end.quotaDate)
+                .filter { it.sourceReferenceType != PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION }
+                .sortedBy { it.eventDate }
+
+        val flowEventsDTO =
+            rawEvents.map { event ->
+                TwrFlowEventDTO(
+                    date = event.eventDate,
+                    eventType = event.eventType.name,
+                    grossAmount = event.grossAmount.toDouble(),
+                    canonicalNetFlow = event.toCanonicalNetFlowAmount()?.toDouble() ?: 0.0,
+                )
+            }
+
+        val dailySteps = mutableListOf<TwrDailyStepDTO>()
+        if (window.series.size >= 2) {
+            var previousValue = window.series.first().totalPortfolioValue.toDouble()
+
+            if (previousValue > 0.0) {
+                var factor = 1.0
+
+                window.series.drop(1).forEach { quota ->
+                    val currentValue = quota.totalPortfolioValue.toDouble()
+                    val netFlow = flowAmountsByDate[quota.quotaDate]?.toDouble() ?: 0.0
+
+                    val (dailyReturn, newFactor) =
+                        if (previousValue <= 0.0) {
+                            0.0 to factor
+                        } else {
+                            val r = (currentValue - previousValue - netFlow) / previousValue
+                            val f = factor * (1.0 + r)
+                            r to f
+                        }
+
+                    dailySteps +=
+                        TwrDailyStepDTO(
+                            date = quota.quotaDate,
+                            previousValue = previousValue,
+                            currentValue = currentValue,
+                            netFlow = netFlow,
+                            dailyReturn = dailyReturn,
+                            cumulativeFactor = newFactor,
+                        )
+
+                    factor = newFactor
+                    previousValue = currentValue
+                }
+            }
+        }
+
+        val twr = if (dailySteps.isEmpty()) null else dailySteps.last().cumulativeFactor - 1.0
+
+        return PortfolioTwrDebugDTO(
+            startDate = window.start.quotaDate,
+            endDate = window.end.quotaDate,
+            twr = twr,
+            series = seriesDTO,
+            flowEvents = flowEventsDTO,
+            dailySteps = dailySteps,
+        )
+    }
 
     private fun getScopedPortfolioPerformance(
         financialAccountId: UUID,
@@ -678,7 +782,7 @@ class PortfolioPerformanceQueryService(
         val indexValue: BigDecimal,
     )
 
-    private fun InvestmentPortfolioFlowEvent.toCanonicalNetFlowAmount(): BigDecimal? =
+    internal fun InvestmentPortfolioFlowEvent.toCanonicalNetFlowAmount(): BigDecimal? =
         when (eventType) {
             PortfolioFlowEventType.DEPOSIT -> grossAmount
             PortfolioFlowEventType.WITHDRAWAL,

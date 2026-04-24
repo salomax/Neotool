@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FIXED_INCOME_GROUP_KEYS, FUND_GROUP_KEYS, type AssetGroupKey, type HoldingRow, type InvestmentHoldingGroup } from './investmentTableHelpers';
+import { FIXED_INCOME_GROUP_KEYS, FUND_GROUP_KEYS, type AssetGroupKey, type InvestmentHoldingGroup } from './investmentTableHelpers';
 import { FixedIncomeHoldingsTable } from './FixedIncomeHoldingsTable';
 import { FundHoldingsTable } from './FundHoldingsTable';
 import { VariableIncomeHoldingsTable } from './VariableIncomeHoldingsTable';
@@ -13,11 +13,6 @@ export interface InvestmentGroupTableProps {
   locale: string;
   showConsolidatedCustodianColumn?: boolean;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenMaturityConfirm: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
 
@@ -27,11 +22,6 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
   locale,
   showConsolidatedCustodianColumn = false,
   onToggleGroup,
-  onOpenDetail,
-  onOpenMaturityConfirm,
-  onOpenActions,
-  onBuy,
-  onSell,
   hideGroupHeader = false,
 }: InvestmentGroupTableProps) {
   if (FIXED_INCOME_GROUP_KEYS.has(group.key)) {
@@ -42,11 +32,6 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
         locale={locale}
         showConsolidatedCustodianColumn={showConsolidatedCustodianColumn}
         onToggleGroup={onToggleGroup}
-        onOpenDetail={onOpenDetail}
-        onOpenMaturityConfirm={onOpenMaturityConfirm}
-        onOpenActions={onOpenActions}
-        onBuy={onBuy}
-        onSell={onSell}
         hideGroupHeader={hideGroupHeader}
       />
     );
@@ -59,10 +44,6 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
         expanded={expanded}
         locale={locale}
         onToggleGroup={onToggleGroup}
-        onOpenDetail={onOpenDetail}
-        onOpenActions={onOpenActions}
-        onBuy={onBuy}
-        onSell={onSell}
         hideGroupHeader={hideGroupHeader}
       />
     );
@@ -74,11 +55,8 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
         group={group}
         expanded={expanded}
         locale={locale}
+        showConsolidatedCustodianColumn={showConsolidatedCustodianColumn}
         onToggleGroup={onToggleGroup}
-        onOpenDetail={onOpenDetail}
-        onOpenActions={onOpenActions}
-        onBuy={onBuy}
-        onSell={onSell}
         hideGroupHeader={hideGroupHeader}
       />
     );
@@ -90,8 +68,6 @@ export const InvestmentGroupTable = React.memo(function InvestmentGroupTable({
       expanded={expanded}
       locale={locale}
       onToggleGroup={onToggleGroup}
-      onOpenDetail={onOpenDetail}
-      onOpenActions={onOpenActions}
       hideGroupHeader={hideGroupHeader}
     />
   );

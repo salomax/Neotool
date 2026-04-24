@@ -2,7 +2,7 @@
 
 import React from "react";
 import { InvestmentGroupTable } from "./InvestmentGroupTable";
-import type { AssetGroupKey, HoldingRow, InvestmentHoldingGroup } from "./investmentTableHelpers";
+import type { AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
 
 export interface HoldingsGroupsSectionProps {
   groups: InvestmentHoldingGroup[];
@@ -12,11 +12,6 @@ export interface HoldingsGroupsSectionProps {
   selectedAccountId: string | null;
   locale: string;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenMaturityConfirm: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
 }
 
 export function HoldingsGroupsSection({
@@ -26,11 +21,6 @@ export function HoldingsGroupsSection({
   selectedAccountId,
   locale,
   onToggleGroup,
-  onOpenDetail,
-  onOpenMaturityConfirm,
-  onOpenActions,
-  onBuy,
-  onSell,
 }: HoldingsGroupsSectionProps) {
   const showConsolidatedCustodianColumn = selectedAccountId == null;
 
@@ -44,11 +34,6 @@ export function HoldingsGroupsSection({
           locale={locale}
           showConsolidatedCustodianColumn={showConsolidatedCustodianColumn}
           onToggleGroup={onToggleGroup}
-          onOpenDetail={onOpenDetail}
-          onOpenMaturityConfirm={onOpenMaturityConfirm}
-          onOpenActions={onOpenActions}
-          onBuy={onBuy}
-          onSell={onSell}
           hideGroupHeader={hideGroupHeader}
         />
       ))}

@@ -8,7 +8,7 @@ import {
 
 /** Groups rendered by `FundHoldingsTable`, `VariableIncomeHoldingsTable`, or `StandardHoldingsTable`. */
 export type NonFixedIncomeAssetGroupKey = Exclude<AssetGroupKey, 'fixedIncome'>;
-export const NON_FIXED_INCOME_ACTION_COL_PX = 156;
+export const NON_FIXED_INCOME_ACTION_COL_PX = 140;
 
 const FLEXIBLE_ASSET_MIN_WIDTH_PX = 240;
 const FLEXIBLE_GROSS_VALUE_COL_WIDTH_PX = 170;
@@ -71,5 +71,33 @@ export function buildInvestmentGroupLayout(groupKey: NonFixedIncomeAssetGroupKey
       ? { ...fixedBase(FLEXIBLE_GROSS_VALUE_COL_WIDTH_PX), textAlign: 'right' }
       : baseColSx,
     gainColSx: isFundGroup ? { ...fixedBase(FLEXIBLE_GAIN_COL_WIDTH_PX), textAlign: 'right' } : baseColSx,
+  };
+}
+
+export interface VariableIncomeTableLayout extends InvestmentGroupLayout {
+  showConsolidatedCustodianColumn: boolean;
+  custodianColSx: SxProps<Theme>;
+  quantityColSx: SxProps<Theme>;
+}
+
+export function buildVariableIncomeTableLayout(showConsolidatedCustodianColumn: boolean): VariableIncomeTableLayout {
+  const actionColWidth = NON_FIXED_INCOME_ACTION_COL_PX;
+  const dataColumnCount = showConsolidatedCustodianColumn ? 7 : 6;
+  const colWidth = `calc((100% - ${actionColWidth}px) / ${dataColumnCount})`;
+  const eq = fixedBase(VARIABLE_INCOME_DATA_COL_PX);
+  const qty = fixedBase(96);
+
+  return {
+    actionColWidth,
+    colWidth,
+    isFundGroup: false,
+    isVariableIncomeGroup: true,
+    showConsolidatedCustodianColumn,
+    assetColSx: { flex: "1 1 auto", minWidth: 0, pr: 2 },
+    custodianColSx: { ...eq, pl: 1 },
+    quantityColSx: qty,
+    maturityColSx: eq,
+    gainColSx: { ...eq, textAlign: "right" },
+    grossValueColSx: { ...eq, textAlign: "right" },
   };
 }

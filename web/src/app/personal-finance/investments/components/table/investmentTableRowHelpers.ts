@@ -3,8 +3,6 @@
 import { formatCurrency } from './investmentTableHelpers';
 import type { HoldingRow } from './investmentTableHelpers';
 
-export type InvestmentTableTranslate = (key: string, options?: Record<string, unknown>) => string;
-
 const quantityFormatterCache = new Map<string, Intl.NumberFormat>();
 const percentFormatterCache = new Map<string, Intl.NumberFormat>();
 

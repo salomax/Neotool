@@ -10,7 +10,8 @@ import { personalFinanceTranslations } from "../../../i18n";
 import { FundHoldingRow } from "./FundHoldingRow";
 import { buildInvestmentGroupLayout, type NonFixedIncomeAssetGroupKey } from "./investmentTableLayout";
 import { InvestmentGroupTableShell } from "./InvestmentGroupTableShell";
-import type { HoldingRow, AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
+import { getTableRadius } from "./themeUtils";
+import type { AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
 
 const ICON_KIND: Record<"mutualFunds" | "pension", AssetTypeIconKind> = {
   mutualFunds: "FUND",
@@ -22,10 +23,6 @@ export interface FundHoldingsTableProps {
   expanded: boolean;
   locale: string;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
 
@@ -34,10 +31,6 @@ export const FundHoldingsTable = React.memo(function FundHoldingsTable({
   expanded,
   locale,
   onToggleGroup,
-  onOpenDetail,
-  onOpenActions,
-  onBuy,
-  onSell,
   hideGroupHeader = false,
 }: FundHoldingsTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -49,7 +42,7 @@ export const FundHoldingsTable = React.memo(function FundHoldingsTable({
   );
   const dividerColor = React.useMemo(() => alpha(theme.palette.divider, 0.7), [theme.palette.divider]);
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
-  const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
+  const tableRadius = getTableRadius(theme);
 
   const buyLabel = t("investments.transactions.apply");
   const sellLabel = t("investments.transactions.redeem");
@@ -116,11 +109,6 @@ export const FundHoldingsTable = React.memo(function FundHoldingsTable({
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          t={t}
-          onOpenDetail={onOpenDetail}
-          onOpenActions={onOpenActions}
-          onBuy={buyLabel ? onBuy : undefined}
-          onSell={sellLabel ? onSell : undefined}
           buyLabel={buyLabel}
           sellLabel={sellLabel}
         />

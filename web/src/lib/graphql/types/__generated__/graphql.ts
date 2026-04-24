@@ -2032,6 +2032,7 @@ export type ListedAssetAutocompleteItem = {
   assetType: Scalars['String']['output'];
   id: Scalars['ID']['output'];
   isActive: Scalars['Boolean']['output'];
+  logoAsset: Maybe<Asset>;
   name: Scalars['String']['output'];
   ticker: Scalars['String']['output'];
 };
@@ -3066,6 +3067,23 @@ export type PortfolioPerformanceSeries = {
   valuationSource: ValuationSource;
 };
 
+/** Full diagnostic payload for the TWR calculation of one account and period. */
+export type PortfolioTwrDebug = {
+  __typename: 'PortfolioTwrDebug';
+  /** Per-day computation steps (series.size - 1 entries; empty if series < 2). */
+  dailySteps: Array<TwrDailyStep>;
+  /** ISO date of the last quota in the series. */
+  endDate: Maybe<Scalars['Date']['output']>;
+  /** Flow events in the window [startDate+1 .. endDate] used by the engine. */
+  flowEvents: Array<TwrFlowEvent>;
+  /** The quota series (one entry per calendar day that has a stored quota). */
+  series: Array<TwrQuotaPoint>;
+  /** ISO date of the first quota in the series (anchor point, factor = 1.0). */
+  startDate: Maybe<Scalars['Date']['output']>;
+  /** Same value as investmentPortfolioSummary.performance.twr — null if series has fewer than 2 points. */
+  twr: Maybe<Scalars['Float']['output']>;
+};
+
 export type PricePoint = {
   __typename: 'PricePoint';
   date: Scalars['Date']['output'];
@@ -3354,6 +3372,8 @@ export type Query = {
    * are included (same scope as investmentHoldings with the same argument). Omitted means all custodian accounts.
    */
   portfolioPerformance: Maybe<PortfolioPerformanceSeries>;
+  /** Debug view of the TWR calculation pipeline for a given account and period. */
+  portfolioTwrDebug: PortfolioTwrDebug;
   /**
    * Tests whether the given pattern matches the provided sample description. Returns true if a match would fire.
    * Throws a validation error if patternType is REGEX and the pattern is invalid. Does not persist anything.
@@ -3772,6 +3792,12 @@ export type QueryPortfolioPerformanceArgs = {
   includeProjection?: InputMaybe<Scalars['Boolean']['input']>;
   resolution?: InputMaybe<HoldingPerformanceResolution>;
   subgroupKey?: InputMaybe<Scalars['String']['input']>;
+};
+
+
+export type QueryPortfolioTwrDebugArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  period?: InputMaybe<PerformancePeriod>;
 };
 
 
@@ -4577,6 +4603,39 @@ export type TransferCustodyResult = {
   __typename: 'TransferCustodyResult';
   inflowTransaction: InvestmentTransaction;
   outflowTransaction: InvestmentTransaction;
+};
+
+/** One step in the TWR chain, corresponding to a quota point after the first. */
+export type TwrDailyStep = {
+  __typename: 'TwrDailyStep';
+  /** Running product: factor_t = factor_(t-1) * (1 + dailyReturn_t). Starts at 1.0. */
+  cumulativeFactor: Scalars['Float']['output'];
+  currentValue: Scalars['Float']['output'];
+  /** (currentValue - previousValue - netFlow) / previousValue */
+  dailyReturn: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  /** Sum of canonical net flows on this date (0 if none). */
+  netFlow: Scalars['Float']['output'];
+  previousValue: Scalars['Float']['output'];
+};
+
+/** One flow event considered by the TWR engine for this account and period. */
+export type TwrFlowEvent = {
+  __typename: 'TwrFlowEvent';
+  /** Signed net amount used in the TWR formula: positive = inflow, negative = outflow. */
+  canonicalNetFlow: Scalars['Float']['output'];
+  date: Scalars['Date']['output'];
+  /** DEPOSIT | WITHDRAWAL | DIVIDEND | INCOME_TAX | CORPORATE_ACTION */
+  eventType: Scalars['String']['output'];
+  grossAmount: Scalars['Float']['output'];
+};
+
+/** One row in the portfolio quota series fed into the TWR engine. */
+export type TwrQuotaPoint = {
+  __typename: 'TwrQuotaPoint';
+  date: Scalars['Date']['output'];
+  /** Total portfolio value on this date (sum of all holdings mark-to-market). */
+  totalValue: Scalars['Float']['output'];
 };
 
 export type UnmappedItemGroup = {

@@ -1205,6 +1205,17 @@ class FinancialDataWiringFactory(
                     .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.name })
                     .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.assetType })
                     .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.isActive })
+                    .dataFetcher(
+                        "logoAsset",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.logoAssetId?.let { assetId ->
+                                mapOf(
+                                    "__typename" to "Asset",
+                                    "id" to assetId,
+                                )
+                            }
+                        },
+                    )
             }
             .type("ListedAssetConnection") { type ->
                 type

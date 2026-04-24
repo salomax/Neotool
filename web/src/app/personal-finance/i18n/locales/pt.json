@@ -444,7 +444,11 @@
       },
       "groups": {
         "variableIncome": "Renda Variável",
+        "variableIncomeB3": "Renda Variável (B3)",
         "fixedIncome": "Renda Fixa",
+        "bankFixedIncome": "Renda Fixa",
+        "creditFixedIncome": "Renda Fixa Crédito",
+        "treasuryDirect": "Tesouro Direto",
         "mutualFunds": "Fundos de Investimento",
         "pension": "Previdência Privada",
         "structured": "Estruturado",
@@ -505,20 +509,19 @@
       "common": {
         "notAvailable": "—"
       },
-"fund": {
-  "pricingModeLabel": "Modo de precificação",
-  "latestNavLabel": "Última VNA",
-  "referenceDate": "Ref.: {{date}}"
-},
-"priceReference": {
-  "labelWithDate": "{{label}} ({{date}})",
-  "descriptors": {
-    "unitPrice": "Preço unitário",
-    "cryptoPrice": "Preço do criptoativo",
-    "fiiQuotaPrice": "Preço da cota (FII/Fiagro)",
-    "quotaValue": "Valor da cota"
-  }
-}
+      "fund": {
+        "pricingModeLabel": "Modo de precificação",
+        "latestNavLabel": "Última VNA",
+        "referenceDate": "Ref.: {{date}}"
+      },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Preço unitário",
+          "cryptoPrice": "Preço do criptoativo",
+          "fiiQuotaPrice": "Preço da cota (FII/Fiagro)",
+          "quotaValue": "Valor da cota"
+        }
       },
       "indexers": {
         "Cdi": "CDI",
@@ -757,6 +760,7 @@
         "indexer": "Indexador",
         "indexerPercentage": "% do indexador",
         "fixedAnnualRate": "Taxa (% a.a.)",
+        "preFixedRate": "Taxa (% a.a.)",
         "quantity": "Quantidade",
         "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
@@ -804,6 +808,7 @@
         "indexerRequired": "Indexador é obrigatório",
         "indexerPercentageRequired": "% do indexador é obrigatório",
         "fixedAnnualRateRequired": "Taxa é obrigatória",
+        "preFixedRateRequired": "Taxa é obrigatória",
         "quantityNonNegative": "Quantidade deve ser maior ou igual a zero",
         "grossValueRequired": "Valor aplicado é obrigatório",
         "grossValuePositive": "Valor deve ser maior que zero",
@@ -1023,6 +1028,8 @@
         "1y": "Último ano",
         "3y": "Últimos 3 anos",
         "all": "Todo o período",
+        "90d": "Últimos 90 dias",
+        "ytd": "Ano até hoje",
         "custom": "Personalizado"
       }
     },

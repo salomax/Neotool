@@ -25,3 +25,4 @@ export * from './sorting';
 // Mutation hooks
 export * from './mutations';
 
+export * from './useStoredState';

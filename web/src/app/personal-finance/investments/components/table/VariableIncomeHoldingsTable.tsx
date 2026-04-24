@@ -8,19 +8,17 @@ import { ValueOriginIndicator } from "@/shared/components/ui/data-display";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { personalFinanceTranslations } from "../../../i18n";
 import { VariableIncomeHoldingRow } from "./VariableIncomeHoldingRow";
-import { buildInvestmentGroupLayout } from "./investmentTableLayout";
+import { buildVariableIncomeTableLayout } from "./investmentTableLayout";
 import { InvestmentGroupTableShell } from "./InvestmentGroupTableShell";
-import type { HoldingRow, AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
+import { getTableRadius } from "./themeUtils";
+import type { AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
 
 export interface VariableIncomeHoldingsTableProps {
   group: InvestmentHoldingGroup;
   expanded: boolean;
   locale: string;
+  showConsolidatedCustodianColumn?: boolean;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
 
@@ -28,20 +26,20 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
   group,
   expanded,
   locale,
+  showConsolidatedCustodianColumn = false,
   onToggleGroup,
-  onOpenDetail,
-  onOpenActions,
-  onBuy,
-  onSell,
   hideGroupHeader = false,
 }: VariableIncomeHoldingsTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
 
-  const layout = React.useMemo(() => buildInvestmentGroupLayout("variableIncome"), []);
+  const layout = React.useMemo(
+    () => buildVariableIncomeTableLayout(showConsolidatedCustodianColumn),
+    [showConsolidatedCustodianColumn],
+  );
   const dividerColor = React.useMemo(() => alpha(theme.palette.divider, 0.7), [theme.palette.divider]);
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
-  const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
+  const tableRadius = getTableRadius(theme);
 
   const buyLabel = t("investments.transactions.buy");
   const sellLabel = t("investments.transactions.sell");
@@ -66,10 +64,19 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
         sx: layout.assetColSx,
         content: <Label>{t("investments.table.columns.asset")}</Label>,
       },
+      ...(layout.showConsolidatedCustodianColumn
+        ? [
+            {
+              key: "custodian",
+              sx: layout.custodianColSx,
+              content: <Label>{t("investments.cash.movements.columns.financialAccount")}</Label>,
+            },
+          ]
+        : []),
       {
         key: "quantity",
         align: "right" as const,
-        sx: layout.maturityColSx,
+        sx: layout.quantityColSx,
         content: <Label>{t("investments.table.columns.quantity")}</Label>,
       },
       {
@@ -124,11 +131,6 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          t={t}
-          onOpenDetail={onOpenDetail}
-          onOpenActions={onOpenActions}
-          onBuy={buyLabel ? onBuy : undefined}
-          onSell={sellLabel ? onSell : undefined}
           buyLabel={buyLabel}
           sellLabel={sellLabel}
         />

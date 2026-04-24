@@ -4,19 +4,21 @@ import React from "react";
 import { Box, Typography, alpha, useTheme } from "@mui/material";
 import { Chip } from "@/shared/components/ui/primitives/Chip";
 import { PercentageGain, ValueOriginIndicator } from "@/shared/components/ui/data-display";
+import { useTranslation } from "@/shared/i18n";
 import { formatTableDate } from "@/shared/utils/date";
 import { getHoldingValueOrigin } from "@/shared/utils/holdingValueOrigin";
 import { FinancialAccountIdentity } from "@/shared/components/ui/data-display/FinancialAccountIdentity";
 import { FixedIncomeAssetIdentity, resolveHoldingIdentity } from "../HoldingIdentity";
+import { personalFinanceTranslations } from "../../../i18n";
 import {
   computePrincipal,
   formatPercentageRate,
   formatValueOrPlaceholder,
-  type InvestmentTableTranslate,
 } from "./investmentTableRowHelpers";
 import type { FixedIncomeTableLayout } from "./fixedIncomeTableLayout";
 import type { HoldingRow } from "./investmentTableHelpers";
 import { HoldingRowActionsColumn } from "./HoldingRowActionsColumn";
+import { useInvestmentTableActions } from "./InvestmentTableActionsContext";
 
 const SECONDARY_ROW_SX = { mt: 0.25, minHeight: 16, display: "flex", alignItems: "center" } as const;
 
@@ -26,12 +28,6 @@ export interface FixedIncomeHoldingRowProps {
   locale: string;
   dividerColor: string;
   hoverColor: string;
-  t: InvestmentTableTranslate;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenMaturityConfirm: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   buyLabel?: string;
   sellLabel?: string;
 }
@@ -42,15 +38,11 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
   locale,
   dividerColor,
   hoverColor,
-  t,
-  onOpenDetail,
-  onOpenMaturityConfirm,
-  onOpenActions,
-  onBuy,
-  onSell,
   buyLabel,
   sellLabel,
 }: FixedIncomeHoldingRowProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const { onOpenDetail, onOpenMaturityConfirm } = useInvestmentTableActions();
   const theme = useTheme();
   const [hovered, setHovered] = React.useState(false);
 
@@ -213,10 +205,6 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
         actionColWidth={layout.actionColWidth}
         hovered={hovered}
         holding={holding}
-        t={t}
-        onOpenActions={onOpenActions}
-        onBuy={onBuy}
-        onSell={onSell}
         buyLabel={buyLabel}
         sellLabel={sellLabel}
       />

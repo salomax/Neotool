@@ -43,8 +43,21 @@ open class ListedAssetRepositoryImpl(
                 ia.name,
                 ia.asset_type,
                 ia.exchange,
-                ia.is_active
+                ia.is_active,
+                brand.logo_asset_id::text
             FROM financial_data.investment_asset ia
+            LEFT JOIN LATERAL (
+                SELECT ab.logo_asset_id
+                FROM financial_data.investment_asset_brand_match asset_match
+                JOIN financial_data.asset_brand ab ON ab.id = asset_match.asset_brand_id
+                WHERE asset_match.investment_asset_id = ia.id
+                  AND asset_match.status IN ('VERIFIED', 'AUTO_APPROVED')
+                  AND ab.logo_asset_id IS NOT NULL
+                ORDER BY
+                    CASE WHEN asset_match.status = 'VERIFIED' THEN 0 ELSE 1 END,
+                    asset_match.updated_at DESC
+                LIMIT 1
+            ) brand ON true
             WHERE ia.source = 'B3'
               AND ia.ticker IS NOT NULL
               AND (ia.ticker ILIKE ? OR ia.name ILIKE ?)

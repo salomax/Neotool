@@ -316,3 +316,33 @@ data class InvestmentPortfolioSummaryDTO(
     val performance: PortfolioPerformanceDTO,
     val recalculationStatus: RecalculationStatusDTO,
 )
+
+data class TwrQuotaPointDTO(
+    val date: LocalDate,
+    val totalValue: Double,
+)
+
+data class TwrFlowEventDTO(
+    val date: LocalDate,
+    val eventType: String,
+    val grossAmount: Double,
+    val canonicalNetFlow: Double,
+)
+
+data class TwrDailyStepDTO(
+    val date: LocalDate,
+    val previousValue: Double,
+    val currentValue: Double,
+    val netFlow: Double,
+    val dailyReturn: Double,
+    val cumulativeFactor: Double,
+)
+
+data class PortfolioTwrDebugDTO(
+    val startDate: LocalDate?,
+    val endDate: LocalDate?,
+    val twr: Double?,
+    val series: List<TwrQuotaPointDTO>,
+    val flowEvents: List<TwrFlowEventDTO>,
+    val dailySteps: List<TwrDailyStepDTO>,
+)

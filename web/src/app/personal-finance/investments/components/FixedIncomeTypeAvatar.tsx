@@ -36,7 +36,7 @@ export function getFixedIncomeTypeAvatarColor(theme: Theme, assetType: string | 
 
 export interface FixedIncomeTypeAvatarProps {
   assetType: string | null | undefined;
-  size?: number;
+  size?: number | "auto";
   "data-testid"?: string;
 }
 
@@ -57,8 +57,8 @@ export function FixedIncomeTypeAvatar({
       variant="rounded"
       data-testid={dataTestId}
       sx={{
-        width: size,
-        height: size,
+        width: size === "auto" ? "auto" : size,
+        height: size === "auto" ? "auto" : size,
         flexShrink: 0,
         bgcolor: bg,
         color: theme.palette.common.white,

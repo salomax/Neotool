@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
+import { useApolloClient, useLazyQuery, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Avatar,
@@ -9,6 +9,7 @@ import {
   Button,
   CircularProgress,
   Divider,
+  InputAdornment,
   List,
   ListItemButton,
   ListItemIcon,
@@ -22,7 +23,11 @@ import dayjs from "dayjs";
 import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION, UPDATE_INVESTMENT_ASSET, UPDATE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
-import { INVESTMENT_ASSET_PRICE } from "@/lib/graphql/operations/financial-data/queries";
+import {
+  InvestmentAssetPriceDocument,
+  type InvestmentAssetPriceQuery,
+  type InvestmentAssetPriceQueryVariables,
+} from "@/lib/graphql/operations/financial-data/queries.generated";
 import {
   CreateInvestmentAssetMutation,
   CreateInvestmentAssetMutationVariables,
@@ -143,6 +148,10 @@ export function RecordEquityHoldingDrawer({
   const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
   const isEdit = Boolean(editHolding && editTransaction);
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
+  const lastRequestedAssetPriceKeyRef = React.useRef<string | null>(null);
+  const lastAppliedAssetPriceKeyRef = React.useRef<string | null>(null);
+  const lastAutoUnitPriceRef = React.useRef<number | null>(null);
+  const [assetPriceFetching, setAssetPriceFetching] = React.useState(false);
   const mapHoldingAssetTypeToB3 = React.useCallback((assetType: AssetType) => {
     switch (assetType) {
       case AssetType.RealEstateFund:
@@ -327,35 +336,66 @@ export function RecordEquityHoldingDrawer({
     [selectedTradeDate],
   );
 
-  const assetPriceQuery = useQuery<
+  const [fetchAssetPrice, assetPriceQuery] = useLazyQuery<InvestmentAssetPriceQuery, InvestmentAssetPriceQueryVariables>(
+    InvestmentAssetPriceDocument,
     {
-      investmentAssetByTicker: {
-        id: string;
-        ticker: string;
-        priceHistory: Array<{ date: string; closePrice: number }>;
-      } | null;
-    },
-    { ticker: string; to: string }
-  >(INVESTMENT_ASSET_PRICE, {
-    variables: { ticker: selectedAsset?.ticker ?? "", to: tradeDateIso ?? "" },
-    skip: !selectedAsset?.ticker || !tradeDateIso,
     fetchPolicy: "cache-and-network",
     errorPolicy: "all",
-  });
-
-  const suggestedUnitPrice = assetPriceQuery.data?.investmentAssetByTicker?.priceHistory?.[0]?.closePrice ?? null;
+    },
+  );
 
   useEffect(() => {
     if (!open) return;
-    if (!suggestedUnitPrice) return;
-    if (dirtyFields.unitPrice) return;
-    if (typeof unitPriceValue === "number" && unitPriceValue > 0) return;
-    methods.setValue("unitPrice", suggestedUnitPrice, { shouldDirty: false, shouldTouch: true, shouldValidate: true });
-  }, [dirtyFields.unitPrice, methods, open, suggestedUnitPrice, unitPriceValue]);
+    const activeTicker = selectedAsset?.ticker ?? null;
+    if (!activeTicker) return;
+    if (!tradeDateIso) return;
+    const key = `${activeTicker}|${tradeDateIso}`;
+    if (lastRequestedAssetPriceKeyRef.current === key) return;
+    lastRequestedAssetPriceKeyRef.current = key;
+    const currentUnitPrice = methods.getValues("unitPrice");
+    if (currentUnitPrice == null || currentUnitPrice === lastAutoUnitPriceRef.current) {
+      methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldTouch: false, shouldValidate: true });
+    }
+    setAssetPriceFetching(true);
+    fetchAssetPrice({ variables: { ticker: activeTicker, from: tradeDateIso } })
+      .then((result) => {
+        if (lastRequestedAssetPriceKeyRef.current !== key) return;
+        setAssetPriceFetching(false);
+        const latestUnitPrice = methods.getValues("unitPrice");
+        if (latestUnitPrice != null && latestUnitPrice !== lastAutoUnitPriceRef.current) return;
+        const price = result.data?.investmentAssetByTicker?.priceHistory?.[0]?.closePrice ?? null;
+        if (price == null) return;
+        if (lastAppliedAssetPriceKeyRef.current === key && latestUnitPrice === price) return;
+        lastAppliedAssetPriceKeyRef.current = key;
+        lastAutoUnitPriceRef.current = price;
+        methods.setValue("unitPrice", price, { shouldDirty: false, shouldTouch: false, shouldValidate: true });
+      })
+      .catch(() => {
+        if (lastRequestedAssetPriceKeyRef.current !== key) return;
+        setAssetPriceFetching(false);
+      });
+  }, [fetchAssetPrice, methods, open, selectedAsset?.ticker, tradeDateIso]);
+
+  const isAssetPriceLoading = open && Boolean(selectedAsset?.ticker) && Boolean(tradeDateIso) && assetPriceFetching;
+
+  const unitPriceInputProps = React.useMemo(
+    () => ({
+      endAdornment: isAssetPriceLoading ? (
+        <InputAdornment position="end">
+          <CircularProgress size={16} />
+        </InputAdornment>
+      ) : null,
+    }),
+    [isAssetPriceLoading],
+  );
 
   useEffect(() => {
     if (!open) {
       lastEditSeedRef.current = null;
+      lastRequestedAssetPriceKeyRef.current = null;
+      lastAppliedAssetPriceKeyRef.current = null;
+      lastAutoUnitPriceRef.current = null;
+      setAssetPriceFetching(false);
       reset();
       setValueFlow("BY_QUANTITY");
       setFeesMode("SUMMARY");
@@ -483,7 +523,7 @@ export function RecordEquityHoldingDrawer({
     }
 
     const tradeDate = formatDateOnly(data.tradeDate);
-    const unitPrice = data.unitPrice ?? suggestedUnitPrice;
+    const unitPrice = data.unitPrice;
     if (!unitPrice) return;
 
     const quantity = valueFlow === "BY_AMOUNT" ? (data.grossValue ? data.grossValue / unitPrice : NaN) : Number(data.quantity);
@@ -751,6 +791,7 @@ export function RecordEquityHoldingDrawer({
                         name="unitPrice"
                         label={t("investments.recordEquity.fields.unitPrice")}
                         currency="BRL"
+                        InputProps={unitPriceInputProps}
                         data-testid="record-equity-unit-price"
                       />
                     </FormRowStack>
@@ -778,6 +819,7 @@ export function RecordEquityHoldingDrawer({
                         name="unitPrice"
                         label={t("investments.recordEquity.fields.unitPrice")}
                         currency="BRL"
+                        InputProps={unitPriceInputProps}
                         data-testid="record-equity-unit-price"
                       />
                     </FormRowStack>
