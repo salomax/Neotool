@@ -20,7 +20,7 @@ function uniqueName(prefix: string): string {
 }
 
 export const test = base.extend<InvestmentFixtures>({
-  brokerageAccount: async ({ pfUser }, use) => {
+  brokerageAccount: async ({ pfUser }, provideFixture) => {
     const account = await createFinancialAccount(
       {
         name: uniqueName('Corretora E2E A'),
@@ -30,10 +30,10 @@ export const test = base.extend<InvestmentFixtures>({
       pfUser.token,
     );
 
-    await use(account);
+    await provideFixture(account);
   },
 
-  secondaryBrokerageAccount: async ({ pfUser }, use) => {
+  secondaryBrokerageAccount: async ({ pfUser }, provideFixture) => {
     const account = await createFinancialAccount(
       {
         name: uniqueName('Corretora E2E B'),
@@ -43,10 +43,10 @@ export const test = base.extend<InvestmentFixtures>({
       pfUser.token,
     );
 
-    await use(account);
+    await provideFixture(account);
   },
 
-  cryptoAccount: async ({ pfUser }, use) => {
+  cryptoAccount: async ({ pfUser }, provideFixture) => {
     const account = await createFinancialAccount(
       {
         name: uniqueName('Exchange Cripto E2E'),
@@ -56,7 +56,7 @@ export const test = base.extend<InvestmentFixtures>({
       pfUser.token,
     );
 
-    await use(account);
+    await provideFixture(account);
   },
 });
 

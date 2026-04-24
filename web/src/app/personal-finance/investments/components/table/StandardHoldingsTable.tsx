@@ -10,7 +10,8 @@ import { personalFinanceTranslations } from "../../../i18n";
 import { StandardHoldingRow } from "./StandardHoldingRow";
 import { buildInvestmentGroupLayout, type NonFixedIncomeAssetGroupKey } from "./investmentTableLayout";
 import { InvestmentGroupTableShell } from "./InvestmentGroupTableShell";
-import type { HoldingRow, AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
+import { getTableRadius } from "./themeUtils";
+import type { AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
 
 const ICON_KIND: Record<"structured" | "others", AssetTypeIconKind> = {
   structured: "STRUCTURED",
@@ -22,8 +23,6 @@ export interface StandardHoldingsTableProps {
   expanded: boolean;
   locale: string;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
 
@@ -32,8 +31,6 @@ export const StandardHoldingsTable = React.memo(function StandardHoldingsTable({
   expanded,
   locale,
   onToggleGroup,
-  onOpenDetail,
-  onOpenActions,
   hideGroupHeader = false,
 }: StandardHoldingsTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -45,7 +42,7 @@ export const StandardHoldingsTable = React.memo(function StandardHoldingsTable({
   );
   const dividerColor = React.useMemo(() => alpha(theme.palette.divider, 0.7), [theme.palette.divider]);
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
-  const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
+  const tableRadius = getTableRadius(theme);
 
   const summaryAdornment = React.useMemo(() => {
     if (!group.valueOriginKey || group.total === "—") return null;
@@ -119,9 +116,6 @@ export const StandardHoldingsTable = React.memo(function StandardHoldingsTable({
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          t={t}
-          onOpenDetail={onOpenDetail}
-          onOpenActions={onOpenActions}
         />
       ))}
     </InvestmentGroupTableShell>

@@ -20,6 +20,7 @@ data class ListedAssetAutocompleteItemDTO(
     val name: String,
     val assetType: String,
     val isActive: Boolean,
+    val logoAssetId: String?,
 )
 
 // Paginated list DTOs

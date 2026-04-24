@@ -2507,6 +2507,7 @@ type ListedAssetAutocompleteItem
   name: String!
   assetType: String!
   isActive: Boolean!
+  logoAsset: Asset
 }
 
 type ListedAssetConnection
@@ -3245,6 +3246,37 @@ type PortfolioPerformanceSeries
   includedHoldingsCount: Int!
 }
 
+"""
+Full diagnostic payload for the TWR calculation of one account and period.
+"""
+type PortfolioTwrDebug
+  @join__type(graph: BANKING)
+{
+  """
+  ISO date of the first quota in the series (anchor point, factor = 1.0).
+  """
+  startDate: Date
+
+  """ISO date of the last quota in the series."""
+  endDate: Date
+
+  """
+  Same value as investmentPortfolioSummary.performance.twr — null if series has fewer than 2 points.
+  """
+  twr: Float
+
+  """The quota series (one entry per calendar day that has a stored quota)."""
+  series: [TwrQuotaPoint!]!
+
+  """Flow events in the window [startDate+1 .. endDate] used by the engine."""
+  flowEvents: [TwrFlowEvent!]!
+
+  """
+  Per-day computation steps (series.size - 1 entries; empty if series < 2).
+  """
+  dailySteps: [TwrDailyStep!]!
+}
+
 type PricePoint
   @join__type(graph: BANKING)
 {
@@ -3662,6 +3694,11 @@ type Query
   Investment portfolio summary for one investment account or the consolidated view.
   """
   investmentPortfolioSummary(financialAccountId: ID, period: PerformancePeriod): InvestmentPortfolioSummary! @join__field(graph: BANKING)
+
+  """
+  Debug view of the TWR calculation pipeline for a given account and period.
+  """
+  portfolioTwrDebug(financialAccountId: ID, period: PerformancePeriod): PortfolioTwrDebug! @join__field(graph: BANKING)
 
   """
   Paginated ledger rows that affect investment custodian cash (TRANSFER, INVESTMENT_RETURN, BALANCE_ADJUSTMENT).
@@ -4474,6 +4511,58 @@ type TransferCustodyResult
 {
   outflowTransaction: InvestmentTransaction!
   inflowTransaction: InvestmentTransaction!
+}
+
+"""
+One step in the TWR chain, corresponding to a quota point after the first.
+"""
+type TwrDailyStep
+  @join__type(graph: BANKING)
+{
+  date: Date!
+  previousValue: Float!
+  currentValue: Float!
+
+  """Sum of canonical net flows on this date (0 if none)."""
+  netFlow: Float!
+
+  """(currentValue - previousValue - netFlow) / previousValue"""
+  dailyReturn: Float!
+
+  """
+  Running product: factor_t = factor_(t-1) * (1 + dailyReturn_t). Starts at 1.0.
+  """
+  cumulativeFactor: Float!
+}
+
+"""
+One flow event considered by the TWR engine for this account and period.
+"""
+type TwrFlowEvent
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """DEPOSIT | WITHDRAWAL | DIVIDEND | INCOME_TAX | CORPORATE_ACTION"""
+  eventType: String!
+  grossAmount: Float!
+
+  """
+  Signed net amount used in the TWR formula: positive = inflow, negative = outflow.
+  """
+  canonicalNetFlow: Float!
+}
+
+"""One row in the portfolio quota series fed into the TWR engine."""
+type TwrQuotaPoint
+  @join__type(graph: BANKING)
+{
+  date: Date!
+
+  """
+  Total portfolio value on this date (sum of all holdings mark-to-market).
+  """
+  totalValue: Float!
 }
 
 type UnmappedItemGroup

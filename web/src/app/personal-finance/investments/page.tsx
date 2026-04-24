@@ -31,7 +31,6 @@ export default function PersonalFinanceInvestmentsPage() {
   const theme = useTheme();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const benefitAccountType = "BENEFIT" as unknown as FinancialAccountType;
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
@@ -49,9 +48,9 @@ export default function PersonalFinanceInvestmentsPage() {
     () =>
       (accountsData?.financialAccounts ?? []).filter(
         (account) =>
-          account.type === FinancialAccountType.Investment || account.type === benefitAccountType,
+          account.type === FinancialAccountType.Investment || account.type === FinancialAccountType.Benefit,
       ),
-    [accountsData?.financialAccounts, benefitAccountType],
+    [accountsData?.financialAccounts],
   );
 
   const bankAccounts = React.useMemo(
@@ -85,7 +84,7 @@ export default function PersonalFinanceInvestmentsPage() {
           onNewAccount={() => setIsCreateAccountOpen(true)}
           selectedAccountId={effectiveSelectedAccountId}
           onSelectAccount={setSelectedAccountId}
-          accountTypes={[FinancialAccountType.Investment, benefitAccountType]}
+          accountTypes={[FinancialAccountType.Investment, FinancialAccountType.Benefit]}
           allAccountsLabel={t("investments.sidebar.allBrokers")}
           consolidatedViewLabel={t("investments.sidebar.consolidatedView")}
           newAccountLabel={t("investments.emptyState.primaryAction")}

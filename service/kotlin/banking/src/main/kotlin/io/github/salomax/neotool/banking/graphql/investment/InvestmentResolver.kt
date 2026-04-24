@@ -126,6 +126,19 @@ class InvestmentResolver(
         )
     }
 
+    fun portfolioTwrDebug(
+        financialAccountId: String?,
+        period: String?,
+        principal: RequestPrincipal,
+    ): PortfolioTwrDebugDTO {
+        val accountId = requireAccountId(principal)
+        return portfolioPerformanceQueryService.getPortfolioTwrDebug(
+            financialAccountId = financialAccountId?.let(UUID::fromString),
+            accountId = accountId,
+            period = period?.let(PerformancePeriodDTO::valueOf) ?: PerformancePeriodDTO.ALL,
+        )
+    }
+
     fun investmentCashTransactions(
         financialAccountId: String?,
         first: Int?,

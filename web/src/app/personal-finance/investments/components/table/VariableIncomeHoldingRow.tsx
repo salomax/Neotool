@@ -3,31 +3,29 @@
 import React from "react";
 import { Box, Typography } from "@mui/material";
 import { PercentageGain, ValueOriginIndicator } from "@/shared/components/ui/data-display";
+import { useTranslation } from "@/shared/i18n";
+import { FinancialAccountIdentity } from "@/shared/components/ui/data-display/FinancialAccountIdentity";
 import { getHoldingValueOrigin } from "@/shared/utils/holdingValueOrigin";
 import { HoldingIdentity, resolveHoldingIdentity } from "../HoldingIdentity";
+import { personalFinanceTranslations } from "../../../i18n";
 import {
   computePrincipal,
   formatQuantity,
   formatValueOrPlaceholder,
-  type InvestmentTableTranslate,
 } from "./investmentTableRowHelpers";
-import type { InvestmentGroupLayout } from "./investmentTableLayout";
+import type { VariableIncomeTableLayout } from "./investmentTableLayout";
 import type { HoldingRow } from "./investmentTableHelpers";
 import { HoldingRowActionsColumn } from "./HoldingRowActionsColumn";
+import { useInvestmentTableActions } from "./InvestmentTableActionsContext";
 
 const SECONDARY_ROW_SX = { mt: 0.25, minHeight: 16, display: "flex", alignItems: "center" } as const;
 
 export interface VariableIncomeHoldingRowProps {
   holding: HoldingRow;
-  layout: InvestmentGroupLayout;
+  layout: VariableIncomeTableLayout;
   locale: string;
   dividerColor: string;
   hoverColor: string;
-  t: InvestmentTableTranslate;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   buyLabel?: string;
   sellLabel?: string;
 }
@@ -38,16 +36,14 @@ export const VariableIncomeHoldingRow = React.memo(function VariableIncomeHoldin
   locale,
   dividerColor,
   hoverColor,
-  t,
-  onOpenDetail,
-  onOpenActions,
-  onBuy,
-  onSell,
   buyLabel,
   sellLabel,
 }: VariableIncomeHoldingRowProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const { onOpenDetail } = useInvestmentTableActions();
   const [hovered, setHovered] = React.useState(false);
   const identity = resolveHoldingIdentity(holding);
+  const custodianAccount = holding.financialAccount;
 
   const principal = computePrincipal(holding);
   const gross = typeof holding.grossValue === "number" ? holding.grossValue : null;
@@ -86,10 +82,22 @@ export const VariableIncomeHoldingRow = React.memo(function VariableIncomeHoldin
       }}
     >
       <Box sx={{ ...layout.assetColSx, minWidth: 0 }}>
-        <HoldingIdentity assetName={identity.assetName} issuerName={identity.issuerName} logoUrl={identity.logoUrl} size="lg" />
+        <HoldingIdentity assetName={identity.assetName} issuerName={identity.issuerName} logoUrl={identity.logoUrl} size={44} />
       </Box>
 
-      <Box sx={{ ...layout.maturityColSx, minWidth: 0, textAlign: "right" }}>
+      {layout.showConsolidatedCustodianColumn ? (
+        <Box sx={{ ...layout.custodianColSx, minWidth: 0 }}>
+          <FinancialAccountIdentity
+            account={custodianAccount ?? undefined}
+            justify="flex-start"
+            avatarSize={24}
+            nameTitle={custodianAccount?.name ?? holding.financialAccountId}
+            data-testid="holding-custodian-account"
+          />
+        </Box>
+      ) : null}
+
+      <Box sx={{ ...layout.quantityColSx, minWidth: 0, textAlign: "right" }}>
         <Typography variant="body2" noWrap>
           {formatQuantity(holding.quantity, locale)}
         </Typography>
@@ -170,10 +178,6 @@ export const VariableIncomeHoldingRow = React.memo(function VariableIncomeHoldin
         actionColWidth={layout.actionColWidth}
         hovered={hovered}
         holding={holding}
-        t={t}
-        onOpenActions={onOpenActions}
-        onBuy={onBuy}
-        onSell={onSell}
         buyLabel={buyLabel}
         sellLabel={sellLabel}
       />

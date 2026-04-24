@@ -3,9 +3,10 @@
 import React from "react";
 import ViewModuleIcon from "@mui/icons-material/ViewModule";
 import { useQuery } from "@apollo/client/react";
-import { Badge, Box, ButtonBase, LinearProgress, Popover, Tab, Tabs, Typography, alpha, useTheme } from "@mui/material";
+import { Alert, Badge, Box, ButtonBase, LinearProgress, Popover, Tab, Tabs, Typography, alpha, useTheme } from "@mui/material";
 import { DrawerSubmitButton } from "@/shared/components/ui/layout/Drawer";
 import { ExpandableSearchInput } from "@/shared/components/ui/forms/ExpandableSearchInput";
+import { ErrorBoundary } from "@/shared/components/ui/primitives/ErrorBoundary";
 import { Logo } from "@/shared/components/ui/primitives";
 import { LoadingSpinner } from "@/shared/components/ui/primitives/LoadingSpinner";
 import { InvestmentAssetIcon } from "../InvestmentAssetIcon";
@@ -33,6 +34,15 @@ export interface InvestmentGridTabsPanelProps {
   investmentAccounts: IssuerSelectionAccount[];
   searchQuery?: string;
   onSelectSearchAsset?: (assetName: string) => void;
+}
+
+function InvestmentTableErrorState() {
+  const { t } = useTranslation(personalFinanceTranslations);
+  return (
+    <Alert severity="error">
+      {t("investments.table.error")}
+    </Alert>
+  );
 }
 
 export function InvestmentGridTabsPanel({
@@ -72,6 +82,7 @@ export function InvestmentGridTabsPanel({
     [handleCloseRecordPopover, onClassChange, onOpenRecordDrawerForClass],
   );
 
+  // Duplicate Apollo subscription is intentional: this panel needs live per-tab counts while the table consumes the same cached query.
   const holdingsQuery = useQuery<InvestmentHoldingsQuery, InvestmentHoldingsQueryVariables>(INVESTMENT_HOLDINGS, {
     variables: { financialAccountId: selectedAccountId ?? null },
     errorPolicy: "all",
@@ -427,18 +438,20 @@ export function InvestmentGridTabsPanel({
           }
         >
           {activeDefinition ? (
-            <InvestmentTable
-              key={selectedAssetClassKey}
-              selectedAccountId={selectedAccountId}
-              investmentAccounts={investmentAccounts}
-              searchQuery={searchQuery}
-              onSelectSearchAsset={onSelectSearchAsset}
-              visibleGroupKeys={activeDefinition.visibleGroupKeys}
-              visibleAssetTypes={activeDefinition.visibleAssetTypes}
-              includeCashCard={activeDefinition.includeCashCard ?? false}
-              hideGroupHeader
-              onHoldingsFetchingChange={setHoldingsFetching}
-            />
+            <ErrorBoundary fallback={<InvestmentTableErrorState />}>
+              <InvestmentTable
+                key={selectedAssetClassKey}
+                selectedAccountId={selectedAccountId}
+                investmentAccounts={investmentAccounts}
+                searchQuery={searchQuery}
+                onSelectSearchAsset={onSelectSearchAsset}
+                visibleGroupKeys={activeDefinition.visibleGroupKeys}
+                visibleAssetTypes={activeDefinition.visibleAssetTypes}
+                includeCashCard={activeDefinition.includeCashCard ?? false}
+                hideGroupHeader
+                onHoldingsFetchingChange={setHoldingsFetching}
+              />
+            </ErrorBoundary>
           ) : null}
         </Box>
       ) : null}

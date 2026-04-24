@@ -24,6 +24,7 @@ import {
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { useTranslation } from "@/shared/i18n";
+import { useStoredState } from "@/shared/hooks/useStoredState";
 import { usePortfolioRecalculationStatus } from "@/lib/hooks/usePortfolioRecalculationStatus";
 import { extractErrorMessage } from "@/shared/utils/error";
 import {
@@ -39,7 +40,6 @@ import type {
 import { GroupProgressRow, type SummaryGroupKey } from "./GroupProgressRow";
 import { getCurrentLocale } from "./table/investmentTableHelpers";
 import {
-  PERIOD_OPTIONS,
   PeriodSelector,
   type SummaryPeriod,
 } from "./PeriodSelector";
@@ -146,22 +146,12 @@ export function InvestmentSummary({
   const theme = useTheme();
   const locale = React.useMemo(() => getCurrentLocale(), []);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const [selectedPeriod, setSelectedPeriod] =
-    React.useState<SummaryPeriod>("YTD");
+  const [selectedPeriod, setSelectedPeriod] = useStoredState<SummaryPeriod>(
+    PERIOD_STORAGE_KEY,
+    "YTD",
+    "session",
+  );
   const [sseReconnectKey, setSseReconnectKey] = React.useState(0);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = window.sessionStorage.getItem(PERIOD_STORAGE_KEY);
-    if (stored && PERIOD_OPTIONS.includes(stored as SummaryPeriod)) {
-      setSelectedPeriod(stored as SummaryPeriod);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.sessionStorage.setItem(PERIOD_STORAGE_KEY, selectedPeriod);
-  }, [selectedPeriod]);
 
   const { data, loading, error, refetch, networkStatus, startPolling, stopPolling } = useQuery<
     InvestmentPortfolioSummaryQuery,

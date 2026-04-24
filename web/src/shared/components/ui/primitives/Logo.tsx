@@ -3,14 +3,14 @@
 import * as React from "react";
 import { Avatar as MAvatar, type AvatarProps as MAvatarProps } from "@mui/material";
 
-export type LogoSize = "xs" | "sm" | "md" | "lg" | number;
+export type LogoSize = "xs" | "sm" | "md" | "lg" | number | "auto";
 
 export interface LogoProps extends Omit<MAvatarProps, "variant"> {
   size?: LogoSize;
   borderRadius?: string | number;
 }
 
-const sizeMap: Record<Exclude<LogoSize, number>, number> = {
+const sizeMap: Record<Exclude<LogoSize, number | "auto">, number> = {
   xs: 24,
   sm: 26,
   md: 30,
@@ -18,6 +18,7 @@ const sizeMap: Record<Exclude<LogoSize, number>, number> = {
 };
 
 function resolveSize(size: LogoSize | undefined) {
+  if (size === "auto") return "auto";
   if (typeof size === "number") return size;
   return sizeMap[size ?? "md"];
 }

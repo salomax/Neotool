@@ -27,6 +27,7 @@ class ListedAssetMapper {
             name = asset.name,
             assetType = asset.assetType,
             isActive = asset.isActive,
+            logoAssetId = asset.logoAssetId,
         )
 
     fun toConnectionDTO(connection: Connection<ListedAsset>): ListedAssetConnectionDTO =

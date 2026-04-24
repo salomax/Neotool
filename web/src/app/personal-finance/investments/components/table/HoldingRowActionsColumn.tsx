@@ -5,17 +5,15 @@ import { Box, IconButton, Tooltip, alpha, useTheme } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import type { InvestmentTableTranslate } from "./investmentTableRowHelpers";
+import { useTranslation } from "@/shared/i18n";
+import { personalFinanceTranslations } from "../../../i18n";
 import type { HoldingRow } from "./investmentTableHelpers";
+import { useInvestmentTableActions } from "./InvestmentTableActionsContext";
 
 export interface HoldingRowActionsColumnProps {
   actionColWidth: number;
   hovered: boolean;
   holding: HoldingRow;
-  t: InvestmentTableTranslate;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   buyLabel?: string;
   sellLabel?: string;
 }
@@ -24,13 +22,11 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
   actionColWidth,
   hovered,
   holding,
-  t,
-  onOpenActions,
-  onBuy,
-  onSell,
   buyLabel,
   sellLabel,
 }: HoldingRowActionsColumnProps) {
+  const { t } = useTranslation(personalFinanceTranslations);
+  const { onOpenActions, onBuy, onSell } = useInvestmentTableActions();
   const theme = useTheme();
 
   const quickActionTileSx = React.useMemo(
@@ -91,7 +87,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
           visibility: hovered ? "visible" : "hidden",
         }}
       >
-        {onBuy && buyLabel ? (
+        {buyLabel ? (
           <Tooltip title={buyLabel}>
             <IconButton
               size="small"
@@ -106,7 +102,7 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
             </IconButton>
           </Tooltip>
         ) : null}
-        {onSell && sellLabel ? (
+        {sellLabel ? (
           <Tooltip title={sellLabel}>
             <IconButton
               size="small"

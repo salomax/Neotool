@@ -11,7 +11,7 @@
  */
 export function parseCurrencyBr(text: string): number {
   const normalized = text
-    .replace(/[^\d,.\-]/g, '')
+    .replace(/[^\d,.-]/g, '')
     .trim();
 
   if (!normalized) return 0;

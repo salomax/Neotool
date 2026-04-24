@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import type { ErrorLike as ApolloError } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form";
@@ -26,8 +27,6 @@ import type {
 import { useToast } from "@/shared/providers";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
-
-type ApolloError = Error;
 
 interface UseRecordHoldingFormConfig<TFields extends FieldValues> {
   schema: ZodSchema<TFields>;
@@ -66,9 +65,9 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
     { id: string; input: UpdateInvestmentTransactionInput }
   >(UPDATE_INVESTMENT_TRANSACTION);
 
-  const onValidSubmit = React.useMemo(
-    () =>
-      form.handleSubmit(async (data) => {
+  const onSubmit = React.useCallback(
+    (e: React.FormEvent) => {
+      void form.handleSubmit(async (data) => {
         if (config.editTransaction != null) {
           const updateInput =
             config.onBuildUpdateInput?.(data) ??
@@ -107,22 +106,10 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
 
         toast.success(t("actions.save"));
         config.onSuccess?.();
-      }),
-    [
-      config,
-      form,
-      recordMutation,
-      toast,
-      t,
-      updateMutation,
-    ],
-  );
-
-  const onSubmit = React.useCallback(
-    (e: React.FormEvent) => {
-      void onValidSubmit(e);
+      })(e);
     },
-    [onValidSubmit],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- config is an inline object; its callbacks are stable references from the call site.
+    [form, recordMutation, toast, t, updateMutation],
   );
 
   return {

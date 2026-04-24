@@ -10,7 +10,8 @@ import { personalFinanceTranslations } from "../../../i18n";
 import { FixedIncomeHoldingRow } from "./FixedIncomeHoldingRow";
 import { buildFixedIncomeTableLayout } from "./fixedIncomeTableLayout";
 import { InvestmentGroupTableShell } from "./InvestmentGroupTableShell";
-import type { HoldingRow, AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
+import { getTableRadius } from "./themeUtils";
+import type { AssetGroupKey, InvestmentHoldingGroup } from "./investmentTableHelpers";
 
 export interface FixedIncomeHoldingsTableProps {
   group: InvestmentHoldingGroup;
@@ -18,11 +19,6 @@ export interface FixedIncomeHoldingsTableProps {
   locale: string;
   showConsolidatedCustodianColumn?: boolean;
   onToggleGroup: (groupKey: AssetGroupKey, expanded: boolean) => void;
-  onOpenDetail: (holding: HoldingRow) => void;
-  onOpenMaturityConfirm: (holding: HoldingRow) => void;
-  onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy?: (holding: HoldingRow) => void;
-  onSell?: (holding: HoldingRow) => void;
   hideGroupHeader?: boolean;
 }
 
@@ -32,11 +28,6 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
   locale,
   showConsolidatedCustodianColumn = false,
   onToggleGroup,
-  onOpenDetail,
-  onOpenMaturityConfirm,
-  onOpenActions,
-  onBuy,
-  onSell,
   hideGroupHeader = false,
 }: FixedIncomeHoldingsTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -48,7 +39,7 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
   );
   const dividerColor = React.useMemo(() => alpha(theme.palette.divider, 0.7), [theme.palette.divider]);
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
-  const tableRadius = (theme as any).custom?.radius?.table ?? theme.shape.borderRadius;
+  const tableRadius = getTableRadius(theme);
 
   const buyLabel = t("investments.transactions.apply");
   const sellLabel = t("investments.transactions.redeem");
@@ -133,12 +124,6 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          t={t}
-          onOpenDetail={onOpenDetail}
-          onOpenMaturityConfirm={onOpenMaturityConfirm}
-          onOpenActions={onOpenActions}
-          onBuy={buyLabel ? onBuy : undefined}
-          onSell={sellLabel ? onSell : undefined}
           buyLabel={buyLabel}
           sellLabel={sellLabel}
         />

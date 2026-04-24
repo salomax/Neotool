@@ -655,4 +655,5 @@ type ListedAssetAutocompleteItem {
   name: String!
   assetType: String!
   isActive: Boolean!
+  logoAsset: Asset
 }

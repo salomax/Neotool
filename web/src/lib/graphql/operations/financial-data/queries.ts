@@ -48,21 +48,24 @@ export const SEARCH_INVESTMENT_ASSETS_AUTOCOMPLETE = gql`
         name
         assetType
         isActive
+        logoAsset {
+          publicUrl
+        }
       }
     }
   }
 `;
 
 /**
- * Fetches the most recent close price for a B3 asset up to a given date.
+ * Fetches the first available close price for a B3 asset from a given date.
  * Used to pre-fill unit price in the equity holding drawer.
  */
 export const INVESTMENT_ASSET_PRICE = gql`
-  query InvestmentAssetPrice($ticker: String!, $to: Date!) {
+  query InvestmentAssetPrice($ticker: String!, $from: Date!) {
     investmentAssetByTicker(ticker: $ticker) {
       id
       ticker
-      priceHistory(to: $to, last: 1) {
+      priceHistory(from: $from, last: 1) {
         date
         closePrice
       }

@@ -444,7 +444,11 @@
       },
       "groups": {
         "variableIncome": "Variable income",
+        "variableIncomeB3": "Variable income (B3)",
         "fixedIncome": "Fixed income",
+        "bankFixedIncome": "Fixed income",
+        "creditFixedIncome": "Credit fixed income",
+        "treasuryDirect": "Treasury Direct",
         "mutualFunds": "Investment funds",
         "pension": "Pension",
         "structured": "Structured",
@@ -505,20 +509,19 @@
       "common": {
         "notAvailable": "—"
       },
-"fund": {
-  "pricingModeLabel": "Pricing mode",
-  "latestNavLabel": "Latest NAV",
-  "referenceDate": "Ref.: {{date}}"
-},
-"priceReference": {
-  "labelWithDate": "{{label}} ({{date}})",
-  "descriptors": {
-    "unitPrice": "Unit price",
-    "cryptoPrice": "Crypto price",
-    "fiiQuotaPrice": "FII quota price",
-    "quotaValue": "Quota value"
-  }
-}
+      "fund": {
+        "pricingModeLabel": "Pricing mode",
+        "latestNavLabel": "Latest NAV",
+        "referenceDate": "Ref.: {{date}}"
+      },
+      "priceReference": {
+        "labelWithDate": "{{label}} ({{date}})",
+        "descriptors": {
+          "unitPrice": "Unit price",
+          "cryptoPrice": "Crypto price",
+          "fiiQuotaPrice": "FII quota price",
+          "quotaValue": "Quota value"
+        }
       },
       "indexers": {
         "Cdi": "CDI",
@@ -770,6 +773,7 @@
         "indexer": "Indexer",
         "indexerPercentage": "Indexer %",
         "fixedAnnualRate": "Rate (% p.a.)",
+        "preFixedRate": "Rate (% p.a.)",
         "quantity": "Quantity",
         "grossValue": "Invested amount (BRL)",
         "tradeDate": "Application date",
@@ -817,6 +821,7 @@
         "indexerRequired": "Indexer is required",
         "indexerPercentageRequired": "Indexer % is required",
         "fixedAnnualRateRequired": "Rate is required",
+        "preFixedRateRequired": "Rate is required",
         "quantityNonNegative": "Quantity must be 0 or greater",
         "grossValueRequired": "Invested amount is required",
         "grossValuePositive": "Amount must be greater than zero",
@@ -1036,6 +1041,8 @@
         "1y": "Last year",
         "3y": "Last 3 years",
         "all": "All time",
+        "90d": "Last 90 days",
+        "ytd": "Year to date",
         "custom": "Custom"
       }
     },

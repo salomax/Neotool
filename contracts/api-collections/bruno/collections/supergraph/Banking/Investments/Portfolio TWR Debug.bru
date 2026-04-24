@@ -1,0 +1,50 @@
+meta {
+  name: Portfolio TWR Debug
+  type: graphql
+  seq: 7
+}
+
+post {
+  url: {{router}}/graphql
+  body: graphql
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{jwt_token}}
+}
+
+body:graphql {
+  query PortfolioTwrDebug($financialAccountId: ID, $period: PerformancePeriod) {
+    portfolioTwrDebug(financialAccountId: $financialAccountId, period: $period) {
+      startDate
+      endDate
+      twr
+      series {
+        date
+        totalValue
+      }
+      flowEvents {
+        date
+        eventType
+        grossAmount
+        canonicalNetFlow
+      }
+      dailySteps {
+        date
+        previousValue
+        currentValue
+        netFlow
+        dailyReturn
+        cumulativeFactor
+      }
+    }
+  }
+}
+
+body:graphql:vars {
+  {
+    "financialAccountId": "{{investment_account_id}}",
+    "period": "ALL"
+  }
+}
