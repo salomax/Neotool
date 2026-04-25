@@ -186,12 +186,12 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
     items.push({
       id: 'edit-movements',
       label: t('investments.table.rowActions.editMovement'),
-      icon: EditIcon,
+      icon: HistoryIcon,
       disabled: isDisabled,
       onClick: async () => {
         if (!holding) return;
         onClose();
-        await onEdit(holding);
+        await onViewEvents(holding);
       },
     });
 
@@ -202,9 +202,9 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
     isDisabled,
     onBuy,
     onClose,
-    onEdit,
     onSell,
     onViewDetails,
+    onViewEvents,
     sellLabel,
     showTransactionActions,
     t,
