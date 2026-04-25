@@ -8,7 +8,7 @@ import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
 import RemoveIcon from "@mui/icons-material/Remove";
 import {
-  Avatar,
+  alpha,
   Box,
   Button,
   CircularProgress,
@@ -47,6 +47,8 @@ import { RecordFixedIncomeDrawer } from "./RecordFixedIncomeDrawer";
 import { RecordFundHoldingDrawer } from "./RecordFundHoldingDrawer";
 import { InvestmentEventSelectorDrawer } from "./InvestmentEventSelectorDrawer";
 import { getAssetGroupKey, type HoldingKind } from "./table/investmentTableHelpers";
+import { HoldingDetailHeader } from "./HoldingDetailHeader";
+import type { HoldingDetailHeaderModel } from "./holdingDetailHeaderPresenter";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
 
@@ -86,13 +88,13 @@ interface HoldingDetailSummaryCardViewModel {
 }
 
 interface HoldingDetailStrategy {
+  headerModel: HoldingDetailHeaderModel;
   headerActions: React.ReactNode;
   footerActions: React.ReactNode;
   body: React.ReactNode;
   extra: React.ReactNode;
   assetName: string;
   logoUrl: string | undefined;
-  headerMeta: string;
   grossValue: number | null;
   currencyCode: string;
   gainPercent: number | null;
@@ -108,9 +110,9 @@ interface HoldingDetailDrawerShellProps {
   closeAriaLabel: string;
   headerActions: React.ReactNode;
   footerActions: React.ReactNode;
+  headerModel: HoldingDetailHeaderModel;
   assetName: string;
   logoUrl: string | undefined;
-  headerMeta: string;
   priceReferenceLabel: string | null;
   priceReferenceValue: number | null;
   priceReferenceCurrencyCode: string;
@@ -150,9 +152,9 @@ function HoldingDetailDrawerShell({
   closeAriaLabel,
   headerActions,
   footerActions,
+  headerModel,
   assetName,
   logoUrl,
-  headerMeta,
   priceReferenceLabel,
   priceReferenceValue,
   priceReferenceCurrencyCode,
@@ -211,67 +213,21 @@ function HoldingDetailDrawerShell({
           pb: 4,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: "1 1 auto" }}>
-            <Avatar
-              src={logoUrl}
-              alt={assetName}
-              variant="rounded"
-              sx={{ width: 40, height: 40, borderRadius: ".5rem", flexShrink: 0, mt: 0.25 }}
-            >
-              {assetName.slice(0, 1).toUpperCase()}
-            </Avatar>
-            <Box sx={{ minWidth: 0, flex: "1 1 auto" }}>
-              <Typography
-                data-testid="investment-holding-detail-asset-name"
-                variant="h6"
-                fontWeight={700}
-                sx={{
-                  minWidth: 0,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  display: "-webkit-box",
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: "vertical",
-                  wordBreak: "break-word",
-                  lineHeight: 1.25,
-                }}
-              >
-                {assetName}
-              </Typography>
-              <Typography
-                data-testid="investment-holding-detail-header-meta"
-                variant="body2"
-                noWrap
-                sx={{ mt: 0.25, minWidth: 0 }}
-              >
-                {headerMeta}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flex: "0 0 auto" }}>
-            <Label sx={{ mb: 0.25 }}>{totalValueLabel}</Label>
-            <CurrencyAmountParts
-              value={totalValue}
-              currency={currencyCode}
-              locale={locale}
-              variant="h4"
-              fontWeight={500}
-              noWrap
-              sx={{ lineHeight: 1.1, fontSize: "1.7rem", letterSpacing: -1 }}
-            />
-            {gainPercent != null ? (
-              <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-                <GainPercent value={gainPercent} locale={locale} iconSize={12} textSx={{ fontWeight: 600 }} />
-              </Box>
-            ) : (
-              <Typography variant="caption" sx={{ mt: 0.25, visibility: "hidden" }}>
-                —
-              </Typography>
-            )}
-          </Box>
-        </Box>
+        <HoldingDetailHeader
+          model={{
+            ...headerModel,
+            assetName,
+            logoUrl,
+            metrics: {
+              ...headerModel.metrics,
+              totalValueLabel,
+              totalValue,
+              currencyCode,
+              gainPercent,
+              locale,
+            },
+          }}
+        />
 
         {actionBar ? (
           <>
@@ -535,23 +491,6 @@ export function InvestmentHoldingDetailDrawer({
     initialIssuerLogoUrl ??
     undefined;
 
-  const headerMetaFixedIncome = React.useMemo(() => {
-    if (!fixedIncomeViewModel) return assetTypeLabel;
-    const parts = [
-      fixedIncomeViewModel.issuerLabel ?? null,
-      assetTypeLabel,
-      fixedIncomeViewModel.indexerLabel && fixedIncomeViewModel.indexerLabel !== "—" ? fixedIncomeViewModel.indexerLabel : null,
-      fixedIncomeViewModel.taxExemptLabel ?? null,
-    ].filter(Boolean) as string[];
-    return parts.join(" • ");
-  }, [assetTypeLabel, fixedIncomeViewModel]);
-
-  const headerMetaFund = React.useMemo(() => {
-    if (!fundViewModel) return assetTypeLabel;
-    const parts = [fundViewModel.issuerLabel ?? null, fundViewModel.subtitle || assetTypeLabel].filter(Boolean) as string[];
-    return parts.join(" • ");
-  }, [assetTypeLabel, fundViewModel]);
-
   const deletingTransactionSummary = React.useMemo(() => {
     if (!deletingTransaction) return "";
     const directionLabel =
@@ -643,12 +582,33 @@ export function InvestmentHoldingDetailDrawer({
   const strategy: HoldingDetailStrategy =
     kind === "fixedIncome"
       ? {
+          headerModel: {
+            variant: "fixedIncome",
+            assetName,
+            logoUrl,
+            assetType: resolvedAssetType,
+            account: {
+              name: fixedIncomeData?.investmentHolding?.financialAccount?.name ?? null,
+            },
+            traits: {
+              issuerLabel: fixedIncomeViewModel?.issuerLabel ?? null,
+              assetTypeLabel: assetTypeLabel,
+              indexerLabel:
+                fixedIncomeViewModel?.indexerLabel && fixedIncomeViewModel.indexerLabel !== "—"
+                  ? fixedIncomeViewModel.indexerLabel
+                  : null,
+              taxExemptLabel: fixedIncomeViewModel?.taxExemptLabel ?? null,
+            },
+            metrics: {
+              totalValueLabel: t("investments.detailDrawer.grid.grossTotal"),
+              totalValue: fixedIncomeViewModel?.grossValue ?? null,
+              currencyCode: fixedIncomeViewModel?.currencyCode ?? "BRL",
+              gainPercent: fixedIncomeViewModel?.netGainPercent ?? null,
+              locale,
+            },
+          },
           headerActions: null,
-          footerActions: canRegisterRedemption ? (
-            <Drawer.CancelButton onClick={openMaturity}>
-              {t("investments.redemption.trigger")}
-            </Drawer.CancelButton>
-          ) : null,
+          footerActions: null,
           body: (
             <FixedIncomeHoldingDetailContent
               holding={fixedIncomeData?.investmentHolding}
@@ -693,7 +653,6 @@ export function InvestmentHoldingDetailDrawer({
           ),
           assetName,
           logoUrl,
-          headerMeta: headerMetaFixedIncome,
           grossValue: fixedIncomeViewModel?.grossValue ?? null,
           currencyCode: (fixedIncomeViewModel?.currencyCode ?? "BRL"),
           gainPercent: fixedIncomeViewModel?.netGainPercent ?? null,
@@ -717,6 +676,27 @@ export function InvestmentHoldingDetailDrawer({
           ],
         }
       : {
+          headerModel: {
+            variant: kind === "equity" ? "equity" : "fund",
+            assetName,
+            logoUrl,
+            assetType: resolvedAssetType,
+            account: {
+              name: fundData?.investmentHolding?.financialAccount?.name ?? null,
+            },
+            traits: {
+              issuerLabel: fundViewModel?.issuerLabel ?? null,
+              assetTypeLabel: assetTypeLabel,
+              subtitleLabel: fundViewModel?.subtitle ?? null,
+            },
+            metrics: {
+              totalValueLabel: t("investments.detailDrawer.grid.grossTotal"),
+              totalValue: fundViewModel?.grossValue ?? null,
+              currencyCode: fundViewModel?.currencyCode ?? "BRL",
+              gainPercent: fundViewModel?.netGainPercent ?? null,
+              locale,
+            },
+          },
           headerActions: null,
           footerActions: null,
           body: (
@@ -740,7 +720,6 @@ export function InvestmentHoldingDetailDrawer({
           extra: null,
           assetName,
           logoUrl,
-          headerMeta: headerMetaFund,
           grossValue: fundViewModel?.grossValue ?? null,
           currencyCode: (fundViewModel?.currencyCode ?? "BRL"),
           gainPercent: fundViewModel?.netGainPercent ?? null,
@@ -783,8 +762,17 @@ export function InvestmentHoldingDetailDrawer({
               ],
         };
 
-  const hasTransactionActions = Boolean(buyLabel && sellLabel);
+  const actionBuyLabel = kind === "fixedIncome" ? t("investments.grid.actions.contributeCash") : buyLabel;
+  const actionSellLabel = kind === "fixedIncome" ? t("investments.transactions.redeem") : sellLabel;
+  const hasTransactionActions = Boolean(actionBuyLabel && actionSellLabel);
   const moreActionsLabel = t("investments.detailDrawer.actions.moreActions");
+  const actionButtonBaseSx = React.useMemo(
+    () => ({
+      height: 34,
+      borderRadius: 1,
+    }),
+    [],
+  );
 
   const actionBar = React.useMemo(
     () => (
@@ -793,22 +781,50 @@ export function InvestmentHoldingDetailDrawer({
           {hasTransactionActions ? (
             <>
               <Button
-                variant="contained"
+                variant="outlined"
                 color="success"
                 startIcon={<AddIcon />}
-                onClick={() => setQuickTransactionDirection("buy")}
+                onClick={() => {
+                  if (kind === "fixedIncome") {
+                    openEventSelector();
+                    return;
+                  }
+                  setQuickTransactionDirection("buy");
+                }}
                 size="small"
+                sx={{
+                  ...actionButtonBaseSx,
+                  color: alpha(theme.palette.success.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
+                  "&:hover": {
+                    bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
+                    color: theme.palette.success.main,
+                  },
+                }}
               >
-                {buyLabel}
+                {actionBuyLabel}
               </Button>
               <Button
-                variant="contained"
+                variant="outlined"
                 color="error"
                 startIcon={<RemoveIcon />}
-                onClick={() => setQuickTransactionDirection("sell")}
+                onClick={() => {
+                  if (kind === "fixedIncome") {
+                    openMaturity();
+                    return;
+                  }
+                  setQuickTransactionDirection("sell");
+                }}
                 size="small"
+                sx={{
+                  ...actionButtonBaseSx,
+                  color: theme.palette.error.main,
+                  "&:hover": {
+                    bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
+                    color: theme.palette.error.main,
+                  },
+                }}
               >
-                {sellLabel}
+                {actionSellLabel}
               </Button>
             </>
           ) : null}
@@ -817,15 +833,40 @@ export function InvestmentHoldingDetailDrawer({
         <Button
           variant="outlined"
           size="small"
-          endIcon={<MoreVertIcon />}
+          color="inherit"
+          endIcon={<MoreVertIcon fontSize="small" />}
           onClick={(event) => openMoreActionsMenu(event.currentTarget)}
           disabled={!actionHoldingRow}
+          aria-label={moreActionsLabel}
+          sx={{
+            ...actionButtonBaseSx,
+            borderColor: "divider",
+            color: "text.secondary",
+            "&:hover": {
+              borderColor: "primary.main",
+              color: "primary.main",
+              backgroundColor: "transparent",
+            },
+          }}
         >
           {moreActionsLabel}
         </Button>
       </Box>
     ),
-    [actionHoldingRow, buyLabel, hasTransactionActions, moreActionsLabel, openMoreActionsMenu, sellLabel, setQuickTransactionDirection],
+    [
+      actionBuyLabel,
+      actionButtonBaseSx,
+      actionHoldingRow,
+      actionSellLabel,
+      hasTransactionActions,
+      kind,
+      moreActionsLabel,
+      openEventSelector,
+      openMaturity,
+      openMoreActionsMenu,
+      setQuickTransactionDirection,
+      theme,
+    ],
   );
 
   return (
@@ -839,9 +880,9 @@ export function InvestmentHoldingDetailDrawer({
         closeAriaLabel={t("actions.close")}
         headerActions={strategy.headerActions}
         footerActions={strategy.footerActions}
+        headerModel={strategy.headerModel}
         assetName={strategy.assetName}
         logoUrl={strategy.logoUrl}
-        headerMeta={strategy.headerMeta}
         priceReferenceLabel={priceReference?.label ?? null}
         priceReferenceValue={priceReference?.value ?? null}
         priceReferenceCurrencyCode={priceReference?.currencyCode ?? strategy.currencyCode}
@@ -871,7 +912,7 @@ export function InvestmentHoldingDetailDrawer({
           <ListItemIcon>
             <EditIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>{t("investments.table.rowActions.editMovement")}</ListItemText>
+          <ListItemText>{t("investments.table.rowActions.viewEvents")}</ListItemText>
         </MenuItem>
 
         <MenuItem

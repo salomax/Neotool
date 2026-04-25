@@ -191,7 +191,7 @@
       "emptyDescription": "Tudo em dia.",
       "informational": "Informativo",
       "maturityDrawer": {
-        "closePositionTitle": "Encerrar posição",
+        "closePositionTitle": "Registrar Resgate",
         "step1Title": "Confirmar vencimento",
         "step2Title": "Crédito na conta",
         "step2Hint": "O valor líquido foi creditado em alguma conta?",
@@ -215,11 +215,12 @@
         },
         "bankAccount": "Conta bancária",
         "missingHoldingAccount": "Conta do investimento não encontrada.",
+        "creditNetValueToAccount": "Creditar valor na conta",
         "creditDestination": "Destino do crédito",
         "values": "Valores",
         "creditDate": "Data do crédito",
         "amountMustBePositive": "O valor precisa ser maior que zero.",
-        "submitClose": "Encerrar",
+        "submitClose": "Resgatar",
         "back": "Voltar"
       }
     },

@@ -3,7 +3,6 @@
 import React from 'react';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import { Box, Skeleton, Typography, useTheme } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import {
   Area,
   AreaChart,
@@ -19,7 +18,12 @@ import { getWidgetDefinition } from '../registry';
 import { WidgetWrapper } from '../components/WidgetWrapper';
 import { useDashboardStore } from '../store';
 import { WidgetProps } from '../types';
-import { useCashFlowSeries, usePortfolioValueSeries } from '../hooks/useDashboardAnalytics';
+import {
+  CashFlowDataPoint,
+  PortfolioMonthlyValue,
+  useCashFlowSeries,
+  usePortfolioValueSeries,
+} from '../hooks/useDashboardAnalytics';
 import { i18n, useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 import { Label } from '@/shared/components/ui/primitives/Label';
@@ -46,6 +50,55 @@ type NetWorthChartRow = {
   totalNetWorth: number | null;
   isEstimated: boolean;
 };
+
+export function buildNetWorthChartData(params: {
+  cashFlowSeries: readonly CashFlowDataPoint[];
+  portfolioSeries: readonly PortfolioMonthlyValue[];
+  labelFormatter: (year: number, month: number) => string;
+}): NetWorthChartRow[] {
+  const { cashFlowSeries, portfolioSeries, labelFormatter } = params;
+
+  if (cashFlowSeries.length === 0 && portfolioSeries.length === 0) return [];
+
+  const cashFlowMap = new Map<string, CashFlowDataPoint>(
+    cashFlowSeries.map((point) => [`${point.year}-${point.month}`, point]),
+  );
+  const portfolioMap = new Map<string, PortfolioMonthlyValue>(
+    portfolioSeries.map((point) => [`${point.year}-${point.month}`, point]),
+  );
+
+  const monthKeys = new Set<string>();
+  for (const row of cashFlowSeries) monthKeys.add(`${row.year}-${row.month}`);
+  for (const row of portfolioSeries) monthKeys.add(`${row.year}-${row.month}`);
+
+  const months = [...monthKeys]
+    .map((key) => {
+      const [yearPart, monthPart] = key.split('-');
+      return { year: Number(yearPart), month: Number(monthPart) };
+    })
+    .filter((m) => Number.isFinite(m.year) && Number.isFinite(m.month))
+    .sort((a, b) => (a.year !== b.year ? a.year - b.year : a.month - b.month));
+
+  return months.map(({ year, month }) => {
+    const cashFlow = cashFlowMap.get(`${year}-${month}`);
+    const portfolio = portfolioMap.get(`${year}-${month}`);
+    const bankingBalance = cashFlow && Number.isFinite(cashFlow.closingBalance) ? cashFlow.closingBalance : null;
+    const portfolioValue = portfolio && Number.isFinite(portfolio.grossValue) ? portfolio.grossValue : null;
+
+    const hasAnyValue = bankingBalance !== null || portfolioValue !== null;
+    const totalNetWorth = hasAnyValue ? (bankingBalance ?? 0) + (portfolioValue ?? 0) : null;
+
+    return {
+      label: labelFormatter(year, month),
+      year,
+      month,
+      bankingBalance: bankingBalance ?? 0,
+      portfolioValue: portfolioValue ?? 0,
+      totalNetWorth,
+      isEstimated: portfolio?.isEstimated ?? false,
+    };
+  });
+}
 
 function formatBrl(value: number) {
   return new Intl.NumberFormat('pt-BR', {
@@ -90,26 +143,10 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
   }, [locale]);
 
   const chartData = React.useMemo((): NetWorthChartRow[] => {
-    const portfolioMap = new Map<string, (typeof portfolioSeries)[number]>(
-      portfolioSeries.map((p) => [`${p.year}-${p.month}`, p])
-    );
-    return series.map((point) => {
-      const key = `${point.year}-${point.month}`;
-      const portfolio = portfolioMap.get(key);
-      const bankingBalance = Number.isFinite(point.closingBalance) ? point.closingBalance : null;
-      const portfolioValue =
-        portfolio && Number.isFinite(portfolio.grossValue) ? portfolio.grossValue : null;
-
-      return {
-        label: monthLabelFormatter(point.year, point.month),
-        year: point.year,
-        month: point.month,
-        bankingBalance,
-        portfolioValue,
-        totalNetWorth:
-          bankingBalance !== null && portfolioValue !== null ? bankingBalance + portfolioValue : null,
-        isEstimated: portfolio?.isEstimated ?? false,
-      };
+    return buildNetWorthChartData({
+      cashFlowSeries: series,
+      portfolioSeries,
+      labelFormatter: monthLabelFormatter,
     });
   }, [monthLabelFormatter, portfolioSeries, series]);
 
@@ -130,10 +167,18 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
       return lastRow.totalNetWorth;
     }
 
-    const banking = typeof lastRow.bankingBalance === 'number' && Number.isFinite(lastRow.bankingBalance) ? lastRow.bankingBalance : null;
-    const portfolio = typeof lastRow.portfolioValue === 'number' && Number.isFinite(lastRow.portfolioValue) ? lastRow.portfolioValue : null;
-    if (banking == null || portfolio == null) return null;
-    const total = banking + portfolio;
+    const banking =
+      typeof lastRow.bankingBalance === 'number' && Number.isFinite(lastRow.bankingBalance)
+        ? lastRow.bankingBalance
+        : null;
+    const portfolio =
+      typeof lastRow.portfolioValue === 'number' && Number.isFinite(lastRow.portfolioValue)
+        ? lastRow.portfolioValue
+        : null;
+
+    if (banking == null && portfolio == null) return null;
+
+    const total = (banking ?? 0) + (portfolio ?? 0);
     return Number.isFinite(total) ? total : null;
   }, [chartData]);
 

@@ -51,7 +51,7 @@ export interface UseInvestmentTableDrawersReturn {
   handleOpenDetail: (holding: HoldingRow) => void;
   closeDetailDrawer: () => void;
   eventSelectorDrawer: EventSelectorDrawerState;
-  handleOpenEdit: (holding: HoldingRow) => Promise<void>;
+  handleOpenEventSelector: (holding: HoldingRow) => Promise<void>;
   closeEventSelectorDrawer: () => void;
   holdingToRemove: HoldingRow | null;
   setHoldingToRemove: (holding: HoldingRow | null) => void;
@@ -146,7 +146,7 @@ export function useInvestmentTableDrawers(
     });
   }, []);
 
-  const handleOpenEdit = React.useCallback(
+  const handleOpenEventSelector = React.useCallback(
     async (holding: HoldingRow) => {
       setEventSelectorDrawer({
         holding,
@@ -188,6 +188,9 @@ export function useInvestmentTableDrawers(
     setMaturityConfirmHolding({
       id: holding.id,
       financialAccountId: holding.financialAccountId,
+      financialAccountName: holding.financialAccount?.name ?? null,
+      financialAccountIssuerName: holding.financialAccount?.issuer?.name ?? holding.financialAccount?.issuerName ?? null,
+      financialAccountIssuerLogoUrl: holding.financialAccount?.issuer?.logoAsset?.publicUrl ?? null,
       maturityDate: holding.maturityDate ? String(holding.maturityDate) : null,
       grossValue: holding.grossValue ?? null,
       netValue: holding.netValue ?? null,
@@ -336,7 +339,7 @@ export function useInvestmentTableDrawers(
     handleOpenDetail,
     closeDetailDrawer,
     eventSelectorDrawer,
-    handleOpenEdit,
+    handleOpenEventSelector,
     closeEventSelectorDrawer,
     holdingToRemove,
     setHoldingToRemove,

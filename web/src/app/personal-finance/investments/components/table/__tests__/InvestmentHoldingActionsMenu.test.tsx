@@ -27,7 +27,7 @@ describe.sequential('InvestmentHoldingActionsMenu', () => {
     deleting: false,
     onClose: vi.fn(),
     onViewDetails: vi.fn(),
-    onEdit: vi.fn().mockResolvedValue(undefined),
+    onViewEvents: vi.fn().mockResolvedValue(undefined),
     onRemove: vi.fn(),
     onBuy: vi.fn(),
     onSell: vi.fn(),

@@ -216,6 +216,7 @@
         },
         "bankAccount": "Bank account",
         "missingHoldingAccount": "Investment account not found.",
+        "creditNetValueToAccount": "Credit amount to account",
         "creditDestination": "Credit destination",
         "creditDate": "Credit date",
         "amountMustBePositive": "Amount must be greater than zero.",

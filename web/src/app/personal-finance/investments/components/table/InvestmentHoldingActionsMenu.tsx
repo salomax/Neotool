@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import EditIcon from '@mui/icons-material/Edit';
+import HistoryIcon from '@mui/icons-material/History';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import AddIcon from '@mui/icons-material/Add';
@@ -31,7 +31,7 @@ interface InvestmentHoldingActionsMenuProps {
   deleting: boolean;
   onClose: () => void;
   onViewDetails: (holding: HoldingRow) => void;
-  onEdit: (holding: HoldingRow) => Promise<void>;
+  onViewEvents: (holding: HoldingRow) => Promise<void>;
   onRemove: (holding: HoldingRow) => void;
   onBuy?: () => void;
   onSell?: () => void;
@@ -110,7 +110,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   deleting,
   onClose,
   onViewDetails,
-  onEdit,
+  onViewEvents,
   onRemove,
   onBuy,
   onSell,

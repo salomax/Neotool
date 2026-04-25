@@ -118,7 +118,7 @@ export function InvestmentTable({
     handleOpenDetail,
     closeDetailDrawer,
     eventSelectorDrawer,
-    handleOpenEdit,
+    handleOpenEventSelector,
     closeEventSelectorDrawer,
     holdingToRemove,
     setHoldingToRemove,
@@ -320,7 +320,7 @@ export function InvestmentTable({
         deleting={deletingHolding}
         onClose={closeActionMenu}
         onViewDetails={handleOpenDetail}
-        onEdit={handleOpenEdit}
+        onViewEvents={handleOpenEventSelector}
         onRemove={setHoldingToRemove}
         onBuy={() => {
           if (!actionMenu.holding) return;

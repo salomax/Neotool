@@ -26,7 +26,7 @@ export function useCashFlowSeries() {
   });
   return {
     series: data?.cashFlowSeries ?? [],
-    loading,
+    loading: range === null || loading,
     error: error ?? null,
     refetch,
   };
@@ -64,7 +64,9 @@ export function useDashboardPeriodSummary() {
   });
   return {
     summary: data?.dashboardPeriodSummary ?? EMPTY_DASHBOARD_PERIOD_SUMMARY,
-    loading,
+    // When range is null, Apollo marks query as skipped (loading=false, data=undefined).
+    // Keep loading=true so widgets render skeletons instead of misleading zeroed KPIs.
+    loading: range === null || loading,
     error: error ?? null,
     refetch,
   };
@@ -104,7 +106,7 @@ export function usePortfolioValueSeries() {
   });
   return {
     portfolioSeries: data?.portfolioNetWorthSeries ?? [],
-    loading,
+    loading: range === null || loading,
     error: error ?? null,
     refetch,
   };
