@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useMutation } from "@apollo/client/react";
-import { Alert, Box, Divider, Typography } from "@mui/material";
+import { Alert, Box, Divider } from "@mui/material";
 import dayjs from "dayjs";
 import { z } from "zod";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
@@ -15,7 +15,7 @@ import {
 } from "@/lib/graphql/operations/banking/pendingActionOperations.generated";
 import { HoldingCloseReason } from "@/lib/graphql/types/__generated__/graphql";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
-import { DatePickerField, MoneyInput, SelectField, ToggleField } from "@/shared/components/ui/forms/form";
+import { DatePickerField, MoneyInput, SelectField } from "@/shared/components/ui/forms/form";
 import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
 import { FinancialAccountIdentity } from "@/shared/components/ui/data-display/FinancialAccountIdentity";
 import { useToast } from "@/shared/providers";
@@ -24,6 +24,7 @@ import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from "@/shared/utils
 import { personalFinanceTranslations } from "../i18n";
 import { FixedIncomeAssetIdentity } from "./components/HoldingIdentity";
 import type { IssuerSelectionAccount } from "./components/IssuerSelection";
+import { CreditToAccountSection } from "./components/CreditToAccountSection";
 
 const step1Schema = z
   .object({
@@ -42,6 +43,9 @@ const step1Schema = z
 export type MaturityDrawerHolding = {
   id: string;
   financialAccountId: string;
+  financialAccountName?: string | null;
+  financialAccountIssuerName?: string | null;
+  financialAccountIssuerLogoUrl?: string | null;
   maturityDate: string | null;
   grossValue: number | null;
   netValue: number | null;
@@ -97,7 +101,7 @@ export function MaturityConfirmDrawer({
       iof: undefined,
       maturityDate: null,
       closeReason: HoldingCloseReason.Matured,
-      shouldCreditToAccount: false,
+      shouldCreditToAccount: true,
       creditAmount: undefined,
       creditDate: null,
     },
@@ -118,7 +122,7 @@ export function MaturityConfirmDrawer({
       iof: holding.iof ?? undefined,
       maturityDate: defaultMaturityDate,
       closeReason: HoldingCloseReason.Matured,
-      shouldCreditToAccount: false,
+      shouldCreditToAccount: true,
       creditAmount: n,
       creditDate: defaultMaturityDate,
     });
@@ -127,11 +131,24 @@ export function MaturityConfirmDrawer({
   const watchedShouldCreditToAccount = useWatch({ control: methods.control, name: "shouldCreditToAccount" });
   const watchedMaturityDate = useWatch({ control: methods.control, name: "maturityDate" });
 
-  const creditCustodianAccount = React.useMemo(
-    () =>
-      holding ? investmentAccounts.find((a) => a.id === holding.financialAccountId) : undefined,
-    [holding, investmentAccounts],
-  );
+  const creditDestinationAccount = React.useMemo(() => {
+    if (!holding) return undefined;
+    const account = investmentAccounts.find((a) => String(a.id) === String(holding.financialAccountId));
+    if (account) return account;
+    return {
+      id: holding.financialAccountId,
+      name:
+        holding.financialAccountName ??
+        t("investments.pendingActions.maturityDrawer.bankAccount", { defaultValue: "Conta do investimento" }),
+      issuerName: holding.financialAccountIssuerName ?? "—",
+      issuer: holding.financialAccountIssuerLogoUrl
+        ? {
+            name: holding.financialAccountIssuerName ?? null,
+            logoAsset: { publicUrl: holding.financialAccountIssuerLogoUrl },
+          }
+        : null,
+    };
+  }, [holding, investmentAccounts, t]);
 
   const closeReasonOptions = React.useMemo(
     () =>
@@ -289,74 +306,25 @@ export function MaturityConfirmDrawer({
               </Box>
             </FormRowStack>
 
-            <ToggleField
-              name="shouldCreditToAccount"
-              label={t(
+            <CreditToAccountSection
+              toggleName="shouldCreditToAccount"
+              toggleLabel={t(
                 "investments.pendingActions.maturityDrawer.creditNetValueToAccount",
-                { defaultValue: "Creditar o valor liquido na conta?" },
+                { defaultValue: "Creditar valor na conta" },
               )}
-              size="medium"
-              data-testid="maturity-credit-toggle"
+              enabled={Boolean(watchedShouldCreditToAccount)}
+              netValueName="creditAmount"
+              netValueLabel={t("investments.pendingActions.maturityDrawer.netValue")}
+              creditDateName="creditDate"
+              creditDateLabel={t("investments.pendingActions.maturityDrawer.creditDate")}
+              destinationLabel={t("investments.pendingActions.maturityDrawer.creditDestination")}
+              destinationAccount={creditDestinationAccount}
+              destinationNameTitle={creditDestinationAccount?.name || holding.financialAccountId}
+              minCreditDate={watchedMaturityDate || undefined}
+              maxCreditDate={watchedMaturityDate ? dayjs(watchedMaturityDate).add(5, "year").toDate() : undefined}
+              toggleTestId="maturity-credit-toggle"
+              destinationTestId="maturity-credit-custodian-account"
             />
-
-            {watchedShouldCreditToAccount ? (
-              <>
-                <FormRowStack alignItems="flex-start">
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <MoneyInput
-                      name="creditAmount"
-                      label={t("investments.pendingActions.maturityDrawer.netValue")}
-                      currency="BRL"
-                      size="medium"
-                    />
-                  </Box>
-                  <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <DatePickerField
-                      name="creditDate"
-                      label={t("investments.pendingActions.maturityDrawer.creditDate")}
-                      size="medium"
-                      minDate={watchedMaturityDate || undefined}
-                      maxDate={watchedMaturityDate ? dayjs(watchedMaturityDate).add(5, "year").toDate() : undefined}
-                    />
-                  </Box>
-                </FormRowStack>
-                <Box
-                  sx={(theme) => ({
-                    position: "relative",
-                    border: `1px solid ${theme.palette.divider}`,
-                    borderRadius: 1,
-                    px: 1.5,
-                    pt: 2,
-                    pb: 1.5,
-                  })}
-                  data-testid="maturity-credit-destination-box"
-                >
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    sx={(theme) => ({
-                      position: "absolute",
-                      left: 10,
-                      top: 0,
-                      transform: "translateY(-50%)",
-                      px: 0.75,
-                      bgcolor: theme.palette.background.paper,
-                      color: theme.palette.text.secondary,
-                      lineHeight: 1.2,
-                      pointerEvents: "none",
-                    })}
-                  >
-                    {t("investments.pendingActions.maturityDrawer.creditDestination")}
-                  </Typography>
-                  <FinancialAccountIdentity
-                    account={creditCustodianAccount}
-                    justify="flex-start"
-                    nameTitle={creditCustodianAccount?.name || holding.financialAccountId}
-                    data-testid="maturity-credit-custodian-account"
-                  />
-                </Box>
-              </>
-            ) : null}
             <Divider sx={{ pb: 1 }}/>
             <Drawer.ActionButtons
               cancelText={t("actions.cancel")}

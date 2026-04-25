@@ -254,6 +254,9 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     return {
       id: h.id,
       financialAccountId: h.financialAccount.id,
+      financialAccountName: h.financialAccount.name,
+      financialAccountIssuerName: h.financialAccount.issuer?.name ?? h.financialAccount.issuerName ?? null,
+      financialAccountIssuerLogoUrl: h.financialAccount.issuer?.logoAsset?.publicUrl ?? null,
       maturityDate: h.maturityDate ? String(h.maturityDate) : null,
       grossValue: h.grossValue,
       netValue: h.netValue,

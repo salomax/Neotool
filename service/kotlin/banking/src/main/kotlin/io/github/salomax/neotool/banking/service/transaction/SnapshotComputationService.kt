@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.service.transaction
 import io.github.salomax.neotool.banking.domain.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -43,7 +44,7 @@ open class SnapshotComputationService(
         openingBalance: BigDecimal,
     ): MonthlyBalanceSnapshot {
         val totals = transactionRepository.getMonthTotals(financialAccountId, year, month)
-        val closingBalance = openingBalance + totals.totalCreditExclTransfer - totals.totalDebitExclTransfer
+        val closingBalance = openingBalance + totals.totalCredit - totals.totalDebit
 
         val snapshot =
             MonthlyBalanceSnapshot(
@@ -73,7 +74,8 @@ open class SnapshotComputationService(
      * If an exception is thrown partway through the chain, all remaining months from the
      * failure point onward are marked dirty so the read path can heal them.
      */
-    fun recomputeChain(
+    @Transactional
+    open fun recomputeChain(
         financialAccountId: UUID,
         accountId: UUID,
         fromYear: Int,
