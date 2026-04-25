@@ -12,6 +12,7 @@ import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.MonthSummary
 import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
@@ -53,6 +54,7 @@ import java.util.UUID
 class TransactionResolverTest {
     private lateinit var service: TransactionService
     private lateinit var monthSummaryQueryService: MonthSummaryQueryService
+    private lateinit var dashboardAnalyticsService: DashboardAnalyticsService
     private lateinit var creditCardBillService: CreditCardBillService
     private lateinit var merchantRepository: MerchantRepository
     private lateinit var transactionRuleEngine: TransactionRuleEngine
@@ -82,6 +84,7 @@ class TransactionResolverTest {
     fun setUp() {
         service = mock()
         monthSummaryQueryService = mock()
+        dashboardAnalyticsService = mock()
         creditCardBillService = mock()
         merchantRepository = mock()
         transactionRuleEngine = mock()
@@ -98,6 +101,7 @@ class TransactionResolverTest {
             TransactionResolver(
                 service = service,
                 monthSummaryQueryService = monthSummaryQueryService,
+                dashboardAnalyticsService = dashboardAnalyticsService,
                 creditCardBillService = creditCardBillService,
                 merchantRepository = merchantRepository,
                 transactionRuleEngine = transactionRuleEngine,

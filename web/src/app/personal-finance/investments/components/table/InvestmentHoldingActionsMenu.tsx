@@ -3,7 +3,7 @@
 import React from 'react';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import QueryStatsIcon from '@mui/icons-material/QueryStats';
+import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import EventIcon from '@mui/icons-material/Event';
@@ -14,14 +14,14 @@ import PercentIcon from '@mui/icons-material/Percent';
 import PaymentsIcon from '@mui/icons-material/Payments';
 import SavingsIcon from '@mui/icons-material/Savings';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
-import { alpha, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material';
+import type { SvgIconComponent } from '@mui/icons-material';
+import { alpha, Divider, ListItemIcon, ListItemText, Menu, MenuItem } from '@mui/material';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
   AMORTIZABLE_ASSET_TYPES,
   LENDABLE_ASSET_TYPES,
   getAssetGroupKey,
-  FIXED_INCOME_GROUP_KEYS,
   type HoldingRow,
 } from './investmentTableHelpers';
 
@@ -48,6 +48,62 @@ interface InvestmentHoldingActionsMenuProps {
   onTransferCustody?: () => void;
 }
 
+interface InvestmentActionMenuItemConfig {
+  id: string;
+  label: string;
+  icon: SvgIconComponent;
+  iconColor?: string;
+  destructive?: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}
+
+interface InvestmentActionMenuSectionProps {
+  items: InvestmentActionMenuItemConfig[];
+  showDivider?: boolean;
+}
+
+const InvestmentActionMenuSection = React.memo(function InvestmentActionMenuSection({
+  items,
+  showDivider = false,
+}: InvestmentActionMenuSectionProps) {
+  if (items.length === 0) return null;
+
+  return (
+    <>
+      {showDivider ? <Divider /> : null}
+      {items.map((item) => {
+        const Icon = item.icon;
+        return (
+          <MenuItem
+            key={item.id}
+            disabled={item.disabled}
+            onClick={item.onClick}
+            sx={
+              item.destructive
+                ? {
+                    color: 'error.main',
+                    '&:hover': {
+                      bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                    },
+                    '&.Mui-focusVisible': {
+                      bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                    },
+                  }
+                : undefined
+            }
+          >
+            <ListItemIcon sx={item.destructive ? { color: 'inherit' } : item.iconColor ? { color: item.iconColor } : undefined}>
+              <Icon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{item.label}</ListItemText>
+          </MenuItem>
+        );
+      })}
+    </>
+  );
+});
+
 export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldingActionsMenu({
   anchorEl,
   holding,
@@ -73,13 +129,209 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   const { t } = useTranslation(personalFinanceTranslations);
 
   const holdingGroup = holding?.asset?.assetType ? getAssetGroupKey(holding.asset.assetType) : null;
-  const isFixedIncomeHolding = holdingGroup ? FIXED_INCOME_GROUP_KEYS.has(holdingGroup) : false;
   const showCorporateEvents = holdingGroup === 'variableIncome' || holdingGroup === 'mutualFunds' || holdingGroup === 'pension';
   const showExtendedCorporateEvents = holdingGroup === 'variableIncome';
   const showWithholdingTaxAction = holding?.asset?.assetType === 'MUTUAL_FUND';
   const showAmortizationAction = AMORTIZABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
   const showStockLendingAction = LENDABLE_ASSET_TYPES.has(holding?.asset?.assetType ?? '');
   const showTransferCustodyAction = (holding?.quantity ?? 0) > 0;
+  const isDisabled = deleting || !holding;
+
+  const withClose = React.useCallback(
+    (action?: () => void) => () => {
+      if (!holding || !action) return;
+      onClose();
+      action();
+    },
+    [holding, onClose],
+  );
+
+  const coreActions = React.useMemo<InvestmentActionMenuItemConfig[]>(() => {
+    const items: InvestmentActionMenuItemConfig[] = [];
+
+    if (showTransactionActions && buyLabel && onBuy) {
+      items.push({
+        id: 'buy',
+        label: buyLabel,
+        icon: AddIcon,
+        iconColor: 'success.main',
+        disabled: isDisabled,
+        onClick: withClose(onBuy),
+      });
+    }
+
+    if (showTransactionActions && sellLabel && onSell) {
+      items.push({
+        id: 'sell',
+        label: sellLabel,
+        icon: RemoveIcon,
+        iconColor: 'error.main',
+        disabled: isDisabled,
+        onClick: withClose(onSell),
+      });
+    }
+
+    items.push({
+      id: 'view-current-position',
+      label: t('investments.table.rowActions.viewCurrentPosition'),
+      icon: ManageSearchIcon,
+      disabled: isDisabled,
+      onClick: () => {
+        if (!holding) return;
+        onClose();
+        onViewDetails(holding);
+      },
+    });
+
+    items.push({
+      id: 'edit-movements',
+      label: t('investments.table.rowActions.editMovement'),
+      icon: EditIcon,
+      disabled: isDisabled,
+      onClick: async () => {
+        if (!holding) return;
+        onClose();
+        await onEdit(holding);
+      },
+    });
+
+    return items;
+  }, [
+    buyLabel,
+    holding,
+    isDisabled,
+    onBuy,
+    onClose,
+    onEdit,
+    onSell,
+    onViewDetails,
+    sellLabel,
+    showTransactionActions,
+    t,
+    withClose,
+  ]);
+
+  const specificActions = React.useMemo<InvestmentActionMenuItemConfig[]>(() => {
+    const items: InvestmentActionMenuItemConfig[] = [];
+
+    if (showTransferCustodyAction && onTransferCustody) {
+      items.push({
+        id: 'transfer-custody',
+        label: t('investments.table.rowActions.transferCustody'),
+        icon: SwapHorizIcon,
+        disabled: isDisabled,
+        onClick: withClose(onTransferCustody),
+      });
+    }
+
+    if (showWithholdingTaxAction && onRecordWithholdingTax) {
+      items.push({
+        id: 'record-withholding-tax',
+        label: t('investments.table.rowActions.recordWithholdingTax'),
+        icon: PercentIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordWithholdingTax),
+      });
+    }
+
+    if (showAmortizationAction && onRecordAmortization) {
+      items.push({
+        id: 'record-amortization',
+        label: t('investments.table.rowActions.recordAmortization'),
+        icon: PaymentsIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordAmortization),
+      });
+    }
+
+    if (showStockLendingAction && onRecordStockLending) {
+      items.push({
+        id: 'record-stock-lending',
+        label: t('investments.table.rowActions.recordStockLending'),
+        icon: SavingsIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordStockLending),
+      });
+    }
+
+    if (showCorporateEvents && onRecordProvento) {
+      items.push({
+        id: 'record-provento',
+        label: t('investments.corporateEvents.provento'),
+        icon: EventIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordProvento),
+      });
+    }
+
+    if (showExtendedCorporateEvents && onRecordSplit) {
+      items.push({
+        id: 'record-split',
+        label: t('investments.corporateEvents.split'),
+        icon: TimelineIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordSplit),
+      });
+    }
+
+    if (showExtendedCorporateEvents && onRecordBonus) {
+      items.push({
+        id: 'record-bonus',
+        label: t('investments.corporateEvents.bonus'),
+        icon: CardGiftcardIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordBonus),
+      });
+    }
+
+    if (showExtendedCorporateEvents && onRecordSubscription) {
+      items.push({
+        id: 'record-subscription',
+        label: t('investments.corporateEvents.subscription'),
+        icon: AssignmentIcon,
+        disabled: isDisabled,
+        onClick: withClose(onRecordSubscription),
+      });
+    }
+
+    return items;
+  }, [
+    isDisabled,
+    onRecordAmortization,
+    onRecordBonus,
+    onRecordProvento,
+    onRecordSplit,
+    onRecordStockLending,
+    onRecordSubscription,
+    onRecordWithholdingTax,
+    onTransferCustody,
+    showAmortizationAction,
+    showCorporateEvents,
+    showExtendedCorporateEvents,
+    showStockLendingAction,
+    showTransferCustodyAction,
+    showWithholdingTaxAction,
+    t,
+    withClose,
+  ]);
+
+  const dangerActions = React.useMemo<InvestmentActionMenuItemConfig[]>(
+    () => [
+      {
+        id: 'remove-holding',
+        label: t('investments.table.rowActions.remove'),
+        icon: DeleteOutlineIcon,
+        destructive: true,
+        disabled: isDisabled,
+        onClick: () => {
+          if (!holding) return;
+          onClose();
+          onRemove(holding);
+        },
+      },
+    ],
+    [holding, isDisabled, onClose, onRemove, t],
+  );
 
   return (
     <Menu
@@ -89,224 +341,9 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
       anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       transformOrigin={{ vertical: 'top', horizontal: 'right' }}
     >
-      {showTransactionActions ? (
-        <>
-          {buyLabel && onBuy ? (
-            <MenuItem
-              disabled={deleting || !holding}
-              onClick={() => {
-                if (!holding) return;
-                onClose();
-                onBuy();
-              }}
-            >
-              <ListItemIcon sx={{ color: 'success.main' }}>
-                <AddIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{buyLabel}</ListItemText>
-            </MenuItem>
-          ) : null}
-
-          {sellLabel && onSell ? (
-            <MenuItem
-              disabled={deleting || !holding}
-              onClick={() => {
-                if (!holding) return;
-                onClose();
-                onSell();
-              }}
-            >
-              <ListItemIcon sx={{ color: 'error.main' }}>
-                <RemoveIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{sellLabel}</ListItemText>
-            </MenuItem>
-          ) : null}
-        </>
-      ) : null}
-
-      {showWithholdingTaxAction ? (
-        <MenuItem
-          disabled={deleting || !holding || !onRecordWithholdingTax}
-          onClick={() => {
-            if (!holding || !onRecordWithholdingTax) return;
-            onClose();
-            onRecordWithholdingTax();
-          }}
-        >
-          <ListItemIcon>
-            <PercentIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.recordWithholdingTax')}</ListItemText>
-        </MenuItem>
-      ) : null}
-
-      {showAmortizationAction ? (
-        <MenuItem
-          disabled={deleting || !holding || !onRecordAmortization}
-          onClick={() => {
-            if (!holding || !onRecordAmortization) return;
-            onClose();
-            onRecordAmortization();
-          }}
-        >
-          <ListItemIcon>
-            <PaymentsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.recordAmortization')}</ListItemText>
-        </MenuItem>
-      ) : null}
-
-      {showStockLendingAction ? (
-        <MenuItem
-          disabled={deleting || !holding || !onRecordStockLending}
-          onClick={() => {
-            if (!holding || !onRecordStockLending) return;
-            onClose();
-            onRecordStockLending();
-          }}
-        >
-          <ListItemIcon>
-            <SavingsIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.recordStockLending')}</ListItemText>
-        </MenuItem>
-      ) : null}
-
-      {showTransferCustodyAction ? (
-        <MenuItem
-          disabled={deleting || !holding || !onTransferCustody}
-          onClick={() => {
-            if (!holding || !onTransferCustody) return;
-            onClose();
-            onTransferCustody();
-          }}
-        >
-          <ListItemIcon>
-            <SwapHorizIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t('investments.table.rowActions.transferCustody')}</ListItemText>
-        </MenuItem>
-      ) : null}
-
-      <MenuItem
-        disabled={deleting || !holding}
-        onClick={() => {
-          if (!holding) return;
-          onClose();
-          onViewDetails(holding);
-        }}
-      >
-        <ListItemIcon>
-          <QueryStatsIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>{t('investments.table.rowActions.viewCurrentPosition')}</ListItemText>
-      </MenuItem>
-
-      {showCorporateEvents ? (
-        <>
-          <Divider />
-          <Typography variant="overline" color="text.secondary" sx={{ px: 2, pt: 0.75, pb: 0.25, display: 'block' }}>
-            {t('investments.corporateEvents.section')}
-          </Typography>
-          <MenuItem
-            disabled={deleting || !holding || !onRecordProvento}
-            onClick={() => {
-              if (!holding || !onRecordProvento) return;
-              onClose();
-              onRecordProvento();
-            }}
-          >
-            <ListItemIcon>
-              <EventIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>{t('investments.corporateEvents.provento')}</ListItemText>
-          </MenuItem>
-          {showExtendedCorporateEvents ? (
-            <MenuItem
-              disabled={deleting || !holding || !onRecordSplit}
-              onClick={() => {
-                if (!holding || !onRecordSplit) return;
-                onClose();
-                onRecordSplit();
-              }}
-            >
-              <ListItemIcon>
-                <TimelineIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{t('investments.corporateEvents.split')}</ListItemText>
-            </MenuItem>
-          ) : null}
-          {showExtendedCorporateEvents ? (
-            <MenuItem
-              disabled={deleting || !holding || !onRecordBonus}
-              onClick={() => {
-                if (!holding || !onRecordBonus) return;
-                onClose();
-                onRecordBonus();
-              }}
-            >
-              <ListItemIcon>
-                <CardGiftcardIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{t('investments.corporateEvents.bonus')}</ListItemText>
-            </MenuItem>
-          ) : null}
-          {showExtendedCorporateEvents ? (
-            <MenuItem
-              disabled={deleting || !holding || !onRecordSubscription}
-              onClick={() => {
-                if (!holding || !onRecordSubscription) return;
-                onClose();
-                onRecordSubscription();
-              }}
-            >
-              <ListItemIcon>
-                <AssignmentIcon fontSize="small" />
-              </ListItemIcon>
-              <ListItemText>{t('investments.corporateEvents.subscription')}</ListItemText>
-            </MenuItem>
-          ) : null}
-        </>
-      ) : null}
-
-      <MenuItem
-        disabled={deleting || !holding}
-        onClick={async () => {
-          if (!holding) return;
-          onClose();
-          await onEdit(holding);
-        }}
-      >
-        <ListItemIcon>
-          <EditIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>{t('investments.table.rowActions.editMovement')}</ListItemText>
-      </MenuItem>
-
-      <MenuItem
-        disabled={deleting || !holding}
-        onClick={() => {
-          if (!holding) return;
-          onClose();
-          onRemove(holding);
-        }}
-        sx={(theme) => ({
-          ...(isFixedIncomeHolding ? { borderTop: `1px solid ${alpha(theme.palette.divider, 0.7)}` } : {}),
-          color: 'error.main',
-          '&:hover': {
-            bgcolor: alpha(theme.palette.error.main, 0.08),
-          },
-          '&.Mui-focusVisible': {
-            bgcolor: alpha(theme.palette.error.main, 0.08),
-          },
-        })}
-      >
-        <ListItemIcon sx={{ color: 'inherit' }}>
-          <DeleteOutlineIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText>{t('investments.table.rowActions.remove')}</ListItemText>
-      </MenuItem>
+      <InvestmentActionMenuSection items={coreActions} />
+      <InvestmentActionMenuSection items={specificActions} showDivider={coreActions.length > 0} />
+      <InvestmentActionMenuSection items={dangerActions} showDivider={coreActions.length > 0 || specificActions.length > 0} />
     </Menu>
   );
 });

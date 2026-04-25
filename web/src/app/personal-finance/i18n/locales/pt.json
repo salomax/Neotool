@@ -433,7 +433,7 @@
         "ariaLabel": "Ações do ativo",
         "viewDetails": "Ver detalhes",
         "viewEvents": "Ver eventos",
-        "viewCurrentPosition": "Ver posição atual",
+        "viewCurrentPosition": "Visualizar",
         "editMovement": "Editar movimentações",
         "recordWithholdingTax": "Registrar come-cotas",
         "recordAmortization": "Registrar amortização",
@@ -536,6 +536,19 @@
         "Outros": "Outro",
         "withPercentage": "{{label}} {{percentage}}%",
         "fixedAnnualRate": "{{rate}}% a.a."
+      },
+      "grid": {
+        "principal": "Principal",
+        "grossTotal": "Total Bruto",
+        "netTotal": "Total Líquido",
+        "grossEarnings": "Rendimento Bruto",
+        "totalReturn": "Rendimento Bruto",
+        "totalGain": "Ganho total",
+        "couponsReceivedNet": "Cupons recebidos (líq.)",
+        "dividendsReceived": "Proventos",
+        "incomeTax": "IR",
+        "iof": "IOF",
+        "netEarnings": "Rendimento Líquido"
       },
       "metrics": {
         "principal": "Principal investido",
@@ -651,7 +664,7 @@
         "SUBSCRIPTION": "Subscrição",
         "WITHHOLDING_TAX": "Imposto retido"
       }
-    ,
+    },
     "deleteConfirmation": {
       "title": "Excluir ativo",
       "message": "Tem certeza que deseja excluir este lançamento? Esta ação não pode ser desfeita."

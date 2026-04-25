@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.Indexer
@@ -10,6 +11,7 @@ import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
@@ -569,6 +571,62 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
         assertThat(snapshotAfter).containsExactlyElementsOf(snapshotBefore)
     }
 
+    @Test
+    fun `holding create update date and delete keeps TWR consistent across recalculations`() {
+        val today = LocalDate.now()
+        val oneYearAgo = today.minusYears(1)
+        val sixMonthsAgo = today.minusMonths(6)
+        upsertPrice(stockAssetId, oneYearAgo, "10.00")
+        upsertPrice(stockAssetId, sixMonthsAgo, "12.00")
+        upsertPrice(stockAssetId, today, "15.00")
+
+        val createdTx =
+            recordTransaction(
+                financialAccountId = financialAccountA,
+                tradeDate = oneYearAgo,
+                direction = InvestmentTransactionDirection.INFLOW,
+                type = InvestmentTransactionType.PURCHASE,
+                quantity = "100.00",
+                unitPrice = "10.00",
+                grossValue = "1000.00",
+            )
+        processPendingJobs()
+
+        val twrAfterCreate = getPortfolioTwr(financialAccountA)
+        assertThat(twrAfterCreate.isFinite()).isTrue()
+
+        investmentTransactionService.update(
+            id = requireNotNull(createdTx.id),
+            command =
+                UpdateInvestmentTransactionCommand(
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("100.00"),
+                    unitPrice = BigDecimal("10.00"),
+                    grossValue = BigDecimal("1000.00"),
+                    netValue = BigDecimal("1000.00"),
+                    tradeDate = sixMonthsAgo,
+                ),
+            accountId = accountId,
+            userId = userId,
+        )
+        processPendingJobs()
+
+        val twrAfterUpdate = getPortfolioTwr(financialAccountA)
+        assertThat(twrAfterUpdate.isFinite()).isTrue()
+        assertThat(abs(twrAfterUpdate - twrAfterCreate)).isGreaterThan(TwrTestTolerance.EPS_INTEGRATION)
+
+        investmentTransactionService.deleteHolding(
+            id = createdTx.holdingId,
+            accountId = accountId,
+        )
+        processPendingJobs()
+
+        val twrAfterDelete = getPortfolioTwr(financialAccountA)
+        assertThat(twrAfterDelete.isFinite()).isTrue()
+        assertThat(abs(abs(twrAfterDelete) - 1.0)).isLessThanOrEqualTo(TwrTestTolerance.EPS_INTEGRATION)
+    }
+
     private fun recordTransaction(
         financialAccountId: UUID,
         assetId: UUID = stockAssetId,
@@ -583,7 +641,7 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
         fixedAnnualRate: String? = null,
         issueDate: LocalDate? = null,
         maturityDate: LocalDate? = null,
-    ) {
+    ): InvestmentTransaction =
         investmentTransactionService.record(
             command =
                 RecordInvestmentTransactionCommand(
@@ -605,7 +663,6 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
             accountId = accountId,
             userId = userId,
         )
-    }
 
     private fun processPendingJobs() {
         while (true) {
@@ -661,6 +718,16 @@ class PortfolioTwrPipelineIT : BankingPostgresIntegrationTest() {
         assertThat(expected).isNotNull()
         assertThat(abs(actualTwr - expected!!)).isLessThanOrEqualTo(TwrTestTolerance.EPS_INTEGRATION)
     }
+
+    private fun getPortfolioTwr(financialAccountId: UUID): Double =
+        requireNotNull(
+            portfolioPerformanceQueryService.getPortfolioPerformance(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                period = PerformancePeriodDTO.ALL,
+                hasEstimatedValuesFallback = false,
+            ).twr,
+        )
 
     private fun scopedPortfolioSnapshot(financialAccountId: UUID): List<String> =
         portfolioQuotaRepository.findByAccountAndDateRange(
