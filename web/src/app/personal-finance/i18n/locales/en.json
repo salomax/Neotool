@@ -1082,6 +1082,14 @@
         "categoryDonut": {
           "title": "Categories",
           "description": "Distribution of expenses and income by category."
+        },
+        "investmentAllocation": {
+          "title": "Investment Allocation",
+          "description": "Current portfolio distribution by asset group."
+        },
+        "investmentTreemap": {
+          "title": "Investment Treemap",
+          "description": "Portfolio composition by asset group in a proportional treemap."
         }
       },
       "menu": {
@@ -1122,6 +1130,23 @@
         "totalNetWorth": "Total Net Worth",
         "estimatedNote": "Estimated value",
         "noData": "No data for the selected period."
+      },
+      "investmentAllocation": {
+        "totalPortfolio": "Portfolio value",
+        "legendCount_one": "1 asset",
+        "legendCount_other": "{{count}} assets",
+        "noData": "No investment allocation available.",
+        "error": "Failed to load investment allocation."
+      },
+      "investmentTreemap": {
+        "totalPortfolio": "Portfolio value",
+        "allocation": "Allocation",
+        "amount": "Amount",
+        "assets": "Assets",
+        "legendCount_one": "1 asset",
+        "legendCount_other": "{{count}} assets",
+        "noData": "No investment positions available.",
+        "error": "Failed to load investment treemap."
       }
     }
   },
@@ -1698,6 +1723,7 @@
     },
     "transactionTable": {
       "ariaLabel": "Transactions table",
+      "categoryUpdated": "Category updated",
       "columns": {
         "description": "Description",
         "category": "Category",

@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 
 const NET_WORTH_WIDGET_ID = 'net-worth-1';
 const CATEGORY_SUMMARY_WIDGET_ID = 'category-summary-1';
+const INVESTMENT_ALLOCATION_WIDGET_ID = 'investment-allocation-chart-1';
+const INVESTMENT_TREEMAP_WIDGET_ID = 'investment-treemap-1';
 const LEGACY_CATEGORY_DONUT_WIDGET_ID = 'category-donut-1';
 
 const DEFAULT_WIDGETS: WidgetInstance[] = [
@@ -13,6 +15,8 @@ const DEFAULT_WIDGETS: WidgetInstance[] = [
   { id: 'cash-flow-1', type: 'cash-flow', isVisible: true },
   { id: NET_WORTH_WIDGET_ID, type: 'net-worth', isVisible: true },
   { id: CATEGORY_SUMMARY_WIDGET_ID, type: 'category-summary', isVisible: true },
+  { id: INVESTMENT_ALLOCATION_WIDGET_ID, type: 'investment-allocation-chart', isVisible: true },
+  { id: INVESTMENT_TREEMAP_WIDGET_ID, type: 'investment-treemap', isVisible: true },
 ];
 
 const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
@@ -21,35 +25,52 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
   ],
   md: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
   ],
   sm: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
   ],
   xs: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
   ],
   xxs: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
     { i: 'month-summary-kpi-1', x: 8, y: 0, w: 4, h: 4 },
     { i: 'cash-flow-1', x: 0, y: 4, w: 8, h: 4 },
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
+    { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
+    { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
   ],
 };
 
 const LEGACY_WIDGET_TYPES = ['transaction-history', 'spending-breakdown'];
-const SUPPORTED_WIDGET_TYPES = ['month-summary-kpi', 'cash-flow', 'net-worth', 'category-summary'];
+const SUPPORTED_WIDGET_TYPES = [
+  'month-summary-kpi',
+  'cash-flow',
+  'net-worth',
+  'category-summary',
+  'investment-allocation-chart',
+  'investment-treemap',
+];
 const BREAKPOINT_KEYS = ['lg', 'md', 'sm', 'xs', 'xxs'] as const;
 
 function migrateCategorySummary(widgets: WidgetInstance[] | undefined, layouts: any) {
@@ -96,25 +117,23 @@ function withStateRoot(persistedState: any, nextStateRoot: any) {
   return nextStateRoot;
 }
 
-function ensureNetWorthLayouts(layouts: any) {
+function ensureWidgetLayouts(layouts: any, widgetId: string, widgetIdPrefix: string) {
   const source = layouts && typeof layouts === 'object' ? layouts : {};
   let changed = false;
   const nextLayouts = { ...source };
 
   for (const breakpoint of BREAKPOINT_KEYS) {
     const existing = Array.isArray(source[breakpoint]) ? source[breakpoint] : [];
-    const hasNetWorth = existing.some(
-      (item: any) => item?.i === NET_WORTH_WIDGET_ID || item?.i?.startsWith('net-worth-')
-    );
+    const hasWidget = existing.some((item: any) => item?.i === widgetId || item?.i?.startsWith(widgetIdPrefix));
 
-    if (hasNetWorth) {
+    if (hasWidget) {
       nextLayouts[breakpoint] = existing;
       continue;
     }
 
     const fallbackDefault = (DEFAULT_LAYOUTS[breakpoint] as any[]).find(
-      (item: any) => item.i === NET_WORTH_WIDGET_ID
-    ) ?? { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 12, h: 4 };
+      (item: any) => item.i === widgetId
+    ) ?? { i: widgetId, x: 0, y: 0, w: 12, h: 4 };
 
     const nextY = existing.reduce((maxY: number, item: any) => {
       const itemBottom = (item?.y ?? 0) + (item?.h ?? 0);
@@ -129,6 +148,36 @@ function ensureNetWorthLayouts(layouts: any) {
       },
     ];
     changed = true;
+  }
+
+  return changed ? nextLayouts : layouts;
+}
+
+function ensureRequiredLayouts(layouts: any) {
+  const withNetWorth = ensureWidgetLayouts(layouts, NET_WORTH_WIDGET_ID, 'net-worth-');
+  const withAllocationChart = ensureWidgetLayouts(
+    withNetWorth,
+    INVESTMENT_ALLOCATION_WIDGET_ID,
+    'investment-allocation-chart-',
+  );
+  return ensureWidgetLayouts(withAllocationChart, INVESTMENT_TREEMAP_WIDGET_ID, 'investment-treemap-');
+}
+
+function migrateInvestmentAllocationHalfWidth(layouts: any) {
+  if (!layouts || typeof layouts !== 'object') return layouts;
+
+  let changed = false;
+  const nextLayouts = { ...layouts };
+
+  for (const breakpoint of ['lg', 'md'] as const) {
+    const current = Array.isArray(layouts[breakpoint]) ? layouts[breakpoint] : [];
+    const next = current.map((item: any) => {
+      if (item?.i !== INVESTMENT_ALLOCATION_WIDGET_ID) return item;
+      if (item?.w !== 12 || item?.h !== 4) return item;
+      changed = true;
+      return { ...item, w: 6 };
+    });
+    nextLayouts[breakpoint] = next;
   }
 
   return changed ? nextLayouts : layouts;
@@ -185,18 +234,51 @@ function migratePersistedState(persistedState: any) {
   const migratedWidgets = root?.widgets as WidgetInstance[] | undefined;
   const hasNetWorth =
     Array.isArray(migratedWidgets) && migratedWidgets.some((widget) => widget.type === 'net-worth');
-  if (Array.isArray(migratedWidgets) && !hasNetWorth) {
+  let nextWidgets = migratedWidgets;
+  if (Array.isArray(nextWidgets) && !hasNetWorth) {
+    nextWidgets = [...nextWidgets, { id: NET_WORTH_WIDGET_ID, type: 'net-worth', isVisible: true }];
+  }
+
+  const hasInvestmentAllocation =
+    Array.isArray(nextWidgets) &&
+    nextWidgets.some((widget) => widget.type === 'investment-allocation-chart');
+  if (Array.isArray(nextWidgets) && !hasInvestmentAllocation) {
+    nextWidgets = [
+      ...nextWidgets,
+      { id: INVESTMENT_ALLOCATION_WIDGET_ID, type: 'investment-allocation-chart', isVisible: true },
+    ];
+  }
+
+  const hasInvestmentTreemap =
+    Array.isArray(nextWidgets) &&
+    nextWidgets.some((widget) => widget.type === 'investment-treemap');
+  if (Array.isArray(nextWidgets) && !hasInvestmentTreemap) {
+    nextWidgets = [
+      ...nextWidgets,
+      { id: INVESTMENT_TREEMAP_WIDGET_ID, type: 'investment-treemap', isVisible: true },
+    ];
+  }
+
+  if (nextWidgets !== migratedWidgets) {
     root = {
       ...root,
-      widgets: [...migratedWidgets, { id: NET_WORTH_WIDGET_ID, type: 'net-worth', isVisible: true }],
+      widgets: nextWidgets,
     };
   }
 
-  const nextLayouts = ensureNetWorthLayouts(root?.layouts);
+  const nextLayouts = ensureRequiredLayouts(root?.layouts);
   if (nextLayouts !== root?.layouts) {
     root = {
       ...root,
       layouts: nextLayouts,
+    };
+  }
+
+  const resizedLayouts = migrateInvestmentAllocationHalfWidth(root?.layouts);
+  if (resizedLayouts !== root?.layouts) {
+    root = {
+      ...root,
+      layouts: resizedLayouts,
     };
   }
 
@@ -281,7 +363,7 @@ export const useDashboardStore = create<DashboardState>()(
     }),
     {
       name: 'dashboard-storage',
-      version: 4,
+      version: 7,
       migrate: (persistedState: any) => migratePersistedState(persistedState),
       onRehydrateStorage: () => (state) => {
         if (!state) return;

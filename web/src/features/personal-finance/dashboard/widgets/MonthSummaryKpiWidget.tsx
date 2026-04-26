@@ -47,10 +47,6 @@ const TWO_COLUMN_GRID_SECTION_SX = {
   px: 1,
   ...TWO_COLUMN_GRID_SX,
 };
-const TWO_COLUMN_GRID_SECTION_FULL_WIDTH_SX = {
-  ...TWO_COLUMN_GRID_SECTION_SX,
-  width: '100%',
-};
 const SECTION_PX_SX = { px: 1 };
 const VALUE_COLUMN_SX = { display: 'flex', flexDirection: 'column', gap: 0.75 };
 const VALUE_COLUMN_WIDE_SX = { display: 'flex', flexDirection: 'column', gap: 1, flex: 1 };
@@ -63,12 +59,11 @@ const LABEL_SX = { mb: 0 };
 const BOLD_SX = { fontWeight: 700 };
 const SUCCESS_VALUE_SX = (theme: Theme) => ({ ...BOLD_SX, color: theme.palette.success.main });
 const ERROR_VALUE_SX = (theme: Theme) => ({ ...BOLD_SX, color: theme.palette.error.main });
-const BOLD_MUTED_SX = { fontWeight: 700, color: 'text.secondary' };
 const MEDIUM_MUTED_SX = { fontWeight: 600 };
 const CAPTION_MUTED_SX = { mt: -0.25 };
 const NET_WORTH_VALUE_SLOT_SX = { textAlign: 'left', justifySelf: 'flex-start' };
 const VOLUME_BAR_SX = {
-  mt: 0.5,
+  mt: 1,
   height: 6,
   borderRadius: 3,
   display: 'flex',
@@ -100,6 +95,11 @@ export const MonthSummaryKpiWidget: React.FC<WidgetProps> = ({ widget, dragHandl
   const totalNetWorth = summary.totalNetWorth;
   const cashPct = totalNetWorth > 0 ? (summary.closingCashBalance / totalNetWorth) * 100 : null;
   const portfolioPct = totalNetWorth > 0 ? (summary.closingPortfolioValue / totalNetWorth) * 100 : null;
+  const cashBarFlex = Math.max(0, summary.closingCashBalance);
+  const portfolioBarFlex = Math.max(0, summary.closingPortfolioValue);
+  const netWorthCompositionTotal = cashBarFlex + portfolioBarFlex;
+  const showNetWorthCompositionBar = loading || (totalNetWorth > 0 && netWorthCompositionTotal > 0);
+  const { cash: netWorthCashColor, portfolio: netWorthPortfolioColor } = theme.custom.netWorthCompositionColors;
   const avgIncomeLabel = t('dashboard.widgets.periodSummary.monthlyAveragePerMonth', {
     value: formatCurrency(summary.avgMonthlyIncome),
   });
@@ -133,6 +133,16 @@ export const MonthSummaryKpiWidget: React.FC<WidgetProps> = ({ widget, dragHandl
     () => ({ ...VOLUME_BAR_SEGMENT_SX, flex: absExpenses, bgcolor: theme.palette.error.main }),
     [absExpenses, theme.palette.error.main],
   );
+  const cashCompositionBarSegmentSx = React.useMemo(
+    () => ({ ...VOLUME_BAR_SEGMENT_SX, flex: cashBarFlex, bgcolor: alpha(netWorthCashColor, 0.5) }),
+    [cashBarFlex, netWorthCashColor],
+  );
+  const portfolioCompositionBarSegmentSx = React.useMemo(
+    () => ({ ...VOLUME_BAR_SEGMENT_SX, flex: portfolioBarFlex, bgcolor: alpha(netWorthPortfolioColor, 0.5) }),
+    [portfolioBarFlex, netWorthPortfolioColor],
+  );
+  const cashPctSx = React.useMemo(() => ({ ...BOLD_SX, color: netWorthCashColor }), [netWorthCashColor]);
+  const portfolioPctSx = React.useMemo(() => ({ ...BOLD_SX, color: netWorthPortfolioColor }), [netWorthPortfolioColor]);
 
   return (
     <WidgetWrapper
@@ -169,54 +179,69 @@ export const MonthSummaryKpiWidget: React.FC<WidgetProps> = ({ widget, dragHandl
 
             <Divider />
 
-            <Box sx={TWO_COLUMN_GRID_SECTION_FULL_WIDTH_SX}>
-              <Box sx={VALUE_COLUMN_SX}>
-                <Label sx={LABEL_SX}>{cashLabel}</Label>
-                {loading ? (
-                  <Box sx={BASELINE_ROW_SX}>
-                    <Skeleton variant="text" width={160} height={32} />
-                    <Skeleton variant="text" width={56} height={22} />
-                  </Box>
-                ) : (
-                  <Box sx={BASELINE_ROW_SX}>
-                    <CurrencyAmountParts
-                      value={summary.closingCashBalance}
-                      currency="BRL"
-                      locale="pt-BR"
-                      variant="h6"
-                      component="div"
-                      sx={BOLD_SX}
-                    />
-                    <Typography variant="caption" sx={BOLD_MUTED_SX}>
-                      • {formatPercent(cashPct)}
-                    </Typography>
-                  </Box>
-                )}
+            <Box sx={SECTION_PX_SX}>
+              <Box sx={TWO_COLUMN_GRID_SX}>
+                <Box sx={VALUE_COLUMN_SX}>
+                  <Label sx={LABEL_SX}>{cashLabel}</Label>
+                  {loading ? (
+                    <Box sx={BASELINE_ROW_SX}>
+                      <Skeleton variant="text" width={160} height={32} />
+                      <Skeleton variant="text" width={56} height={22} />
+                    </Box>
+                  ) : (
+                    <Box sx={BASELINE_ROW_SX}>
+                      <CurrencyAmountParts
+                        value={summary.closingCashBalance}
+                        currency="BRL"
+                        locale="pt-BR"
+                        variant="h6"
+                        component="div"
+                        sx={BOLD_SX}
+                      />
+                      <Typography variant="body2" sx={cashPctSx}>
+                        • {formatPercent(cashPct)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+
+                <Box sx={VALUE_COLUMN_SX}>
+                  <Label sx={LABEL_SX}>{portfolioLabel}</Label>
+                  {loading ? (
+                    <Box sx={BASELINE_ROW_SX}>
+                      <Skeleton variant="text" width={160} height={32} />
+                      <Skeleton variant="text" width={56} height={22} />
+                    </Box>
+                  ) : (
+                    <Box sx={BASELINE_ROW_SX}>
+                      <CurrencyAmountParts
+                        value={summary.closingPortfolioValue}
+                        currency="BRL"
+                        locale="pt-BR"
+                        variant="h6"
+                        component="div"
+                        sx={BOLD_SX}
+                      />
+                      <Typography variant="body2" sx={portfolioPctSx}>
+                        • {formatPercent(portfolioPct)}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
               </Box>
 
-              <Box sx={VALUE_COLUMN_SX}>
-                <Label sx={LABEL_SX}>{portfolioLabel}</Label>
-                {loading ? (
-                  <Box sx={BASELINE_ROW_SX}>
-                    <Skeleton variant="text" width={160} height={32} />
-                    <Skeleton variant="text" width={56} height={22} />
-                  </Box>
-                ) : (
-                  <Box sx={BASELINE_ROW_SX}>
-                    <CurrencyAmountParts
-                      value={summary.closingPortfolioValue}
-                      currency="BRL"
-                      locale="pt-BR"
-                      variant="h6"
-                      component="div"
-                      sx={BOLD_SX}
-                    />
-                    <Typography variant="caption" sx={BOLD_MUTED_SX}>
-                      • {formatPercent(portfolioPct)}
-                    </Typography>
-                  </Box>
-                )}
-              </Box>
+              {showNetWorthCompositionBar && (
+                <Box sx={volumeBarTrackSx}>
+                  {loading ? (
+                    <Skeleton variant="rectangular" width="100%" height="100%" />
+                  ) : (
+                    <>
+                      <Box sx={cashCompositionBarSegmentSx} />
+                      <Box sx={portfolioCompositionBarSegmentSx} />
+                    </>
+                  )}
+                </Box>
+              )}
             </Box>
 
             <Divider />

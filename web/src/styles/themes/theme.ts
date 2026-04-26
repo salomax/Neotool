@@ -30,6 +30,21 @@ declare module "@mui/material/styles" {
       palette: CustomPaletteTokens;
       /** Background colors for fixed-income type avatars (`AssetType` → hex). Includes `DEFAULT`. */
       fixedIncomeTypeColors: Record<string, string>;
+      /**
+       * Cash vs portfolio in net-worth UI (dashboard month summary, Evolução do Patrimônio chart).
+       * Matches `palette.primary` / `palette.success` for the active mode — single source for composition visuals.
+       */
+      netWorthCompositionColors: { cash: string; portfolio: string };
+      /** Palette used by portfolio allocation charts (stacked/percent area + legends). */
+      portfolioAllocationColors: {
+        cash: string;
+        variableIncome: string;
+        fixedIncome: string;
+        mutualFunds: string;
+        pension: string;
+        structured: string;
+        others: string;
+      };
       shadow: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -40,6 +55,16 @@ declare module "@mui/material/styles" {
       border?: DesignTokens["border"];
       palette?: CustomPaletteTokens;
       fixedIncomeTypeColors?: Record<string, string>;
+      netWorthCompositionColors?: { cash: string; portfolio: string };
+      portfolioAllocationColors?: {
+        cash: string;
+        variableIncome: string;
+        fixedIncome: string;
+        mutualFunds: string;
+        pension: string;
+        structured: string;
+        others: string;
+      };
       shadow?: (level: 0 | 1 | 2 | 3 | 4, color?: string) => string;
     };
   }
@@ -298,6 +323,19 @@ export const createAppTheme = (mode: Mode) => {
       border: t.border,
       shadow: buildShadow,
       fixedIncomeTypeColors: fixedIncomeTypeColorsByMode[mode],
+      netWorthCompositionColors: {
+        cash: t.palette.primary,
+        portfolio: t.palette.success,
+      },
+      portfolioAllocationColors: {
+        cash: t.palette.primary,
+        variableIncome: t.palette.secondary,
+        fixedIncome: t.palette.success,
+        mutualFunds: t.palette.info,
+        pension: t.palette.warning,
+        structured: t.palette.thresholdRegular,
+        others: t.palette.textMuted,
+      },
       palette: {
         inputBorder: t.palette.inputBorder,
         tabBorder: t.palette.tabBorder,

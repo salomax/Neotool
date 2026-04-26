@@ -987,6 +987,106 @@ export const PORTFOLIO_PERFORMANCE = gql`
   }
 `;
 
+/**
+ * Monthly gross value series by portfolio allocation group.
+ * Uses independent `portfolioPerformance` calls per group to support a percent-stacked area chart.
+ */
+export const PORTFOLIO_ALLOCATION_SERIES = gql`
+  query PortfolioAllocationSeries($financialAccountId: ID) {
+    perfCash: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "cash"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfVariableIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "variableIncome"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfFixedIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "fixedIncome"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfMutualFunds: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "mutualFunds"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfPension: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "pension"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfStructured: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "structured"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfOthers: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "others"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+  }
+`;
+
 export const INVESTMENT_TRANSACTIONS = gql`
   query InvestmentTransactions($holdingId: ID!) {
     investmentTransactions(holdingId: $holdingId) {

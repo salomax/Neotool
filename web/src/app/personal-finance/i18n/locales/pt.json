@@ -1082,6 +1082,14 @@
         "categoryDonut": {
           "title": "Categorias",
           "description": "Distribuição de despesas e receitas por categoria."
+        },
+        "investmentAllocation": {
+          "title": "Alocação de Investimentos",
+          "description": "Distribuição atual da carteira por grupo de ativos."
+        },
+        "investmentTreemap": {
+          "title": "Treemap de Investimentos",
+          "description": "Composição da carteira por grupo de ativos em treemap proporcional."
         }
       },
       "menu": {
@@ -1122,6 +1130,23 @@
         "totalNetWorth": "Patrimônio Total",
         "estimatedNote": "Valor estimado",
         "noData": "Sem dados para o período selecionado."
+      },
+      "investmentAllocation": {
+        "totalPortfolio": "Valor da carteira",
+        "legendCount_one": "1 ativo",
+        "legendCount_other": "{{count}} ativos",
+        "noData": "Sem alocação de investimentos disponível.",
+        "error": "Falha ao carregar a alocação de investimentos."
+      },
+      "investmentTreemap": {
+        "totalPortfolio": "Valor da carteira",
+        "allocation": "Alocação",
+        "amount": "Valor",
+        "assets": "Ativos",
+        "legendCount_one": "1 ativo",
+        "legendCount_other": "{{count}} ativos",
+        "noData": "Sem posições de investimentos disponíveis.",
+        "error": "Falha ao carregar o treemap de investimentos."
       }
     }
   },
@@ -1701,6 +1726,7 @@
     },
     "transactionTable": {
       "ariaLabel": "Tabela de transações",
+      "categoryUpdated": "Categoria atualizada",
       "columns": {
         "description": "Descrição",
         "category": "Categoria",
