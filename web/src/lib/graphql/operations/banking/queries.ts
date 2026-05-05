@@ -930,6 +930,28 @@ export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
   }
 `;
 
+export const PORTFOLIO_HOLDINGS_SNAPSHOT = gql`
+  query PortfolioHoldingsSnapshot($financialAccountId: ID) {
+    investmentCashBalance(financialAccountId: $financialAccountId)
+    investmentHoldings(financialAccountId: $financialAccountId) {
+      id
+      grossValue
+      financialAccount {
+        id
+        name
+        currencyCode
+      }
+      asset {
+        id
+        name
+        ticker
+        assetType
+        currencyCode
+      }
+    }
+  }
+`;
+
 export const PORTFOLIO_PERFORMANCE = gql`
   query PortfolioPerformance(
     $financialAccountId: ID

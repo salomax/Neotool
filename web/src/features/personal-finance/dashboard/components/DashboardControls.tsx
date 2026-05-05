@@ -11,7 +11,7 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import { useDashboardStore } from '../store';
 import { DateRangeOption } from '../types';
 import { useTranslation } from '@/shared/i18n';
@@ -70,7 +70,7 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
               title={t('dashboard.actions.investmentsPortfolio.title')}
               description={t('dashboard.actions.investmentsPortfolio.description')}
               accentColor={theme.palette.success.main}
-              icon={<TrendingUpIcon sx={{ fontSize: 128 }} />}
+              icon={<SavingsOutlinedIcon sx={{ fontSize: 128 }} />}
               isMobile={isMobile}
             />
 

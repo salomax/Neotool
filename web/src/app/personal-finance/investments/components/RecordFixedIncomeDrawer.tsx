@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useApolloClient, useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Avatar, Box, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typography, alpha, useTheme } from "@mui/material";
+import { Avatar, Box, Divider, List, ListItemButton, ListItemIcon, ListItemText, Paper, Typography, alpha, useTheme } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 import { FormProvider, useForm, useWatch } from "react-hook-form";
 import dayjs from "dayjs";
@@ -31,6 +31,7 @@ import {
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormStack, FormRowStack } from "@/shared/components/ui/forms/components";
 import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput, NumberField, PercentField, SelectField } from "@/shared/components/ui/forms/form";
+import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
 import { getLocaleSeparators } from "@/shared/utils/locale";
@@ -432,20 +433,20 @@ export function RecordFixedIncomeDrawer({
     setValue("isTaxExempt", TAX_EXEMPT_ASSET_TYPES.includes(watchedAssetType as (typeof TAX_EXEMPT_ASSET_TYPES)[number]));
   }, [watchedAssetType, setValue]);
 
-  const [createAsset, { error: createAssetError }] = useMutation<
+  const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
     CreateInvestmentAssetMutation,
     CreateInvestmentAssetMutationVariables
   >(CREATE_INVESTMENT_ASSET);
 
-  const [recordTransaction, { error: recordTxError }] = useMutation<
+  const [recordTransaction, { loading: recordingTx, error: recordTxError }] = useMutation<
     RecordInvestmentTransactionMutation,
     RecordInvestmentTransactionMutationVariables
   >(RECORD_INVESTMENT_TRANSACTION);
-  const [updateAsset, { error: updateAssetError }] = useMutation<
+  const [updateAsset, { loading: updatingAsset, error: updateAssetError }] = useMutation<
     UpdateInvestmentAssetMutationData,
     UpdateInvestmentAssetMutationVars
   >(UPDATE_INVESTMENT_ASSET);
-  const [updateTransaction, { error: updateTxError }] = useMutation<
+  const [updateTransaction, { loading: updatingTx, error: updateTxError }] = useMutation<
     UpdateInvestmentTransactionMutationData,
     UpdateInvestmentTransactionMutationVars
   >(UPDATE_INVESTMENT_TRANSACTION);
@@ -463,6 +464,7 @@ export function RecordFixedIncomeDrawer({
   }, [apolloClient, onClose, onRecorded, success, t]);
 
   const mutationError = createAssetError || recordTxError || updateAssetError || updateTxError;
+  const isSubmitting = creatingAsset || recordingTx || updatingAsset || updatingTx;
 
   const assetTypeOptions = React.useMemo(
     () =>
@@ -820,6 +822,19 @@ export function RecordFixedIncomeDrawer({
                 name="isTaxExempt"
                 label={t("investments.recordHolding.fields.isTaxExempt")}
                 data-testid="record-tax-exempt-checkbox"
+              />
+
+              <Divider />
+
+              <Drawer.ActionButtons
+                cancelText={t("actions.cancel")}
+                submitText={t("investments.recordHolding.actions.submit")}
+                submittingText={t("investments.recordHolding.actions.submitting")}
+                onCancel={onClose}
+                submitForm="record-fixed-income-form"
+                cancelDisabled={isSubmitting}
+                submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+                submitting={isSubmitting}
               />
             </FormStack>
           </form>

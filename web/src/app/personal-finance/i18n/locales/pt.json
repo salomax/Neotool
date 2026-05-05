@@ -1141,11 +1141,17 @@
       "investmentTreemap": {
         "totalPortfolio": "Valor da carteira",
         "allocation": "Alocação",
+        "groupAllocation": "% do grupo",
         "amount": "Valor",
+        "account": "Conta",
         "assets": "Ativos",
+        "backToPortfolio": "Voltar para carteira",
+        "portfolioBreadcrumb": "Carteira",
         "legendCount_one": "1 ativo",
         "legendCount_other": "{{count}} ativos",
         "noData": "Sem posições de investimentos disponíveis.",
+        "noHoldingsInGroup": "Nenhum ativo nesta classe.",
+        "cashGroupNote": "Caixa representa o saldo em conta de custódia.",
         "error": "Falha ao carregar o treemap de investimentos."
       }
     }

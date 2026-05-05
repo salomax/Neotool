@@ -12,6 +12,9 @@ import {
   PortfolioAllocationSeriesDocument,
   PortfolioAllocationSeriesQuery,
   PortfolioAllocationSeriesQueryVariables,
+  PortfolioHoldingsSnapshotDocument,
+  PortfolioHoldingsSnapshotQuery,
+  PortfolioHoldingsSnapshotQueryVariables,
   PortfolioNetWorthSeriesDocument,
   PortfolioNetWorthSeriesQuery,
 } from '@/lib/graphql/operations/banking/queries.generated';
@@ -305,6 +308,26 @@ export function useInvestmentTreemapSummary(financialAccountId?: string | null) 
     rows: buildInvestmentTreemapRows(summary?.byAssetGroup),
     currencyCode: summary?.currencyCode ?? 'BRL',
     totalPortfolioValue: asFinite(summary?.totalPortfolioValue),
+    loading,
+    error: error ?? null,
+    refetch,
+  };
+}
+
+export type HoldingSnapshot = PortfolioHoldingsSnapshotQuery['investmentHoldings'][number];
+
+export function usePortfolioHoldingsSnapshot(financialAccountId?: string | null) {
+  const { data, loading, error, refetch } = useQuery<
+    PortfolioHoldingsSnapshotQuery,
+    PortfolioHoldingsSnapshotQueryVariables
+  >(PortfolioHoldingsSnapshotDocument, {
+    variables: { financialAccountId: financialAccountId ?? undefined },
+    fetchPolicy: 'cache-and-network',
+  });
+
+  return {
+    holdings: data?.investmentHoldings ?? [],
+    cashBalance: asFinite(data?.investmentCashBalance),
     loading,
     error: error ?? null,
     refetch,
