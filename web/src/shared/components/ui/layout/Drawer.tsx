@@ -73,6 +73,8 @@ export interface DrawerHeaderProps {
   locale?: string;
   /** Icon displayed before the title */
   icon?: React.ReactNode;
+  /** Content rendered to the left of the close button */
+  headerActions?: React.ReactNode;
   titleId?: string;
   /** Props forwarded to the title Typography component */
   titleTypographyProps?: TypographyProps;
@@ -417,6 +419,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
   title,
   locale,
   icon,
+  headerActions,
   titleId,
   titleTypographyProps,
   showCloseButton = true,
@@ -449,7 +452,7 @@ const Header: React.FC<DrawerHeaderProps> = ({
   }
 
   // Default header with title and buttons
-  if (!title && !showCloseButton && !showMenuButton && !icon) {
+  if (!title && !showCloseButton && !showMenuButton && !icon && !headerActions) {
     return null;
   }
 
@@ -503,15 +506,18 @@ const Header: React.FC<DrawerHeaderProps> = ({
         )}
       </Box>
       
-      {showCloseButton && (
-        <IconButton
-          onClick={onClose}
-          size="small"
-          aria-label={closeButtonAriaLabel ?? (title ? `Close ${title}` : "Close drawer")}
-        >
-          <CloseIcon />
-        </IconButton>
-      )}
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        {headerActions}
+        {showCloseButton && (
+          <IconButton
+            onClick={onClose}
+            size="small"
+            aria-label={closeButtonAriaLabel ?? (title ? `Close ${title}` : "Close drawer")}
+          >
+            <CloseIcon />
+          </IconButton>
+        )}
+      </Box>
     </Box>
   );
 };

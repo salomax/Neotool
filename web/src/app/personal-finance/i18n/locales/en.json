@@ -68,6 +68,95 @@
       "apply": "Apply",
       "redeem": "Redeem"
     },
+    "updateHolding": {
+      "direction": {
+        "inflow": "Add",
+        "outflow": "Withdraw",
+        "inflowEquity": "Buy",
+        "outflowEquity": "Sell"
+      },
+      "titles": {
+        "buy": "Buy {{asset}}",
+        "sell": "Sell {{asset}}",
+        "contribute": "Add to {{asset}}",
+        "redeem": "Withdraw from {{asset}}",
+        "edit": "Edit transaction — {{asset}}"
+      },
+      "loadingTitle": "Loading holding",
+      "errorTitle": "Could not open holding",
+      "errorHoldingNotFound": "Holding not found.",
+      "success": "Operation recorded successfully.",
+      "successEdit": "Operation updated successfully.",
+      "contextSection": "Asset details",
+      "currentPosition": "Current position: {{qty}} {{unit}}",
+      "quantityExceeds": "Quantity is higher than the current position of {{qty}} {{unit}}",
+      "submitting": "Saving...",
+      "saveChanges": "Save changes",
+      "openDetailAriaLabel": "Open holding details",
+      "summary": {
+        "current": "Current position",
+        "afterOperation": "After this operation",
+        "value": "Value",
+        "quantity": "Quantity",
+        "netValue": "Net value"
+      },
+      "units": {
+        "securities": "securities",
+        "quotas": "quotas",
+        "stocks": "shares",
+        "units": "units"
+      },
+      "sections": {
+        "dates": "Dates",
+        "amounts": "Amounts",
+        "trade": "Quantities",
+        "pricing": "Pricing",
+        "taxes": "Taxes and fees",
+        "purchaseFees": "Purchase fees",
+        "saleFees": "Sale fees"
+      },
+      "context": {
+        "ticker": "Ticker",
+        "currentQuantity": "Current quantity",
+        "averageCost": "Average cost",
+        "indexer": "Indexer",
+        "maturityDate": "Maturity date",
+        "couponFrequency": "Coupon frequency",
+        "taxExempt": "Tax treatment",
+        "pricingMode": "Pricing mode"
+      },
+      "fields": {
+        "tradeDate": "Trade date",
+        "tradeDateInflow": "Contribution date",
+        "tradeDateOutflow": "Withdrawal date",
+        "tradeDateApply": "Application date",
+        "settlementDate": "Settlement date",
+        "grossValue": "Gross value",
+        "grossValueApplied": "Applied amount",
+        "grossValueRedeem": "Gross redemption value",
+        "netValue": "Net value",
+        "quantity": "Quantity",
+        "quantityOf": "Quantity of {{unit}}",
+        "unitPrice": "Unit price",
+        "salePrice": "Sale price",
+        "incomeTax": "Withheld income tax",
+        "iof": "IOF",
+        "brokerageFee": "Brokerage",
+        "settlementFee": "Settlement fee",
+        "otherFees": "Other fees",
+        "withholdingTax": "Withholding tax",
+        "valuedAt": "Valuation date"
+      },
+      "validation": {
+        "tradeDateRequired": "Enter the trade date",
+        "grossValueRequired": "Enter the gross value",
+        "netValueRequired": "Enter the net value",
+        "unitPriceRequired": "Enter the unit price",
+        "quantityRequired": "Enter the quantity",
+        "integerQuantityRequired": "Quantity must be an integer",
+        "cryptoPrecision": "Quantity must have at most 8 decimal places"
+      }
+    },
     "record": {
       "cash": "Cash in account"
     },
@@ -462,7 +551,6 @@
     },
     "eventSelector": {
       "title": "Select event",
-      "subtitle": "Tap the event you want to edit",
       "empty": {
         "title": "No recorded events",
         "description": "No events were found for this position."
@@ -539,6 +627,9 @@
         "fixedAnnualRate": "{{rate}}% p.a."
       },
       "grid": {
+        "quantityUnits": "Units",
+        "quantityQuotas": "Quotas",
+        "quantitySecurities": "Securities",
         "principal": "Principal",
         "grossTotal": "Gross total",
         "netTotal": "Net total",

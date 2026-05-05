@@ -55,6 +55,7 @@ export interface CashTransactionsInlineTableProps {
   financialAccountId: string | null | undefined;
   investmentAccounts?: IssuerSelectionAccount[];
   onSelectRelatedAsset?: (assetName: string) => void;
+  onSelectRelatedAssetId?: (assetId: string) => void;
 }
 
 type CashEdge = NonNullable<InvestmentCashTransactionsQuery["investmentCashTransactions"]>["edges"][number];
@@ -63,6 +64,7 @@ export function CashTransactionsInlineTable({
   financialAccountId,
   investmentAccounts = [],
   onSelectRelatedAsset,
+  onSelectRelatedAssetId,
 }: CashTransactionsInlineTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const locale = getCurrentLocale();
@@ -253,6 +255,9 @@ export function CashTransactionsInlineTable({
                   node.investmentTransactionId != null && node.linkedInvestmentAsset != null
                     ? resolveHoldingIdentity({ asset: node.linkedInvestmentAsset, financialAccount: account })
                     : null;
+                const canOpenRelatedHolding = Boolean(onSelectRelatedAssetId && node.linkedInvestmentAsset?.id);
+                const canFilterByAssetName = Boolean(onSelectRelatedAsset);
+                const canInteractWithRelatedAsset = canOpenRelatedHolding || canFilterByAssetName;
                 const signedPrefix = node.creditDebitType === CreditDebitType.Credit ? "+" : "−";
                 const amountStr = formatCurrency(node.amount, node.currencyCode, locale);
                 const amountColor =
@@ -304,23 +309,31 @@ export function CashTransactionsInlineTable({
                         <Box
                           onClick={(event) => {
                             event.stopPropagation();
+                            if (node.linkedInvestmentAsset?.id && onSelectRelatedAssetId) {
+                              onSelectRelatedAssetId(node.linkedInvestmentAsset.id);
+                              return;
+                            }
                             onSelectRelatedAsset?.(relatedIdentity.assetName);
                           }}
-                          role={onSelectRelatedAsset ? "button" : undefined}
-                          tabIndex={onSelectRelatedAsset ? 0 : undefined}
+                          role={canInteractWithRelatedAsset ? "button" : undefined}
+                          tabIndex={canInteractWithRelatedAsset ? 0 : undefined}
                           aria-label={
-                            onSelectRelatedAsset ? `Filtrar por ativo ${relatedIdentity.assetName}` : undefined
+                            canInteractWithRelatedAsset ? `Abrir ativo ${relatedIdentity.assetName}` : undefined
                           }
                           onKeyDown={(event) => {
-                            if (!onSelectRelatedAsset) return;
+                            if (!canInteractWithRelatedAsset) return;
                             if (event.key === "Enter" || event.key === " ") {
                               event.preventDefault();
                               event.stopPropagation();
-                              onSelectRelatedAsset(relatedIdentity.assetName);
+                              if (node.linkedInvestmentAsset?.id && onSelectRelatedAssetId) {
+                                onSelectRelatedAssetId(node.linkedInvestmentAsset.id);
+                                return;
+                              }
+                              onSelectRelatedAsset?.(relatedIdentity.assetName);
                             }
                           }}
                           sx={
-                            onSelectRelatedAsset
+                            canInteractWithRelatedAsset
                               ? {
                                   cursor: "pointer",
                                   borderRadius: 1,

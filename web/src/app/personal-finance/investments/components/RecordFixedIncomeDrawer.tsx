@@ -11,6 +11,7 @@ import { z } from "zod";
 import { CREATE_INVESTMENT_ASSET, RECORD_INVESTMENT_TRANSACTION, UPDATE_INVESTMENT_ASSET, UPDATE_INVESTMENT_TRANSACTION } from "@/lib/graphql/operations/banking/mutations";
 import {
   INVESTMENT_CASH_BALANCE,
+  INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_HOLDINGS,
   INVESTMENT_PORTFOLIO_SUMMARY,
 } from "@/lib/graphql/operations/banking/queries";
@@ -457,7 +458,7 @@ export function RecordFixedIncomeDrawer({
 
     void apolloClient
       .refetchQueries({
-        include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE],
+        include: [INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_CASH_BALANCE, INVESTMENT_CASH_TRANSACTIONS],
       })
       .catch(() => undefined);
   }, [apolloClient, onClose, onRecorded, success, t]);

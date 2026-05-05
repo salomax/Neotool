@@ -998,6 +998,9 @@ export const INVESTMENT_TRANSACTIONS = gql`
       quantity
       unitPrice
       grossValue
+      netValue
+      incomeTax
+      iof
       tradeDate
       settlementDate
       source

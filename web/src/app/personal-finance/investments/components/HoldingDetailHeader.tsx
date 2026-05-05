@@ -14,16 +14,22 @@ export type HoldingDetailHeaderVariant = "fixedIncome" | "fund" | "equity";
 
 export interface HoldingDetailHeaderProps {
   model: HoldingDetailHeaderModel;
+  hideMetrics?: boolean;
+  trailingContent?: React.ReactNode;
 }
 
 export function HoldingDetailHeader({
   model,
+  hideMetrics = false,
+  trailingContent,
 }: HoldingDetailHeaderProps) {
   const labels = React.useMemo(() => presentHoldingDetailHeaderLabels(model), [model]);
   const showHeaderMeta = Boolean(labels.metaLabel);
+  const showMetrics = !hideMetrics;
+  const hasTrailing = showMetrics || Boolean(trailingContent);
 
   return (
-    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 2, mb: 2 }}>
+    <Box sx={{ display: "flex", alignItems: "flex-start", justifyContent: hasTrailing ? "space-between" : "flex-start", gap: 2, mb: 2 }}>
       <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1.5, minWidth: 0, flex: "1 1 auto" }}>
         {model.variant === "fixedIncome" ? (
           <Box sx={{ mt: 0.25, flexShrink: 0 }}>
@@ -82,33 +88,39 @@ export function HoldingDetailHeader({
         </Box>
       </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flex: "0 0 auto" }}>
-        <Label sx={{ mb: 0.25 }}>{model.metrics.totalValueLabel}</Label>
-        <CurrencyAmountParts
-          value={model.metrics.totalValue}
-          currency={model.metrics.currencyCode}
-          locale={model.metrics.locale}
-          variant="h4"
-          fontWeight={500}
-          noWrap
-          sx={{ lineHeight: 1.1, fontSize: "1.7rem", letterSpacing: -1 }}
-        />
-        {model.metrics.gainPercent != null ? (
-          <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
-            <GainPercent
-              value={model.metrics.gainPercent}
-              locale={model.metrics.locale}
-              iconSize={12}
-              textSx={{ fontWeight: 600 }}
-            />
-          </Box>
-        ) : (
-          <Typography variant="caption" sx={{ mt: 0.25, visibility: "hidden" }}>
-            —
-          </Typography>
-        )}
-      </Box>
+      {hasTrailing ? (
+        <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", flex: "0 0 auto" }}>
+          {showMetrics ? (
+            <>
+              <Label sx={{ mb: 0.25 }}>{model.metrics.totalValueLabel}</Label>
+              <CurrencyAmountParts
+                value={model.metrics.totalValue}
+                currency={model.metrics.currencyCode}
+                locale={model.metrics.locale}
+                variant="h4"
+                fontWeight={500}
+                noWrap
+                sx={{ lineHeight: 1.1, fontSize: "1.7rem", letterSpacing: -1 }}
+              />
+              {model.metrics.gainPercent != null ? (
+                <Box sx={{ mt: 0.25, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                  <GainPercent
+                    value={model.metrics.gainPercent}
+                    locale={model.metrics.locale}
+                    iconSize={12}
+                    textSx={{ fontWeight: 600 }}
+                  />
+                </Box>
+              ) : (
+                <Typography variant="caption" sx={{ mt: 0.25, visibility: "hidden" }}>
+                  —
+                </Typography>
+              )}
+            </>
+          ) : null}
+          {trailingContent}
+        </Box>
+      ) : null}
     </Box>
   );
 }
-

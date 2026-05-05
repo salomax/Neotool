@@ -68,6 +68,95 @@
       "apply": "Aplicar",
       "redeem": "Resgatar"
     },
+    "updateHolding": {
+      "direction": {
+        "inflow": "Aportar",
+        "outflow": "Resgatar",
+        "inflowEquity": "Comprar",
+        "outflowEquity": "Vender"
+      },
+      "titles": {
+        "buy": "Comprar {{asset}}",
+        "sell": "Vender {{asset}}",
+        "contribute": "Aportar em {{asset}}",
+        "redeem": "Resgatar de {{asset}}",
+        "edit": "Editar operação — {{asset}}"
+      },
+      "loadingTitle": "Carregando posição",
+      "errorTitle": "Não foi possível abrir a posição",
+      "errorHoldingNotFound": "Posição não encontrada.",
+      "success": "Operação registrada com sucesso.",
+      "successEdit": "Operação atualizada com sucesso.",
+      "contextSection": "Detalhes do ativo",
+      "currentPosition": "Posição atual: {{qty}} {{unit}}",
+      "quantityExceeds": "Quantidade maior que a posição atual de {{qty}} {{unit}}",
+      "submitting": "Salvando...",
+      "saveChanges": "Salvar alterações",
+      "openDetailAriaLabel": "Abrir detalhe da posição",
+      "summary": {
+        "current": "Posição atual",
+        "afterOperation": "Após esta operação",
+        "value": "Valor",
+        "quantity": "Quantidade",
+        "netValue": "Valor líquido"
+      },
+      "units": {
+        "securities": "títulos",
+        "quotas": "cotas",
+        "stocks": "ações",
+        "units": "unidades"
+      },
+      "sections": {
+        "dates": "Datas",
+        "amounts": "Valores",
+        "trade": "Quantidades",
+        "pricing": "Precificação",
+        "taxes": "Impostos e taxas",
+        "purchaseFees": "Taxas de compra",
+        "saleFees": "Taxas da venda"
+      },
+      "context": {
+        "ticker": "Ticker",
+        "currentQuantity": "Quantidade atual",
+        "averageCost": "Custo médio",
+        "indexer": "Indexador",
+        "maturityDate": "Vencimento",
+        "couponFrequency": "Frequência de cupom",
+        "taxExempt": "Tributação",
+        "pricingMode": "Modo de precificação"
+      },
+      "fields": {
+        "tradeDate": "Data da operação",
+        "tradeDateInflow": "Data do aporte",
+        "tradeDateOutflow": "Data do resgate",
+        "tradeDateApply": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
+        "grossValue": "Valor bruto",
+        "grossValueApplied": "Valor aplicado",
+        "grossValueRedeem": "Valor bruto de resgate",
+        "netValue": "Valor líquido",
+        "quantity": "Quantidade",
+        "quantityOf": "Quantidade de {{unit}}",
+        "unitPrice": "Preço unitário",
+        "salePrice": "Preço de venda",
+        "incomeTax": "IR retido",
+        "iof": "IOF",
+        "brokerageFee": "Corretagem",
+        "settlementFee": "Taxas de liquidação",
+        "otherFees": "Outras taxas",
+        "withholdingTax": "IRRF",
+        "valuedAt": "Data de valorização"
+      },
+      "validation": {
+        "tradeDateRequired": "Informe a data da operação",
+        "grossValueRequired": "Informe o valor bruto",
+        "netValueRequired": "Informe o valor líquido",
+        "unitPriceRequired": "Informe o preço unitário",
+        "quantityRequired": "Informe a quantidade",
+        "integerQuantityRequired": "A quantidade deve ser um número inteiro",
+        "cryptoPrecision": "A quantidade deve ter no máximo 8 casas decimais"
+      }
+    },
     "record": {
       "cash": "Dinheiro em conta"
     },
@@ -462,7 +551,6 @@
     },
     "eventSelector": {
       "title": "Selecionar evento",
-      "subtitle": "Toque no evento que deseja editar",
       "empty": {
         "title": "Sem eventos registrados",
         "description": "Nenhum evento encontrado para esta posição."
@@ -539,6 +627,9 @@
         "fixedAnnualRate": "{{rate}}% a.a."
       },
       "grid": {
+        "quantityUnits": "Unidades",
+        "quantityQuotas": "Cotas",
+        "quantitySecurities": "Títulos",
         "principal": "Principal",
         "grossTotal": "Total Bruto",
         "netTotal": "Total Líquido",

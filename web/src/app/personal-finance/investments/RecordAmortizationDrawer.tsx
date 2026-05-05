@@ -7,7 +7,12 @@ import { Box, Divider } from "@mui/material";
 import { FormProvider, useForm } from "react-hook-form";
 import { z } from "zod";
 import { RECORD_AMORTIZATION } from "@/lib/graphql/operations/banking/mutations";
-import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
+import {
+  INVESTMENT_CASH_BALANCE,
+  INVESTMENT_CASH_TRANSACTIONS,
+  INVESTMENT_HOLDINGS,
+  INVESTMENT_PORTFOLIO_SUMMARY,
+} from "@/lib/graphql/operations/banking/queries";
 import { DatePickerField, MoneyInput, SelectField } from "@/shared/components/ui/forms/form";
 import { FormRowStack, FormStack } from "@/shared/components/ui/forms/components";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
@@ -162,6 +167,14 @@ export function RecordAmortizationDrawer({
           {
             query: INVESTMENT_HOLDINGS,
             variables: { financialAccountId: holding.financialAccountId },
+          },
+          {
+            query: INVESTMENT_CASH_BALANCE,
+            variables: { financialAccountId: holding.financialAccountId },
+          },
+          {
+            query: INVESTMENT_CASH_TRANSACTIONS,
+            variables: { financialAccountId: holding.financialAccountId, first: 20, after: undefined },
           },
           {
             query: INVESTMENT_PORTFOLIO_SUMMARY,

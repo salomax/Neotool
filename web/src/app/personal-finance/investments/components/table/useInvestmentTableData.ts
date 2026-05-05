@@ -5,6 +5,7 @@ import { NetworkStatus, type ErrorLike as ApolloError } from '@apollo/client/cor
 import { useApolloClient, useQuery } from '@apollo/client/react';
 import {
   INVESTMENT_CASH_BALANCE,
+  INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_GRID_DATA,
   INVESTMENT_HOLDINGS,
   INVESTMENT_PORTFOLIO_SUMMARY,
@@ -75,7 +76,9 @@ export function useInvestmentTableData(options: UseInvestmentTableDataOptions): 
     await Promise.all([
       holdingsQuery.refetch(),
       cashQuery.refetch(),
-      apolloClient.refetchQueries({ include: [INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_GRID_DATA] }),
+      apolloClient.refetchQueries({
+        include: [INVESTMENT_CASH_TRANSACTIONS, INVESTMENT_PORTFOLIO_SUMMARY, INVESTMENT_GRID_DATA],
+      }),
     ]);
   }, [apolloClient, cashQuery, holdingsQuery]);
 

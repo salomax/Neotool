@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import HistoryIcon from '@mui/icons-material/History';
+import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
-import AddIcon from '@mui/icons-material/Add';
-import RemoveIcon from '@mui/icons-material/Remove';
 import EventIcon from '@mui/icons-material/Event';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import CardGiftcardIcon from '@mui/icons-material/CardGiftcard';
@@ -33,11 +31,6 @@ interface InvestmentHoldingActionsMenuProps {
   onViewDetails: (holding: HoldingRow) => void;
   onViewEvents: (holding: HoldingRow) => Promise<void>;
   onRemove: (holding: HoldingRow) => void;
-  onBuy?: () => void;
-  onSell?: () => void;
-  buyLabel?: string;
-  sellLabel?: string;
-  showTransactionActions?: boolean;
   onRecordProvento?: () => void;
   onRecordSplit?: () => void;
   onRecordBonus?: () => void;
@@ -112,11 +105,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   onViewDetails,
   onViewEvents,
   onRemove,
-  onBuy,
-  onSell,
-  buyLabel,
-  sellLabel,
-  showTransactionActions = false,
   onRecordProvento,
   onRecordSplit,
   onRecordBonus,
@@ -149,28 +137,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   const coreActions = React.useMemo<InvestmentActionMenuItemConfig[]>(() => {
     const items: InvestmentActionMenuItemConfig[] = [];
 
-    if (showTransactionActions && buyLabel && onBuy) {
-      items.push({
-        id: 'buy',
-        label: buyLabel,
-        icon: AddIcon,
-        iconColor: 'success.main',
-        disabled: isDisabled,
-        onClick: withClose(onBuy),
-      });
-    }
-
-    if (showTransactionActions && sellLabel && onSell) {
-      items.push({
-        id: 'sell',
-        label: sellLabel,
-        icon: RemoveIcon,
-        iconColor: 'error.main',
-        disabled: isDisabled,
-        onClick: withClose(onSell),
-      });
-    }
-
     items.push({
       id: 'view-current-position',
       label: t('investments.table.rowActions.viewCurrentPosition'),
@@ -186,7 +152,7 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
     items.push({
       id: 'edit-movements',
       label: t('investments.table.rowActions.editMovement'),
-      icon: HistoryIcon,
+      icon: EditNoteIcon,
       disabled: isDisabled,
       onClick: async () => {
         if (!holding) return;
@@ -197,18 +163,12 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
 
     return items;
   }, [
-    buyLabel,
     holding,
     isDisabled,
-    onBuy,
     onClose,
-    onSell,
     onViewDetails,
     onViewEvents,
-    sellLabel,
-    showTransactionActions,
     t,
-    withClose,
   ]);
 
   const specificActions = React.useMemo<InvestmentActionMenuItemConfig[]>(() => {

@@ -9,6 +9,7 @@ export interface CashMovementsSectionProps {
   financialAccountId: string | null;
   investmentAccounts: IssuerSelectionAccount[];
   onSelectRelatedAsset?: (assetName: string) => void;
+  onSelectRelatedAssetId?: (assetId: string) => void;
   bottomSpacing?: number;
 }
 
@@ -17,6 +18,7 @@ export function CashMovementsSection({
   financialAccountId,
   investmentAccounts,
   onSelectRelatedAsset,
+  onSelectRelatedAssetId,
   bottomSpacing = 0,
 }: CashMovementsSectionProps) {
   return (
@@ -25,6 +27,7 @@ export function CashMovementsSection({
         financialAccountId={financialAccountId}
         investmentAccounts={investmentAccounts}
         onSelectRelatedAsset={onSelectRelatedAsset}
+        onSelectRelatedAssetId={onSelectRelatedAssetId}
       />
     </Box>
   );

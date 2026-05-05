@@ -6,15 +6,10 @@ import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import { Box, IconButton, Skeleton, Tooltip, Typography, alpha, useMediaQuery, useTheme } from '@mui/material';
 import { useQuery } from '@apollo/client/react';
 import { INVESTMENT_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
-import type {
-  InvestmentTransactionsQuery,
-  InvestmentTransactionsQueryVariables,
-} from '@/lib/graphql/operations/banking/queries.generated';
 import {
-  AssetType,
   InvestmentSource,
-  InvestmentTransaction,
   InvestmentTransactionDirection,
+  InvestmentTransactionType,
 } from '@/lib/graphql/types/__generated__/graphql';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { EmptyState, QueryErrorState } from '@/shared/components/ui/feedback';
@@ -22,24 +17,33 @@ import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { i18n, useTranslation } from '@/shared/i18n';
 import { CloseIcon } from '@/shared/ui/mui-imports';
 import { personalFinanceTranslations } from '../../i18n';
-import type { IssuerSelectionAccount } from './IssuerSelection';
-import { RecordEquityHoldingDrawer } from './RecordEquityHoldingDrawer';
-import { RecordFixedIncomeDrawer } from './RecordFixedIncomeDrawer';
-import { RecordFundHoldingDrawer } from './RecordFundHoldingDrawer';
-import { getAssetGroupKey, type HoldingKind, type HoldingRow } from './table/investmentTableHelpers';
+import { HoldingDetailHeader } from './HoldingDetailHeader';
+import { buildHoldingDetailHeaderModelFromRow, type TranslateFn } from './holdingDetailHeaderPresenter';
+import { UpdateHoldingDrawer } from './update/UpdateHoldingDrawer';
+import { getAssetGroupKey, type HoldingRow } from './table/investmentTableHelpers';
+import type { UpdateHoldingEditTransaction } from './update/types';
 
 export interface InvestmentEventSelectorDrawerProps {
   open: boolean;
   holding: HoldingRow | null;
-  kind: HoldingKind | null;
-  financialAccountId: string | null;
-  investmentAccounts: IssuerSelectionAccount[];
   onClose: () => void;
   onRecorded: () => Promise<void>;
 }
 
-type EventSelectorTransaction = InvestmentTransactionsQuery['investmentTransactions'][number];
-type TranslateFn = (key: string, options?: Record<string, unknown>) => string;
+interface InvestmentTransactionsQueryResult {
+  investmentTransactions: EventSelectorTransaction[];
+}
+
+interface InvestmentTransactionsQueryVariables {
+  holdingId: string;
+}
+
+type EventSelectorTransaction = UpdateHoldingEditTransaction & {
+  holdingId: string;
+  financialAccountId: string;
+  source: InvestmentSource;
+  type: InvestmentTransactionType;
+};
 
 function parseDateTimestamp(value: unknown): number {
   if (!value) return Number.NEGATIVE_INFINITY;
@@ -229,9 +233,6 @@ const EventSelectorRow = React.memo(function EventSelectorRow({
 export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEventSelectorDrawer({
   open,
   holding,
-  kind,
-  financialAccountId,
-  investmentAccounts,
   onClose,
   onRecorded,
 }: InvestmentEventSelectorDrawerProps) {
@@ -240,19 +241,19 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
   const { t } = useTranslation(personalFinanceTranslations);
   const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || 'pt-BR', []);
 
-  const [editingTransactionId, setEditingTransactionId] = React.useState<string | null>(null);
+  const [editingTransaction, setEditingTransaction] = React.useState<EventSelectorTransaction | null>(null);
 
   React.useEffect(() => {
     if (!open) {
-      setEditingTransactionId(null);
+      setEditingTransaction(null);
     }
   }, [open]);
 
   React.useEffect(() => {
-    setEditingTransactionId(null);
+    setEditingTransaction(null);
   }, [holding?.id]);
 
-  const { data, loading, error, refetch } = useQuery<InvestmentTransactionsQuery, InvestmentTransactionsQueryVariables>(
+  const { data, loading, error, refetch } = useQuery<InvestmentTransactionsQueryResult, InvestmentTransactionsQueryVariables>(
     INVESTMENT_TRANSACTIONS,
     {
       variables: { holdingId: holding?.id ?? '' },
@@ -272,76 +273,18 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
     });
   }, [data?.investmentTransactions]);
 
-  const editingTransaction = React.useMemo<InvestmentTransaction | null>(() => {
-    if (!editingTransactionId) return null;
-    const transaction = transactions.find((current) => current.id === editingTransactionId);
-    return (transaction as unknown as InvestmentTransaction | undefined) ?? null;
-  }, [editingTransactionId, transactions]);
-
-  const fixedIncomeEditHolding = React.useMemo(() => {
-    if (!holding) return null;
-
-    return {
-      id: holding.id,
-      asset: {
-        id: holding.asset.id,
-        name: holding.asset.name,
-        assetType: holding.asset.assetType,
-        issuerName: holding.asset.issuerName ?? null,
-      },
-      indexer: holding.indexer ?? null,
-      indexerPercentage: holding.indexerPercentage ?? null,
-      fixedAnnualRate: holding.fixedAnnualRate ?? null,
-      maturityDate: holding.maturityDate ?? null,
-      isTaxExempt: holding.isTaxExempt ?? false,
-      couponFrequency: holding.couponFrequency ?? null,
-      couponDayOfMonth: holding.couponDayOfMonth ?? null,
-    };
-  }, [holding]);
-
-  const fundEditHolding = React.useMemo(() => {
-    if (!holding) return null;
-
-    return {
-      id: holding.id,
-      pricingMode: holding.pricingMode ?? null,
-      valuationReferenceDate: holding.valuationReferenceDate ?? null,
-      grossValue: holding.grossValue ?? null,
-      netValue: holding.netValue ?? null,
-      asset: {
-        id: holding.asset.id,
-        name: holding.asset.name,
-        assetType: holding.asset.assetType as AssetType,
-      },
-    };
-  }, [holding]);
-
-  const equityEditHolding = React.useMemo(() => {
-    if (!holding) return null;
-
-    return {
-      id: holding.id,
-      asset: {
-        id: holding.asset.id,
-        ticker: holding.asset.ticker ?? null,
-        name: holding.asset.name,
-        assetType: holding.asset.assetType as AssetType,
-      },
-    };
-  }, [holding]);
-
   const handleEditClose = React.useCallback(() => {
-    setEditingTransactionId(null);
+    setEditingTransaction(null);
   }, []);
 
   const handleEditRecorded = React.useCallback(async () => {
-    setEditingTransactionId(null);
+    setEditingTransaction(null);
     onClose();
     await onRecorded();
   }, [onClose, onRecorded]);
 
   const closeSelectorDrawer = React.useCallback(() => {
-    setEditingTransactionId(null);
+    setEditingTransaction(null);
     onClose();
   }, [onClose]);
 
@@ -354,7 +297,10 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
     holding?.asset?.assetType != null
       ? t(`investments.table.groups.${getAssetGroupKey(holding.asset.assetType)}`)
       : t('investments.eventSelector.title');
-  const isEditing = Boolean(editingTransactionId && editingTransaction);
+  const headerModel = React.useMemo(
+    () => (holding ? buildHoldingDetailHeaderModelFromRow(holding, t, locale) : null),
+    [holding, t, locale],
+  );
 
   return (
     <>
@@ -362,7 +308,6 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
         open={open}
         onClose={closeSelectorDrawer}
         anchor="right"
-        width={isMobile ? '100%' : 480}
       >
         <Drawer.Header>
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 2 }}>
@@ -377,13 +322,18 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
         </Drawer.Header>
 
         <Drawer.Body sx={{ p: 0 }}>
+
           <Box sx={{ px: { xs: 2, md: 3 }, py: 2, borderBottom: '1px solid', borderColor: 'divider' }}>
-            <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
-              {holding?.asset?.name ?? '—'}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {t('investments.eventSelector.subtitle')}
-            </Typography>
+            {headerModel ? (
+              <HoldingDetailHeader
+                model={headerModel}
+                hideMetrics
+              />
+            ) : (
+              <Typography variant="h6" fontWeight={700} sx={{ lineHeight: 1.2, wordBreak: 'break-word' }}>
+                —
+              </Typography>
+            )}
           </Box>
 
           {showSkeleton ? (
@@ -427,7 +377,7 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
                   onClick={
                     transaction.source === InvestmentSource.Manual
                       ? () => {
-                          setEditingTransactionId(transaction.id);
+                          setEditingTransaction(transaction);
                         }
                       : undefined
                   }
@@ -439,32 +389,10 @@ export const InvestmentEventSelectorDrawer = React.memo(function InvestmentEvent
         </Drawer.Body>
       </Drawer>
 
-      <RecordFixedIncomeDrawer
-        open={isEditing && kind === 'fixedIncome'}
+      <UpdateHoldingDrawer
+        holdingId={holding?.id ?? null}
+        open={Boolean(editingTransaction && holding?.id)}
         onClose={handleEditClose}
-        financialAccountId={financialAccountId}
-        financialAccounts={investmentAccounts}
-        editHolding={fixedIncomeEditHolding}
-        editTransaction={editingTransaction}
-        onRecorded={handleEditRecorded}
-      />
-
-      <RecordFundHoldingDrawer
-        open={isEditing && kind === 'fund'}
-        onClose={handleEditClose}
-        financialAccountId={financialAccountId}
-        financialAccounts={investmentAccounts}
-        editHolding={fundEditHolding}
-        editTransaction={editingTransaction}
-        onRecorded={handleEditRecorded}
-      />
-
-      <RecordEquityHoldingDrawer
-        open={isEditing && kind === 'equity'}
-        onClose={handleEditClose}
-        financialAccountId={financialAccountId}
-        financialAccounts={investmentAccounts}
-        editHolding={equityEditHolding}
         editTransaction={editingTransaction}
         onRecorded={handleEditRecorded}
       />

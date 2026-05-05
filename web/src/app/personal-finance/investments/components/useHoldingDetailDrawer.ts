@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useApolloClient, useMutation, useQuery } from '@apollo/client/react';
 import { DELETE_INVESTMENT_HOLDING, DELETE_INVESTMENT_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import { INVESTMENT_CASH_BALANCE, INVESTMENT_CASH_TRANSACTIONS } from '@/lib/graphql/operations/banking/queries';
 import {
   InvestmentHoldingsDocument,
   InvestmentPortfolioSummaryDocument,
@@ -503,7 +504,14 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
       setHoldingRemoveConfirmOpen(false);
       closeMoreActions();
       onClose?.();
-      await apolloClient.refetchQueries({ include: [InvestmentHoldingsDocument, InvestmentPortfolioSummaryDocument] });
+      await apolloClient.refetchQueries({
+        include: [
+          InvestmentHoldingsDocument,
+          InvestmentPortfolioSummaryDocument,
+          INVESTMENT_CASH_BALANCE,
+          INVESTMENT_CASH_TRANSACTIONS,
+        ],
+      });
     } catch (error) {
       toast.error(extractErrorMessage(error, t('errors.default', { ns: 'common' })));
       setHoldingRemoveConfirmOpen(false);

@@ -11,7 +11,6 @@ import type { CorporateEventType } from '../corporate-events/RecordCorporateEven
 import {
   AMORTIZABLE_ASSET_TYPES,
   LENDABLE_ASSET_TYPES,
-  getAssetGroupKey,
   getHoldingKind,
   type HoldingKind,
   type HoldingRow,
@@ -76,8 +75,7 @@ export interface UseInvestmentTableDrawersReturn {
   handleOpenTransferCustodyDrawer: (holding: HoldingRow) => void;
   closeTransferCustodyDrawer: () => void;
   quickTransaction: QuickTransactionState;
-  isQuickEquityOpen: boolean;
-  isQuickFundOpen: boolean;
+  isQuickUpdateOpen: boolean;
   handleQuickBuy: (holding: HoldingRow) => void;
   handleQuickSell: (holding: HoldingRow) => void;
   closeQuickTransaction: () => void;
@@ -115,8 +113,6 @@ export function useInvestmentTableDrawers(
   const [withholdingTaxOpen, setWithholdingTaxOpen] = React.useState(false);
   const [withholdingTaxHolding, setWithholdingTaxHolding] = React.useState<WithholdingTaxDrawerHolding | null>(null);
   const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
-  const [isQuickEquityOpen, setIsQuickEquityOpen] = React.useState(false);
-  const [isQuickFundOpen, setIsQuickFundOpen] = React.useState(false);
   const [corporateEventState, setCorporateEventState] = React.useState<CorporateEventState>({ holding: null, eventType: null });
 
   const closeActionMenu = React.useCallback(() => {
@@ -283,41 +279,17 @@ export function useInvestmentTableDrawers(
 
   const closeQuickTransaction = React.useCallback(() => {
     setQuickTransaction({ holding: null, direction: null });
-    setIsQuickEquityOpen(false);
-    setIsQuickFundOpen(false);
   }, []);
 
   const handleQuickBuy = React.useCallback((holding: HoldingRow) => {
-    const groupKey = getAssetGroupKey(holding.asset?.assetType);
     setQuickTransaction({ holding, direction: 'buy' });
-    if (groupKey === 'variableIncome') {
-      setIsQuickEquityOpen(true);
-      return;
-    }
-    if (groupKey === 'mutualFunds' || groupKey === 'pension') {
-      setIsQuickFundOpen(true);
-    }
   }, []);
 
-  const handleQuickSell = React.useCallback(
-    (holding: HoldingRow) => {
-      const groupKey = getAssetGroupKey(holding.asset?.assetType);
-      if (groupKey === 'fixedIncome') {
-        handleOpenMaturityConfirmDrawer(holding);
-        return;
-      }
-      setQuickTransaction({ holding, direction: 'sell' });
-      if (groupKey === 'variableIncome') {
-        setIsQuickEquityOpen(true);
-        return;
-      }
-      if (groupKey === 'mutualFunds' || groupKey === 'pension') {
-        setIsQuickFundOpen(true);
-        return;
-      }
-    },
-    [handleOpenMaturityConfirmDrawer],
-  );
+  const handleQuickSell = React.useCallback((holding: HoldingRow) => {
+    setQuickTransaction({ holding, direction: 'sell' });
+  }, []);
+
+  const isQuickUpdateOpen = quickTransaction.holding != null && quickTransaction.direction != null;
 
   const handleRecordCorporateEvent = React.useCallback((holding: HoldingRow, eventType: CorporateEventType) => {
     setCorporateEventState({ holding, eventType });
@@ -364,8 +336,7 @@ export function useInvestmentTableDrawers(
     handleOpenTransferCustodyDrawer,
     closeTransferCustodyDrawer,
     quickTransaction,
-    isQuickEquityOpen,
-    isQuickFundOpen,
+    isQuickUpdateOpen,
     handleQuickBuy,
     handleQuickSell,
     closeQuickTransaction,

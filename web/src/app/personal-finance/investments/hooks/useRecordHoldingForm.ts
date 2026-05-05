@@ -2,21 +2,22 @@
 
 import * as React from "react";
 import type { ErrorLike as ApolloError } from "@apollo/client";
+import type { DocumentNode } from "@apollo/client";
 import { useMutation } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, type FieldValues, type UseFormReturn } from "react-hook-form";
-import type { ZodSchema } from "zod";
+import { useForm, type DefaultValues, type FieldValues, type UseFormReturn } from "react-hook-form";
+import type { ZodType } from "zod";
 import {
   RECORD_INVESTMENT_TRANSACTION,
   UPDATE_INVESTMENT_TRANSACTION,
 } from "@/lib/graphql/operations/banking/mutations";
 import {
   INVESTMENT_CASH_BALANCE,
+  INVESTMENT_CASH_TRANSACTIONS,
   INVESTMENT_HOLDINGS,
   INVESTMENT_PORTFOLIO_SUMMARY,
 } from "@/lib/graphql/operations/banking/queries";
 import type {
-  InvestmentTransaction,
   RecordInvestmentTransactionInput,
   UpdateInvestmentTransactionInput,
 } from "@/lib/graphql/types/__generated__/graphql";
@@ -29,13 +30,22 @@ import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
 
 interface UseRecordHoldingFormConfig<TFields extends FieldValues> {
-  schema: ZodSchema<TFields>;
+  schema: ZodType<TFields, any, any>;
   financialAccountId: string | null;
-  editTransaction?: InvestmentTransaction | null;
+  editTransaction?: { id: string } | null;
   editHoldingId?: string | null;
   onBuildInput: (data: TFields) => RecordInvestmentTransactionInput;
   onBuildUpdateInput?: (data: TFields) => UpdateInvestmentTransactionInput;
   onSuccess?: () => void;
+  successToastMessage?: string;
+  defaultValues?: DefaultValues<TFields>;
+  additionalRefetchQueries?: Array<
+    | DocumentNode
+    | {
+        query: DocumentNode;
+        variables?: Record<string, unknown>;
+      }
+  >;
 }
 
 interface UseRecordHoldingFormReturn<TFields extends FieldValues> {
@@ -53,6 +63,7 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
 
   const form = useForm<TFields>({
     resolver: zodResolver(config.schema),
+    defaultValues: config.defaultValues,
   });
 
   const [recordMutation, { loading: recording, error: recordError }] = useMutation<
@@ -64,6 +75,17 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
     { updateInvestmentTransaction: { id: string } },
     { id: string; input: UpdateInvestmentTransactionInput }
   >(UPDATE_INVESTMENT_TRANSACTION);
+
+  const refetchQueries = React.useMemo(
+    () => [
+      INVESTMENT_HOLDINGS,
+      INVESTMENT_CASH_BALANCE,
+      INVESTMENT_CASH_TRANSACTIONS,
+      INVESTMENT_PORTFOLIO_SUMMARY,
+      ...(config.additionalRefetchQueries ?? []),
+    ],
+    [config.additionalRefetchQueries],
+  );
 
   const onSubmit = React.useCallback(
     (e: React.FormEvent) => {
@@ -80,11 +102,7 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
               id: config.editTransaction.id,
               input: updateInput,
             },
-            refetchQueries: [
-              INVESTMENT_HOLDINGS,
-              INVESTMENT_CASH_BALANCE,
-              INVESTMENT_PORTFOLIO_SUMMARY,
-            ],
+            refetchQueries,
           });
         } else {
           if (!config.financialAccountId) return;
@@ -96,20 +114,15 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
                 financialAccountId: config.financialAccountId,
               },
             },
-            refetchQueries: [
-              INVESTMENT_HOLDINGS,
-              INVESTMENT_CASH_BALANCE,
-              INVESTMENT_PORTFOLIO_SUMMARY,
-            ],
+            refetchQueries,
           });
         }
 
-        toast.success(t("actions.save"));
+        toast.success(config.successToastMessage ?? t("actions.save"));
         config.onSuccess?.();
       })(e);
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- config is an inline object; its callbacks are stable references from the call site.
-    [form, recordMutation, toast, t, updateMutation],
+    [config.editTransaction, config.financialAccountId, config.onBuildInput, config.onBuildUpdateInput, config.onSuccess, config.successToastMessage, form, recordMutation, refetchQueries, toast, t, updateMutation],
   );
 
   return {
