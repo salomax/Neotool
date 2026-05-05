@@ -66,6 +66,7 @@ import {
   navigateFinanceTransactionsToMonth,
   yearMonthFromIso,
 } from "../helpers/finance-transactions-e2e";
+import { executeGraphQL, expectGraphqlNotFoundError } from "../helpers/graphql";
 import { signIntoPage } from "../helpers/navigation";
 import { TransactionBuilder } from "../builders/TransactionBuilder";
 
@@ -507,8 +508,6 @@ test.describe("Transactions — happy path", () => {
     const descWith = uniqueDesc("Com Categoria H12");
     const descWithout = uniqueDesc("Sem Categoria H12");
 
-    // We need a category ID — fetch categories from the API
-    const { executeGraphQL } = await import("../helpers/graphql");
     const catResult = await executeGraphQL<{
       transactionCategories: Array<{
         id: string;
@@ -531,6 +530,7 @@ test.describe("Transactions — happy path", () => {
         true,
         "No expense category available for category-filter coverage.",
       );
+      return;
     }
 
     const [txWith, txWithout] = await Promise.all([
@@ -580,6 +580,107 @@ test.describe("Transactions — happy path", () => {
       deleteTransaction(txWith.id, pfUser.token),
       deleteTransaction(txWithout.id, pfUser.token),
     ]);
+  });
+
+  test("TX-H-18: clicking a filled category chip opens the picker without clearing category", async ({
+    page,
+    pfUser,
+    bankAccount,
+  }) => {
+    const desc = uniqueDesc("Categoria Click H18");
+
+    const catResult = await executeGraphQL<{
+      transactionCategories: Array<{
+        id: string;
+        name: string;
+        applicableTo: string;
+      }>;
+    }>(`query { transactionCategories { id name applicableTo } }`, {}, pfUser.token);
+
+    const category = catResult.data?.transactionCategories?.find(
+      (c) =>
+        c.applicableTo === CategoryApplicableTo.Income ||
+        c.applicableTo === CategoryApplicableTo.Any,
+    );
+    if (!category) {
+      test.skip(true, "No income category available for category-picker click coverage.");
+      return;
+    }
+
+    const tx = await createTransaction(
+      {
+        financialAccountId: bankAccount.id,
+        description: desc,
+        amount: 123,
+        creditDebitType: CreditDebitType.Credit,
+        categoryId: category.id,
+        status: TransactionStatus.Posted,
+        date: today(),
+      },
+      pfUser.token,
+    );
+
+    const clearedCategoryMutations: Array<{ id: unknown; input: unknown }> = [];
+    const handler = (request: import("@playwright/test").Request): void => {
+      if (request.method() !== "POST") return;
+      if (!/\/graphql(\?|$)/.test(request.url())) return;
+
+      let body: unknown;
+      try {
+        body = request.postDataJSON();
+      } catch {
+        return;
+      }
+
+      const operations = Array.isArray(body) ? body : [body];
+      for (const op of operations) {
+        const raw = (op ?? {}) as Record<string, unknown>;
+        const operationName = typeof raw.operationName === "string" ? raw.operationName : "";
+        const query = typeof raw.query === "string" ? raw.query : "";
+        const isUpdateTransaction =
+          operationName === "UpdateTransaction" || query.includes("updateTransaction");
+        if (!isUpdateTransaction) continue;
+
+        const variables =
+          raw.variables && typeof raw.variables === "object"
+            ? (raw.variables as Record<string, unknown>)
+            : null;
+        if (!variables) continue;
+
+        if (variables.id !== tx.id) continue;
+        const input =
+          variables.input && typeof variables.input === "object"
+            ? (variables.input as Record<string, unknown>)
+            : null;
+        if (!input) continue;
+
+        if (Object.prototype.hasOwnProperty.call(input, "categoryId") && input.categoryId === null) {
+          clearedCategoryMutations.push({ id: variables.id, input: variables.input });
+        }
+      }
+    };
+
+    page.on("request", handler);
+    try {
+      await signIntoPage(page);
+      const pfPage = new FinanceTransactionsPage(page);
+      await pfPage.goto();
+      await pfPage.selectAccount(bankAccount.name, bankAccount.id);
+
+      await pfPage.transactionTable.expectTransactionVisible(desc);
+
+      const row = pfPage.transactionTable.getRowByDescription(desc);
+      await expect(row.getByText(category.name, { exact: true })).toBeVisible();
+      await row.getByText(category.name, { exact: true }).click();
+
+      await expect(page.getByText(/sem categoria|no category/i).first()).toBeVisible();
+      await expect
+        .poll(() => clearedCategoryMutations.length, { timeout: 1500 })
+        .toBe(0);
+    } finally {
+      page.off("request", handler);
+      await deleteTransaction(tx.id, pfUser.token);
+    }
   });
 
   test("TX-H-13: filter by DEBIT — only expense transactions shown", async ({
@@ -1490,9 +1591,6 @@ test.describe("Transactions — negative paths", () => {
   test("TX-N-06: update non-existent transaction via GraphQL — returns error", async ({
     pfUser,
   }) => {
-    const { executeGraphQL, expectGraphqlNotFoundError } = await import(
-      "../helpers/graphql"
-    );
     const fakeId = "00000000-0000-0000-0000-000000000000";
 
     const result = await executeGraphQL(
@@ -1511,9 +1609,6 @@ test.describe("Transactions — negative paths", () => {
   test("TX-N-07: delete non-existent transaction via GraphQL — returns error", async ({
     pfUser,
   }) => {
-    const { executeGraphQL, expectGraphqlNotFoundError } = await import(
-      "../helpers/graphql"
-    );
     const fakeId = "00000000-0000-0000-0000-000000000001";
 
     const result = await executeGraphQL(

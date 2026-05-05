@@ -930,6 +930,28 @@ export const INVESTMENT_PORTFOLIO_SUMMARY = gql`
   }
 `;
 
+export const PORTFOLIO_HOLDINGS_SNAPSHOT = gql`
+  query PortfolioHoldingsSnapshot($financialAccountId: ID) {
+    investmentCashBalance(financialAccountId: $financialAccountId)
+    investmentHoldings(financialAccountId: $financialAccountId) {
+      id
+      grossValue
+      financialAccount {
+        id
+        name
+        currencyCode
+      }
+      asset {
+        id
+        name
+        ticker
+        assetType
+        currencyCode
+      }
+    }
+  }
+`;
+
 export const PORTFOLIO_PERFORMANCE = gql`
   query PortfolioPerformance(
     $financialAccountId: ID
@@ -983,6 +1005,106 @@ export const PORTFOLIO_PERFORMANCE = gql`
       }
       excludedHoldingsCount
       includedHoldingsCount
+    }
+  }
+`;
+
+/**
+ * Monthly gross value series by portfolio allocation group.
+ * Uses independent `portfolioPerformance` calls per group to support a percent-stacked area chart.
+ */
+export const PORTFOLIO_ALLOCATION_SERIES = gql`
+  query PortfolioAllocationSeries($financialAccountId: ID) {
+    perfCash: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "cash"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfVariableIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "variableIncome"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfFixedIncome: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "fixedIncome"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfMutualFunds: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "mutualFunds"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfPension: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "pension"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfStructured: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "structured"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
+    }
+    perfOthers: portfolioPerformance(
+      financialAccountId: $financialAccountId
+      groupKey: "others"
+      resolution: MONTH
+    ) {
+      groupKey
+      label
+      currencyCode
+      points {
+        timestamp
+        grossValue
+      }
     }
   }
 `;

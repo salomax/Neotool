@@ -55,6 +55,7 @@ export interface CategoryPickerProps {
   creditDebitType: 'CREDIT' | 'DEBIT' | 'TRANSFER' | 'ANY';
   anchorEl: HTMLElement | null;
   onClose: () => void;
+  autoClearSelection?: boolean;
 }
 
 const CATEGORY_NAME_COLLATOR = new Intl.Collator(undefined, {
@@ -103,6 +104,7 @@ export function CategoryPicker({
   creditDebitType,
   anchorEl,
   onClose,
+  autoClearSelection = true,
 }: CategoryPickerProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -163,12 +165,14 @@ export function CategoryPicker({
 
   const prevCreditDebitType = React.useRef(creditDebitType);
   React.useEffect(() => {
+    if (!autoClearSelection) return;
     if (prevCreditDebitType.current === creditDebitType) return;
     prevCreditDebitType.current = creditDebitType;
     if (creditDebitType !== 'ANY' && value !== null) onChange(null);
-  }, [creditDebitType, value, onChange]);
+  }, [autoClearSelection, creditDebitType, value, onChange]);
 
   React.useEffect(() => {
+    if (!autoClearSelection) return;
     if (value === null) return;
     const allCategories = data?.transactionCategories ?? [];
     const selected = allCategories.find((c) => c.id === value);
@@ -194,7 +198,7 @@ export function CategoryPicker({
           : [expectedApplicableTo, CategoryApplicableTo.Any]
     );
     if (!allowedApplicableTo.has(selected.applicableTo)) onChange(null);
-  }, [value, data?.transactionCategories, creditDebitType, onChange]);
+  }, [autoClearSelection, value, data?.transactionCategories, creditDebitType, onChange]);
 
   const searchLower = searchQuery.trim().toLowerCase();
   const filteredChildren = useMemo(() => {

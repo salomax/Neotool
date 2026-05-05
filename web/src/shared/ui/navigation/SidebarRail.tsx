@@ -16,11 +16,32 @@ import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
+import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
 export const RAIL_W = 84;
+
+function getActiveHref(pathname: string, items: NavItem[]): string | null {
+  let bestMatch: string | null = null;
+  let bestMatchLength = -1;
+
+  for (const item of items) {
+    const href = item.href;
+    const matches = pathname === href || (href !== '/' && pathname.startsWith(`${href}/`));
+
+    if (!matches) continue;
+    if (href.length <= bestMatchLength) continue;
+
+    bestMatch = href;
+    bestMatchLength = href.length;
+  }
+
+  return bestMatch;
+}
 
 export function SidebarRail() {
   const theme = useTheme();
@@ -47,6 +68,18 @@ export function SidebarRail() {
       href: '/personal-finance',
       label: t('routes.personalFinance'),
       icon: AccountBalanceWalletIcon,
+    }, {
+      href: '/personal-finance/finance-transactions',
+      label: 'Movimentações Financeiras',
+      icon: SwapHorizIcon,
+    }, {
+      href: '/personal-finance/investments',
+      label: 'Carteira de Investimentos',
+      icon: SavingsOutlinedIcon,
+    }, {
+      href: '/personal-finance/prices-consumption',
+      label: 'Preços & Consumo',
+      icon: ShoppingCartOutlinedIcon,
     }] : []),
     {
       href: '/financial-data',
@@ -64,6 +97,8 @@ export function SidebarRail() {
   const NAV_BOTTOM: NavItem[] = hasAuthorizationAccess
     ? [{ href: '/settings', label: t('routes.settings'), icon: SettingsRoundedIcon }]
     : [];
+
+  const activeHref = getActiveHref(pathname ?? '', [...NAV_TOP, ...NAV_BOTTOM]);
 
   const sidebarBg = (theme as any).custom?.palette?.sidebarBg || '#ffffff';
   const sidebarIcon = (theme as any).custom?.palette?.sidebarIcon || '#728096';
@@ -123,9 +158,7 @@ export function SidebarRail() {
       <Stack spacing={{ xs: 1.2, sm: 1.6 }} sx={{ mt: 0.5 }}>
         {NAV_TOP.map((item) => {
           const Icon = item.icon as any;
-          const active =
-            pathname === item.href ||
-            ((pathname ?? '').startsWith(item.href) && item.href !== '/');
+          const active = item.href === activeHref;
 
           return (
             <Tooltip key={item.href} title={item.label} placement="right">
@@ -177,9 +210,7 @@ export function SidebarRail() {
         <Stack spacing={{ xs: 1.2, sm: 1.6 }}>
           {NAV_BOTTOM.map((item) => {
             const Icon = item.icon as any;
-            const active =
-              pathname === item.href ||
-              ((pathname ?? '').startsWith(item.href) && item.href !== '/');
+            const active = item.href === activeHref;
 
             return (
               <Tooltip key={item.href} title={item.label} placement="right">
@@ -189,33 +220,33 @@ export function SidebarRail() {
                   aria-label={item.label}
                   size="large"
                   sx={{
-                  position: 'relative',
-                  color: active ? 'primary.main' : sidebarIcon,
-                  opacity: active ? 1 : 0.85,
-                  '&:hover': {
-                    bgcolor: active
-                      ? alpha(theme.palette.primary.main, 0.16)
-                      : alpha(theme.palette.text.primary, 0.08),
-                    opacity: 1,
-                  },
-                  bgcolor: active ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
-                  width: 48,
-                  height: 48,
-                  borderRadius: borderRadius,
-                }}
-              >
-                {active && (
-                  <Box
-                    sx={{
-                      position: 'absolute',
-                      right: -((RAIL_W - 48) / 2) + 2,
-                      width: 3,
-                      height: 22,
-                      borderRadius: 8,
-                      bgcolor: 'primary.main',
-                    }}
-                  />
-                )}
+                    position: 'relative',
+                    color: active ? 'primary.main' : sidebarIcon,
+                    opacity: active ? 1 : 0.85,
+                    '&:hover': {
+                      bgcolor: active
+                        ? alpha(theme.palette.primary.main, 0.16)
+                        : alpha(theme.palette.text.primary, 0.08),
+                      opacity: 1,
+                    },
+                    bgcolor: active ? alpha(theme.palette.primary.main, 0.12) : 'transparent',
+                    width: 48,
+                    height: 48,
+                    borderRadius: borderRadius,
+                  }}
+                >
+                  {active && (
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        right: -((RAIL_W - 48) / 2) + 2,
+                        width: 3,
+                        height: 22,
+                        borderRadius: 8,
+                        bgcolor: 'primary.main',
+                      }}
+                    />
+                  )}
                   <Icon fontSize="medium" />
                 </IconButton>
               </Tooltip>

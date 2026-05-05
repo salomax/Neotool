@@ -279,6 +279,7 @@ export function FinancialAccountSelector({
   const allAccounts: FinancialAccount[] = scopedAccounts;
   const hasMultipleAccounts = allAccounts.length > 1;
   const singleAccount = allAccounts.length === 1 ? allAccounts[0] : null;
+  const canOpenSelector = hasMultipleAccounts;
   
   // Selected Account Logic
   const resolvedSelectedAccountId = selectedAccountId ?? (autoSelectSingleAccount ? singleAccount?.id : null) ?? null;
@@ -316,7 +317,7 @@ export function FinancialAccountSelector({
   };
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-    if (hasMultipleAccounts || Boolean(onEditAccount)) {
+    if (canOpenSelector) {
       setAnchorEl(event.currentTarget);
     }
   };
@@ -386,15 +387,17 @@ export function FinancialAccountSelector({
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          cursor: hasMultipleAccounts || Boolean(onEditAccount) ? 'pointer' : 'default',
+          cursor: canOpenSelector ? 'pointer' : 'default',
           borderRadius: 2,
           bgcolor: open ? 'action.selected' : 'background.paper',
           borderColor: open ? 'primary.main' : 'divider',
           transition: 'all 0.2s',
-          '&:hover': {
-            borderColor: 'primary.main',
-            bgcolor: 'action.hover'
-          }
+          ...(canOpenSelector && {
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover'
+            }
+          })
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
@@ -429,7 +432,7 @@ export function FinancialAccountSelector({
           </Box>
         </Box>
         <Stack direction="row" spacing={0.5} alignItems="center">
-          {(hasMultipleAccounts || Boolean(onEditAccount)) && (open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />)}
+          {canOpenSelector && (open ? <ExpandLessIcon color="action" /> : <ExpandMoreIcon color="action" />)}
         </Stack>
       </Paper>
       

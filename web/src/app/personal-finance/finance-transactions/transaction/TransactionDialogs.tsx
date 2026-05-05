@@ -108,6 +108,7 @@ export const TransactionDialogs = memo(function TransactionDialogs({
               ? 'CREDIT'
               : 'DEBIT'
         }
+        autoClearSelection={false}
         anchorEl={categoryPickerAnchorEl}
         onClose={onCloseCategoryPicker}
       />

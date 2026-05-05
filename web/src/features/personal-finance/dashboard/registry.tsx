@@ -3,9 +3,13 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import PieChartIcon from '@mui/icons-material/PieChart';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
+import DonutLargeIcon from '@mui/icons-material/DonutLarge';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { WidgetDefinition } from './types';
 import { CashFlowWidget } from './widgets/CashFlowWidget';
 import { CategorySummaryWidget } from './widgets/CategorySummaryWidget';
+import { InvestmentAllocationChartWidget } from './widgets/InvestmentAllocationChartWidget';
+import { InvestmentTreemapWidget } from './widgets/InvestmentTreemapWidget';
 import { MonthSummaryKpiWidget } from './widgets/MonthSummaryKpiWidget';
 import { NetWorthWidget } from './widgets/NetWorthWidget';
 
@@ -53,6 +57,28 @@ export const AVAILABLE_WIDGETS: WidgetDefinition[] = [
       h: { xs: 8, md: 5 },
     },
     icon: <PieChartIcon />,
+  },
+  {
+    type: 'investment-allocation-chart',
+    defaultTitleKey: 'dashboard.widgets.registry.investmentAllocation.title',
+    descriptionKey: 'dashboard.widgets.registry.investmentAllocation.description',
+    component: InvestmentAllocationChartWidget,
+    defaultSize: {
+      w: { xs: 12, md: 6 },
+      h: { xs: 4, md: 4 },
+    },
+    icon: <DonutLargeIcon />,
+  },
+  {
+    type: 'investment-treemap',
+    defaultTitleKey: 'dashboard.widgets.registry.investmentTreemap.title',
+    descriptionKey: 'dashboard.widgets.registry.investmentTreemap.description',
+    component: InvestmentTreemapWidget,
+    defaultSize: {
+      w: { xs: 12, md: 6 },
+      h: { xs: 4, md: 4 },
+    },
+    icon: <ViewModuleIcon />,
   },
 ];
 

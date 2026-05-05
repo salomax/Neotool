@@ -266,6 +266,8 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
   const loading = seriesLoading || portfolioLoading;
   const error = seriesError ?? portfolioError;
 
+  const { cash: netWorthCashColor, portfolio: netWorthPortfolioColor } = theme.custom.netWorthCompositionColors;
+
   const tooltipContent = React.useCallback(
     (props: any) => {
       const { active, payload } = props as { active?: boolean; payload?: Array<{ payload?: NetWorthChartRow }> };
@@ -291,13 +293,13 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
           <Box sx={{ mt: 0.75, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
             <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2 }}>
               <Label sx={{ fontSize: '.85rem', color: 'text.secondary' }}>{bankingBalanceLabel}</Label>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.primary.main }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: netWorthCashColor }}>
                 {formatBrlFull(row.bankingBalance ?? 0)}
               </Typography>
             </Box>
             <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2 }}>
               <Label sx={{ fontSize: '.85rem', color: 'text.secondary' }}>{portfolioValueLabel}</Label>
-              <Typography variant="body2" sx={{ fontWeight: 600, color: theme.palette.success.main }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: netWorthPortfolioColor }}>
                 {formatBrlFull(row.portfolioValue ?? 0)}
               </Typography>
             </Box>
@@ -311,14 +313,7 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
         </Box>
       );
     },
-    [
-      bankingBalanceLabel,
-      portfolioValueLabel,
-      theme.palette.primary.main,
-      theme.palette.success.main,
-      theme.palette.text.primary,
-      totalNetWorthLabel,
-    ]
+    [bankingBalanceLabel, portfolioValueLabel, netWorthCashColor, netWorthPortfolioColor, theme.palette.text.primary, totalNetWorthLabel]
   );
 
   const handleRefresh = React.useCallback(() => {
@@ -375,12 +370,12 @@ export const NetWorthWidget: React.FC<WidgetProps> = ({ widget, dragHandleProps 
               <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 8, bottom: 8 }}>
                 <defs>
                   <linearGradient id={`net-worth-banking-${gradientSeed}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={theme.palette.primary.main} stopOpacity={0.5} />
-                    <stop offset="95%" stopColor={theme.palette.primary.main} stopOpacity={0.1} />
+                    <stop offset="5%" stopColor={netWorthCashColor} stopOpacity={0.5} />
+                    <stop offset="95%" stopColor={netWorthCashColor} stopOpacity={0.1} />
                   </linearGradient>
                   <linearGradient id={`net-worth-portfolio-${gradientSeed}`} x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor={theme.palette.success.main} stopOpacity={0.5} />
-                    <stop offset="95%" stopColor={theme.palette.success.main} stopOpacity={0.3} />
+                    <stop offset="5%" stopColor={netWorthPortfolioColor} stopOpacity={0.5} />
+                    <stop offset="95%" stopColor={netWorthPortfolioColor} stopOpacity={0.3} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid
