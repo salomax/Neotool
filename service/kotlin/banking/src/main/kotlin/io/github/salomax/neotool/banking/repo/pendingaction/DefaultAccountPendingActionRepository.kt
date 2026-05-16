@@ -44,6 +44,17 @@ open class DefaultAccountPendingActionRepository(
             )
             ?.toDomain()
 
+    override fun existsOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: PendingActionType,
+    ): Boolean =
+        entityRepository.existsOpenForEntity(
+            entityType = entityType,
+            entityId = entityId,
+            type = type.name,
+        )
+
     override fun findDueForNotification(now: Instant): List<AccountPendingAction> =
         entityRepository.findDueForNotification(now).map { it.toDomain() }
 
@@ -68,6 +79,20 @@ open class DefaultAccountPendingActionRepository(
         entityRepository.update(entity)
         return true
     }
+
+    @Transactional
+    override fun dismissOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: PendingActionType,
+        now: Instant,
+    ): Int =
+        entityRepository.dismissOpenForEntity(
+            entityType = entityType,
+            entityId = entityId,
+            type = type.name,
+            now = now,
+        )
 
     @Transactional
     override fun save(action: AccountPendingAction): AccountPendingAction {

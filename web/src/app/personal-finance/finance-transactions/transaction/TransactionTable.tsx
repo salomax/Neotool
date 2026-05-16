@@ -46,6 +46,7 @@ import { useActionMenu, resolveRuleApplicableTo } from './hooks/useActionMenu';
 import { useCategoryPicker } from './hooks/useCategoryPicker';
 import { useSimilarEdit } from './hooks/useSimilarEdit';
 import { useAttachmentPreview } from './hooks/useAttachmentPreview';
+import { RecurringPaymentForm } from '@/app/personal-finance/recurring-payments/RecurringPaymentForm';
 
 interface TransactionTableProps {
   transactions: Transaction[];
@@ -134,6 +135,8 @@ export function TransactionTable({
     beginBusy,
     endBusy,
   });
+  const [recurringFormOpen, setRecurringFormOpen] = useState(false);
+  const [recurringSourceTx, setRecurringSourceTx] = useState<Transaction | null>(null);
 
   // ── Derived ──────────────────────────────────────────────────────────────────
   const showHeaderProgress = loading || busyCount > 0;
@@ -335,6 +338,8 @@ export function TransactionTable({
               onSuccess={onSuccessCreate}
               onRefresh={onSuccessCreate}
               selectedAccountId={selectedAccountId}
+              selectedMonth={selectedMonth}
+              selectedYear={selectedYear}
               onBusyStart={beginBusy}
               onBusyEnd={endBusy}
             />
@@ -397,13 +402,21 @@ export function TransactionTable({
         anchorEl={actionMenu.anchorEl}
         transaction={actionMenu.menuTransaction}
         markingTransferTransactionId={actionMenu.markingTransferTransactionId}
+        markingBillPaymentTransactionId={actionMenu.markingBillPaymentTransactionId}
         onClose={actionMenu.close}
         onEdit={(tx) => openEdit(tx)}
         onViewAppliedRules={(tx) => setAppliedRulesTransaction(tx)}
         onCreateRule={(tx) =>
           setCreateRuleDraft({ pattern: tx.description, applicableTo: resolveRuleApplicableTo(tx) })
         }
+        recurringPaymentSuggestion={actionMenu.recurringPaymentSuggestion}
+        onLinkRecurringPayment={actionMenu.handleLinkRecurringPayment}
+        onCreateRecurringPayment={(tx) => {
+          setRecurringSourceTx(tx);
+          setRecurringFormOpen(true);
+        }}
         onMarkAsTransfer={actionMenu.handleMarkAsInternalTransfer}
+        onMarkAsBillPayment={actionMenu.handleMarkAsBillPayment}
         onDelete={(tx) => deleteHook.promptDelete(tx)}
       />
 
@@ -431,6 +444,18 @@ export function TransactionTable({
         removingAttachmentId={attachmentPreview.removingAttachmentId}
         onRemoveAttachment={attachmentPreview.handleRemoveAttachment}
         onClosePreview={attachmentPreview.closePreview}
+      />
+
+      <RecurringPaymentForm
+        open={recurringFormOpen}
+        fromTransaction={recurringSourceTx}
+        onClose={() => {
+          setRecurringFormOpen(false);
+          setRecurringSourceTx(null);
+        }}
+        onSaved={async () => {
+          await onSuccessCreate?.();
+        }}
       />
 
       {hasMore && (

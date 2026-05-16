@@ -23,6 +23,13 @@ interface AccountPendingActionRepository {
         type: PendingActionType,
     ): AccountPendingAction?
 
+    /** True when there is at least one open (PENDING) action for (entityType, entityId, type). */
+    fun existsOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: PendingActionType,
+    ): Boolean
+
     /** Returns actions ready to be sent via comms (visible, pending, not yet notified). */
     fun findDueForNotification(now: Instant): List<AccountPendingAction>
 
@@ -38,6 +45,14 @@ interface AccountPendingActionRepository {
         type: PendingActionType,
         now: Instant = Instant.now(),
     ): Boolean
+
+    /** Dismisses all open (PENDING) actions for (entityType, entityId, type). */
+    fun dismissOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: PendingActionType,
+        now: Instant = Instant.now(),
+    ): Int
 
     fun save(action: AccountPendingAction): AccountPendingAction
 

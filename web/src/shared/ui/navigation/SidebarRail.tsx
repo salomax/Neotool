@@ -20,6 +20,7 @@ import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import RepeatIcon from '@mui/icons-material/Repeat';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -80,6 +81,10 @@ export function SidebarRail() {
       href: '/personal-finance/prices-consumption',
       label: 'Preços & Consumo',
       icon: ShoppingCartOutlinedIcon,
+    }, {
+      href: '/personal-finance/recurring-payments',
+      label: 'Pagamentos recorrentes',
+      icon: RepeatIcon,
     }] : []),
     {
       href: '/financial-data',

@@ -11,6 +11,8 @@ import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioS
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import java.util.UUID
 
 /**
@@ -118,7 +120,14 @@ open class DashboardAnalyticsCalculator(
         val totalIncome = snapshots.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalIncome }
         val totalExpenses = snapshots.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalExpenses }
         val net = totalIncome - totalExpenses
-        val monthCount = byMonth.size
+        val startYearMonth = YearMonth.of(startYear, startMonth)
+        val endYearMonth = YearMonth.of(endYear, endMonth)
+        val monthCount =
+            if (endYearMonth.isBefore(startYearMonth)) {
+                0
+            } else {
+                ChronoUnit.MONTHS.between(startYearMonth, endYearMonth).toInt() + 1
+            }
 
         val openingBalance =
             byMonth.firstOrNull()

@@ -108,6 +108,10 @@ vi.mock('@/shared/ui/shell/HeaderPendingActionsBadge', () => ({
   HeaderPendingActionsBadge: () => null,
 }));
 
+vi.mock('@/shared/ui/shell/PendingActionsDrawer', () => ({
+  PendingActionsDrawer: () => null,
+}));
+
 const renderAppHeader = () => {
   return render(
     <AppThemeProvider>

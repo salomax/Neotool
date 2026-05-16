@@ -148,6 +148,7 @@ enum TransactionType {
   DOC
   BOLETO
   TRANSFER
+  BILL_PAYMENT
   # Income types
   SALARY
   DEPOSIT
@@ -526,6 +527,8 @@ type Transaction {
   transferPeerTransactionId: ID
   """Set when this row is the cash leg linked to an investment transaction."""
   investmentTransactionId: ID
+  """Optional link to a recurring payment template."""
+  recurringPaymentId: ID
   """
   When [investmentTransactionId] is set, the underlying instrument for that event.
   Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
@@ -1210,6 +1213,8 @@ enum PendingActionType {
   COUPON_PAYMENT_DUE
   """Bank account balance went negative after a paired investment cash transfer (informational)."""
   BANK_ACCOUNT_NEGATIVE_BALANCE
+  """A recurring payment is approaching the due date."""
+  RECURRING_PAYMENT_DUE
 }
 
 enum PendingActionSeverity {
@@ -2108,6 +2113,73 @@ input UpdateProductVariantInput {
 }
 
 # ============================================================================
+# Recurring Payments
+# ============================================================================
+
+enum RecurringFrequency {
+  MONTHLY
+  WEEKLY
+  YEARLY
+  CUSTOM
+}
+
+enum RecurringPaymentStatus {
+  ACTIVE
+  PAUSED
+  CANCELLED
+}
+
+type RecurringPayment {
+  id: ID!
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String!
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int!
+  status: RecurringPaymentStatus!
+  nextDueDate: Date!
+  lastPaidDate: Date
+  notes: String
+  category: TransactionCategory
+  merchant: Merchant
+}
+
+input CreateRecurringPaymentInput {
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date!
+  notes: String
+}
+
+input UpdateRecurringPaymentInput {
+  name: String
+  expectedAmount: Float
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  nextDueDate: Date
+  notes: String
+}
+
+# ============================================================================
 # Queries
 # ============================================================================
 
@@ -2293,6 +2365,10 @@ extend type Query {
     first: Int
     after: String
   ): TransactionConnection!
+  """Recurring payment templates for one account or all tenant accounts when omitted."""
+  recurringPayments(financialAccountId: ID): [RecurringPayment!]!
+  recurringPayment(id: ID!): RecurringPayment
+  suggestRecurringForTransaction(transactionId: ID!): RecurringPayment
   transactionImports(financialAccountId: ID): [TransactionImport!]!
   transactionImport(id: ID!): TransactionImport
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]!
@@ -2433,6 +2509,17 @@ extend type Mutation {
   Soft-delete a manual transaction.
   """
   deleteTransaction(id: ID!): Boolean!
+  createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment!
+  updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment!
+  pauseRecurringPayment(id: ID!): RecurringPayment!
+  resumeRecurringPayment(id: ID!): RecurringPayment!
+  cancelRecurringPayment(id: ID!): RecurringPayment!
+  confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment!
+  linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction!
+  createRecurringPaymentFromTransaction(
+    transactionId: ID!,
+    input: CreateRecurringPaymentInput!
+  ): RecurringPayment!
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport!

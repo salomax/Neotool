@@ -154,6 +154,20 @@ class CreditCardBillServiceTest {
     }
 
     @Test
+    fun `resolveBillForTransaction - BILL_PAYMENT returns null`() {
+        val account = creditCardAccount()
+
+        val result =
+            service.resolveBillForTransaction(
+                account,
+                LocalDate.now(),
+                TransactionType.BILL_PAYMENT,
+            )
+
+        assertThat(result).isNull()
+    }
+
+    @Test
     fun `resolveBillForTransaction - no cardData returns null`() {
         val account =
             FinancialAccount(

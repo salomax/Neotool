@@ -100,7 +100,8 @@ open class CreditCardBillService(
      * Returns null when:
      * - [account.subtype] is not in [CARD_SUBTYPES] (e.g. BANK, CASH, VOUCHER_CARD)
      * - [account.cardData] is missing or has no [closingDay]/[dueDay]
-     * - [type] is [TransactionType.BALANCE_ADJUSTMENT] (never assigned to a bill)
+     * - [type] is [TransactionType.BALANCE_ADJUSTMENT] or [TransactionType.BILL_PAYMENT]
+     *   (never assigned to a bill)
      */
     fun resolveBillForTransaction(
         account: FinancialAccount,
@@ -108,7 +109,7 @@ open class CreditCardBillService(
         type: TransactionType,
     ): UUID? {
         if (account.subtype !in CARD_SUBTYPES) return null
-        if (type == TransactionType.BALANCE_ADJUSTMENT) return null
+        if (type == TransactionType.BALANCE_ADJUSTMENT || type == TransactionType.BILL_PAYMENT) return null
         val cardData = account.cardData ?: return null
         val closingDay = cardData.closingDay ?: return null
         val dueDay = cardData.dueDay ?: return null
@@ -137,7 +138,7 @@ open class CreditCardBillService(
         type: TransactionType,
     ): UUID? {
         if (account.subtype !in CARD_SUBTYPES) return null
-        if (type == TransactionType.BALANCE_ADJUSTMENT) return null
+        if (type == TransactionType.BALANCE_ADJUSTMENT || type == TransactionType.BILL_PAYMENT) return null
         return billRepository.findOrCreate(
             financialAccountId = account.id!!,
             accountId = account.accountId,

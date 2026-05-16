@@ -1151,6 +1151,10 @@
       "pricesConsumption": {
         "title": "Prices & consumption",
         "description": "Track product prices and spending over time."
+      },
+      "recurringPayments": {
+        "title": "Recurring transactions",
+        "description": "Bill and subscription reminders"
       }
     },
     "widgets": {
@@ -1181,6 +1185,10 @@
         "investmentTreemap": {
           "title": "Investment Treemap",
           "description": "Portfolio composition by asset group in a proportional treemap."
+        },
+        "upcomingRecurring": {
+          "title": "Upcoming transactions",
+          "description": "Recurring transactions due soon"
         }
       },
       "menu": {
@@ -1326,7 +1334,6 @@
       "noSourceAccount": "None",
       "invalidAmount": "Enter a valid amount greater than zero."
     },
-    "description": "Description",
     "backToCurrentMonth": "Back to current month",
     "actions": {
       "newAccountOrCard": "New account or card",
@@ -1393,15 +1400,15 @@
         "title": "Learn how rules work",
         "actionLabel": "See how automation organizes your transactions"
       },
-        "helpDrawer": {
-          "title": "Learn how rules work",
-          "intro": "Rules help organize your finances automatically. They match transaction descriptions and assign new values to make tracking easier.",
-          "items": {
-            "item1": "When a transaction’s description matches the text defined in the rule, the app automatically applies a new description, a category, tags, and a merchant.",
-            "item2": "The app checks for a custom rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
-            "item3": "For manual transactions, category and tags are only assigned if you left them blank when creating the entry."
-          }
-        },
+      "helpDrawer": {
+        "title": "Learn how rules work",
+        "intro": "Rules help organize your finances automatically. They match transaction descriptions and assign new values to make tracking easier.",
+        "items": {
+          "item1": "When a transaction’s description matches the text defined in the rule, the app automatically applies a new description, a category, tags, and a merchant.",
+          "item2": "The app checks for a custom rule first (created by you), then an automatic one (created by the app). If multiple rules match, the one with the highest priority is applied.",
+          "item3": "For manual transactions, category and tags are only assigned if you left them blank when creating the entry."
+        }
+      },
       "searchPlaceholder": "Search by pattern…",
       "actions": {
         "newRule": "New Rule",
@@ -1848,7 +1855,8 @@
         "edit": "Edit",
         "viewAppliedRules": "View applied rules",
         "createRuleFromDescription": "Create rule from description",
-        "remove": "Remove"
+        "remove": "Remove",
+        "createRecurringPayment": "Create recurring payment"
       },
       "appliedRules": {
         "title": "Applied rules",
@@ -1979,5 +1987,114 @@
     "TED": "TED",
     "TRANSFER": "Transfer",
     "WITHDRAWAL": "Withdrawal"
+  },
+  "recurringPayments": {
+    "newButton": "New transaction",
+    "emptyTitle": "No recurring transactions",
+    "emptyDescription": "Add bills and subscriptions to track upcoming due dates.",
+    "variableAmountBadge": "variable estimate",
+    "daysUntilDue": "due in {{count}}d",
+    "frequency": {
+      "MONTHLY": "Monthly",
+      "WEEKLY": "Weekly",
+      "YEARLY": "Yearly",
+      "CUSTOM": "Custom"
+    },
+    "status": {
+      "ACTIVE": "Active",
+      "PAUSED": "Paused",
+      "CANCELLED": "Cancelled"
+    },
+    "form": {
+      "name": "Name",
+      "account": "Account",
+      "creditDebitType": "Type",
+      "expectedAmount": "Estimated average amount",
+      "variableAmount": "Leave blank if the amount varies a lot between due dates",
+      "accountSearchPlaceholder": "Search account…",
+      "frequency": "Frequency",
+      "dayOfMonth": "Day of month",
+      "intervalDays": "Interval (days)",
+      "firstDueDate": "Next due date",
+      "remindDaysBefore": "Remind N days before",
+      "notes": "Notes",
+      "fromTransaction": "Creating from transaction on {{date}}. Account, type, category, and merchant come from the transaction.",
+      "category": "Category",
+      "merchant": "Merchant",
+      "drawerTitleNew": "New recurring transaction",
+      "drawerTitleEdit": "Edit recurring transaction"
+    },
+    "actions": {
+      "confirmPayment": "Mark as paid",
+      "pause": "Pause",
+      "resume": "Resume",
+      "cancel": "Cancel",
+      "cancelConfirm": "Cancel this recurring transaction? This action cannot be undone."
+    },
+    "confirmPaymentDialog": {
+      "title": "Confirm payment",
+      "description": "Record payment of \"{{name}}\" without linking a specific transaction.",
+      "dateLabel": "Payment date",
+      "confirm": "Confirm"
+    },
+    "pendingActions": {
+      "paymentDue": "Recurring transaction due soon",
+      "viewAll": "View recurring",
+      "dismiss": "Dismiss"
+    },
+    "suggestion": {
+      "link": "Link to \"{{name}}\"",
+      "nextDue": "Due on {{date}}"
+    },
+    "uncategorized": "Uncategorized",
+    "summary": {
+      "monthlyCommitted": "Estimated Monthly Total",
+      "next7Days": "Next 7 days",
+      "overdue": "Overdue",
+      "distribution": "Breakdown",
+      "byCategory": "Category",
+      "byFrequency": "Frequency",
+      "noDistributionData": "No chart data (set an estimated amount on recurring items).",
+      "mobileAccordionTitle": "Indicators"
+    },
+    "header": {
+      "searchPlaceholder": "Search by name…"
+    },
+    "filters": {
+      "account": "Account",
+      "allAccounts": "All accounts",
+      "status": "Status",
+      "category": "Category",
+      "frequency": "Frequency",
+      "clear": "Clear filters",
+      "anyCategory": "All categories",
+      "all": "All",
+      "selectedCount": "{{count}} selected",
+      "ariaStatus": "Filter by status",
+      "ariaFrequency": "Filter by frequency"
+    },
+    "table": {
+      "ariaLabel": "Recurring transactions table",
+      "noRecurringActivity": "No recurring transactions",
+      "groups": {
+        "overdue": "Overdue",
+        "next7Days": "Next 7 days",
+        "nextMonth": "Next month"
+      },
+      "columns": {
+        "name": "Name",
+        "category": "Category",
+        "frequency": "Frequency",
+        "amount": "Amount",
+        "due": "Due",
+        "status": "Status",
+        "actions": ""
+      },
+      "rowActions": {
+        "ariaLabel": "Recurring transaction actions"
+      }
+    },
+    "statusOverdue": "Overdue",
+    "noFilterResults": "No results for the selected filters."
   }
 }

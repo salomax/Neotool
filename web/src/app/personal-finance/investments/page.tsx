@@ -21,10 +21,10 @@ import {
 import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
-import { PendingActionsDrawer } from "./PendingActionsDrawer";
 import { Label } from "@/shared/components/ui";
 import { InvestmentSummary } from "./components/InvestmentSummary";
 import { InvestmentGrid } from "./components/grid/InvestmentGrid";
+import { usePendingActionsDrawer } from "@/shared/store/pendingActionsDrawer";
 
 export default function PersonalFinanceInvestmentsPage() {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -35,6 +35,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
+  const openPendingActionsDrawer = usePendingActionsDrawer((state) => state.openDrawer);
 
   usePageTitle(t("dashboard.actions.investmentsPortfolio.title"));
 
@@ -58,13 +59,14 @@ export default function PersonalFinanceInvestmentsPage() {
     [accountsData?.financialAccounts],
   );
 
-  const pendingActionsOpen = searchParams.get("pendingActions") === "1";
-  const closePendingActions = () => {
+  React.useEffect(() => {
+    if (searchParams.get("pendingActions") !== "1") return;
+    openPendingActionsDrawer();
     const params = new URLSearchParams(searchParams.toString());
     params.delete("pendingActions");
     const qs = params.toString();
     router.replace(qs ? `/personal-finance/investments?${qs}` : "/personal-finance/investments");
-  };
+  }, [openPendingActionsDrawer, router, searchParams]);
 
   const isEmpty = !accountsLoading && investmentAccounts.length === 0;
 
@@ -274,13 +276,6 @@ export default function PersonalFinanceInvestmentsPage() {
           </Page>
         </SidebarLayout>
       )}
-
-      <PendingActionsDrawer
-        open={pendingActionsOpen}
-        onClose={closePendingActions}
-        investmentAccounts={investmentAccounts}
-      />
-
       <CreateInvestmentAccountDrawer
         open={isCreateAccountOpen}
         onClose={() => setIsCreateAccountOpen(false)}

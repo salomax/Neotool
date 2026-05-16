@@ -1158,6 +1158,25 @@ input CreatePromptInput
   performanceMetrics: JSON
 }
 
+input CreateRecurringPaymentInput
+  @join__type(graph: BANKING)
+{
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date!
+  notes: String
+}
+
 input CreateRoleInput
   @join__type(graph: SECURITY)
 {
@@ -2763,6 +2782,14 @@ type Mutation
 
   """Soft-delete a manual transaction."""
   deleteTransaction(id: ID!): Boolean! @join__field(graph: BANKING)
+  createRecurringPayment(input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
+  pauseRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  resumeRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  cancelRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment! @join__field(graph: BANKING)
+  linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction! @join__field(graph: BANKING)
+  createRecurringPaymentFromTransaction(transactionId: ID!, input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult! @join__field(graph: BANKING)
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult! @join__field(graph: BANKING)
   resolveImportDuplicate(input: ResolveImportDuplicateInput!): TransactionImport! @join__field(graph: BANKING)
@@ -3076,6 +3103,9 @@ enum PendingActionType
   Bank account balance went negative after a paired investment cash transfer (informational).
   """
   BANK_ACCOUNT_NEGATIVE_BALANCE @join__enumValue(graph: BANKING)
+
+  """A recurring payment is approaching the due date."""
+  RECURRING_PAYMENT_DUE @join__enumValue(graph: BANKING)
 }
 
 enum PerformancePeriod
@@ -3604,6 +3634,13 @@ type Query
     first: Int
     after: String
   ): TransactionConnection! @join__field(graph: BANKING)
+
+  """
+  Recurring payment templates for one account or all tenant accounts when omitted.
+  """
+  recurringPayments(financialAccountId: ID): [RecurringPayment!]! @join__field(graph: BANKING)
+  recurringPayment(id: ID!): RecurringPayment @join__field(graph: BANKING)
+  suggestRecurringForTransaction(transactionId: ID!): RecurringPayment @join__field(graph: BANKING)
   transactionImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
   transactionImport(id: ID!): TransactionImport @join__field(graph: BANKING)
   pendingReviewImports(financialAccountId: ID): [TransactionImport!]! @join__field(graph: BANKING)
@@ -3850,6 +3887,45 @@ input RecordInvestmentTransactionInput
   providerInvestmentId: String
   pricingMode: HoldingPricingMode
   manualValuation: ManualFundValuationInput
+}
+
+enum RecurringFrequency
+  @join__type(graph: BANKING)
+{
+  MONTHLY @join__enumValue(graph: BANKING)
+  WEEKLY @join__enumValue(graph: BANKING)
+  YEARLY @join__enumValue(graph: BANKING)
+  CUSTOM @join__enumValue(graph: BANKING)
+}
+
+type RecurringPayment
+  @join__type(graph: BANKING)
+{
+  id: ID!
+  financialAccountId: ID
+  name: String!
+  creditDebitType: CreditDebitType!
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String!
+  frequency: RecurringFrequency!
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int!
+  status: RecurringPaymentStatus!
+  nextDueDate: Date!
+  lastPaidDate: Date
+  notes: String
+  category: TransactionCategory
+  merchant: Merchant
+}
+
+enum RecurringPaymentStatus
+  @join__type(graph: BANKING)
+{
+  ACTIVE @join__enumValue(graph: BANKING)
+  PAUSED @join__enumValue(graph: BANKING)
+  CANCELLED @join__enumValue(graph: BANKING)
 }
 
 input RefreshAccessTokenInput
@@ -4212,6 +4288,9 @@ type Transaction
   """Set when this row is the cash leg linked to an investment transaction."""
   investmentTransactionId: ID
 
+  """Optional link to a recurring payment template."""
+  recurringPaymentId: ID
+
   """
   When [investmentTransactionId] is set, the underlying instrument for that event.
   Same shape as [InvestmentHolding.asset] (e.g. for cash-movement UI without N+1 client resolution).
@@ -4425,6 +4504,7 @@ enum TransactionType
   DOC @join__enumValue(graph: BANKING)
   BOLETO @join__enumValue(graph: BANKING)
   TRANSFER @join__enumValue(graph: BANKING)
+  BILL_PAYMENT @join__enumValue(graph: BANKING)
   SALARY @join__enumValue(graph: BANKING)
   DEPOSIT @join__enumValue(graph: BANKING)
   CASHBACK @join__enumValue(graph: BANKING)
@@ -4643,6 +4723,21 @@ input UpdateProductVariantInput
   quantityUnit: String
   normalizedQuantityValue: Float
   normalizedQuantityUnit: String
+}
+
+input UpdateRecurringPaymentInput
+  @join__type(graph: BANKING)
+{
+  name: String
+  expectedAmount: Float
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  nextDueDate: Date
+  notes: String
 }
 
 input UpdateRoleInput

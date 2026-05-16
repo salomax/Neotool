@@ -9,7 +9,6 @@ import {
   alpha,
   useTheme,
 } from '@mui/material';
-import dayjs from 'dayjs';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { BaseMoneyInput } from '@/shared/components/ui/forms/form/MoneyInput';
@@ -29,6 +28,8 @@ interface InlineTransactionFormProps {
   onSuccess: () => void;
   onRefresh?: () => void;
   selectedAccountId: string | null;
+  selectedMonth?: number;
+  selectedYear?: number;
   initialValues?: Transaction;
   onExited?: () => void;
   onBusyStart?: () => void;
@@ -41,6 +42,8 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   onSuccess,
   onRefresh,
   selectedAccountId,
+  selectedMonth,
+  selectedYear,
   initialValues,
   onExited,
   onBusyStart,
@@ -49,12 +52,12 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
 
-  const form = useTransactionFormState({ isOpen, initialValues, selectedAccountId });
+  const form = useTransactionFormState({ isOpen, initialValues, selectedAccountId, selectedMonth, selectedYear });
 
   const resetFormFields = useCallback(() => {
     form.setAmount(undefined);
     form.setDescription('');
-    form.setDate(dayjs());
+    form.setDate(form.defaultCreateDate);
     form.setCategoryId(null);
     form.setMerchantId(null);
     form.setTags([]);

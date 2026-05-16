@@ -62,6 +62,8 @@ data class Transaction(
     val transferPeerTransactionId: UUID? = null,
     /** When set, this ledger row is the cash leg of an investment transaction (at most one banking row per investment tx). */
     val investmentTransactionId: UUID? = null,
+    /** Optional link to a recurring payment template. */
+    val recurringPaymentId: UUID? = null,
     // Credit card
     val billId: UUID? = null,
     val installmentNumber: Int? = null,

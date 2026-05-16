@@ -785,6 +785,130 @@ class TransactionServiceTest {
         }
 
         @Test
+        fun `marking as BILL_PAYMENT forces DEBIT and clears category when category is not provided`() {
+            val txId = UUID.randomUUID()
+            val existingCategoryId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.CREDIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Payment",
+                    categoryId = existingCategoryId,
+                    categorySource = CategorySource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+            val updateCaptor = argumentCaptor<Transaction>()
+            whenever(transactionRepository.update(updateCaptor.capture())).thenAnswer { updateCaptor.firstValue }
+
+            service.update(
+                txId,
+                UpdateTransactionCommand(type = TransactionType.BILL_PAYMENT),
+                accountId,
+                userId,
+            )
+
+            assertThat(updateCaptor.firstValue.type).isEqualTo(TransactionType.BILL_PAYMENT)
+            assertThat(updateCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
+            assertThat(updateCaptor.firstValue.categoryId).isNull()
+            assertThat(updateCaptor.firstValue.categorySource).isNull()
+        }
+
+        @Test
+        fun `marking as BILL_PAYMENT with CREDIT direction is rejected`() {
+            val txId = UUID.randomUUID()
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("10.00"),
+                    date = today,
+                    description = "Payment",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(ownedAccount))
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.update(
+                        txId,
+                        UpdateTransactionCommand(
+                            type = TransactionType.BILL_PAYMENT,
+                            creditDebitType = CreditDebitType.CREDIT,
+                        ),
+                        accountId,
+                        userId,
+                    )
+                }
+
+            assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+            assertThat(ex.field).isEqualTo("creditDebitType")
+            verify(transactionRepository, never()).update(any())
+        }
+
+        @Test
+        fun `marking as BILL_PAYMENT is rejected for credit card account transactions`() {
+            val txId = UUID.randomUUID()
+            val cardAccountId = UUID.randomUUID()
+            val cardAccount =
+                FinancialAccount(
+                    id = cardAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    type = FinancialAccountType.BANK,
+                    subtype = FinancialAccountSubtype.CREDIT_CARD,
+                    name = "Credit Card",
+                    currencyCode = "BRL",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val existing =
+                Transaction(
+                    id = txId,
+                    financialAccountId = cardAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    creditDebitType = CreditDebitType.DEBIT,
+                    type = TransactionType.OTHER_EXPENSE,
+                    amount = BigDecimal("50.00"),
+                    date = today,
+                    description = "Purchase",
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
+            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount))
+
+            val ex =
+                assertThrows<ValidationException> {
+                    service.update(
+                        txId,
+                        UpdateTransactionCommand(type = TransactionType.BILL_PAYMENT),
+                        accountId,
+                        userId,
+                    )
+                }
+
+            assertThat(ex.errorCode).isEqualTo(CommonErrorCode.INVALID_INPUT)
+            assertThat(ex.field).isEqualTo("type")
+            verify(transactionRepository, never()).update(any())
+        }
+
+        @Test
         fun `does not learn implicit rule when updating non-manual transaction`() {
             val txId = UUID.randomUUID()
             val categoryId = UUID.randomUUID()

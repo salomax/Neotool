@@ -5,6 +5,7 @@ import PieChartIcon from '@mui/icons-material/PieChart';
 import ShowChartIcon from '@mui/icons-material/ShowChart';
 import DonutLargeIcon from '@mui/icons-material/DonutLarge';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import { WidgetDefinition } from './types';
 import { CashFlowWidget } from './widgets/CashFlowWidget';
 import { CategorySummaryWidget } from './widgets/CategorySummaryWidget';
@@ -12,6 +13,7 @@ import { InvestmentAllocationChartWidget } from './widgets/InvestmentAllocationC
 import { InvestmentTreemapWidget } from './widgets/InvestmentTreemapWidget';
 import { MonthSummaryKpiWidget } from './widgets/MonthSummaryKpiWidget';
 import { NetWorthWidget } from './widgets/NetWorthWidget';
+import { UpcomingRecurringWidget } from './widgets/UpcomingRecurringWidget';
 
 export const AVAILABLE_WIDGETS: WidgetDefinition[] = [
   {
@@ -68,6 +70,17 @@ export const AVAILABLE_WIDGETS: WidgetDefinition[] = [
       h: { xs: 4, md: 4 },
     },
     icon: <DonutLargeIcon />,
+  },
+  {
+    type: 'upcoming-recurring',
+    defaultTitleKey: 'dashboard.widgets.registry.upcomingRecurring.title',
+    descriptionKey: 'dashboard.widgets.registry.upcomingRecurring.description',
+    component: UpcomingRecurringWidget,
+    defaultSize: {
+      w: { xs: 12, md: 6 },
+      h: { xs: 4, md: 4 },
+    },
+    icon: <RepeatIcon />,
   },
   {
     type: 'investment-treemap',

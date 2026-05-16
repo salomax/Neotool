@@ -18,6 +18,7 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import { QuickActionCard } from './QuickActionCard';
 
 interface DashboardControlsProps {
@@ -80,6 +81,15 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
               description={t('dashboard.actions.pricesConsumption.description')}
               accentColor={theme.palette.info.main}
               icon={<ShoppingCartOutlinedIcon sx={{ fontSize: 128 }} />}
+              isMobile={isMobile}
+            />
+
+            <QuickActionCard
+              href="/personal-finance/recurring-payments"
+              title={t('dashboard.actions.recurringPayments.title')}
+              description={t('dashboard.actions.recurringPayments.description')}
+              accentColor={theme.palette.warning.main}
+              icon={<RepeatIcon sx={{ fontSize: 128 }} />}
               isMobile={isMobile}
             />
           </Stack>

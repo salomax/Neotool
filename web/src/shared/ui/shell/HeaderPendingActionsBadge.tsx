@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useQuery } from "@apollo/client/react";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
@@ -12,6 +11,7 @@ import { PendingActionsCountDocument } from "@/lib/graphql/operations/banking/pe
 import type { PendingActionsCountQuery } from "@/lib/graphql/operations/banking/pendingActionOperations.generated";
 import { PendingActionSeverity, PendingActionStatus } from "@/lib/graphql/types/__generated__/graphql";
 import { useAuth } from "@/shared/providers";
+import { usePendingActionsDrawer } from "@/shared/store/pendingActionsDrawer";
 
 type BadgeColor = "error" | "warning" | "info" | "default";
 
@@ -33,8 +33,8 @@ function badgeColorFromActions(actions: PendingActionsCountQuery["pendingActions
 /** Pending actions for the authenticated workspace account (`current_account` in JWT); no client account id. */
 export function HeaderPendingActionsBadge() {
   const { t } = useTranslation();
-  const router = useRouter();
   const { isAuthenticated } = useAuth();
+  const openDrawer = usePendingActionsDrawer((state) => state.openDrawer);
 
   const { data } = useQuery<PendingActionsCountQuery>(PendingActionsCountDocument, {
     variables: { status: PendingActionStatus.Pending },
@@ -56,7 +56,7 @@ export function HeaderPendingActionsBadge() {
       <Tooltip title={t("appHeader.pendingActions")}>
         <IconButton
           aria-label={t("appHeader.pendingActions")}
-          onClick={() => router.push("/personal-finance/investments?pendingActions=1")}
+          onClick={openDrawer}
           data-testid="header-pending-actions-button"
         >
           <Badge

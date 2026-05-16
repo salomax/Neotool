@@ -18,6 +18,7 @@ export interface SelectFieldProps<T = string> {
   helperText?: React.ReactNode;
   fullWidth?: boolean;
   size?: TextFieldProps["size"];
+  disabled?: boolean;
   onChange?: (value: T | null) => void;
   'data-testid'?: string;
 }
@@ -29,6 +30,7 @@ export function SelectField<T = string>({
   helperText,
   fullWidth = true,
   size,
+  disabled = false,
   onChange,
   'data-testid': dataTestId,
 }: SelectFieldProps<T>) {
@@ -43,6 +45,7 @@ export function SelectField<T = string>({
           label={label}
           fullWidth={fullWidth}
           size={size ?? "medium"}
+          disabled={disabled}
           value={field.value ?? ""}
           onChange={(e) => {
             const value = (e.target.value as any) ?? "";

@@ -633,6 +633,23 @@ open class TransactionService(
         if (existing.type == TransactionType.BALANCE_ADJUSTMENT) {
             validateBalanceAdjustmentUpdate(command, existing)
         }
+        val requestedType = command.type ?: existing.type
+        if (requestedType == TransactionType.BILL_PAYMENT) {
+            if (command.creditDebitType == CreditDebitType.CREDIT) {
+                throw ValidationException(
+                    errorCode = CommonErrorCode.INVALID_INPUT,
+                    field = "creditDebitType",
+                    parameters = mapOf("reason" to "BILL_PAYMENT transactions must be DEBIT"),
+                )
+            }
+            if (resolveCardAccount(existing.financialAccountId, accountId) != null) {
+                throw ValidationException(
+                    errorCode = CommonErrorCode.INVALID_INPUT,
+                    field = "type",
+                    parameters = mapOf("reason" to "BILL_PAYMENT is not allowed for credit card account transactions"),
+                )
+            }
+        }
         val updatedBelongsTo = resolveBelongsToForUpdate(command)
         if (command.belongsToProvided && command.belongsToUserId != null) {
             requireBelongsToUserIsActiveMember(command.belongsToUserId, accountId)
@@ -642,14 +659,39 @@ open class TransactionService(
         val updatedBelongsToName =
             updatedBelongsTo?.second ?: if (updatedBelongsTo == null) existing.belongsToName else null
         val updatedTags = resolveTagsForUpdate(command, existing.tags)
+        val forcedBillPayment = requestedType == TransactionType.BILL_PAYMENT
+        val effectiveCreditDebitType =
+            if (forcedBillPayment) {
+                CreditDebitType.DEBIT
+            } else {
+                command.creditDebitType ?: existing.creditDebitType
+            }
+        val forceClearCategoryForBillPayment = forcedBillPayment && !command.categoryIdProvided
+        val effectiveCategoryId =
+            if (command.categoryIdProvided) {
+                command.categoryId
+            } else if (forceClearCategoryForBillPayment) {
+                null
+            } else {
+                existing.categoryId
+            }
+        val effectiveCategorySource =
+            when {
+                command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
+                command.categoryIdProvided || forceClearCategoryForBillPayment -> null
+                else -> existing.categorySource
+            }
 
         // Resolve new bill if the date changed (may move to a different billing cycle).
         val newDate = command.date ?: existing.date
+        val typeChanged = command.type != null && command.type != existing.type
         val newBillId: UUID? =
-            if (command.date != null) {
+            if (forcedBillPayment) {
+                null
+            } else if (command.date != null || typeChanged) {
                 val cardAccount = resolveCardAccount(existing.financialAccountId, accountId)
                 cardAccount?.let {
-                    creditCardBillService.resolveBillForTransaction(it, newDate, existing.type)
+                    creditCardBillService.resolveBillForTransaction(it, newDate, requestedType)
                 } ?: existing.billId
             } else {
                 existing.billId
@@ -664,7 +706,7 @@ open class TransactionService(
                     transactionRuleEngine.learnFromManualAssignment(
                     accountId = accountId,
                     description = existing.description,
-                    categoryId = if (categoryChanged) command.categoryId else existing.categoryId,
+                    categoryId = if (categoryChanged) command.categoryId else effectiveCategoryId,
                     merchantId = if (merchantChanged) command.merchantId else existing.merchantId,
                     )
             } catch (e: Exception) {
@@ -681,21 +723,16 @@ open class TransactionService(
         val updateTimestamp = Instant.now()
         val updated =
             existing.copy(
-                creditDebitType = command.creditDebitType ?: existing.creditDebitType,
-                type = command.type ?: existing.type,
+                creditDebitType = effectiveCreditDebitType,
+                type = requestedType,
                 amount = command.amount ?: existing.amount,
                 date = newDate,
                 description = command.description ?: existing.description,
                 status = command.status ?: existing.status,
                 notes = command.notes ?: existing.notes,
                 tags = updatedTags,
-                categoryId = if (command.categoryIdProvided) command.categoryId else existing.categoryId,
-                categorySource =
-                    when {
-                        command.categoryIdProvided && command.categoryId != null -> CategorySource.MANUAL
-                        command.categoryIdProvided -> null
-                        else -> existing.categorySource
-                    },
+                categoryId = effectiveCategoryId,
+                categorySource = effectiveCategorySource,
                 merchantId = if (command.merchantIdProvided) command.merchantId else existing.merchantId,
                 belongsToUserId = updatedBelongsToUserId,
                 belongsToName = updatedBelongsToName,
@@ -723,7 +760,7 @@ open class TransactionService(
                 appendedRuleHistory + AppliedRuleAuditSupport.buildEntries(listOf(learnedRuleId), updateTimestamp)
         }
         if (existing.type != TransactionType.BALANCE_ADJUSTMENT && mode != RuleApplicationMode.NEVER) {
-            val canApplyCategory = !command.categoryIdProvided
+            val canApplyCategory = !command.categoryIdProvided && !forceClearCategoryForBillPayment
             val canApplyMerchant = !command.merchantIdProvided
             val canApplyDescription = command.description == null
             val canApplyTags = !command.tagsProvided

@@ -1151,6 +1151,10 @@
       "pricesConsumption": {
         "title": "Preços & Consumo",
         "description": "Acompanhe seu perfil de consumo."
+      },
+      "recurringPayments": {
+        "title": "Movimentações recorrentes",
+        "description": "Lembretes de contas e assinaturas recorrentes"
       }
     },
     "widgets": {
@@ -1181,6 +1185,10 @@
         "investmentTreemap": {
           "title": "Treemap de Investimentos",
           "description": "Composição da carteira por grupo de ativos em treemap proporcional."
+        },
+        "upcomingRecurring": {
+          "title": "Próximas movimentações",
+          "description": "Movimentações recorrentes com vencimento próximo"
         }
       },
       "menu": {
@@ -1392,15 +1400,15 @@
         "title": "Entenda como funcionam as regras",
         "actionLabel": "Saiba como a automação organiza suas movimentações"
       },
-        "helpDrawer": {
-          "title": "Como funcionam as regras?",
-          "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
-          "items": {
-            "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
-            "item2": "O app verifica se há uma regra customizada, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
-            "item3": "Para movimentações manuais, categoria e tags apenas são atribuídas caso o usuário tenha deixado em branco durante o cadastro."
-          }
-        },
+      "helpDrawer": {
+        "title": "Como funcionam as regras?",
+        "intro": "As regras de movimentação ajudam a organizar suas finanças automaticamente. Elas comparam descrições de movimentações e atribuem novos valores para facilitar o seu controle.",
+        "items": {
+          "item1": "Quando a descrição de uma movimentação corresponde ao texto definido na regra, o app aplica automaticamente uma nova descrição, uma categoria, tags e um comerciante.",
+          "item2": "O app verifica se há uma regra customizada, criada pelo usuário, e na sequência uma automática, criada pelo próprio app. Caso mais de uma regra seja identificada, a que tiver maior prioridade é atribuída.",
+          "item3": "Para movimentações manuais, categoria e tags apenas são atribuídas caso o usuário tenha deixado em branco durante o cadastro."
+        }
+      },
       "searchPlaceholder": "Buscar...",
       "actions": {
         "newRule": "Nova Regra",
@@ -1848,10 +1856,14 @@
         "markAsTransferSuccess": "Transação marcada como transferência interna",
         "markAsTransferError": "Não foi possível marcar como transferência interna",
         "markAsTransferMissingCategory": "Categoria padrão de transferência não encontrada. Recarregue a página ou tente novamente.",
+        "markAsBillPayment": "Pagamento de fatura",
+        "markAsBillPaymentSuccess": "Transação marcada como pagamento de fatura.",
+        "markAsBillPaymentError": "Erro ao marcar como pagamento de fatura.",
         "edit": "Editar",
         "viewAppliedRules": "Ver regras aplicadas",
         "createRuleFromDescription": "Criar regra a partir da descrição",
-        "remove": "Remover"
+        "remove": "Remover",
+        "createRecurringPayment": "Criar pagamento recorrente"
       },
       "appliedRules": {
         "title": "Regras aplicadas",
@@ -1965,6 +1977,7 @@
   },
   "transactionType": {
     "BALANCE_ADJUSTMENT": "Ajuste de Saldo",
+    "BILL_PAYMENT": "Pagamento de fatura",
     "BOLETO": "Boleto",
     "CARD": "Cartão",
     "CASHBACK": "Cashback",
@@ -1982,5 +1995,114 @@
     "TED": "TED",
     "TRANSFER": "Transferência",
     "WITHDRAWAL": "Saque"
+  },
+  "recurringPayments": {
+    "newButton": "Nova movimentação",
+    "emptyTitle": "Nenhuma movimentação recorrente",
+    "emptyDescription": "Cadastre contas e assinaturas para acompanhar os próximos vencimentos.",
+    "variableAmountBadge": "estimativa variável",
+    "daysUntilDue": "vence em {{count}}d",
+    "frequency": {
+      "MONTHLY": "Mensal",
+      "WEEKLY": "Semanal",
+      "YEARLY": "Anual",
+      "CUSTOM": "Personalizada"
+    },
+    "status": {
+      "ACTIVE": "Ativo",
+      "PAUSED": "Pausado",
+      "CANCELLED": "Cancelado"
+    },
+    "form": {
+      "name": "Nome",
+      "account": "Conta",
+      "creditDebitType": "Tipo",
+      "expectedAmount": "Valor médio estimado",
+      "variableAmount": "Deixe em branco se o valor variar muito entre vencimentos",
+      "accountSearchPlaceholder": "Buscar conta…",
+      "frequency": "Frequência",
+      "dayOfMonth": "Dia do mês",
+      "intervalDays": "Intervalo (dias)",
+      "firstDueDate": "Próximo vencimento",
+      "remindDaysBefore": "Lembrar N dias antes",
+      "notes": "Notas",
+      "fromTransaction": "Criando a partir da transação de {{date}}. Conta, tipo, categoria e estabelecimento vêm da transação.",
+      "category": "Categoria",
+      "merchant": "Estabelecimento",
+      "drawerTitleNew": "Nova movimentação recorrente",
+      "drawerTitleEdit": "Editar movimentação recorrente"
+    },
+    "actions": {
+      "confirmPayment": "Marcar como pago",
+      "pause": "Pausar",
+      "resume": "Retomar",
+      "cancel": "Cancelar",
+      "cancelConfirm": "Cancelar esta movimentação recorrente? Esta ação não pode ser desfeita."
+    },
+    "confirmPaymentDialog": {
+      "title": "Confirmar pagamento",
+      "description": "Registrar pagamento de \"{{name}}\" sem vincular uma transação específica.",
+      "dateLabel": "Data do pagamento",
+      "confirm": "Confirmar"
+    },
+    "pendingActions": {
+      "paymentDue": "Movimentação recorrente próxima",
+      "viewAll": "Ver recorrentes",
+      "dismiss": "Dispensar"
+    },
+    "suggestion": {
+      "link": "Vincular a \"{{name}}\"",
+      "nextDue": "Vence em {{date}}"
+    },
+    "uncategorized": "Sem categoria",
+    "summary": {
+      "monthlyCommitted": "Total Mensal Estimado",
+      "next7Days": "Próximos 7 dias",
+      "overdue": "Em atraso",
+      "distribution": "Distribuição",
+      "byCategory": "Categoria",
+      "byFrequency": "Frequência",
+      "noDistributionData": "Sem dados para o gráfico (defina um valor estimado nas recorrências).",
+      "mobileAccordionTitle": "Indicadores"
+    },
+    "header": {
+      "searchPlaceholder": "Buscar por nome…"
+    },
+    "filters": {
+      "account": "Conta",
+      "allAccounts": "Todas as contas",
+      "status": "Status",
+      "category": "Categoria",
+      "frequency": "Frequência",
+      "clear": "Limpar filtros",
+      "anyCategory": "Todas as categorias",
+      "all": "Todos",
+      "selectedCount": "{{count}} selecionados",
+      "ariaStatus": "Filtrar por status",
+      "ariaFrequency": "Filtrar por frequência"
+    },
+    "table": {
+      "ariaLabel": "Tabela de movimentações recorrentes",
+      "noRecurringActivity": "Nenhuma movimentação recorrente",
+      "groups": {
+        "overdue": "Em atraso",
+        "next7Days": "Próximos 7 dias",
+        "nextMonth": "Próximo mês"
+      },
+      "columns": {
+        "name": "Nome",
+        "category": "Categoria",
+        "frequency": "Frequência",
+        "amount": "Valor",
+        "due": "Vencimento",
+        "status": "Status",
+        "actions": ""
+      },
+      "rowActions": {
+        "ariaLabel": "Ações da movimentação recorrente"
+      }
+    },
+    "statusOverdue": "Atraso",
+    "noFilterResults": "Nenhum resultado para os filtros selecionados."
   }
 }

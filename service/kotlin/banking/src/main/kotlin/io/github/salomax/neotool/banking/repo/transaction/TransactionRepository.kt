@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.repo.transaction
 import io.github.salomax.neotool.banking.domain.transaction.*
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.time.Instant
 import java.util.UUID
 
 /**
@@ -322,6 +323,28 @@ interface TransactionRepository {
         afterId: UUID?,
         limit: Int,
     ): List<Transaction>
+
+    /**
+     * Links a posted/pending transaction to a recurring payment template.
+     */
+    fun setRecurringPaymentId(
+        transactionId: UUID,
+        recurringPaymentId: UUID,
+        accountId: UUID,
+    ): Boolean
+
+    /**
+     * Deletes FUTURE rows that belong to one recurring payment (e.g. paused/cancelled template).
+     */
+    fun deleteFutureByRecurringPaymentId(recurringPaymentId: UUID): Int
+
+    /**
+     * Deletes one projected FUTURE row for (recurring_payment_id, date), usually when a real POSTED row is confirmed.
+     */
+    fun deleteFutureByRecurringAndDate(
+        recurringPaymentId: UUID,
+        date: LocalDate,
+    ): Int
 }
 
 /**
