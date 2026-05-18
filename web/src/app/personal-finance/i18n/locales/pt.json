@@ -68,6 +68,19 @@
       "apply": "Aplicar",
       "redeem": "Resgatar"
     },
+    "newHoldingFlow": {
+      "selectFundTitle": "Escolher fundo",
+      "selectStockTitle": "Escolher ação",
+      "selectReitTitle": "Escolher FII",
+      "selectCryptoTitle": "Escolher cripto",
+      "selectFundSubtitle": "Busque um fundo na CVM ou informe um fundo não listado; em seguida siga para os dados da operação.",
+      "selectEquitySubtitle": "Busque por ticker ou nome; em seguida siga para os dados da operação.",
+      "selectCryptoSubtitle": "Informe nome, ticker e rede (opcional); em seguida siga para os dados da operação.",
+      "continue": "Continuar",
+      "changeAsset": "Alterar",
+      "identityLabel": "Ativo selecionado",
+      "recentSuggestions": "Últimos selecionados"
+    },
     "updateHolding": {
       "direction": {
         "inflow": "Aportar",
@@ -149,12 +162,16 @@
       },
       "validation": {
         "tradeDateRequired": "Informe a data da operação",
+        "settlementDateRequired": "Informe a data de liquidação",
         "grossValueRequired": "Informe o valor bruto",
         "netValueRequired": "Informe o valor líquido",
         "unitPriceRequired": "Informe o preço unitário",
         "quantityRequired": "Informe a quantidade",
         "integerQuantityRequired": "A quantidade deve ser um número inteiro",
-        "cryptoPrecision": "A quantidade deve ter no máximo 8 casas decimais"
+        "cryptoPrecision": "A quantidade deve ter no máximo 8 casas decimais",
+        "settlementOnOrAfterTrade": "A data de liquidação deve ser igual ou posterior à data da operação.",
+        "settlementNotInFuture": "A data de liquidação não pode ser posterior à data de hoje.",
+        "settlementMaxOneYearFromTrade": "A data de liquidação deve ser no máximo 1 ano após a data da operação."
       }
     },
     "record": {
@@ -659,6 +676,26 @@
       "actions": {
         "moreActions": "Mais ações"
       },
+      "transactions": {
+        "tabs": {
+          "summary": "Resumo",
+          "transactions": "Movimentações"
+        },
+        "add": "Nova transação",
+        "emptyTitle": "Nenhuma movimentação",
+        "emptyDescription": "Registre a primeira movimentação para este ativo.",
+        "tableAriaLabel": "Movimentações desta posição",
+        "columns": {
+          "date": "Data",
+          "direction": "Movimento",
+          "quantity": "Quantidade",
+          "unitPrice": "Preço unitário",
+          "value": "Valor",
+          "actions": "Ações"
+        },
+        "editTransaction": "Editar transação",
+        "deleteTransaction": "Excluir transação"
+      },
       "chart": {
         "title": "Evolução do investimento",
         "emptyTitle": "Sem histórico disponível",
@@ -869,6 +906,7 @@
         "quantity": "Quantidade",
         "grossValue": "Valor aplicado",
         "tradeDate": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
         "maturityDate": "Data de vencimento",
         "couponFrequency": "Pagamento de Juros",
         "couponDayOfMonth": "Dia do pagamento de juros",
@@ -974,6 +1012,7 @@
         "quantity": "Quantidade de cotas",
         "unitPrice": "Preço por cota (R$)",
         "tradeDate": "Data da aplicação",
+        "settlementDate": "Data de liquidação",
         "grossValue": "Valor a investir",
         "manualCurrentGrossValue": "Valor atual",
         "manualValuedAt": "Data do valor atual"
@@ -1007,6 +1046,8 @@
         "manualValuedAtRequired": "Data do valor atual é obrigatória para fundos manuais"
       },
       "actions": {
+        "manualEntryHelp": "Não encontrou o fundo?",
+        "manualEntryCta": "+ Cadastrar manualmente",
         "submit": "Salvar",
         "submitting": "Salvando..."
       },
@@ -1037,6 +1078,7 @@
         "quantityMixed": "Quantidade (ações ou cotas)",
         "unitPrice": "Preço unitário (R$)",
         "tradeDate": "Data da operação",
+        "settlementDate": "Data de liquidação",
         "grossValue": "Valor total"
       },
       "values": {
@@ -1059,6 +1101,7 @@
         "unitPriceRequired": "Preço unitário é obrigatório",
         "unitPricePositive": "Preço unitário deve ser maior que zero",
         "tradeDateRequired": "Data da operação é obrigatória",
+        "settlementDateRequired": "Data de liquidação é obrigatória",
         "grossValueRequired": "Valor total é obrigatório",
         "grossValuePositive": "Valor total deve ser maior que zero"
       },
@@ -1082,6 +1125,17 @@
         "total": "Total"
       },
       "success": "Ativo registrado com sucesso"
+    },
+    "recordCrypto": {
+      "fields": {
+        "name": "Nome do ativo",
+        "ticker": "Ticker / símbolo",
+        "network": "Rede (opcional)"
+      },
+      "validation": {
+        "nameRequired": "Informe o nome do ativo",
+        "tickerRequired": "Informe o ticker"
+      }
     },
     "b3AssetTypes": {
       "EQUITY": "Ação",

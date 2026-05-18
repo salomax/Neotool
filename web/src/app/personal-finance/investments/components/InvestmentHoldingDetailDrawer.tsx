@@ -2,13 +2,8 @@
 
 import * as React from "react";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
-import EditIcon from "@mui/icons-material/Edit";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
-import RemoveIcon from "@mui/icons-material/Remove";
 import {
-  alpha,
   Box,
   Button,
   CircularProgress,
@@ -18,21 +13,19 @@ import {
   DialogTitle,
   Divider,
   IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
+  Tab,
+  Tabs,
   Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
 } from "@mui/material";
-import { AssetType, InvestmentTransactionDirection } from "@/lib/graphql/types/__generated__/graphql";
-import { Drawer } from "@/shared/components/ui/layout/Drawer";
+import { AssetType } from "@/lib/graphql/types/__generated__/graphql";
+import { Drawer, DrawerDeleteButton } from "@/shared/components/ui/layout/Drawer";
+import { ConfirmationDialog } from "@/shared/components/ui/feedback/dialogs/ConfirmationDialog";
 import { useTranslation } from "@/shared/i18n";
 import { Label } from "@/shared/components/ui/primitives/Label";
 import { CurrencyAmountParts, GainPercent } from "@/shared/components/ui/data-display";
-import { ConfirmationDialog } from "@/shared/components/ui/feedback";
 import { personalFinanceTranslations } from "../../i18n";
 import { CloseIcon } from "@/shared/ui/mui-imports";
 import { FixedIncomeHoldingDetailContent } from "./fixed-income/FixedIncomeHoldingDetailContent";
@@ -42,12 +35,19 @@ import { MaturityConfirmDrawer } from "../MaturityConfirmDrawer";
 import { CouponPaymentConfirmDrawer } from "../CouponPaymentConfirmDrawer";
 import { FundHoldingDetailContent } from "./fund/FundHoldingDetailContent";
 import { buildFundHoldingDetailViewModel } from "./fund/fundHoldingDetailAdapter";
-import { InvestmentEventSelectorDrawer } from "./InvestmentEventSelectorDrawer";
-import { UpdateHoldingDrawer } from "./update/UpdateHoldingDrawer";
 import { getAssetGroupKey } from "./table/investmentTableHelpers";
+import type { HoldingRow } from "./table/investmentTableHelpers";
 import { HoldingDetailHeader } from "./HoldingDetailHeader";
 import type { HoldingDetailHeaderModel } from "./holdingDetailHeaderPresenter";
 import { formatFundAssetType, type CvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
+import {
+  mapAssetTypeToTransactionEditorClass,
+  mapHoldingToResolvedAsset,
+  type EditIntent,
+  type RowBuyIntent,
+} from "./transaction-editor/intent";
+import { ManagementHeaderActionButton } from "@/shared/components/management/ManagementHeaderActions";
+import { MovimentacoesTab } from "./InvestmentHoldingDetailDrawer/MovimentacoesTab";
 
 export type InvestmentHoldingDetailKind = "fixedIncome" | "fund" | "equity";
 
@@ -67,10 +67,13 @@ interface InvestmentHoldingDetailDrawerProps {
   open: boolean;
   holdingId: string | null;
   kind: InvestmentHoldingDetailKind | null;
+  initialTab?: "summary" | "transactions";
+  refreshNonce?: number;
   initialTitle?: string | null;
   initialAssetType?: string | null;
   initialLogoUrl?: string | null;
   initialIssuerLogoUrl?: string | null;
+  onOpenTransactionEditor: (intent: RowBuyIntent | EditIntent) => void;
   onClose: () => void;
 }
 
@@ -119,9 +122,15 @@ interface HoldingDetailDrawerShellProps {
   totalValue: number | null;
   currencyCode: string;
   gainPercent: number | null;
-  actionBar?: React.ReactNode;
+  activeTab: "summary" | "transactions";
+  onTabChange: (tab: "summary" | "transactions") => void;
+  summaryTabLabel: string;
+  transactionsTabLabel: string;
+  /** Shown on the right of the tab row when the transactions tab is active (e.g. add transaction). */
+  transactionsTabAction?: React.ReactNode;
   summaryCards: HoldingDetailSummaryCardViewModel[];
   body: React.ReactNode;
+  transactionsContent: React.ReactNode;
 }
 
 function formatDetailQuantityValue(value: number, locale: string): string {
@@ -169,9 +178,14 @@ function HoldingDetailDrawerShell({
   totalValue,
   currencyCode,
   gainPercent,
-  actionBar,
+  activeTab,
+  onTabChange,
+  summaryTabLabel,
+  transactionsTabLabel,
+  transactionsTabAction,
   summaryCards,
   body,
+  transactionsContent,
 }: HoldingDetailDrawerShellProps) {
   const metricCards = React.useMemo(() => {
     if (!priceReferenceLabel) return summaryCards;
@@ -236,80 +250,111 @@ function HoldingDetailDrawerShell({
           }}
         />
 
-        {actionBar ? (
-          <>
-            <Divider sx={{ my: 2 }} />
-            {actionBar}
-            <Divider sx={{ my: 2 }} />
-          </>
-        ) : null}
-
         <Box
           sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
-            gap: 1.5,
+            mt: 2,
             mb: 2,
+            borderBottom: 1,
+            borderColor: "divider",
           }}
         >
-          {metricCards.map((card) => (
-            <Box key={card.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.25 }}>
-                <Label sx={{ mb: 0 }}>{card.label}</Label>
-                {card.labelTooltip ? (
-                  <Tooltip title={card.labelTooltip}>
-                    <InfoOutlinedIcon sx={{ fontSize: 14, color: "text.secondary" }} aria-hidden />
-                  </Tooltip>
-                ) : null}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 1.5,
+            }}
+          >
+            <Tabs
+              value={activeTab}
+              onChange={(_event, tab) => onTabChange(tab as "summary" | "transactions")}
+              aria-label="investment-holding-detail-tabs"
+              sx={{ flex: 1, minWidth: 0 }}
+            >
+              <Tab value="summary" label={summaryTabLabel} />
+              <Tab value="transactions" label={transactionsTabLabel} />
+            </Tabs>
+            {activeTab === "transactions" && transactionsTabAction ? (
+              <Box sx={{ flexShrink: 0, alignSelf: "center", transform: "translateY(-2px)" }}>
+                {transactionsTabAction}
               </Box>
-              {card.valueKind === "percent" ? (
-                <>
-                  {card.value != null && Number.isFinite(card.value) ? (
-                    <GainPercent
-                      value={card.value}
-                      locale={locale}
-                      variant="h6"
-                      iconSize={14}
-                      textSx={{ fontWeight: 500, fontSize: { xs: "1.05rem", md: "1.15rem" }, lineHeight: 1.1 }}
-                    />
-                  ) : (
-                    <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}>
-                      —
-                    </Typography>
-                  )}
-                  {card.caption ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-                      {card.caption}
-                    </Typography>
-                  ) : null}
-                </>
-              ) : card.valueKind === "number" ? (
-                <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }} noWrap>
-                  {card.value != null && Number.isFinite(card.value) ? formatDetailQuantityValue(card.value, locale) : "—"}
-                </Typography>
-              ) : (
-                <CurrencyAmountParts
-                  value={card.value}
-                  currency={card.currencyCode ?? currencyCode}
-                  locale={locale}
-                  variant="h6"
-                  fontWeight={500}
-                  noWrap
-                  sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}
-                />
-              )}
-            </Box>
-          ))}
+            ) : null}
+          </Box>
         </Box>
 
-        <Divider sx={{ my: 5 }} />
+        {activeTab === "summary" ? (
+          <>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "repeat(3, minmax(0, 1fr))" },
+                gap: 1.5,
+                mb: 2,
+              }}
+            >
+              {metricCards.map((card) => (
+                <Box key={card.id} sx={{ p: 1.5, border: "1px solid", borderColor: "divider", borderRadius: 1, minWidth: 0 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 0.25 }}>
+                    <Label sx={{ mb: 0 }}>{card.label}</Label>
+                    {card.labelTooltip ? (
+                      <Tooltip title={card.labelTooltip}>
+                        <InfoOutlinedIcon sx={{ fontSize: 14, color: "text.secondary" }} aria-hidden />
+                      </Tooltip>
+                    ) : null}
+                  </Box>
+                  {card.valueKind === "percent" ? (
+                    <>
+                      {card.value != null && Number.isFinite(card.value) ? (
+                        <GainPercent
+                          value={card.value}
+                          locale={locale}
+                          variant="h6"
+                          iconSize={14}
+                          textSx={{ fontWeight: 500, fontSize: { xs: "1.05rem", md: "1.15rem" }, lineHeight: 1.1 }}
+                        />
+                      ) : (
+                        <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}>
+                          —
+                        </Typography>
+                      )}
+                      {card.caption ? (
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                          {card.caption}
+                        </Typography>
+                      ) : null}
+                    </>
+                  ) : card.valueKind === "number" ? (
+                    <Typography variant="h6" fontWeight={500} sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }} noWrap>
+                      {card.value != null && Number.isFinite(card.value) ? formatDetailQuantityValue(card.value, locale) : "—"}
+                    </Typography>
+                  ) : (
+                    <CurrencyAmountParts
+                      value={card.value}
+                      currency={card.currencyCode ?? currencyCode}
+                      locale={locale}
+                      variant="h6"
+                      fontWeight={500}
+                      noWrap
+                      sx={{ lineHeight: 1.1, fontSize: { xs: "1.05rem", md: "1.15rem" } }}
+                    />
+                  )}
+                </Box>
+              ))}
+            </Box>
 
-        {body}
+            <Divider sx={{ my: 5 }} />
+
+            {body}
+          </>
+        ) : (
+          transactionsContent
+        )}
       </Drawer.Body>
 
       {footerActions ? (
         <Drawer.Footer>
-          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 2 }}>
+          <Box sx={{ display: "flex", alignItems: "center", justifyContent: "flex-start", gap: 2 }}>
             {footerActions}
           </Box>
         </Drawer.Footer>
@@ -322,10 +367,13 @@ export function InvestmentHoldingDetailDrawer({
   open,
   holdingId,
   kind,
+  initialTab = "summary",
+  refreshNonce = 0,
   initialTitle,
   initialAssetType,
   initialLogoUrl,
   initialIssuerLogoUrl,
+  onOpenTransactionEditor,
   onClose,
 }: InvestmentHoldingDetailDrawerProps) {
   const theme = useTheme();
@@ -352,42 +400,45 @@ export function InvestmentHoldingDetailDrawer({
     editCouponPayment: handleEditCouponPayment,
     deleteCouponPayment: handleDeleteCouponPayment,
     deletingCouponPayment,
-    editingTransactionId,
     deletingTransactionId,
     deleteConfirmOpen,
     deleteInProgress,
-    editingTransaction,
     deletingTransaction,
-    openEditTransaction: handleEditTransaction,
-    closeEditTransaction,
     openDeleteTransaction: handleRequestDeleteTransaction,
     closeDeleteConfirm: handleCloseDeleteDialog,
     confirmDeleteTransaction: handleConfirmDeleteTransaction,
-    quickTransactionDirection,
-    setQuickTransactionDirection,
-    moreActionsAnchorEl,
-    openMoreActions: openMoreActionsMenu,
-    closeMoreActions: closeMoreActionsMenu,
-    eventSelectorOpen,
-    openEventSelector,
-    closeEventSelector,
     holdingRemoveConfirmOpen,
     openHoldingRemoveConfirm,
     closeHoldingRemoveConfirm,
-    confirmRemoveHolding: handleConfirmRemoveHolding,
+    confirmRemoveHolding,
+    deletingHolding,
     performancePeriod: fundPerformancePeriod,
     setPerformancePeriod: setFundPerformancePeriod,
     locale,
     actionHoldingRow,
-    buyLabel,
-    sellLabel,
-    deletingHolding,
   } = useHoldingDetailDrawer({
     open,
     holdingId,
     kind,
     onClose,
   });
+  const [activeTab, setActiveTab] = React.useState<"summary" | "transactions">(initialTab);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setActiveTab(initialTab);
+  }, [initialTab, open, holdingId]);
+
+  React.useEffect(() => {
+    if (!open || !holdingId || refreshNonce === 0) return;
+    if (kind === "fixedIncome") {
+      void refetchFixedIncome();
+      return;
+    }
+    if (kind === "fund" || kind === "equity") {
+      void refetchFund();
+    }
+  }, [kind, holdingId, open, refreshNonce, refetchFixedIncome, refetchFund]);
 
   const fixedIncomeQuery = React.useMemo(
     () => ({ loading: fixedIncomeLoading, error: fixedIncomeError, refetch: refetchFixedIncome }),
@@ -606,7 +657,6 @@ export function InvestmentHoldingDetailDrawer({
               onEditCouponPayment={handleEditCouponPayment}
               onDeleteCouponPayment={handleDeleteCouponPayment}
               deletingCouponPayment={deletingCouponPayment}
-              onEditTransaction={handleEditTransaction}
               onDeleteTransaction={handleRequestDeleteTransaction}
             />
           ),
@@ -695,7 +745,6 @@ export function InvestmentHoldingDetailDrawer({
               onRetry={() => {
                 void fundQuery.refetch();
               }}
-              onEditTransaction={handleEditTransaction}
               onDeleteTransaction={handleRequestDeleteTransaction}
             />
           ),
@@ -746,101 +795,89 @@ export function InvestmentHoldingDetailDrawer({
               ],
         };
 
-  const actionBuyLabel = kind === "fixedIncome" ? t("investments.grid.actions.contributeCash") : buyLabel;
-  const actionSellLabel = kind === "fixedIncome" ? t("investments.transactions.redeem") : sellLabel;
-  const hasTransactionActions = Boolean(actionBuyLabel && actionSellLabel);
-  const moreActionsLabel = t("investments.detailDrawer.actions.moreActions");
-  const actionButtonBaseSx = React.useMemo(
-    () => ({
-      height: 34,
-      borderRadius: 1,
-    }),
-    [],
+  const movementTransactions = React.useMemo(() => {
+    if (kind === "fixedIncome") return fixedIncomeData?.investmentTransactions ?? [];
+    if (kind === "fund" || kind === "equity") return fundData?.investmentTransactions ?? [];
+    return [];
+  }, [fixedIncomeData?.investmentTransactions, fundData?.investmentTransactions, kind]);
+
+  const editorAsset = React.useMemo(
+    () => (actionHoldingRow ? mapHoldingToResolvedAsset(actionHoldingRow) : null),
+    [actionHoldingRow],
   );
 
-  const actionBar = React.useMemo(
-    () => (
-      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, flexWrap: "wrap" }}>
-          {hasTransactionActions ? (
-            <>
-              <Button
-                variant="outlined"
-                color="success"
-                startIcon={<AddIcon />}
-                onClick={() => {
-                  setQuickTransactionDirection("buy");
-                }}
-                size="small"
-                sx={{
-                  ...actionButtonBaseSx,
-                  color: alpha(theme.palette.success.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
-                  "&:hover": {
-                    bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
-                    color: theme.palette.success.main,
-                  },
-                }}
-              >
-                {actionBuyLabel}
-              </Button>
-              <Button
-                variant="outlined"
-                color="error"
-                startIcon={<RemoveIcon />}
-                onClick={() => {
-                  setQuickTransactionDirection("sell");
-                }}
-                size="small"
-                sx={{
-                  ...actionButtonBaseSx,
-                  color: theme.palette.error.main,
-                  "&:hover": {
-                    bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
-                    color: theme.palette.error.main,
-                  },
-                }}
-              >
-                {actionSellLabel}
-              </Button>
-            </>
-          ) : null}
-        </Box>
+  const editorAssetClass = React.useMemo(
+    () => mapAssetTypeToTransactionEditorClass(actionHoldingRow?.asset?.assetType ?? null),
+    [actionHoldingRow?.asset?.assetType],
+  );
 
-        <Button
-          variant="outlined"
-          size="small"
-          color="inherit"
-          endIcon={<MoreVertIcon fontSize="small" />}
-          onClick={(event) => openMoreActionsMenu(event.currentTarget)}
-          disabled={!actionHoldingRow}
-          aria-label={moreActionsLabel}
-          sx={{
-            ...actionButtonBaseSx,
-            borderColor: "divider",
-            color: "text.secondary",
-            "&:hover": {
-              borderColor: "primary.main",
-              color: "primary.main",
-              backgroundColor: "transparent",
-            },
-          }}
-        >
-          {moreActionsLabel}
-        </Button>
-      </Box>
-    ),
-    [
-      actionBuyLabel,
-      actionButtonBaseSx,
-      actionHoldingRow,
-      actionSellLabel,
-      hasTransactionActions,
-      moreActionsLabel,
-      openEventSelector,
-      openMoreActionsMenu,
-      setQuickTransactionDirection,
-      theme,
-    ],
+  const handleOpenRowBuyFromTransactionsTab = React.useCallback(() => {
+    if (!actionHoldingRow || !editorAsset) return;
+    const intent: RowBuyIntent = {
+      kind: "row-buy",
+      assetClass: editorAssetClass,
+      holdingId: actionHoldingRow.id,
+      asset: editorAsset,
+    };
+    onOpenTransactionEditor(intent);
+  }, [actionHoldingRow, editorAsset, editorAssetClass, onOpenTransactionEditor]);
+
+  const handleOpenEditFromTransactionsTab = React.useCallback((transactionId: string) => {
+    if (!actionHoldingRow || !editorAsset) return;
+    const intent: EditIntent = {
+      kind: "edit",
+      assetClass: editorAssetClass,
+      holdingId: actionHoldingRow.id,
+      transactionId,
+      asset: editorAsset,
+    };
+    onOpenTransactionEditor(intent);
+  }, [actionHoldingRow, editorAsset, editorAssetClass, onOpenTransactionEditor]);
+
+  const movementCurrencyCode =
+    fixedIncomeViewModel?.currencyCode ??
+    fundViewModel?.currencyCode ??
+    fixedIncomeData?.investmentHolding?.asset.currencyCode ??
+    fundData?.investmentHolding?.asset.currencyCode ??
+    "BRL";
+
+  const buyDirectionLabel =
+    kind === "fixedIncome" || kind === "fund"
+      ? t("investments.transactions.apply")
+      : t("investments.transactions.buy");
+  const sellDirectionLabel =
+    kind === "fixedIncome" || kind === "fund"
+      ? t("investments.transactions.redeem")
+      : t("investments.transactions.sell");
+
+  const holdingDeleteFooter = (
+    <DrawerDeleteButton
+      onClick={openHoldingRemoveConfirm}
+      disabled={deletingHolding || !actionHoldingRow}
+      data-testid="investment-holding-detail-delete"
+    >
+      {t("investments.table.rowActions.remove")}
+    </DrawerDeleteButton>
+  );
+
+  const transactionsTabContent = (
+    <MovimentacoesTab
+      locale={locale}
+      currencyCode={movementCurrencyCode}
+      buyLabel={buyDirectionLabel}
+      sellLabel={sellDirectionLabel}
+      transactions={movementTransactions.map((transaction) => ({
+        id: transaction.id,
+        direction: transaction.direction,
+        tradeDate: transaction.tradeDate,
+        quantity: transaction.quantity,
+        unitPrice: transaction.unitPrice,
+        grossValue: transaction.grossValue,
+        netValue: transaction.netValue,
+      }))}
+      onEditTransaction={handleOpenEditFromTransactionsTab}
+      onDeleteTransaction={handleRequestDeleteTransaction}
+    />
   );
 
   return (
@@ -853,7 +890,7 @@ export function InvestmentHoldingDetailDrawer({
         title={title}
         closeAriaLabel={t("actions.close")}
         headerActions={strategy.headerActions}
-        footerActions={strategy.footerActions}
+        footerActions={holdingDeleteFooter}
         headerModel={strategy.headerModel}
         assetName={strategy.assetName}
         logoUrl={strategy.logoUrl}
@@ -864,92 +901,48 @@ export function InvestmentHoldingDetailDrawer({
         totalValue={strategy.grossValue}
         currencyCode={strategy.currencyCode}
         gainPercent={strategy.gainPercent}
-        actionBar={actionBar}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        summaryTabLabel={t("investments.detailDrawer.transactions.tabs.summary")}
+        transactionsTabLabel={t("investments.detailDrawer.transactions.tabs.transactions")}
+        transactionsTabAction={
+          <ManagementHeaderActionButton
+            variant="outlined"
+            size="small"
+            offsetBottom={0}
+            startIcon={<AddIcon fontSize="small" />}
+            onClick={handleOpenRowBuyFromTransactionsTab}
+            disabled={!actionHoldingRow}
+            sx={{
+              alignSelf: "center",
+              height: "auto",
+              minHeight: "unset",
+              py: 0.5,
+              px: 1,
+            }}
+          >
+            {t("investments.detailDrawer.transactions.add")}
+          </ManagementHeaderActionButton>
+        }
         summaryCards={strategy.summaryCards}
         body={strategy.body}
-      />
-
-      <Menu
-        open={Boolean(moreActionsAnchorEl)}
-        anchorEl={moreActionsAnchorEl}
-        onClose={closeMoreActionsMenu}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        <MenuItem
-          disabled={!actionHoldingRow}
-          onClick={() => {
-            closeMoreActionsMenu();
-            openEventSelector();
-          }}
-        >
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t("investments.table.rowActions.viewEvents")}</ListItemText>
-        </MenuItem>
-
-        <MenuItem
-          disabled={!actionHoldingRow}
-          onClick={() => {
-            closeMoreActionsMenu();
-            openHoldingRemoveConfirm();
-          }}
-          sx={{ color: "error.main" }}
-        >
-          <ListItemIcon sx={{ color: "inherit" }}>
-            <DeleteOutlineIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText>{t("investments.table.rowActions.remove")}</ListItemText>
-        </MenuItem>
-      </Menu>
-
-      <InvestmentEventSelectorDrawer
-        open={eventSelectorOpen}
-        holding={actionHoldingRow}
-        onClose={closeEventSelector}
-        onRecorded={async () => {
-          closeEventSelector();
-          if (kind === "fixedIncome") {
-            await fixedIncomeQuery.refetch();
-            return;
-          }
-          await fundQuery.refetch();
-        }}
-      />
-
-      <UpdateHoldingDrawer
-        open={Boolean(quickTransactionDirection) && !editingTransactionId && Boolean(holdingId)}
-        onClose={() => setQuickTransactionDirection(null)}
-        holdingId={holdingId}
-        initialDirection={
-          quickTransactionDirection === "sell" ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
-        }
-        onRecorded={() => {
-          setQuickTransactionDirection(null);
-          if (kind === "fixedIncome") {
-            void fixedIncomeQuery.refetch();
-            return;
-          }
-          void fundQuery.refetch();
-        }}
+        transactionsContent={transactionsTabContent}
       />
 
       {strategy.extra}
 
-      <UpdateHoldingDrawer
-        open={Boolean(editingTransactionId) && Boolean(editingTransaction) && Boolean(holdingId)}
-        onClose={closeEditTransaction}
-        holdingId={holdingId}
-        editTransaction={editingTransaction}
-        onRecorded={() => {
-          closeEditTransaction();
-          if (kind === "fixedIncome") {
-            void fixedIncomeQuery.refetch();
-            return;
-          }
-          void fundQuery.refetch();
+      <ConfirmationDialog
+        open={holdingRemoveConfirmOpen}
+        onClose={closeHoldingRemoveConfirm}
+        onConfirm={() => {
+          void confirmRemoveHolding();
         }}
+        title={t("investments.deleteConfirmation.title")}
+        message={t("investments.deleteConfirmation.message")}
+        cancelText={t("actions.cancel")}
+        confirmText={t("actions.delete")}
+        confirmColor="error"
+        loading={deletingHolding}
       />
 
       <Dialog open={deleteConfirmOpen} onClose={handleCloseDeleteDialog} maxWidth="xs" fullWidth>
@@ -977,18 +970,6 @@ export function InvestmentHoldingDetailDrawer({
           </Button>
         </DialogActions>
       </Dialog>
-
-      <ConfirmationDialog
-        open={holdingRemoveConfirmOpen}
-        onClose={closeHoldingRemoveConfirm}
-        onConfirm={handleConfirmRemoveHolding}
-        title={t("investments.deleteConfirmation.title")}
-        message={t("investments.deleteConfirmation.message")}
-        cancelText={t("actions.cancel")}
-        confirmText={t("actions.delete")}
-        confirmColor="error"
-        loading={deletingHolding}
-      />
     </>
   );
 }

@@ -22,12 +22,13 @@ import { Button, type ButtonProps } from "@/shared/components/ui/primitives/Butt
 const DrawerContext = createContext<{ onClose: () => void } | null>(null);
 
 // Drawer size presets
-export type DrawerSize = 'sm' | 'md' | 'lg' | 'full';
+export type DrawerSize = 'sm' | 'md' | 'lg' | 'xl' | 'full';
 
 const DRAWER_SIZES: Record<DrawerSize, number | string> = {
   sm: 400,
   md: 600,
   lg: 800,
+  xl: 960,
   full: `calc(100% - ${RAIL_W}px)`,
 };
 
@@ -53,7 +54,7 @@ export interface DrawerProps extends Omit<MUIDrawerProps, 'open'> {
   onClose: () => void;
   variant?: 'temporary' | 'persistent' | 'permanent';
   anchor?: 'left' | 'right' | 'top' | 'bottom';
-  /** Predefined size: 'sm' (400px), 'md' (600px), 'lg' (800px), or 'full' (100% - sidebar width) */
+  /** Predefined size: 'sm' (400px), 'md' (600px), 'lg' (800px), 'xl' (960px), or 'full' (100% - sidebar width) */
   size?: DrawerSize;
   /** Custom width (number or string). Ignored if size is provided. Default: 600 */
   width?: number | string;
@@ -97,6 +98,8 @@ export interface DrawerBodyProps {
 
 export interface DrawerFooterProps {
   children: React.ReactNode;
+  /** Merged after default footer styles so callers can override padding, etc. */
+  sx?: BoxProps['sx'];
 }
 
 export interface DrawerActionButtonsProps {
@@ -540,14 +543,17 @@ Body.displayName = 'DrawerBody';
 /**
  * Footer subcomponent - Footer area with consistent padding
  */
-const Footer: React.FC<DrawerFooterProps> = ({ children }) => {
+const Footer: React.FC<DrawerFooterProps> = ({ children, sx }) => {
   return (
     <Box
-      sx={{
-        p: 2,
-        flexShrink: 0,
-        bgcolor: 'background.default'
-      }}
+      sx={[
+        {
+          p: 2,
+          flexShrink: 0,
+          bgcolor: 'background.default',
+        },
+        ...(sx === undefined ? [] : Array.isArray(sx) ? sx : [sx]),
+      ]}
     >
       {children}
     </Box>

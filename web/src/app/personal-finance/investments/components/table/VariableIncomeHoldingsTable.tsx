@@ -41,9 +41,6 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
   const tableRadius = getTableRadius(theme);
 
-  const buyLabel = t("investments.transactions.buy");
-  const sellLabel = t("investments.transactions.sell");
-
   const summaryAdornment = React.useMemo(() => {
     if (!group.valueOriginKey || group.total === "—") return null;
     return (
@@ -131,8 +128,6 @@ export const VariableIncomeHoldingsTable = React.memo(function VariableIncomeHol
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          buyLabel={buyLabel}
-          sellLabel={sellLabel}
         />
       ))}
     </InvestmentGroupTableShell>

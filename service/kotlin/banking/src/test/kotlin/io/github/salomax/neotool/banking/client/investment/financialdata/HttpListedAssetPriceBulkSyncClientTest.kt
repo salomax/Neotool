@@ -46,6 +46,7 @@ class HttpListedAssetPriceBulkSyncClientTest {
                     targetAudience = "neotool-financial-data-service",
                     connectTimeoutSeconds = 10,
                     readTimeoutSeconds = 30,
+                    tickerChunkSize = 50,
                     serviceTokenClient = serviceTokenClient,
                     objectMapper = objectMapper,
                 )

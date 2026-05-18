@@ -46,23 +46,26 @@ import {
   InvestmentTransactionDirection,
   InvestmentTransactionType,
 } from "@/lib/graphql/types/__generated__/graphql";
-import { CurrencyAmountParts } from "@/shared/components/ui/data-display";
 import { ErrorAlert } from "@/shared/components/ui/feedback";
 import { FormInfoBox } from "@/shared/components/ui/forms/components/FormInfoBox";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
 import { FormTabs } from "@/shared/components/ui/forms/components/FormTabs";
-import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
+import { MoneyInput, NumberField } from "@/shared/components/ui/forms/form";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
+import { coerceInvestmentSettlementDate, validateInvestmentSettlementDates } from "@/shared/utils/investment/settlementDatePolicy";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { EquityAutocomplete, EquityAutocompleteValue } from "./EquityAutocomplete";
+import { InvestmentTradeAndSettlementDateRow } from "./InvestmentTradeAndSettlementDateRow";
+import { useSyncDefaultSettlementDate } from "../hooks/useSyncDefaultSettlementDate";
 import { mapB3AssetType } from "@/lib/utils/mapB3AssetType";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
+import type { EquityGateResult } from "./transaction-editor/new-holding/newHoldingFlow.types";
 import type { EquityRecordVariant } from "./grid/investmentGridConfig";
 import SectionDivider from "@/shared/components/ui/layout/SectionDivider";
 import { FormRowStack } from "@/shared/components/ui/forms/components/FormRowStack";
@@ -110,18 +113,22 @@ interface RecordEquityHoldingDrawerProps {
   initialDirection?: InvestmentTransactionDirection;
   /** When opening from the investments grid, narrows copy and ticker search to stocks vs FIIs. */
   equityRecordVariant?: EquityRecordVariant;
+  /** When true, renders only the form body (parent supplies [`InvestmentRecordDrawer`]). */
+  embedded?: boolean;
+  /** Required when `embedded` — custodian account id from parent drawer. */
+  resolvedAccountId?: string | null;
+  /** Two-step flow: step 2 hides asset picker and seeds selection from step 1. */
+  assetGate?: { mode: "full" } | { mode: "locked"; result: EquityGateResult };
 }
 
 type RecordEquityFormData = {
   asset: EquityAutocompleteValue | null;
   quantity?: number | string;
   tradeDate?: Date;
+  settlementDate?: Date;
   unitPrice?: number;
   grossValue?: number;
   totalFees?: number;
-  brokerageFee?: number;
-  settlementFee?: number;
-  otherFees?: number;
 };
 
 type UpdateInvestmentAssetMutationData = { updateInvestmentAsset: { id: string } };
@@ -138,6 +145,9 @@ export function RecordEquityHoldingDrawer({
   prefillHolding,
   initialDirection,
   equityRecordVariant = "mixed",
+  embedded = false,
+  resolvedAccountId = null,
+  assetGate,
 }: RecordEquityHoldingDrawerProps) {
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
@@ -150,8 +160,8 @@ export function RecordEquityHoldingDrawer({
   const minAllowedDate = React.useMemo(() => getFinanceMinAllowedDate(), []);
   const [resolvedFinancialAccountId, setResolvedFinancialAccountId] = React.useState<string | null>(null);
   const [valueFlow, setValueFlow] = React.useState<"BY_AMOUNT" | "BY_QUANTITY">("BY_QUANTITY");
-  const [feesMode, setFeesMode] = React.useState<"SUMMARY" | "DETAILED">("SUMMARY");
   const isEdit = Boolean(editHolding && editTransaction);
+  const isLockedGate = assetGate?.mode === "locked";
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
   const lastRequestedAssetPriceKeyRef = React.useRef<string | null>(null);
   const lastAppliedAssetPriceKeyRef = React.useRef<string | null>(null);
@@ -233,14 +243,18 @@ export function RecordEquityHoldingDrawer({
             invalid_type_error: t("investments.recordEquity.validation.tradeDateRequired"),
           }),
         ),
+        settlementDate: z.preprocess(
+          (value) => (value === "" || value === null || value === undefined ? undefined : value),
+          z.date({
+            required_error: t("investments.recordEquity.validation.settlementDateRequired"),
+            invalid_type_error: t("investments.recordEquity.validation.settlementDateRequired"),
+          }),
+        ),
         grossValue: z
           .number({ invalid_type_error: t("investments.recordEquity.validation.grossValueRequired") })
           .positive(t("investments.recordEquity.validation.grossValuePositive"))
           .optional(),
         totalFees: z.number().min(0).optional(),
-        brokerageFee: z.number().min(0).optional(),
-        settlementFee: z.number().min(0).optional(),
-        otherFees: z.number().min(0).optional(),
       })
       .superRefine((data, ctx) => {
         if (dayjs(data.tradeDate).isBefore(minAllowedDate, "day")) {
@@ -250,6 +264,7 @@ export function RecordEquityHoldingDrawer({
             path: ["tradeDate"],
           });
         }
+        validateInvestmentSettlementDates(data, ctx, t);
       }),
     [localeDecimal, localeGroup, minAllowedDate, t],
   );
@@ -258,14 +273,12 @@ export function RecordEquityHoldingDrawer({
     resolver: zodResolver(createSchema),
     defaultValues: {
       asset: null,
-      quantity: undefined,
+      quantity: 0,
       tradeDate: undefined,
+      settlementDate: undefined,
       unitPrice: undefined,
       grossValue: undefined,
       totalFees: undefined,
-      brokerageFee: undefined,
-      settlementFee: undefined,
-      otherFees: undefined,
     },
   });
 
@@ -273,13 +286,19 @@ export function RecordEquityHoldingDrawer({
   const { dirtyFields } = methods.formState;
   const selectedAsset = methods.watch("asset");
   const selectedTradeDate = methods.watch("tradeDate");
+  const todayMaxDate = React.useMemo(() => dayjs().startOf("day").toDate(), []);
+
+  useSyncDefaultSettlementDate<RecordEquityFormData>({
+    enabled: open,
+    assetKind: "equity",
+    tradeDate: selectedTradeDate,
+    setValue: methods.setValue,
+  });
+
   const unitPriceValue = methods.watch("unitPrice");
   const grossValueValue = methods.watch("grossValue");
   const quantityValue = methods.watch("quantity");
   const totalFeesValue = methods.watch("totalFees");
-  const brokerageFeeValue = methods.watch("brokerageFee");
-  const settlementFeeValue = methods.watch("settlementFee");
-  const otherFeesValue = methods.watch("otherFees");
 
   const displayVariant = React.useMemo<EquityRecordVariant>(() => {
     if (selectedAsset?.assetType) {
@@ -313,26 +332,6 @@ export function RecordEquityHoldingDrawer({
         : displayVariant === "stock"
           ? "investments.recordEquity.fields.quantityStock"
           : "investments.recordEquity.fields.quantityMixed";
-    return t(key);
-  }, [displayVariant, t]);
-
-  const byAmountEstimatedLabel = React.useMemo(() => {
-    const key =
-      displayVariant === "fii"
-        ? "investments.recordEquity.values.byAmount.estimatedFii"
-        : displayVariant === "stock"
-          ? "investments.recordEquity.values.byAmount.estimatedStock"
-          : "investments.recordEquity.values.byAmount.estimatedMixed";
-    return t(key);
-  }, [displayVariant, t]);
-
-  const byAmountUnitLabel = React.useMemo(() => {
-    const key =
-      displayVariant === "fii"
-        ? "investments.recordEquity.values.byAmount.unitFii"
-        : displayVariant === "stock"
-          ? "investments.recordEquity.values.byAmount.unitStock"
-          : "investments.recordEquity.values.byAmount.unitMixed";
     return t(key);
   }, [displayVariant, t]);
 
@@ -403,13 +402,13 @@ export function RecordEquityHoldingDrawer({
       setAssetPriceFetching(false);
       reset();
       setValueFlow("BY_QUANTITY");
-      setFeesMode("SUMMARY");
     }
   }, [open, reset]);
 
   useEffect(() => {
     if (!open) return;
     if (isEdit) return;
+    if (embedded) return;
     if (!prefillHolding) return;
 
     methods.setValue(
@@ -423,9 +422,20 @@ export function RecordEquityHoldingDrawer({
       },
       { shouldDirty: false, shouldValidate: true },
     );
-  }, [isEdit, mapHoldingAssetTypeToB3, methods, open, prefillHolding]);
+  }, [embedded, isEdit, mapHoldingAssetTypeToB3, methods, open, prefillHolding]);
 
-  // resolvedFinancialAccountId is managed via InvestmentRecordDrawer onResolvedChange
+  useEffect(() => {
+    if (!embedded) return;
+    setResolvedFinancialAccountId(resolvedAccountId ?? null);
+  }, [embedded, resolvedAccountId]);
+
+  useEffect(() => {
+    if (!open || !embedded || !isLockedGate || !assetGate || assetGate.mode !== "locked") return;
+    if (assetGate.result.kind !== "equity") return;
+    methods.setValue("asset", assetGate.result.asset, { shouldDirty: false, shouldValidate: true });
+  }, [assetGate, embedded, isLockedGate, methods, open]);
+
+  // resolvedFinancialAccountId is managed via InvestmentRecordDrawer onResolvedChange (non-embedded)
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
     CreateInvestmentAssetMutation,
@@ -489,22 +499,22 @@ export function RecordEquityHoldingDrawer({
     return computedTotalByQuantity;
   }, [computedTotalByQuantity, grossValueValue, valueFlow]);
 
-  const computedDetailedFees = React.useMemo(() => {
-    const brokerageFee = typeof brokerageFeeValue === "number" ? brokerageFeeValue : 0;
-    const settlementFee = typeof settlementFeeValue === "number" ? settlementFeeValue : 0;
-    const otherFees = typeof otherFeesValue === "number" ? otherFeesValue : 0;
-    return brokerageFee + settlementFee + otherFees;
-  }, [brokerageFeeValue, otherFeesValue, settlementFeeValue]);
+  const computedTotalFees = typeof totalFeesValue === "number" ? totalFeesValue : 0;
 
-  const computedTotalFees = React.useMemo(() => {
-    if (feesMode === "DETAILED") return computedDetailedFees;
-    return typeof totalFeesValue === "number" ? totalFeesValue : 0;
-  }, [computedDetailedFees, feesMode, totalFeesValue]);
+  const footerQuantityValue = React.useMemo(() => {
+    if (valueFlow === "BY_QUANTITY") {
+      return typeof quantityValue === "number" && Number.isFinite(quantityValue) ? quantityValue : null;
+    }
+    return computedQuantityByAmount;
+  }, [computedQuantityByAmount, quantityValue, valueFlow]);
 
-  const computedTransactionTotal = React.useMemo(() => {
-    if (computedGrossValue == null) return null;
-    return computedGrossValue + computedTotalFees;
-  }, [computedGrossValue, computedTotalFees]);
+  const footerQuantityDisplay = React.useMemo(() => {
+    if (footerQuantityValue == null) return "—";
+    return footerQuantityValue.toLocaleString(locale, {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: valueFlow === "BY_AMOUNT" ? 4 : 0,
+    });
+  }, [footerQuantityValue, locale, valueFlow]);
 
   const onSubmit = async (data: RecordEquityFormData) => {
     if (!resolvedFinancialAccountId) return;
@@ -579,7 +589,7 @@ export function RecordEquityHoldingDrawer({
       unitPrice,
       grossValue,
       tradeDate,
-      settlementDate: formatDateOnly(dayjs(data.tradeDate).add(2, "day").toDate()),
+      settlementDate: formatDateOnly(coerceInvestmentSettlementDate("equity", data.tradeDate, data.settlementDate)),
     };
 
     try {
@@ -645,7 +655,6 @@ export function RecordEquityHoldingDrawer({
     const nextFlow = hasQuantity && hasUnitPrice ? "BY_QUANTITY" : "BY_AMOUNT";
 
     setValueFlow(nextFlow);
-    setFeesMode("SUMMARY");
 
     const assetTicker = editHolding!.asset.ticker ?? "";
     methods.reset(
@@ -662,16 +671,204 @@ export function RecordEquityHoldingDrawer({
           parseDateOnly(
             editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
           ) ?? undefined,
+        settlementDate:
+          parseDateOnly(
+            editTransaction!.settlementDate != null ? String(editTransaction!.settlementDate) : null,
+          ) ?? undefined,
         unitPrice: nextFlow === "BY_QUANTITY" ? editTransaction!.unitPrice ?? undefined : editTransaction!.unitPrice ?? undefined,
         grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
         totalFees: undefined,
-        brokerageFee: undefined,
-        settlementFee: undefined,
-        otherFees: undefined,
       },
       { keepDirty: false },
     );
   }, [editHolding, editTransaction, isEdit, mapHoldingAssetTypeToB3, methods, open]);
+
+  const displayFooterTransactionTotal = (computedGrossValue ?? 0) + computedTotalFees;
+
+  const equityFooterContent = (activeAccountId: string | null) => (
+    <Stack spacing={2}>
+      <FormInfoBox
+        sx={{
+          flexDirection: "column",
+          alignItems: "stretch",
+          justifyContent: "flex-start",
+          gap: 1.5,
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {quantityFieldLabel}
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {footerQuantityDisplay}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {t("investments.recordEquity.footer.grossValue")}
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {currencyFormatter.format(computedGrossValue ?? 0)}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {t("investments.recordEquity.footer.fees")}
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {currencyFormatter.format(computedTotalFees)}
+          </Typography>
+        </Box>
+
+        <Divider sx={{ borderColor: "divider" }} />
+
+        <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
+          <Typography variant="body2" color="text.secondary">
+            {t("investments.recordEquity.footer.total")}
+          </Typography>
+          <Typography variant="body2" fontWeight={700}>
+            {currencyFormatter.format(displayFooterTransactionTotal)}
+          </Typography>
+        </Box>
+      </FormInfoBox>
+
+      <Divider />
+
+      <Drawer.ActionButtons
+        cancelText={t("actions.cancel")}
+        submitText={t("investments.recordEquity.actions.submit")}
+        submittingText={t("investments.recordEquity.actions.submitting")}
+        onCancel={onClose}
+        submitForm="record-equity-form"
+        cancelDisabled={isSubmitting}
+        submitDisabled={isSubmitting || !activeAccountId}
+        submitting={isSubmitting}
+      />
+    </Stack>
+  );
+
+  const equityForm = (activeAccountId: string | null) => (
+    <FormProvider {...methods}>
+      <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
+        <FormStack>
+          <ErrorAlert error={mutationError} />
+
+          <FormStack>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
+                gap: 2,
+              }}
+            >
+              {isEdit ? (
+                <EquityAutocomplete
+                  name="asset"
+                  assetTypeFilter={autocompleteB3Filter}
+                  data-testid="record-equity-autocomplete"
+                  disabled={isEdit || Boolean(prefillHolding)}
+                />
+              ) : isLockedGate ? null : (
+                <EquityAutocomplete
+                  name="asset"
+                  assetTypeFilter={autocompleteB3Filter}
+                  data-testid="record-equity-autocomplete"
+                  disabled={isEdit || Boolean(prefillHolding)}
+                />
+              )}
+            </Box>
+            <InvestmentTradeAndSettlementDateRow<RecordEquityFormData>
+              tradeDateLabel={t("investments.recordEquity.fields.tradeDate")}
+              settlementDateLabel={t("investments.recordEquity.fields.settlementDate")}
+              minDate={minAllowedDate.toDate()}
+              tradeMaxDate={todayMaxDate}
+              tradeDateTestId="record-equity-trade-date"
+              settlementDateTestId="record-equity-settlement-date"
+            />
+          </FormStack>
+
+          <FormStack>
+            <FormTabs
+              value={valueFlow}
+              onChange={(_, next: "BY_AMOUNT" | "BY_QUANTITY") => setValueFlow(next)}
+              data-testid="record-equity-value-flow-tabs"
+            >
+              <Tab
+                value="BY_QUANTITY"
+                label={t("investments.recordEquity.flows.byQuantity")}
+                data-testid="record-equity-flow-by-quantity"
+              />
+              <Tab
+                value="BY_AMOUNT"
+                label={t("investments.recordEquity.flows.byAmount")}
+                data-testid="record-equity-flow-by-amount"
+              />
+            </FormTabs>
+          </FormStack>
+
+          {valueFlow === "BY_QUANTITY" ? (
+            <FormStack>
+              <FormRowStack alignItems="flex-start">
+                <NumberField
+                  name="quantity"
+                  label={quantityFieldLabel}
+                  fullWidth
+                  locale={locale}
+                  fractionDigits={0}
+                  allowNegative={false}
+                  data-testid="record-equity-quantity"
+                />
+                <MoneyInput
+                  name="unitPrice"
+                  label={t("investments.recordEquity.fields.unitPrice")}
+                  currency="BRL"
+                  InputProps={unitPriceInputProps}
+                  data-testid="record-equity-unit-price"
+                />
+              </FormRowStack>
+            </FormStack>
+          ) : (
+            <FormStack>
+              <FormRowStack alignItems="flex-start">
+                <MoneyInput
+                  name="grossValue"
+                  label={t("investments.recordEquity.fields.grossValue")}
+                  currency="BRL"
+                  data-testid="record-equity-gross-value"
+                />
+
+                <MoneyInput
+                  name="unitPrice"
+                  label={t("investments.recordEquity.fields.unitPrice")}
+                  currency="BRL"
+                  InputProps={unitPriceInputProps}
+                  data-testid="record-equity-unit-price"
+                />
+              </FormRowStack>
+            </FormStack>
+          )}
+
+          <Box sx={{ width: { xs: "100%", sm: "50%" } }}>
+            <MoneyInput
+              name="totalFees"
+              label={t("investments.recordEquity.fees.totalFees")}
+              currency="BRL"
+              fullWidth
+              data-testid="record-equity-fees-total"
+            />
+          </Box>
+
+          {embedded ? equityFooterContent(activeAccountId) : null}
+        </FormStack>
+      </form>
+    </FormProvider>
+  );
+
+  if (embedded) {
+    return equityForm(resolvedAccountId ?? null);
+  }
 
   return (
     <InvestmentRecordDrawer
@@ -686,231 +883,9 @@ export function RecordEquityHoldingDrawer({
         dataTestIdPrefix: "record-equity-select-account-",
       }}
       onResolvedChange={setResolvedFinancialAccountId}
-      footer={
-        ({ resolvedFinancialAccountId }) => (
-          <Stack spacing={2}>
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t("investments.recordEquity.footer.grossValue")}
-              </Typography>
-              <Typography variant="body2" fontWeight={700}>
-                {computedGrossValue != null ? currencyFormatter.format(computedGrossValue) : "—"}
-              </Typography>
-            </Box>
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                {t("investments.recordEquity.footer.fees")}
-              </Typography>
-              <Typography variant="body2" fontWeight={700}>
-                {currencyFormatter.format(computedTotalFees)}
-              </Typography>
-            </Box>
-
-            <Divider />
-
-            <Box sx={{ display: "flex", justifyContent: "space-between", gap: 2, pb: 2 }}>
-              <Typography variant="h3" color="text.secondary">
-                {t("investments.recordEquity.footer.total")}
-              </Typography>
-              <CurrencyAmountParts
-                value={computedTransactionTotal}
-                currency="BRL"
-                locale={locale}
-                variant="h3"
-                fontWeight={900}
-              />
-            </Box>
-
-            <Drawer.ActionButtons
-              cancelText={t("actions.cancel")}
-              submitText={t("investments.recordEquity.actions.submit")}
-              submittingText={t("investments.recordEquity.actions.submitting")}
-              onCancel={onClose}
-              submitForm="record-equity-form"
-              cancelDisabled={isSubmitting}
-              submitDisabled={isSubmitting || !resolvedFinancialAccountId}
-              submitting={isSubmitting}
-            />
-          </Stack>
-        )
-      }
+      footer={({ resolvedFinancialAccountId: accountId }) => equityFooterContent(accountId)}
     >
-      {({ resolvedFinancialAccountId }) => (
-        <FormProvider {...methods}>
-          <form id="record-equity-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <FormStack>
-              <ErrorAlert error={mutationError} />
-
-                <FormStack>
-                  <Box
-                    sx={{
-                      display: "grid",
-                      gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" },
-                      gap: 2,
-                    }}
-                  >
-                    <EquityAutocomplete
-                      name="asset"
-                      assetTypeFilter={autocompleteB3Filter}
-                      data-testid="record-equity-autocomplete"
-                      disabled={isEdit || Boolean(prefillHolding)}
-                    />
-                    <DatePickerField
-                      name="tradeDate"
-                      label={t("investments.recordEquity.fields.tradeDate")}
-                      minDate={minAllowedDate.toDate()}
-                      disableFuture={true}
-                      data-testid="record-equity-trade-date"
-                    />
-                  </Box>
-                </FormStack>
-
-                <FormStack>
-                  <FormTabs
-                    value={valueFlow}
-                    onChange={(_, next: "BY_AMOUNT" | "BY_QUANTITY") => setValueFlow(next)}
-                    data-testid="record-equity-value-flow-tabs"
-                  >
-                    <Tab
-                      value="BY_QUANTITY"
-                      label={t("investments.recordEquity.flows.byQuantity")}
-                      data-testid="record-equity-flow-by-quantity"
-                    />
-                    <Tab
-                      value="BY_AMOUNT"
-                      label={t("investments.recordEquity.flows.byAmount")}
-                      data-testid="record-equity-flow-by-amount"
-                    />
-                  </FormTabs>
-                </FormStack>
-
-                {valueFlow === "BY_QUANTITY" ? (
-                  <FormStack>
-                    <FormRowStack alignItems="flex-start">
-                      <NumberField
-                        name="quantity"
-                        label={quantityFieldLabel}
-                        fullWidth
-                        locale={locale}
-                        fractionDigits={0}
-                        allowNegative={false}
-                        data-testid="record-equity-quantity"
-                      />
-                      <MoneyInput
-                        name="unitPrice"
-                        label={t("investments.recordEquity.fields.unitPrice")}
-                        currency="BRL"
-                        InputProps={unitPriceInputProps}
-                        data-testid="record-equity-unit-price"
-                      />
-                    </FormRowStack>
-
-                    <FormInfoBox>
-                      <Typography variant="body2" color="text.secondary">
-                        {t("investments.recordEquity.values.byQuantity.totalLabel")}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={800}>
-                        {computedTotalByQuantity != null ? currencyFormatter.format(computedTotalByQuantity) : "—"}
-                      </Typography>
-                    </FormInfoBox>
-                  </FormStack>
-                ) : (
-                  <FormStack>
-                    <FormRowStack alignItems="flex-start">
-                      <MoneyInput
-                        name="grossValue"
-                        label={t("investments.recordEquity.fields.grossValue")}
-                        currency="BRL"
-                        data-testid="record-equity-gross-value"
-                      />
-
-                      <MoneyInput
-                        name="unitPrice"
-                        label={t("investments.recordEquity.fields.unitPrice")}
-                        currency="BRL"
-                        InputProps={unitPriceInputProps}
-                        data-testid="record-equity-unit-price"
-                      />
-                    </FormRowStack>
-
-                    <FormInfoBox>
-                      <Typography variant="body2" color="text.secondary">
-                        {byAmountEstimatedLabel}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={700}>
-                        {computedQuantityByAmount != null
-                          ? computedQuantityByAmount.toLocaleString(locale, {
-                              minimumFractionDigits: 0,
-                              maximumFractionDigits: 0,
-                            }) + " " + byAmountUnitLabel
-                          : "—"}
-                      </Typography>
-                    </FormInfoBox>
-                  </FormStack>
-                )}
-
-                <FormStack>
-                  <FormTabs
-                    value={feesMode}
-                    onChange={(_, next: "SUMMARY" | "DETAILED") => setFeesMode(next)}
-                    data-testid="record-equity-fees-mode-tabs"
-                  >
-                    <Tab
-                      value="SUMMARY"
-                      label={t("investments.recordEquity.fees.modes.summary")}
-                      data-testid="record-equity-fees-mode-summary"
-                    />
-                    <Tab
-                      value="DETAILED"
-                      label={t("investments.recordEquity.fees.modes.detailed")}
-                      data-testid="record-equity-fees-mode-detailed"
-                    />
-                  </FormTabs>
-                </FormStack>
-
-                {feesMode === "SUMMARY" ? (
-                  <MoneyInput
-                    name="totalFees"
-                    label={t("investments.recordEquity.fees.totalFees")}
-                    currency="BRL"
-                    data-testid="record-equity-fees-total"
-                  />
-                ) : (
-                  <FormStack>
-                    <MoneyInput
-                      name="brokerageFee"
-                      label={t("investments.recordEquity.fees.brokerage")}
-                      currency="BRL"
-                      data-testid="record-equity-fees-brokerage"
-                    />
-                    <MoneyInput
-                      name="settlementFee"
-                      label={t("investments.recordEquity.fees.settlement")}
-                      currency="BRL"
-                      data-testid="record-equity-fees-settlement"
-                    />
-                    <MoneyInput
-                      name="otherFees"
-                      label={t("investments.recordEquity.fees.other")}
-                      currency="BRL"
-                      data-testid="record-equity-fees-other"
-                    />
-
-                    <FormInfoBox>
-                      <Typography variant="body2" color="text.secondary">
-                        {t("investments.recordEquity.fees.totalFees")}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={800}>
-                        {currencyFormatter.format(computedDetailedFees)}
-                      </Typography>
-                    </FormInfoBox>
-                  </FormStack>
-                )}
-              </FormStack>
-          </form>
-        </FormProvider>
-      )}
+      {({ resolvedFinancialAccountId }) => equityForm(resolvedFinancialAccountId)}
     </InvestmentRecordDrawer>
   );
 }

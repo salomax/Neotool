@@ -120,10 +120,7 @@ const StyledToggleButtonGroup = styled(ToggleButtonGroup, {
   },
   ...(fullWidth && {
     width: "100%",
-    display: "flex",
-    "& .MuiToggleButtonGroup-grouped": {
-      flex: 1,
-    },
+    gridTemplateColumns: `repeat(${optionsCount}, minmax(0, 1fr))`,
   }),
 }));
 
@@ -137,10 +134,10 @@ export function SegmentedControl({
 }: SegmentedControlProps) {
   const normalizedSize: "small" | "medium" = size === "small" ? "small" : "medium";
 
-  const selectedIndex = React.useMemo(
-    () => options.findIndex((option) => option.value === value),
-    [options, value]
-  );
+  const selectedIndex = React.useMemo(() => {
+    const needle = String(value);
+    return options.findIndex((option) => String(option.value) === needle);
+  }, [options, value]);
 
   const handleChange = (_event: React.MouseEvent<HTMLElement>, newValue: string | null) => {
     if (newValue !== null) {

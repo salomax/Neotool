@@ -10,20 +10,17 @@ import { ConfirmationDialog } from '@/shared/components/ui/feedback';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../../../i18n';
 import { DELETE_INVESTMENT_HOLDING } from '@/lib/graphql/operations/banking/mutations';
-import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
 import { CashMovementsSection } from './CashMovementsSection';
 import { HoldingsGroupsSection } from './HoldingsGroupsSection';
-import { InvestmentEventSelectorDrawer } from '../InvestmentEventSelectorDrawer';
 import { InvestmentHoldingActionsMenu } from './InvestmentHoldingActionsMenu';
 import { RecordCorporateEventDrawer } from '../corporate-events/RecordCorporateEventDrawer';
-import { UpdateHoldingDrawer } from '../update/UpdateHoldingDrawer';
 import type { IssuerSelectionAccount } from '../IssuerSelection';
+import { TransactionEditor } from '../transaction-editor/TransactionEditor';
 import { useInvestmentCardExpansion } from './useInvestmentCardExpansion';
 import { InvestmentTableActionsProvider } from './InvestmentTableActionsContext';
 import { useInvestmentTableData } from './useInvestmentTableData';
 import { useInvestmentTableDrawers } from './useInvestmentTableDrawers';
 import {
-  getAssetGroupKey,
   type AssetGroupKey,
   type HoldingRow,
 } from './investmentTableHelpers';
@@ -61,7 +58,6 @@ const TransferCustodyDrawer = dynamic(
 interface InvestmentTableProps {
   selectedAccountId: string | null;
   investmentAccounts?: IssuerSelectionAccount[];
-  onRecordHolding?: () => void;
   searchQuery?: string;
   onSelectSearchAsset?: (assetName: string) => void;
   visibleGroupKeys?: AssetGroupKey[];
@@ -85,6 +81,7 @@ export function InvestmentTable({
 }: InvestmentTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const toast = useToast();
+  const [detailRefreshNonce, bumpDetailRefreshNonce] = React.useReducer((value: number) => value + 1, 0);
 
   const [deleteInvestmentHolding, { loading: deletingHolding }] = useMutation(DELETE_INVESTMENT_HOLDING);
   const {
@@ -105,10 +102,6 @@ export function InvestmentTable({
   });
   const showCashCard = includeCashCard && showCashCardFromData;
 
-  const resolveFinancialAccountId = React.useCallback(
-    (holding: HoldingRow) => selectedAccountId ?? holding.financialAccount?.id ?? null,
-    [selectedAccountId],
-  );
   const {
     actionMenu,
     handleOpenActionMenu,
@@ -116,9 +109,11 @@ export function InvestmentTable({
     detailDrawer,
     handleOpenDetail,
     closeDetailDrawer,
-    eventSelectorDrawer,
-    handleOpenEventSelector,
-    closeEventSelectorDrawer,
+    transactionEditorDrawer,
+    openTransactionEditorIntent,
+    openRowBuyEditor,
+    openRowSellEditor,
+    closeTransactionEditor,
     holdingToRemove,
     setHoldingToRemove,
     maturityConfirmOpen,
@@ -141,18 +136,10 @@ export function InvestmentTable({
     transferCustodyHolding,
     handleOpenTransferCustodyDrawer,
     closeTransferCustodyDrawer,
-    quickTransaction,
-    isQuickUpdateOpen,
-    handleQuickBuy,
-    handleQuickSell,
-    closeQuickTransaction,
     corporateEventState,
     handleRecordCorporateEvent,
     closeCorporateEventDrawer,
-  } = useInvestmentTableDrawers({
-    selectedAccountId,
-    resolveFinancialAccountId,
-  });
+  } = useInvestmentTableDrawers();
 
   const handleConfirmRemove = async () => {
     if (!holdingToRemove) return;
@@ -289,8 +276,8 @@ export function InvestmentTable({
               onOpenDetail: handleOpenDetail,
               onOpenMaturityConfirm: handleOpenMaturityConfirmDrawer,
               onOpenActions: handleOpenActionMenu,
-              onBuy: handleQuickBuy,
-              onSell: handleQuickSell,
+              onRowBuy: openRowBuyEditor,
+              onRowSell: openRowSellEditor,
             }}
           >
             <HoldingsGroupsSection
@@ -311,7 +298,6 @@ export function InvestmentTable({
         deleting={deletingHolding}
         onClose={closeActionMenu}
         onViewDetails={handleOpenDetail}
-        onViewEvents={handleOpenEventSelector}
         onRemove={setHoldingToRemove}
         onRecordProvento={() => {
           if (!actionMenu.holding) return;
@@ -363,10 +349,16 @@ export function InvestmentTable({
         open={Boolean(detailDrawer.holdingId && detailDrawer.kind)}
         holdingId={detailDrawer.holdingId}
         kind={detailDrawer.kind}
+        initialTab={detailDrawer.initialTab}
+        refreshNonce={detailRefreshNonce}
         initialTitle={detailHolding?.asset?.name ?? null}
         initialAssetType={detailHolding?.asset?.assetType ?? null}
         initialLogoUrl={detailHolding?.asset?.logoAsset?.publicUrl ?? null}
         initialIssuerLogoUrl={detailHoldingIssuerLogoUrl}
+        onOpenTransactionEditor={(intent) => {
+          const financialAccountId = detailHolding?.financialAccountId ?? selectedAccountId ?? null;
+          openTransactionEditorIntent(intent, financialAccountId);
+        }}
         onClose={closeDetailDrawer}
       />
 
@@ -422,23 +414,17 @@ export function InvestmentTable({
         onSuccess={refreshInvestmentData}
       />
 
-      <UpdateHoldingDrawer
-        open={isQuickUpdateOpen}
-        onClose={closeQuickTransaction}
-        holdingId={quickTransaction.holding?.id ?? null}
-        initialDirection={
-          quickTransaction.direction === 'sell' ? InvestmentTransactionDirection.Outflow : InvestmentTransactionDirection.Inflow
-        }
-        onRecorded={() => {
-          void refreshInvestmentData();
+      <TransactionEditor
+        open={Boolean(transactionEditorDrawer.intent)}
+        intent={transactionEditorDrawer.intent}
+        financialAccountId={transactionEditorDrawer.financialAccountId}
+        financialAccounts={investmentAccounts}
+        onClose={closeTransactionEditor}
+        onRecorded={async () => {
+          closeTransactionEditor();
+          bumpDetailRefreshNonce();
+          await refreshInvestmentData();
         }}
-      />
-
-      <InvestmentEventSelectorDrawer
-        open={Boolean(eventSelectorDrawer.holding && eventSelectorDrawer.kind)}
-        holding={eventSelectorDrawer.holding}
-        onClose={closeEventSelectorDrawer}
-        onRecorded={refreshInvestmentData}
       />
 
       <RecordCorporateEventDrawer

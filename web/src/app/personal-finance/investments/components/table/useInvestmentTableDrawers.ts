@@ -9,32 +9,33 @@ import type { WithholdingTaxDrawerHolding } from '../../WithholdingTaxDrawer';
 import type { InvestmentHoldingDetailKind } from '../InvestmentHoldingDetailDrawer';
 import type { CorporateEventType } from '../corporate-events/RecordCorporateEventDrawer';
 import {
+  mapAssetTypeToTransactionEditorClass,
+  mapHoldingToResolvedAsset,
+  type RowBuyIntent,
+  type RowSellIntent,
+  type TransactionEditorIntent,
+} from '../transaction-editor/intent';
+import {
   AMORTIZABLE_ASSET_TYPES,
   LENDABLE_ASSET_TYPES,
   getHoldingKind,
-  type HoldingKind,
   type HoldingRow,
 } from './investmentTableHelpers';
 
 export interface DetailDrawerState {
   holdingId: string | null;
   kind: InvestmentHoldingDetailKind | null;
+  initialTab: 'summary' | 'transactions';
 }
 
-export interface EventSelectorDrawerState {
-  holding: HoldingRow | null;
-  kind: HoldingKind;
+export interface TransactionEditorDrawerState {
+  intent: TransactionEditorIntent | null;
   financialAccountId: string | null;
 }
 
 export interface ActionMenuState {
   anchorEl: HTMLElement | null;
   holding: HoldingRow | null;
-}
-
-export interface QuickTransactionState {
-  holding: HoldingRow | null;
-  direction: 'buy' | 'sell' | null;
 }
 
 export interface CorporateEventState {
@@ -47,11 +48,13 @@ export interface UseInvestmentTableDrawersReturn {
   handleOpenActionMenu: (anchorEl: HTMLElement, holding: HoldingRow) => void;
   closeActionMenu: () => void;
   detailDrawer: DetailDrawerState;
-  handleOpenDetail: (holding: HoldingRow) => void;
+  handleOpenDetail: (holding: HoldingRow, options?: { initialTab?: 'summary' | 'transactions' }) => void;
   closeDetailDrawer: () => void;
-  eventSelectorDrawer: EventSelectorDrawerState;
-  handleOpenEventSelector: (holding: HoldingRow) => Promise<void>;
-  closeEventSelectorDrawer: () => void;
+  transactionEditorDrawer: TransactionEditorDrawerState;
+  openTransactionEditorIntent: (intent: TransactionEditorIntent, financialAccountId: string | null) => void;
+  openRowBuyEditor: (holding: HoldingRow) => void;
+  openRowSellEditor: (holding: HoldingRow) => void;
+  closeTransactionEditor: () => void;
   holdingToRemove: HoldingRow | null;
   setHoldingToRemove: (holding: HoldingRow | null) => void;
   maturityConfirmOpen: boolean;
@@ -74,32 +77,21 @@ export interface UseInvestmentTableDrawersReturn {
   transferCustodyHolding: TransferCustodyDrawerHolding | null;
   handleOpenTransferCustodyDrawer: (holding: HoldingRow) => void;
   closeTransferCustodyDrawer: () => void;
-  quickTransaction: QuickTransactionState;
-  isQuickUpdateOpen: boolean;
-  handleQuickBuy: (holding: HoldingRow) => void;
-  handleQuickSell: (holding: HoldingRow) => void;
-  closeQuickTransaction: () => void;
   corporateEventState: CorporateEventState;
   handleRecordCorporateEvent: (holding: HoldingRow, eventType: CorporateEventType) => void;
   closeCorporateEventDrawer: () => void;
 }
 
-interface UseInvestmentTableDrawersOptions {
-  selectedAccountId: string | null;
-  resolveFinancialAccountId: (holding: HoldingRow) => string | null;
-}
-
-export function useInvestmentTableDrawers(
-  options: UseInvestmentTableDrawersOptions,
-): UseInvestmentTableDrawersReturn {
-  const { resolveFinancialAccountId, selectedAccountId } = options;
-
+export function useInvestmentTableDrawers(): UseInvestmentTableDrawersReturn {
   const [actionMenu, setActionMenu] = React.useState<ActionMenuState>({ anchorEl: null, holding: null });
   const [holdingToRemove, setHoldingToRemoveState] = React.useState<HoldingRow | null>(null);
-  const [detailDrawer, setDetailDrawer] = React.useState<DetailDrawerState>({ holdingId: null, kind: null });
-  const [eventSelectorDrawer, setEventSelectorDrawer] = React.useState<EventSelectorDrawerState>({
-    holding: null,
-    kind: 'equity',
+  const [detailDrawer, setDetailDrawer] = React.useState<DetailDrawerState>({
+    holdingId: null,
+    kind: null,
+    initialTab: 'summary',
+  });
+  const [transactionEditorDrawer, setTransactionEditorDrawer] = React.useState<TransactionEditorDrawerState>({
+    intent: null,
     financialAccountId: null,
   });
   const [maturityConfirmOpen, setMaturityConfirmOpen] = React.useState(false);
@@ -112,7 +104,6 @@ export function useInvestmentTableDrawers(
   const [transferCustodyHolding, setTransferCustodyHolding] = React.useState<TransferCustodyDrawerHolding | null>(null);
   const [withholdingTaxOpen, setWithholdingTaxOpen] = React.useState(false);
   const [withholdingTaxHolding, setWithholdingTaxHolding] = React.useState<WithholdingTaxDrawerHolding | null>(null);
-  const [quickTransaction, setQuickTransaction] = React.useState<QuickTransactionState>({ holding: null, direction: null });
   const [corporateEventState, setCorporateEventState] = React.useState<CorporateEventState>({ holding: null, eventType: null });
 
   const closeActionMenu = React.useCallback(() => {
@@ -124,34 +115,61 @@ export function useInvestmentTableDrawers(
   }, []);
 
   const closeDetailDrawer = React.useCallback(() => {
-    setDetailDrawer({ holdingId: null, kind: null });
+    setDetailDrawer({ holdingId: null, kind: null, initialTab: 'summary' });
   }, []);
 
-  const handleOpenDetail = React.useCallback((holding: HoldingRow) => {
+  const handleOpenDetail = React.useCallback((
+    holding: HoldingRow,
+    options?: { initialTab?: 'summary' | 'transactions' },
+  ) => {
     setDetailDrawer({
       holdingId: holding.id,
       kind: getHoldingKind(holding.asset?.assetType),
+      initialTab: options?.initialTab ?? 'summary',
     });
   }, []);
 
-  const closeEventSelectorDrawer = React.useCallback(() => {
-    setEventSelectorDrawer({
-      holding: null,
-      kind: 'equity',
-      financialAccountId: null,
-    });
+  const closeTransactionEditor = React.useCallback(() => {
+    setTransactionEditorDrawer({ intent: null, financialAccountId: null });
   }, []);
 
-  const handleOpenEventSelector = React.useCallback(
-    async (holding: HoldingRow) => {
-      setEventSelectorDrawer({
-        holding,
-        kind: getHoldingKind(holding.asset?.assetType),
-        financialAccountId: selectedAccountId ?? resolveFinancialAccountId(holding),
-      });
+  const openTransactionEditorIntent = React.useCallback(
+    (intent: TransactionEditorIntent, financialAccountId: string | null) => {
+      setTransactionEditorDrawer({ intent, financialAccountId });
     },
-    [resolveFinancialAccountId, selectedAccountId],
+    [],
   );
+
+  const openRowBuyEditor = React.useCallback((holding: HoldingRow) => {
+    const resolvedAsset = mapHoldingToResolvedAsset(holding);
+    if (!resolvedAsset) return;
+    const intent: RowBuyIntent = {
+      kind: 'row-buy',
+      assetClass: mapAssetTypeToTransactionEditorClass(holding.asset?.assetType),
+      holdingId: holding.id,
+      asset: resolvedAsset,
+    };
+    setTransactionEditorDrawer({
+      financialAccountId: holding.financialAccountId,
+      intent,
+    });
+  }, []);
+
+  const openRowSellEditor = React.useCallback((holding: HoldingRow) => {
+    const resolvedAsset = mapHoldingToResolvedAsset(holding);
+    if (!resolvedAsset) return;
+    const intent: RowSellIntent = {
+      kind: 'row-sell',
+      assetClass: mapAssetTypeToTransactionEditorClass(holding.asset?.assetType),
+      holdingId: holding.id,
+      asset: resolvedAsset,
+      maxQty: holding.quantity,
+    };
+    setTransactionEditorDrawer({
+      financialAccountId: holding.financialAccountId,
+      intent,
+    });
+  }, []);
 
   const closeMaturityConfirmDrawer = React.useCallback(() => {
     setMaturityConfirmOpen(false);
@@ -277,20 +295,6 @@ export function useInvestmentTableDrawers(
     setTransferCustodyOpen(true);
   }, []);
 
-  const closeQuickTransaction = React.useCallback(() => {
-    setQuickTransaction({ holding: null, direction: null });
-  }, []);
-
-  const handleQuickBuy = React.useCallback((holding: HoldingRow) => {
-    setQuickTransaction({ holding, direction: 'buy' });
-  }, []);
-
-  const handleQuickSell = React.useCallback((holding: HoldingRow) => {
-    setQuickTransaction({ holding, direction: 'sell' });
-  }, []);
-
-  const isQuickUpdateOpen = quickTransaction.holding != null && quickTransaction.direction != null;
-
   const handleRecordCorporateEvent = React.useCallback((holding: HoldingRow, eventType: CorporateEventType) => {
     setCorporateEventState({ holding, eventType });
   }, []);
@@ -310,9 +314,11 @@ export function useInvestmentTableDrawers(
     detailDrawer,
     handleOpenDetail,
     closeDetailDrawer,
-    eventSelectorDrawer,
-    handleOpenEventSelector,
-    closeEventSelectorDrawer,
+    transactionEditorDrawer,
+    openTransactionEditorIntent,
+    openRowBuyEditor,
+    openRowSellEditor,
+    closeTransactionEditor,
     holdingToRemove,
     setHoldingToRemove,
     maturityConfirmOpen,
@@ -335,11 +341,6 @@ export function useInvestmentTableDrawers(
     transferCustodyHolding,
     handleOpenTransferCustodyDrawer,
     closeTransferCustodyDrawer,
-    quickTransaction,
-    isQuickUpdateOpen,
-    handleQuickBuy,
-    handleQuickSell,
-    closeQuickTransaction,
     corporateEventState,
     handleRecordCorporateEvent,
     closeCorporateEventDrawer,

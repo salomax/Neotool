@@ -15,7 +15,7 @@ import { InvestmentSectionLabel } from "../InvestmentSectionLabel";
 const CHART_PROJECTED_STYLE = { lineDash: "6 4", areaOpacity: 0.1 } as const;
 const CHART_PARTIAL_STYLE = { lineDash: "6 5" } as const;
 
-/** Gross series stroke: primary with this alpha so it reads behind the net series. */
+/** Gross series: theme blue; alpha when drawn behind net so both read clearly. */
 const GROSS_SERIES_ALPHA = 0.62;
 
 /** Prefix for the partial-month caption (bullet + space). */
@@ -262,14 +262,6 @@ export function HoldingPerformanceChart({
   }, [chartData, t, throughDateFormatter]);
 
   const series = React.useMemo(() => {
-    const lastVisiblePoint = (() => {
-      for (let i = chartData.length - 1; i >= 0; i--) {
-        const p = chartData[i];
-        if (p && !p.isProjected) return p;
-      }
-      return chartData[chartData.length - 1] ?? null;
-    })();
-
     const netValueSeries = {
       id: "netValue",
       name: netLabel,
@@ -304,36 +296,9 @@ export function HoldingPerformanceChart({
     const shouldShowGross = hasGross || !shouldShowNet;
     if (!shouldShowNet && hasNet && !hasGross) return [netValueSeries];
 
-    const valueForGain = (() => {
-      if (!lastVisiblePoint) return null;
-      const value =
-        shouldShowNet && typeof lastVisiblePoint.netValue === "number"
-          ? lastVisiblePoint.netValue
-          : typeof lastVisiblePoint.grossValue === "number"
-            ? lastVisiblePoint.grossValue
-            : null;
-      return value != null && Number.isFinite(value) ? value : null;
-    })();
-
-    const principalForGain =
-      lastVisiblePoint && typeof lastVisiblePoint.investedPrincipal === "number" && Number.isFinite(lastVisiblePoint.investedPrincipal)
-        ? lastVisiblePoint.investedPrincipal
-        : null;
-
-    const percentageGain =
-      principalForGain != null && principalForGain > 0 && valueForGain != null ? (valueForGain - principalForGain) / principalForGain : null;
-
-    const toneColor =
-      percentageGain != null && Math.abs(percentageGain) > 0.0005
-        ? percentageGain > 0
-          ? theme.palette.success.main
-          : theme.palette.error.main
-        : null;
-
-    const effectiveNetColor = toneColor ?? theme.palette.success.main;
-    const effectiveGrossBase = toneColor ?? theme.palette.primary.main;
-    const grossColor = shouldShowNet ? alpha(effectiveGrossBase, GROSS_SERIES_ALPHA) : effectiveGrossBase;
-    const netSeries = { ...netValueSeries, color: effectiveNetColor };
+    // Gross is always blue (primary); net stays green (success). No gain/loss tint on series.
+    const grossChartBlue = theme.palette.primary.main;
+    const grossColor = shouldShowNet ? alpha(grossChartBlue, GROSS_SERIES_ALPHA) : grossChartBlue;
     const grossValueSeries = {
       id: "grossValue",
       name: grossLabel,
@@ -345,17 +310,9 @@ export function HoldingPerformanceChart({
     };
 
     if (shouldShowGross && !shouldShowNet) return [grossValueSeries];
-    if (!shouldShowGross && shouldShowNet) return [netSeries];
-    return [grossValueSeries, netSeries];
-  }, [
-    chartData,
-    grossLabel,
-    isTaxExempt,
-    netLabel,
-    theme.palette.error.main,
-    theme.palette.primary.main,
-    theme.palette.success.main,
-  ]);
+    if (!shouldShowGross && shouldShowNet) return [netValueSeries];
+    return [grossValueSeries, netValueSeries];
+  }, [chartData, grossLabel, isTaxExempt, netLabel, theme.palette.primary.main, theme.palette.success.main]);
 
   const eventMarkers = React.useMemo(() => {
     if (!events || events.length === 0) return [];

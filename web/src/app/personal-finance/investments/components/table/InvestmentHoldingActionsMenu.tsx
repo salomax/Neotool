@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import EditNoteIcon from '@mui/icons-material/EditNote';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ManageSearchIcon from '@mui/icons-material/ManageSearch';
 import EventIcon from '@mui/icons-material/Event';
@@ -29,7 +28,6 @@ interface InvestmentHoldingActionsMenuProps {
   deleting: boolean;
   onClose: () => void;
   onViewDetails: (holding: HoldingRow) => void;
-  onViewEvents: (holding: HoldingRow) => Promise<void>;
   onRemove: (holding: HoldingRow) => void;
   onRecordProvento?: () => void;
   onRecordSplit?: () => void;
@@ -103,7 +101,6 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
   deleting,
   onClose,
   onViewDetails,
-  onViewEvents,
   onRemove,
   onRecordProvento,
   onRecordSplit,
@@ -149,25 +146,12 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
       },
     });
 
-    items.push({
-      id: 'edit-movements',
-      label: t('investments.table.rowActions.editMovement'),
-      icon: EditNoteIcon,
-      disabled: isDisabled,
-      onClick: async () => {
-        if (!holding) return;
-        onClose();
-        await onViewEvents(holding);
-      },
-    });
-
     return items;
   }, [
     holding,
     isDisabled,
     onClose,
     onViewDetails,
-    onViewEvents,
     t,
   ]);
 

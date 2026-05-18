@@ -8,6 +8,10 @@ import { ErrorAlert } from '@/shared/components/ui/feedback';
 import { Drawer } from '@/shared/components/ui/layout/Drawer';
 import { useTranslation } from '@/shared/i18n';
 import { formatDateOnly } from '@/shared/utils/date/dateOnly';
+import {
+  coerceInvestmentSettlementDate,
+  type InvestmentSettlementAssetKind,
+} from '@/shared/utils/investment/settlementDatePolicy';
 import { getFinanceMinAllowedDate } from '../../../finance-transactions/constants/dateWindow';
 import { personalFinanceTranslations } from '../../../i18n';
 import {
@@ -18,6 +22,7 @@ import {
 import { buildHoldingDetailHeaderModelFromRow } from '../holdingDetailHeaderPresenter';
 import { useHolding } from '../../hooks/useHolding';
 import { useUpdateHoldingForm } from '../../hooks/useUpdateHoldingForm';
+import { useSyncDefaultSettlementDate } from '../../hooks/useSyncDefaultSettlementDate';
 import { buildUpdateHoldingSchema } from './schemas';
 import { FixedIncomeUpdateFields } from './FixedIncomeUpdateFields';
 import { FundUpdateFields } from './FundUpdateFields';
@@ -25,6 +30,7 @@ import { EquityUpdateFields } from './EquityUpdateFields';
 import { CryptoUpdateFields } from './CryptoUpdateFields';
 import { HoldingUpdateDrawerShell } from './HoldingUpdateDrawerShell';
 import { mapTransactionToFormValues } from './mapTransactionToFormValues';
+import { getHoldingPositionValue } from './positionSummaryCalculations';
 import {
   getUpdateHoldingAssetClass,
   isFundManualPricingMode,
@@ -45,6 +51,14 @@ interface UpdateHoldingDrawerProps {
 
 function defaultDirection(initialDirection?: InvestmentTransactionDirection): InvestmentTransactionDirection {
   return initialDirection ?? InvestmentTransactionDirection.Inflow;
+}
+
+function coerceFormSettlementDate(
+  assetClass: UpdateHoldingAssetClass,
+  tradeDate: Date,
+  settlementDate: Date | undefined,
+): Date {
+  return coerceInvestmentSettlementDate(assetClass as InvestmentSettlementAssetKind, tradeDate, settlementDate);
 }
 
 function getDirectionLabels(assetClass: UpdateHoldingAssetClass, t: (key: string, options?: Record<string, unknown>) => string) {
@@ -89,6 +103,9 @@ function buildRecordInput(
 ): RecordInvestmentTransactionInput {
   const { holding, direction, assetClass } = context;
   const tradeDate = formatDateOnly(data.tradeDate ?? new Date());
+  const settlementIso = formatDateOnly(
+    coerceFormSettlementDate(assetClass, data.tradeDate ?? new Date(), data.settlementDate),
+  );
 
   if (assetClass === 'fixedIncome') {
     const grossValue = toNumber(data.grossValue) ?? toNumber(data.netValue) ?? 0;
@@ -97,13 +114,34 @@ function buildRecordInput(
       toNumber(data.incomeTax) ??
       (direction === InvestmentTransactionDirection.Outflow && netValue != null ? Math.max(grossValue - netValue, 0) : undefined);
 
+    if (direction === InvestmentTransactionDirection.Inflow) {
+      const qtyParsed = toNumber(data.quantity);
+      const quantity =
+        typeof qtyParsed === 'number' && Number.isFinite(qtyParsed) && qtyParsed >= 0 ? qtyParsed : 1;
+      const unitPrice = quantity > 0 ? grossValue / quantity : grossValue;
+      return compactInput({
+        assetId: holding.asset.id,
+        financialAccountId: holding.financialAccountId,
+        direction,
+        type: InvestmentTransactionType.Purchase,
+        tradeDate,
+        settlementDate: settlementIso,
+        grossValue,
+        netValue,
+        quantity,
+        unitPrice,
+        incomeTax,
+        iof: toNumber(data.iof),
+      });
+    }
+
     return compactInput({
       assetId: holding.asset.id,
       financialAccountId: holding.financialAccountId,
       direction,
-      type: direction === InvestmentTransactionDirection.Inflow ? InvestmentTransactionType.Purchase : InvestmentTransactionType.Sale,
+      type: InvestmentTransactionType.Sale,
       tradeDate,
-      settlementDate: tradeDate,
+      settlementDate: settlementIso,
       grossValue,
       netValue,
       quantity: toNumber(data.quantity),
@@ -123,7 +161,7 @@ function buildRecordInput(
       direction,
       type: direction === InvestmentTransactionDirection.Inflow ? InvestmentTransactionType.Subscription : InvestmentTransactionType.Sale,
       tradeDate,
-      settlementDate: tradeDate,
+      settlementDate: settlementIso,
       grossValue,
       netValue: toNumber(data.netValue),
       quantity,
@@ -143,7 +181,7 @@ function buildRecordInput(
     const quantity = toNumber(data.quantity) ?? 0;
     const unitPrice = toNumber(data.unitPrice) ?? 0;
     const grossValue = quantity * unitPrice;
-    const fees = (toNumber(data.brokerageFee) ?? 0) + (toNumber(data.settlementFee) ?? 0) + (toNumber(data.otherFees) ?? 0);
+    const fees = toNumber(data.totalFees) ?? 0;
     const netValue = direction === InvestmentTransactionDirection.Inflow ? grossValue + fees : grossValue - fees;
 
     return compactInput({
@@ -152,9 +190,7 @@ function buildRecordInput(
       direction,
       type: direction === InvestmentTransactionDirection.Inflow ? InvestmentTransactionType.Purchase : InvestmentTransactionType.Sale,
       tradeDate,
-      settlementDate: data.settlementDate
-        ? formatDateOnly(data.settlementDate)
-        : formatDateOnly(dayjs(data.tradeDate ?? new Date()).add(2, 'day').toDate()),
+      settlementDate: settlementIso,
       quantity,
       unitPrice,
       grossValue,
@@ -173,7 +209,7 @@ function buildRecordInput(
     direction,
     type: direction === InvestmentTransactionDirection.Inflow ? InvestmentTransactionType.Purchase : InvestmentTransactionType.Sale,
     tradeDate,
-    settlementDate: tradeDate,
+    settlementDate: settlementIso,
     quantity,
     unitPrice,
     grossValue,
@@ -210,12 +246,11 @@ function buildDefaultValues(assetClass: UpdateHoldingAssetClass): Partial<Update
 
   return {
     tradeDate: today,
-    settlementDate: assetClass === 'equity' ? dayjs(today).add(2, 'day').toDate() : today,
+    settlementDate: coerceFormSettlementDate(assetClass, today, undefined),
+    ...(assetClass === 'equity' ? { quantity: 0 } : {}),
     incomeTax: 0,
     iof: 0,
-    brokerageFee: 0,
-    settlementFee: 0,
-    otherFees: 0,
+    totalFees: 0,
     valuedAt: today,
   };
 }
@@ -255,6 +290,7 @@ function UpdateHoldingDrawerForm({
     () => buildHoldingDetailHeaderModelFromRow(holding, t, locale),
     [holding, t, locale],
   );
+  const currentPositionValue = React.useMemo(() => getHoldingPositionValue(holding), [holding]);
 
   const schema = React.useMemo(
     () =>
@@ -269,13 +305,16 @@ function UpdateHoldingDrawerForm({
     [assetClass, direction, holding.pricingMode, holding.quantity, t],
   );
 
-  const defaultValues = React.useMemo<Partial<UpdateHoldingFormValues>>(
-    () => ({
+  const defaultValues = React.useMemo<Partial<UpdateHoldingFormValues>>(() => {
+    const merged: Partial<UpdateHoldingFormValues> = {
       ...buildDefaultValues(assetClass),
       ...(editTransaction ? mapTransactionToFormValues(editTransaction) : {}),
-    }),
-    [assetClass, editTransaction],
-  );
+    };
+    if (merged.tradeDate) {
+      merged.settlementDate = coerceFormSettlementDate(assetClass, merged.tradeDate, merged.settlementDate);
+    }
+    return merged;
+  }, [assetClass, editTransaction]);
 
   const formController = useUpdateHoldingForm<UpdateHoldingFormValues>({
     holding,
@@ -289,6 +328,15 @@ function UpdateHoldingDrawerForm({
       onRecorded?.();
       onClose();
     },
+  });
+
+  const watchedTradeDate = formController.form.watch('tradeDate');
+
+  useSyncDefaultSettlementDate<UpdateHoldingFormValues>({
+    enabled: open,
+    assetKind: assetClass,
+    tradeDate: watchedTradeDate,
+    setValue: formController.form.setValue,
   });
 
   const title = React.useMemo(
@@ -326,7 +374,7 @@ function UpdateHoldingDrawerForm({
           <FixedIncomeUpdateFields
             hideSummaryStrip={isEditMode}
             direction={direction}
-            currentValue={holding.grossValue ?? null}
+            currentValue={currentPositionValue}
             currentQuantity={holding.quantity}
             currencyCode={holding.asset.currencyCode || 'BRL'}
             quantityUnit={quantityUnit}
@@ -338,6 +386,7 @@ function UpdateHoldingDrawerForm({
                 ? t('investments.updateHolding.fields.tradeDateInflow')
                 : t('investments.updateHolding.fields.tradeDateOutflow')
             }
+            settlementDateLabel={t('investments.updateHolding.fields.settlementDate')}
             grossValueLabel={
               direction === InvestmentTransactionDirection.Inflow
                 ? t('investments.updateHolding.fields.grossValueApplied')
@@ -354,7 +403,7 @@ function UpdateHoldingDrawerForm({
           <FundUpdateFields
             hideSummaryStrip={isEditMode}
             direction={direction}
-            currentValue={holding.grossValue ?? null}
+            currentValue={currentPositionValue}
             currentQuantity={holding.quantity}
             currencyCode={holding.asset.currencyCode || 'BRL'}
             quantityUnit={quantityUnit}
@@ -367,6 +416,7 @@ function UpdateHoldingDrawerForm({
                 ? t('investments.updateHolding.fields.tradeDateApply')
                 : t('investments.updateHolding.fields.tradeDateOutflow')
             }
+            settlementDateLabel={t('investments.updateHolding.fields.settlementDate')}
             grossValueLabel={
               direction === InvestmentTransactionDirection.Inflow
                 ? t('investments.updateHolding.fields.grossValueApplied')
@@ -385,7 +435,7 @@ function UpdateHoldingDrawerForm({
           <EquityUpdateFields
             hideSummaryStrip={isEditMode}
             direction={direction}
-            currentValue={holding.grossValue ?? null}
+            currentValue={currentPositionValue}
             currentQuantity={holding.quantity}
             currencyCode={holding.asset.currencyCode || 'BRL'}
             quantityUnit={quantityUnit}
@@ -400,10 +450,7 @@ function UpdateHoldingDrawerForm({
                 ? t('investments.updateHolding.fields.unitPrice')
                 : t('investments.updateHolding.fields.salePrice')
             }
-            brokerageFeeLabel={t('investments.updateHolding.fields.brokerageFee')}
-            settlementFeeLabel={t('investments.updateHolding.fields.settlementFee')}
-            otherFeesLabel={t('investments.updateHolding.fields.otherFees')}
-            incomeTaxLabel={t('investments.updateHolding.fields.withholdingTax')}
+            totalFeesLabel={t('investments.recordEquity.fees.totalFees')}
             feesSectionLabel={
               direction === InvestmentTransactionDirection.Inflow
                 ? t('investments.updateHolding.sections.purchaseFees')
@@ -416,7 +463,7 @@ function UpdateHoldingDrawerForm({
           <CryptoUpdateFields
             hideSummaryStrip={isEditMode}
             direction={direction}
-            currentValue={holding.grossValue ?? null}
+            currentValue={currentPositionValue}
             currentQuantity={holding.quantity}
             currencyCode={holding.asset.currencyCode || 'BRL'}
             quantityUnit={quantityUnit}
@@ -424,6 +471,7 @@ function UpdateHoldingDrawerForm({
             minDate={minDate}
             maxDate={maxDate}
             tradeDateLabel={t('investments.updateHolding.fields.tradeDate')}
+            settlementDateLabel={t('investments.updateHolding.fields.settlementDate')}
             quantityLabel={quantityFieldLabel}
             unitPriceLabel={
               direction === InvestmentTransactionDirection.Inflow

@@ -7,6 +7,11 @@ import { Box, Typography, IconButton } from "@mui/material";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { IssuerSelection, type IssuerSelectionAccount } from "./IssuerSelection";
 
+/**
+ * Shell for **new holding** record flows (funds, stocks, FIIs, crypto).
+ * Date rules for child forms: {@link InvestmentTradeAndSettlementDateRow} +
+ * {@link useSyncDefaultSettlementDate} + {@link settlementDatePolicy}.
+ */
 export interface InvestmentRecordDrawerProps {
   open: boolean;
   onClose: () => void;

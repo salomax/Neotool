@@ -1977,7 +1977,7 @@ test.describe('Investments TWR phase 4 UI enablement', () => {
     await expect(page.locator('form#record-equity-form')).toBeVisible();
     await expect(page.getByTestId('record-equity-autocomplete')).toBeVisible();
     await expect(page.locator('input[name="settlementDate"]')).toHaveCount(0);
-    await expect(page.getByTestId('record-equity-fees-mode-tabs')).toBeVisible();
+    await expect(page.getByTestId('record-equity-fees-total')).toBeVisible();
     await expect(page.locator('input[name="assetName"]')).toHaveCount(0);
     await expect(page.locator('input[name="ticker"]')).toHaveCount(0);
   });

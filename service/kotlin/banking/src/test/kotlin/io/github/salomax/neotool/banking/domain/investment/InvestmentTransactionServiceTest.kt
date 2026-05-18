@@ -17,6 +17,8 @@ import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEnt
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
@@ -44,6 +46,8 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.math.BigDecimal.ZERO
+import java.math.RoundingMode
+import java.util.concurrent.atomic.AtomicReference
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -1389,16 +1393,85 @@ class InvestmentTransactionServiceTest {
         }
 
         @Test
-        fun `fails when PURCHASE is missing unitPrice`() {
+        fun `PURCHASE infers unitPrice from grossValue and quantity when unitPrice omitted`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(null)
             whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
 
             val command = buyCommand("100", "28.50").copy(unitPrice = null)
 
+            service.record(command, accountId, userId)
+
+            val txCaptor = argumentCaptor<InvestmentTransaction>()
+            verify(investmentTransactionRepository).save(txCaptor.capture())
+            val expected =
+                BigDecimal("2850").divide(BigDecimal("100"), HoldingPositionEvolution.COST_SCALE, RoundingMode.HALF_UP)
+            assertThat(txCaptor.firstValue.unitPrice).isEqualByComparingTo(expected)
+        }
+
+        @Test
+        fun `fails when PURCHASE omits unitPrice and quantity is zero`() {
+            whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
+                .thenReturn(null)
+            whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
+
+            val command = buyCommand("100", "28.50").copy(unitPrice = null, quantity = BigDecimal.ZERO)
+
             assertThrows<IllegalArgumentException> {
                 service.record(command, accountId, userId)
             }
+        }
+
+        @Test
+        fun `update infers unitPrice for PURCHASE when omitted`() {
+            val txId = UUID.randomUUID()
+            val existingTx =
+                InvestmentTransaction(
+                    id = txId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("2"),
+                    unitPrice = BigDecimal("10"),
+                    grossValue = BigDecimal("20"),
+                    tradeDate = today,
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val updatedRef = AtomicReference<InvestmentTransaction>()
+            whenever(investmentTransactionRepository.findById(txId, accountId)).thenReturn(existingTx)
+            whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holdingWith("2", "10"))
+            whenever(investmentTransactionRepository.update(any())).thenAnswer { inv ->
+                val arg = inv.arguments[0] as InvestmentTransaction
+                updatedRef.set(arg)
+                savedTransaction(arg)
+            }
+            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenAnswer {
+                listOf(updatedRef.get() ?: error("expected update before recompute"))
+            }
+            whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
+
+            val updateCmd =
+                UpdateInvestmentTransactionCommand(
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    quantity = BigDecimal("2"),
+                    unitPrice = null,
+                    grossValue = BigDecimal("22"),
+                    tradeDate = today,
+                )
+
+            service.update(txId, updateCmd, accountId, userId)
+
+            val updateCaptor = argumentCaptor<InvestmentTransaction>()
+            verify(investmentTransactionRepository).update(updateCaptor.capture())
+            assertThat(updateCaptor.firstValue.unitPrice).isEqualByComparingTo(
+                BigDecimal("22").divide(BigDecimal("2"), HoldingPositionEvolution.COST_SCALE, RoundingMode.HALF_UP),
+            )
         }
     }
 

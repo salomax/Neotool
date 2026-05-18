@@ -7,8 +7,8 @@ export interface InvestmentTableActions {
   onOpenDetail: (holding: HoldingRow) => void;
   onOpenMaturityConfirm: (holding: HoldingRow) => void;
   onOpenActions: (anchorEl: HTMLElement, holding: HoldingRow) => void;
-  onBuy: (holding: HoldingRow) => void;
-  onSell: (holding: HoldingRow) => void;
+  onRowBuy: (holding: HoldingRow) => void;
+  onRowSell: (holding: HoldingRow) => void;
 }
 
 const InvestmentTableActionsContext = React.createContext<InvestmentTableActions | null>(null);

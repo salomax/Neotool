@@ -68,6 +68,19 @@
       "apply": "Apply",
       "redeem": "Redeem"
     },
+    "newHoldingFlow": {
+      "selectFundTitle": "Choose fund",
+      "selectStockTitle": "Choose stock",
+      "selectReitTitle": "Choose REIT",
+      "selectCryptoTitle": "Choose crypto",
+      "selectFundSubtitle": "Search a CVM-listed fund or enter an unlisted fund, then continue to trade details.",
+      "selectEquitySubtitle": "Search by ticker or name, then continue to trade details.",
+      "selectCryptoSubtitle": "Enter the asset name, ticker, and optional network, then continue to trade details.",
+      "continue": "Continue",
+      "changeAsset": "Change",
+      "identityLabel": "Selected asset",
+      "recentSuggestions": "Last selected"
+    },
     "updateHolding": {
       "direction": {
         "inflow": "Add",
@@ -149,12 +162,16 @@
       },
       "validation": {
         "tradeDateRequired": "Enter the trade date",
+        "settlementDateRequired": "Enter the settlement date",
         "grossValueRequired": "Enter the gross value",
         "netValueRequired": "Enter the net value",
         "unitPriceRequired": "Enter the unit price",
         "quantityRequired": "Enter the quantity",
         "integerQuantityRequired": "Quantity must be an integer",
-        "cryptoPrecision": "Quantity must have at most 8 decimal places"
+        "cryptoPrecision": "Quantity must have at most 8 decimal places",
+        "settlementOnOrAfterTrade": "The settlement date must be on or after the trade date.",
+        "settlementNotInFuture": "The settlement date cannot be after today.",
+        "settlementMaxOneYearFromTrade": "The settlement date must be at most 1 year after the trade date."
       }
     },
     "record": {
@@ -659,6 +676,26 @@
       "actions": {
         "moreActions": "More actions"
       },
+      "transactions": {
+        "tabs": {
+          "summary": "Summary",
+          "transactions": "Transactions"
+        },
+        "add": "New transaction",
+        "emptyTitle": "No transactions yet",
+        "emptyDescription": "Record the first transaction for this holding.",
+        "tableAriaLabel": "Transactions for this holding",
+        "columns": {
+          "date": "Date",
+          "direction": "Movement",
+          "quantity": "Quantity",
+          "unitPrice": "Unit price",
+          "value": "Value",
+          "actions": "Actions"
+        },
+        "editTransaction": "Edit transaction",
+        "deleteTransaction": "Delete transaction"
+      },
       "chart": {
         "title": "Investment progression",
         "emptyTitle": "No history available",
@@ -869,6 +906,7 @@
         "quantity": "Quantity",
         "grossValue": "Invested amount (BRL)",
         "tradeDate": "Application date",
+        "settlementDate": "Settlement date",
         "maturityDate": "Maturity date",
         "couponFrequency": "Interest payment",
         "couponDayOfMonth": "Interest payment day",
@@ -974,6 +1012,7 @@
         "quantity": "Fund units",
         "unitPrice": "Unit price (BRL)",
         "tradeDate": "Application date",
+        "settlementDate": "Settlement date",
         "grossValue": "Amount to invest",
         "manualCurrentGrossValue": "Current value",
         "manualValuedAt": "Current value date"
@@ -1007,6 +1046,8 @@
         "manualValuedAtRequired": "Current value date is required for manual funds"
       },
       "actions": {
+        "manualEntryHelp": "Didn't find the fund?",
+        "manualEntryCta": "+ Register manually",
         "submit": "Record",
         "submitting": "Recording..."
       },
@@ -1037,6 +1078,7 @@
         "quantityMixed": "Quantity (shares or quotas)",
         "unitPrice": "Unit price (BRL)",
         "tradeDate": "Trade date",
+        "settlementDate": "Settlement date",
         "grossValue": "Total amount"
       },
       "values": {
@@ -1059,6 +1101,7 @@
         "unitPriceRequired": "Unit price is required",
         "unitPricePositive": "Unit price must be greater than zero",
         "tradeDateRequired": "Trade date is required",
+        "settlementDateRequired": "Settlement date is required",
         "grossValueRequired": "Total amount is required",
         "grossValuePositive": "Total amount must be greater than zero"
       },
@@ -1082,6 +1125,17 @@
         "total": "Total"
       },
       "success": "Asset recorded successfully"
+    },
+    "recordCrypto": {
+      "fields": {
+        "name": "Asset name",
+        "ticker": "Ticker / symbol",
+        "network": "Network (optional)"
+      },
+      "validation": {
+        "nameRequired": "Enter the asset name",
+        "tickerRequired": "Enter the ticker"
+      }
     },
     "b3AssetTypes": {
       "EQUITY": "Stock",
@@ -1326,7 +1380,6 @@
       "noSourceAccount": "None",
       "invalidAmount": "Enter a valid amount greater than zero."
     },
-    "description": "Description",
     "backToCurrentMonth": "Back to current month",
     "actions": {
       "newAccountOrCard": "New account or card",

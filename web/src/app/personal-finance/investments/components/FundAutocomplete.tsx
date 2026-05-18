@@ -2,9 +2,19 @@
 
 import React from "react";
 import { useQuery } from "@apollo/client/react";
-import { Autocomplete, Box, CircularProgress, TextField, Typography } from "@mui/material";
+import ClearIcon from "@mui/icons-material/Clear";
+import SearchIcon from "@mui/icons-material/Search";
+import {
+  Autocomplete,
+  Box,
+  CircularProgress,
+  IconButton,
+  InputAdornment,
+  TextField,
+  Typography,
+} from "@mui/material";
 import type { TextFieldProps } from "@mui/material";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
@@ -29,13 +39,36 @@ interface FundAutocompleteProps {
   label?: string;
   size?: TextFieldProps["size"];
   disabled?: boolean;
+  /** Focus the search input on mount (e.g. new-holding step 1). */
+  autoFocus?: boolean;
   "data-testid"?: string;
 }
 
-export function FundAutocomplete({ name, label, size = "medium", disabled, "data-testid": dataTestId }: FundAutocompleteProps) {
+export function FundAutocomplete({
+  name,
+  label,
+  size = "medium",
+  disabled,
+  autoFocus = false,
+  "data-testid": dataTestId,
+}: FundAutocompleteProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { control } = useFormContext();
   const [inputValue, setInputValue] = React.useState("");
+  const selectedFund = useWatch({ control, name }) as FundAutocompleteValue | null | undefined;
+  const lastSyncedFundId = React.useRef<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    const fund = selectedFund;
+    if (fund?.id) {
+      if (lastSyncedFundId.current !== fund.id) {
+        setInputValue(fund.name);
+        lastSyncedFundId.current = fund.id;
+      }
+    } else {
+      lastSyncedFundId.current = undefined;
+    }
+  }, [selectedFund]);
   const debounced = useDebounce(inputValue, 300);
   const trimmed = debounced.trim();
 
@@ -113,17 +146,49 @@ export function FundAutocomplete({ name, label, size = "medium", disabled, "data
               {...params}
               label={label ?? t("investments.recordFund.fields.fund")}
               size={size}
+              autoFocus={autoFocus}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               data-testid={dataTestId}
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <>
-                    {loading ? <CircularProgress size={16} /> : null}
-                    {params.InputProps.endAdornment}
-                  </>
-                ),
+              slotProps={{
+                input: {
+                  ...params.InputProps,
+                  startAdornment: (
+                    <>
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" sx={{ color: "text.secondary" }} />
+                      </InputAdornment>
+                      {params.InputProps.startAdornment}
+                    </>
+                  ),
+                  endAdornment: (
+                    <>
+                      {loading ? <CircularProgress size={16} sx={{ mr: 0.5 }} /> : null}
+                      {inputValue.trim() ? (
+                        <InputAdornment position="end">
+                          <IconButton
+                            size="small"
+                            edge="end"
+                            aria-label={t("investments.table.actions.clearSearchAriaLabel")}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => {
+                              setInputValue("");
+                              field.onChange(null);
+                            }}
+                          >
+                            <ClearIcon fontSize="small" />
+                          </IconButton>
+                        </InputAdornment>
+                      ) : null}
+                      {params.InputProps.endAdornment}
+                    </>
+                  ),
+                },
+              }}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  backgroundColor: "background.paper",
+                },
               }}
             />
           )}

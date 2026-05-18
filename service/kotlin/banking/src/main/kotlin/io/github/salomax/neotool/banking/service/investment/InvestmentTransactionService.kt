@@ -42,6 +42,7 @@ import io.github.salomax.neotool.common.error.NotFoundException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -130,39 +131,40 @@ open class InvestmentTransactionService(
         requireAccountOwnsFinancialAccount(command.financialAccountId, accountId)
         command.cashDestinationAccountId?.let { requireAccountOwnsFinancialAccount(it, accountId) }
         validateCommand(command)
+        val effectiveCommand = command.withInferredPurchaseUnitPrice()
 
         // Dedup: skip if already synced from the same provider
-        if (command.providerTransactionId != null &&
+        if (effectiveCommand.providerTransactionId != null &&
             investmentTransactionRepository.existsByProviderTransactionId(
-                command.financialAccountId,
-                command.providerTransactionId,
+                effectiveCommand.financialAccountId,
+                effectiveCommand.providerTransactionId,
             )
         ) {
             throw IllegalStateException(
-                "Duplicate provider transaction: ${command.providerTransactionId} " +
-                    "for account ${command.financialAccountId}",
+                "Duplicate provider transaction: ${effectiveCommand.providerTransactionId} " +
+                    "for account ${effectiveCommand.financialAccountId}",
             )
         }
 
         val asset =
-            assetRepository.findById(command.assetId)
-                ?: throw NoSuchElementException("Asset ${command.assetId} not found")
+            assetRepository.findById(effectiveCommand.assetId)
+                ?: throw NoSuchElementException("Asset ${effectiveCommand.assetId} not found")
 
         // Find or create the holding (upsert — one holding per custodian account × asset)
         val existingHolding =
-            command.providerInvestmentId?.let {
-                holdingRepository.findByProviderInvestmentId(command.financialAccountId, it)
+            effectiveCommand.providerInvestmentId?.let {
+                holdingRepository.findByProviderInvestmentId(effectiveCommand.financialAccountId, it)
             } ?: holdingRepository.findByFinancialAccountAndAsset(
-                command.financialAccountId,
-                command.assetId,
+                effectiveCommand.financialAccountId,
+                effectiveCommand.assetId,
             )
 
         val now = Instant.now()
 
-        val holding = existingHolding ?: createHolding(command, asset, accountId, now)
+        val holding = existingHolding ?: createHolding(effectiveCommand, asset, accountId, now)
 
         // Apply the transaction effect: update quantity and average cost
-        val updatedHolding = applyEffect(holding, command, now, asset)
+        val updatedHolding = applyEffect(holding, effectiveCommand, now, asset)
 
         // Persist the updated (or newly created) holding first to get its id
         val savedHolding =
@@ -177,27 +179,27 @@ open class InvestmentTransactionService(
         val transaction =
             InvestmentTransaction(
                 holdingId = savedHoldingId,
-                financialAccountId = command.financialAccountId,
+                financialAccountId = effectiveCommand.financialAccountId,
                 accountId = accountId,
                 createdByUserId = userId,
-                direction = command.direction,
-                type = command.type,
-                typeAdditionalInfo = command.typeAdditionalInfo,
-                quantity = command.quantity,
-                unitPrice = command.unitPrice,
-                grossValue = command.grossValue,
-                netValue = command.netValue,
-                incomeTax = command.incomeTax,
-                iof = command.iof,
-                indexerPercentage = command.indexerPercentage,
-                fixedAnnualRate = command.fixedAnnualRate,
-                priceFactor = command.priceFactor,
-                tradeDate = command.tradeDate,
-                settlementDate = command.settlementDate,
-                source = command.source,
-                providerTransactionId = command.providerTransactionId,
-                importJobId = command.importJobId,
-                brokerNote = command.brokerNote,
+                direction = effectiveCommand.direction,
+                type = effectiveCommand.type,
+                typeAdditionalInfo = effectiveCommand.typeAdditionalInfo,
+                quantity = effectiveCommand.quantity,
+                unitPrice = effectiveCommand.unitPrice,
+                grossValue = effectiveCommand.grossValue,
+                netValue = effectiveCommand.netValue,
+                incomeTax = effectiveCommand.incomeTax,
+                iof = effectiveCommand.iof,
+                indexerPercentage = effectiveCommand.indexerPercentage,
+                fixedAnnualRate = effectiveCommand.fixedAnnualRate,
+                priceFactor = effectiveCommand.priceFactor,
+                tradeDate = effectiveCommand.tradeDate,
+                settlementDate = effectiveCommand.settlementDate,
+                source = effectiveCommand.source,
+                providerTransactionId = effectiveCommand.providerTransactionId,
+                importJobId = effectiveCommand.importJobId,
+                brokerNote = effectiveCommand.brokerNote,
                 createdAt = now,
                 updatedAt = now,
             )
@@ -208,7 +210,7 @@ open class InvestmentTransactionService(
                 transaction = savedTx,
                 holding = savedHolding,
                 asset = asset,
-                command = command,
+                command = effectiveCommand,
                 accountId = accountId,
                 userId = userId,
             ),
@@ -224,6 +226,7 @@ open class InvestmentTransactionService(
         userId: UUID,
     ): InvestmentTransaction {
         validateUpdateCommand(command)
+        val effectiveCommand = command.withInferredPurchaseUnitPrice()
         val existingTx =
             investmentTransactionRepository.findById(id, accountId)
                 ?: throw NoSuchElementException("InvestmentTransaction $id not found")
@@ -236,35 +239,35 @@ open class InvestmentTransactionService(
         val now = Instant.now()
         val updatedTx =
             existingTx.copy(
-                direction = command.direction,
-                type = command.type,
-                typeAdditionalInfo = command.typeAdditionalInfo,
-                quantity = command.quantity,
-                unitPrice = command.unitPrice,
-                grossValue = command.grossValue,
-                netValue = command.netValue,
-                incomeTax = command.incomeTax,
-                iof = command.iof,
-                indexerPercentage = command.indexerPercentage,
-                fixedAnnualRate = command.fixedAnnualRate,
-                priceFactor = command.priceFactor,
-                tradeDate = command.tradeDate,
-                settlementDate = command.settlementDate,
-                brokerNote = command.brokerNote,
+                direction = effectiveCommand.direction,
+                type = effectiveCommand.type,
+                typeAdditionalInfo = effectiveCommand.typeAdditionalInfo,
+                quantity = effectiveCommand.quantity,
+                unitPrice = effectiveCommand.unitPrice,
+                grossValue = effectiveCommand.grossValue,
+                netValue = effectiveCommand.netValue,
+                incomeTax = effectiveCommand.incomeTax,
+                iof = effectiveCommand.iof,
+                indexerPercentage = effectiveCommand.indexerPercentage,
+                fixedAnnualRate = effectiveCommand.fixedAnnualRate,
+                priceFactor = effectiveCommand.priceFactor,
+                tradeDate = effectiveCommand.tradeDate,
+                settlementDate = effectiveCommand.settlementDate,
+                brokerNote = effectiveCommand.brokerNote,
                 updatedAt = now,
             )
         val savedTx = investmentTransactionRepository.update(updatedTx)
         val rebuiltHolding =
-            requireNotNull(recomputeHoldingState(existingHolding, accountId, command, now)) {
+            requireNotNull(recomputeHoldingState(existingHolding, accountId, effectiveCommand, now)) {
                 "Holding ${existingHolding.id} cannot be empty after transaction update"
             }
         val holdingAfterManualValuationUpdate =
-            if (command.pricingMode != null || command.manualValuation != null) {
+            if (effectiveCommand.pricingMode != null || effectiveCommand.manualValuation != null) {
                 holdingRepository.update(
                     rebuiltHolding.copy(
-                        pricingMode = command.pricingMode ?: rebuiltHolding.pricingMode,
-                        manualGrossValue = command.manualValuation?.grossValue ?: rebuiltHolding.manualGrossValue,
-                        manualValuedAt = command.manualValuation?.valuedAt ?: rebuiltHolding.manualValuedAt,
+                        pricingMode = effectiveCommand.pricingMode ?: rebuiltHolding.pricingMode,
+                        manualGrossValue = effectiveCommand.manualValuation?.grossValue ?: rebuiltHolding.manualGrossValue,
+                        manualValuedAt = effectiveCommand.manualValuation?.valuedAt ?: rebuiltHolding.manualValuedAt,
                         updatedAt = now,
                     ),
                 )
@@ -578,6 +581,30 @@ open class InvestmentTransactionService(
             }
         }
     }
+
+    /**
+     * When [unitPrice] is omitted on PURCHASE/SUBSCRIPTION, infers it from [grossValue] / [quantity]
+     * using [HoldingPositionEvolution.COST_SCALE] so persisted rows replay correctly.
+     * If the client sends [unitPrice], it is kept as-is.
+     */
+    private fun inferPurchaseUnitPriceIfAbsent(
+        type: InvestmentTransactionType,
+        quantity: BigDecimal?,
+        unitPrice: BigDecimal?,
+        grossValue: BigDecimal,
+    ): BigDecimal? {
+        if (unitPrice != null) return null
+        if (type != PURCHASE && type != SUBSCRIPTION) return null
+        val qty = quantity ?: return null
+        if (qty <= BigDecimal.ZERO || grossValue <= BigDecimal.ZERO) return null
+        return grossValue.divide(qty, HoldingPositionEvolution.COST_SCALE, RoundingMode.HALF_UP)
+    }
+
+    private fun RecordInvestmentTransactionCommand.withInferredPurchaseUnitPrice(): RecordInvestmentTransactionCommand =
+        inferPurchaseUnitPriceIfAbsent(type, quantity, unitPrice, grossValue)?.let { copy(unitPrice = it) } ?: this
+
+    private fun UpdateInvestmentTransactionCommand.withInferredPurchaseUnitPrice(): UpdateInvestmentTransactionCommand =
+        inferPurchaseUnitPriceIfAbsent(type, quantity, unitPrice, grossValue)?.let { copy(unitPrice = it) } ?: this
 
     private fun recomputeHoldingAfterDelete(
         existingHolding: Holding,

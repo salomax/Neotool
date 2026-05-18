@@ -34,6 +34,8 @@ open class HttpListedAssetPriceBulkSyncClient(
     private val connectTimeoutSeconds: Long,
     @param:Property(name = "banking.market-data-sync.listed-prices.read-timeout-seconds", defaultValue = "600")
     private val readTimeoutSeconds: Long,
+    @param:Property(name = "banking.market-data-sync.listed-prices.ticker-chunk-size", defaultValue = "50")
+    private val tickerChunkSize: Int,
     private val serviceTokenClient: ServiceTokenClient,
     private val objectMapper: ObjectMapper,
 ) : ListedAssetPriceBulkSyncClient {
@@ -52,14 +54,40 @@ open class HttpListedAssetPriceBulkSyncClient(
         consumer: (ListedAssetDailyPriceBulkSyncNode) -> Unit,
     ) {
         val token = runBlocking { serviceTokenClient.getServiceToken(targetAudience) }
-        val uri =
-            buildUri(
-                from = from,
-                to = to,
-                updatedSince = updatedSince,
-                tickers = tickers,
-                after = after,
-            )
+        val normalizedTickers =
+            tickers
+                ?.map { it.trim().uppercase() }
+                ?.filter { it.isNotBlank() }
+                ?.distinct()
+
+        val chunks =
+            if (normalizedTickers != null) {
+                normalizedTickers.chunked(tickerChunkSize.coerceAtLeast(1))
+            } else {
+                listOf(null)
+            }
+
+        chunks.forEachIndexed { index, chunk ->
+            // Pass the resume cursor only to the first chunk; subsequent chunks are independent streams.
+            val chunkCursor = after.takeIf { index == 0 }
+            executeRequest(token, from, to, updatedSince, chunk, chunkCursor, consumer)
+            logger.info {
+                "Listed asset bulk sync chunk consumed: from=$from to=$to " +
+                    "chunk=${index + 1}/${chunks.size} tickers=${chunk?.size ?: 0} after=${chunkCursor != null}"
+            }
+        }
+    }
+
+    private fun executeRequest(
+        token: String,
+        from: LocalDate,
+        to: LocalDate,
+        updatedSince: Instant?,
+        tickers: Collection<String>?,
+        after: String?,
+        consumer: (ListedAssetDailyPriceBulkSyncNode) -> Unit,
+    ) {
+        val uri = buildUri(from = from, to = to, updatedSince = updatedSince, tickers = tickers, after = after)
         val request =
             HttpRequest.newBuilder()
                 .uri(uri)
@@ -85,10 +113,6 @@ open class HttpListedAssetPriceBulkSyncClient(
                 }
             }
         }
-
-        logger.info {
-            "Listed asset bulk sync stream consumed successfully: from=$from to=$to tickers=${tickers?.size ?: 0} after=${after != null}"
-        }
     }
 
     private fun buildUri(
@@ -106,11 +130,7 @@ open class HttpListedAssetPriceBulkSyncClient(
                 add("to=${encode(to.toString())}")
                 updatedSince?.let { add("updatedSince=${encode(it.toString())}") }
                 after?.takeIf { it.isNotBlank() }?.let { add("after=${encode(it)}") }
-                tickers
-                    ?.map { it.trim().uppercase() }
-                    ?.filter { it.isNotBlank() }
-                    ?.distinct()
-                    ?.forEach { add("tickers=${encode(it)}") }
+                tickers?.forEach { add("tickers=${encode(it)}") }
             }.joinToString("&")
         return URI.create("$normalizedBase$normalizedPath?$query")
     }

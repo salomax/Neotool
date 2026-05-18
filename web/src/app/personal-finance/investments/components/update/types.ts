@@ -21,9 +21,7 @@ export type UpdateHoldingFormValues = {
   unitPrice?: number;
   incomeTax?: number;
   iof?: number;
-  brokerageFee?: number;
-  settlementFee?: number;
-  otherFees?: number;
+  totalFees?: number;
   valuedAt?: Date;
 };
 

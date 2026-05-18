@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import { z } from 'zod';
 import { FINANCE_MOVING_WINDOW_YEARS } from '../../../finance-transactions/constants/dateWindow';
 import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
+import { validateInvestmentSettlementDates } from '@/shared/utils/investment/settlementDatePolicy';
 import type { UpdateHoldingAssetClass, UpdateHoldingFormValues } from './types';
 
 interface BuildSchemaParams {
@@ -34,7 +35,10 @@ export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<U
       ),
       settlementDate: z.preprocess(
         (value) => (value === '' || value == null ? undefined : value),
-        z.date().optional(),
+        z.date({
+          required_error: t('investments.updateHolding.validation.settlementDateRequired'),
+          invalid_type_error: t('investments.updateHolding.validation.settlementDateRequired'),
+        }),
       ),
       grossValue: z.number().positive().optional(),
       netValue: z.number().positive().optional(),
@@ -42,9 +46,7 @@ export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<U
       unitPrice: z.number().positive().optional(),
       incomeTax: z.number().min(0).optional(),
       iof: z.number().min(0).optional(),
-      brokerageFee: z.number().min(0).optional(),
-      settlementFee: z.number().min(0).optional(),
-      otherFees: z.number().min(0).optional(),
+      totalFees: z.number().min(0).optional(),
       valuedAt: z.preprocess(
         (value) => (value === '' || value == null ? undefined : value),
         z.date().optional(),
@@ -58,6 +60,8 @@ export function buildUpdateHoldingSchema(params: BuildSchemaParams): z.ZodType<U
           path: ['tradeDate'],
         });
       }
+
+      validateInvestmentSettlementDates(data, ctx, t);
 
       if (assetClass === 'fixedIncome') {
         if (data.grossValue == null) {

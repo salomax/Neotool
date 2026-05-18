@@ -11,7 +11,7 @@ import {
   type TextFieldProps,
   useTheme,
 } from "@mui/material";
-import { Controller, useFormContext } from "react-hook-form";
+import { Controller, useFormContext, useWatch } from "react-hook-form";
 import { useDebounce } from "@/shared/hooks/ui/useDebounce";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../i18n";
@@ -42,6 +42,8 @@ interface EquityAutocompleteProps {
   assetTypeFilter?: B3AssetType | null;
   disabled?: boolean;
   size?: TextFieldProps["size"];
+  /** Focus the search input on mount (e.g. new-holding step 1). */
+  autoFocus?: boolean;
   "data-testid"?: string;
 }
 
@@ -51,12 +53,27 @@ export function EquityAutocomplete({
   assetTypeFilter,
   disabled,
   size = "medium",
+  autoFocus = false,
   "data-testid": dataTestId,
 }: EquityAutocompleteProps) {
   const theme = useTheme();
   const { t } = useTranslation(personalFinanceTranslations);
   const { control } = useFormContext();
   const [inputValue, setInputValue] = React.useState("");
+  const selectedAsset = useWatch({ control, name }) as EquityAutocompleteValue | null | undefined;
+  const lastSyncedAssetId = React.useRef<string | undefined>(undefined);
+
+  React.useEffect(() => {
+    const asset = selectedAsset;
+    if (asset?.id) {
+      if (lastSyncedAssetId.current !== asset.id) {
+        setInputValue(asset.ticker);
+        lastSyncedAssetId.current = asset.id;
+      }
+    } else {
+      lastSyncedAssetId.current = undefined;
+    }
+  }, [selectedAsset]);
   const debounced = useDebounce(inputValue, 300);
   const trimmed = debounced.trim();
 
@@ -167,6 +184,7 @@ export function EquityAutocomplete({
               {...params}
               label={label ?? t("investments.recordEquity.fields.asset")}
               size={size}
+              autoFocus={autoFocus}
               error={!!fieldState.error}
               helperText={fieldState.error?.message}
               data-testid={dataTestId}

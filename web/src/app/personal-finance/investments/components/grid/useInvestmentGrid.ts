@@ -7,8 +7,6 @@ import { buildGridMetricsAndCounts, type GridHoldingRow } from "./investmentGrid
 import {
   INVESTMENT_GRID_CLASS_DEFINITIONS,
   RECORD_DRAWER_BY_CLASS,
-  equityRecordVariantForGridClass,
-  type EquityRecordVariant,
   type GridRecordDrawer,
   type InvestmentGridClassDefinition,
   type InvestmentGridClassKey,
@@ -50,7 +48,6 @@ export interface UseInvestmentGridResult {
   selectedAssetClassKey: InvestmentGridClassKey | null;
   selectedClassDefinition: InvestmentGridClassDefinition | null;
   recordDrawer: GridRecordDrawer;
-  equityRecordVariant: EquityRecordVariant;
   selectAssetClass: (key: InvestmentGridClassKey) => void;
   clearAssetClass: () => void;
   openRecordDrawerForCash: () => void;
@@ -73,7 +70,6 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
     return readSelectedAssetClassKey(buildSelectedClassStorageKey(financialAccountId));
   });
   const [recordDrawer, setRecordDrawer] = React.useState<GridRecordDrawer>(null);
-  const [equityRecordVariant, setEquityRecordVariant] = React.useState<EquityRecordVariant>("mixed");
 
   React.useEffect(() => {
     setSelectedAssetClassKey(readSelectedAssetClassKey(selectedClassStorageKey));
@@ -82,16 +78,10 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
   const openRecordDrawerForClassKey = React.useCallback((key: InvestmentGridClassKey) => {
     const drawer = RECORD_DRAWER_BY_CLASS[key];
     setRecordDrawer(drawer);
-    if (drawer === "equity") {
-      setEquityRecordVariant(equityRecordVariantForGridClass(key));
-    } else {
-      setEquityRecordVariant("mixed");
-    }
   }, []);
 
   const closeRecordDrawer = React.useCallback(() => {
     setRecordDrawer(null);
-    setEquityRecordVariant("mixed");
   }, []);
 
   const openRecordForSelectedClass = React.useCallback(() => {
@@ -122,7 +112,6 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
 
   const openRecordDrawerForCash = React.useCallback(() => {
     setRecordDrawer("cash");
-    setEquityRecordVariant("mixed");
   }, []);
 
   const openRecordDrawerForClass = React.useCallback(
@@ -159,7 +148,6 @@ export function useInvestmentGrid(financialAccountId: string | null): UseInvestm
     selectedAssetClassKey,
     selectedClassDefinition,
     recordDrawer,
-    equityRecordVariant,
     selectAssetClass,
     clearAssetClass,
     openRecordDrawerForCash,

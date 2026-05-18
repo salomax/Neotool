@@ -5,12 +5,17 @@ import { Box } from '@mui/material';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from '@/shared/i18n';
 import { FormRowStack, FormStack } from '@/shared/components/ui/forms/components';
-import { DatePickerField, MoneyInput, NumberField } from '@/shared/components/ui/forms/form';
+import { MoneyInput, NumberField } from '@/shared/components/ui/forms/form';
 import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
 import { personalFinanceTranslations } from '../../../i18n';
 import type { UpdateHoldingFormValues } from './types';
 import { PositionSummaryStrip } from './PositionSummaryStrip';
+import {
+  getFundFixedIncomeProjectedValue,
+  getProjectedQuantity,
+} from './positionSummaryCalculations';
 import { UpdateFormSectionLabel } from './UpdateFormSectionLabel';
+import { InvestmentTradeAndSettlementDateRow } from '../InvestmentTradeAndSettlementDateRow';
 
 interface FixedIncomeUpdateFieldsProps {
   hideSummaryStrip?: boolean;
@@ -23,6 +28,7 @@ interface FixedIncomeUpdateFieldsProps {
   minDate: Date;
   maxDate: Date;
   tradeDateLabel: string;
+  settlementDateLabel: string;
   grossValueLabel: string;
   netValueLabel: string;
   quantityLabel: string;
@@ -41,6 +47,7 @@ export function FixedIncomeUpdateFields({
   minDate,
   maxDate,
   tradeDateLabel,
+  settlementDateLabel,
   grossValueLabel,
   netValueLabel,
   quantityLabel,
@@ -66,20 +73,23 @@ export function FixedIncomeUpdateFields({
     setValue('incomeTax', Math.max(grossValue - netValue, 0), { shouldDirty: false, shouldValidate: true });
   }, [direction, getFieldState, grossValue, netValue, setValue]);
 
-  const projectedValue = React.useMemo(() => {
-    if (currentValue == null || !Number.isFinite(currentValue)) return null;
-    if (direction === InvestmentTransactionDirection.Inflow) {
-      if (typeof grossValue !== 'number' || !Number.isFinite(grossValue)) return null;
-      return currentValue + grossValue;
-    }
-    if (typeof netValue !== 'number' || !Number.isFinite(netValue)) return null;
-    return currentValue - netValue;
-  }, [currentValue, direction, grossValue, netValue]);
+  const projectedValue = React.useMemo(
+    () =>
+      getFundFixedIncomeProjectedValue({
+        currentValue,
+        currentQuantity,
+        direction,
+        quantity,
+        grossValue,
+        netValue,
+      }),
+    [currentQuantity, currentValue, direction, grossValue, netValue, quantity],
+  );
 
-  const projectedQuantity = React.useMemo(() => {
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity)) return null;
-    return direction === InvestmentTransactionDirection.Inflow ? currentQuantity + quantity : currentQuantity - quantity;
-  }, [currentQuantity, direction, quantity]);
+  const projectedQuantity = React.useMemo(
+    () => getProjectedQuantity(quantity, currentQuantity, direction),
+    [currentQuantity, direction, quantity],
+  );
 
   return (
     <FormStack>
@@ -96,17 +106,13 @@ export function FixedIncomeUpdateFields({
       ) : null}
 
       <UpdateFormSectionLabel title={t('investments.updateHolding.sections.dates')} />
-      <FormRowStack>
-        <Box sx={halfRowFieldSx}>
-          <DatePickerField
-            name="tradeDate"
-            label={tradeDateLabel}
-            minDate={minDate}
-            maxDate={maxDate}
-            size="medium"
-          />
-        </Box>
-      </FormRowStack>
+      <InvestmentTradeAndSettlementDateRow<UpdateHoldingFormValues>
+        tradeDateLabel={tradeDateLabel}
+        settlementDateLabel={settlementDateLabel}
+        minDate={minDate}
+        tradeMaxDate={maxDate}
+        size="medium"
+      />
 
       {direction === InvestmentTransactionDirection.Inflow ? (
         <>

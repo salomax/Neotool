@@ -41,9 +41,6 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
   const hoverColor = React.useMemo(() => alpha(theme.palette.primary.main, 0.035), [theme.palette.primary.main]);
   const tableRadius = getTableRadius(theme);
 
-  const buyLabel = t("investments.transactions.apply");
-  const sellLabel = t("investments.transactions.redeem");
-
   const summaryAdornment = React.useMemo(() => {
     if (!group.valueOriginKey || group.total === "—") return null;
     return (
@@ -124,8 +121,6 @@ export const FixedIncomeHoldingsTable = React.memo(function FixedIncomeHoldingsT
           locale={locale}
           dividerColor={dividerColor}
           hoverColor={hoverColor}
-          buyLabel={buyLabel}
-          sellLabel={sellLabel}
         />
       ))}
     </InvestmentGroupTableShell>

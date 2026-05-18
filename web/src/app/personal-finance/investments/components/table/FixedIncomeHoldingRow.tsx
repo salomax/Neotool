@@ -28,8 +28,6 @@ export interface FixedIncomeHoldingRowProps {
   locale: string;
   dividerColor: string;
   hoverColor: string;
-  buyLabel?: string;
-  sellLabel?: string;
 }
 
 export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
@@ -38,13 +36,10 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
   locale,
   dividerColor,
   hoverColor,
-  buyLabel,
-  sellLabel,
 }: FixedIncomeHoldingRowProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { onOpenDetail, onOpenMaturityConfirm } = useInvestmentTableActions();
   const theme = useTheme();
-  const [hovered, setHovered] = React.useState(false);
 
   const maturityChipSx = React.useMemo(() => {
     const warningMain = theme.palette.warning.main;
@@ -98,8 +93,6 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
     <Box
       role="row"
       onClick={() => onOpenDetail(holding)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
       sx={{
         display: "flex",
         alignItems: "center",
@@ -109,6 +102,11 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
         borderTop: `1px solid ${dividerColor}`,
         cursor: "pointer",
         "&:hover": { bgcolor: hoverColor },
+        "&:hover .holding-row-quick-actions, &:focus-within .holding-row-quick-actions": {
+          opacity: 1,
+          visibility: "visible",
+          pointerEvents: "auto",
+        },
       }}
     >
       <Box sx={{ ...layout.assetColSx, minWidth: 0 }}>
@@ -203,10 +201,7 @@ export const FixedIncomeHoldingRow = React.memo(function FixedIncomeHoldingRow({
 
       <HoldingRowActionsColumn
         actionColWidth={layout.actionColWidth}
-        hovered={hovered}
         holding={holding}
-        buyLabel={buyLabel}
-        sellLabel={sellLabel}
       />
     </Box>
   );

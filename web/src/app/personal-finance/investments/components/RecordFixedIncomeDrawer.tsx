@@ -35,12 +35,15 @@ import { CheckboxField, DatePickerField, FormTextField as TextField, MoneyInput,
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, parseDateOnly } from "@/shared/utils/date/dateOnly";
+import { coerceInvestmentSettlementDate, validateInvestmentSettlementDates } from "@/shared/utils/investment/settlementDatePolicy";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
+import { InvestmentTradeAndSettlementDateRow } from "./InvestmentTradeAndSettlementDateRow";
+import { useSyncDefaultSettlementDate } from "../hooks/useSyncDefaultSettlementDate";
 
 interface RecordFixedIncomeDrawerProps {
   open: boolean;
@@ -104,6 +107,7 @@ type RecordFixedIncomeFormData = {
   quantity?: number | string;
   grossValue: number;
   tradeDate?: Date;
+  settlementDate?: Date;
   maturityDate?: Date;
   isTaxExempt: boolean;
   couponFrequency: CouponFrequency;
@@ -267,6 +271,13 @@ export function RecordFixedIncomeDrawer({
               invalid_type_error: t("investments.recordHolding.validation.tradeDateRequired"),
             }),
           ),
+          settlementDate: z.preprocess(
+            (value) => (value === "" || value === null || value === undefined ? undefined : value),
+            z.date({
+              required_error: t("investments.updateHolding.validation.settlementDateRequired"),
+              invalid_type_error: t("investments.updateHolding.validation.settlementDateRequired"),
+            }),
+          ),
           maturityDate: z.preprocess(
             (value) => (value === "" || value === null || value === undefined ? undefined : value),
             z.date({
@@ -347,6 +358,8 @@ export function RecordFixedIncomeDrawer({
             });
           }
 
+          validateInvestmentSettlementDates(data, ctx, t);
+
           if (dayjs(data.maturityDate).isAfter(maxMaturityDate, "day")) {
             ctx.addIssue({
               code: z.ZodIssueCode.custom,
@@ -370,6 +383,7 @@ export function RecordFixedIncomeDrawer({
       quantity: 1,
       grossValue: undefined,
       tradeDate: undefined,
+      settlementDate: undefined,
       maturityDate: undefined,
       isTaxExempt: false,
       couponFrequency: CouponFrequency.AtMaturity,
@@ -382,6 +396,14 @@ export function RecordFixedIncomeDrawer({
   const watchedAssetType = useWatch({ control: methods.control, name: "assetType" });
   const watchedIndexer = useWatch({ control: methods.control, name: "indexer" });
   const watchedTradeDate = useWatch({ control: methods.control, name: "tradeDate" });
+
+  useSyncDefaultSettlementDate<RecordFixedIncomeFormData>({
+    enabled: open,
+    assetKind: "fixedIncome",
+    tradeDate: watchedTradeDate,
+    setValue: methods.setValue,
+  });
+
   const watchedQuantity = useWatch({ control: methods.control, name: "quantity" });
   const watchedGrossValue = useWatch({ control: methods.control, name: "grossValue" });
   const watchedCouponFrequency = useWatch({ control: methods.control, name: "couponFrequency" });
@@ -510,11 +532,10 @@ export function RecordFixedIncomeDrawer({
 
   const onSubmit = async (data: RecordFixedIncomeFormData) => {
     if (!resolvedFinancialAccountId) return;
-    if (!data.tradeDate || !data.maturityDate) return;
+    if (!data.tradeDate || !data.maturityDate || !data.settlementDate) return;
 
     const tradeDate = formatDateOnly(data.tradeDate);
     const maturityDate = formatDateOnly(data.maturityDate);
-
     const quantity = typeof data.quantity === "number" && Number.isFinite(data.quantity) && data.quantity >= 0 ? data.quantity : 1;
     const unitPrice = quantity > 0 ? data.grossValue / quantity : data.grossValue;
     const txInput = {
@@ -524,7 +545,7 @@ export function RecordFixedIncomeDrawer({
       unitPrice,
       grossValue: data.grossValue,
       tradeDate,
-      settlementDate: tradeDate,
+      settlementDate: formatDateOnly(coerceInvestmentSettlementDate("fixedIncome", data.tradeDate, data.settlementDate)),
       indexer: data.indexer!,
       indexerPercentage: data.indexer !== Indexer.PreFixado ? data.indexerPercentage! / 100 : undefined,
       fixedAnnualRate: data.indexer === Indexer.PreFixado ? data.fixedAnnualRate! / 100 : undefined,
@@ -627,6 +648,10 @@ export function RecordFixedIncomeDrawer({
         tradeDate:
           parseDateOnly(
             editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
+          ) ?? undefined,
+        settlementDate:
+          parseDateOnly(
+            editTransaction!.settlementDate != null ? String(editTransaction!.settlementDate) : null,
           ) ?? undefined,
         maturityDate:
           parseDateOnly(
@@ -769,18 +794,16 @@ export function RecordFixedIncomeDrawer({
                 </Box>
               </FormRowStack>
 
-              <FormRowStack alignItems="flex-start">
-                <Box sx={{ flex: 1, minWidth: 0 }}>
-                  <DatePickerField
-                    name="tradeDate"
-                    label={t("investments.recordHolding.fields.tradeDate")}
-                    size="medium"
-                    minDate={minAllowedDate.toDate()}
-                    maxDate={today.toDate()}
-                    data-testid="record-trade-date"
-                  />
-                </Box>
+              <InvestmentTradeAndSettlementDateRow<RecordFixedIncomeFormData>
+                tradeDateLabel={t("investments.recordHolding.fields.tradeDate")}
+                settlementDateLabel={t("investments.recordHolding.fields.settlementDate")}
+                minDate={minAllowedDate.toDate()}
+                tradeMaxDate={today.toDate()}
+                tradeDateTestId="record-trade-date"
+                settlementDateTestId="record-settlement-date"
+              />
 
+              <FormRowStack alignItems="flex-start">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <DatePickerField
                     name="maturityDate"

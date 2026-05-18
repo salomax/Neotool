@@ -37,7 +37,6 @@ interface FixedIncomeHoldingDetailContentProps {
   ) => void;
   onDeleteCouponPayment?: (transactionId: string) => Promise<void>;
   deletingCouponPayment?: boolean;
-  onEditTransaction?: (transactionId: string) => void;
   onDeleteTransaction?: (transactionId: string) => void;
 }
 
@@ -71,7 +70,6 @@ export function FixedIncomeHoldingDetailContent({
   onEditCouponPayment,
   onDeleteCouponPayment,
   deletingCouponPayment,
-  onEditTransaction,
   onDeleteTransaction,
 }: FixedIncomeHoldingDetailContentProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -243,11 +241,9 @@ export function FixedIncomeHoldingDetailContent({
           incomeTaxText={(formattedValue) => t("investments.detailDrawer.timeline.incomeTax", { value: formattedValue })}
           iofText={(formattedValue) => t("investments.detailDrawer.timeline.iof", { value: formattedValue })}
           settlementDateText={(date) => t("investments.detailDrawer.timeline.settlementDate", { date })}
-          onEditTransaction={onEditTransaction}
           onDeleteTransaction={onDeleteTransaction}
           notEditableTooltip={t("investments.detailDrawer.timeline.notEditableTooltip")}
           actionsAriaLabel={t("investments.table.rowActions.ariaLabel")}
-          editActionLabel={t("actions.edit")}
           deleteActionLabel={t("actions.delete")}
         />
       </Box>

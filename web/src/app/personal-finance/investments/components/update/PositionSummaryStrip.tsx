@@ -1,12 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Box } from '@mui/material';
 import { alpha } from '@mui/material/styles';
+import type { SxProps, Theme } from '@mui/material/styles';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../../i18n';
+import {
+  resolveDisplayedProjectedQuantity,
+  resolveDisplayedProjectedValue,
+} from './positionSummaryCalculations';
 
 export interface PositionSummaryStripProps {
   currentValue: number | null;
@@ -16,13 +21,21 @@ export interface PositionSummaryStripProps {
   currencyCode: string;
   quantityUnit: string;
   locale: string;
-  projectedSecondaryValue?: number | null;
-  projectedSecondaryLabel?: string;
 }
 
 const currencyFormatOptions: Intl.NumberFormatOptions = {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
+};
+
+const quantityLabelSx: SxProps<Theme> = {
+  mb: 0,
+  mt: 0.5,
+  textTransform: 'none',
+  fontSize: '0.875rem',
+  fontWeight: 400,
+  color: 'text.primary',
+  letterSpacing: 0,
 };
 
 function formatQuantity(value: number | null, quantityUnit: string, locale: string): string {
@@ -33,6 +46,40 @@ function formatQuantity(value: number | null, quantityUnit: string, locale: stri
   }).format(value)} ${quantityUnit}`;
 }
 
+interface PositionSummaryColumnProps {
+  title: string;
+  value: number | null;
+  quantity: string;
+  currencyCode: string;
+  locale: string;
+}
+
+function PositionSummaryColumn({
+  title,
+  value,
+  quantity,
+  currencyCode,
+  locale,
+}: PositionSummaryColumnProps) {
+  return (
+    <Box sx={{ minWidth: 0 }}>
+      <Label sx={{ mb: 0 }}>{title}</Label>
+      <Box sx={{ mt: 0.5 }}>
+        <CurrencyAmountParts
+          value={value}
+          currency={currencyCode}
+          locale={locale}
+          formatOptions={currencyFormatOptions}
+          variant="h5"
+        />
+      </Box>
+      <Label sx={quantityLabelSx} noWrap>
+        {quantity}
+      </Label>
+    </Box>
+  );
+}
+
 export function PositionSummaryStrip({
   currentValue,
   currentQuantity,
@@ -41,10 +88,14 @@ export function PositionSummaryStrip({
   currencyCode,
   quantityUnit,
   locale,
-  projectedSecondaryValue,
-  projectedSecondaryLabel,
 }: PositionSummaryStripProps) {
   const { t } = useTranslation(personalFinanceTranslations);
+
+  const displayProjectedValue = resolveDisplayedProjectedValue(projectedValue, currentValue);
+  const displayProjectedQuantity = resolveDisplayedProjectedQuantity(
+    projectedQuantity,
+    currentQuantity,
+  );
 
   return (
     <Box
@@ -56,69 +107,26 @@ export function PositionSummaryStrip({
             ? alpha(theme.palette.common.white, 0.06)
             : alpha(theme.palette.common.black, 0.04),
         display: 'grid',
-        gridTemplateColumns: '1fr auto 1fr',
+        gridTemplateColumns: '1fr 1fr',
         gap: 1,
         alignItems: 'start',
       }}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Label sx={{ mb: 0 }}>
-          {t('investments.updateHolding.summary.current')}
-        </Label>
-        <Box sx={{ mt: 0.5 }}>
-          <CurrencyAmountParts
-            value={currentValue}
-            currency={currencyCode}
-            locale={locale}
-            formatOptions={currencyFormatOptions}
-            variant="h5"
-          />
-        </Box>
-        <Typography variant="body2" sx={{ fontWeight: 400, mt: 0.5 }} noWrap>
-          {formatQuantity(currentQuantity, quantityUnit, locale)}
-        </Typography>
-      </Box>
+      <PositionSummaryColumn
+        title={t('investments.updateHolding.summary.current')}
+        value={currentValue}
+        quantity={formatQuantity(currentQuantity, quantityUnit, locale)}
+        currencyCode={currencyCode}
+        locale={locale}
+      />
 
-      <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'start', lineHeight: 1.2 }}>
-        →
-      </Typography>
-
-      <Box sx={{ minWidth: 0 }}>
-        <Label sx={{ mb: 0 }}>
-          {t('investments.updateHolding.summary.afterOperation')}
-        </Label>
-        <Box sx={{ mt: 0.5 }}>
-          <CurrencyAmountParts
-            value={projectedValue}
-            currency={currencyCode}
-            locale={locale}
-            formatOptions={currencyFormatOptions}
-            variant="h5"
-          />
-        </Box>
-
-        {projectedSecondaryLabel ? (
-          <>
-            <Label sx={{ display: 'block', mb: 0, mt: 0.5 }}>
-              {projectedSecondaryLabel}
-            </Label>
-            <Box sx={{ mt: 0.5 }}>
-              <CurrencyAmountParts
-                value={projectedSecondaryValue ?? null}
-                currency={currencyCode}
-                locale={locale}
-                formatOptions={currencyFormatOptions}
-                variant="body2"
-                sx={{ fontWeight: 600 }}
-              />
-            </Box>
-          </>
-        ) : null}
-
-        <Typography variant="body2" sx={{ fontWeight: 400, mt: 0.5 }} noWrap>
-          {formatQuantity(projectedQuantity, quantityUnit, locale)}
-        </Typography>
-      </Box>
+      <PositionSummaryColumn
+        title={t('investments.updateHolding.summary.afterOperation')}
+        value={displayProjectedValue}
+        quantity={formatQuantity(displayProjectedQuantity, quantityUnit, locale)}
+        currencyCode={currencyCode}
+        locale={locale}
+      />
     </Box>
   );
 }
