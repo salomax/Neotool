@@ -718,6 +718,93 @@ open class DefaultTransactionRepository(
         providerTransactionId: String,
     ): Int = entityRepository.clearProviderTransactionIdForDeleted(financialAccountId, providerTransactionId)
 
+    @Transactional
+    override fun setRecurringPaymentId(
+        transactionId: UUID,
+        recurringPaymentId: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val updated =
+            entityManager.createNativeQuery(
+                """
+                UPDATE banking.transactions
+                   SET recurring_payment_id = CAST(:recurringPaymentId AS uuid),
+                       updated_at = NOW()
+                 WHERE id = CAST(:transactionId AS uuid)
+                   AND account_id = CAST(:accountId AS uuid)
+                   AND deleted_at IS NULL
+                """.trimIndent(),
+            )
+                .setParameter("recurringPaymentId", recurringPaymentId.toString())
+                .setParameter("transactionId", transactionId.toString())
+                .setParameter("accountId", accountId.toString())
+                .executeUpdate()
+        if (updated > 0) {
+            entityManager.clear()
+        }
+        return updated > 0
+    }
+
+    @Transactional
+    override fun clearRecurringPaymentId(
+        recurringPaymentId: UUID,
+        accountId: UUID,
+    ): Int {
+        val updated =
+            entityManager.createNativeQuery(
+                """
+                UPDATE banking.transactions
+                   SET recurring_payment_id = NULL,
+                       updated_at = NOW()
+                 WHERE recurring_payment_id = CAST(:recurringPaymentId AS uuid)
+                   AND account_id = CAST(:accountId AS uuid)
+                   AND deleted_at IS NULL
+                """.trimIndent(),
+            )
+                .setParameter("recurringPaymentId", recurringPaymentId.toString())
+                .setParameter("accountId", accountId.toString())
+                .executeUpdate()
+        if (updated > 0) {
+            entityManager.clear()
+        }
+        return updated
+    }
+
+    @Transactional
+    override fun deleteFutureByRecurringPaymentId(recurringPaymentId: UUID): Int =
+        entityManager.createNativeQuery(
+            """
+            UPDATE banking.transactions
+               SET deleted_at = NOW(),
+                   updated_at = NOW()
+             WHERE recurring_payment_id = CAST(:recurringPaymentId AS uuid)
+               AND status = 'FUTURE'
+               AND deleted_at IS NULL
+            """.trimIndent(),
+        )
+            .setParameter("recurringPaymentId", recurringPaymentId.toString())
+            .executeUpdate()
+
+    @Transactional
+    override fun deleteFutureByRecurringAndDate(
+        recurringPaymentId: UUID,
+        date: LocalDate,
+    ): Int =
+        entityManager.createNativeQuery(
+            """
+            UPDATE banking.transactions
+               SET deleted_at = NOW(),
+                   updated_at = NOW()
+             WHERE recurring_payment_id = CAST(:recurringPaymentId AS uuid)
+               AND date = CAST(:date AS date)
+               AND status = 'FUTURE'
+               AND deleted_at IS NULL
+            """.trimIndent(),
+        )
+            .setParameter("recurringPaymentId", recurringPaymentId.toString())
+            .setParameter("date", date.toString())
+            .executeUpdate()
+
     @Transactional(readOnly = true)
     override fun findByInvestmentTransactionIds(
         investmentTransactionIds: Collection<UUID>,
@@ -834,19 +921,19 @@ open class DefaultTransactionRepository(
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status IN ('POSTED','PENDING')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status IN ('POSTED','PENDING')
-                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')
-                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status IN ('POSTED','PENDING')
-                                            AND type <> 'TRANSFER'), 0),
+                                            AND type NOT IN ('TRANSFER','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status IN ('POSTED','PENDING')
-                                            AND type <> 'TRANSFER'), 0),
+                                            AND type NOT IN ('TRANSFER','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'CREDIT' AND status = 'FUTURE'
-                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0),
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0),
               COALESCE(SUM(amount) FILTER (WHERE credit_debit_type = 'DEBIT'  AND status = 'FUTURE'
-                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT')), 0)
+                                            AND type NOT IN ('TRANSFER','BALANCE_ADJUSTMENT','BILL_PAYMENT')), 0)
             FROM banking.transactions
             WHERE financial_account_id = CAST(:financialAccountId AS uuid)
               AND date >= make_date(:year, :month, 1)
@@ -1101,7 +1188,7 @@ open class DefaultTransactionRepository(
         query.creditDebitType?.let {
             params["creditDebitType"] = it.name
             conditions += "t.credit_debit_type = :creditDebitType"
-            conditions += "t.type NOT IN ('TRANSFER', 'BALANCE_ADJUSTMENT')"
+            conditions += "t.type NOT IN ('TRANSFER', 'BALANCE_ADJUSTMENT', 'BILL_PAYMENT')"
         }
         if (!query.types.isNullOrEmpty()) {
             conditions += buildInClause("t.type", "type", query.types.map { it.name }, params)

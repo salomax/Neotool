@@ -24,6 +24,7 @@ import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
 import io.github.salomax.neotool.banking.graphql.product.ProductResolver
+import io.github.salomax.neotool.banking.graphql.recurring.RecurringPaymentResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
@@ -33,6 +34,7 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValid
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.RequestPrincipalProvider
 import jakarta.inject.Singleton
+import java.time.LocalDate
 
 /**
  * GraphQL wiring factory for the banking subgraph.
@@ -53,6 +55,7 @@ class BankingWiringFactory(
     private val billImportResolver: BillImportResolver,
     private val attachmentResolver: AttachmentResolver,
     private val productResolver: ProductResolver,
+    private val recurringPaymentResolver: RecurringPaymentResolver,
     requestPrincipalProvider: RequestPrincipalProvider,
     authorizationChecker: AuthorizationChecker,
 ) : AuthenticatedGraphQLWiringFactory(requestPrincipalProvider, authorizationChecker) {
@@ -128,6 +131,38 @@ class BankingWiringFactory(
                             after = after,
                             principal = principal,
                         )
+                    }
+                },
+            )
+            .dataFetcher(
+                "recurringPayments",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        recurringPaymentResolver.recurringPayments(
+                            financialAccountId = env.getArgument("financialAccountId"),
+                            principal = principal,
+                        )
+                    }
+                },
+            )
+            .dataFetcher(
+                "recurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val id = env.getArgument<String>("id")
+                            ?: throw IllegalArgumentException("id is required")
+                        recurringPaymentResolver.recurringPayment(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "suggestRecurringForTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
+                        val transactionId =
+                            env.getArgument<String>("transactionId")
+                                ?: throw IllegalArgumentException("transactionId is required")
+                        recurringPaymentResolver.suggestRecurringForTransaction(transactionId, principal)
                     }
                 },
             )
@@ -856,6 +891,110 @@ class BankingWiringFactory(
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
                         transactionResolver.deleteTransaction(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        recurringPaymentResolver.createRecurringPayment(input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "updateRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        recurringPaymentResolver.updateRecurringPayment(id, input, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "pauseRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        recurringPaymentResolver.pauseRecurringPayment(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "resumeRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        recurringPaymentResolver.resumeRecurringPayment(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "deleteRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        recurringPaymentResolver.deleteRecurringPayment(id, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "confirmRecurringPayment",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
+                        val paymentDate =
+                            when (val raw = env.getArgument<Any?>("paymentDate")) {
+                                is LocalDate -> raw
+                                is String -> LocalDate.parse(raw)
+                                null -> throw IllegalArgumentException("paymentDate is required")
+                                else -> error("paymentDate must be a LocalDate or ISO-8601 string")
+                            }
+                        recurringPaymentResolver.confirmRecurringPayment(id, paymentDate, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "linkTransactionToRecurring",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
+                        val transactionId =
+                            env.getArgument<String>("transactionId")
+                                ?: throw IllegalArgumentException("transactionId is required")
+                        val recurringPaymentId =
+                            env.getArgument<String>("recurringPaymentId")
+                                ?: throw IllegalArgumentException("recurringPaymentId is required")
+                        recurringPaymentResolver.linkTransactionToRecurring(transactionId, recurringPaymentId, principal)
+                    }
+                },
+            )
+            .dataFetcher(
+                "createRecurringPaymentFromTransaction",
+                createValidatedDataFetcher { env ->
+                    env.withPermission(BankingPermissions.BANKING_TRANSACTION_CREATE) { principal ->
+                        val transactionId =
+                            env.getArgument<String>("transactionId")
+                                ?: throw IllegalArgumentException("transactionId is required")
+                        val input =
+                            env.getArgument<Map<String, Any?>>("input")
+                                ?: throw IllegalArgumentException("input is required")
+                        recurringPaymentResolver.createRecurringPaymentFromTransaction(transactionId, input, principal)
                     }
                 },
             )

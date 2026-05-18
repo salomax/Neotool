@@ -19,7 +19,6 @@ interface FormFooterProps {
   merchantId: string | null;
   initialValues: Transaction | undefined;
   isBalanceAdjustmentEdit: boolean;
-  isDateInvalidForSave: boolean;
   isDateInFuture: boolean;
   isDateOutsideWindow: boolean;
   minAllowedDate: dayjs.Dayjs;
@@ -27,7 +26,9 @@ interface FormFooterProps {
   creating: boolean;
   updating: boolean;
   applyingSimilarEdit: boolean;
-  canSave: boolean;
+  isSaving: boolean;
+  showDateError: boolean;
+  dateHelperText?: string;
   inputBottomBorderSx: object;
   onDateChange: (v: dayjs.Dayjs | null) => void;
   onMerchantChange: (id: string | null) => void;
@@ -43,7 +44,6 @@ export const FormFooter = memo(function FormFooter({
   merchantId,
   initialValues,
   isBalanceAdjustmentEdit,
-  isDateInvalidForSave,
   isDateInFuture,
   isDateOutsideWindow,
   minAllowedDate,
@@ -51,7 +51,9 @@ export const FormFooter = memo(function FormFooter({
   creating,
   updating,
   applyingSimilarEdit,
-  canSave,
+  isSaving,
+  showDateError,
+  dateHelperText,
   inputBottomBorderSx,
   onDateChange,
   onMerchantChange,
@@ -84,12 +86,12 @@ export const FormFooter = memo(function FormFooter({
                 'data-testid': 'tx-date-input',
                 readOnly: isBalanceAdjustmentEdit,
               },
-              error: isDateInvalidForSave,
+              error: showDateError,
               helperText: isDateInFuture
                 ? t('financeTransactions.validation.dateNotInFuture')
                 : isDateOutsideWindow
                   ? t('financeTransactions.validation.dateTooOld', { years: FINANCE_MOVING_WINDOW_YEARS })
-                  : undefined,
+                  : dateHelperText,
               InputProps: {
                 disableUnderline: true,
                 sx: {
@@ -206,7 +208,7 @@ export const FormFooter = memo(function FormFooter({
           data-testid="tx-save-btn"
           loading={creating || updating || applyingSimilarEdit}
           size="small"
-          disabled={!canSave}
+          disabled={isSaving}
           sx={{ boxShadow: theme.shadows[4], borderRadius: 1 }}
         >
           {t('actions.save')}

@@ -20,6 +20,7 @@ import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import RepeatIcon from '@mui/icons-material/Repeat';
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
 
@@ -49,6 +50,7 @@ export function SidebarRail() {
   const { t } = useTranslation('common');
   const { hasAny } = useAuthorization();
   const personalFinanceEnabled = useFeatureFlagEnabled('personal-finance-dashboard-enabled');
+  const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
 
   // Check if user has any authorization management permissions
   const hasAuthorizationAccess = hasAny([
@@ -76,10 +78,14 @@ export function SidebarRail() {
       href: '/personal-finance/investments',
       label: 'Carteira de Investimentos',
       icon: SavingsOutlinedIcon,
-    }, {
+    }, ...(pricingEnabled ? [{
       href: '/personal-finance/prices-consumption',
       label: 'Preços & Consumo',
       icon: ShoppingCartOutlinedIcon,
+    }] : []), {
+      href: '/personal-finance/recurring-payments',
+      label: 'Pagamentos recorrentes',
+      icon: RepeatIcon,
     }] : []),
     {
       href: '/financial-data',

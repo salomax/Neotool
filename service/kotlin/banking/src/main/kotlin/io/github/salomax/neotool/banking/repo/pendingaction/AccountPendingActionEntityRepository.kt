@@ -48,4 +48,42 @@ interface AccountPendingActionEntityRepository : JpaRepository<AccountPendingAct
         """,
     )
     fun findDueForNotification(now: Instant): List<AccountPendingActionEntity>
+
+    @Query(
+        """
+        SELECT COUNT(*) > 0
+        FROM banking.account_pending_actions p
+        WHERE p.entity_type = :entityType
+          AND p.entity_id = :entityId
+          AND p.type = :type
+          AND p.status = 'PENDING'
+          AND (p.expires_at IS NULL OR p.expires_at > NOW())
+        """,
+        nativeQuery = true,
+    )
+    fun existsOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: String,
+    ): Boolean
+
+    @Query(
+        """
+        UPDATE banking.account_pending_actions
+           SET status = 'DISMISSED',
+               dismissed_at = :now,
+               updated_at = :now
+         WHERE entity_type = :entityType
+           AND entity_id = :entityId
+           AND type = :type
+           AND status = 'PENDING'
+        """,
+        nativeQuery = true,
+    )
+    fun dismissOpenForEntity(
+        entityType: String,
+        entityId: UUID,
+        type: String,
+        now: Instant,
+    ): Int
 }

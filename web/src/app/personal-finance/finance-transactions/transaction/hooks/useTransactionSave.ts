@@ -1,4 +1,4 @@
-import { useCallback, useState, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState, type KeyboardEvent } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
 import dayjs from 'dayjs';
 import {
@@ -79,10 +79,19 @@ function buildSimilarEditInput(
 
 // ── Hook ──────────────────────────────────────────────────────────────────────
 
+export type TransactionFieldErrors = {
+  amount: boolean;
+  description: boolean;
+  account: boolean;
+  date: boolean;
+};
+
 interface UseTransactionSaveProps {
+  isOpen: boolean;
   amount: number | undefined;
   date: dayjs.Dayjs | null;
   accountId: string;
+  requiresAccountSelection: boolean;
   isBalanceAdjustmentEdit: boolean;
   description: string;
   isDateInvalidForSave: boolean;
@@ -101,12 +110,43 @@ interface UseTransactionSaveProps {
   onRefresh?: () => void;
 }
 
+function computeFieldErrors({
+  amount,
+  description,
+  accountId,
+  requiresAccountSelection,
+  isBalanceAdjustmentEdit,
+  date,
+  isDateInvalidForSave,
+}: Pick<
+  UseTransactionSaveProps,
+  | 'amount'
+  | 'description'
+  | 'accountId'
+  | 'requiresAccountSelection'
+  | 'isBalanceAdjustmentEdit'
+  | 'date'
+  | 'isDateInvalidForSave'
+>): TransactionFieldErrors {
+  return {
+    amount: !amount,
+    description: !isBalanceAdjustmentEdit && !description.trim(),
+    account: requiresAccountSelection && !accountId,
+    date: !date || !date.isValid() || isDateInvalidForSave,
+  };
+}
+
+function hasFieldErrors(errors: TransactionFieldErrors): boolean {
+  return errors.amount || errors.description || errors.account || errors.date;
+}
+
 export interface TransactionSaveState {
   creating: boolean;
   updating: boolean;
   applyingSimilarEdit: boolean;
   pendingSimilarEditPrompt: PendingSimilarEditPrompt | null;
-  canSave: boolean;
+  isSaving: boolean;
+  fieldErrors: TransactionFieldErrors;
   handleSave: () => Promise<void>;
   handleKeyDown: (e: KeyboardEvent) => void;
   handleTypeChange: (value: CreditDebitTypeExtended) => void;
@@ -115,9 +155,11 @@ export interface TransactionSaveState {
 }
 
 export function useTransactionSave({
+  isOpen,
   amount,
   date,
   accountId,
+  requiresAccountSelection,
   isBalanceAdjustmentEdit,
   description,
   isDateInvalidForSave,
@@ -148,6 +190,41 @@ export function useTransactionSave({
     useMutation<ApplySimilarEditResult>(APPLY_TRANSACTION_EDIT_TO_SIMILAR);
 
   const [pendingSimilarEditPrompt, setPendingSimilarEditPrompt] = useState<PendingSimilarEditPrompt | null>(null);
+  const [submitAttempted, setSubmitAttempted] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) setSubmitAttempted(false);
+  }, [isOpen, initialValues?.id]);
+
+  const validationErrors = useMemo(
+    () =>
+      computeFieldErrors({
+        amount,
+        description,
+        accountId,
+        requiresAccountSelection,
+        isBalanceAdjustmentEdit,
+        date,
+        isDateInvalidForSave,
+      }),
+    [
+      amount,
+      description,
+      accountId,
+      requiresAccountSelection,
+      isBalanceAdjustmentEdit,
+      date,
+      isDateInvalidForSave,
+    ],
+  );
+
+  const fieldErrors = useMemo(
+    () =>
+      submitAttempted
+        ? validationErrors
+        : { amount: false, description: false, account: false, date: false },
+    [submitAttempted, validationErrors],
+  );
 
   const handleTypeChange = useCallback((value: CreditDebitTypeExtended) => {
     setCreditDebitType(value);
@@ -155,9 +232,8 @@ export function useTransactionSave({
   }, [setCreditDebitType, setCategoryId]);
 
   const handleSave = useCallback(async () => {
-    if (!amount || !date || !accountId) return;
-    if (!isBalanceAdjustmentEdit && !description) return;
-    if (!date.isValid() || isDateInvalidForSave) return;
+    setSubmitAttempted(true);
+    if (hasFieldErrors(validationErrors)) return;
 
     const isTransferIn = creditDebitType === 'TRANSFER_IN';
     const isTransferOut = creditDebitType === 'TRANSFER_OUT';
@@ -275,6 +351,7 @@ export function useTransactionSave({
       onBusyEnd?.();
     }
   }, [
+    validationErrors,
     amount, date, accountId, isBalanceAdjustmentEdit, description, isDateInvalidForSave,
     creditDebitType, initialValues, categoryId, merchantId, tags,
     loadSimilarEditPreview, updateTransaction, applyTransactionEditToSimilar, createTransaction,
@@ -286,12 +363,11 @@ export function useTransactionSave({
     (e: KeyboardEvent) => {
       if (e.key !== 'Enter') return;
       e.preventDefault();
-      const descOk = isBalanceAdjustmentEdit || description;
-      if (!(creating || updating) && amount && descOk && date && accountId && !isDateInvalidForSave) {
-        handleSave();
+      if (!(creating || updating)) {
+        void handleSave();
       }
     },
-    [isBalanceAdjustmentEdit, description, creating, updating, amount, date, accountId, isDateInvalidForSave, handleSave],
+    [creating, updating, handleSave],
   );
 
   const handleConfirmSimilarEdit = useCallback(
@@ -334,21 +410,15 @@ export function useTransactionSave({
     onClose();
   }, [onSuccess, onClose]);
 
-  const canSave =
-    !(creating || updating || applyingSimilarEdit) &&
-    !!amount &&
-    (isBalanceAdjustmentEdit || !!description) &&
-    !!date &&
-    date.isValid() &&
-    !!accountId &&
-    !isDateInvalidForSave;
+  const isSaving = creating || updating || applyingSimilarEdit;
 
   return {
     creating,
     updating,
     applyingSimilarEdit,
     pendingSimilarEditPrompt,
-    canSave,
+    isSaving,
+    fieldErrors,
     handleSave,
     handleKeyDown,
     handleTypeChange,

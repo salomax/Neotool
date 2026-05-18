@@ -22,6 +22,8 @@ interface UseTransactionFormStateProps {
   isOpen: boolean;
   initialValues?: Transaction;
   selectedAccountId: string | null;
+  selectedMonth?: number;
+  selectedYear?: number;
 }
 
 export interface TransactionFormState {
@@ -33,6 +35,7 @@ export interface TransactionFormState {
   setDescription: (v: string) => void;
   date: dayjs.Dayjs | null;
   setDate: (v: dayjs.Dayjs | null) => void;
+  defaultCreateDate: dayjs.Dayjs;
   accountId: string;
   setAccountId: (v: string) => void;
   categoryId: string | null;
@@ -60,11 +63,19 @@ export function useTransactionFormState({
   isOpen,
   initialValues,
   selectedAccountId,
+  selectedMonth,
+  selectedYear,
 }: UseTransactionFormStateProps): TransactionFormState {
   const theme = useTheme();
 
   const minAllowedDate = useMemo(() => getFinanceMinAllowedDate(), []);
   const maxAllowedDate = useMemo(() => dayjs().startOf('day'), []);
+
+  const defaultCreateDate = useMemo(() => {
+    if (typeof selectedMonth !== 'number' || typeof selectedYear !== 'number') return dayjs();
+    if (selectedMonth < 1 || selectedMonth > 12) return dayjs();
+    return dayjs().year(selectedYear).month(selectedMonth - 1).date(1).startOf('day');
+  }, [selectedMonth, selectedYear]);
 
   const [creditDebitType, setCreditDebitType] = useState<CreditDebitTypeExtended>(
     initialValues?.type === TransactionType.Transfer
@@ -76,7 +87,7 @@ export function useTransactionFormState({
   );
   const [description, setDescription] = useState(initialValues?.description || '');
   const [date, setDate] = useState<dayjs.Dayjs | null>(
-    initialValues?.date ? dayjs(initialValues.date as string) : dayjs(),
+    initialValues?.date ? dayjs(initialValues.date as string) : defaultCreateDate,
   );
   const [accountId, setAccountId] = useState<string>(
     initialValues?.financialAccountId || selectedAccountId || '',
@@ -168,7 +179,7 @@ export function useTransactionFormState({
     } else {
       setAmount(undefined);
       setDescription('');
-      setDate(dayjs());
+      setDate(defaultCreateDate);
       setCategoryId(null);
       setMerchantId(null);
       setTags([]);
@@ -200,6 +211,7 @@ export function useTransactionFormState({
     setDescription,
     date,
     setDate,
+    defaultCreateDate,
     accountId,
     setAccountId,
     categoryId,

@@ -1,9 +1,11 @@
+'use client';
+
 import { alpha, IconButton, InputAdornment, TextField, useTheme } from '@mui/material';
 import type { SxProps, Theme } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 
-interface ExpandableSearchInputProps {
+export interface ExpandableSearchInputProps {
   searchQuery: string;
   onSearchQueryChange: (query: string) => void;
   placeholder: string;
@@ -11,6 +13,10 @@ interface ExpandableSearchInputProps {
   sx?: SxProps<Theme>;
 }
 
+/**
+ * Collapsible search field (icon-only until hover/focus or when the query is non-empty).
+ * Matches the interaction pattern used on the finance transactions header.
+ */
 export function ExpandableSearchInput({
   searchQuery,
   onSearchQueryChange,
@@ -31,7 +37,7 @@ export function ExpandableSearchInput({
   const actionButtonsRevealLabelDurationMs = 260;
   const actionButtonsRevealLabelOpacityDurationMs = 180;
   const actionButtonsRevealLabelDelayMs = 160;
-  
+
   const actionButtonsRevealButtonTransition = `width ${actionButtonsRevealWidthDurationMs}ms ease, padding ${actionButtonsRevealWidthDurationMs}ms ease`;
   const actionButtonsRevealBgTransition = `background-color ${actionButtonsRevealWidthDurationMs}ms ease`;
   const actionButtonsRevealStartIconTransition = `margin-right ${actionButtonsRevealWidthDurationMs}ms ease`;
@@ -41,6 +47,7 @@ export function ExpandableSearchInput({
 
   return (
     <TextField
+      data-has-value={!!normalizedSearchQuery}
       placeholder={placeholder}
       value={searchQuery}
       onChange={(event) => onSearchQueryChange(event.target.value)}
@@ -65,84 +72,71 @@ export function ExpandableSearchInput({
       }}
       sx={[
         {
-        width: actionButtonsRevealCollapsedWidth,
-        transition: actionButtonsRevealButtonTransition,
-        '& .MuiOutlinedInput-root': {
-          height: '48px',
-          minHeight: '48px',
-          boxSizing: 'border-box',
-          borderRadius: actionButtonsBorderRadiusPx,
-          transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
-          px: actionButtonsRevealCollapsedPx,
-          justifyContent: 'center',
-          backgroundColor: 'transparent',
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: actionButtonsOutlinedBorderColor,
-            borderWidth: 1,
-            borderRadius: actionButtonsBorderRadiusPx,
-          },
-        },
-        '& .MuiInputBase-input': {
-          py: 0,
-          display: 'inline-block',
-          overflow: 'hidden',
-          whiteSpace: 'nowrap',
-          maxWidth: 0,
-          opacity: 0,
-          transform: 'translateX(-8px)',
-          transition: actionButtonsRevealLabelHiddenTransition,
-        },
-        '& .MuiInputAdornment-root': {
-          height: '100%',
-          display: 'flex',
-          alignItems: 'center',
-        },
-        '& .MuiInputAdornment-positionStart': {
-          flex: 1,
-          mr: '0 !important',
-          ml: 3.25,
-          justifyContent: 'center',
-          transition: actionButtonsRevealStartIconTransition,
-        },
-        '& .MuiInputAdornment-positionEnd': {
-          ml: 0.5,
-          transition: actionButtonsRevealEndIconTransition,
-          opacity: 0,
-          maxWidth: 0,
-          overflow: 'hidden',
-        },
-        '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input': {
-          transition: actionButtonsRevealLabelShownTransition,
-          maxWidth: 240,
-          opacity: 1,
-          transform: 'translateX(0)',
-        },
-        '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart': {
-          mr: 0.5,
-          pr: 0.5,
-          ml: 1,
-          flex: '0 0 auto',
-          justifyContent: 'flex-start',
-        },
-        '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd': {
-          ml: 1,
-          opacity: 1,
-          maxWidth: 240,
-        },
-        '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root': {
-          px: actionButtonsRevealExpandedPx,
-          justifyContent: 'flex-start',
-          '& .MuiOutlinedInput-notchedOutline': {
-            borderColor: theme.palette.primary.main,
-            borderWidth: 1,
-          },
-        },
-        '&:hover, &:focus-within': {
-          width: actionButtonsRevealSearchExpandedWidth,
-        },
-        ...(normalizedSearchQuery && {
-          width: actionButtonsRevealSearchExpandedWidth,
+          width: actionButtonsRevealCollapsedWidth,
+          transition: actionButtonsRevealButtonTransition,
           '& .MuiOutlinedInput-root': {
+            height: '48px',
+            minHeight: '48px',
+            boxSizing: 'border-box',
+            borderRadius: actionButtonsBorderRadiusPx,
+            transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
+            px: actionButtonsRevealCollapsedPx,
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: actionButtonsOutlinedBorderColor,
+              borderWidth: 1,
+              borderRadius: actionButtonsBorderRadiusPx,
+            },
+          },
+          '& .MuiInputBase-input': {
+            py: 0,
+            display: 'inline-block',
+            overflow: 'hidden',
+            whiteSpace: 'nowrap',
+            maxWidth: 0,
+            opacity: 0,
+            transform: 'translateX(-8px)',
+            transition: actionButtonsRevealLabelHiddenTransition,
+          },
+          '& .MuiInputAdornment-root': {
+            height: '100%',
+            display: 'flex',
+            alignItems: 'center',
+          },
+          '& .MuiInputAdornment-positionStart': {
+            flex: 1,
+            mr: '0 !important',
+            ml: 3,
+            justifyContent: 'center',
+            transition: actionButtonsRevealStartIconTransition,
+          },
+          '& .MuiInputAdornment-positionEnd': {
+            ml: 0,
+            transition: actionButtonsRevealEndIconTransition,
+            opacity: 0,
+            maxWidth: 0,
+            overflow: 'hidden',
+          },
+          '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input, &[data-has-value="true"] .MuiInputBase-input': {
+            transition: actionButtonsRevealLabelShownTransition,
+            maxWidth: 240,
+            opacity: 1,
+            transform: 'translateX(0)',
+          },
+          '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart, &[data-has-value="true"] .MuiInputAdornment-positionStart': {
+            mr: 1,
+            pr: 1,
+            ml: 1,
+            flex: '0 0 auto',
+            justifyContent: 'flex-start',
+          },
+          '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd, &[data-has-value="true"] .MuiInputAdornment-positionEnd': {
+            ml: -3,
+            opacity: 1,
+            maxWidth: 240,
+          },
+          '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root, &[data-has-value="true"] .MuiOutlinedInput-root': {
             px: actionButtonsRevealExpandedPx,
             justifyContent: 'flex-start',
             '& .MuiOutlinedInput-notchedOutline': {
@@ -150,27 +144,12 @@ export function ExpandableSearchInput({
               borderWidth: 1,
             },
           },
-          '& .MuiInputBase-input': {
-            maxWidth: 240,
-            opacity: 1,
-            transform: 'translateX(0)',
+          '&:hover, &:focus-within, &[data-has-value="true"]': {
+            width: actionButtonsRevealSearchExpandedWidth,
           },
-          '& .MuiInputAdornment-positionStart': {
-            mr: 0.5,
-            pr: 0.5,
-            ml: 1,
-            flex: '0 0 auto',
-            justifyContent: 'flex-start',
-          },
-          '& .MuiInputAdornment-positionEnd': {
-            ml: 1,
-            opacity: 1,
-            maxWidth: 240,
-          },
-        }),
         },
-        ...(sx ? [sx] : []),
-      ] as SxProps<Theme>}
+        ...(sx ? (Array.isArray(sx) ? sx : [sx]) : []),
+      ]}
     />
   );
 }

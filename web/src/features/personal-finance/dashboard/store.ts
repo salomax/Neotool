@@ -8,6 +8,7 @@ const NET_WORTH_WIDGET_ID = 'net-worth-1';
 const CATEGORY_SUMMARY_WIDGET_ID = 'category-summary-1';
 const INVESTMENT_ALLOCATION_WIDGET_ID = 'investment-allocation-chart-1';
 const INVESTMENT_TREEMAP_WIDGET_ID = 'investment-treemap-1';
+const UPCOMING_RECURRING_WIDGET_ID = 'upcoming-recurring-1';
 const LEGACY_CATEGORY_DONUT_WIDGET_ID = 'category-donut-1';
 
 const DEFAULT_WIDGETS: WidgetInstance[] = [
@@ -17,6 +18,7 @@ const DEFAULT_WIDGETS: WidgetInstance[] = [
   { id: CATEGORY_SUMMARY_WIDGET_ID, type: 'category-summary', isVisible: true },
   { id: INVESTMENT_ALLOCATION_WIDGET_ID, type: 'investment-allocation-chart', isVisible: true },
   { id: INVESTMENT_TREEMAP_WIDGET_ID, type: 'investment-treemap', isVisible: true },
+  { id: UPCOMING_RECURRING_WIDGET_ID, type: 'upcoming-recurring', isVisible: true },
 ];
 
 const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
@@ -27,6 +29,7 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
     { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
     { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 12, w: 6, h: 4 },
   ],
   md: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
@@ -35,6 +38,7 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
     { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 6, h: 4 },
     { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 6, y: 8, w: 6, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 12, w: 6, h: 4 },
   ],
   sm: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
@@ -43,6 +47,7 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
     { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
     { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 16, w: 12, h: 4 },
   ],
   xs: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
@@ -51,6 +56,7 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
     { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
     { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 16, w: 12, h: 4 },
   ],
   xxs: [
     { i: NET_WORTH_WIDGET_ID, x: 0, y: 0, w: 8, h: 4 },
@@ -59,6 +65,7 @@ const DEFAULT_LAYOUTS: { [key: string]: Layout } = {
     { i: CATEGORY_SUMMARY_WIDGET_ID, x: 8, y: 4, w: 4, h: 4 },
     { i: INVESTMENT_ALLOCATION_WIDGET_ID, x: 0, y: 8, w: 12, h: 4 },
     { i: INVESTMENT_TREEMAP_WIDGET_ID, x: 0, y: 12, w: 12, h: 4 },
+    { i: UPCOMING_RECURRING_WIDGET_ID, x: 0, y: 16, w: 12, h: 4 },
   ],
 };
 
@@ -70,6 +77,7 @@ const SUPPORTED_WIDGET_TYPES = [
   'category-summary',
   'investment-allocation-chart',
   'investment-treemap',
+  'upcoming-recurring',
 ];
 const BREAKPOINT_KEYS = ['lg', 'md', 'sm', 'xs', 'xxs'] as const;
 
@@ -160,7 +168,8 @@ function ensureRequiredLayouts(layouts: any) {
     INVESTMENT_ALLOCATION_WIDGET_ID,
     'investment-allocation-chart-',
   );
-  return ensureWidgetLayouts(withAllocationChart, INVESTMENT_TREEMAP_WIDGET_ID, 'investment-treemap-');
+  const withTreemap = ensureWidgetLayouts(withAllocationChart, INVESTMENT_TREEMAP_WIDGET_ID, 'investment-treemap-');
+  return ensureWidgetLayouts(withTreemap, UPCOMING_RECURRING_WIDGET_ID, 'upcoming-recurring-');
 }
 
 function migrateInvestmentAllocationHalfWidth(layouts: any) {
@@ -256,6 +265,16 @@ function migratePersistedState(persistedState: any) {
     nextWidgets = [
       ...nextWidgets,
       { id: INVESTMENT_TREEMAP_WIDGET_ID, type: 'investment-treemap', isVisible: true },
+    ];
+  }
+
+  const hasUpcomingRecurring =
+    Array.isArray(nextWidgets) &&
+    nextWidgets.some((widget) => widget.type === 'upcoming-recurring');
+  if (Array.isArray(nextWidgets) && !hasUpcomingRecurring) {
+    nextWidgets = [
+      ...nextWidgets,
+      { id: UPCOMING_RECURRING_WIDGET_ID, type: 'upcoming-recurring', isVisible: true },
     ];
   }
 

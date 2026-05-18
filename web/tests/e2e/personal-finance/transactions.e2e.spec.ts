@@ -1441,7 +1441,7 @@ test.describe("Transactions — alternative paths", () => {
 // =============================================================================
 
 test.describe("Transactions — negative paths", () => {
-  test("TX-N-01: submit without description — save button is disabled", async ({
+  test("TX-N-01: submit without description — shows required error on description", async ({
     page,
     pfUser,
     bankAccount,
@@ -1459,10 +1459,12 @@ test.describe("Transactions — negative paths", () => {
     await form.fillAmount(100);
     // Do NOT fill description
 
-    await form.expectSaveDisabled();
+    await form.expectSaveEnabled();
+    await form.attemptSave();
+    await form.expectFieldRequiredError("description");
   });
 
-  test("TX-N-02: submit with amount = 0 — save button is disabled", async ({
+  test("TX-N-02: submit with amount = 0 — shows required error on amount", async ({
     page,
     pfUser,
     bankAccount,
@@ -1479,7 +1481,9 @@ test.describe("Transactions — negative paths", () => {
     await form.fillDescription(uniqueDesc("Valor Zero N02"));
     await form.fillAmount(0);
 
-    await form.expectSaveDisabled();
+    await form.expectSaveEnabled();
+    await form.attemptSave();
+    await form.expectFieldRequiredError("amount");
   });
 
   test("TX-N-03: submit with negative amount — save button disabled or field corrects to positive", async ({
@@ -1543,10 +1547,12 @@ test.describe("Transactions — negative paths", () => {
     await form.setDate(dateStr);
 
     await form.expectDateError(/10|anos|year/i);
-    await form.expectSaveDisabled();
+    await form.expectSaveEnabled();
+    await form.attemptSave();
+    await form.waitForOpen();
   });
 
-  test("TX-N-08: future date — error message shown, save disabled", async ({
+  test("TX-N-08: future date — error message shown, save does not submit", async ({
     page,
     pfUser,
     bankAccount,
@@ -1567,10 +1573,12 @@ test.describe("Transactions — negative paths", () => {
     await form.setDate(InlineTransactionForm.formatDateBr(futureIso));
 
     await form.expectDateError(/futur|future/i);
-    await form.expectSaveDisabled();
+    await form.expectSaveEnabled();
+    await form.attemptSave();
+    await form.waitForOpen();
   });
 
-  test("TX-N-05: submit without filling any field — save button starts disabled", async ({
+  test("TX-N-05: submit without filling any field — shows required errors after save click", async ({
     page,
     pfUser,
     bankAccount,
@@ -1585,7 +1593,10 @@ test.describe("Transactions — negative paths", () => {
     await form.waitForOpen();
 
     // Do not fill any field
-    await form.expectSaveDisabled();
+    await form.expectSaveEnabled();
+    await form.attemptSave();
+    await form.expectFieldRequiredError("description");
+    await form.expectFieldRequiredError("amount");
   });
 
   test("TX-N-06: update non-existent transaction via GraphQL — returns error", async ({

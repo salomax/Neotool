@@ -959,6 +959,39 @@ export type CreatePromptInput = {
   variablesSchema?: InputMaybe<Scalars['JSON']['input']>;
 };
 
+export type CreateRecurringPaymentInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  creditDebitType: CreditDebitType;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  firstDueDate: Scalars['Date']['input'];
+  frequency: RecurringFrequency;
+  intervalDays?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  name: Scalars['String']['input'];
+  notes?: InputMaybe<Scalars['String']['input']>;
+  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
+  type?: InputMaybe<TransactionType>;
+};
+
+export type CreateRecurringPaymentFromTransactionInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  firstDueDate?: InputMaybe<Scalars['Date']['input']>;
+  frequency?: InputMaybe<RecurringFrequency>;
+  intervalDays?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
+  type?: InputMaybe<TransactionType>;
+};
+
 export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
@@ -2242,6 +2275,7 @@ export type Mutation = {
   confirmCouponPayment: ConfirmCouponPaymentResult;
   /** Confirm fixed-income maturity: records MATURITY, closes the holding, completes the pending action, optional cash credit. */
   confirmHoldingMaturity: ConfirmHoldingMaturityResult;
+  confirmRecurringPayment: RecurringPayment;
   /**
    * Step 1: Create asset upload and get pre-signed URL.
    *
@@ -2301,6 +2335,8 @@ export type Mutation = {
   createProduct: Product;
   createProductVariant: ProductVariant;
   createPrompt: Prompt;
+  createRecurringPayment: RecurringPayment;
+  createRecurringPaymentFromTransaction: RecurringPayment;
   createRole: Role;
   /** Create a new manual transaction. */
   createTransaction: CreateTransactionPayload;
@@ -2326,6 +2362,7 @@ export type Mutation = {
   deleteInvestmentHolding: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
   deleteInvestmentTransaction: Scalars['Boolean']['output'];
+  deleteRecurringPayment: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   /** Soft-delete a manual transaction. */
   deleteTransaction: Scalars['Boolean']['output'];
@@ -2340,7 +2377,9 @@ export type Mutation = {
   generateCompletion: CompletionResponse;
   importNfce: ImportResult;
   importTransactionsFile: ImportResult;
+  linkTransactionToRecurring: Transaction;
   mapItemToVariant: ProductAlias;
+  pauseRecurringPayment: RecurringPayment;
   /**
    * Register a payment against a credit card bill. Creates a CREDIT TRANSFER on the card account.
    * Optionally creates a DEBIT TRANSFER on sourceAccountId (e.g. bank account). Marks bill as PAID when payment covers full amount.
@@ -2369,6 +2408,7 @@ export type Mutation = {
   resendVerificationEmail: ResendVerificationEmailPayload;
   resetPassword: ResetPasswordPayload;
   resolveImportDuplicate: TransactionImport;
+  resumeRecurringPayment: RecurringPayment;
   /**
    * Enables/disables a system transaction rule for the authenticated account.
    * This does not mutate the global system rule itself.
@@ -2398,6 +2438,7 @@ export type Mutation = {
   updateInvestmentTransaction: InvestmentTransaction;
   updateProduct: Product;
   updateProductVariant: ProductVariant;
+  updateRecurringPayment: RecurringPayment;
   updateRole: Role;
   /** Update an existing manual transaction. */
   updateTransaction: Transaction;
@@ -2495,6 +2536,12 @@ export type MutationConfirmHoldingMaturityArgs = {
 };
 
 
+export type MutationConfirmRecurringPaymentArgs = {
+  id: Scalars['ID']['input'];
+  paymentDate: Scalars['Date']['input'];
+};
+
+
 export type MutationCreateAssetUploadArgs = {
   input: CreateAssetUploadInput;
 };
@@ -2537,6 +2584,17 @@ export type MutationCreateProductVariantArgs = {
 
 export type MutationCreatePromptArgs = {
   input: CreatePromptInput;
+};
+
+
+export type MutationCreateRecurringPaymentArgs = {
+  input: CreateRecurringPaymentInput;
+};
+
+
+export type MutationCreateRecurringPaymentFromTransactionArgs = {
+  input: CreateRecurringPaymentFromTransactionInput;
+  transactionId: Scalars['ID']['input'];
 };
 
 
@@ -2586,6 +2644,11 @@ export type MutationDeleteInvestmentHoldingArgs = {
 
 
 export type MutationDeleteInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteRecurringPaymentArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -2641,9 +2704,20 @@ export type MutationImportTransactionsFileArgs = {
 };
 
 
+export type MutationLinkTransactionToRecurringArgs = {
+  recurringPaymentId: Scalars['ID']['input'];
+  transactionId: Scalars['ID']['input'];
+};
+
+
 export type MutationMapItemToVariantArgs = {
   rawDescription: Scalars['String']['input'];
   variantId: Scalars['ID']['input'];
+};
+
+
+export type MutationPauseRecurringPaymentArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2725,6 +2799,11 @@ export type MutationResetPasswordArgs = {
 
 export type MutationResolveImportDuplicateArgs = {
   input: ResolveImportDuplicateInput;
+};
+
+
+export type MutationResumeRecurringPaymentArgs = {
+  id: Scalars['ID']['input'];
 };
 
 
@@ -2830,6 +2909,12 @@ export type MutationUpdateProductArgs = {
 export type MutationUpdateProductVariantArgs = {
   id: Scalars['ID']['input'];
   input: UpdateProductVariantInput;
+};
+
+
+export type MutationUpdateRecurringPaymentArgs = {
+  id: Scalars['ID']['input'];
+  input: UpdateRecurringPaymentInput;
 };
 
 
@@ -2973,7 +3058,9 @@ export enum PendingActionType {
   BankAccountNegativeBalance = 'BANK_ACCOUNT_NEGATIVE_BALANCE',
   /** Coupon payment is due for a coupon-bearing fixed income holding. */
   CouponPaymentDue = 'COUPON_PAYMENT_DUE',
-  InvestmentMatured = 'INVESTMENT_MATURED'
+  InvestmentMatured = 'INVESTMENT_MATURED',
+  /** A recurring payment is approaching the due date. */
+  RecurringPaymentDue = 'RECURRING_PAYMENT_DUE'
 }
 
 export enum PerformancePeriod {
@@ -3391,6 +3478,9 @@ export type Query = {
   prompts: Array<Prompt>;
   purchaseItems: Array<PurchaseItem>;
   ratingIssuers: Array<RatingIssuer>;
+  recurringPayment: Maybe<RecurringPayment>;
+  /** Recurring payment templates for one account or all tenant accounts when omitted. */
+  recurringPayments: Array<RecurringPayment>;
   role: Maybe<Role>;
   roles: RoleConnection;
   searchBacenInstitutionsAutocomplete: BacenInstitutionAutocompleteConnection;
@@ -3399,6 +3489,7 @@ export type Query = {
   serviceUsage: UsageStats;
   similarTransactionEditPreview: SimilarTransactionEditPreview;
   spendingByNcm: Array<NcmSpending>;
+  suggestRecurringForTransaction: Maybe<RecurringPayment>;
   /** Top merchants by spend for the authenticated account. Defaults to top 10 for the current month. */
   topMerchants: Array<TopMerchant>;
   /** Single transaction by ID (scoped to the authenticated account). */
@@ -3868,6 +3959,16 @@ export type QueryPurchaseItemsArgs = {
 };
 
 
+export type QueryRecurringPaymentArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type QueryRecurringPaymentsArgs = {
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+};
+
+
 export type QueryRoleArgs = {
   id: Scalars['ID']['input'];
 };
@@ -3913,6 +4014,11 @@ export type QuerySpendingByNcmArgs = {
   depth?: InputMaybe<Scalars['Int']['input']>;
   endDate?: InputMaybe<Scalars['Date']['input']>;
   startDate?: InputMaybe<Scalars['Date']['input']>;
+};
+
+
+export type QuerySuggestRecurringForTransactionArgs = {
+  transactionId: Scalars['ID']['input'];
 };
 
 
@@ -4090,6 +4196,39 @@ export type RecordInvestmentTransactionInput = {
   typeAdditionalInfo?: InputMaybe<Scalars['String']['input']>;
   unitPrice?: InputMaybe<Scalars['Float']['input']>;
 };
+
+export enum RecurringFrequency {
+  Custom = 'CUSTOM',
+  Monthly = 'MONTHLY',
+  Weekly = 'WEEKLY',
+  Yearly = 'YEARLY'
+}
+
+export type RecurringPayment = {
+  __typename: 'RecurringPayment';
+  category: Maybe<TransactionCategory>;
+  creditDebitType: CreditDebitType;
+  currencyCode: Scalars['String']['output'];
+  dayOfMonth: Maybe<Scalars['Int']['output']>;
+  expectedAmount: Maybe<Scalars['Float']['output']>;
+  financialAccountId: Maybe<Scalars['ID']['output']>;
+  frequency: RecurringFrequency;
+  id: Scalars['ID']['output'];
+  intervalDays: Maybe<Scalars['Int']['output']>;
+  lastPaidDate: Maybe<Scalars['Date']['output']>;
+  merchant: Maybe<Merchant>;
+  name: Scalars['String']['output'];
+  nextDueDate: Scalars['Date']['output'];
+  notes: Maybe<Scalars['String']['output']>;
+  remindDaysBefore: Scalars['Int']['output'];
+  status: RecurringPaymentStatus;
+  type: Maybe<TransactionType>;
+};
+
+export enum RecurringPaymentStatus {
+  Active = 'ACTIVE',
+  Paused = 'PAUSED'
+}
 
 export type RefreshAccessTokenInput = {
   refreshToken: Scalars['String']['input'];
@@ -4404,6 +4543,8 @@ export type Transaction = {
   notes: Maybe<Scalars['String']['output']>;
   payeeMcc: Maybe<Scalars['Int']['output']>;
   paymentReason: Maybe<Scalars['String']['output']>;
+  /** Optional link to a recurring payment template. */
+  recurringPaymentId: Maybe<Scalars['ID']['output']>;
   source: TransactionSource;
   status: TransactionStatus;
   tags: Array<Scalars['String']['output']>;
@@ -4572,6 +4713,7 @@ export type TransactionTagOption = {
  */
 export enum TransactionType {
   BalanceAdjustment = 'BALANCE_ADJUSTMENT',
+  BillPayment = 'BILL_PAYMENT',
   Boleto = 'BOLETO',
   Card = 'CARD',
   Cashback = 'CASHBACK',
@@ -4747,6 +4889,21 @@ export type UpdateProductVariantInput = {
   productId?: InputMaybe<Scalars['ID']['input']>;
   quantityUnit?: InputMaybe<Scalars['String']['input']>;
   quantityValue?: InputMaybe<Scalars['Float']['input']>;
+};
+
+export type UpdateRecurringPaymentInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  creditDebitType?: InputMaybe<CreditDebitType>;
+  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  frequency?: InputMaybe<RecurringFrequency>;
+  intervalDays?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  nextDueDate?: InputMaybe<Scalars['Date']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
 };
 
 export type UpdateRoleInput = {

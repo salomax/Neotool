@@ -745,6 +745,7 @@ class TransactionResolver(
             paymentReason = paymentReason,
             transferPeerTransactionId = transferPeerTransactionId,
             investmentTransactionId = investmentTransactionId,
+            recurringPaymentId = recurringPaymentId,
             installmentNumber = installmentNumber,
             totalInstallments = totalInstallments,
             billId = billId,

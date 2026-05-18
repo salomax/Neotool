@@ -109,6 +109,7 @@ data class TransactionDTO(
     // Transfer
     val transferPeerTransactionId: UUID?,
     val investmentTransactionId: UUID?,
+    val recurringPaymentId: UUID?,
     // Installments
     val installmentNumber: Int?,
     val totalInstallments: Int?,

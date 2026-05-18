@@ -42,7 +42,6 @@ export const CategorySummarySection = memo(function CategorySummarySection({
 
   return (
     <Box>
-      <Divider sx={{ mb: 3 }} />
       <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
         <Label sx={{ mb: 0 }}>{title}</Label>
         {canSeeAll && (

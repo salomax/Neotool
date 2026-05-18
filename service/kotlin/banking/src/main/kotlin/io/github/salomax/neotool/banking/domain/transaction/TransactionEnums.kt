@@ -16,6 +16,7 @@ enum class TransactionType {
     DOC,
     BOLETO,
     TRANSFER,
+    BILL_PAYMENT,
 
     // Income types
     SALARY,

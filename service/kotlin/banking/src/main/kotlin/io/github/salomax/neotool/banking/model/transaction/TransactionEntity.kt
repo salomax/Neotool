@@ -98,6 +98,8 @@ open class TransactionEntity(
     open var transferPeerTransactionId: UUID? = null,
     @Column(name = "investment_transaction_id")
     open var investmentTransactionId: UUID? = null,
+    @Column(name = "recurring_payment_id")
+    open var recurringPaymentId: UUID? = null,
     // Credit card
     @Column(name = "bill_id")
     open var billId: UUID? = null,

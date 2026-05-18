@@ -6,13 +6,10 @@ import {
   alpha,
   Box,
   Button,
-  IconButton,
-  InputAdornment,
   ListItemIcon,
   Menu,
   MenuItem,
   Stack,
-  TextField,
   Typography,
   useMediaQuery,
   useTheme,
@@ -23,12 +20,11 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import CreditCardIcon from '@mui/icons-material/CreditCard';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import QrCode2Icon from '@mui/icons-material/QrCode2';
-import SearchIcon from '@mui/icons-material/Search';
-import ClearIcon from '@mui/icons-material/Clear';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import Link from 'next/link';
 import { UploadIcon } from '@/shared/ui/mui-imports';
+import { ExpandableSearchInput } from '@/shared/components/ui/forms/ExpandableSearchInput';
 import { extractErrorMessage } from '@/shared/utils/error';
 import { personalFinanceTranslations } from '../i18n';
 import { useTranslation } from '@/shared/i18n';
@@ -94,21 +90,16 @@ export function FinanceTransactionsHeaderBar({
   const theme = useTheme();
   const actionButtonsRevealEnabled = useMediaQuery('(min-width:750px)');
   const [importMenuAnchor, setImportMenuAnchor] = useState<null | HTMLElement>(null);
-  const normalizedSearchQuery = searchQuery.trim();
 
   const actionButtonsRevealCollapsedWidth = 90;
   const actionButtonsRevealExpandedWidth = 168;
-  const actionButtonsRevealSearchExpandedWidth = 320;
   const actionButtonsRevealCollapsedPx = 1;
   const actionButtonsRevealExpandedPx = 0.75;
-  const actionButtonsBorderRadiusPx = `${(theme as any).custom?.radius?.button ?? theme.shape.borderRadius}px`;
-  const actionButtonsOutlinedBorderColor = alpha(theme.palette.primary.main, 0.5);
   const actionButtonsRevealWidthDurationMs = 180;
   const actionButtonsRevealLabelDurationMs = 260;
   const actionButtonsRevealLabelOpacityDurationMs = 180;
   const actionButtonsRevealLabelDelayMs = 160;
   const actionButtonsRevealButtonTransition = `width ${actionButtonsRevealWidthDurationMs}ms ease, padding ${actionButtonsRevealWidthDurationMs}ms ease`;
-  const actionButtonsRevealBgTransition = `background-color ${actionButtonsRevealWidthDurationMs}ms ease`;
   const actionButtonsRevealStartIconTransition = `margin-right ${actionButtonsRevealWidthDurationMs}ms ease`;
   const actionButtonsRevealEndIconTransition = `margin-left ${actionButtonsRevealWidthDurationMs}ms ease`;
   const actionButtonsRevealLabelHiddenTransition = `max-width ${actionButtonsRevealLabelDurationMs}ms ease 0ms, opacity ${actionButtonsRevealLabelOpacityDurationMs}ms ease 0ms, transform ${actionButtonsRevealLabelDurationMs}ms ease 0ms`;
@@ -295,107 +286,11 @@ export function FinanceTransactionsHeaderBar({
           )}
         </Box>
         <Box sx={{ flex: '0 0 auto' }}>
-          <TextField
-            data-has-value={!!normalizedSearchQuery}
+          <ExpandableSearchInput
+            searchQuery={searchQuery}
+            onSearchQueryChange={onSearchQueryChange}
             placeholder={t('financeTransactions.transactionRules.searchPlaceholder')}
-            value={searchQuery}
-            onChange={(event) => onSearchQueryChange(event.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" color="primary" />
-                </InputAdornment>
-              ),
-              endAdornment: normalizedSearchQuery ? (
-                <InputAdornment position="end">
-                  <IconButton
-                    size="small"
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={() => onSearchQueryChange('')}
-                    aria-label={t('financeTransactions.transactionRules.actions.clearSearchAriaLabel')}
-                  >
-                    <ClearIcon fontSize="small" />
-                  </IconButton>
-                </InputAdornment>
-              ) : undefined,
-            }}
-            sx={{
-              width: actionButtonsRevealCollapsedWidth,
-              transition: actionButtonsRevealButtonTransition,
-              '& .MuiOutlinedInput-root': {
-                height: '48px',
-                minHeight: '48px',
-                boxSizing: 'border-box',
-                borderRadius: actionButtonsBorderRadiusPx,
-                transition: `${actionButtonsRevealButtonTransition}, ${actionButtonsRevealBgTransition}`,
-                px: actionButtonsRevealCollapsedPx,
-                justifyContent: 'center',
-                backgroundColor: 'transparent',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: actionButtonsOutlinedBorderColor,
-                  borderWidth: 1,
-                  borderRadius: actionButtonsBorderRadiusPx,
-                },
-              },
-              '& .MuiInputBase-input': {
-                py: 0,
-                display: 'inline-block',
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                maxWidth: 0,
-                opacity: 0,
-                transform: 'translateX(-8px)',
-                transition: actionButtonsRevealLabelHiddenTransition,
-              },
-              '& .MuiInputAdornment-root': {
-                height: '100%',
-                display: 'flex',
-                alignItems: 'center',
-              },
-              '& .MuiInputAdornment-positionStart': {
-                flex: 1,
-                mr: '0 !important',
-                ml: 3,
-                justifyContent: 'center',
-                transition: actionButtonsRevealStartIconTransition,
-              },
-              '& .MuiInputAdornment-positionEnd': {
-                ml: 0,
-                transition: actionButtonsRevealEndIconTransition,
-                opacity: 0,
-                maxWidth: 0,
-                overflow: 'hidden',
-              },
-              '&:hover .MuiInputBase-input, &:focus-within .MuiInputBase-input, &[data-has-value="true"] .MuiInputBase-input': {
-                transition: actionButtonsRevealLabelShownTransition,
-                maxWidth: 240,
-                opacity: 1,
-                transform: 'translateX(0)',
-              },
-              '&:hover .MuiInputAdornment-positionStart, &:focus-within .MuiInputAdornment-positionStart, &[data-has-value="true"] .MuiInputAdornment-positionStart': {
-                mr: 1,
-                pr: 1,
-                ml: 1,
-                flex: '0 0 auto',
-                justifyContent: 'flex-start',
-              },
-              '&:hover .MuiInputAdornment-positionEnd, &:focus-within .MuiInputAdornment-positionEnd, &[data-has-value="true"] .MuiInputAdornment-positionEnd': {
-                ml: -3,
-                opacity: 1,
-                maxWidth: 240,
-              },
-              '&:hover .MuiOutlinedInput-root, &:focus-within .MuiOutlinedInput-root, &[data-has-value="true"] .MuiOutlinedInput-root': {
-                px: actionButtonsRevealExpandedPx,
-                justifyContent: 'flex-start',
-                '& .MuiOutlinedInput-notchedOutline': {
-                  borderColor: theme.palette.primary.main,
-                  borderWidth: 1,
-                },
-              },
-              '&:hover, &:focus-within, &[data-has-value="true"]': {
-                width: actionButtonsRevealSearchExpandedWidth,
-              },
-            }}
+            ariaClearLabel={t('financeTransactions.transactionRules.actions.clearSearchAriaLabel')}
           />
         </Box>
         {actionButtonsRevealEnabled ? (

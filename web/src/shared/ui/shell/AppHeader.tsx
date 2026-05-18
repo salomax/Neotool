@@ -18,6 +18,7 @@ import { useTranslation } from "react-i18next";
 import { useFeatureFlagEnabled } from "@/shared/hooks/useFeatureFlag";
 import { Logo } from "@/shared/ui/brand/Logo";
 import { HeaderPendingActionsBadge } from "@/shared/ui/shell/HeaderPendingActionsBadge";
+import { PendingActionsDrawer } from "@/shared/ui/shell/PendingActionsDrawer";
 import { UserProfileMenu } from "@/shared/ui/shell/UserProfileMenu";
 import type { RouteConfig } from "@/shared/components/ui/navigation/Breadcrumb";
 
@@ -56,6 +57,7 @@ export function AppHeader() {
       { path: "/investments", label: t("routes.investments") },
       { path: "/personal-finance", label: t("routes.personalFinance") },
       { path: "/personal-finance/investments", label: t("routes.investments") },
+      { path: "/personal-finance/recurring-payments", label: t("routes.recurringPayments") },
       { path: "/profile", label: t("routes.profile") },
       { path: "/settings", label: t("routes.settings") },
     ],
@@ -85,140 +87,141 @@ export function AppHeader() {
   }, []);
 
   return (
-    <Box
-      component="header"
-      sx={{
-        position: "fixed",
-        top: 0,
-        left: { xs: 0, md: "84px" }, // Account for sidebar width only on desktop
-        right: 0,
-        zIndex: (t) => t.zIndex.appBar,
-        bgcolor: "background.paper",
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        backdropFilter: "blur(6px)",
-        display: { xs: "none", md: "flex" }, // Hide on mobile as requested
-        flexDirection: "column",
-        justifyContent: "center",
-        height: contentHeight ? `${contentHeight}px` : "auto",
-        minHeight: APP_HEADER_MIN_HEIGHT_PX,
-        overflow: "hidden",
-        transition: prefersReducedMotion
-          ? "none"
-          : theme.transitions.create("height", {
-              duration: theme.transitions.duration.shorter,
-              easing: theme.transitions.easing.easeInOut,
-            }),
-        willChange: prefersReducedMotion ? undefined : "height",
-      }}
-    >
-      <Box ref={contentRef} sx={{ width: "100%" }}>
-        <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: { xs: 1, md: 2 },
-            }}
-          >
-            {/* Left Section: Logo (Mobile) + Page Title */}
+    <>
+      <Box
+        component="header"
+        sx={{
+          position: "fixed",
+          top: 0,
+          left: { xs: 0, md: "84px" }, // Account for sidebar width only on desktop
+          right: 0,
+          zIndex: (t) => t.zIndex.appBar,
+          bgcolor: "background.paper",
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          backdropFilter: "blur(6px)",
+          display: { xs: "none", md: "flex" }, // Hide on mobile as requested
+          flexDirection: "column",
+          justifyContent: "center",
+          height: contentHeight ? `${contentHeight}px` : "auto",
+          minHeight: APP_HEADER_MIN_HEIGHT_PX,
+          overflow: "hidden",
+          transition: prefersReducedMotion
+            ? "none"
+            : theme.transitions.create("height", {
+                duration: theme.transitions.duration.shorter,
+                easing: theme.transitions.easing.easeInOut,
+              }),
+          willChange: prefersReducedMotion ? undefined : "height",
+        }}
+      >
+        <Box ref={contentRef} sx={{ width: "100%" }}>
+          <Container maxWidth={false} sx={{ py: { xs: 1, md: 1.5 } }}>
             <Box
               sx={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1.5,
-                flex: "0 1 auto",
-                minWidth: 0,
+                justifyContent: "space-between",
+                gap: { xs: 1, md: 2 },
               }}
             >
-              {/* Mobile Logo */}
-              <Box sx={{ display: { xs: "block", md: "none" } }}>
-                <Logo size="small" />
-              </Box>
-
-              {/* Page Title and Breadcrumb */}
-              {pageTitle && (
-                <Box
-                  sx={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 0.5,
-                    minWidth: 0, // Allow text truncation
-                  }}
-                >
-                <Typography
-                  variant={isMobile ? "h6" : "h4"}
-                  component="h1"
-                  sx={{
-                    fontWeight: 600,
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {pageTitle}
-                </Typography>
-                <Box sx={{ display: { xs: "none", md: "block" } }}>
-                  <Breadcrumb
-                    homeLabel={t("routes.home")}
-                    routeConfig={breadcrumbRouteConfig}
-                  />
-                </Box>
-              </Box>
-            )}
-          </Box>
-
-          {/* Actions - Right aligned */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: { xs: 1, md: 1 },
-              flex: "0 0 auto", // Prevent actions from shrinking
-            }}
-          >
-            <HeaderPendingActionsBadge />
-            {isAssistantEnabled && (
-              <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
-                <Tooltip title={t("appHeader.aiAssistant")}>
-                  <IconButton
-                    aria-label="Open AI assistant"
-                    onClick={handleChatIconClick}
-                  >
-                    <AutoAwesomeIcon />
-                  </IconButton>
-                </Tooltip>
-              </Box>
-            )}
-            {isAuthenticated ? (
-              <UserProfileMenu
-                user={user}
-                onSignOut={signOut}
-                onOpenProfile={() => router.push("/profile")}
-                t={t}
-              />
-            ) : (
-              <Button
-                variant="contained"
-                size="medium"
-                onClick={handleSignIn}
-                aria-label={t("appHeader.signIn")}
-                data-testid="header-signin-button"
-                name="header-signin"
-                sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1.5,
+                  flex: "0 1 auto",
+                  minWidth: 0,
+                }}
               >
-                {t("appHeader.signIn")}
-              </Button>
-            )}
-          </Box>
-          </Box>
-        </Container>
+                {/* Mobile Logo */}
+                <Box sx={{ display: { xs: "block", md: "none" } }}>
+                  <Logo size="small" />
+                </Box>
+
+                {/* Page Title and Breadcrumb */}
+                {pageTitle && (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 0.5,
+                      minWidth: 0, // Allow text truncation
+                    }}
+                  >
+                    <Typography
+                      variant={isMobile ? "h6" : "h4"}
+                      component="h1"
+                      sx={{
+                        fontWeight: 600,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {pageTitle}
+                    </Typography>
+                    <Box sx={{ display: { xs: "none", md: "block" } }}>
+                      <Breadcrumb
+                        homeLabel={t("routes.home")}
+                        routeConfig={breadcrumbRouteConfig}
+                      />
+                    </Box>
+                  </Box>
+                )}
+              </Box>
+              {/* Actions - Right aligned */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "flex-end",
+                  gap: { xs: 1, md: 1 },
+                  flex: "0 0 auto", // Prevent actions from shrinking
+                }}
+              >
+                <HeaderPendingActionsBadge />
+                {isAssistantEnabled && (
+                  <Box sx={{ display: { xs: "none", md: "inline-flex" } }}>
+                    <Tooltip title={t("appHeader.aiAssistant")}>
+                      <IconButton
+                        aria-label="Open AI assistant"
+                        onClick={handleChatIconClick}
+                      >
+                        <AutoAwesomeIcon />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                )}
+                {isAuthenticated ? (
+                  <UserProfileMenu
+                    user={user}
+                    onSignOut={signOut}
+                    onOpenProfile={() => router.push("/profile")}
+                    t={t}
+                  />
+                ) : (
+                  <Button
+                    variant="contained"
+                    size="medium"
+                    onClick={handleSignIn}
+                    aria-label={t("appHeader.signIn")}
+                    data-testid="header-signin-button"
+                    name="header-signin"
+                    sx={{ height: (theme) => theme.spacing(5.5), px: 2.5 }}
+                  >
+                    {t("appHeader.signIn")}
+                  </Button>
+                )}
+              </Box>
+            </Box>
+          </Container>
+        </Box>
+        {isAssistantEnabled && (
+          <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
+        )}
       </Box>
-      {isAssistantEnabled && (
-        <ChatDrawer open={chatDrawerOpen} onClose={handleChatDrawerClose} />
-      )}
-    </Box>
+      <PendingActionsDrawer />
+    </>
   );
 }

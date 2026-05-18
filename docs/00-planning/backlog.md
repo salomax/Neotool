@@ -62,6 +62,14 @@
 
 ### P1
 
+#### [BK-12] BILL_PAYMENT transaction type (Backend + Frontend)
+- **Status:** `todo`
+- **Agent:** Codex (backend) + TRAE (frontend)
+- **Esforço:** S
+- **Spec:** `docs/03-features/personal-finance/backlogs/bill-payment-transaction-type.md`
+- **Contexto:** Evitar duplicação de despesas quando o usuário importa o extrato da conta corrente junto com a fatura do cartão. O pagamento da fatura (DEBIT no extrato) deve ser excluído dos totais de receita/despesa, pois os itens individuais já estão na fatura.
+- **Dependências:** nenhuma
+
 #### [BK-6] Phase 4 v3 — Consolidated view (Frontend)
 - **Status:** `todo`
 - **Agent:** TRAE

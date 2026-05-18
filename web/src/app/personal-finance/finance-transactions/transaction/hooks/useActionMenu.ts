@@ -15,6 +15,7 @@ import { personalFinanceTranslations } from '../../../i18n';
 import type { ApolloClient } from '@apollo/client';
 import { TRANSACTION_CATEGORIES } from '@/lib/graphql/operations/banking/queries';
 import type { TransactionCategory } from '@/lib/graphql/types/__generated__/graphql';
+import { useRecurringSuggestion } from './useRecurringSuggestion';
 
 const OWN_ACCOUNTS_TRANSFER_SUBCATEGORY_NAME = 'Entre contas próprias';
 
@@ -72,6 +73,7 @@ export function useActionMenu({ transactions, onSuccess, beginBusy, endBusy }: U
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
   const [menuTransaction, setMenuTransaction] = useState<Transaction | null>(null);
   const [markingTransferTransactionId, setMarkingTransferTransactionId] = useState<string | null>(null);
+  const [markingBillPaymentTransactionId, setMarkingBillPaymentTransactionId] = useState<string | null>(null);
 
   const open = useCallback((el: HTMLElement, tx: Transaction) => {
     setAnchorEl(el);
@@ -82,6 +84,15 @@ export function useActionMenu({ transactions, onSuccess, beginBusy, endBusy }: U
     setAnchorEl(null);
     setMenuTransaction(null);
   }, []);
+
+  const recurringSuggestion = useRecurringSuggestion({
+    menuTransaction,
+    onSuccess,
+    beginBusy,
+    endBusy,
+    closeMenu: close,
+    unknownErrorMessage: t('errors.unknownError'),
+  });
 
   // Close if the menu's transaction has been removed from the list
   useEffect(() => {
@@ -127,12 +138,46 @@ export function useActionMenu({ transactions, onSuccess, beginBusy, endBusy }: U
     }
   }, [menuTransaction, apolloClient, updateTransaction, beginBusy, endBusy, close, onSuccess, t, toast]);
 
+  const handleMarkAsBillPayment = useCallback(async () => {
+    const tx = menuTransaction;
+    if (!tx) return;
+    if (tx.type === TransactionType.BillPayment) return;
+
+    setMarkingBillPaymentTransactionId(tx.id);
+    try {
+      beginBusy();
+      await updateTransaction({
+        variables: {
+          id: tx.id,
+          input: {
+            type: TransactionType.BillPayment,
+            categoryId: null,
+          },
+        },
+      });
+      toast.success(t('financeTransactions.transactionTable.rowActions.markAsBillPaymentSuccess'));
+      onSuccess?.();
+      close();
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, t('financeTransactions.transactionTable.rowActions.markAsBillPaymentError')),
+      );
+    } finally {
+      setMarkingBillPaymentTransactionId(null);
+      endBusy();
+    }
+  }, [menuTransaction, updateTransaction, beginBusy, endBusy, close, onSuccess, t, toast]);
+
   return {
     anchorEl,
     menuTransaction,
     markingTransferTransactionId,
+    markingBillPaymentTransactionId,
+    recurringPaymentSuggestion: recurringSuggestion.recurringPaymentSuggestion,
     open,
     close,
     handleMarkAsInternalTransfer,
+    handleMarkAsBillPayment,
+    handleLinkRecurringPayment: recurringSuggestion.handleLinkRecurringPayment,
   };
 }

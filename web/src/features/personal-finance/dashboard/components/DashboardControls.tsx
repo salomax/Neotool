@@ -18,7 +18,9 @@ import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '@/app/personal-finance/i18n';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
+import RepeatIcon from '@mui/icons-material/Repeat';
 import { QuickActionCard } from './QuickActionCard';
+import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 
 interface DashboardControlsProps {
 }
@@ -28,6 +30,7 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
 
   const timeRangeLabelByOption = React.useMemo<Record<DateRangeOption, string>>(
     () => ({
@@ -74,12 +77,23 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
               isMobile={isMobile}
             />
 
+            {pricingEnabled && (
+              <QuickActionCard
+                href="/personal-finance/prices-consumption"
+                title={t('dashboard.actions.pricesConsumption.title')}
+                description={t('dashboard.actions.pricesConsumption.description')}
+                accentColor={theme.palette.info.main}
+                icon={<ShoppingCartOutlinedIcon sx={{ fontSize: 128 }} />}
+                isMobile={isMobile}
+              />
+            )}
+
             <QuickActionCard
-              href="/personal-finance/prices-consumption"
-              title={t('dashboard.actions.pricesConsumption.title')}
-              description={t('dashboard.actions.pricesConsumption.description')}
-              accentColor={theme.palette.info.main}
-              icon={<ShoppingCartOutlinedIcon sx={{ fontSize: 128 }} />}
+              href="/personal-finance/recurring-payments"
+              title={t('dashboard.actions.recurringPayments.title')}
+              description={t('dashboard.actions.recurringPayments.description')}
+              accentColor={theme.palette.warning.main}
+              icon={<RepeatIcon sx={{ fontSize: 128 }} />}
               isMobile={isMobile}
             />
           </Stack>

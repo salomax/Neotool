@@ -9,6 +9,8 @@ interface AccountSelectProps {
   accounts: FinancialAccount[];
   isReadonly: boolean;
   onChange: (id: string) => void;
+  error?: boolean;
+  helperText?: string;
   inputBottomBorderSx: object;
 }
 
@@ -17,6 +19,8 @@ export const AccountSelect = memo(function AccountSelect({
   accounts,
   isReadonly,
   onChange,
+  error,
+  helperText,
   inputBottomBorderSx,
 }: AccountSelectProps) {
   const theme = useTheme();
@@ -29,16 +33,12 @@ export const AccountSelect = memo(function AccountSelect({
       variant="standard"
       fullWidth
       disabled={isReadonly}
+      error={error}
+      helperText={helperText}
       InputProps={{
         disableUnderline: true,
         readOnly: isReadonly,
-        sx: {
-          borderBottom: `1px ${value ? 'solid' : 'dashed'} ${theme.palette.divider}`,
-          transition: 'border-color 0.2s, border-bottom-width 0.2s',
-          '&.Mui-focused': {
-            borderBottom: `2px solid ${theme.palette.primary.main}`,
-          },
-        },
+        sx: inputBottomBorderSx,
       }}
       sx={{ minWidth: 120 }}
     >

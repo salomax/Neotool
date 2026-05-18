@@ -87,6 +87,7 @@ object TransactionMapper {
             paymentReason = entity.paymentReason,
             transferPeerTransactionId = entity.transferPeerTransactionId,
             investmentTransactionId = entity.investmentTransactionId,
+            recurringPaymentId = entity.recurringPaymentId,
             billId = entity.billId,
             installmentNumber = entity.installmentNumber?.toInt(),
             totalInstallments = entity.totalInstallments?.toInt(),
@@ -134,6 +135,7 @@ object TransactionMapper {
             paymentReason = domain.paymentReason,
             transferPeerTransactionId = domain.transferPeerTransactionId,
             investmentTransactionId = domain.investmentTransactionId,
+            recurringPaymentId = domain.recurringPaymentId,
             billId = domain.billId,
             installmentNumber = domain.installmentNumber?.toShort(),
             totalInstallments = domain.totalInstallments?.toShort(),
@@ -178,6 +180,7 @@ object TransactionMapper {
         entity.paymentReason = domain.paymentReason
         entity.transferPeerTransactionId = domain.transferPeerTransactionId
         entity.investmentTransactionId = domain.investmentTransactionId
+        entity.recurringPaymentId = domain.recurringPaymentId
         entity.installmentNumber = domain.installmentNumber?.toShort()
         entity.totalInstallments = domain.totalInstallments?.toShort()
         entity.billId = domain.billId
