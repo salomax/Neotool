@@ -976,6 +976,22 @@ export type CreateRecurringPaymentInput = {
   type?: InputMaybe<TransactionType>;
 };
 
+export type CreateRecurringPaymentFromTransactionInput = {
+  categoryId?: InputMaybe<Scalars['ID']['input']>;
+  currencyCode?: InputMaybe<Scalars['String']['input']>;
+  dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
+  expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
+  firstDueDate?: InputMaybe<Scalars['Date']['input']>;
+  frequency?: InputMaybe<RecurringFrequency>;
+  intervalDays?: InputMaybe<Scalars['Int']['input']>;
+  merchantId?: InputMaybe<Scalars['ID']['input']>;
+  name?: InputMaybe<Scalars['String']['input']>;
+  notes?: InputMaybe<Scalars['String']['input']>;
+  remindDaysBefore?: InputMaybe<Scalars['Int']['input']>;
+  type?: InputMaybe<TransactionType>;
+};
+
 export type CreateRoleInput = {
   name: Scalars['String']['input'];
 };
@@ -2227,7 +2243,6 @@ export type Mutation = {
   /** Assign the same category to multiple transactions (e.g. post-import). Sets categorySource to MANUAL. */
   bulkCategorize: BulkOperationResult;
   cancelImportReview: Scalars['Boolean']['output'];
-  cancelRecurringPayment: RecurringPayment;
   chat: ChatResponse;
   clearConversation: Scalars['Boolean']['output'];
   /**
@@ -2347,6 +2362,7 @@ export type Mutation = {
   deleteInvestmentHolding: Scalars['Boolean']['output'];
   /** Soft-deletes a MANUAL investment transaction. Synced transactions cannot be deleted. */
   deleteInvestmentTransaction: Scalars['Boolean']['output'];
+  deleteRecurringPayment: Scalars['Boolean']['output'];
   deleteRole: Scalars['Boolean']['output'];
   /** Soft-delete a manual transaction. */
   deleteTransaction: Scalars['Boolean']['output'];
@@ -2490,11 +2506,6 @@ export type MutationCancelImportReviewArgs = {
 };
 
 
-export type MutationCancelRecurringPaymentArgs = {
-  id: Scalars['ID']['input'];
-};
-
-
 export type MutationChatArgs = {
   input: ChatInput;
 };
@@ -2582,7 +2593,7 @@ export type MutationCreateRecurringPaymentArgs = {
 
 
 export type MutationCreateRecurringPaymentFromTransactionArgs = {
-  input: CreateRecurringPaymentInput;
+  input: CreateRecurringPaymentFromTransactionInput;
   transactionId: Scalars['ID']['input'];
 };
 
@@ -2633,6 +2644,11 @@ export type MutationDeleteInvestmentHoldingArgs = {
 
 
 export type MutationDeleteInvestmentTransactionArgs = {
+  id: Scalars['ID']['input'];
+};
+
+
+export type MutationDeleteRecurringPaymentArgs = {
   id: Scalars['ID']['input'];
 };
 
@@ -4211,7 +4227,6 @@ export type RecurringPayment = {
 
 export enum RecurringPaymentStatus {
   Active = 'ACTIVE',
-  Cancelled = 'CANCELLED',
   Paused = 'PAUSED'
 }
 
@@ -4878,8 +4893,10 @@ export type UpdateProductVariantInput = {
 
 export type UpdateRecurringPaymentInput = {
   categoryId?: InputMaybe<Scalars['ID']['input']>;
+  creditDebitType?: InputMaybe<CreditDebitType>;
   dayOfMonth?: InputMaybe<Scalars['Int']['input']>;
   expectedAmount?: InputMaybe<Scalars['Float']['input']>;
+  financialAccountId?: InputMaybe<Scalars['ID']['input']>;
   frequency?: InputMaybe<RecurringFrequency>;
   intervalDays?: InputMaybe<Scalars['Int']['input']>;
   merchantId?: InputMaybe<Scalars['ID']['input']>;

@@ -17,7 +17,7 @@ interface RecurringPaymentRepository {
         accountId: UUID,
     ): List<RecurringPayment>
 
-    fun findActiveWithDueBefore(cutoffDate: LocalDate): List<RecurringPayment>
+    fun findActiveDueForReminder(referenceDate: LocalDate): List<RecurringPayment>
 
     fun findAllActive(): List<RecurringPayment>
 

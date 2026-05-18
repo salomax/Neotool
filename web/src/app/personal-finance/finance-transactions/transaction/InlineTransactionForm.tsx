@@ -20,6 +20,7 @@ import { FormFooter } from './FormFooter';
 import { AccountSelect } from './AccountSelect';
 import { useTransactionFormState } from './hooks/useTransactionFormState';
 import { useTransactionSave } from './hooks/useTransactionSave';
+import { inputBorderSx } from './inputBorderSx';
 import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
 
 interface InlineTransactionFormProps {
@@ -64,9 +65,11 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
   }, [form]);
 
   const save = useTransactionSave({
+    isOpen,
     amount: form.amount,
     date: form.date,
     accountId: form.accountId,
+    requiresAccountSelection: !selectedAccountId,
     isBalanceAdjustmentEdit: form.isBalanceAdjustmentEdit,
     description: form.description,
     isDateInvalidForSave: form.isDateInvalidForSave,
@@ -144,7 +147,10 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                 </Box>
 
                 {/* 2. Description */}
-                <Box sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                <Box
+                  sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}
+                  data-field-error={save.fieldErrors.description ? 'description' : undefined}
+                >
                   <TextField
                     value={form.description}
                     onChange={(e) => form.setDescription(e.target.value)}
@@ -152,12 +158,21 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                     variant="standard"
                     fullWidth
                     required={!form.isBalanceAdjustmentEdit}
+                    error={save.fieldErrors.description}
+                    helperText={
+                      save.fieldErrors.description
+                        ? t('financeTransactions.validation.required')
+                        : undefined
+                    }
                     autoFocus={!form.isBalanceAdjustmentEdit}
                     multiline
                     inputProps={{ 'data-testid': 'tx-description-input', readOnly: form.isBalanceAdjustmentEdit }}
                     minRows={1}
                     maxRows={4}
-                    InputProps={{ disableUnderline: true, sx: form.inputBottomBorderSx }}
+                    InputProps={{
+                      disableUnderline: true,
+                      sx: inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.description),
+                    }}
                     sx={{
                       '& .MuiInputBase-input': { fontSize: '0.875rem' },
                       '& .MuiInputBase-inputMultiline': { padding: 0 },
@@ -208,13 +223,22 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
 
                 {/* 5. Account (conditional) */}
                 {!selectedAccountId && (
-                  <Box sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}>
+                  <Box
+                    sx={{ display: 'flex', alignItems: 'flex-end', width: '100%' }}
+                    data-field-error={save.fieldErrors.account ? 'account' : undefined}
+                  >
                     <AccountSelect
                       value={form.accountId}
                       accounts={form.accounts}
                       isReadonly={form.isBalanceAdjustmentEdit}
                       onChange={form.setAccountId}
-                      inputBottomBorderSx={form.inputBottomBorderSx}
+                      error={save.fieldErrors.account}
+                      helperText={
+                        save.fieldErrors.account
+                          ? t('financeTransactions.validation.required')
+                          : undefined
+                      }
+                      inputBottomBorderSx={inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.account)}
                     />
                   </Box>
                 )}
@@ -230,12 +254,19 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                     justifyContent: 'flex-end',
                     width: '100%',
                   }}
+                  data-field-error={save.fieldErrors.amount ? 'amount' : undefined}
                 >
                   <BaseMoneyInput
                     value={form.amount}
                     onChange={(val) => form.setAmount(val as number | undefined)}
                     variant="standard"
                     required
+                    error={save.fieldErrors.amount}
+                    helperText={
+                      save.fieldErrors.amount
+                        ? t('financeTransactions.validation.required')
+                        : undefined
+                    }
                     autoFocus={form.isBalanceAdjustmentEdit}
                     data-testid="tx-amount-input"
                     InputProps={{
@@ -245,7 +276,7 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                         fontWeight: 'medium',
                         maxWidth: 180,
                         ml: 'auto',
-                        ...form.inputBottomBorderSx,
+                        ...inputBorderSx(form.inputBottomBorderSx, save.fieldErrors.amount),
                         '& input': { textAlign: 'right' },
                       },
                       onKeyDown: save.handleKeyDown,
@@ -261,7 +292,6 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                 merchantId={form.merchantId}
                 initialValues={initialValues}
                 isBalanceAdjustmentEdit={form.isBalanceAdjustmentEdit}
-                isDateInvalidForSave={form.isDateInvalidForSave}
                 isDateInFuture={form.isDateInFuture}
                 isDateOutsideWindow={form.isDateOutsideWindow}
                 minAllowedDate={form.minAllowedDate}
@@ -269,8 +299,17 @@ export const InlineTransactionForm = memo(function InlineTransactionForm({
                 creating={save.creating}
                 updating={save.updating}
                 applyingSimilarEdit={save.applyingSimilarEdit}
-                canSave={save.canSave}
-                inputBottomBorderSx={form.inputBottomBorderSx}
+                isSaving={save.isSaving}
+                showDateError={save.fieldErrors.date || form.isDateInvalidForSave}
+                dateHelperText={
+                  save.fieldErrors.date && !form.isDateInFuture && !form.isDateOutsideWindow
+                    ? t('financeTransactions.validation.required')
+                    : undefined
+                }
+                inputBottomBorderSx={inputBorderSx(
+                  form.inputBottomBorderSx,
+                  save.fieldErrors.date || form.isDateInvalidForSave,
+                )}
                 onDateChange={form.setDate}
                 onMerchantChange={form.setMerchantId}
                 onRefresh={onRefresh}

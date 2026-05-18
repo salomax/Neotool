@@ -50,9 +50,10 @@ class RecurringMatchingService(
         if (template.merchantId != null && template.merchantId == transaction.merchantId) s += 0.25f
 
         val expected = template.expectedAmount
-        if (expected == null) {
+        if (expected == null || expected <= BigDecimal.ZERO) {
+            // Legacy safety: invalid non-positive expectedAmount behaves like variable amount.
             s += 0.10f
-        } else if (expected.compareTo(BigDecimal.ZERO) != 0) {
+        } else {
             val pct = transaction.amount.subtract(expected).abs()
                 .divide(expected.abs(), 6, RoundingMode.HALF_UP)
             if (pct <= BigDecimal("0.15")) s += 0.20f * (1f - pct.toFloat())

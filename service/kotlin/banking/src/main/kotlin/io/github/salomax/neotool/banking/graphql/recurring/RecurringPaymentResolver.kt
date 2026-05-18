@@ -93,13 +93,13 @@ class RecurringPaymentResolver(
         return recurringPaymentCommandService.resumeRecurringPayment(accountId, recurringPaymentId).toDto(accountId)
     }
 
-    fun cancelRecurringPayment(
+    fun deleteRecurringPayment(
         id: String,
         principal: RequestPrincipal,
-    ): RecurringPaymentDTO {
+    ): Boolean {
         val accountId = requireAccountId(principal)
         val recurringPaymentId = parseUuid(id, "id")
-        return recurringPaymentCommandService.cancelRecurringPayment(accountId, recurringPaymentId).toDto(accountId)
+        return recurringPaymentCommandService.deleteRecurringPayment(accountId, recurringPaymentId)
     }
 
     fun linkTransactionToRecurring(

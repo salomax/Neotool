@@ -10,8 +10,8 @@
  * - `creditDebitType` accepts DEBIT | CREDIT | TRANSFER (TRANSFER is a UI shortcut).
  * - Date window: minDate = today − 10 years, maxDate = today. Dates before min or after max
  *   show validation helper text; save stays disabled until the date is valid.
- * - Save button is disabled when: amount is empty, description is empty, date is invalid, or
- *   date is outside the allowed window.
+ * - Save stays enabled unless a save is in progress; missing/invalid required fields show errors
+ *   after the user clicks Save (or presses Enter in the amount field).
  * - The form auto-focuses the description field when opened.
  *
  */
@@ -106,7 +106,13 @@ export class InlineTransactionForm {
 
   async save(): Promise<void> {
     const saveBtn = this.form.getByTestId("tx-save-btn");
-    await expect(saveBtn).toBeEnabled({ timeout: 15_000 });
+    await expect(saveBtn).not.toBeDisabled({ timeout: 15_000 });
+    await saveBtn.scrollIntoViewIfNeeded();
+    await saveBtn.click();
+  }
+
+  async attemptSave(): Promise<void> {
+    const saveBtn = this.form.getByTestId("tx-save-btn");
     await saveBtn.scrollIntoViewIfNeeded();
     await saveBtn.click();
   }
@@ -126,11 +132,15 @@ export class InlineTransactionForm {
   }
 
   async expectSaveEnabled(): Promise<void> {
-    await expect(this.form.getByTestId("tx-save-btn")).toBeEnabled();
+    await expect(this.form.getByTestId("tx-save-btn")).not.toBeDisabled();
   }
 
   async isSaveEnabled(): Promise<boolean> {
     return this.form.getByTestId("tx-save-btn").isEnabled();
+  }
+
+  async expectFieldRequiredError(field: "description" | "amount" | "account"): Promise<void> {
+    await expect(this.form.locator(`[data-field-error="${field}"]`)).toBeVisible();
   }
 
   async expectDateError(messagePattern?: string | RegExp): Promise<void> {

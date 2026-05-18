@@ -1,5 +1,7 @@
 import type { RecurringFrequency, RecurringPaymentStatus } from '@/lib/graphql/types/__generated__/graphql';
 import { RecurringFrequency as RF, RecurringPaymentStatus as RPS } from '@/lib/graphql/types/__generated__/graphql';
+import type { CategoryTotalItem, FrequencyTotalItem } from '../finance-transactions/summary/types';
+import { dateOnlyToMs } from '@/shared/utils/date/dateOnly';
 
 export interface RecurringPaymentRow {
   id: string;
@@ -30,8 +32,7 @@ export function startOfTodayUtc(): number {
 }
 
 export function parseDueDateMs(nextDueDate: string): number {
-  const t = Date.parse(String(nextDueDate));
-  return Number.isNaN(t) ? NaN : t;
+  return dateOnlyToMs(nextDueDate);
 }
 
 export function isOverdue(row: RecurringPaymentRow): boolean {
@@ -102,83 +103,108 @@ export function monthlyFactorForFrequency(frequency: RecurringFrequency, interva
   }
 }
 
-export function computeRecurringSummaryMetrics(rows: RecurringPaymentRow[]) {
-  const today = startOfTodayUtc();
-  const weekEnd = today + 7 * MS_PER_DAY;
-
+export function computeRecurringSummaryMetrics(rows: RecurringPaymentRow[], today = startOfTodayUtc()) {
   let monthlyCommittedApprox = 0;
+  let overdueCount = 0;
+  let overdueSum = 0;
   let next7Count = 0;
   let next7Sum = 0;
-  let overdueCount = 0;
+  let nextMonthCount = 0;
+  let nextMonthSum = 0;
 
   for (const row of rows) {
     if (row.status !== RPS.Active) continue;
 
-    const dueMs = parseDueDateMs(row.nextDueDate);
-    if (!Number.isNaN(dueMs)) {
-      if (dueMs < today) overdueCount += 1;
-      if (dueMs >= today && dueMs < weekEnd) {
-        next7Count += 1;
-        if (row.expectedAmount != null && Number.isFinite(row.expectedAmount)) {
-          next7Sum += row.expectedAmount;
-        }
-      }
-    }
+    const bucket = getRecurringDueBucket(row, today);
+    if (bucket === 'overdue') overdueCount += 1;
+    else if (bucket === 'next7Days') next7Count += 1;
+    else if (bucket === 'nextMonth') nextMonthCount += 1;
 
     if (row.expectedAmount != null && Number.isFinite(row.expectedAmount)) {
-      monthlyCommittedApprox += row.expectedAmount * monthlyFactorForFrequency(row.frequency, row.intervalDays);
+      const amount = row.expectedAmount;
+      if (bucket === 'overdue') overdueSum += amount;
+      else if (bucket === 'next7Days') next7Sum += amount;
+      else if (bucket === 'nextMonth') nextMonthSum += amount;
+      monthlyCommittedApprox += amount * monthlyFactorForFrequency(row.frequency, row.intervalDays);
     }
   }
 
-  return { monthlyCommittedApprox, next7Count, next7Sum, overdueCount };
+  return {
+    monthlyCommittedApprox,
+    overdueCount,
+    overdueSum,
+    next7Count,
+    next7Sum,
+    nextMonthCount,
+    nextMonthSum,
+  };
 }
 
-export type DistributionMode = 'category' | 'frequency';
-
-export function buildCategoryDistribution(rows: RecurringPaymentRow[]): { key: string; label: string; amount: number; pct: number }[] {
+export function buildRecurringCategoryTotals(rows: RecurringPaymentRow[]): CategoryTotalItem[] {
   const activeWithAmount = rows.filter(
     (r) => r.status === RPS.Active && r.expectedAmount != null && Number.isFinite(r.expectedAmount),
   );
   const total = activeWithAmount.reduce((s, r) => s + (r.expectedAmount as number), 0);
   if (total <= 0) return [];
 
-  const map = new Map<string, { label: string; amount: number }>();
+  const map = new Map<
+    string,
+    { category: RecurringPaymentRow['category']; amount: number; count: number }
+  >();
+
   for (const r of activeWithAmount) {
     const key = r.category?.id ?? '__none__';
-    const label = r.category?.name ?? '';
-    const prev = map.get(key) ?? { label, amount: 0 };
+    const prev = map.get(key) ?? { category: r.category ?? null, amount: 0, count: 0 };
     prev.amount += r.expectedAmount as number;
+    prev.count += 1;
+    if (!prev.category && r.category) prev.category = r.category;
     map.set(key, prev);
   }
 
   return [...map.entries()]
-    .map(([key, v]) => ({
-      key,
-      label: v.label,
-      amount: v.amount,
-      pct: Math.round((v.amount / total) * 100),
-    }))
-    .sort((a, b) => b.amount - a.amount);
+    .map(([key, v]) => {
+      const uncategorized = key === '__none__';
+      return {
+        category: uncategorized
+          ? null
+          : v.category
+            ? {
+                id: v.category.id,
+                name: v.category.name,
+                icon: v.category.icon,
+                color: v.category.color,
+              }
+            : null,
+        uncategorized,
+        totalAmount: v.amount,
+        transactionCount: v.count,
+        percentage: Math.round((v.amount / total) * 100),
+      };
+    })
+    .sort((a, b) => b.totalAmount - a.totalAmount);
 }
 
-export function buildFrequencyDistribution(rows: RecurringPaymentRow[]): { key: string; label: string; amount: number; pct: number }[] {
+export function buildRecurringFrequencyTotals(rows: RecurringPaymentRow[]): FrequencyTotalItem[] {
   const activeWithAmount = rows.filter(
     (r) => r.status === RPS.Active && r.expectedAmount != null && Number.isFinite(r.expectedAmount),
   );
   const total = activeWithAmount.reduce((s, r) => s + (r.expectedAmount as number), 0);
   if (total <= 0) return [];
 
-  const map = new Map<string, number>();
+  const map = new Map<string, { amount: number; count: number }>();
   for (const r of activeWithAmount) {
-    map.set(r.frequency, (map.get(r.frequency) ?? 0) + (r.expectedAmount as number));
+    const prev = map.get(r.frequency) ?? { amount: 0, count: 0 };
+    prev.amount += r.expectedAmount as number;
+    prev.count += 1;
+    map.set(r.frequency, prev);
   }
 
   return [...map.entries()]
-    .map(([key, amount]) => ({
-      key,
-      label: key,
-      amount,
-      pct: Math.round((amount / total) * 100),
+    .map(([frequency, v]) => ({
+      frequency,
+      totalAmount: v.amount,
+      transactionCount: v.count,
+      percentage: Math.round((v.amount / total) * 100),
     }))
-    .sort((a, b) => b.amount - a.amount);
+    .sort((a, b) => b.totalAmount - a.totalAmount);
 }

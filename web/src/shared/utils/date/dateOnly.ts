@@ -47,3 +47,20 @@ export function formatDateOnly(date: Date): string {
   const day = String(normalized.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/** Local start-of-day epoch ms for a date-only or datetime string; NaN when unparseable. */
+export function dateOnlyToMs(input: string | null | undefined): number {
+  const parsed = parseDateOnly(input);
+  return parsed ? parsed.getTime() : NaN;
+}
+
+/** Format a date-only or datetime string for display in the user's locale (calendar day preserved). */
+export function formatDateOnlyLocale(
+  input: string | null | undefined,
+  locale = 'pt-BR',
+): string {
+  if (input == null || String(input).trim() === '') return '';
+  const parsed = parseDateOnly(input);
+  if (!parsed) return String(input);
+  return new Intl.DateTimeFormat(locale).format(parsed);
+}

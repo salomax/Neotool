@@ -1154,7 +1154,7 @@
       },
       "recurringPayments": {
         "title": "Movimentações recorrentes",
-        "description": "Lembretes de contas e assinaturas recorrentes"
+        "description": "Controle de movimentação recorrente"
       }
     },
     "widgets": {
@@ -1305,7 +1305,8 @@
     "financialAccount": "Conta financeira",
     "validation": {
       "dateTooOld": "A data deve estar dentro dos últimos {{years}} anos",
-      "dateNotInFuture": "A data não pode ser futura."
+      "dateNotInFuture": "A data não pode ser futura.",
+      "required": "Campo obrigatório"
     },
     "dateGroup": {
       "today": "Hoje, {{date}}",
@@ -1863,7 +1864,7 @@
         "viewAppliedRules": "Ver regras aplicadas",
         "createRuleFromDescription": "Criar regra a partir da descrição",
         "remove": "Remover",
-        "createRecurringPayment": "Criar pagamento recorrente"
+        "createRecurringPayment": "Criar movimentação recorrente"
       },
       "appliedRules": {
         "title": "Regras aplicadas",
@@ -2010,12 +2011,12 @@
     },
     "status": {
       "ACTIVE": "Ativo",
-      "PAUSED": "Pausado",
-      "CANCELLED": "Cancelado"
+      "PAUSED": "Pausado"
     },
     "form": {
       "name": "Nome",
       "account": "Conta",
+      "accountOptional": "Conta (opcional)",
       "creditDebitType": "Tipo",
       "expectedAmount": "Valor médio estimado",
       "variableAmount": "Deixe em branco se o valor variar muito entre vencimentos",
@@ -2026,7 +2027,7 @@
       "firstDueDate": "Próximo vencimento",
       "remindDaysBefore": "Lembrar N dias antes",
       "notes": "Notas",
-      "fromTransaction": "Criando a partir da transação de {{date}}. Conta, tipo, categoria e estabelecimento vêm da transação.",
+      "fromTransaction": "Criando a partir da transação de {{date}}. O tipo vem da transação; os demais campos podem ser ajustados.",
       "category": "Categoria",
       "merchant": "Estabelecimento",
       "drawerTitleNew": "Nova movimentação recorrente",
@@ -2035,9 +2036,11 @@
     "actions": {
       "confirmPayment": "Marcar como pago",
       "pause": "Pausar",
-      "resume": "Retomar",
-      "cancel": "Cancelar",
-      "cancelConfirm": "Cancelar esta movimentação recorrente? Esta ação não pode ser desfeita."
+      "resume": "Retomar"
+    },
+    "deleteConfirmation": {
+      "title": "Remover movimentação recorrente?",
+      "message": "Tem certeza que deseja remover esta movimentação recorrente? Esta ação não pode ser desfeita."
     },
     "confirmPaymentDialog": {
       "title": "Confirmar pagamento",
@@ -2060,8 +2063,8 @@
       "next7Days": "Próximos 7 dias",
       "overdue": "Em atraso",
       "distribution": "Distribuição",
-      "byCategory": "Categoria",
-      "byFrequency": "Frequência",
+      "byCategory": "Por categoria",
+      "byFrequency": "Por frequência",
       "noDistributionData": "Sem dados para o gráfico (defina um valor estimado nas recorrências).",
       "mobileAccordionTitle": "Indicadores"
     },
@@ -2099,7 +2102,9 @@
         "actions": ""
       },
       "rowActions": {
-        "ariaLabel": "Ações da movimentação recorrente"
+        "ariaLabel": "Ações da movimentação recorrente",
+        "edit": "Editar",
+        "remove": "Remover"
       }
     },
     "statusOverdue": "Atraso",

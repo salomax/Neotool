@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useLazyQuery, useMutation } from '@apollo/client/react';
 import type { Transaction } from '@/lib/graphql/types/__generated__/graphql';
+import { TransactionType } from '@/lib/graphql/types/__generated__/graphql';
 import {
   LINK_TRANSACTION_TO_RECURRING,
   SUGGEST_RECURRING_FOR_TRANSACTION,
@@ -44,8 +45,14 @@ export function useRecurringSuggestion({
   const [linkTransactionToRecurring] = useMutation(LINK_TRANSACTION_TO_RECURRING);
 
   useEffect(() => {
-    const txId = menuTransaction?.id;
-    if (!txId) {
+    const tx = menuTransaction;
+    const txId = tx?.id;
+    const shouldFetchSuggestion =
+      Boolean(txId) &&
+      tx?.type !== TransactionType.BalanceAdjustment &&
+      tx?.type !== TransactionType.Transfer;
+
+    if (!shouldFetchSuggestion || !txId) {
       setRecurringPaymentSuggestion(null);
       return;
     }

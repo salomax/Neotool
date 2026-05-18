@@ -78,12 +78,9 @@ export const RESUME_RECURRING_PAYMENT = gql`
   }
 `;
 
-export const CANCEL_RECURRING_PAYMENT = gql`
-  mutation CancelRecurringPayment($id: ID!) {
-    cancelRecurringPayment(id: $id) {
-      id
-      status
-    }
+export const DELETE_RECURRING_PAYMENT = gql`
+  mutation DeleteRecurringPayment($id: ID!) {
+    deleteRecurringPayment(id: $id)
   }
 `;
 
@@ -99,7 +96,7 @@ export const CONFIRM_RECURRING_PAYMENT = gql`
 `;
 
 export const CREATE_RECURRING_PAYMENT_FROM_TRANSACTION = gql`
-  mutation CreateRecurringPaymentFromTransaction($transactionId: ID!, $input: CreateRecurringPaymentInput!) {
+  mutation CreateRecurringPaymentFromTransaction($transactionId: ID!, $input: CreateRecurringPaymentFromTransactionInput!) {
     createRecurringPaymentFromTransaction(transactionId: $transactionId, input: $input) {
       ...RecurringPaymentFields
     }

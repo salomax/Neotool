@@ -30,8 +30,8 @@ open class DefaultRecurringPaymentRepository(
             .findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByNextDueDateAsc(financialAccountId, accountId)
             .map(RecurringPaymentMapper::toDomain)
 
-    override fun findActiveWithDueBefore(cutoffDate: LocalDate): List<RecurringPayment> =
-        entityRepository.findActiveWithDueBefore(cutoffDate).map(RecurringPaymentMapper::toDomain)
+    override fun findActiveDueForReminder(referenceDate: LocalDate): List<RecurringPayment> =
+        entityRepository.findActiveDueForReminder(referenceDate).map(RecurringPaymentMapper::toDomain)
 
     override fun findAllActive(): List<RecurringPayment> =
         entityRepository.findAllActive().map(RecurringPaymentMapper::toDomain)

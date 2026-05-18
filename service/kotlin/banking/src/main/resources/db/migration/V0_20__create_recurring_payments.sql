@@ -14,7 +14,7 @@ CREATE TABLE banking.recurring_payments (
     interval_days        INT,
     remind_days_before   SMALLINT     NOT NULL DEFAULT 3,
     status               VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE'
-                             CHECK (status IN ('ACTIVE', 'PAUSED', 'CANCELLED')),
+                             CHECK (status IN ('ACTIVE', 'PAUSED')),
     next_due_date        DATE         NOT NULL,
     last_paid_date       DATE,
     notes                TEXT,

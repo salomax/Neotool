@@ -8,6 +8,7 @@ import io.github.salomax.neotool.banking.domain.transaction.RecurringPayment
 import io.github.salomax.neotool.banking.domain.transaction.RecurringPaymentService
 import io.github.salomax.neotool.banking.domain.transaction.RecurringPaymentStatus
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.repo.transaction.RecurringPaymentRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
@@ -91,7 +92,9 @@ class RecurringPaymentCommandService(
         val existing = requireRecurringPayment(accountId, recurringPaymentId)
         val updated =
             existing.copy(
+                financialAccountId = if (input.financialAccountIdDefined) input.financialAccountId else existing.financialAccountId,
                 name = input.name ?: existing.name,
+                creditDebitType = input.creditDebitType ?: existing.creditDebitType,
                 expectedAmount = if (input.expectedAmountDefined) input.expectedAmount else existing.expectedAmount,
                 categoryId = if (input.categoryIdDefined) input.categoryId else existing.categoryId,
                 merchantId = if (input.merchantIdDefined) input.merchantId else existing.merchantId,
@@ -122,13 +125,6 @@ class RecurringPaymentCommandService(
         recurringPaymentId: UUID,
     ): RecurringPayment {
         val existing = requireRecurringPayment(accountId, recurringPaymentId)
-        if (existing.status == RecurringPaymentStatus.CANCELLED) {
-            throw ValidationException(
-                errorCode = CommonErrorCode.INVALID_STATE,
-                field = "status",
-                parameters = mapOf("reason" to "cannot resume a cancelled recurring payment"),
-            )
-        }
         return recurringPaymentRepository.update(
             existing.copy(
                 status = RecurringPaymentStatus.ACTIVE,
@@ -137,21 +133,21 @@ class RecurringPaymentCommandService(
         )
     }
 
-    fun cancelRecurringPayment(
+    fun deleteRecurringPayment(
         accountId: UUID,
         recurringPaymentId: UUID,
-    ): RecurringPayment {
+    ): Boolean {
         val existing = requireRecurringPayment(accountId, recurringPaymentId)
-        val now = Instant.now()
-        val updated =
-            recurringPaymentRepository.update(
-                existing.copy(
-                    status = RecurringPaymentStatus.CANCELLED,
-                    updatedAt = now,
-                ),
-            )
-        updated.id?.let(transactionRepository::deleteFutureByRecurringPaymentId)
-        return updated
+        val id = requireNotNull(existing.id)
+        transactionRepository.deleteFutureByRecurringPaymentId(id)
+        transactionRepository.clearRecurringPaymentId(id, accountId)
+        pendingActionRepository.dismissOpenForEntity(
+            entityType = "RecurringPayment",
+            entityId = id,
+            type = PendingActionType.RECURRING_PAYMENT_DUE,
+        )
+        recurringPaymentRepository.softDelete(id, accountId)
+        return true
     }
 
     fun linkTransactionToRecurring(
@@ -162,6 +158,35 @@ class RecurringPaymentCommandService(
         val tx = transactionService.findById(transactionId, accountId)
         val recurring = requireRecurringPayment(accountId, recurringPaymentId)
         val resolvedRecurringId = recurring.id ?: throw IllegalStateException("Recurring payment without id")
+
+        if (recurring.status != RecurringPaymentStatus.ACTIVE) {
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_STATE,
+                field = "status",
+                parameters = mapOf("reason" to "only ACTIVE recurring payments can be linked"),
+            )
+        }
+        if (tx.status != TransactionStatus.POSTED) {
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_STATE,
+                field = "status",
+                parameters = mapOf("reason" to "only POSTED transactions can be linked"),
+            )
+        }
+        if (tx.type == TransactionType.BALANCE_ADJUSTMENT) {
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_INPUT,
+                field = "type",
+                parameters = mapOf("reason" to "BALANCE_ADJUSTMENT cannot be linked to recurring payments"),
+            )
+        }
+        if (tx.recurringPaymentId != null && tx.recurringPaymentId != resolvedRecurringId) {
+            throw ValidationException(
+                errorCode = CommonErrorCode.INVALID_STATE,
+                field = "transactionId",
+                parameters = mapOf("reason" to "transaction is already linked to another recurring payment"),
+            )
+        }
 
         transactionRepository.setRecurringPaymentId(
             transactionId = requireNotNull(tx.id),
@@ -231,7 +256,7 @@ class RecurringPaymentCommandService(
                 intervalDays = input.intervalDays,
                 remindDaysBefore = input.remindDaysBefore ?: 3,
                 status = RecurringPaymentStatus.ACTIVE,
-                nextDueDate = input.firstDueDate,
+                nextDueDate = input.firstDueDate ?: tx.date,
                 notes = input.notes,
                 createdAt = now,
                 updatedAt = now,
@@ -272,7 +297,10 @@ data class CreateRecurringPaymentCommand(
 )
 
 data class UpdateRecurringPaymentCommand(
+    val financialAccountIdDefined: Boolean,
+    val financialAccountId: UUID?,
     val name: String?,
+    val creditDebitType: io.github.salomax.neotool.banking.domain.transaction.CreditDebitType?,
     val expectedAmountDefined: Boolean,
     val expectedAmount: BigDecimal?,
     val categoryIdDefined: Boolean,
@@ -305,6 +333,6 @@ data class CreateRecurringPaymentFromTransactionCommand(
     val dayOfMonth: Int?,
     val intervalDays: Int?,
     val remindDaysBefore: Int?,
-    val firstDueDate: LocalDate,
+    val firstDueDate: LocalDate?,
     val notes: String?,
 )

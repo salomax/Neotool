@@ -4,13 +4,33 @@ import io.github.salomax.neotool.banking.repo.transaction.RecurringPaymentReposi
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
+import java.math.BigDecimal
 import java.time.LocalDate
 
 @Singleton
 class RecurringPaymentService(
     private val recurringPaymentRepository: RecurringPaymentRepository,
 ) {
+    companion object {
+        const val MAX_REMIND_DAYS_BEFORE = 60
+    }
+
     fun validateTemplate(template: RecurringPayment) {
+        if (template.name.isBlank()) {
+            throw invalidInput("name", "must not be blank")
+        }
+
+        if (template.remindDaysBefore !in 0..MAX_REMIND_DAYS_BEFORE) {
+            throw invalidInput(
+                "remindDaysBefore",
+                "must be between 0 and $MAX_REMIND_DAYS_BEFORE",
+            )
+        }
+
+        if (template.expectedAmount != null && template.expectedAmount <= BigDecimal.ZERO) {
+            throw invalidInput("expectedAmount", "must be greater than 0 when provided")
+        }
+
         if (template.dayOfMonth != null && template.dayOfMonth !in 1..31) {
             throw invalidInput("dayOfMonth", "must be between 1 and 31")
         }

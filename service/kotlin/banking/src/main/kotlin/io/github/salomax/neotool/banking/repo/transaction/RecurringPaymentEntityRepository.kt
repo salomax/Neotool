@@ -27,11 +27,11 @@ interface RecurringPaymentEntityRepository : JpaRepository<RecurringPaymentEntit
             SELECT * FROM banking.recurring_payments
              WHERE status = 'ACTIVE'
                AND deleted_at IS NULL
-               AND next_due_date <= :cutoffDate
+               AND next_due_date <= (:referenceDate + (remind_days_before * INTERVAL '1 day'))
         """,
         nativeQuery = true,
     )
-    fun findActiveWithDueBefore(cutoffDate: LocalDate): List<RecurringPaymentEntity>
+    fun findActiveDueForReminder(referenceDate: LocalDate): List<RecurringPaymentEntity>
 
     @Query(
         value = """

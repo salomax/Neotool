@@ -17,7 +17,7 @@ type Row = {
   name: string;
   expectedAmount?: number | null;
   currencyCode: string;
-  status: "ACTIVE" | "PAUSED" | "CANCELLED";
+  status: "ACTIVE" | "PAUSED";
   nextDueDate: string;
 };
 

@@ -1,16 +1,22 @@
 'use client';
 
 import CheckIcon from '@mui/icons-material/Check';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import EditIcon from '@mui/icons-material/Edit';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import PauseCircleOutlineIcon from '@mui/icons-material/PauseCircleOutline';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
 import {
   alpha,
-  Avatar,
   Box,
   Card,
   CardContent,
   Chip,
+  Divider,
   IconButton,
   LinearProgress,
+  ListItemIcon,
+  ListItemText,
   Menu,
   MenuItem,
   Paper,
@@ -29,7 +35,8 @@ import {
 import type { Theme } from '@mui/material/styles';
 import type { MouseEvent } from 'react';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useTranslation } from '@/shared/i18n';
+import { i18n, useTranslation } from '@/shared/i18n';
+import { formatDateOnlyLocale } from '@/shared/utils/date/dateOnly';
 import { personalFinanceTranslations } from '../i18n';
 import { CategoryChip, type CategoryChipDecorationAlpha } from '@/app/personal-finance/finance-transactions/category/CategoryChip';
 import {
@@ -46,7 +53,13 @@ import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-displa
 import { Label } from '@/shared/components/ui/primitives/Label';
 import type { RecurringPaymentRow, RecurringDueBucket } from './recurringPaymentRowModel';
 import { groupRecurringPaymentsByDueBucket, isOverdue } from './recurringPaymentRowModel';
-import { RecurringFrequency, RecurringPaymentStatus } from '@/lib/graphql/types/__generated__/graphql';
+import {
+  CreditDebitType,
+  RecurringFrequency,
+  RecurringPaymentStatus,
+  TransactionType,
+} from '@/lib/graphql/types/__generated__/graphql';
+import { TransactionDirectionBadge } from '@/shared/components/ui/data-display';
 
 const COL_SPAN = 7;
 
@@ -62,12 +75,6 @@ const RECURRING_CATEGORY_CHIP_DECORATION: CategoryChipDecorationAlpha = {
 function formatAmount(value: number | null | undefined, currency: string): string {
   if (value == null) return '—';
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(value);
-}
-
-function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat('pt-BR').format(date);
 }
 
 const STATUS_CHIP_LABEL_SX = {
@@ -108,19 +115,6 @@ function statusChipProps(
     '& .MuiChip-label': STATUS_CHIP_LABEL_SX,
   };
 
-  if (row.status === RecurringPaymentStatus.Cancelled) {
-    return {
-      label: tStatus('CANCELLED'),
-      dueDateColor: theme.palette.text.secondary,
-      dueDateOpacity: 0.75,
-      sx: {
-        ...baseSx,
-        color: 'text.secondary',
-        bgcolor: 'action.selected',
-        opacity: 0.75,
-      },
-    };
-  }
   if (isOverdue(row)) {
     return {
       label: overdueLabel,
@@ -153,6 +147,24 @@ function statusChipProps(
   };
 }
 
+function recurringPaymentTransactionType(row: RecurringPaymentRow): TransactionType {
+  const type = row.type as TransactionType | undefined;
+  if (type && Object.values(TransactionType).includes(type)) return type;
+  return row.creditDebitType === 'CREDIT' ? TransactionType.OtherIncome : TransactionType.OtherExpense;
+}
+
+function RecurringPaymentNameIcon({ row, size }: { row: RecurringPaymentRow; size: number }) {
+  return (
+    <TransactionDirectionBadge
+      creditDebitType={row.creditDebitType === 'CREDIT' ? CreditDebitType.Credit : CreditDebitType.Debit}
+      transactionType={recurringPaymentTransactionType(row)}
+      merchantLogoUrl={row.merchant?.logoAsset?.publicUrl}
+      merchantName={row.merchant?.name}
+      size={size}
+    />
+  );
+}
+
 function bucketLabelKey(bucket: RecurringDueBucket): string {
   switch (bucket) {
     case 'overdue':
@@ -172,7 +184,7 @@ export interface RecurringPaymentsTableProps {
   noDataMessage: string;
   onEdit: (row: RecurringPaymentRow) => void;
   onPauseResume: (row: RecurringPaymentRow) => void;
-  onCancel: (row: RecurringPaymentRow) => void;
+  onDelete: (row: RecurringPaymentRow) => void;
   onConfirmPayment: (row: RecurringPaymentRow) => void;
 }
 
@@ -182,7 +194,7 @@ export function RecurringPaymentsTable({
   noDataMessage,
   onEdit,
   onPauseResume,
-  onCancel,
+  onDelete,
   onConfirmPayment,
 }: RecurringPaymentsTableProps) {
   const { t } = useTranslation(personalFinanceTranslations);
@@ -286,19 +298,12 @@ export function RecurringPaymentsTable({
               </Box>
               {group.rows.map((row) => {
                 const chip = statusChipProps(row, theme, tStatus, t('recurringPayments.statusOverdue'));
-                const logoUrl = row.merchant?.logoAsset?.publicUrl ?? undefined;
                 return (
                   <Card key={row.id} variant="outlined">
                     <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                       <Stack spacing={1}>
                         <Stack direction="row" spacing={1.5} alignItems="flex-start">
-                          {logoUrl ? (
-                            <Avatar src={logoUrl} alt="" variant="rounded" sx={{ width: 40, height: 40 }} />
-                          ) : (
-                            <Avatar variant="rounded" sx={{ width: 40, height: 40, bgcolor: 'action.hover' }}>
-                              {row.name.slice(0, 1).toUpperCase()}
-                            </Avatar>
-                          )}
+                          <RecurringPaymentNameIcon row={row} size={40} />
                           <Box sx={{ flex: 1, minWidth: 0 }}>
                             <Typography fontWeight={600} noWrap>
                               {row.name}
@@ -337,7 +342,7 @@ export function RecurringPaymentsTable({
                               ...(chip.dueDateOpacity != null ? { opacity: chip.dueDateOpacity } : {}),
                             }}
                           >
-                            {formatDate(row.nextDueDate)}
+                            {formatDateOnlyLocale(row.nextDueDate, i18n.language)}
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 600 }}>
                             {row.expectedAmount == null
@@ -359,7 +364,7 @@ export function RecurringPaymentsTable({
           onClose={closeMenu}
           onEdit={onEdit}
           onPauseResume={onPauseResume}
-          onCancel={onCancel}
+          onDelete={onDelete}
         />
       </Box>
     );
@@ -439,7 +444,6 @@ export function RecurringPaymentsTable({
               </TableRow>
               {group.rows.map((row, index) => {
                 const chip = statusChipProps(row, theme, tStatus, t('recurringPayments.statusOverdue'));
-                const logoUrl = row.merchant?.logoAsset?.publicUrl ?? undefined;
                 const isFirst = index === 0;
                 const isLast = index === group.rows.length - 1;
                 const rowSx = financeTransactionBodyRowSx(theme, { isFirst, isLast });
@@ -453,13 +457,7 @@ export function RecurringPaymentsTable({
                   >
                     <TableCell>
                       <Stack direction="row" spacing={1.25} alignItems="center">
-                        {logoUrl ? (
-                          <Avatar src={logoUrl} alt="" variant="rounded" sx={{ width: 36, height: 36 }} />
-                        ) : (
-                          <Avatar variant="rounded" sx={{ width: 36, height: 36, bgcolor: 'action.hover', fontSize: '0.85rem' }}>
-                            {row.name.slice(0, 1).toUpperCase()}
-                          </Avatar>
-                        )}
+                        <RecurringPaymentNameIcon row={row} size={36} />
                         <Box sx={{ minWidth: 0 }}>
                           <Typography fontWeight={600} noWrap>
                             {row.name}
@@ -496,7 +494,7 @@ export function RecurringPaymentsTable({
                           ...(chip.dueDateOpacity != null ? { opacity: chip.dueDateOpacity } : {}),
                         }}
                       >
-                        {formatDate(row.nextDueDate)}
+                        {formatDateOnlyLocale(row.nextDueDate, i18n.language)}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -533,7 +531,7 @@ export function RecurringPaymentsTable({
         onClose={closeMenu}
         onEdit={onEdit}
         onPauseResume={onPauseResume}
-        onCancel={onCancel}
+        onDelete={onDelete}
       />
     </TableContainer>
   );
@@ -628,51 +626,79 @@ function RowActionMenu({
   onClose,
   onEdit,
   onPauseResume,
-  onCancel,
+  onDelete,
 }: {
   anchorEl: null | HTMLElement;
   row: RecurringPaymentRow | null;
   onClose: () => void;
   onEdit: (r: RecurringPaymentRow) => void;
   onPauseResume: (r: RecurringPaymentRow) => void;
-  onCancel: (r: RecurringPaymentRow) => void;
+  onDelete: (r: RecurringPaymentRow) => void;
 }) {
   const { t } = useTranslation(personalFinanceTranslations);
+  const theme = useTheme();
   const open = Boolean(anchorEl) && Boolean(row);
 
   return (
-    <Menu anchorEl={anchorEl} open={open} onClose={onClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
+    <Menu
+      anchorEl={anchorEl}
+      open={open}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+    >
       {row ? (
         <>
           <MenuItem
             onClick={() => {
-              onEdit(row);
               onClose();
+              onEdit(row);
             }}
           >
-            {t('actions.edit')}
+            <ListItemIcon>
+              <EditIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('recurringPayments.table.rowActions.edit')}</ListItemText>
           </MenuItem>
-          {row.status !== RecurringPaymentStatus.Cancelled ? (
-            <MenuItem
-              onClick={() => {
-                void onPauseResume(row);
-                onClose();
-              }}
-            >
-              {row.status === RecurringPaymentStatus.Active ? t('recurringPayments.actions.pause') : t('recurringPayments.actions.resume')}
-            </MenuItem>
-          ) : null}
-          {row.status !== RecurringPaymentStatus.Cancelled ? (
-            <MenuItem
-              onClick={() => {
-                void onCancel(row);
-                onClose();
-              }}
-              sx={{ color: 'error.main' }}
-            >
-              {t('recurringPayments.actions.cancel')}
-            </MenuItem>
-          ) : null}
+
+          <MenuItem
+            onClick={() => {
+              onClose();
+              void onPauseResume(row);
+            }}
+          >
+            <ListItemIcon>
+              {row.status === RecurringPaymentStatus.Active ? (
+                <PauseCircleOutlineIcon fontSize="small" />
+              ) : (
+                <PlayCircleOutlineIcon fontSize="small" />
+              )}
+            </ListItemIcon>
+            <ListItemText>
+              {row.status === RecurringPaymentStatus.Active
+                ? t('recurringPayments.actions.pause')
+                : t('recurringPayments.actions.resume')}
+            </ListItemText>
+          </MenuItem>
+
+          <Divider />
+
+          <MenuItem
+            onClick={() => {
+              onClose();
+              onDelete(row);
+            }}
+            sx={{
+              color: 'error.main',
+              '&:hover': { bgcolor: alpha(theme.palette.error.main, 0.08) },
+              '&.Mui-focusVisible': { bgcolor: alpha(theme.palette.error.main, 0.08) },
+            }}
+          >
+            <ListItemIcon sx={{ color: 'inherit' }}>
+              <DeleteOutlineIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('recurringPayments.table.rowActions.remove')}</ListItemText>
+          </MenuItem>
         </>
       ) : null}
     </Menu>

@@ -2111,7 +2111,6 @@ enum RecurringFrequency {
 enum RecurringPaymentStatus {
   ACTIVE
   PAUSED
-  CANCELLED
 }
 
 type RecurringPayment {
@@ -2152,7 +2151,9 @@ input CreateRecurringPaymentInput {
 }
 
 input UpdateRecurringPaymentInput {
+  financialAccountId: ID
   name: String
+  creditDebitType: CreditDebitType
   expectedAmount: Float
   categoryId: ID
   merchantId: ID
@@ -2161,6 +2162,22 @@ input UpdateRecurringPaymentInput {
   intervalDays: Int
   remindDaysBefore: Int
   nextDueDate: Date
+  notes: String
+}
+
+input CreateRecurringPaymentFromTransactionInput {
+  financialAccountId: ID
+  name: String
+  type: TransactionType
+  expectedAmount: Float
+  currencyCode: String
+  categoryId: ID
+  merchantId: ID
+  frequency: RecurringFrequency
+  dayOfMonth: Int
+  intervalDays: Int
+  remindDaysBefore: Int
+  firstDueDate: Date
   notes: String
 }
 
@@ -2498,12 +2515,12 @@ extend type Mutation {
   updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment!
   pauseRecurringPayment(id: ID!): RecurringPayment!
   resumeRecurringPayment(id: ID!): RecurringPayment!
-  cancelRecurringPayment(id: ID!): RecurringPayment!
+  deleteRecurringPayment(id: ID!): Boolean!
   confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment!
   linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction!
   createRecurringPaymentFromTransaction(
     transactionId: ID!,
-    input: CreateRecurringPaymentInput!
+    input: CreateRecurringPaymentFromTransactionInput!
   ): RecurringPayment!
   importTransactionsFile(input: ImportTransactionsFileInput!): ImportResult!
   importNfce(financialAccountId: ID!, qrCodeUrl: String!): ImportResult!

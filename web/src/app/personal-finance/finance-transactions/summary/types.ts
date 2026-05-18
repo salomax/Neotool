@@ -18,6 +18,13 @@ export interface TagTotalItem {
   percentage: number;
 }
 
+export interface FrequencyTotalItem {
+  frequency: string;
+  totalAmount: number;
+  transactionCount: number;
+  percentage: number;
+}
+
 export interface MonthSummaryData {
   year: number;
   month: number;

@@ -2126,7 +2126,6 @@ enum RecurringFrequency {
 enum RecurringPaymentStatus {
   ACTIVE
   PAUSED
-  CANCELLED
 }
 
 type RecurringPayment {
@@ -2513,7 +2512,7 @@ extend type Mutation {
   updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment!
   pauseRecurringPayment(id: ID!): RecurringPayment!
   resumeRecurringPayment(id: ID!): RecurringPayment!
-  cancelRecurringPayment(id: ID!): RecurringPayment!
+  deleteRecurringPayment(id: ID!): Boolean!
   confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment!
   linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction!
   createRecurringPaymentFromTransaction(

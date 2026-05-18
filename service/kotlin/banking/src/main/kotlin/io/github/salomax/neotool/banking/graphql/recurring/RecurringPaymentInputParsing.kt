@@ -34,7 +34,10 @@ internal object RecurringPaymentInputParsing {
 
     fun parseUpdateInput(input: Map<String, Any?>): UpdateRecurringPaymentCommand =
         UpdateRecurringPaymentCommand(
+            financialAccountIdDefined = input.containsKey("financialAccountId"),
+            financialAccountId = input.uuidOrNull("financialAccountId"),
             name = input.stringOrNull("name"),
+            creditDebitType = input.enumOrNull<CreditDebitType>("creditDebitType"),
             expectedAmountDefined = input.containsKey("expectedAmount"),
             expectedAmount = input.decimalOrNull("expectedAmount"),
             categoryIdDefined = input.containsKey("categoryId"),
@@ -73,7 +76,7 @@ internal object RecurringPaymentInputParsing {
             dayOfMonth = input.intOrNull("dayOfMonth"),
             intervalDays = input.intOrNull("intervalDays"),
             remindDaysBefore = input.intOrNull("remindDaysBefore"),
-            firstDueDate = input.requiredDate("firstDueDate"),
+            firstDueDate = input.dateOrNull("firstDueDate"),
             notes = input.stringOrNull("notes"),
         )
 

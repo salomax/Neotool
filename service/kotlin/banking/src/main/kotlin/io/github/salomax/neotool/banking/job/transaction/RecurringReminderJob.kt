@@ -26,8 +26,7 @@ open class RecurringReminderJob(
 
     @Scheduled(fixedDelay = "PT1H")
     open fun run() {
-        val cutoff = LocalDate.now().plusDays(MAX_REMIND_DAYS)
-        val templates = recurringPaymentRepository.findActiveWithDueBefore(cutoff)
+        val templates = recurringPaymentRepository.findActiveDueForReminder(LocalDate.now())
         templates.forEach { template ->
             runCatching { maybeCreateReminder(template) }
                 .onFailure { e ->
@@ -66,7 +65,7 @@ open class RecurringReminderJob(
                         "nextDueDate" to template.nextDueDate.toString(),
                         "expectedAmount" to template.expectedAmount?.toPlainString(),
                         "currencyCode" to template.currencyCode,
-                        "financialAccountId" to template.financialAccountId.toString(),
+                        "financialAccountId" to template.financialAccountId?.toString(),
                         "variableAmount" to (template.expectedAmount == null),
                     ),
                 visibleFrom = now,
@@ -82,7 +81,6 @@ open class RecurringReminderJob(
     }
 
     companion object {
-        private const val MAX_REMIND_DAYS = 30L
         private const val ENTITY_TYPE = "RecurringPayment"
     }
 }

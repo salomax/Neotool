@@ -77,7 +77,7 @@ function emptyForm(): FormValues {
     dayOfMonth: '',
     intervalDays: '',
     dueDate: toStartOfDayLocal(new Date()),
-    remindDaysBefore: 3,
+    remindDaysBefore: 10,
     notes: '',
   };
 }
@@ -166,7 +166,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
         dayOfMonth: recurring.dayOfMonth != null ? recurring.dayOfMonth : '',
         intervalDays: recurring.intervalDays != null ? recurring.intervalDays : '',
         dueDate: parseDateOnly(toDateInput(recurring.nextDueDate)) ?? toStartOfDayLocal(new Date()),
-        remindDaysBefore: recurring.remindDaysBefore ?? 3,
+        remindDaysBefore: recurring.remindDaysBefore ?? 10,
         notes: recurring.notes ?? '',
       });
       return;
@@ -187,7 +187,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
         dayOfMonth: Number.isFinite(dom) ? dom : 1,
         intervalDays: '',
         dueDate: parseDateOnly(toDateInput(txDate)) ?? toStartOfDayLocal(new Date()),
-        remindDaysBefore: 3,
+        remindDaysBefore: 10,
         notes: '',
       });
       return;
@@ -241,7 +241,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
     const parsedRemind =
       typeof state.remindDaysBefore === 'number' && Number.isFinite(state.remindDaysBefore)
         ? state.remindDaysBefore
-        : 3;
+        : 10;
 
     if (!isValidDate(state.dueDate)) {
       return;
@@ -260,7 +260,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
       frequency: state.frequency,
       dayOfMonth: parsedDay,
       intervalDays: parsedInterval,
-      remindDaysBefore: Number.isFinite(parsedRemind) ? parsedRemind : 3,
+      remindDaysBefore: Number.isFinite(parsedRemind) ? parsedRemind : 10,
       firstDueDate,
       notes: state.notes.trim() || null,
     };
@@ -270,7 +270,9 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
         variables: {
           id: recurring.id,
           input: {
+            financialAccountId: input.financialAccountId,
             name: input.name,
+            creditDebitType: input.creditDebitType,
             expectedAmount: input.expectedAmount,
             frequency: input.frequency,
             dayOfMonth: input.dayOfMonth,
@@ -312,6 +314,10 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
       borderRadius: `${theme.shape.borderRadius}px !important`,
       justifyContent: 'flex-start',
     },
+    '& .MuiChip-root:not(.MuiChip-outlined)': {
+      bgcolor: 'transparent',
+      '&:hover': { bgcolor: 'transparent' },
+    },
     '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
   } as const;
 
@@ -350,7 +356,6 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
                     getOptionLabel={(option) => option.name}
                     value={accounts.find((a) => a.id === field.value) ?? null}
                     onChange={(_, value) => field.onChange(value?.id ?? '')}
-                    disabled={isFromTransaction}
                     disableClearable={false}
                     clearOnEscape
                     isOptionEqualToValue={(a, b) => a.id === b.id}
@@ -382,7 +387,7 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
                       return (
                         <TextField
                           {...restParams}
-                          label={t('recurringPayments.form.account')}
+                          label={t('recurringPayments.form.accountOptional')}
                           placeholder={t('recurringPayments.form.accountSearchPlaceholder')}
                           fullWidth
                           size={size === 'small' ? 'small' : 'medium'}
@@ -401,123 +406,100 @@ export function RecurringPaymentForm({ open, onClose, onSaved, recurring, fromTr
                 size="medium"
               />
 
-              {!isFromTransaction ? (
-                <>
-                  <Box sx={{ mb: 0 }}>
-                    {selectedCategory ? (
-                      <Chip
-                        clickable
-                        onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
-                        label={
-                          <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                            <CategoryIcon
-                              iconName={selectedCategory.icon}
-                              color={selectedCategory.color ?? undefined}
-                              size={18}
-                              sx={{ flexShrink: 0 }}
-                            />
-                            <Typography
-                              variant="body2"
-                              title={selectedCategory.name}
-                              sx={{
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap',
-                                minWidth: 0,
-                                maxWidth: '40ch',
-                              }}
-                            >
-                              {selectedCategory.name}
-                            </Typography>
-                          </Stack>
-                        }
-                        variant="filled"
-                        sx={{
-                          height: 56,
-                          width: '100%',
-                          borderRadius: `${theme.shape.borderRadius}px`,
-                          color: 'text.primary',
-                          bgcolor: 'action.selected',
-                          justifyContent: 'flex-start',
-                          '&:hover': {
-                            bgcolor: 'action.hover',
-                          },
-                          transition: 'background-color 0.15s ease',
-                          '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
-                        }}
-                      />
-                    ) : (
-                      <Chip
-                        clickable
-                        onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
-                        label={
-                          <Typography variant="body2" sx={{ opacity: 0.65 }}>
-                            {t('recurringPayments.form.category')}
-                          </Typography>
-                        }
-                        variant="outlined"
-                        sx={{
-                          height: 56,
-                          width: '100%',
-                          borderRadius: `${theme.shape.borderRadius}px`,
-                          borderStyle: 'dashed',
-                          color: 'text.secondary',
-                          justifyContent: 'flex-start',
-                          '&:hover': {
-                            borderColor: 'primary.main',
-                            color: 'primary.main',
-                            bgcolor: alpha(theme.palette.primary.main, 0.05),
-                          },
-                          transition: 'background-color 0.15s ease',
-                          '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
-                        }}
-                      />
-                    )}
-                  </Box>
-
-                  <CategoryPicker
-                    value={categoryIdVal || null}
-                    onChange={(id) => setValue('categoryId', id ?? '', { shouldDirty: true })}
-                    creditDebitType={creditDebitWatch}
-                    anchorEl={categoryPickerAnchorEl}
-                    onClose={() => setCategoryPickerAnchorEl(null)}
-                  />
-
-                  <Box sx={merchantSelectWrapperSx}>
-                    <Controller
-                      name="merchantId"
-                      control={control}
-                      render={({ field }) => (
-                        <MerchantSelect
-                          value={field.value || null}
-                          onChange={(id) => field.onChange(id ?? '')}
-                          initialMerchant={initialMerchantForSelect}
-                          placeholder={t('recurringPayments.form.merchant')}
+              <Box sx={{ mb: 0 }}>
+                {selectedCategory ? (
+                  <Chip
+                    clickable
+                    onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
+                    label={
+                      <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                        <CategoryIcon
+                          iconName={selectedCategory.icon}
+                          color={selectedCategory.color ?? undefined}
+                          size={18}
+                          sx={{ flexShrink: 0 }}
                         />
-                      )}
+                        <Typography
+                          variant="body2"
+                          title={selectedCategory.name}
+                          sx={{
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            minWidth: 0,
+                            maxWidth: '40ch',
+                          }}
+                        >
+                          {selectedCategory.name}
+                        </Typography>
+                      </Stack>
+                    }
+                    variant="filled"
+                    sx={{
+                      height: 56,
+                      width: '100%',
+                      borderRadius: `${theme.shape.borderRadius}px`,
+                      color: 'text.primary',
+                      bgcolor: 'action.selected',
+                      justifyContent: 'flex-start',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                      },
+                      transition: 'background-color 0.15s ease',
+                      '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    clickable
+                    onClick={(e) => setCategoryPickerAnchorEl(e.currentTarget)}
+                    label={
+                      <Typography variant="body2" sx={{ opacity: 0.65 }}>
+                        {t('recurringPayments.form.category')}
+                      </Typography>
+                    }
+                    variant="outlined"
+                    sx={{
+                      height: 56,
+                      width: '100%',
+                      borderRadius: `${theme.shape.borderRadius}px`,
+                      borderStyle: 'dashed',
+                      color: 'text.secondary',
+                      justifyContent: 'flex-start',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        color: 'primary.main',
+                        bgcolor: alpha(theme.palette.primary.main, 0.05),
+                      },
+                      transition: 'background-color 0.15s ease',
+                      '& .MuiChip-label': { minWidth: 0, maxWidth: '100%', width: '100%', py: 0 },
+                    }}
+                  />
+                )}
+              </Box>
+
+              <CategoryPicker
+                value={categoryIdVal || null}
+                onChange={(id) => setValue('categoryId', id ?? '', { shouldDirty: true })}
+                creditDebitType={creditDebitWatch}
+                anchorEl={categoryPickerAnchorEl}
+                onClose={() => setCategoryPickerAnchorEl(null)}
+              />
+
+              <Box sx={merchantSelectWrapperSx}>
+                <Controller
+                  name="merchantId"
+                  control={control}
+                  render={({ field }) => (
+                    <MerchantSelect
+                      value={field.value || null}
+                      onChange={(id) => field.onChange(id ?? '')}
+                      initialMerchant={initialMerchantForSelect}
+                      placeholder={t('recurringPayments.form.merchant')}
                     />
-                  </Box>
-                </>
-              ) : (
-                <Stack spacing={0.5}>
-                  <TextField
-                    label={t('recurringPayments.form.category')}
-                    value={fromTransaction?.category?.name ?? '—'}
-                    onChange={() => {}}
-                    fullWidth
-                    size="medium"
-                    InputProps={{ readOnly: true }}
-                  />
-                  <TextField
-                    label={t('recurringPayments.form.merchant')}
-                    value={fromTransaction?.merchant?.name ?? '—'}
-                    onChange={() => {}}
-                    fullWidth
-                    size="medium"
-                    InputProps={{ readOnly: true }}
-                  />
-                </Stack>
-              )}
+                  )}
+                />
+              </Box>
 
               <MoneyInput
                 name="expectedAmount"

@@ -6,7 +6,11 @@ import { ThemeProvider, createTheme, Table, TableBody } from '@mui/material';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import { InlineTransactionForm } from '../InlineTransactionForm';
-import { APPLY_TRANSACTION_EDIT_TO_SIMILAR, UPDATE_TRANSACTION } from '@/lib/graphql/operations/banking/mutations';
+import {
+  APPLY_TRANSACTION_EDIT_TO_SIMILAR,
+  CREATE_TRANSACTION,
+  UPDATE_TRANSACTION,
+} from '@/lib/graphql/operations/banking/mutations';
 import { CreditDebitType, TransactionType, type Transaction } from '@/lib/graphql/types/__generated__/graphql';
 import { useMutation as mockUseMutation, useQuery as mockUseQuery, useLazyQuery as mockUseLazyQuery } from '@apollo/client/react';
 
@@ -41,6 +45,10 @@ vi.mock('../SimilarEditDialog', () => ({
 
 vi.mock('../../components/AttachmentSection', () => ({
   AttachmentSection: () => <div data-testid="attachment-section-mock" />,
+}));
+
+vi.mock('../MerchantSelect', () => ({
+  MerchantSelect: () => <div data-testid="merchant-select-mock" />,
 }));
 
 const theme = createTheme();
@@ -124,5 +132,50 @@ describe('InlineTransactionForm — BALANCE_ADJUSTMENT edit', () => {
         input: { amount: 1500 },
       },
     });
+  });
+});
+
+describe('InlineTransactionForm — create validation', () => {
+  const createTransaction = vi.fn().mockResolvedValue({});
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(mockUseQuery).mockReturnValue({
+      data: {
+        financialAccounts: [{ id: 'acc-1', name: 'Conta', issuer: null, themeColor: null }],
+        transactionCategories: [],
+        transactionTags: [],
+      },
+    } as any);
+    vi.mocked(mockUseMutation).mockImplementation((doc: unknown) => {
+      if (doc === CREATE_TRANSACTION) {
+        return [createTransaction, { loading: false }] as any;
+      }
+      return [vi.fn(), { loading: false }] as any;
+    });
+  });
+
+  it('keeps save enabled and shows required errors when description is missing', async () => {
+    const user = userEvent.setup();
+
+    renderInTable(
+      <InlineTransactionForm
+        isOpen
+        onClose={vi.fn()}
+        onSuccess={vi.fn()}
+        selectedAccountId="acc-1"
+      />,
+    );
+
+    await user.type(screen.getByTestId('tx-amount-input'), '100');
+    expect(screen.getByTestId('tx-save-btn')).not.toBeDisabled();
+
+    await user.click(screen.getByTestId('tx-save-btn'));
+
+    expect(createTransaction).not.toHaveBeenCalled();
+    expect(
+      screen.getByTestId('inline-transaction-form').querySelector('[data-field-error="description"]'),
+    ).toBeTruthy();
+    expect(screen.getByText('financeTransactions.validation.required')).toBeInTheDocument();
   });
 });

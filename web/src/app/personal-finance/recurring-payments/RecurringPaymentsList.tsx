@@ -12,18 +12,19 @@ import {
 } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useMediaQuery, useTheme } from '@mui/material';
-import { LoadingState, QueryErrorState } from '@/shared/components/ui/feedback';
+import { ConfirmationDialog, LoadingState, QueryErrorState } from '@/shared/components/ui/feedback';
 import { useDebounce } from '@/shared/hooks/ui';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import {
-  CANCEL_RECURRING_PAYMENT,
   CONFIRM_RECURRING_PAYMENT,
+  DELETE_RECURRING_PAYMENT,
   PAUSE_RECURRING_PAYMENT,
   RECURRING_PAYMENTS,
   RESUME_RECURRING_PAYMENT,
 } from '@/lib/graphql/operations/banking/recurringPaymentOperations';
 import { RecurringFrequency, RecurringPaymentStatus } from '@/lib/graphql/types/__generated__/graphql';
+import { formatDateOnly } from '@/shared/utils/date/dateOnly';
 import { SidebarLayout } from '@/shared/components/ui/layout/SidebarLayout';
 import { Page } from '@/shared/components/ui/layout';
 import { RecurringPaymentForm } from './RecurringPaymentForm';
@@ -43,6 +44,7 @@ export function RecurringPaymentsList() {
   const [editing, setEditing] = useState<RecurringPaymentRecord | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [confirmPaymentRow, setConfirmPaymentRow] = useState<RecurringPaymentRecord | null>(null);
+  const [rowToDelete, setRowToDelete] = useState<RecurringPaymentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const debouncedSearch = useDebounce(searchQuery.trim(), 300);
   const [statusFilter, setStatusFilter] = useState<RecurringPaymentStatus[]>([RecurringPaymentStatus.Active]);
@@ -60,8 +62,9 @@ export function RecurringPaymentsList() {
 
   const [pauseRecurring] = useMutation(PAUSE_RECURRING_PAYMENT);
   const [resumeRecurring] = useMutation(RESUME_RECURRING_PAYMENT);
-  const [cancelRecurring] = useMutation(CANCEL_RECURRING_PAYMENT);
+  const [deleteRecurring, { loading: deleting }] = useMutation(DELETE_RECURRING_PAYMENT);
   const [confirmPayment] = useMutation(CONFIRM_RECURRING_PAYMENT);
+  const [confirmingPayment, setConfirmingPayment] = useState(false);
 
   const rows = useMemo(() => data?.recurringPayments ?? [], [data?.recurringPayments]);
 
@@ -85,29 +88,32 @@ export function RecurringPaymentsList() {
     await refetch();
   };
 
-  const handleCancel = async (row: RecurringPaymentRecord) => {
-    if (!window.confirm(t('recurringPayments.actions.cancelConfirm'))) return;
-    await cancelRecurring({ variables: { id: row.id } });
+  const handleConfirmDelete = async () => {
+    if (!rowToDelete) return;
+    await deleteRecurring({ variables: { id: rowToDelete.id } });
+    setRowToDelete(null);
     await refetch();
   };
 
   const handleConfirmPayment = async (row: RecurringPaymentRecord, paymentDate: Date) => {
-    const isoDate = paymentDate.toISOString().slice(0, 10);
-    await confirmPayment({ variables: { id: row.id, paymentDate: isoDate } });
-    await refetch();
-    setConfirmPaymentRow(null);
+    setConfirmingPayment(true);
+    try {
+      await confirmPayment({ variables: { id: row.id, paymentDate: formatDateOnly(paymentDate) } });
+      await refetch();
+      setConfirmPaymentRow(null);
+    } finally {
+      setConfirmingPayment(false);
+    }
   };
 
   const statusOptions = useMemo(
     () =>
-      [RecurringPaymentStatus.Active, RecurringPaymentStatus.Paused, RecurringPaymentStatus.Cancelled].map((value) => ({
+      [RecurringPaymentStatus.Active, RecurringPaymentStatus.Paused].map((value) => ({
         value,
         label:
           value === RecurringPaymentStatus.Active
             ? t('recurringPayments.status.ACTIVE')
-            : value === RecurringPaymentStatus.Paused
-              ? t('recurringPayments.status.PAUSED')
-              : t('recurringPayments.status.CANCELLED'),
+            : t('recurringPayments.status.PAUSED'),
       })),
     [t],
   );
@@ -190,7 +196,7 @@ export function RecurringPaymentsList() {
             noDataMessage={noDataMessage}
             onEdit={setEditing}
             onPauseResume={(r) => void handleToggleStatus(r)}
-            onCancel={(r) => void handleCancel(r)}
+            onDelete={setRowToDelete}
             onConfirmPayment={(r) => setConfirmPaymentRow(r)}
           />
         </>
@@ -215,8 +221,21 @@ export function RecurringPaymentsList() {
 
       <ConfirmPaymentDialog
         row={confirmPaymentRow}
+        loading={confirmingPayment}
         onClose={() => setConfirmPaymentRow(null)}
         onConfirm={(date) => void handleConfirmPayment(confirmPaymentRow!, date)}
+      />
+
+      <ConfirmationDialog
+        open={Boolean(rowToDelete)}
+        onClose={() => setRowToDelete(null)}
+        onConfirm={() => void handleConfirmDelete()}
+        title={t('recurringPayments.deleteConfirmation.title')}
+        message={t('recurringPayments.deleteConfirmation.message')}
+        cancelText={t('actions.cancel')}
+        confirmText={t('recurringPayments.table.rowActions.remove')}
+        confirmColor="error"
+        loading={deleting}
       />
     </Box>
   );

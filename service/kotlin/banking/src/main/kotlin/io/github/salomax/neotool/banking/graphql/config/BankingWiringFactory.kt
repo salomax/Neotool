@@ -942,13 +942,13 @@ class BankingWiringFactory(
                 },
             )
             .dataFetcher(
-                "cancelRecurringPayment",
+                "deleteRecurringPayment",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
-                        recurringPaymentResolver.cancelRecurringPayment(id, principal)
+                        recurringPaymentResolver.deleteRecurringPayment(id, principal)
                     }
                 },
             )
@@ -959,7 +959,13 @@ class BankingWiringFactory(
                         val id =
                             env.getArgument<String>("id")
                                 ?: throw IllegalArgumentException("id is required")
-                        val paymentDate = LocalDate.parse(env.getArgument<String>("paymentDate"))
+                        val paymentDate =
+                            when (val raw = env.getArgument<Any?>("paymentDate")) {
+                                is LocalDate -> raw
+                                is String -> LocalDate.parse(raw)
+                                null -> throw IllegalArgumentException("paymentDate is required")
+                                else -> error("paymentDate must be a LocalDate or ISO-8601 string")
+                            }
                         recurringPaymentResolver.confirmRecurringPayment(id, paymentDate, principal)
                     }
                 },

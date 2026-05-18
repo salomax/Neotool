@@ -746,6 +746,31 @@ open class DefaultTransactionRepository(
     }
 
     @Transactional
+    override fun clearRecurringPaymentId(
+        recurringPaymentId: UUID,
+        accountId: UUID,
+    ): Int {
+        val updated =
+            entityManager.createNativeQuery(
+                """
+                UPDATE banking.transactions
+                   SET recurring_payment_id = NULL,
+                       updated_at = NOW()
+                 WHERE recurring_payment_id = CAST(:recurringPaymentId AS uuid)
+                   AND account_id = CAST(:accountId AS uuid)
+                   AND deleted_at IS NULL
+                """.trimIndent(),
+            )
+                .setParameter("recurringPaymentId", recurringPaymentId.toString())
+                .setParameter("accountId", accountId.toString())
+                .executeUpdate()
+        if (updated > 0) {
+            entityManager.clear()
+        }
+        return updated
+    }
+
+    @Transactional
     override fun deleteFutureByRecurringPaymentId(recurringPaymentId: UUID): Int =
         entityManager.createNativeQuery(
             """

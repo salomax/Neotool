@@ -1,34 +1,55 @@
 'use client';
 
-import {
-  Box,
-  Divider,
-  LinearProgress,
-  Skeleton,
-  Stack,
-  ToggleButton,
-  ToggleButtonGroup,
-  Typography,
-  useTheme,
-} from '@mui/material';
-import { useMemo, useState } from 'react';
+import { Box, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
+import { useState,useMemo } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
 import { QueryErrorState } from '@/shared/components/ui/feedback';
+import { Label } from '@/shared/components/ui/primitives';
+import { CategorySummarySection } from '../finance-transactions/summary/CategorySummarySection';
+import { FrequencySummarySection } from '../finance-transactions/summary/FrequencySummarySection';
 import type { RecurringPaymentRow } from './recurringPaymentRowModel';
 import {
-  buildCategoryDistribution,
-  buildFrequencyDistribution,
+  buildRecurringCategoryTotals,
+  buildRecurringFrequencyTotals,
   computeRecurringSummaryMetrics,
-  type DistributionMode,
 } from './recurringPaymentRowModel';
 
 const LOCALE = 'pt-BR';
 const CURRENCY = 'BRL';
+const DIVIDER_VERTICAL_SPACING = '1rem';
 
 function formatCurrency(value: number): string {
   return new Intl.NumberFormat(LOCALE, { style: 'currency', currency: CURRENCY }).format(value);
+}
+
+function SummaryMetricRow({
+  label,
+  count,
+  amount,
+  countColor,
+}: {
+  label: string;
+  count: number;
+  amount: number;
+  countColor?: string;
+}) {
+  return (
+    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+        <Typography variant="body2" color="text.secondary">
+          {label}
+        </Typography>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: countColor ?? 'text.primary' }}>
+          {count}
+        </Typography>
+      </Box>
+      <Typography variant="body1" sx={{ fontWeight: 600, flexShrink: 0 }}>
+        {formatCurrency(amount)}
+      </Typography>
+    </Box>
+  );
 }
 
 export interface RecurringPaymentsSummaryPanelProps {
@@ -44,10 +65,8 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
   const [distributionMode, setDistributionMode] = useState<DistributionMode>('category');
 
   const metrics = useMemo(() => computeRecurringSummaryMetrics(rows), [rows]);
-
-  const distribution = useMemo(() => {
-    return distributionMode === 'category' ? buildCategoryDistribution(rows) : buildFrequencyDistribution(rows);
-  }, [rows, distributionMode]);
+  const categoryTotals = useMemo(() => buildRecurringCategoryTotals(rows), [rows]);
+  const frequencyTotals = useMemo(() => buildRecurringFrequencyTotals(rows), [rows]);
 
   if (error && onRetry) {
     return (
@@ -64,14 +83,14 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
           <Skeleton variant="rounded" height={56} />
           <Skeleton variant="rounded" height={56} />
           <Skeleton variant="rounded" height={56} />
+          <Skeleton variant="rounded" height={56} />
+          <Skeleton variant="rounded" height={120} />
           <Skeleton variant="rounded" height={120} />
         </Stack>
       ) : (
         <Stack spacing={2.5}>
           <Box>
-            <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-              {t('recurringPayments.summary.monthlyCommitted')}
-            </Typography>
+            <Label>{t('recurringPayments.summary.monthlyCommitted')}</Label>
             <CurrencyAmountParts
               value={metrics.monthlyCommittedApprox}
               currency={CURRENCY}
@@ -82,88 +101,46 @@ export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }:
             />
           </Box>
 
-          <Divider />
+          <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t('recurringPayments.summary.next7Days')}
-            </Typography>
-            <Box sx={{ textAlign: 'right' }}>
-              <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                {metrics.next7Count} · {formatCurrency(metrics.next7Sum)}
-              </Typography>
-            </Box>
-          </Box>
+          <Stack spacing={1.5}>
+            <SummaryMetricRow
+              label={t('recurringPayments.summary.overdue')}
+              count={metrics.overdueCount}
+              amount={metrics.overdueSum}
+              countColor={metrics.overdueCount > 0 ? 'error.main' : undefined}
+            />
+            <SummaryMetricRow
+              label={t('recurringPayments.summary.next7Days')}
+              count={metrics.next7Count}
+              amount={metrics.next7Sum}
+            />
+            <SummaryMetricRow
+              label={t('recurringPayments.table.groups.nextMonth')}
+              count={metrics.nextMonthCount}
+              amount={metrics.nextMonthSum}
+            />
+          </Stack>
 
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              {t('recurringPayments.summary.overdue')}
-            </Typography>
-            <Typography
-              variant="body1"
-              sx={{ fontWeight: 600, color: metrics.overdueCount > 0 ? 'error.main' : 'text.primary' }}
-            >
-              {metrics.overdueCount}
-            </Typography>
-          </Box>
+          <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
-          <Divider />
-
-          <Box>
-            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', letterSpacing: 0.6 }}>
-                {t('recurringPayments.summary.distribution')}
-              </Typography>
-              <ToggleButtonGroup
-                size="small"
-                exclusive
-                value={distributionMode}
-                onChange={(_, v: DistributionMode | null) => v && setDistributionMode(v)}
-              >
-                <ToggleButton value="category" sx={{ px: 1.5, textTransform: 'none' }}>
-                  {t('recurringPayments.summary.byCategory')}
-                </ToggleButton>
-                <ToggleButton value="frequency" sx={{ px: 1.5, textTransform: 'none' }}>
-                  {t('recurringPayments.summary.byFrequency')}
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Stack>
-
-            {distribution.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                {t('recurringPayments.summary.noDistributionData')}
-              </Typography>
-            ) : (
-              <Stack spacing={1.25}>
-                {distribution.map((item) => (
-                  <Box key={item.key}>
-                    <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 0.25 }}>
-                      <Typography variant="body2" noWrap sx={{ maxWidth: '58%' }} title={item.label}>
-                        {distributionMode === 'frequency'
-                          ? t(`recurringPayments.frequency.${item.label}`)
-                          : item.key === '__none__'
-                            ? t('recurringPayments.uncategorized')
-                            : item.label}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {formatCurrency(item.amount)} ({item.pct}%)
-                      </Typography>
-                    </Stack>
-                    <LinearProgress
-                      variant="determinate"
-                      value={item.pct}
-                      sx={{
-                        height: 6,
-                        borderRadius: 1,
-                        bgcolor: theme.palette.action.hover,
-                        '& .MuiLinearProgress-bar': { borderRadius: 1 },
-                      }}
-                    />
-                  </Box>
-                ))}
-              </Stack>
-            )}
-          </Box>
+          <Stack>
+            <CategorySummarySection
+              title={t('recurringPayments.summary.byCategory')}
+              emptyText={t('recurringPayments.summary.noDistributionData')}
+              items={categoryTotals}
+              kind="expenses"
+              onSeeAll={() => {}}
+              activeCategoryFilter={null}
+              activeCreditDebitTypeFilter={null}
+            />
+            <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
+            <FrequencySummarySection
+              title={t('recurringPayments.summary.byFrequency')}
+              emptyText={t('recurringPayments.summary.noDistributionData')}
+              items={frequencyTotals}
+            />
+          </Stack>
         </Stack>
       )}
     </Box>

@@ -2786,7 +2786,7 @@ type Mutation
   updateRecurringPayment(id: ID!, input: UpdateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
   pauseRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
   resumeRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
-  cancelRecurringPayment(id: ID!): RecurringPayment! @join__field(graph: BANKING)
+  deleteRecurringPayment(id: ID!): Boolean! @join__field(graph: BANKING)
   confirmRecurringPayment(id: ID!, paymentDate: Date!): RecurringPayment! @join__field(graph: BANKING)
   linkTransactionToRecurring(transactionId: ID!, recurringPaymentId: ID!): Transaction! @join__field(graph: BANKING)
   createRecurringPaymentFromTransaction(transactionId: ID!, input: CreateRecurringPaymentInput!): RecurringPayment! @join__field(graph: BANKING)
@@ -3925,7 +3925,6 @@ enum RecurringPaymentStatus
 {
   ACTIVE @join__enumValue(graph: BANKING)
   PAUSED @join__enumValue(graph: BANKING)
-  CANCELLED @join__enumValue(graph: BANKING)
 }
 
 input RefreshAccessTokenInput

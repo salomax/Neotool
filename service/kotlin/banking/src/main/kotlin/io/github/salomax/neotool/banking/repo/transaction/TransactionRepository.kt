@@ -334,7 +334,15 @@ interface TransactionRepository {
     ): Boolean
 
     /**
-     * Deletes FUTURE rows that belong to one recurring payment (e.g. paused/cancelled template).
+     * Clears [Transaction.recurringPaymentId] on all non-deleted transactions linked to a recurring payment.
+     */
+    fun clearRecurringPaymentId(
+        recurringPaymentId: UUID,
+        accountId: UUID,
+    ): Int
+
+    /**
+     * Deletes FUTURE rows that belong to one recurring payment (e.g. paused/deleted template).
      */
     fun deleteFutureByRecurringPaymentId(recurringPaymentId: UUID): Int
 
