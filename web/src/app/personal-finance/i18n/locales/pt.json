@@ -289,6 +289,27 @@
       "registerMaturity": "Registrar vencimento",
       "registerCoupon": "Registrar cupom",
       "markSeen": "Marcar como visto",
+      "dismiss": "Dispensar",
+      "viewAccount": "Ver conta",
+      "age": {
+        "today": "Hoje",
+        "yesterday": "Ontem",
+        "days": "{{count}} dias"
+      },
+      "types": {
+        "INVESTMENT_MATURED": "Vencimento",
+        "COUPON_PAYMENT_DUE": "Cupom",
+        "RECURRING_PAYMENT_DUE": "Recorrente",
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Saldo negativo"
+      },
+      "descriptions": {
+        "investmentMatured": "Investimento vencido — registre o resgate.",
+        "maturityOn": "Venceu em {{date}} — registre o resgate.",
+        "couponDue": "Pagamento de cupom pendente.",
+        "couponOn": "Cupom em {{date}} — registre o recebimento.",
+        "recurringDueOn": "Vence em {{date}}.",
+        "negativeBalance": "A conta ficou com saldo negativo após uma transferência."
+      },
       "couponDrawer": {
         "irRateHint": "Alíquota estimada: {{rate}} (tabela regressiva)",
         "taxExempt": "Isento de IR"
@@ -2028,6 +2049,7 @@
     "accessModule": "Acessar módulo",
     "delete": "Excluir",
     "cancel": "Cancelar",
+    "close": "Fechar",
     "save": "Salvar"
   },
   "transactionType": {

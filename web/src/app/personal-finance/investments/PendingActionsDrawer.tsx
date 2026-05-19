@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
-import { Box, Button, Chip, Stack, Typography } from "@mui/material";
+import { Box, Divider, Stack } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { EmptyState, LoadingState, QueryErrorState } from "@/shared/components/ui/feedback";
@@ -25,6 +25,8 @@ import { CouponPaymentConfirmDrawer, type CouponDrawerHolding } from "./CouponPa
 import { INVESTMENT_HOLDINGS, INVESTMENT_PORTFOLIO_SUMMARY } from "@/lib/graphql/operations/banking/queries";
 import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import type { FinancialAccountsQuery } from "@/lib/graphql/operations/banking/queries.generated";
+import { PendingActionRow } from "./components/pending-actions/PendingActionRow";
+import type { PendingActionRowData } from "./components/pending-actions/pendingActionPresenters";
 
 const SEVERITY_ORDER: Record<PendingActionSeverity, number> = {
   [PendingActionSeverity.ActionRequired]: 0,
@@ -92,22 +94,6 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     );
   }, [accountsData?.financialAccounts, investmentAccounts]);
 
-  const titleFor = (type: PendingActionType): string => {
-    if (type === PendingActionType.InvestmentMatured) return t("investments.pendingActions.registerMaturity");
-    if (type === PendingActionType.CouponPaymentDue) return t("investments.pendingActions.registerCoupon");
-    if (type === PendingActionType.RecurringPaymentDue) return t("recurringPayments.pendingActions.paymentDue");
-    return type;
-  };
-
-  const isRecurringDue = (rowType: PendingActionType): boolean =>
-    rowType === PendingActionType.RecurringPaymentDue;
-
-  const assetName = (row: (typeof sorted)[number]): string =>
-    row.relatedHolding?.asset?.name ??
-    (row.payload as { assetName?: string; recurringPaymentName?: string })?.assetName ??
-    (row.payload as { recurringPaymentName?: string })?.recurringPaymentName ??
-    "—";
-
   const refresh = React.useCallback(async () => {
     await refetchActions();
     await client.refetchQueries({
@@ -120,10 +106,104 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
     await refresh();
   };
 
+  const openMaturityDrawer = (row: PendingActionRowData) => {
+    const related = row.relatedHolding;
+    if (!related) return;
+    setMaturityHolding({
+      id: related.id,
+      financialAccountId: related.financialAccountId,
+      maturityDate: related.maturityDate ? String(related.maturityDate) : null,
+      grossValue: related.grossValue ?? null,
+      netValue: related.netValue ?? null,
+      incomeTax: related.incomeTax ?? null,
+      iof: related.iof ?? null,
+      issuerName: related.asset.issuerName ?? null,
+      issuerLogoUrl: related.asset.logoAsset?.publicUrl ?? null,
+      asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
+    });
+    setMaturityOpen(true);
+  };
+
+  const openCouponDrawer = (row: PendingActionRowData) => {
+    const related = row.relatedHolding;
+    if (!related) return;
+    setCouponHolding({
+      id: related.id,
+      financialAccountId: related.financialAccountId,
+      quantity: related.quantity,
+      averageCost: related.averageCost,
+      couponFrequency: related.couponFrequency ?? null,
+      issueDate: related.issueDate ? String(related.issueDate) : null,
+      isTaxExempt: related.isTaxExempt,
+      grossValue: related.grossValue ?? null,
+      accruedInterest: related.accruedInterest ?? null,
+      couponDate: null,
+      issuerName: related.asset.issuerName ?? null,
+      asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
+    });
+    setCouponPendingActionId(row.id);
+    setCouponDestinationAccount(
+      effectiveInvestmentAccounts.find((a) => a.id === related.financialAccountId) ?? null,
+    );
+    setCouponOpen(true);
+  };
+
+  const primaryActionFor = (
+    row: PendingActionRowData,
+  ): {
+    label?: string;
+    testId?: string;
+    onPrimaryAction?: () => void;
+  } => {
+    const type = row.type as PendingActionType;
+
+    if (type === PendingActionType.InvestmentMatured && row.relatedHolding) {
+      return {
+        label: t("investments.pendingActions.registerMaturity"),
+        testId: "pending-action-register-maturity",
+        onPrimaryAction: () => openMaturityDrawer(row),
+      };
+    }
+
+    if (type === PendingActionType.CouponPaymentDue && row.relatedHolding) {
+      return {
+        label: t("investments.pendingActions.registerCoupon"),
+        testId: "pending-action-register-coupon",
+        onPrimaryAction: () => openCouponDrawer(row),
+      };
+    }
+
+    if (type === PendingActionType.RecurringPaymentDue) {
+      return {
+        label: t("recurringPayments.pendingActions.viewAll"),
+        onPrimaryAction: () => {
+          onClose();
+          router.push("/personal-finance/recurring-payments");
+        },
+      };
+    }
+
+    const financialAccountId = (row.payload as { financialAccountId?: string })?.financialAccountId;
+    if (type === PendingActionType.BankAccountNegativeBalance && financialAccountId) {
+      return {
+        label: t("investments.pendingActions.viewAccount"),
+        onPrimaryAction: () => {
+          onClose();
+          router.push(`/personal-finance/finance-transactions?accountId=${financialAccountId}`);
+        },
+      };
+    }
+
+    return {};
+  };
+
   return (
     <>
       <Drawer open={open} onClose={onClose} anchor="right" size="md">
-        <Drawer.Header title={t("investments.pendingActions.panelTitle")} />
+        <Drawer.Header
+          title={t("investments.pendingActions.panelTitle")}
+          closeButtonAriaLabel={t("actions.close")}
+        />
         <Drawer.Body>
           {error ? <QueryErrorState error={error} onRetry={() => void refresh()} /> : null}
           {!error ? <LoadingState isLoading={loading && sorted.length === 0} minHeight={220} /> : null}
@@ -134,118 +214,21 @@ export function PendingActionsDrawer({ open, onClose, investmentAccounts = [] }:
             />
           ) : null}
           {!error && sorted.length > 0 ? (
-            <Stack spacing={1.5}>
-              {sorted.map((row) => (
-                <Box
-                  key={row.id}
-                  data-testid="pending-action-row"
-                  sx={{
-                    display: "flex",
-                    flexWrap: "wrap",
-                    alignItems: "center",
-                    gap: 1,
-                    justifyContent: "space-between",
-                  }}
-                >
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                    <Chip size="small" label={row.severity} variant="outlined" />
-                    <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                      {titleFor(row.type as PendingActionType)} — {assetName(row)}
-                    </Typography>
-                    {isRecurringDue(row.type as PendingActionType) ? (
-                      <Typography variant="caption" color="text.secondary" noWrap>
-                        {(row.payload as { expectedAmount?: string | number | null })?.expectedAmount
-                          ? ` · R$ ${(row.payload as { expectedAmount?: string | number }).expectedAmount}`
-                          : ` · ${t("recurringPayments.variableAmountBadge")}`}
-                      </Typography>
-                    ) : null}
-                  </Box>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    {row.type === PendingActionType.InvestmentMatured && row.relatedHolding ? (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        data-testid="pending-action-register-maturity"
-                        onClick={() => {
-                          const related = row.relatedHolding;
-                          if (!related) return;
-                          setMaturityHolding({
-                            id: related.id,
-                            financialAccountId: related.financialAccountId,
-                            maturityDate: related.maturityDate ? String(related.maturityDate) : null,
-                            grossValue: related.grossValue ?? null,
-                            netValue: related.netValue ?? null,
-                            incomeTax: related.incomeTax ?? null,
-                            iof: related.iof ?? null,
-                            issuerName: related.asset.issuerName ?? null,
-                            issuerLogoUrl: related.asset.logoAsset?.publicUrl ?? null,
-                            asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
-                          });
-                          setMaturityOpen(true);
-                        }}
-                      >
-                        {t("investments.pendingActions.registerMaturity")}
-                      </Button>
-                    ) : null}
-                    {row.type === PendingActionType.CouponPaymentDue && row.relatedHolding ? (
-                      <Button
-                        size="small"
-                        variant="contained"
-                        data-testid="pending-action-register-coupon"
-                        onClick={() => {
-                          const related = row.relatedHolding;
-                          if (!related) return;
-                          setCouponHolding({
-                            id: related.id,
-                            financialAccountId: related.financialAccountId,
-                            quantity: related.quantity,
-                            averageCost: related.averageCost,
-                            couponFrequency: related.couponFrequency ?? null,
-                            issueDate: related.issueDate ? String(related.issueDate) : null,
-                            isTaxExempt: related.isTaxExempt,
-                            grossValue: related.grossValue ?? null,
-                            accruedInterest: related.accruedInterest ?? null,
-                            couponDate: null,
-                            issuerName: related.asset.issuerName ?? null,
-                            asset: { id: related.asset.id, name: related.asset.name, assetType: related.asset.assetType ?? null },
-                          });
-                          setCouponPendingActionId(row.id);
-                          setCouponDestinationAccount(
-                            effectiveInvestmentAccounts.find((a) => a.id === related.financialAccountId) ?? null,
-                          );
-                          setCouponOpen(true);
-                        }}
-                      >
-                        {t("investments.pendingActions.registerCoupon")}
-                      </Button>
-                    ) : null}
-                    {isRecurringDue(row.type as PendingActionType) ? (
-                      <>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          onClick={() => {
-                            onClose();
-                            router.push("/personal-finance/recurring-payments");
-                          }}
-                        >
-                          {t("recurringPayments.pendingActions.viewAll")}
-                        </Button>
-                        <Button size="small" onClick={() => void handleDismiss(row.id)} disabled={dismissLoading}>
-                          {t("recurringPayments.pendingActions.dismiss")}
-                        </Button>
-                      </>
-                    ) : null}
-                    {row.type !== PendingActionType.InvestmentMatured &&
-                    row.type !== PendingActionType.CouponPaymentDue &&
-                    !isRecurringDue(row.type as PendingActionType) ? (
-                      <Button size="small" onClick={() => void handleDismiss(row.id)} disabled={dismissLoading}>
-                        {t("investments.pendingActions.markSeen")}
-                      </Button>
-                    ) : null}
-                  </Box>
-                </Box>
-              ))}
+            <Stack divider={<Divider />} spacing={0}>
+              {sorted.map((row) => {
+                const primary = primaryActionFor(row);
+                return (
+                  <PendingActionRow
+                    key={row.id}
+                    row={row}
+                    dismissLoading={dismissLoading}
+                    onDismiss={() => void handleDismiss(row.id)}
+                    primaryActionLabel={primary.label}
+                    primaryActionTestId={primary.testId}
+                    onPrimaryAction={primary.onPrimaryAction}
+                  />
+                );
+              })}
             </Stack>
           ) : null}
         </Drawer.Body>

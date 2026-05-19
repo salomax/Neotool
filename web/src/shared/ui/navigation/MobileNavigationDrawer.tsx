@@ -16,7 +16,7 @@ import {
 } from "@/shared/ui/mui-imports";
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { useThemeMode } from "@/styles/themes/AppThemeProvider";
 import { useAuthorization, useAuth } from "@/shared/providers";
@@ -81,7 +81,7 @@ export const MobileNavigationDrawer: React.FC<MobileNavigationDrawerProps> = ({
             {personalFinanceEnabled && (
               <ListItemButton onClick={() => handleNavigation("/personal-finance")}>
                 <ListItemIcon>
-                  <AccountBalanceWalletIcon />
+                  <InsertChartIcon />
                 </ListItemIcon>
                 <ListItemText primary={t('routes.personalFinance')} />
               </ListItemButton>

@@ -290,6 +290,27 @@
       "registerMaturity": "Record maturity",
       "registerCoupon": "Record coupon",
       "markSeen": "Mark as seen",
+      "dismiss": "Dismiss",
+      "viewAccount": "View account",
+      "age": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "days": "{{count}} days"
+      },
+      "types": {
+        "INVESTMENT_MATURED": "Maturity",
+        "COUPON_PAYMENT_DUE": "Coupon",
+        "RECURRING_PAYMENT_DUE": "Recurring",
+        "BANK_ACCOUNT_NEGATIVE_BALANCE": "Negative balance"
+      },
+      "descriptions": {
+        "investmentMatured": "Investment matured — record the redemption.",
+        "maturityOn": "Matured on {{date}} — record the redemption.",
+        "couponDue": "Coupon payment pending.",
+        "couponOn": "Coupon on {{date}} — record the receipt.",
+        "recurringDueOn": "Due on {{date}}.",
+        "negativeBalance": "The account balance went negative after a transfer."
+      },
       "couponDrawer": {
         "irRateHint": "Estimated rate: {{rate}} (regressive table)",
         "taxExempt": "Tax exempt"
@@ -2021,6 +2042,7 @@
     "accessModule": "Access module",
     "delete": "Delete",
     "cancel": "Cancel",
+    "close": "Close",
     "save": "Save"
   },
   "transactionType": {

@@ -17,7 +17,7 @@ import SettingsRoundedIcon from '@mui/icons-material/SettingsRounded';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import TrendingUpIcon from '@mui/icons-material/TrendingUp';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
-import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet';
+import InsertChartIcon from '@mui/icons-material/InsertChart';
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz';
 import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import RepeatIcon from '@mui/icons-material/Repeat';
@@ -69,7 +69,7 @@ export function SidebarRail() {
     ...(personalFinanceEnabled ? [{
       href: '/personal-finance',
       label: t('routes.personalFinance'),
-      icon: AccountBalanceWalletIcon,
+      icon: InsertChartIcon,
     }, {
       href: '/personal-finance/finance-transactions',
       label: 'Movimentações Financeiras',

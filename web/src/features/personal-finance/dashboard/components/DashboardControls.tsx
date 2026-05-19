@@ -10,6 +10,7 @@ import {
   useTheme,
   useMediaQuery,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SavingsOutlinedIcon from '@mui/icons-material/SavingsOutlined';
 import { useDashboardStore } from '../store';
@@ -33,6 +34,7 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const pricingEnabled = useFeatureFlagEnabled('pricing-enabled');
+  const outlinedBorderColor = alpha(theme.palette.primary.main, 0.5);
 
   const timeRangeLabelByOption = React.useMemo<Record<DateRangeOption, string>>(
     () => ({
@@ -109,10 +111,18 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
         }}
       >
         <FormControl
-          size="small"
           sx={{
             minWidth: 160,
-            '& .MuiOutlinedInput-notchedOutline': { border: 0 },
+            '& .MuiOutlinedInput-root': {
+              borderRadius: `${theme.custom.radius.button}px`,
+              height: 48,
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              borderColor: outlinedBorderColor,
+            },
+            '& .MuiOutlinedInput-root:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: 'primary.main',
+            },
           }}
         >
           <Select
@@ -124,7 +134,10 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
             sx={{
               bgcolor: 'transparent',
               '& .MuiSelect-select': {
-                py: 1,
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                py: 0,
               },
             }}
           >
@@ -137,7 +150,21 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
           </Select>
         </FormControl>
         <Tooltip title={t('dashboard.controls.resetLayout')}>
-          <IconButton aria-label={t('dashboard.controls.resetLayout')} size="small" onClick={resetLayout}>
+          <IconButton
+            aria-label={t('dashboard.controls.resetLayout')}
+            onClick={resetLayout}
+            sx={{
+              border: 1,
+              borderColor: outlinedBorderColor,
+              borderRadius: `${theme.custom.radius.button}px`,
+              height: 48,
+              width: 48,
+              p: 1.5,
+              '&:hover': {
+                borderColor: 'primary.main',
+              },
+            }}
+          >
             <RestartAltIcon fontSize="small" />
           </IconButton>
         </Tooltip>

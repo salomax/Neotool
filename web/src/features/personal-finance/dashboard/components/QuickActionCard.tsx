@@ -39,7 +39,7 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
         textAlign: 'left',
         '&:focus-visible .quick-action-card': {
           outline: `2px solid ${alpha(accentColor, 0.5)}`,
-          outlineOffset: 2,
+          outlineOffset: 1,
         },
       }}
     >
@@ -108,20 +108,15 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
           },
         }}
       >
-        <Box className="quick-action-content" sx={{ display: 'flex', alignItems: 'center', gap: 2, minWidth: 0 }}>
+        <Box className="quick-action-content" sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
           <Box sx={{ minWidth: 0 }}>
-            <Typography variant="subtitle1" fontWeight={700} noWrap>
+            <Typography variant="subtitle2" fontWeight={500} noWrap>
               {title}
             </Typography>
-            {description ? (
-              <Typography variant="body2" color="text.secondary">
-                {description}
-              </Typography>
-            ) : null}
           </Box>
         </Box>
         <Box className="quick-action-arrow" sx={{ color: alpha(theme.palette.text.primary, 0.35), flex: '0 0 auto' }}>
-          <ArrowForwardIosIcon sx={{ fontSize: 16 }} />
+          <ArrowForwardIosIcon sx={{ fontSize: 12 }}/>
         </Box>
         <Box className="quick-action-bg-icon">
           {icon}
