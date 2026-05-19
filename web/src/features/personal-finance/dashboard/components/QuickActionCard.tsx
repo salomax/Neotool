@@ -12,7 +12,7 @@ import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 interface QuickActionCardProps {
   href: string;
   title: string;
-  description: string;
+  description?: string;
   accentColor: string;
   icon: React.ReactNode;
   isMobile?: boolean;
@@ -113,9 +113,11 @@ export const QuickActionCard: React.FC<QuickActionCardProps> = ({
             <Typography variant="subtitle1" fontWeight={700} noWrap>
               {title}
             </Typography>
-            <Typography variant="body2" color="text.secondary" >
-              {description}
-            </Typography>
+            {description ? (
+              <Typography variant="body2" color="text.secondary">
+                {description}
+              </Typography>
+            ) : null}
           </Box>
         </Box>
         <Box className="quick-action-arrow" sx={{ color: alpha(theme.palette.text.primary, 0.35), flex: '0 0 auto' }}>

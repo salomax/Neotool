@@ -53,13 +53,8 @@ import { FINANCE_TABLE_BODY_FONT_SIZE } from '@/shared/components/ui/data-displa
 import { Label } from '@/shared/components/ui/primitives/Label';
 import type { RecurringPaymentRow, RecurringDueBucket } from './recurringPaymentRowModel';
 import { groupRecurringPaymentsByDueBucket, isOverdue } from './recurringPaymentRowModel';
-import {
-  CreditDebitType,
-  RecurringFrequency,
-  RecurringPaymentStatus,
-  TransactionType,
-} from '@/lib/graphql/types/__generated__/graphql';
-import { TransactionDirectionBadge } from '@/shared/components/ui/data-display';
+import { RecurringFrequency, RecurringPaymentStatus } from '@/lib/graphql/types/__generated__/graphql';
+import { RecurringPaymentNameIcon } from './RecurringPaymentNameIcon';
 
 const COL_SPAN = 7;
 
@@ -145,24 +140,6 @@ function statusChipProps(
       bgcolor: 'action.selected',
     },
   };
-}
-
-function recurringPaymentTransactionType(row: RecurringPaymentRow): TransactionType {
-  const type = row.type as TransactionType | undefined;
-  if (type && Object.values(TransactionType).includes(type)) return type;
-  return row.creditDebitType === 'CREDIT' ? TransactionType.OtherIncome : TransactionType.OtherExpense;
-}
-
-function RecurringPaymentNameIcon({ row, size }: { row: RecurringPaymentRow; size: number }) {
-  return (
-    <TransactionDirectionBadge
-      creditDebitType={row.creditDebitType === 'CREDIT' ? CreditDebitType.Credit : CreditDebitType.Debit}
-      transactionType={recurringPaymentTransactionType(row)}
-      merchantLogoUrl={row.merchant?.logoAsset?.publicUrl}
-      merchantName={row.merchant?.name}
-      size={size}
-    />
-  );
 }
 
 function bucketLabelKey(bucket: RecurringDueBucket): string {

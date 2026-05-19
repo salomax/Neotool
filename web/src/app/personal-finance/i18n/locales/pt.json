@@ -1154,7 +1154,7 @@
       },
       "recurringPayments": {
         "title": "Movimentações recorrentes",
-        "description": "Controle de movimentação recorrente"
+        "description": "Lembrete de contas e recebíveis"
       }
     },
     "widgets": {
@@ -2003,6 +2003,16 @@
     "emptyDescription": "Cadastre contas e assinaturas para acompanhar os próximos vencimentos.",
     "variableAmountBadge": "estimativa variável",
     "daysUntilDue": "vence em {{count}}d",
+    "widget": {
+      "overdueCount": "{{count}} em atraso",
+      "upcomingCount": "{{count}} nos próximos 30 dias",
+      "viewAll": "Ver todos",
+      "overdueDay": "Vencido há {{count}} dia",
+      "overdueDays": "Vencido há {{count}} dias",
+      "dueToday": "Vence hoje",
+      "dueInDay": "{{count}} dia para vencer",
+      "dueInDays": "{{count}} dias para vencer"
+    },
     "frequency": {
       "MONTHLY": "Mensal",
       "WEEKLY": "Semanal",

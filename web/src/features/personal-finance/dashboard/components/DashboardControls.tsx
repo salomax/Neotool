@@ -22,6 +22,8 @@ import RepeatIcon from '@mui/icons-material/Repeat';
 import { QuickActionCard } from './QuickActionCard';
 import { useFeatureFlagEnabled } from '@/shared/hooks/useFeatureFlag';
 
+const quickActionIconSx = { fontSize: 128 };
+
 interface DashboardControlsProps {
 }
 
@@ -62,18 +64,16 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
             <QuickActionCard
               href="/personal-finance/finance-transactions"
               title={t('dashboard.actions.financeMovements.title')}
-              description={t('dashboard.actions.financeMovements.description')}
               accentColor={theme.palette.primary.main}
-              icon={<SwapHorizIcon sx={{ fontSize: 128 }} />}
+              icon={<SwapHorizIcon sx={quickActionIconSx} />}
               isMobile={isMobile}
             />
 
             <QuickActionCard
               href="/personal-finance/investments"
               title={t('dashboard.actions.investmentsPortfolio.title')}
-              description={t('dashboard.actions.investmentsPortfolio.description')}
               accentColor={theme.palette.success.main}
-              icon={<SavingsOutlinedIcon sx={{ fontSize: 128 }} />}
+              icon={<SavingsOutlinedIcon sx={quickActionIconSx} />}
               isMobile={isMobile}
             />
 
@@ -81,9 +81,8 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
               <QuickActionCard
                 href="/personal-finance/prices-consumption"
                 title={t('dashboard.actions.pricesConsumption.title')}
-                description={t('dashboard.actions.pricesConsumption.description')}
                 accentColor={theme.palette.info.main}
-                icon={<ShoppingCartOutlinedIcon sx={{ fontSize: 128 }} />}
+                icon={<ShoppingCartOutlinedIcon sx={quickActionIconSx} />}
                 isMobile={isMobile}
               />
             )}
@@ -91,9 +90,8 @@ export const DashboardControls: React.FC<DashboardControlsProps> = () => {
             <QuickActionCard
               href="/personal-finance/recurring-payments"
               title={t('dashboard.actions.recurringPayments.title')}
-              description={t('dashboard.actions.recurringPayments.description')}
               accentColor={theme.palette.warning.main}
-              icon={<RepeatIcon sx={{ fontSize: 128 }} />}
+              icon={<RepeatIcon sx={quickActionIconSx} />}
               isMobile={isMobile}
             />
           </Stack>

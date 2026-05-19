@@ -1995,6 +1995,16 @@
     "emptyDescription": "Add bills and subscriptions to track upcoming due dates.",
     "variableAmountBadge": "variable estimate",
     "daysUntilDue": "due in {{count}}d",
+    "widget": {
+      "overdueCount": "{{count}} overdue",
+      "upcomingCount": "{{count}} in the next 30 days",
+      "viewAll": "View all",
+      "overdueDay": "Overdue by {{count}} day",
+      "overdueDays": "Overdue by {{count}} days",
+      "dueToday": "Due today",
+      "dueInDay": "{{count}} day until due",
+      "dueInDays": "{{count}} days until due"
+    },
     "frequency": {
       "MONTHLY": "Monthly",
       "WEEKLY": "Weekly",
