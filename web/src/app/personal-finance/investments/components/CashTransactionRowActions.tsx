@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useApolloClient, useMutation } from "@apollo/client/react";
-import { alpha, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
+import { alpha, Divider, IconButton, ListItemIcon, ListItemText, Menu, MenuItem, useTheme } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import EditIcon from "@mui/icons-material/Edit";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
@@ -142,6 +142,9 @@ export function CashTransactionRowActions({ node, listContextAccountId, onViewDe
           </ListItemIcon>
           <ListItemText>{t("investments.table.rowActions.edit")}</ListItemText>
         </MenuItem>
+
+        <Divider />
+
         <MenuItem
           disabled={deleting || !editable}
           onClick={() => {

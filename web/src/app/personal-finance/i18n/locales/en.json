@@ -547,7 +547,7 @@
         "recordStockLending": "Record stock lending",
         "transferCustody": "Transfer custody",
         "edit": "Edit",
-        "remove": "Delete"
+        "remove": "Remove"
       },
       "groups": {
         "variableIncome": "Variable income",

@@ -287,7 +287,8 @@ export const InvestmentHoldingActionsMenu = React.memo(function InvestmentHoldin
     >
       <InvestmentActionMenuSection items={coreActions} />
       <InvestmentActionMenuSection items={specificActions} showDivider={coreActions.length > 0} />
-      <InvestmentActionMenuSection items={dangerActions} showDivider={coreActions.length > 0 || specificActions.length > 0} />
+      {dangerActions.length > 0 && (coreActions.length > 0 || specificActions.length > 0) ? <Divider /> : null}
+      <InvestmentActionMenuSection items={dangerActions} />
     </Menu>
   );
 });
