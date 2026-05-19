@@ -1,6 +1,7 @@
 import { AssetType } from "@/lib/graphql/types/__generated__/graphql";
 import type { InvestmentIconKind } from "../InvestmentAssetIcon";
 import type { AssetGroupKey } from "../table/investmentTableHelpers";
+import type { InvestmentAssetClass } from "../transaction-editor/intent";
 
 export const INVESTMENT_GRID_CLASS_KEYS = [
   "cash",
@@ -13,25 +14,17 @@ export const INVESTMENT_GRID_CLASS_KEYS = [
 
 export type InvestmentGridClassKey = (typeof INVESTMENT_GRID_CLASS_KEYS)[number];
 
-export type GridRecordDrawer = "cash" | "fixedIncome" | "fund" | "equity" | null;
-
-/** Drives copy and B3 autocomplete filtering in the equity record drawer when opened from the grid. */
+export type GridRecordDrawer = "cash" | InvestmentAssetClass | null;
 export type EquityRecordVariant = "stock" | "fii" | "mixed";
-
-export function equityRecordVariantForGridClass(key: InvestmentGridClassKey): EquityRecordVariant {
-  if (key === "stocks") return "stock";
-  if (key === "reits") return "fii";
-  return "mixed";
-}
 
 /** Maps each grid class to the record drawer used for the primary "+ Investimento" CTA. */
 export const RECORD_DRAWER_BY_CLASS: Record<InvestmentGridClassKey, Exclude<GridRecordDrawer, null>> = {
   cash: "cash",
-  "fixed-income": "fixedIncome",
-  funds: "fund",
-  stocks: "equity",
-  reits: "equity",
-  crypto: "equity",
+  "fixed-income": "fixed-income",
+  funds: "funds",
+  stocks: "stocks",
+  reits: "reits",
+  crypto: "crypto",
 };
 
 export interface InvestmentGridClassDefinition {

@@ -3,7 +3,7 @@
 import React, { useEffect } from "react";
 import { useApolloClient, useMutation, useQuery } from "@apollo/client/react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Box, Divider, Paper, Tab, TextField, Typography, alpha, useTheme } from "@mui/material";
+import { Box, Divider, Tab, TextField, Typography } from "@mui/material";
 import { Controller, FormProvider, useForm } from "react-hook-form";
 import dayjs from "dayjs";
 import { z } from "zod";
@@ -36,6 +36,7 @@ import { DatePickerField, MoneyInput, NumberField } from "@/shared/components/ui
 import { Drawer } from "@/shared/components/ui/layout/Drawer";
 import { i18n, useTranslation } from "@/shared/i18n";
 import { formatDateOnly, parseDateOnly, toStartOfDayLocal } from "@/shared/utils/date/dateOnly";
+import { coerceInvestmentSettlementDate, validateInvestmentSettlementDates } from "@/shared/utils/investment/settlementDatePolicy";
 import { getLocaleSeparators } from "@/shared/utils/locale";
 import { useToast } from "@/shared/providers";
 import { SegmentedControl } from "@/shared/components/ui/inputs/SegmentedControl";
@@ -43,15 +44,24 @@ import { Label } from "@/shared/components/ui/primitives/Label";
 import { FINANCE_MOVING_WINDOW_YEARS, getFinanceMinAllowedDate } from "../../finance-transactions/constants/dateWindow";
 import { personalFinanceTranslations } from "../../i18n";
 import { FundAutocomplete, FundAutocompleteValue } from "./FundAutocomplete";
+import { InvestmentTradeAndSettlementDateRow } from "./InvestmentTradeAndSettlementDateRow";
+import { useSyncDefaultSettlementDate } from "../hooks/useSyncDefaultSettlementDate";
 import { mapCvmFundAssetType } from "@/lib/utils/mapCvmFundAssetType";
 import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
+import type { FundGateResult } from "./transaction-editor/new-holding/newHoldingFlow.types";
 
 interface RecordFundHoldingDrawerProps {
   open: boolean;
   onClose: () => void;
   financialAccountId?: string | null;
   financialAccounts?: IssuerSelectionAccount[];
+  /** When true, renders only the form body (parent supplies [`InvestmentRecordDrawer`]). */
+  embedded?: boolean;
+  /** Required when `embedded` — custodian account id from parent drawer. */
+  resolvedAccountId?: string | null;
+  /** Two-step flow: step 2 locks listing UI and seeds fund identity from step 1. */
+  assetGate?: { mode: "full" } | { mode: "locked"; result: FundGateResult };
   onRecorded?: () => void;
   editHolding?: {
     id: string;
@@ -79,6 +89,7 @@ type RecordFundFormData = {
   manualAssetType?: AssetType;
   quantity?: number | string;
   tradeDate?: Date;
+  settlementDate?: Date;
   unitPrice?: number;
   grossValue?: number;
   manualCurrentGrossValue?: number;
@@ -96,6 +107,7 @@ function buildDefaultValues(): RecordFundFormData {
     manualAssetType: AssetType.MutualFund,
     quantity: undefined,
     tradeDate: undefined,
+    settlementDate: undefined,
     unitPrice: undefined,
     grossValue: undefined,
     manualCurrentGrossValue: undefined,
@@ -108,13 +120,15 @@ export function RecordFundHoldingDrawer({
   onClose,
   financialAccountId,
   financialAccounts = [],
+  embedded = false,
+  resolvedAccountId = null,
+  assetGate,
   onRecorded,
   editHolding,
   editTransaction,
   prefillHolding,
   initialDirection,
 }: RecordFundHoldingDrawerProps) {
-  const theme = useTheme();
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
@@ -128,6 +142,8 @@ export function RecordFundHoldingDrawer({
   const [valueFlow, setValueFlow] = React.useState<ValueFlow>("BY_AMOUNT");
   const [listingMode, setListingMode] = React.useState<ListingMode>("CVM");
   const isEdit = Boolean(editHolding && editTransaction);
+  const isLockedGate = assetGate?.mode === "locked";
+  const showListingSection = !isEdit && !isLockedGate;
   const lastEditSeedRef = React.useRef<{ holdingId: string | null; transactionId: string | null } | null>(null);
 
   const parseLocalizedNumber = React.useCallback(
@@ -174,6 +190,10 @@ export function RecordFundHoldingDrawer({
           (value) => (value === "" || value === null || value === undefined ? undefined : value),
           z.date().optional(),
         ),
+        settlementDate: z.preprocess(
+          (value) => (value === "" || value === null || value === undefined ? undefined : value),
+          z.date().optional(),
+        ),
         manualValuedAt: z.preprocess(
           (value) => (value === "" || value === null || value === undefined ? undefined : value),
           z.date().optional(),
@@ -187,6 +207,14 @@ export function RecordFundHoldingDrawer({
             path: ["tradeDate"],
           });
         }
+        if (data.tradeDate && !data.settlementDate) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: t("investments.updateHolding.validation.settlementDateRequired"),
+            path: ["settlementDate"],
+          });
+        }
+        validateInvestmentSettlementDates(data, ctx, t);
       }),
     [minAllowedDate, parseLocalizedNumber, t],
   );
@@ -201,12 +229,17 @@ export function RecordFundHoldingDrawer({
   const selectedFund = methods.watch("fund");
   const selectedTradeDate = methods.watch("tradeDate");
   const unitPriceValue = methods.watch("unitPrice");
-  const grossValueValue = methods.watch("grossValue");
-  const quantityValue = methods.watch("quantity");
   const tradeDateIso = React.useMemo(
     () => (selectedTradeDate ? formatDateOnly(selectedTradeDate) : null),
     [selectedTradeDate],
   );
+
+  useSyncDefaultSettlementDate<RecordFundFormData>({
+    enabled: open,
+    assetKind: "fund",
+    tradeDate: selectedTradeDate,
+    setValue: methods.setValue,
+  });
 
   const fundNavQuery = useQuery<
     {
@@ -245,8 +278,37 @@ export function RecordFundHoldingDrawer({
   }, [open, reset]);
 
   useEffect(() => {
+    if (!embedded) return;
+    setResolvedFinancialAccountId(resolvedAccountId ?? null);
+  }, [embedded, resolvedAccountId]);
+
+  useEffect(() => {
+    if (!open || !embedded || !isLockedGate || !assetGate || assetGate.mode !== "locked") return;
+    const r = assetGate.result;
+    if (r.kind === "fund_cvm") {
+      setListingMode("CVM");
+      reset({
+        ...buildDefaultValues(),
+        fund: r.fund,
+        tradeDate: dayjs().startOf("day").toDate(),
+        settlementDate: coerceInvestmentSettlementDate("fund", dayjs().startOf("day").toDate(), undefined),
+      });
+    } else {
+      setListingMode("MANUAL");
+      reset({
+        ...buildDefaultValues(),
+        manualFundName: r.manualFundName,
+        manualFundCnpj: r.manualFundCnpj,
+        manualAssetType: r.manualAssetType,
+        tradeDate: dayjs().startOf("day").toDate(),
+        settlementDate: coerceInvestmentSettlementDate("fund", dayjs().startOf("day").toDate(), undefined),
+      });
+    }
+  }, [assetGate, embedded, isLockedGate, open, reset]);
+
+  useEffect(() => {
     if (!open) return;
-    if (isEdit) return;
+    if (isEdit || embedded) return;
     if (!prefillHolding) return;
 
     setListingMode("CVM");
@@ -264,11 +326,11 @@ export function RecordFundHoldingDrawer({
   }, [isEdit, methods, open, prefillHolding]);
 
   useEffect(() => {
-    if (isEdit) return;
+    if (isEdit || embedded || isLockedGate) return;
     clearErrors();
     methods.setValue("fund", null, { shouldDirty: false, shouldValidate: false });
     methods.setValue("unitPrice", undefined, { shouldDirty: false, shouldValidate: false });
-  }, [clearErrors, isEdit, listingMode, methods]);
+  }, [clearErrors, embedded, isEdit, isLockedGate, listingMode, methods]);
 
   const [createAsset, { loading: creatingAsset, error: createAssetError }] = useMutation<
     CreateInvestmentAssetMutation,
@@ -306,32 +368,14 @@ export function RecordFundHoldingDrawer({
   const isSubmitting = creatingAsset || recordingTx || updatingAsset || updatingTx;
   const mutationError = createAssetError || recordTxError || updateAssetError || updateTxError;
 
-  const currencyFormatter = React.useMemo(
-    () => new Intl.NumberFormat(locale, { style: "currency", currency: "BRL" }),
-    [locale],
-  );
-
-  const computedQuantityByAmount = React.useMemo(() => {
-    const unitPrice = typeof unitPriceValue === "number" ? unitPriceValue : null;
-    const grossValue = typeof grossValueValue === "number" ? grossValueValue : null;
-    if (!unitPrice || !grossValue) return null;
-    if (unitPrice <= 0 || grossValue <= 0) return null;
-    return grossValue / unitPrice;
-  }, [grossValueValue, unitPriceValue]);
-
-  const computedTotalByQuantity = React.useMemo(() => {
-    const unitPrice = typeof unitPriceValue === "number" ? unitPriceValue : null;
-    const quantity = typeof quantityValue === "number" ? quantityValue : null;
-    if (!unitPrice || quantity == null) return null;
-    if (!Number.isFinite(quantity)) return null;
-    if (unitPrice <= 0 || quantity <= 0) return null;
-    return unitPrice * quantity;
-  }, [quantityValue, unitPriceValue]);
-
   const onSubmit = async (data: RecordFundFormData) => {
     if (!resolvedFinancialAccountId) return;
     if (!data.tradeDate) {
       setError("tradeDate", { type: "required", message: t("investments.recordFund.validation.tradeDateRequired") });
+      return;
+    }
+    if (!data.settlementDate) {
+      setError("settlementDate", { type: "required", message: t("investments.updateHolding.validation.settlementDateRequired") });
       return;
     }
 
@@ -439,7 +483,7 @@ export function RecordFundHoldingDrawer({
       unitPrice,
       grossValue,
       tradeDate,
-      settlementDate: tradeDate,
+      settlementDate: formatDateOnly(coerceInvestmentSettlementDate("fund", data.tradeDate, data.settlementDate)),
       pricingMode,
       manualValuation:
         pricingMode === HoldingPricingMode.Manual && data.manualCurrentGrossValue && data.manualValuedAt
@@ -531,6 +575,10 @@ export function RecordFundHoldingDrawer({
           parseDateOnly(
             editTransaction!.tradeDate != null ? String(editTransaction!.tradeDate) : null,
           ) ?? undefined,
+        settlementDate:
+          parseDateOnly(
+            editTransaction!.settlementDate != null ? String(editTransaction!.settlementDate) : null,
+          ) ?? undefined,
         unitPrice: editTransaction!.unitPrice ?? undefined,
         grossValue: nextFlow === "BY_AMOUNT" ? editTransaction!.grossValue : undefined,
         manualCurrentGrossValue: nextListingMode === "MANUAL" ? initialCurrentValue : undefined,
@@ -545,123 +593,109 @@ export function RecordFundHoldingDrawer({
     );
   }, [editHolding, editTransaction, isEdit, open, reset]);
 
-  return (
-    <InvestmentRecordDrawer
-      open={open}
-      onClose={onClose}
-      title={t("investments.recordFund.title")}
-      initialFinancialAccountId={financialAccountId || null}
-      financialAccounts={financialAccounts}
-      issuerSelection={{
-        description: t("investments.recordFund.selectAccount.description"),
-        emptyState: t("investments.recordFund.selectAccount.emptyState"),
-        dataTestIdPrefix: "record-fund-select-account-",
-      }}
-      onResolvedChange={setResolvedFinancialAccountId}
-    >
-      {({ resolvedFinancialAccountId }) => (
-        <FormProvider {...methods}>
-          <form id="record-fund-form" onSubmit={methods.handleSubmit(onSubmit)}>
-            <FormStack spacing={2}>
+  const fundForm = (activeAccountId: string | null) => (
+    <FormProvider {...methods}>
+      <form id="record-fund-form" onSubmit={methods.handleSubmit(onSubmit)}>
+        <FormStack spacing={2}>
               <ErrorAlert error={mutationError} />
 
-              <FormStack spacing={0.5}>
-                <Label sx={{ mb: 0 }}>
-                  {t("investments.recordFund.sections.listing")}
-                </Label>
-                <FormTabs
-                  value={listingMode}
-                  onChange={(_, next: ListingMode) => {
-                    setListingMode(next);
-                  }}
-                >
-                  <Tab value="CVM" label={t("investments.recordFund.modes.cvmListed")} disabled={isEdit} />
-                  <Tab value="MANUAL" label={t("investments.recordFund.modes.notListed")} disabled={isEdit} />
-                </FormTabs>
-              </FormStack>
-
-              {listingMode === "CVM" ? (
-                isEdit ? (
-                  <TextField
-                    value={editHolding?.asset.name ?? ""}
-                    label={t("investments.recordFund.sections.fund")}
-                    size="medium"
-                    disabled
-                    data-testid="record-fund-edit-fund-name"
-                  />
-                ) : (
-                  <FundAutocomplete
-                    name="fund"
-                    size="medium"
-                    data-testid="record-fund-autocomplete"
-                    disabled={Boolean(prefillHolding)}
-                  />
-                )
-              ) : (
-                <FormStack spacing={1.5}>
-                  <Controller
-                    name="manualFundName"
-                    control={methods.control}
-                    render={({ field, fieldState }) => (
-                      <TextField
-                        {...field}
-                        label={t("investments.recordFund.fields.manualFundName")}
-                        size="medium"
-                        error={!!fieldState.error}
-                        helperText={fieldState.error?.message}
-                        data-testid="record-fund-manual-name"
-                      />
-                    )}
-                  />
-                  <Controller
-                    name="manualFundCnpj"
-                    control={methods.control}
-                    render={({ field, fieldState }) => (
-                      <TextField
-                        {...field}
-                        label={t("investments.recordFund.fields.manualFundCnpj")}
-                        size="medium"
-                        error={!!fieldState.error}
-                        helperText={fieldState.error?.message}
-                        data-testid="record-fund-manual-cnpj"
-                      />
-                    )}
-                  />
+              {showListingSection ? (
+                <>
                   <FormStack spacing={0.5}>
-                    <Label sx={{ mb: 0 }}>
-                      {t("investments.recordFund.fields.manualAssetType")}
-                    </Label>
-                    <Controller
-                      name="manualAssetType"
-                      control={methods.control}
-                      render={({ field }) => (
-                        <SegmentedControl
-                          fullWidth
-                          value={field.value ?? AssetType.MutualFund}
-                          onChange={(value) => field.onChange(value)}
-                          options={[
-                            { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
-                            { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
-                            { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
-                          ]}
-                        />
-                      )}
-                    />
+                    <Label sx={{ mb: 0 }}>{t("investments.recordFund.sections.listing")}</Label>
+                    <FormTabs
+                      value={listingMode}
+                      onChange={(_, next: ListingMode) => {
+                        setListingMode(next);
+                      }}
+                    >
+                      <Tab value="CVM" label={t("investments.recordFund.modes.cvmListed")} disabled={isEdit} />
+                      <Tab value="MANUAL" label={t("investments.recordFund.modes.notListed")} disabled={isEdit} />
+                    </FormTabs>
                   </FormStack>
-                </FormStack>
-              )}
 
-              <Box sx={{ width: listingMode === "CVM" ? { xs: "100%", sm: "50%" } : "100%", minWidth: 0 }}>
-                <DatePickerField
-                  name="tradeDate"
-                  label={t("investments.recordFund.fields.tradeDate")}
+                  {listingMode === "CVM" ? (
+                    isEdit ? (
+                      <TextField
+                        value={editHolding?.asset.name ?? ""}
+                        label={t("investments.recordFund.sections.fund")}
+                        size="medium"
+                        disabled
+                        data-testid="record-fund-edit-fund-name"
+                      />
+                    ) : (
+                      <FundAutocomplete
+                        name="fund"
+                        size="medium"
+                        data-testid="record-fund-autocomplete"
+                        disabled={Boolean(prefillHolding)}
+                      />
+                    )
+                  ) : (
+                    <FormStack spacing={1.5}>
+                      <Controller
+                        name="manualFundName"
+                        control={methods.control}
+                        render={({ field, fieldState }) => (
+                          <TextField
+                            {...field}
+                            label={t("investments.recordFund.fields.manualFundName")}
+                            size="medium"
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
+                            data-testid="record-fund-manual-name"
+                          />
+                        )}
+                      />
+                      <Controller
+                        name="manualFundCnpj"
+                        control={methods.control}
+                        render={({ field, fieldState }) => (
+                          <TextField
+                            {...field}
+                            label={t("investments.recordFund.fields.manualFundCnpj")}
+                            size="medium"
+                            error={!!fieldState.error}
+                            helperText={fieldState.error?.message}
+                            data-testid="record-fund-manual-cnpj"
+                          />
+                        )}
+                      />
+                      <FormStack spacing={0.5}>
+                        <Label sx={{ mb: 0 }}>{t("investments.recordFund.fields.manualAssetType")}</Label>
+                        <Controller
+                          name="manualAssetType"
+                          control={methods.control}
+                          render={({ field }) => (
+                            <SegmentedControl
+                              fullWidth
+                              value={field.value ?? AssetType.MutualFund}
+                              onChange={(value) => field.onChange(value)}
+                              options={[
+                                { value: AssetType.MutualFund, label: t("investments.recordFund.assetTypes.MUTUAL_FUND") },
+                                { value: AssetType.Pgbl, label: t("investments.recordFund.assetTypes.PGBL") },
+                                { value: AssetType.Vgbl, label: t("investments.recordFund.assetTypes.VGBL") },
+                              ]}
+                            />
+                          )}
+                        />
+                      </FormStack>
+                    </FormStack>
+                  )}
+                </>
+              ) : null}
+
+              <FormRowStack>
+                <InvestmentTradeAndSettlementDateRow<RecordFundFormData>
+                  tradeDateLabel={t("investments.recordFund.fields.tradeDate")}
+                  settlementDateLabel={t("investments.recordFund.fields.settlementDate")}
                   size="medium"
-                  disableFuture
                   minDate={minAllowedDate.toDate()}
-                  maxDate={dayjs().startOf("day").toDate()}
-                  data-testid="record-fund-trade-date"
+                  tradeMaxDate={dayjs().startOf("day").toDate()}
+                  tradeDateTestId="record-fund-trade-date"
+                  settlementDateTestId="record-fund-settlement-date"
                 />
-              </Box>
+              </FormRowStack>
 
               <Divider sx={{ pt: 2 }} />
 
@@ -712,41 +746,6 @@ export function RecordFundHoldingDrawer({
                       data-testid="record-fund-gross-value"
                     />
                   )}
-
-                  <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: alpha(theme.palette.primary.main, 0.04),
-                        borderColor: alpha(theme.palette.primary.main, 0.12),
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                      }}
-                    >
-                      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25, minWidth: 0 }}>
-                        <Typography variant="body2" color="text.secondary">
-                          {listingMode === "CVM"
-                            ? t("investments.recordFund.values.byAmount.navLabel")
-                            : t("investments.recordFund.values.byAmount.unitPriceLabel")}
-                        </Typography>
-                        <Typography variant="body2" fontWeight={700}>
-                          {typeof unitPriceValue === "number" ? currencyFormatter.format(unitPriceValue) : "—"}
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
-                        {computedQuantityByAmount != null
-                          ? t("investments.recordFund.values.byAmount.estimatedShares", {
-                              shares: computedQuantityByAmount.toLocaleString(locale, {
-                                minimumFractionDigits: 0,
-                                maximumFractionDigits: 12,
-                              }),
-                            })
-                          : "—"}
-                      </Typography>
-                  </Paper>
                 </FormStack>
               ) : (
                 <FormStack spacing={1.5}>
@@ -775,25 +774,6 @@ export function RecordFundHoldingDrawer({
                         data-testid="record-fund-unit-price"
                       />
                     </Box>
-
-                    <Paper
-                      variant="outlined"
-                      sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "space-between",
-                        gap: 2,
-                      }}
-                    >
-                      <Typography variant="body2" color="text.secondary">
-                        {t("investments.recordFund.values.byQuantity.totalEstimatedLabel")}
-                      </Typography>
-                      <Typography variant="body2" fontWeight={800}>
-                        {computedTotalByQuantity != null ? currencyFormatter.format(computedTotalByQuantity) : "—"}
-                      </Typography>
-                    </Paper>
                 </FormStack>
               )}
 
@@ -837,13 +817,33 @@ export function RecordFundHoldingDrawer({
                 onCancel={onClose}
                 submitForm="record-fund-form"
                 cancelDisabled={isSubmitting}
-                submitDisabled={isSubmitting || !resolvedFinancialAccountId}
+                submitDisabled={isSubmitting || !activeAccountId}
                 submitting={isSubmitting}
               />
             </FormStack>
           </form>
         </FormProvider>
-      )}
+  );
+
+  if (embedded) {
+    return fundForm(resolvedAccountId ?? null);
+  }
+
+  return (
+    <InvestmentRecordDrawer
+      open={open}
+      onClose={onClose}
+      title={t("investments.recordFund.title")}
+      initialFinancialAccountId={financialAccountId || null}
+      financialAccounts={financialAccounts}
+      issuerSelection={{
+        description: t("investments.recordFund.selectAccount.description"),
+        emptyState: t("investments.recordFund.selectAccount.emptyState"),
+        dataTestIdPrefix: "record-fund-select-account-",
+      }}
+      onResolvedChange={setResolvedFinancialAccountId}
+    >
+      {({ resolvedFinancialAccountId }) => fundForm(resolvedFinancialAccountId)}
     </InvestmentRecordDrawer>
   );
 }

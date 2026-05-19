@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
 import { mapTransactionToFormValues } from '../mapTransactionToFormValues';
 
 describe('mapTransactionToFormValues', () => {
   it('maps fixed-income outflow values with parsed dates', () => {
     const result = mapTransactionToFormValues({
+      direction: InvestmentTransactionDirection.Outflow,
       tradeDate: '2026-04-10',
       settlementDate: '2026-04-11',
       grossValue: 1000,
@@ -23,13 +25,12 @@ describe('mapTransactionToFormValues', () => {
     expect(result.netValue).toBe(900);
     expect(result.incomeTax).toBe(100);
     expect(result.iof).toBe(0);
-    expect(result.brokerageFee).toBe(0);
-    expect(result.settlementFee).toBe(0);
-    expect(result.otherFees).toBe(0);
+    expect(result.totalFees).toBe(100);
   });
 
   it('maps fund inflow values and defaults taxes to zero when missing', () => {
     const result = mapTransactionToFormValues({
+      direction: InvestmentTransactionDirection.Inflow,
       tradeDate: '2026-03-22',
       settlementDate: null,
       grossValue: 2500,
@@ -51,6 +52,7 @@ describe('mapTransactionToFormValues', () => {
 
   it('maps equity transaction values', () => {
     const result = mapTransactionToFormValues({
+      direction: InvestmentTransactionDirection.Outflow,
       tradeDate: '2026-02-05',
       settlementDate: '2026-02-07',
       grossValue: 3200,
@@ -65,10 +67,12 @@ describe('mapTransactionToFormValues', () => {
     expect(result.settlementDate).toBeInstanceOf(Date);
     expect(result.quantity).toBe(20);
     expect(result.unitPrice).toBe(160);
+    expect(result.totalFees).toBe(10);
   });
 
   it('maps crypto transaction values', () => {
     const result = mapTransactionToFormValues({
+      direction: InvestmentTransactionDirection.Inflow,
       tradeDate: '2026-01-15',
       settlementDate: null,
       grossValue: 1200,

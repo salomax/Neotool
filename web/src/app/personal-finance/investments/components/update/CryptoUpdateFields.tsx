@@ -5,12 +5,18 @@ import { Box } from '@mui/material';
 import { useWatch, useFormContext } from 'react-hook-form';
 import { useTranslation } from '@/shared/i18n';
 import { FormRowStack, FormStack } from '@/shared/components/ui/forms/components';
-import { DatePickerField, MoneyInput, NumberField } from '@/shared/components/ui/forms/form';
+import { MoneyInput, NumberField } from '@/shared/components/ui/forms/form';
 import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated__/graphql';
 import { personalFinanceTranslations } from '../../../i18n';
 import type { UpdateHoldingFormValues } from './types';
 import { PositionSummaryStrip } from './PositionSummaryStrip';
+import {
+  getProjectedPositionValue,
+  getProjectedQuantity,
+  getTradeGrossValue,
+} from './positionSummaryCalculations';
 import { UpdateFormSectionLabel } from './UpdateFormSectionLabel';
+import { InvestmentTradeAndSettlementDateRow } from '../InvestmentTradeAndSettlementDateRow';
 
 interface CryptoUpdateFieldsProps {
   hideSummaryStrip?: boolean;
@@ -23,6 +29,7 @@ interface CryptoUpdateFieldsProps {
   minDate: Date;
   maxDate: Date;
   tradeDateLabel: string;
+  settlementDateLabel: string;
   quantityLabel: string;
   unitPriceLabel: string;
 }
@@ -38,6 +45,7 @@ export function CryptoUpdateFields({
   minDate,
   maxDate,
   tradeDateLabel,
+  settlementDateLabel,
   quantityLabel,
   unitPriceLabel,
 }: CryptoUpdateFieldsProps) {
@@ -45,29 +53,21 @@ export function CryptoUpdateFields({
   const { control } = useFormContext<UpdateHoldingFormValues>();
   const quantity = useWatch({ control, name: 'quantity' });
   const unitPrice = useWatch({ control, name: 'unitPrice' });
-  const halfRowFieldSx = React.useMemo(
-    () => ({ flex: 1, minWidth: 0, maxWidth: { xs: '100%', sm: '50%' } }),
-    [],
+
+  const grossTradeValue = React.useMemo(
+    () => getTradeGrossValue(quantity, unitPrice, currentValue, currentQuantity),
+    [quantity, unitPrice, currentValue, currentQuantity],
   );
 
-  const grossTradeValue = React.useMemo(() => {
-    if (typeof quantity !== 'number' || typeof unitPrice !== 'number') return null;
-    if (!Number.isFinite(quantity) || !Number.isFinite(unitPrice)) return null;
-    return quantity * unitPrice;
-  }, [quantity, unitPrice]);
+  const projectedValue = React.useMemo(
+    () => getProjectedPositionValue(currentValue, grossTradeValue, direction),
+    [currentValue, direction, grossTradeValue],
+  );
 
-  const projectedValue = React.useMemo(() => {
-    if (currentValue == null || !Number.isFinite(currentValue)) return null;
-    if (grossTradeValue == null) return null;
-    return direction === InvestmentTransactionDirection.Inflow
-      ? currentValue + grossTradeValue
-      : currentValue - grossTradeValue;
-  }, [currentValue, direction, grossTradeValue]);
-
-  const projectedQuantity = React.useMemo(() => {
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity)) return null;
-    return direction === InvestmentTransactionDirection.Inflow ? currentQuantity + quantity : currentQuantity - quantity;
-  }, [currentQuantity, direction, quantity]);
+  const projectedQuantity = React.useMemo(
+    () => getProjectedQuantity(quantity, currentQuantity, direction),
+    [currentQuantity, direction, quantity],
+  );
 
   return (
     <FormStack>
@@ -84,11 +84,13 @@ export function CryptoUpdateFields({
       ) : null}
 
       <UpdateFormSectionLabel title={t('investments.updateHolding.sections.dates')} />
-      <FormRowStack>
-        <Box sx={halfRowFieldSx}>
-          <DatePickerField name="tradeDate" label={tradeDateLabel} minDate={minDate} maxDate={maxDate} size="medium" />
-        </Box>
-      </FormRowStack>
+      <InvestmentTradeAndSettlementDateRow<UpdateHoldingFormValues>
+        tradeDateLabel={tradeDateLabel}
+        settlementDateLabel={settlementDateLabel}
+        minDate={minDate}
+        tradeMaxDate={maxDate}
+        size="medium"
+      />
 
       <UpdateFormSectionLabel title={t('investments.updateHolding.sections.trade')} />
       <FormRowStack>

@@ -1123,6 +1123,17 @@ export const INVESTMENT_TRANSACTIONS = gql`
       netValue
       incomeTax
       iof
+      priceFactor
+      brokerNote {
+        brokerageFee
+        clearingCustodyFee
+        clearingRegistrationFee
+        clearingSettlementFee
+        stockExchangeAssetTradeNoticeFee
+        stockExchangeFee
+        taxes
+        incomeTax
+      }
       tradeDate
       settlementDate
       source

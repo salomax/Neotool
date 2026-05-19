@@ -10,7 +10,12 @@ import { InvestmentTransactionDirection } from '@/lib/graphql/types/__generated_
 import { personalFinanceTranslations } from '../../../i18n';
 import type { UpdateHoldingFormValues } from './types';
 import { PositionSummaryStrip } from './PositionSummaryStrip';
+import {
+  getFundFixedIncomeProjectedValue,
+  getProjectedQuantity,
+} from './positionSummaryCalculations';
 import { UpdateFormSectionLabel } from './UpdateFormSectionLabel';
+import { InvestmentTradeAndSettlementDateRow } from '../InvestmentTradeAndSettlementDateRow';
 
 interface FundUpdateFieldsProps {
   hideSummaryStrip?: boolean;
@@ -24,6 +29,7 @@ interface FundUpdateFieldsProps {
   maxDate: Date;
   isManualPricingMode: boolean;
   tradeDateLabel: string;
+  settlementDateLabel: string;
   grossValueLabel: string;
   netValueLabel: string;
   quantityLabel: string;
@@ -45,6 +51,7 @@ export function FundUpdateFields({
   maxDate,
   isManualPricingMode,
   tradeDateLabel,
+  settlementDateLabel,
   grossValueLabel,
   netValueLabel,
   quantityLabel,
@@ -58,26 +65,31 @@ export function FundUpdateFields({
   const grossValue = useWatch({ control, name: 'grossValue' });
   const netValue = useWatch({ control, name: 'netValue' });
   const quantity = useWatch({ control, name: 'quantity' });
+  const unitPrice = useWatch({ control, name: 'unitPrice' });
 
   const halfRowFieldSx = React.useMemo(
     () => ({ flex: 1, minWidth: 0, maxWidth: { xs: '100%', sm: '50%' } }),
     [],
   );
 
-  const projectedValue = React.useMemo(() => {
-    if (currentValue == null || !Number.isFinite(currentValue)) return null;
-    if (direction === InvestmentTransactionDirection.Inflow) {
-      if (typeof grossValue !== 'number' || !Number.isFinite(grossValue)) return null;
-      return currentValue + grossValue;
-    }
-    if (typeof netValue !== 'number' || !Number.isFinite(netValue)) return null;
-    return currentValue - netValue;
-  }, [currentValue, direction, grossValue, netValue]);
+  const projectedValue = React.useMemo(
+    () =>
+      getFundFixedIncomeProjectedValue({
+        currentValue,
+        currentQuantity,
+        direction,
+        quantity,
+        unitPrice,
+        grossValue,
+        netValue,
+      }),
+    [currentQuantity, currentValue, direction, grossValue, netValue, quantity, unitPrice],
+  );
 
-  const projectedQuantity = React.useMemo(() => {
-    if (typeof quantity !== 'number' || !Number.isFinite(quantity)) return null;
-    return direction === InvestmentTransactionDirection.Inflow ? currentQuantity + quantity : currentQuantity - quantity;
-  }, [currentQuantity, direction, quantity]);
+  const projectedQuantity = React.useMemo(
+    () => getProjectedQuantity(quantity, currentQuantity, direction),
+    [currentQuantity, direction, quantity],
+  );
 
   return (
     <FormStack>
@@ -94,17 +106,13 @@ export function FundUpdateFields({
       ) : null}
 
       <UpdateFormSectionLabel title={t('investments.updateHolding.sections.dates')} />
-      <FormRowStack>
-        <Box sx={halfRowFieldSx}>
-          <DatePickerField
-            name="tradeDate"
-            label={tradeDateLabel}
-            minDate={minDate}
-            maxDate={maxDate}
-            size="medium"
-          />
-        </Box>
-      </FormRowStack>
+      <InvestmentTradeAndSettlementDateRow<UpdateHoldingFormValues>
+        tradeDateLabel={tradeDateLabel}
+        settlementDateLabel={settlementDateLabel}
+        minDate={minDate}
+        tradeMaxDate={maxDate}
+        size="medium"
+      />
 
       {direction === InvestmentTransactionDirection.Inflow ? (
         <>

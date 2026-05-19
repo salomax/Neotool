@@ -45,11 +45,14 @@ export function resolveHoldingIdentity(source: HoldingIdentitySource) {
 export const HoldingIdentity: React.FC<HoldingIdentityProps> = ({ assetName, issuerName, logoUrl, size = "auto", sx }) => {
   const theme = useTheme();
   const logoBorderRadius = `${(theme as any).custom?.radius?.md ?? theme.shape.borderRadius}px`;
-  const fallback = (assetName ?? "—").slice(0, 1).toUpperCase();
+  const trimmedName = (assetName ?? "—").trim();
+  const fallback = (trimmedName.slice(0, 1) || "—").toUpperCase();
+  const resolvedLogoSrc =
+    logoUrl != null && String(logoUrl).trim() !== "" ? String(logoUrl).trim() : undefined;
   return (
     <Box sx={{ display: "flex", alignItems: "flex-start", alignSelf: "flex-start", gap: 1.25, minWidth: 0, ...sx }}>
       <Logo
-        src={logoUrl ?? undefined}
+        src={resolvedLogoSrc}
         alt={issuerName ?? assetName}
         size={size}
         borderRadius={logoBorderRadius}

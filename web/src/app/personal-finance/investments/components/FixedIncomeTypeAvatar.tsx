@@ -64,7 +64,7 @@ export function FixedIncomeTypeAvatar({
         color: theme.palette.common.white,
         fontSize: label.length <= 3 ? "0.7rem" : "0.6rem",
         fontWeight: 700,
-        borderRadius: "0.3rem",
+        borderRadius: `${theme.custom.radius.md}px`,
       }}
     >
       {label}

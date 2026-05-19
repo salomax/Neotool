@@ -177,3 +177,4 @@ export function getCurrentLocale(): string {
 }
 
 export * from './dateOnly';
+export * from './businessDays';

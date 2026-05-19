@@ -10,7 +10,6 @@ import {
   type InvestmentHoldingsQuery,
   type InvestmentHoldingsQueryVariables,
 } from '@/lib/graphql/operations/banking/queries.generated';
-import { type InvestmentTransaction } from '@/lib/graphql/types/__generated__/graphql';
 import { i18n, useTranslation } from '@/shared/i18n';
 import { useToast } from '@/shared/providers';
 import { extractErrorMessage } from '@/shared/utils/error';
@@ -26,7 +25,7 @@ import { estimateCouponGrossForPeriod } from './fixed-income/couponDomain';
 import { FundHoldingDetailDocument, type FundHoldingDetailQuery } from './fund/api/queries.generated';
 import type { DetailPerformancePeriod } from './performance/detailPerformancePeriods';
 import { parseUnknownDate, resolveDetailPerformanceWindow } from './performance/detailPerformancePeriods';
-import { getAssetGroupKey, type HoldingKind, type HoldingRow } from './table/investmentTableHelpers';
+import { getAssetGroupKey, type HoldingRow } from './table/investmentTableHelpers';
 
 type FixedIncomeCouponScheduleEntry =
   NonNullable<FixedIncomeHoldingDetailQuery['investmentHolding']>['couponSchedule'][number];
@@ -87,25 +86,16 @@ interface UseHoldingDetailDrawerReturn {
   deleteCouponPayment: (transactionId: string) => Promise<void>;
   closeCoupon: () => void;
   deletingCouponPayment: boolean;
-  editingTransactionId: string | null;
   deletingTransactionId: string | null;
   deleteConfirmOpen: boolean;
   deleteInProgress: boolean;
-  editingTransaction: InvestmentTransaction | null;
   deletingTransaction: DetailTimelineTransaction | null;
-  openEditTransaction: (id: string) => void;
-  closeEditTransaction: () => void;
   openDeleteTransaction: (id: string) => void;
   closeDeleteConfirm: () => void;
   confirmDeleteTransaction: () => Promise<void>;
-  quickTransactionDirection: 'buy' | 'sell' | null;
-  setQuickTransactionDirection: (dir: 'buy' | 'sell' | null) => void;
   moreActionsAnchorEl: HTMLElement | null;
   openMoreActions: (el: HTMLElement) => void;
   closeMoreActions: () => void;
-  eventSelectorOpen: boolean;
-  openEventSelector: () => void;
-  closeEventSelector: () => void;
   holdingRemoveConfirmOpen: boolean;
   openHoldingRemoveConfirm: () => void;
   closeHoldingRemoveConfirm: () => void;
@@ -115,8 +105,6 @@ interface UseHoldingDetailDrawerReturn {
   locale: string;
   actionHoldingRow: HoldingRow | null;
   actionHoldingGroupKey: ReturnType<typeof getAssetGroupKey> | null;
-  buyLabel: string | null;
-  sellLabel: string | null;
   deletingHolding: boolean;
 }
 
@@ -202,13 +190,10 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     issuerName?: string | null;
     issuer?: { name?: string | null; logoAsset?: { publicUrl?: string | null } | null } | null;
   } | null>(null);
-  const [editingTransactionId, setEditingTransactionId] = React.useState<string | null>(null);
   const [deletingTransactionId, setDeletingTransactionId] = React.useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
   const [deleteInProgress, setDeleteInProgress] = React.useState(false);
-  const [quickTransactionDirectionState, setQuickTransactionDirectionState] = React.useState<'buy' | 'sell' | null>(null);
   const [moreActionsAnchorEl, setMoreActionsAnchorEl] = React.useState<HTMLElement | null>(null);
-  const [eventSelectorOpen, setEventSelectorOpen] = React.useState(false);
   const [holdingRemoveConfirmOpen, setHoldingRemoveConfirmOpen] = React.useState(false);
 
   const [deleteInvestmentTransaction, { loading: deleteMutationLoading }] = useMutation<
@@ -225,12 +210,6 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     [fixedIncomeData?.investmentTransactions, fundData?.investmentTransactions, kind],
   );
 
-  const editingTransaction = React.useMemo<InvestmentTransaction | null>(() => {
-    if (!editingTransactionId) return null;
-    const transaction = timelineTransactions.find((tx) => tx.id === editingTransactionId);
-    return (transaction as unknown as InvestmentTransaction | undefined) ?? null;
-  }, [editingTransactionId, timelineTransactions]);
-
   const deletingTransaction = React.useMemo<DetailTimelineTransaction | null>(() => {
     if (!deletingTransactionId) return null;
     return timelineTransactions.find((tx) => tx.id === deletingTransactionId) ?? null;
@@ -239,13 +218,10 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
   const deletingCouponPayment = deleteMutationLoading && !deleteConfirmOpen;
 
   React.useEffect(() => {
-    setEditingTransactionId(null);
     setDeletingTransactionId(null);
     setDeleteConfirmOpen(false);
     setDeleteInProgress(false);
-    setQuickTransactionDirectionState(null);
     setMoreActionsAnchorEl(null);
-    setEventSelectorOpen(false);
     setHoldingRemoveConfirmOpen(false);
   }, [holdingId, kind, open]);
 
@@ -291,18 +267,6 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
         ? fundData?.investmentHolding?.asset.assetType
         : null) ?? null;
   const actionHoldingGroupKey = resolvedAssetType != null ? getAssetGroupKey(String(resolvedAssetType)) : null;
-  const buyLabel =
-    actionHoldingGroupKey === 'variableIncome'
-      ? t('investments.transactions.buy')
-      : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension'
-        ? t('investments.transactions.apply')
-        : null;
-  const sellLabel =
-    actionHoldingGroupKey === 'variableIncome'
-      ? t('investments.transactions.sell')
-      : actionHoldingGroupKey === 'mutualFunds' || actionHoldingGroupKey === 'pension'
-        ? t('investments.transactions.redeem')
-        : null;
 
   const openCoupon = React.useCallback(
     (scheduledEntry: unknown) => {
@@ -411,14 +375,6 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     [deleteInvestmentTransaction, fixedIncomeQuery, t, toast],
   );
 
-  const openEditTransaction = React.useCallback((transactionId: string) => {
-    setEditingTransactionId(transactionId);
-  }, []);
-
-  const closeEditTransaction = React.useCallback(() => {
-    setEditingTransactionId(null);
-  }, []);
-
   const openDeleteTransaction = React.useCallback((transactionId: string) => {
     setDeletingTransactionId(transactionId);
     setDeleteConfirmOpen(true);
@@ -468,10 +424,6 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     setMaturityConfirmOpen(false);
   }, []);
 
-  const setQuickTransactionDirection = React.useCallback((dir: 'buy' | 'sell' | null) => {
-    setQuickTransactionDirectionState(dir);
-  }, []);
-
   const openMoreActions = React.useCallback((el: HTMLElement) => {
     setMoreActionsAnchorEl(el);
   }, []);
@@ -480,21 +432,14 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     setMoreActionsAnchorEl(null);
   }, []);
 
-  const openEventSelector = React.useCallback(() => {
-    setEventSelectorOpen(true);
-  }, []);
-
-  const closeEventSelector = React.useCallback(() => {
-    setEventSelectorOpen(false);
-  }, []);
-
   const openHoldingRemoveConfirm = React.useCallback(() => {
     setHoldingRemoveConfirmOpen(true);
   }, []);
 
   const closeHoldingRemoveConfirm = React.useCallback(() => {
+    if (deletingHolding) return;
     setHoldingRemoveConfirmOpen(false);
-  }, []);
+  }, [deletingHolding]);
 
   const confirmRemoveHolding = React.useCallback(async () => {
     if (!actionHoldingRow) return;
@@ -543,25 +488,16 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     deleteCouponPayment,
     closeCoupon,
     deletingCouponPayment,
-    editingTransactionId,
     deletingTransactionId,
     deleteConfirmOpen,
     deleteInProgress,
-    editingTransaction,
     deletingTransaction,
-    openEditTransaction,
-    closeEditTransaction,
     openDeleteTransaction,
     closeDeleteConfirm,
     confirmDeleteTransaction,
-    quickTransactionDirection: quickTransactionDirectionState,
-    setQuickTransactionDirection,
     moreActionsAnchorEl,
     openMoreActions,
     closeMoreActions,
-    eventSelectorOpen,
-    openEventSelector,
-    closeEventSelector,
     holdingRemoveConfirmOpen,
     openHoldingRemoveConfirm,
     closeHoldingRemoveConfirm,
@@ -571,8 +507,6 @@ export function useHoldingDetailDrawer(options: UseHoldingDetailDrawerOptions): 
     locale,
     actionHoldingRow,
     actionHoldingGroupKey,
-    buyLabel,
-    sellLabel,
     deletingHolding,
   };
 }

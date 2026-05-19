@@ -33,6 +33,7 @@ import {
   Search as SearchIcon,
 } from '@mui/icons-material';
 import { CardNetworkIcon } from '@/shared/components/ui/icons/CardNetworkIcon';
+import { useLogoBorderColor } from '@/shared/hooks/ui/useLogoBorderColor';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../../i18n';
 import { FINANCIAL_ACCOUNTS } from '@/lib/graphql/operations/banking/queries';
@@ -78,87 +79,6 @@ const getCardSubtitle = (account: FinancialAccount, multipleCardsLabel: string):
 const isCardAccount = (account: FinancialAccount) => {
   if (account.cardData) return true;
   return account.type === FinancialAccountType.Credit;
-};
-
-const getAverageEdgeRgb = (img: HTMLImageElement) => {
-  const targetSize = 64;
-  const canvas = document.createElement('canvas');
-  canvas.width = targetSize;
-  canvas.height = targetSize;
-
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) return null;
-
-  ctx.drawImage(img, 0, 0, targetSize, targetSize);
-
-  const samples: Uint8ClampedArray[] = [];
-
-  samples.push(ctx.getImageData(0, 0, targetSize, 1).data);
-  samples.push(ctx.getImageData(0, targetSize - 1, targetSize, 1).data);
-  samples.push(ctx.getImageData(0, 0, 1, targetSize).data);
-  samples.push(ctx.getImageData(targetSize - 1, 0, 1, targetSize).data);
-
-  let totalR = 0;
-  let totalG = 0;
-  let totalB = 0;
-  let count = 0;
-
-  for (const data of samples) {
-    for (let i = 0; i < data.length; i += 4) {
-      const a = data[i + 3] ?? 0;
-      if (a < 32) continue;
-      totalR += data[i] ?? 0;
-      totalG += data[i + 1] ?? 0;
-      totalB += data[i + 2] ?? 0;
-      count += 1;
-    }
-  }
-
-  if (count === 0) return null;
-  const r = Math.round(totalR / count);
-  const g = Math.round(totalG / count);
-  const b = Math.round(totalB / count);
-  return `rgb(${r}, ${g}, ${b})`;
-};
-
-const useLogoBorderColor = (logoUrl?: string) => {
-  const [borderColor, setBorderColor] = useState<string | null>(null);
-
-  React.useEffect(() => {
-    if (!logoUrl) {
-      setBorderColor(null);
-      return;
-    }
-
-    let isActive = true;
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.decoding = 'async';
-
-    img.onload = () => {
-      try {
-        const computed = getAverageEdgeRgb(img);
-        if (!isActive) return;
-        setBorderColor(computed);
-      } catch {
-        if (!isActive) return;
-        setBorderColor(null);
-      }
-    };
-
-    img.onerror = () => {
-      if (!isActive) return;
-      setBorderColor(null);
-    };
-
-    img.src = logoUrl;
-
-    return () => {
-      isActive = false;
-    };
-  }, [logoUrl]);
-
-  return borderColor;
 };
 
 function IssuerAvatar({

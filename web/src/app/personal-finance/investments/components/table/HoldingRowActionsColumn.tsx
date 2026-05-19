@@ -1,10 +1,10 @@
 "use client";
 
 import React from "react";
-import { Box, IconButton, Tooltip, alpha, useTheme } from "@mui/material";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
+import { alpha, Box, IconButton, useTheme } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
 import { useTranslation } from "@/shared/i18n";
 import { personalFinanceTranslations } from "../../../i18n";
 import type { HoldingRow } from "./investmentTableHelpers";
@@ -12,60 +12,36 @@ import { useInvestmentTableActions } from "./InvestmentTableActionsContext";
 
 export interface HoldingRowActionsColumnProps {
   actionColWidth: number;
-  hovered: boolean;
   holding: HoldingRow;
-  buyLabel?: string;
-  sellLabel?: string;
 }
 
 export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColumn({
   actionColWidth,
-  hovered,
   holding,
-  buyLabel,
-  sellLabel,
 }: HoldingRowActionsColumnProps) {
-  const { t } = useTranslation(personalFinanceTranslations);
-  const { onOpenActions, onBuy, onSell } = useInvestmentTableActions();
   const theme = useTheme();
+  const { t } = useTranslation(personalFinanceTranslations);
+  const { onOpenActions, onRowBuy, onRowSell } = useInvestmentTableActions();
 
-  const quickActionTileSx = React.useMemo(
-    () => ({
-      width: 32,
-      height: 32,
-      minWidth: 32,
-      p: 0,
-      borderRadius: "10px",
-      color: alpha(theme.palette.success.dark, theme.palette.mode === "dark" ? 0.9 : 0.75),
-      bgcolor: "transparent",
-      "&:hover": {
-        bgcolor: alpha(theme.palette.success.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
-        color: theme.palette.success.main,
-      },
-      "&:focus-visible": {
-        outline: `2px solid ${alpha(theme.palette.success.main, 0.45)}`,
-        outlineOffset: 1,
-      },
-    }),
-    [theme],
-  );
+  const isDark = theme.palette.mode === "dark";
+  const actionBorderRadius = `${theme.custom.radius.md}px`;
+  const inflowActiveColor = theme.palette.success.main;
+  const inflowActiveBg = alpha(theme.palette.success.main, isDark ? 0.26 : 0.16);
+  const outflowActiveColor = theme.palette.error.main;
+  const outflowActiveBg = alpha(theme.palette.error.main, isDark ? 0.26 : 0.16);
 
-  const quickActionRedeemTileSx = React.useMemo(
-    () => ({
-      ...quickActionTileSx,
-      color: theme.palette.error.main,
-      bgcolor: "transparent",
-      "&:hover": {
-        bgcolor: alpha(theme.palette.error.main, theme.palette.mode === "dark" ? 0.26 : 0.16),
-        color: theme.palette.error.main,
-      },
-      "&:focus-visible": {
-        outline: `2px solid ${alpha(theme.palette.error.main, 0.45)}`,
-        outlineOffset: 1,
-      },
+  const actionChipBaseSx = {
+    width: 32,
+    height: 32,
+    padding: 0,
+    borderRadius: actionBorderRadius,
+    border: 0,
+    boxSizing: "border-box" as const,
+    bgcolor: "transparent",
+    transition: theme.transitions.create("background-color", {
+      duration: theme.transitions.duration.shortest,
     }),
-    [quickActionTileSx, theme],
-  );
+  };
 
   return (
     <Box
@@ -76,54 +52,76 @@ export const HoldingRowActionsColumn = React.memo(function HoldingRowActionsColu
         display: "flex",
         justifyContent: "flex-end",
         alignItems: "center",
-        gap: 0.25,
+        gap: 0.5,
       }}
     >
       <Box
+        className="holding-row-quick-actions"
         sx={{
-          display: { xs: "none", md: "flex" },
+          display: "flex",
           alignItems: "center",
           gap: 0.5,
-          visibility: hovered ? "visible" : "hidden",
+          opacity: { xs: 1, md: 0 },
+          visibility: { xs: "visible", md: "hidden" },
+          pointerEvents: { xs: "auto", md: "none" },
+          transition: "opacity 120ms ease",
+          "@media (hover: none)": {
+            opacity: 1,
+            visibility: "visible",
+            pointerEvents: "auto",
+          },
         }}
       >
-        {buyLabel ? (
-          <Tooltip title={buyLabel}>
-            <IconButton
-              size="small"
-              aria-label={buyLabel}
-              onClick={(event) => {
-                event.stopPropagation();
-                onBuy(holding);
-              }}
-              sx={quickActionTileSx}
-            >
-              <AddIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        ) : null}
-        {sellLabel ? (
-          <Tooltip title={sellLabel}>
-            <IconButton
-              size="small"
-              aria-label={sellLabel}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSell(holding);
-              }}
-              sx={quickActionRedeemTileSx}
-            >
-              <RemoveIcon sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
-        ) : null}
+        <IconButton
+          size="small"
+          aria-label={t("investments.row.addTransaction", { defaultValue: "Adicionar transação" })}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRowBuy(holding);
+          }}
+          sx={{
+            ...actionChipBaseSx,
+            color: inflowActiveColor,
+            "&:hover": {
+              bgcolor: inflowActiveBg,
+            },
+          }}
+        >
+          <AddIcon fontSize="small" />
+        </IconButton>
+
+        <IconButton
+          size="small"
+          aria-label={t("investments.row.sellTransaction", { defaultValue: "Registrar venda" })}
+          onClick={(event) => {
+            event.stopPropagation();
+            onRowSell(holding);
+          }}
+          sx={{
+            ...actionChipBaseSx,
+            color: outflowActiveColor,
+            "&:hover": {
+              bgcolor: outflowActiveBg,
+            },
+          }}
+        >
+          <RemoveIcon fontSize="small" />
+        </IconButton>
       </Box>
+
       <IconButton
         size="small"
         aria-label={t("investments.table.rowActions.ariaLabel")}
         onClick={(event) => {
           event.stopPropagation();
           onOpenActions(event.currentTarget, holding);
+        }}
+        sx={{
+          ...actionChipBaseSx,
+          color: "text.secondary",
+          "&:hover": {
+            bgcolor: alpha(theme.palette.text.primary, 0.08),
+          },
         }}
       >
         <MoreVertIcon fontSize="small" />
