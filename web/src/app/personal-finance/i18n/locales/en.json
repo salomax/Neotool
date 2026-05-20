@@ -197,7 +197,6 @@
           "ALL": "Since inception"
         },
         "absolute": "Current value gain",
-        "noHistory": "Not enough history to calculate",
         "recalculating": "Recalculating performance history...",
         "recalculatingDetail": "Return and comparisons will update in a few moments."
       },
@@ -482,8 +481,8 @@
         "issuerRequired": "Please enter a broker or institution name"
       },
       "actions": {
-        "submit": "Create account",
-        "submitting": "Creating...",
+        "submit": "Save",
+        "submitting": "Saving...",
         "cancel": "Cancel"
       },
       "success": "Investment account created successfully"

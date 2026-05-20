@@ -10,7 +10,6 @@ import {
   Divider,
   Skeleton,
   Stack,
-  Tooltip,
   Typography,
   useTheme,
   type SxProps,
@@ -176,6 +175,7 @@ export function InvestmentSummary({
   const currencyCode = summary?.currencyCode ?? "BRL";
   const groups = summary?.byAssetGroup ?? [];
   const inlineGroups = groups.slice(0, 5);
+  const showAllocationSection = showSummarySkeletons || groups.length > 0;
   const performance = summary?.performance;
   const grossGainColor =
     (summary?.grossGain ?? 0) > 0
@@ -395,15 +395,7 @@ export function InvestmentSummary({
                         textSx={{ fontWeight: 700, fontSize: "1rem" }}
                       />
                     </Box>
-                  ) : (
-                    <Tooltip
-                      title={t("investments.summary.performance.noHistory")}
-                    >
-                      <Typography variant="subtitle2" color="text.secondary">
-                        —
-                      </Typography>
-                    </Tooltip>
-                  )}
+                  ) : null}
                 </Box>
 
                 {isCalculating ? (
@@ -426,10 +418,6 @@ export function InvestmentSummary({
                       {t("investments.summary.performance.recalculatingDetail")}
                     </Typography>
                   </Box>
-                ) : !summaryFetching && performance?.twr == null ? (
-                  <Typography variant="caption" color="text.secondary">
-                    {t("investments.summary.performance.noHistory")}
-                  </Typography>
                 ) : null}
               </Stack>
 
@@ -458,40 +446,44 @@ export function InvestmentSummary({
                 amountTestId="investment-summary-cash-balance-amount"
               />
 
-              <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
+              {showAllocationSection ? (
+                <>
+                  <Divider sx={{ my: DIVIDER_VERTICAL_SPACING }} />
 
-              <Label sx={{ mb: 1 }}>{t("investments.summary.allocation")}</Label>
+                  <Label sx={{ mb: 1 }}>{t("investments.summary.allocation")}</Label>
 
-              {showSummarySkeletons
-                ? Array.from({ length: 4 }).map((_, index) => (
-                    <Skeleton key={index} variant="rounded" height={56} />
-                  ))
-                : inlineGroups.map((group) => (
-                    <GroupProgressRow
-                      key={group.groupKey}
-                      groupKey={group.groupKey as SummaryGroupKey}
-                      label={resolveGroupLabel(group.groupKey, group.label)}
-                      count={group.count}
-                      allocationPercent={group.allocationPercent}
-                      isCash={group.isCash}
-                      locale={locale}
-                      active={activeGroupFilter === group.groupKey}
-                      onClick={
-                        onGroupClick
-                          ? () => onGroupClick(group.groupKey)
-                          : undefined
-                      }
-                    />
-                  ))}
+                  {showSummarySkeletons
+                    ? Array.from({ length: 4 }).map((_, index) => (
+                        <Skeleton key={index} variant="rounded" height={56} />
+                      ))
+                    : inlineGroups.map((group) => (
+                        <GroupProgressRow
+                          key={group.groupKey}
+                          groupKey={group.groupKey as SummaryGroupKey}
+                          label={resolveGroupLabel(group.groupKey, group.label)}
+                          count={group.count}
+                          allocationPercent={group.allocationPercent}
+                          isCash={group.isCash}
+                          locale={locale}
+                          active={activeGroupFilter === group.groupKey}
+                          onClick={
+                            onGroupClick
+                              ? () => onGroupClick(group.groupKey)
+                              : undefined
+                          }
+                        />
+                      ))}
 
-              {!showSummarySkeletons && groups.length > 5 ? (
-                <Box
-                  sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}
-                >
-                  <Button onClick={() => setDrawerOpen(true)}>
-                    {t("investments.summary.viewAllGroups")}
-                  </Button>
-                </Box>
+                  {!showSummarySkeletons && groups.length > 5 ? (
+                    <Box
+                      sx={{ display: "flex", justifyContent: "flex-end", pt: 0.5 }}
+                    >
+                      <Button onClick={() => setDrawerOpen(true)}>
+                        {t("investments.summary.viewAllGroups")}
+                      </Button>
+                    </Box>
+                  ) : null}
+                </>
               ) : null}
             </Stack>
 

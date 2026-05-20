@@ -252,7 +252,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     const user = userEvent.setup();
     renderDrawer();
 
-    await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+    await user.click(screen.getByRole('button', { name: 'actions.save' }));
 
     await waitFor(() => {
       expect(screen.getByText('investments.createAccount.validation.issuerRequired')).toBeInTheDocument();
@@ -311,7 +311,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {
@@ -344,7 +344,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {
@@ -374,7 +374,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {
@@ -411,7 +411,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {
@@ -448,7 +448,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {
@@ -501,7 +501,7 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     });
 
     await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
+      await user.click(screen.getByRole('button', { name: 'actions.save' }));
     });
 
     await waitFor(() => {

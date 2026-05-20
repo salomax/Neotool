@@ -18,7 +18,7 @@ import { FINANCIAL_ACCOUNTS } from "@/lib/graphql/operations/banking/queries";
 import {
   FinancialAccountsQuery,
 } from "@/lib/graphql/operations/banking/queries.generated";
-import { FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
+import { FinancialAccount, FinancialAccountType } from "@/lib/graphql/types/__generated__/graphql";
 import { CreateInvestmentAccountDrawer } from "./components/CreateInvestmentAccountDrawer";
 import { AssetTypeIcon } from "@/shared/components/ui/icons/AssetTypeIcon";
 import { Label } from "@/shared/components/ui";
@@ -32,6 +32,7 @@ export default function PersonalFinanceInvestmentsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isCreateAccountOpen, setIsCreateAccountOpen] = React.useState(false);
+  const [editingAccount, setEditingAccount] = React.useState<FinancialAccount | null>(null);
   const [selectedAccountId, setSelectedAccountId] = React.useState<string | null | undefined>(undefined);
   const [holdingSearchQuery, setHoldingSearchQuery] = React.useState("");
   const [summaryFetching, setSummaryFetching] = React.useState(false);
@@ -79,11 +80,27 @@ export default function PersonalFinanceInvestmentsPage() {
     if (isEmpty) setSummaryFetching(false);
   }, [isEmpty]);
 
+  const handleOpenCreateAccount = React.useCallback(() => {
+    setEditingAccount(null);
+    setIsCreateAccountOpen(true);
+  }, []);
+
+  const handleEditAccount = React.useCallback((account: FinancialAccount) => {
+    setEditingAccount(account);
+    setIsCreateAccountOpen(true);
+  }, []);
+
+  const handleCloseAccountDrawer = React.useCallback(() => {
+    setIsCreateAccountOpen(false);
+    setEditingAccount(null);
+  }, []);
+
   const sidebar = (
     <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
       <Box sx={{ p: 3, pb: 2 }}>
         <FinancialAccountSelector
-          onNewAccount={() => setIsCreateAccountOpen(true)}
+          onNewAccount={handleOpenCreateAccount}
+          onEditAccount={handleEditAccount}
           selectedAccountId={effectiveSelectedAccountId}
           onSelectAccount={setSelectedAccountId}
           accountTypes={[FinancialAccountType.Investment, FinancialAccountType.Benefit]}
@@ -193,7 +210,7 @@ export default function PersonalFinanceInvestmentsPage() {
                       boxShadow: "none",
                     },
                   }}
-                  onClick={() => setIsCreateAccountOpen(true)}
+                  onClick={handleOpenCreateAccount}
                   data-testid="create-investment-account-empty-btn"
                 >
                   {t("investments.emptyState.primaryAction")}
@@ -278,7 +295,8 @@ export default function PersonalFinanceInvestmentsPage() {
       )}
       <CreateInvestmentAccountDrawer
         open={isCreateAccountOpen}
-        onClose={() => setIsCreateAccountOpen(false)}
+        onClose={handleCloseAccountDrawer}
+        accountToEdit={editingAccount}
         onCreated={(account) => setSelectedAccountId(account.id)}
       />
 

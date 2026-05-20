@@ -196,7 +196,6 @@
           "THREE_YEARS": "3 anos",
           "ALL": "Desde o início"
         },
-        "noHistory": "Histórico insuficiente para calcular",
         "recalculating": "Recalculando histórico de performance...",
         "recalculatingDetail": "O rendimento e comparativos serão atualizados em alguns instantes."
       },
@@ -445,8 +444,8 @@
         "issuerRequired": "Informe a corretora ou nome da instituição"
       },
       "actions": {
-        "submit": "Criar conta",
-        "submitting": "Criando...",
+        "submit": "Salvar",
+        "submitting": "Salvando...",
         "cancel": "Cancelar"
       },
       "success": "Conta de investimento criada com sucesso"
@@ -1415,7 +1414,7 @@
       "newAccountOrCard": "Nova conta ou cartão",
       "addAccount": "Adicionar conta",
       "addCard": "Adicionar cartão",
-      "deleteAccount": "Remover conta",
+      "deleteAccount": "Remover",
       "deleteAccountConfirm": "Tem certeza? Esta ação não pode ser desfeita.",
       "automation": "Automação",
       "reviewItems": "Revisar itens",
