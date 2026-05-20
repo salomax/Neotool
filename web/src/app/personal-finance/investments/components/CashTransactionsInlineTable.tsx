@@ -166,6 +166,20 @@ export function CashTransactionsInlineTable({
   const focusBg = React.useMemo(() => alpha(theme.palette.primary.main, 0.055), [theme.palette.primary.main]);
 
   const [detailRow, setDetailRow] = React.useState<CashEdge["node"] | null>(null);
+  const suppressRowDetailOpenRef = React.useRef(false);
+
+  const suppressRowDetailOpen = React.useCallback(() => {
+    suppressRowDetailOpenRef.current = true;
+    setDetailRow(null);
+  }, []);
+
+  const openDetailRow = React.useCallback((row: CashEdge["node"]) => {
+    if (suppressRowDetailOpenRef.current) {
+      suppressRowDetailOpenRef.current = false;
+      return;
+    }
+    setDetailRow(row);
+  }, []);
 
   if (loading && !data?.investmentCashTransactions) {
     return (
@@ -268,11 +282,11 @@ export function CashTransactionsInlineTable({
                 return (
                   <TableRow
                     key={node.id}
-                    onClick={() => setDetailRow(node)}
+                    onClick={() => openDetailRow(node)}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
-                        setDetailRow(node);
+                        openDetailRow(node);
                       }
                     }}
                     role="button"
@@ -398,11 +412,17 @@ export function CashTransactionsInlineTable({
                         {amountStr}
                       </Typography>
                     </TableCell>
-                    <TableCell align="center" padding="none" sx={{ width: 88, maxWidth: 88 }}>
+                    <TableCell
+                      align="center"
+                      padding="none"
+                      sx={{ width: 88, maxWidth: 88 }}
+                      onClick={(event) => event.stopPropagation()}
+                    >
                       <CashTransactionRowActions
                         node={node}
                         listContextAccountId={financialAccountId}
                         onViewDetails={(row) => setDetailRow(row)}
+                        onSuppressRowDetailOpen={suppressRowDetailOpen}
                       />
                     </TableCell>
                   </TableRow>

@@ -34,12 +34,19 @@ export interface CashTransactionRowActionsProps {
   node: CashTransactionRowNode;
   listContextAccountId: string | null | undefined;
   onViewDetails: (node: CashTransactionRowNode) => void;
+  /** Prevents the parent row click handler from opening the detail drawer (MUI menu click-through). */
+  onSuppressRowDetailOpen?: () => void;
 }
 
 /**
  * MoreVert menu with view / edit / delete for a cash ledger row (manual rows only for edit/delete).
  */
-export function CashTransactionRowActions({ node, listContextAccountId, onViewDetails }: CashTransactionRowActionsProps) {
+export function CashTransactionRowActions({
+  node,
+  listContextAccountId,
+  onViewDetails,
+  onSuppressRowDetailOpen,
+}: CashTransactionRowActionsProps) {
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
@@ -130,10 +137,12 @@ export function CashTransactionRowActions({ node, listContextAccountId, onViewDe
         </MenuItem>
         <MenuItem
           disabled={deleting || !editable}
-          onClick={() => {
+          onClick={(event) => {
+            event.stopPropagation();
             const row = menuRow;
             closeMenu();
             if (!row || !isManualCashRowEditable(row)) return;
+            onSuppressRowDetailOpen?.();
             setEditRow(row);
           }}
         >
@@ -147,10 +156,12 @@ export function CashTransactionRowActions({ node, listContextAccountId, onViewDe
 
         <MenuItem
           disabled={deleting || !editable}
-          onClick={() => {
+          onClick={(event) => {
+            event.stopPropagation();
             const row = menuRow;
             closeMenu();
             if (!row || !isManualCashRowEditable(row)) return;
+            onSuppressRowDetailOpen?.();
             setDeleteRow(row);
           }}
           sx={{
