@@ -31,6 +31,7 @@ import { CryptoUpdateFields } from './CryptoUpdateFields';
 import { HoldingUpdateDrawerShell } from './HoldingUpdateDrawerShell';
 import { mapTransactionToFormValues } from './mapTransactionToFormValues';
 import { getHoldingPositionValue } from './positionSummaryCalculations';
+import { getCurrentLocale } from '../table/investmentTableHelpers';
 import {
   getUpdateHoldingAssetClass,
   isFundManualPricingMode,
@@ -274,7 +275,7 @@ function UpdateHoldingDrawerForm({
 }) {
   const { t } = useTranslation(personalFinanceTranslations);
   const isEditMode = Boolean(editTransaction);
-  const locale = React.useMemo(() => Intl.DateTimeFormat().resolvedOptions().locale || 'pt-BR', []);
+  const locale = getCurrentLocale();
   const assetClass = React.useMemo(() => getUpdateHoldingAssetClass(holding.asset.assetType), [holding.asset.assetType]);
   const minDate = React.useMemo(() => getFinanceMinAllowedDate().toDate(), []);
   const maxDate = React.useMemo(() => dayjs().startOf('day').toDate(), []);

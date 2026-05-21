@@ -44,6 +44,7 @@ import type { IssuerSelectionAccount } from "./IssuerSelection";
 import { InvestmentRecordDrawer } from "./InvestmentRecordDrawer";
 import { InvestmentTradeAndSettlementDateRow } from "./InvestmentTradeAndSettlementDateRow";
 import { useSyncDefaultSettlementDate } from "../hooks/useSyncDefaultSettlementDate";
+import { getCurrentLocale } from "./table/investmentTableHelpers";
 
 interface RecordFixedIncomeDrawerProps {
   open: boolean;
@@ -157,7 +158,7 @@ export function RecordFixedIncomeDrawer({
   const apolloClient = useApolloClient();
   const { t } = useTranslation(personalFinanceTranslations);
   const { success } = useToast();
-  const locale = React.useMemo(() => i18n.language || Intl.DateTimeFormat().resolvedOptions().locale || "pt-BR", []);
+  const locale = getCurrentLocale();
   const { decimal: localeDecimal, group: localeGroup } = React.useMemo(
     () => getLocaleSeparators(locale),
     [locale],
