@@ -31,9 +31,13 @@ class CouponScheduleService {
 
         val rows =
             when {
-                assetType == AssetType.TREASURY && frequency == CouponFrequency.SEMI_ANNUAL && holding.indexer == Indexer.IPCA ->
+                assetType == AssetType.TREASURY &&
+                    frequency == CouponFrequency.SEMI_ANNUAL &&
+                    holding.indexer == Indexer.IPCA ->
                     ntnbRows(issueDate, maturityDate)
-                assetType == AssetType.TREASURY && frequency == CouponFrequency.SEMI_ANNUAL && holding.indexer == Indexer.PRE_FIXADO ->
+                assetType == AssetType.TREASURY &&
+                    frequency == CouponFrequency.SEMI_ANNUAL &&
+                    holding.indexer == Indexer.PRE_FIXADO ->
                     ntnfRows(issueDate, maturityDate)
                 assetType in CouponDayOfMonthRules.TESOURO_ASSET_TYPES ->
                     legacyRows(holding, frequency, issueDate, maturityDate)

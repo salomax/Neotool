@@ -120,15 +120,16 @@ open class DashboardAnalyticsService(
         endMonth: Int,
         applicableTo: CategoryApplicableTo?,
     ): List<CategoryTotal> {
-        val rows = transactionRepository.getCategoryBreakdownForRange(
-            accountId = accountId,
-            financialAccountId = financialAccountId,
-            startYear = startYear,
-            startMonth = startMonth,
-            endYear = endYear,
-            endMonth = endMonth,
-            applicableTo = applicableTo,
-        )
+        val rows =
+            transactionRepository.getCategoryBreakdownForRange(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                startYear = startYear,
+                startMonth = startMonth,
+                endYear = endYear,
+                endMonth = endMonth,
+                applicableTo = applicableTo,
+            )
 
         val totalAmount = rows.fold(BigDecimal.ZERO) { acc, r -> acc + r.totalAmount }
         return rows.map { row ->

@@ -17,7 +17,8 @@ object DateSequenceGenerator {
         start: LocalDate,
         end: LocalDate? = null,
         stepMonths: Long,
-        limit: Int = 600, // 50-year cap at monthly — safety valve
+        // 50-year cap at monthly — safety valve
+        limit: Int = 600,
     ): List<LocalDate> {
         require(stepMonths > 0) { "stepMonths must be positive" }
         return if (end != null) {

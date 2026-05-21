@@ -11,7 +11,6 @@ import java.util.UUID
  * Domain repository for [Merchant] and the logo cache.
  */
 interface MerchantRepository {
-
     /** Returns system merchants + user-scoped merchants for [accountId], ordered for suggestion. */
     fun findAllForAccount(accountId: UUID): List<Merchant>
 

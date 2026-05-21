@@ -14,7 +14,6 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
-import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
@@ -65,7 +64,14 @@ class TransactionCategoryResolverTest {
             )
         whenever(ruleService.listRules(accountId, true)).thenReturn(rules)
 
-        val result = resolver.transactionRules(isSystem = true, search = null, first = 20, after = null, principal = principal)
+        val result =
+            resolver.transactionRules(
+                isSystem = true,
+                search = null,
+                first = 20,
+                after = null,
+                principal = principal,
+            )
 
         verify(ruleService).listRules(accountId, true)
         assertThat(result.edges).hasSize(2)
@@ -99,7 +105,14 @@ class TransactionCategoryResolverTest {
     fun `transactionRules with null filter returns all rules`() {
         whenever(ruleService.listRules(accountId, null)).thenReturn(emptyList())
 
-        val result = resolver.transactionRules(isSystem = null, search = null, first = 20, after = null, principal = principal)
+        val result =
+            resolver.transactionRules(
+                isSystem = null,
+                search = null,
+                first = 20,
+                after = null,
+                principal = principal,
+            )
 
         verify(ruleService).listRules(accountId, null)
         assertThat(result.edges).isEmpty()
@@ -115,7 +128,14 @@ class TransactionCategoryResolverTest {
             )
         whenever(ruleService.listRules(accountId, false)).thenReturn(rules)
 
-        val result = resolver.transactionRules(isSystem = false, search = "ifood", first = 20, after = null, principal = principal)
+        val result =
+            resolver.transactionRules(
+                isSystem = false,
+                search = "ifood",
+                first = 20,
+                after = null,
+                principal = principal,
+            )
 
         verify(ruleService).listRules(accountId, false)
         assertThat(result.edges).hasSize(2)

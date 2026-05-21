@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.banking.service.import
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.service.import.parser.csv.GenericCsvReader
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.import.parser.csv.GenericCsvReader
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate

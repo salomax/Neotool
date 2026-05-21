@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.domain.billimport.AssistantBillCardBlock
+import io.github.salomax.neotool.banking.domain.billimport.AssistantBillExtractionMeta
+import io.github.salomax.neotool.banking.domain.billimport.AssistantBillTransactionPattern
 import io.github.salomax.neotool.banking.model.dto.billimport.AssistantBillExtractionResult
 import io.github.salomax.neotool.banking.model.dto.billimport.AssistantBillInstallment
 import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedCard
@@ -11,8 +13,10 @@ import java.time.LocalDate
 
 @Singleton
 class AssistantBillTransactionExtractor {
-
-    fun extract(rawText: String, meta: AssistantBillExtractionMeta): AssistantBillExtractionResult {
+    fun extract(
+        rawText: String,
+        meta: AssistantBillExtractionMeta,
+    ): AssistantBillExtractionResult {
         val lines = rawText.lines()
         val closingDate = LocalDate.parse(meta.closingDate)
         val transactionMatchers = buildAssistantTransactionMatchers(meta.transactionPattern)
@@ -25,7 +29,9 @@ class AssistantBillTransactionExtractor {
 
     // --- Regex builder ---
 
-    private fun buildAssistantTransactionMatchers(pattern: AssistantBillTransactionPattern): List<AssistantTransactionMatcher> {
+    private fun buildAssistantTransactionMatchers(
+        pattern: AssistantBillTransactionPattern,
+    ): List<AssistantTransactionMatcher> {
         val fmt = pattern.dateFormat.uppercase().replace(" ", "_").replace("-", "_")
         val datePart =
             when {
@@ -41,10 +47,11 @@ class AssistantBillTransactionExtractor {
                 .joinToString("|") { Regex.escape(it) }
 
         val amountPat =
-            if (pattern.decimalSeparator.lowercase() == "period")
+            if (pattern.decimalSeparator.lowercase() == "period") {
                 """([\-−]?(?:(?:$escapedCurrencies)\s*)?[\-−]?[\d,]+\.\d{2})"""
-            else
+            } else {
                 """([\-−]?(?:(?:$escapedCurrencies)\s*)?[\-−]?[\d.]+,\d{2})"""
+            }
 
         val baseFlags = setOf(RegexOption.IGNORE_CASE)
         val noCardRegex = Regex("""$optionalRowIndex$datePart\s+(.+?)\s+$amountPat""", baseFlags)
@@ -58,7 +65,11 @@ class AssistantBillTransactionExtractor {
                 // lastFourPattern already contains exactly one capturing group (the 4-digit suffix).
                 // Do NOT wrap it in another group — that would shift all subsequent group indices.
                 AssistantTransactionMatcher(
-                    regex = Regex("""$optionalRowIndex$datePart\s+${normalizedPattern}\s+(.+?)\s+$amountPat""", baseFlags),
+                    regex =
+                        Regex(
+                            """$optionalRowIndex$datePart\s+$normalizedPattern\s+(.+?)\s+$amountPat""",
+                            baseFlags,
+                        ),
                     extractsInlineLastFour = true,
                 )
             }
@@ -78,7 +89,14 @@ class AssistantBillTransactionExtractor {
         if (transactionMatchers.any { it.extractsInlineLastFour }) {
             extractCardsInlineId(lines, meta, closingDate, transactionMatchers, installmentRegex, warnings)
         } else {
-            extractCardsByBlocks(lines, meta, closingDate, transactionMatchers.first().regex, installmentRegex, warnings)
+            extractCardsByBlocks(
+                lines,
+                meta,
+                closingDate,
+                transactionMatchers.first().regex,
+                installmentRegex,
+                warnings,
+            )
         }
 
     /**
@@ -96,7 +114,12 @@ class AssistantBillTransactionExtractor {
         val startLines = findStartLines(lines, meta.cardBlocks, warnings)
 
         return meta.cardBlocks.mapIndexed { index, block ->
-            val startLine = startLines[index] ?: return@mapIndexed buildAssistantExtractedCard(block.lastFour ?: "", block.declaredTotal, emptyList())
+            val startLine =
+                startLines[index] ?: return@mapIndexed buildAssistantExtractedCard(
+                    block.lastFour ?: "",
+                    block.declaredTotal,
+                    emptyList(),
+                )
 
             val endLine = startLines.drop(index + 1).firstOrNull { it != null } ?: lines.size
             val blockLines = if (startLine + 1 >= endLine) emptyList() else lines.subList(startLine + 1, endLine)
@@ -105,7 +128,10 @@ class AssistantBillTransactionExtractor {
                 parseTransactionLines(
                     lines = blockLines,
                     closingDate = closingDate,
-                    transactionMatchers = listOf(AssistantTransactionMatcher(regex = txRegex, extractsInlineLastFour = false)),
+                    transactionMatchers =
+                        listOf(
+                            AssistantTransactionMatcher(regex = txRegex, extractsInlineLastFour = false),
+                        ),
                     blockLastFour = block.lastFour ?: "",
                     dateFormat = meta.transactionPattern.dateFormat,
                     installmentRegex = installmentRegex,
@@ -180,19 +206,30 @@ class AssistantBillTransactionExtractor {
         }
     }
 
-    private fun findStartLines(lines: List<String>, blocks: List<AssistantBillCardBlock>, warnings: MutableList<String>): List<Int?> {
+    private fun findStartLines(
+        lines: List<String>,
+        blocks: List<AssistantBillCardBlock>,
+        warnings: MutableList<String>,
+    ): List<Int?> {
         val startLines = mutableListOf<Int?>()
         var searchFrom = 0
         for (block in blocks) {
             val found = findAnchorLine(lines, block.anchorStart, searchFrom)
             startLines += found
-            if (found != null) searchFrom = found + 1
-            else warnings += "anchor_start '${block.anchorStart}' not found in document"
+            if (found != null) {
+                searchFrom = found + 1
+            } else {
+                warnings += "anchor_start '${block.anchorStart}' not found in document"
+            }
         }
         return startLines
     }
 
-    private fun findAnchorLine(lines: List<String>, anchor: String, startFrom: Int): Int? {
+    private fun findAnchorLine(
+        lines: List<String>,
+        anchor: String,
+        startFrom: Int,
+    ): Int? {
         val start = maxOf(0, startFrom)
         val normalizedAnchor = nfc(anchor)
         for (i in start until lines.size) {
@@ -316,12 +353,20 @@ class AssistantBillTransactionExtractor {
         if (existing.amount != candidate.amount) return false
         if (existing.currencyCode != candidate.currencyCode) return false
         if (normalizeForSearch(existing.description) != normalizeForSearch(candidate.description)) return false
-        if (existing.cardLastFour.isNotBlank() && candidate.cardLastFour.isNotBlank() && existing.cardLastFour != candidate.cardLastFour) {
+        if (
+            existing.cardLastFour.isNotBlank() &&
+            candidate.cardLastFour.isNotBlank() &&
+            existing.cardLastFour != candidate.cardLastFour
+        ) {
             return false
         }
         val existingAssistantBillInstallment = existing.installment
         val candidateAssistantBillInstallment = candidate.installment
-        if (existingAssistantBillInstallment != null && candidateAssistantBillInstallment != null && existingAssistantBillInstallment != candidateAssistantBillInstallment) {
+        if (
+            existingAssistantBillInstallment != null &&
+            candidateAssistantBillInstallment != null &&
+            existingAssistantBillInstallment != candidateAssistantBillInstallment
+        ) {
             return false
         }
         return true
@@ -434,7 +479,11 @@ class AssistantBillTransactionExtractor {
 
     // --- Date parsing ---
 
-    private fun parseDate(raw: String, format: String, anchor: LocalDate): LocalDate {
+    private fun parseDate(
+        raw: String,
+        format: String,
+        anchor: LocalDate,
+    ): LocalDate {
         val fmt = format.uppercase().replace(" ", "_").replace("-", "_")
         return when {
             fmt.startsWith("DD_MMM") -> parseDdMmm(raw.trim(), anchor)
@@ -443,7 +492,10 @@ class AssistantBillTransactionExtractor {
         }
     }
 
-    private fun parseDdMmm(raw: String, anchor: LocalDate): LocalDate {
+    private fun parseDdMmm(
+        raw: String,
+        anchor: LocalDate,
+    ): LocalDate {
         val parts = raw.split(Regex("\\s+"))
         val day = parts[0].toInt()
         val month = parsePtMonth(parts[1])
@@ -453,7 +505,10 @@ class AssistantBillTransactionExtractor {
         return date
     }
 
-    private fun parseDdMm(raw: String, anchor: LocalDate): LocalDate {
+    private fun parseDdMm(
+        raw: String,
+        anchor: LocalDate,
+    ): LocalDate {
         val parts = raw.split("/")
         val day = parts[0].toInt()
         val month = parts[1].toInt()

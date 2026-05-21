@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.repo.investment
 
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.investment.InvestmentTransactionEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository
@@ -24,9 +23,7 @@ interface InvestmentTransactionEntityRepository : JpaRepository<InvestmentTransa
         accountId: UUID,
     ): List<InvestmentTransactionEntity>
 
-    fun findByAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(
-        accountId: UUID,
-    ): List<InvestmentTransactionEntity>
+    fun findByAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(accountId: UUID): List<InvestmentTransactionEntity>
 
     fun findByFinancialAccountIdAndAccountIdAndDeletedAtIsNullOrderByTradeDateDesc(
         financialAccountId: UUID,

@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
-import io.github.salomax.neotool.banking.service.billimport.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.billimport.BillTransactionEnricher
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test

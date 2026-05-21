@@ -17,7 +17,11 @@ open class DefaultProductAliasRepository(
     override fun findByAccountIdAndRawDescription(
         accountId: UUID,
         rawDescription: String,
-    ): ProductAlias? = entityRepository.findByAccountIdAndRawDescription(accountId, rawDescription)?.let(ProductAliasMapper::toDomain)
+    ): ProductAlias? =
+        entityRepository.findByAccountIdAndRawDescription(
+            accountId,
+            rawDescription,
+        )?.let(ProductAliasMapper::toDomain)
 
     override fun save(alias: ProductAlias): ProductAlias =
         entityRepository.save(ProductAliasMapper.toEntity(alias)).let(ProductAliasMapper::toDomain)

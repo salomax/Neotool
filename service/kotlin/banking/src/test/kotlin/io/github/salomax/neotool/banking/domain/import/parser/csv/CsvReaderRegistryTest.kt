@@ -1,8 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
-import io.github.salomax.neotool.banking.service.import.parser.csv.*
-import io.github.salomax.neotool.banking.service.import.parser.*
-import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName

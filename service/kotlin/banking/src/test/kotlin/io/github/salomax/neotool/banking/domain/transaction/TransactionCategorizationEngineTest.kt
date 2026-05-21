@@ -1,20 +1,24 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
-import io.github.salomax.neotool.banking.service.transaction.*
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.DefaultTransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.MerchantService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -104,59 +108,57 @@ class TransactionCategorizationEngineTest {
     private fun createCommand(
         description: String,
         categoryId: UUID? = null,
-    ) =
-        CreateTransactionCommand(
-            financialAccountId = financialAccountId,
-            creditDebitType = CreditDebitType.DEBIT,
-            type = TransactionType.OTHER_EXPENSE,
-            amount = BigDecimal("10.00"),
-            date = today,
-            description = description,
-            categoryId = categoryId,
-        )
+    ) = CreateTransactionCommand(
+        financialAccountId = financialAccountId,
+        creditDebitType = CreditDebitType.DEBIT,
+        type = TransactionType.OTHER_EXPENSE,
+        amount = BigDecimal("10.00"),
+        date = today,
+        description = description,
+        categoryId = categoryId,
+    )
 
     private fun txExisting(
         txId: UUID,
         description: String,
         categoryId: UUID? = null,
-    ) =
-        Transaction(
-            id = txId,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            createdByUserId = userId,
-            creditDebitType = CreditDebitType.DEBIT,
-            type = TransactionType.OTHER_EXPENSE,
-            status = TransactionStatus.POSTED,
-            amount = BigDecimal("10.00"),
-            currencyCode = "BRL",
-            date = today,
-            transactionDatetime = null,
-            description = description,
-            notes = null,
-            tags = emptyList(),
-            categoryId = categoryId,
-            categorySource = null,
-            counterpartyName = null,
-            counterpartyDocument = null,
-            counterpartyBankCode = null,
-            counterpartyAccountNumber = null,
-            paymentReason = null,
-            transferPeerTransactionId = null,
-            installmentNumber = null,
-            totalInstallments = null,
-            cardIdentifier = null,
-            billId = null,
-            billPostDate = null,
-            payeeMcc = null,
-            providerTransactionId = null,
-            providerAccountId = null,
-            importFingerprint = null,
-            importJobId = null,
-            deletedAt = null,
-            createdAt = now,
-            updatedAt = now,
-        )
+    ) = Transaction(
+        id = txId,
+        financialAccountId = financialAccountId,
+        accountId = accountId,
+        createdByUserId = userId,
+        creditDebitType = CreditDebitType.DEBIT,
+        type = TransactionType.OTHER_EXPENSE,
+        status = TransactionStatus.POSTED,
+        amount = BigDecimal("10.00"),
+        currencyCode = "BRL",
+        date = today,
+        transactionDatetime = null,
+        description = description,
+        notes = null,
+        tags = emptyList(),
+        categoryId = categoryId,
+        categorySource = null,
+        counterpartyName = null,
+        counterpartyDocument = null,
+        counterpartyBankCode = null,
+        counterpartyAccountNumber = null,
+        paymentReason = null,
+        transferPeerTransactionId = null,
+        installmentNumber = null,
+        totalInstallments = null,
+        cardIdentifier = null,
+        billId = null,
+        billPostDate = null,
+        payeeMcc = null,
+        providerTransactionId = null,
+        providerAccountId = null,
+        importFingerprint = null,
+        importJobId = null,
+        deletedAt = null,
+        createdAt = now,
+        updatedAt = now,
+    )
 
     private fun stubSaveAndUpdate() {
         whenever(transactionRepository.save(any())).thenAnswer { invocation ->
@@ -192,12 +194,13 @@ class TransactionCategorizationEngineTest {
             val existing = txExisting(txId = txId, description = "PADARIA DO ZE", categoryId = null)
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existing)
 
-            val updated = service.update(
-                id = txId,
-                command = UpdateTransactionCommand(categoryId = categoryAlimentacao, categoryIdProvided = true),
-                accountId = accountId,
-                userId = userId,
-            )
+            val updated =
+                service.update(
+                    id = txId,
+                    command = UpdateTransactionCommand(categoryId = categoryAlimentacao, categoryIdProvided = true),
+                    accountId = accountId,
+                    userId = userId,
+                )
 
             assertThat(updated.categoryId).isEqualTo(categoryAlimentacao)
             assertThat(updated.categorySource).isEqualTo(CategorySource.MANUAL)
@@ -265,7 +268,11 @@ class TransactionCategorizationEngineTest {
             assertThat(implicitAfterFirst!!.categoryId).isEqualTo(categoryAlimentacao)
 
             // Update same transaction to a new category.
-            val existingAfterFirst = existing.copy(categoryId = categoryAlimentacao, categorySource = CategorySource.MANUAL)
+            val existingAfterFirst =
+                existing.copy(
+                    categoryId = categoryAlimentacao,
+                    categorySource = CategorySource.MANUAL,
+                )
             whenever(transactionRepository.findById(txId, accountId)).thenReturn(existingAfterFirst)
             service.update(
                 id = txId,
@@ -470,8 +477,7 @@ private class InMemoryTransactionCategoryRepository : TransactionCategoryReposit
     override fun findAccessibleByIds(
         ids: Set<UUID>,
         accountId: UUID,
-    ): List<TransactionCategory> =
-        findAll(accountId).filter { category -> category.id in ids }
+    ): List<TransactionCategory> = findAll(accountId).filter { category -> category.id in ids }
 
     override fun findById(id: UUID): TransactionCategory? {
         val category = categories[id] ?: return null
@@ -489,7 +495,9 @@ private class InMemoryTransactionCategoryRepository : TransactionCategoryReposit
         parentId: UUID?,
         accountId: UUID,
     ): Boolean =
-        categories.values.any { it.deletedAt == null && it.name == name && it.parentId == parentId && it.accountId == accountId }
+        categories.values.any {
+            it.deletedAt == null && it.name == name && it.parentId == parentId && it.accountId == accountId
+        }
 
     override fun maxSortOrder(
         accountId: UUID,
@@ -530,8 +538,15 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
         rules
             .filter {
                 it.deletedAt == null &&
-                    (it.accountId == accountId ||
-                        (it.accountId == null && !disabledRulesByAccount.getOrPut(accountId) { mutableSetOf() }.contains(it.id)))
+                    (
+                        it.accountId == accountId ||
+                            (
+                                it.accountId == null &&
+                                    !disabledRulesByAccount.getOrPut(
+                                        accountId,
+                                    ) { mutableSetOf() }.contains(it.id)
+                            )
+                    )
             }
             .sortedWith(
                 compareBy<TransactionRule> { it.priority }
@@ -557,8 +572,7 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
                     .thenByDescending { it.createdAt },
             )
 
-    override fun findById(id: UUID): TransactionRule? =
-        rules.firstOrNull { it.deletedAt == null && it.id == id }
+    override fun findById(id: UUID): TransactionRule? = rules.firstOrNull { it.deletedAt == null && it.id == id }
 
     override fun save(rule: TransactionRule): TransactionRule {
         val now = Instant.now()
@@ -590,7 +604,9 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
         accountId: UUID,
         pattern: String,
     ): TransactionRule? =
-        rules.firstOrNull { it.deletedAt == null && it.accountId == accountId && it.isImplicit && it.pattern == pattern }
+        rules.firstOrNull {
+            it.deletedAt == null && it.accountId == accountId && it.isImplicit && it.pattern == pattern
+        }
 
     override fun incrementMatchCount(id: UUID) {
         val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
@@ -599,7 +615,10 @@ private class InMemoryCategoryRuleRepository : TransactionRuleRepository {
         }
     }
 
-    override fun incrementMatchCountBy(id: UUID, delta: Int) {
+    override fun incrementMatchCountBy(
+        id: UUID,
+        delta: Int,
+    ) {
         val idx = rules.indexOfFirst { it.id == id && it.deletedAt == null }
         if (idx >= 0) {
             rules[idx] = rules[idx].copy(matchCount = rules[idx].matchCount + delta, updatedAt = Instant.now())

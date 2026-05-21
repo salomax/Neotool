@@ -1,14 +1,14 @@
 package io.github.salomax.neotool.banking.integration
 
-import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat

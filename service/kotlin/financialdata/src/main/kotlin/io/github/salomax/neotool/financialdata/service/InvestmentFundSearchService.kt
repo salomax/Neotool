@@ -46,24 +46,26 @@ open class InvestmentFundSearchService(
     ): Connection<InvestmentFund> {
         val pageSize = PaginationConstants.validatePageSize(first)
 
-        val afterCursor = after?.let {
-            try {
-                CursorEncoder.decodeCompositeCursorToString(it)
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        val afterCursor =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToString(it)
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Invalid cursor: $after", e)
+                }
             }
-        }
 
         val normalizedQuery = query?.trim()?.takeIf { it.isNotBlank() }
         val hasQuery = normalizedQuery != null
 
-        val (results, totalCount) = fundRepository.searchFunds(
-            query = normalizedQuery,
-            assetType = assetType,
-            isActive = isActive,
-            first = pageSize + 1,
-            after = afterCursor,
-        )
+        val (results, totalCount) =
+            fundRepository.searchFunds(
+                query = normalizedQuery,
+                assetType = assetType,
+                isActive = isActive,
+                first = pageSize + 1,
+                after = afterCursor,
+            )
         val hasMore = results.size > pageSize
         val page = results.take(pageSize)
 
@@ -78,11 +80,12 @@ open class InvestmentFundSearchService(
             encodeCursor = { fund ->
                 // When a query is active, ordering is by sim_score DESC — include it in the
                 // cursor so the next-page filter can correctly resume after the last item.
-                val fieldValues = if (hasQuery) {
-                    mapOf("name" to fund.name, "id" to fund.id.toString(), "simScore" to fund.simScore)
-                } else {
-                    mapOf("name" to fund.name, "id" to fund.id.toString())
-                }
+                val fieldValues =
+                    if (hasQuery) {
+                        mapOf("name" to fund.name, "id" to fund.id.toString(), "simScore" to fund.simScore)
+                    } else {
+                        mapOf("name" to fund.name, "id" to fund.id.toString())
+                    }
                 CursorEncoder.encodeCompositeCursor(
                     fieldValues = fieldValues,
                     id = fund.id.toString(),

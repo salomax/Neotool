@@ -3,8 +3,8 @@ package io.github.salomax.neotool.banking.service.investment
 import io.github.salomax.neotool.banking.domain.portfolio.MarketDataSyncJobName
 import io.github.salomax.neotool.banking.repo.portfolio.MarketDataSyncControlRepository
 import jakarta.inject.Singleton
-import java.time.ZoneOffset
 import java.time.LocalDate
+import java.time.ZoneOffset
 
 data class MarketDataValuationReadiness(
     val safeValuationDate: LocalDate?,

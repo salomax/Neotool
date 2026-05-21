@@ -1,9 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.service.import.parser.*
-import io.github.salomax.neotool.banking.service.import.*
-import io.github.salomax.neotool.banking.service.import.parser.csv.CsvFingerprintBuilder
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.import.parser.csv.CsvFingerprintBuilder
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested

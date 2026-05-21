@@ -42,8 +42,9 @@ class RecurringPaymentService(
                 }
             }
             RecurringFrequency.CUSTOM -> {
-                val intervalDays = template.intervalDays
-                    ?: throw invalidInput("intervalDays", "is required when frequency is CUSTOM")
+                val intervalDays =
+                    template.intervalDays
+                        ?: throw invalidInput("intervalDays", "is required when frequency is CUSTOM")
                 if (intervalDays <= 0) {
                     throw invalidInput("intervalDays", "must be greater than 0")
                 }
@@ -72,8 +73,9 @@ class RecurringPaymentService(
             }
             RecurringFrequency.YEARLY -> from.plusYears(1)
             RecurringFrequency.CUSTOM -> {
-                val days = template.intervalDays?.coerceAtLeast(1)
-                    ?: throw IllegalStateException("intervalDays is required for CUSTOM recurrence")
+                val days =
+                    template.intervalDays?.coerceAtLeast(1)
+                        ?: throw IllegalStateException("intervalDays is required for CUSTOM recurrence")
                 from.plusDays(days.toLong())
             }
         }

@@ -1,24 +1,27 @@
 package io.github.salomax.neotool.banking.service.account
 
-import io.github.salomax.neotool.banking.domain.account.*
-import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
-import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
-import io.github.salomax.neotool.banking.model.dto.account.UpdateField
+import io.github.salomax.neotool.banking.domain.account.BankData
+import io.github.salomax.neotool.banking.domain.account.CardData
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.resolve
-import io.github.salomax.neotool.banking.shared.DateWindowPolicy
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
@@ -46,6 +49,7 @@ open class FinancialAccountService(
     companion object {
         private const val MAX_FINANCIAL_ACCOUNT_NAME_LENGTH = 255
     }
+
     fun listByAccount(accountId: UUID): List<FinancialAccount> = financialAccountRepository.findByAccountId(accountId)
 
     @Transactional
@@ -238,7 +242,10 @@ open class FinancialAccountService(
                     ),
             )
         }
-        val resolvedCurrency = command.currencyCode.resolve(existing.currencyCode)?.takeIf { it.isNotBlank() } ?: existing.currencyCode
+        val resolvedCurrency =
+            command.currencyCode.resolve(existing.currencyCode)?.takeIf {
+                it.isNotBlank()
+            } ?: existing.currencyCode
         val resolvedBankData =
             if (isExistingBank) {
                 mergeBankData(existing.bankData, command.bankData)
@@ -251,7 +258,15 @@ open class FinancialAccountService(
             } else {
                 null
             }
-        val resolvedIsMultiCard = if (supportsMultiCard(command.type)) (resolvedCardData?.isMultiCard ?: false) else false
+        val resolvedIsMultiCard =
+            if (supportsMultiCard(
+                    command.type,
+                )
+            ) {
+                (resolvedCardData?.isMultiCard ?: false)
+            } else {
+                false
+            }
         val normalizedUpdateCardMaskedNumber =
             if (resolvedIsMultiCard) {
                 null
@@ -276,9 +291,18 @@ open class FinancialAccountService(
                 subtype = command.subtype,
                 name = resolvedName,
                 currencyCode = resolvedCurrency,
-                includeInNetWorth = command.includeInNetWorth.resolve(existing.includeInNetWorth) ?: existing.includeInNetWorth,
-                includeInDashboard = command.includeInDashboard.resolve(existing.includeInDashboard) ?: existing.includeInDashboard,
-                includeCashInAllocation = command.includeCashInAllocation.resolve(existing.includeCashInAllocation) ?: existing.includeCashInAllocation,
+                includeInNetWorth =
+                    command.includeInNetWorth.resolve(
+                        existing.includeInNetWorth,
+                    ) ?: existing.includeInNetWorth,
+                includeInDashboard =
+                    command.includeInDashboard.resolve(
+                        existing.includeInDashboard,
+                    ) ?: existing.includeInDashboard,
+                includeCashInAllocation =
+                    command.includeCashInAllocation.resolve(
+                        existing.includeCashInAllocation,
+                    ) ?: existing.includeCashInAllocation,
                 issuerId =
                     when {
                         issuer != null -> issuer.id
@@ -452,5 +476,4 @@ open class FinancialAccountService(
 
     private fun supportsMultiCard(type: FinancialAccountType): Boolean =
         type == FinancialAccountType.CREDIT || type == FinancialAccountType.PAYMENT
-
 }

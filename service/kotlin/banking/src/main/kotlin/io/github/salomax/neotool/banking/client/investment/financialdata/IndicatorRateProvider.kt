@@ -22,6 +22,9 @@ interface IndicatorRateProvider {
      * Values are decimal fractions (e.g. 0.0044 for 0.44%).
      * Returns an empty list when the indexer is unsupported or data is unavailable.
      */
-    fun getMonthlySeriesRange(indexer: Indexer, from: LocalDate, to: LocalDate): List<Pair<LocalDate, BigDecimal>> =
-        emptyList()
+    fun getMonthlySeriesRange(
+        indexer: Indexer,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<Pair<LocalDate, BigDecimal>> = emptyList()
 }

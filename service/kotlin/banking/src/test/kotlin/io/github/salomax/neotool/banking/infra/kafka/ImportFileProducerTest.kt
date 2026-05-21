@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
-import io.github.salomax.neotool.banking.client.import.messaging.*
-import io.github.salomax.neotool.banking.job.import.*
-import io.github.salomax.neotool.banking.service.import.parser.*
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducer
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducerKafkaClient
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileRequestedEvent
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

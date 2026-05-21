@@ -1,12 +1,11 @@
 package io.github.salomax.neotool.banking.service.import.excel
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
-import io.github.salomax.neotool.banking.service.import.fingerprint.ExcelFingerprintClassifier
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.service.import.fingerprint.ExcelFingerprintClassifier
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.RoundingMode

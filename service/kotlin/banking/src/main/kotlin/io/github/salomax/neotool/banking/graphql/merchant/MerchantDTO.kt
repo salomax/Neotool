@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.graphql.merchant
 
-import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.UUID
 

@@ -1,36 +1,36 @@
 package io.github.salomax.neotool.banking.domain.investment
 
-import io.github.salomax.neotool.banking.service.investment.*
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
+import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
 import io.github.salomax.neotool.banking.service.investment.lifecycle.CouponPendingActionHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.CustodianCashLedgerHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.InvestmentTransactionLifecycleOrchestrator
 import io.github.salomax.neotool.banking.service.investment.lifecycle.MaturityPendingActionHandler
 import io.github.salomax.neotool.banking.service.investment.lifecycle.PortfolioFlowEventHandler
-import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.repo.investment.AssetRepository
-import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
-import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
-import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
-import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.service.investment.recalculation.HoldingPositionEvolution
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
-import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Nested
@@ -47,14 +47,13 @@ import org.mockito.kotlin.whenever
 import java.math.BigDecimal
 import java.math.BigDecimal.ZERO
 import java.math.RoundingMode
-import java.util.concurrent.atomic.AtomicReference
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
 
 @DisplayName("InvestmentTransactionService")
 class InvestmentTransactionServiceTest {
-
     private lateinit var investmentTransactionRepository: InvestmentTransactionRepository
     private lateinit var holdingRepository: HoldingRepository
     private lateinit var assetRepository: AssetRepository
@@ -125,11 +124,13 @@ class InvestmentTransactionServiceTest {
         )
 
     /** A holding with an existing position */
-    private fun holdingWith(quantity: String, averageCost: String) =
-        emptyHolding().copy(
-            quantity = BigDecimal(quantity),
-            averageCost = BigDecimal(averageCost),
-        )
+    private fun holdingWith(
+        quantity: String,
+        averageCost: String,
+    ) = emptyHolding().copy(
+        quantity = BigDecimal(quantity),
+        averageCost = BigDecimal(averageCost),
+    )
 
     private fun savedHolding(holding: Holding) = holding.copy(id = holdingId)
 
@@ -182,16 +183,17 @@ class InvestmentTransactionServiceTest {
                     ),
                 ),
             )
-        service = InvestmentTransactionService(
-            investmentTransactionRepository,
-            holdingRepository,
-            assetRepository,
-            financialAccountRepository,
-            pendingActionRepository,
-            portfolioFlowEventService,
-            holdingAttachmentRepository,
-            lifecycleOrchestrator,
-        )
+        service =
+            InvestmentTransactionService(
+                investmentTransactionRepository,
+                holdingRepository,
+                assetRepository,
+                financialAccountRepository,
+                pendingActionRepository,
+                portfolioFlowEventService,
+                holdingAttachmentRepository,
+                lifecycleOrchestrator,
+            )
 
         // Default stubs used by most tests
         whenever(financialAccountRepository.findByAccountId(accountId))
@@ -199,7 +201,9 @@ class InvestmentTransactionServiceTest {
         whenever(financialAccountRepository.existsByIdAndAccountId(financialAccountId, accountId))
             .thenReturn(true)
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
-        whenever(investmentTransactionRepository.save(any())).thenAnswer { savedTransaction(it.arguments[0] as InvestmentTransaction) }
+        whenever(investmentTransactionRepository.save(any())).thenAnswer {
+            savedTransaction(it.arguments[0] as InvestmentTransaction)
+        }
         whenever(transactionRepository.existsByInvestmentTransactionId(any())).thenReturn(false)
         whenever(transactionRepository.findByInvestmentTransactionIds(any(), any())).thenReturn(emptyList())
         whenever(transactionService.delete(any(), any())).thenReturn(true)
@@ -254,7 +258,7 @@ class InvestmentTransactionServiceTest {
     }
 
     @Test
-    fun `first fixed income purchase derives holding pre fixed rate from agreed rate and defaults issue date to trade date`() {
+    fun `first RF purchase derives pre fixed rate and defaults issue date to trade date`() {
         val fixedIncomeAsset =
             asset.copy(
                 ticker = null,
@@ -333,7 +337,9 @@ class InvestmentTransactionServiceTest {
             whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
             whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
-            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(remainingTx))
+            whenever(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).thenReturn(listOf(remainingTx))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
             val deleted = service.delete(deletedTxId, accountId)
@@ -405,7 +411,9 @@ class InvestmentTransactionServiceTest {
             whenever(investmentTransactionRepository.findById(deletedTxId, accountId)).thenReturn(deletedTx)
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
             whenever(investmentTransactionRepository.softDelete(deletedTxId, accountId)).thenReturn(true)
-            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(remainingTx))
+            whenever(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).thenReturn(listOf(remainingTx))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
             whenever(transactionRepository.findByInvestmentTransactionIds(any(), eq(accountId)))
                 .thenReturn(listOf(bankingLeg))
@@ -495,7 +503,9 @@ class InvestmentTransactionServiceTest {
                 )
 
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(currentHolding)
-            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(txTwo, txOne))
+            whenever(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).thenReturn(listOf(txTwo, txOne))
             whenever(investmentTransactionRepository.softDelete(txOneId, accountId)).thenReturn(true)
             whenever(investmentTransactionRepository.softDelete(txTwoId, accountId)).thenReturn(true)
             whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
@@ -514,36 +524,40 @@ class InvestmentTransactionServiceTest {
         fun `deleteHolding triggers recalculation from earliest transaction trade date`() {
             val oldTxId = UUID.randomUUID()
             val newTxId = UUID.randomUUID()
-            val oldTx = InvestmentTransaction(
-                id = oldTxId,
-                holdingId = holdingId,
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.PURCHASE,
-                grossValue = BigDecimal("5000.00"),
-                tradeDate = today.minusMonths(6),
-                source = InvestmentSource.MANUAL,
-                createdAt = now,
-                updatedAt = now,
-            )
-            val newTx = InvestmentTransaction(
-                id = newTxId,
-                holdingId = holdingId,
-                financialAccountId = financialAccountId,
-                accountId = accountId,
-                createdByUserId = userId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.PURCHASE,
-                grossValue = BigDecimal("2000.00"),
-                tradeDate = today.minusMonths(1),
-                source = InvestmentSource.MANUAL,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val oldTx =
+                InvestmentTransaction(
+                    id = oldTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    grossValue = BigDecimal("5000.00"),
+                    tradeDate = today.minusMonths(6),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            val newTx =
+                InvestmentTransaction(
+                    id = newTxId,
+                    holdingId = holdingId,
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                    createdByUserId = userId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.PURCHASE,
+                    grossValue = BigDecimal("2000.00"),
+                    tradeDate = today.minusMonths(1),
+                    source = InvestmentSource.MANUAL,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holdingWith("1", "5000.00"))
-            whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(newTx, oldTx))
+            whenever(
+                investmentTransactionRepository.findByHolding(holdingId, accountId),
+            ).thenReturn(listOf(newTx, oldTx))
             whenever(investmentTransactionRepository.softDelete(any(), any())).thenReturn(true)
             whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
             whenever(portfolioFlowEventService.requestRecalculation(any(), any(), any(), any())).thenReturn(
@@ -573,9 +587,10 @@ class InvestmentTransactionServiceTest {
         fun `deleteHolding with no transactions triggers recalculation from holding issueDate`() {
             // BUG FIX: holdings imported without PURCHASE transactions (e.g. via B3/XP Excel import)
             // were leaving stale quotas because no recalculation was triggered.
-            val rfPreHolding = holdingWith("1", "3000.00").copy(
-                issueDate = LocalDate.of(2025, 1, 1),
-            )
+            val rfPreHolding =
+                holdingWith("1", "3000.00").copy(
+                    issueDate = LocalDate.of(2025, 1, 1),
+                )
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(rfPreHolding)
             whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(emptyList())
             whenever(holdingRepository.softDelete(holdingId, accountId)).thenReturn(true)
@@ -637,7 +652,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("PURCHASE — weighted average cost (custo médio ponderado)")
     inner class PurchaseTests {
-
         @Test
         fun `first buy on empty holding sets averageCost equal to unit price`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
@@ -752,16 +766,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "10.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val subscriptionCommand = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.SUBSCRIPTION,
-                quantity = BigDecimal("50"),
-                unitPrice = BigDecimal("12.00"),
-                grossValue = BigDecimal("600"),
-                tradeDate = today,
-            )
+            val subscriptionCommand =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.SUBSCRIPTION,
+                    quantity = BigDecimal("50"),
+                    unitPrice = BigDecimal("12.00"),
+                    grossValue = BigDecimal("600"),
+                    tradeDate = today,
+                )
 
             service.record(subscriptionCommand, accountId, userId)
 
@@ -780,16 +795,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "10.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val subscriptionCommand = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.SUBSCRIPTION,
-                quantity = BigDecimal("50"),
-                unitPrice = BigDecimal("12.00"),
-                grossValue = BigDecimal("600"),
-                tradeDate = today,
-            )
+            val subscriptionCommand =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.SUBSCRIPTION,
+                    quantity = BigDecimal("50"),
+                    unitPrice = BigDecimal("12.00"),
+                    grossValue = BigDecimal("600"),
+                    tradeDate = today,
+                )
 
             service.record(subscriptionCommand, accountId, userId)
 
@@ -804,23 +820,23 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("SALE")
     inner class SaleTests {
-
         @Test
         fun `sale reduces quantity and leaves averageCost unchanged (RFB rule)`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holdingWith("200", "30.25"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.SALE,
-                quantity = BigDecimal("80"),
-                unitPrice = BigDecimal("35.00"),
-                grossValue = BigDecimal("2800"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.SALE,
+                    quantity = BigDecimal("80"),
+                    unitPrice = BigDecimal("35.00"),
+                    grossValue = BigDecimal("2800"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -840,17 +856,18 @@ class InvestmentTransactionServiceTest {
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
             val settlement = today.plusDays(2)
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.SALE,
-                quantity = BigDecimal("80"),
-                unitPrice = BigDecimal("35.00"),
-                grossValue = BigDecimal("2800"),
-                tradeDate = today,
-                settlementDate = settlement,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.SALE,
+                    quantity = BigDecimal("80"),
+                    unitPrice = BigDecimal("35.00"),
+                    grossValue = BigDecimal("2800"),
+                    tradeDate = today,
+                    settlementDate = settlement,
+                )
 
             service.record(command, accountId, userId)
 
@@ -867,16 +884,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "28.50"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.SALE,
-                quantity = BigDecimal("100"),
-                unitPrice = BigDecimal("35.00"),
-                grossValue = BigDecimal("3500"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.SALE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("35.00"),
+                    grossValue = BigDecimal("3500"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -891,16 +909,17 @@ class InvestmentTransactionServiceTest {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holdingWith("50", "28.50"))
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.SALE,
-                quantity = BigDecimal("100"),
-                unitPrice = BigDecimal("35.00"),
-                grossValue = BigDecimal("3500"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.SALE,
+                    quantity = BigDecimal("100"),
+                    unitPrice = BigDecimal("35.00"),
+                    grossValue = BigDecimal("3500"),
+                    tradeDate = today,
+                )
 
             assertThrows<IllegalArgumentException> {
                 service.record(command, accountId, userId)
@@ -915,22 +934,22 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("MATURITY")
     inner class MaturityTests {
-
         @Test
         fun `maturity with explicit quantity reduces position`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holdingWith("1000", "1.05"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.MATURITY,
-                quantity = BigDecimal("1000"),
-                grossValue = BigDecimal("1100"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.MATURITY,
+                    quantity = BigDecimal("1000"),
+                    grossValue = BigDecimal("1100"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -946,15 +965,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("500", "1.02"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.MATURITY,
-                quantity = null, // null = full maturity
-                grossValue = BigDecimal("600"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.MATURITY,
+                    // null = full maturity
+                    quantity = null,
+                    grossValue = BigDecimal("600"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -970,7 +991,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Corporate events — quantity and cost basis adjustments")
     inner class CorporateEventTests {
-
         @Test
         fun `STOCK_SPLIT increases quantity and reduces averageCost preserving total cost basis`() {
             // 100 shares at R$20.00 → cost basis R$2,000
@@ -979,15 +999,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "20.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.STOCK_SPLIT,
-                quantity = BigDecimal("100"), // additional shares received
-                grossValue = ZERO,
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.STOCK_SPLIT,
+                    // additional shares received
+                    quantity = BigDecimal("100"),
+                    grossValue = ZERO,
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1008,15 +1030,16 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "50.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.BONUS_SHARES,
-                quantity = BigDecimal("10"),
-                grossValue = ZERO,
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.BONUS_SHARES,
+                    quantity = BigDecimal("10"),
+                    grossValue = ZERO,
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1038,15 +1061,17 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "5.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.REVERSE_SPLIT,
-                quantity = BigDecimal("50"), // shares removed
-                grossValue = ZERO,
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.REVERSE_SPLIT,
+                    // shares removed
+                    quantity = BigDecimal("50"),
+                    grossValue = ZERO,
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1068,15 +1093,16 @@ class InvestmentTransactionServiceTest {
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
             // Step 1: split → 200 shares @ R$10
-            val splitCommand = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.STOCK_SPLIT,
-                quantity = BigDecimal("100"),
-                grossValue = ZERO,
-                tradeDate = today,
-            )
+            val splitCommand =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.STOCK_SPLIT,
+                    quantity = BigDecimal("100"),
+                    grossValue = ZERO,
+                    tradeDate = today,
+                )
 
             service.record(splitCommand, accountId, userId)
 
@@ -1097,7 +1123,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Income events — no holding mutation")
     inner class IncomeEventTests {
-
         @Test
         fun `DIVIDEND does not change quantity or averageCost`() {
             val holding = holdingWith("200", "30.25")
@@ -1105,14 +1130,15 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holding)
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.DIVIDEND,
-                grossValue = BigDecimal("420.00"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.DIVIDEND,
+                    grossValue = BigDecimal("420.00"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1131,14 +1157,15 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holding)
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.INTEREST_ON_EQUITY,
-                grossValue = BigDecimal("250.00"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.INTEREST_ON_EQUITY,
+                    grossValue = BigDecimal("250.00"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1159,15 +1186,16 @@ class InvestmentTransactionServiceTest {
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
             val deductedQuotas = BigDecimal("50")
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.WITHHOLDING_TAX,
-                quantity = deductedQuotas,
-                grossValue = BigDecimal("50.00"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.WITHHOLDING_TAX,
+                    quantity = deductedQuotas,
+                    grossValue = BigDecimal("50.00"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1183,7 +1211,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Manual fund valuation")
     inner class ManualFundValuationTests {
-
         @Test
         fun `first manual fund purchase persists pricing mode and manual valuation`() {
             whenever(assetRepository.findById(assetId)).thenReturn(fundAsset())
@@ -1259,23 +1286,23 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("CUSTODY_TRANSFER")
     inner class CustodyTransferTests {
-
         @Test
         fun `incoming transfer with price is treated as a purchase for average cost`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holdingWith("100", "28.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.CUSTODY_TRANSFER,
-                quantity = BigDecimal("50"),
-                unitPrice = BigDecimal("30.00"),
-                grossValue = BigDecimal("1500"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.CUSTODY_TRANSFER,
+                    quantity = BigDecimal("50"),
+                    unitPrice = BigDecimal("30.00"),
+                    grossValue = BigDecimal("1500"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1295,15 +1322,16 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("200", "30.00"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.OUTFLOW,
-                type = InvestmentTransactionType.CUSTODY_TRANSFER,
-                quantity = BigDecimal("80"),
-                grossValue = BigDecimal("2400"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.OUTFLOW,
+                    type = InvestmentTransactionType.CUSTODY_TRANSFER,
+                    quantity = BigDecimal("80"),
+                    grossValue = BigDecimal("2400"),
+                    tradeDate = today,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1321,7 +1349,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Input validation")
     inner class ValidationTests {
-
         @Test
         fun `fails when financialAccountId does not belong to the caller accountId`() {
             whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(emptyList())
@@ -1364,15 +1391,17 @@ class InvestmentTransactionServiceTest {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
                 .thenReturn(holdingWith("100", "28.50"))
 
-            val command = RecordInvestmentTransactionCommand(
-                financialAccountId = financialAccountId,
-                assetId = assetId,
-                direction = InvestmentTransactionDirection.INFLOW,
-                type = InvestmentTransactionType.OTHER,
-                typeAdditionalInfo = null, // required for OTHER
-                grossValue = BigDecimal("100"),
-                tradeDate = today,
-            )
+            val command =
+                RecordInvestmentTransactionCommand(
+                    financialAccountId = financialAccountId,
+                    assetId = assetId,
+                    direction = InvestmentTransactionDirection.INFLOW,
+                    type = InvestmentTransactionType.OTHER,
+                    // required for OTHER
+                    typeAdditionalInfo = null,
+                    grossValue = BigDecimal("100"),
+                    tradeDate = today,
+                )
 
             assertThrows<IllegalArgumentException> {
                 service.record(command, accountId, userId)
@@ -1480,18 +1509,22 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Provider deduplication")
     inner class DedupTests {
-
         @Test
         fun `skips saving when providerTransactionId already exists for the account`() {
             val existingProviderId = "ofb-tx-12345"
-            whenever(investmentTransactionRepository.existsByProviderTransactionId(
-                financialAccountId, existingProviderId))
+            whenever(
+                investmentTransactionRepository.existsByProviderTransactionId(
+                    financialAccountId,
+                    existingProviderId,
+                ),
+            )
                 .thenReturn(true)
 
-            val command = buyCommand("100", "28.50").copy(
-                providerTransactionId = existingProviderId,
-                source = InvestmentSource.OPEN_FINANCE,
-            )
+            val command =
+                buyCommand("100", "28.50").copy(
+                    providerTransactionId = existingProviderId,
+                    source = InvestmentSource.OPEN_FINANCE,
+                )
 
             assertThrows<IllegalStateException> {
                 service.record(command, accountId, userId)
@@ -1508,10 +1541,11 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(null)
             whenever(holdingRepository.save(any())).thenAnswer { savedHolding(it.arguments[0] as Holding) }
 
-            val command = buyCommand("100", "28.50").copy(
-                providerTransactionId = "ofb-tx-new",
-                source = InvestmentSource.OPEN_FINANCE,
-            )
+            val command =
+                buyCommand("100", "28.50").copy(
+                    providerTransactionId = "ofb-tx-new",
+                    source = InvestmentSource.OPEN_FINANCE,
+                )
 
             service.record(command, accountId, userId)
 
@@ -1524,7 +1558,6 @@ class InvestmentTransactionServiceTest {
     @Nested
     @DisplayName("Holding upsert")
     inner class HoldingUpsertTests {
-
         @Test
         fun `creates a new holding when none exists for the asset`() {
             whenever(holdingRepository.findByFinancialAccountAndAsset(financialAccountId, assetId))
@@ -1556,10 +1589,11 @@ class InvestmentTransactionServiceTest {
                 .thenReturn(holdingWith("100", "28.50"))
             whenever(holdingRepository.update(any())).thenAnswer { it.arguments[0] as Holding }
 
-            val command = buyCommand("50", "30.00").copy(
-                providerInvestmentId = providerId,
-                source = InvestmentSource.OPEN_FINANCE,
-            )
+            val command =
+                buyCommand("50", "30.00").copy(
+                    providerInvestmentId = providerId,
+                    source = InvestmentSource.OPEN_FINANCE,
+                )
 
             service.record(command, accountId, userId)
 

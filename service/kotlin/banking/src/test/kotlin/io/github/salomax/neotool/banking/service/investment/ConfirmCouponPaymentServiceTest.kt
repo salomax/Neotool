@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
@@ -17,6 +16,7 @@ import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import org.assertj.core.api.Assertions.assertThat
@@ -37,7 +37,6 @@ import java.util.UUID
 
 @DisplayName("ConfirmCouponPaymentService")
 class ConfirmCouponPaymentServiceTest {
-
     private lateinit var holdingRepository: HoldingRepository
     private lateinit var investmentTransactionService: InvestmentTransactionService
     private lateinit var pendingActionRepository: AccountPendingActionRepository
@@ -52,48 +51,51 @@ class ConfirmCouponPaymentServiceTest {
     private val now = Instant.now()
     private val today = LocalDate.now()
 
-    private val semiAnnualHolding = Holding(
-        id = holdingId,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        assetId = assetId,
-        quantity = BigDecimal("1"),
-        averageCost = BigDecimal("1000.00"),
-        couponFrequency = CouponFrequency.SEMI_ANNUAL,
-        createdAt = now,
-        updatedAt = now,
-    )
+    private val semiAnnualHolding =
+        Holding(
+            id = holdingId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            assetId = assetId,
+            quantity = BigDecimal("1"),
+            averageCost = BigDecimal("1000.00"),
+            couponFrequency = CouponFrequency.SEMI_ANNUAL,
+            createdAt = now,
+            updatedAt = now,
+        )
 
-    private val recordedCouponTx = InvestmentTransaction(
-        id = UUID.randomUUID(),
-        holdingId = holdingId,
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = userId,
-        direction = InvestmentTransactionDirection.OUTFLOW,
-        type = InvestmentTransactionType.INTEREST_PAYMENT,
-        grossValue = BigDecimal("100.00"),
-        netValue = BigDecimal("85.00"),
-        incomeTax = BigDecimal("15.00"),
-        tradeDate = today,
-        source = InvestmentSource.MANUAL,
-    )
+    private val recordedCouponTx =
+        InvestmentTransaction(
+            id = UUID.randomUUID(),
+            holdingId = holdingId,
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            direction = InvestmentTransactionDirection.OUTFLOW,
+            type = InvestmentTransactionType.INTEREST_PAYMENT,
+            grossValue = BigDecimal("100.00"),
+            netValue = BigDecimal("85.00"),
+            incomeTax = BigDecimal("15.00"),
+            tradeDate = today,
+            source = InvestmentSource.MANUAL,
+        )
 
-    private val cashTx = Transaction(
-        id = UUID.randomUUID(),
-        financialAccountId = financialAccountId,
-        accountId = accountId,
-        createdByUserId = userId,
-        creditDebitType = CreditDebitType.CREDIT,
-        type = TransactionType.INVESTMENT_RETURN,
-        amount = BigDecimal("85.00"),
-        date = today,
-        description = "Coupon payment",
-        source = TransactionSource.MANUAL,
-        status = TransactionStatus.POSTED,
-        createdAt = now,
-        updatedAt = now,
-    )
+    private val cashTx =
+        Transaction(
+            id = UUID.randomUUID(),
+            financialAccountId = financialAccountId,
+            accountId = accountId,
+            createdByUserId = userId,
+            creditDebitType = CreditDebitType.CREDIT,
+            type = TransactionType.INVESTMENT_RETURN,
+            amount = BigDecimal("85.00"),
+            date = today,
+            description = "Coupon payment",
+            source = TransactionSource.MANUAL,
+            status = TransactionStatus.POSTED,
+            createdAt = now,
+            updatedAt = now,
+        )
 
     @BeforeEach
     fun setUp() {
@@ -101,36 +103,38 @@ class ConfirmCouponPaymentServiceTest {
         investmentTransactionService = mock()
         pendingActionRepository = mock()
         transactionRepository = mock()
-        service = ConfirmCouponPaymentService(
-            holdingRepository = holdingRepository,
-            investmentTransactionService = investmentTransactionService,
-            pendingActionRepository = pendingActionRepository,
-            transactionRepository = transactionRepository,
-        )
+        service =
+            ConfirmCouponPaymentService(
+                holdingRepository = holdingRepository,
+                investmentTransactionService = investmentTransactionService,
+                pendingActionRepository = pendingActionRepository,
+                transactionRepository = transactionRepository,
+            )
 
         whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(semiAnnualHolding)
         whenever(investmentTransactionService.record(any(), any(), any())).thenReturn(recordedCouponTx)
         whenever(
             transactionRepository.findByInvestmentTransactionIds(
-                listOf(recordedCouponTx.id!!), accountId
-            )
+                listOf(recordedCouponTx.id!!),
+                accountId,
+            ),
         ).thenReturn(listOf(cashTx))
     }
 
     @Nested
     @DisplayName("happy path")
     inner class HappyPath {
-
         @Test
         fun `records coupon transaction and returns banking transaction`() {
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                )
 
             val result = service.confirm(command, accountId, userId)
 
@@ -142,36 +146,38 @@ class ConfirmCouponPaymentServiceTest {
         @Test
         fun `resolves pending action when pendingActionId is provided`() {
             val pendingActionId = UUID.randomUUID()
-            val pendingAction = AccountPendingAction(
-                id = pendingActionId,
-                accountId = accountId,
-                type = PendingActionType.COUPON_PAYMENT_DUE,
-                severity = PendingActionSeverity.ACTION_REQUIRED,
-                status = AccountPendingActionStatus.COMPLETED,
-                entityType = "HOLDING",
-                entityId = holdingId,
-                relatedTransactionId = null,
-                payload = emptyMap(),
-                visibleFrom = now,
-                notifiedAt = null,
-                dismissedAt = null,
-                completedAt = now,
-                cancelledAt = null,
-                expiresAt = null,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val pendingAction =
+                AccountPendingAction(
+                    id = pendingActionId,
+                    accountId = accountId,
+                    type = PendingActionType.COUPON_PAYMENT_DUE,
+                    severity = PendingActionSeverity.ACTION_REQUIRED,
+                    status = AccountPendingActionStatus.COMPLETED,
+                    entityType = "HOLDING",
+                    entityId = holdingId,
+                    relatedTransactionId = null,
+                    payload = emptyMap(),
+                    visibleFrom = now,
+                    notifiedAt = null,
+                    dismissedAt = null,
+                    completedAt = now,
+                    cancelledAt = null,
+                    expiresAt = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(pendingActionRepository.findById(pendingActionId, accountId)).thenReturn(pendingAction)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-                pendingActionId = pendingActionId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                    pendingActionId = pendingActionId,
+                )
 
             val result = service.confirm(command, accountId, userId)
 
@@ -182,19 +188,19 @@ class ConfirmCouponPaymentServiceTest {
     @Nested
     @DisplayName("validation")
     inner class Validation {
-
         @Test
         fun `throws when holding not found`() {
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(null)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(NoSuchElementException::class.java)
@@ -203,14 +209,15 @@ class ConfirmCouponPaymentServiceTest {
 
         @Test
         fun `throws when grossValue is zero`() {
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal.ZERO,
-                netValue = BigDecimal.ZERO,
-                incomeTax = BigDecimal.ZERO,
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal.ZERO,
+                    netValue = BigDecimal.ZERO,
+                    incomeTax = BigDecimal.ZERO,
+                    destinationAccountId = financialAccountId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(IllegalArgumentException::class.java)
@@ -219,14 +226,15 @@ class ConfirmCouponPaymentServiceTest {
 
         @Test
         fun `throws when netValue exceeds grossValue`() {
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("110.00"),
-                incomeTax = BigDecimal.ZERO,
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("110.00"),
+                    incomeTax = BigDecimal.ZERO,
+                    destinationAccountId = financialAccountId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(IllegalArgumentException::class.java)
@@ -238,14 +246,15 @@ class ConfirmCouponPaymentServiceTest {
             val atMaturityHolding = semiAnnualHolding.copy(couponFrequency = CouponFrequency.AT_MATURITY)
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(atMaturityHolding)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(IllegalArgumentException::class.java)
@@ -257,14 +266,15 @@ class ConfirmCouponPaymentServiceTest {
             val noCouponHolding = semiAnnualHolding.copy(couponFrequency = null)
             whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(noCouponHolding)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(IllegalArgumentException::class.java)
@@ -276,15 +286,16 @@ class ConfirmCouponPaymentServiceTest {
             val pendingActionId = UUID.randomUUID()
             whenever(pendingActionRepository.findById(pendingActionId, accountId)).thenReturn(null)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-                pendingActionId = pendingActionId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                    pendingActionId = pendingActionId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(NoSuchElementException::class.java)
@@ -294,36 +305,38 @@ class ConfirmCouponPaymentServiceTest {
         @Test
         fun `throws when pending action type is not COUPON_PAYMENT_DUE`() {
             val pendingActionId = UUID.randomUUID()
-            val wrongTypePendingAction = AccountPendingAction(
-                id = pendingActionId,
-                accountId = accountId,
-                type = PendingActionType.INVESTMENT_MATURED,
-                severity = PendingActionSeverity.ACTION_REQUIRED,
-                status = AccountPendingActionStatus.PENDING,
-                entityType = "HOLDING",
-                entityId = holdingId,
-                relatedTransactionId = null,
-                payload = emptyMap(),
-                visibleFrom = now,
-                notifiedAt = null,
-                dismissedAt = null,
-                completedAt = null,
-                cancelledAt = null,
-                expiresAt = null,
-                createdAt = now,
-                updatedAt = now,
-            )
+            val wrongTypePendingAction =
+                AccountPendingAction(
+                    id = pendingActionId,
+                    accountId = accountId,
+                    type = PendingActionType.INVESTMENT_MATURED,
+                    severity = PendingActionSeverity.ACTION_REQUIRED,
+                    status = AccountPendingActionStatus.PENDING,
+                    entityType = "HOLDING",
+                    entityId = holdingId,
+                    relatedTransactionId = null,
+                    payload = emptyMap(),
+                    visibleFrom = now,
+                    notifiedAt = null,
+                    dismissedAt = null,
+                    completedAt = null,
+                    cancelledAt = null,
+                    expiresAt = null,
+                    createdAt = now,
+                    updatedAt = now,
+                )
             whenever(pendingActionRepository.findById(pendingActionId, accountId)).thenReturn(wrongTypePendingAction)
 
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-                pendingActionId = pendingActionId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                    pendingActionId = pendingActionId,
+                )
 
             assertThatThrownBy { service.confirm(command, accountId, userId) }
                 .isInstanceOf(IllegalArgumentException::class.java)
@@ -332,14 +345,15 @@ class ConfirmCouponPaymentServiceTest {
 
         @Test
         fun `does not touch pending action repository when no pendingActionId`() {
-            val command = ConfirmCouponPaymentCommand(
-                holdingId = holdingId,
-                tradeDate = today,
-                grossValue = BigDecimal("100.00"),
-                netValue = BigDecimal("85.00"),
-                incomeTax = BigDecimal("15.00"),
-                destinationAccountId = financialAccountId,
-            )
+            val command =
+                ConfirmCouponPaymentCommand(
+                    holdingId = holdingId,
+                    tradeDate = today,
+                    grossValue = BigDecimal("100.00"),
+                    netValue = BigDecimal("85.00"),
+                    incomeTax = BigDecimal("15.00"),
+                    destinationAccountId = financialAccountId,
+                )
 
             service.confirm(command, accountId, userId)
 

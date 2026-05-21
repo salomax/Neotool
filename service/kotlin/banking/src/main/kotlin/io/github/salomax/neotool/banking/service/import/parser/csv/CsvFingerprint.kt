@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
-import io.github.salomax.neotool.banking.domain.import.*
 /**
  * Structural signature extracted from a CSV sample.
  * Used for reader matching and confidence scoring.

@@ -1,28 +1,30 @@
 package io.github.salomax.neotool.banking.graphql
 
-import io.github.salomax.neotool.banking.graphql.config.*
 import graphql.GraphQLContext
 import graphql.schema.DataFetchingEnvironment
 import graphql.schema.DataFetchingEnvironmentImpl
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
-import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
-import io.github.salomax.neotool.banking.graphql.import.ImportResolver
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
-import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
-import io.github.salomax.neotool.banking.graphql.recurring.RecurringPaymentResolver
-import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.config.BankingWiringFactory
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantConnectionDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantPageInfoDTO
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
 import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.product.ProductResolver
+import io.github.salomax.neotool.banking.graphql.recurring.RecurringPaymentResolver
+import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleConnectionDTO
+import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -39,8 +41,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.util.UUID
-import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleConnectionDTO
 
 @DisplayName("BankingWiringFactory permissions")
 class BankingWiringFactoryTest {
@@ -207,7 +207,9 @@ class BankingWiringFactoryTest {
             dataFetcher.get(env)
 
             verify(authorizationChecker).require(any(), eq(BankingPermissions.BANKING_INVESTMENT_VIEW))
-            verify(investmentResolver).portfolioPerformance(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())
+            verify(
+                investmentResolver,
+            ).portfolioPerformance(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())
         }
 
         @Test
@@ -230,7 +232,9 @@ class BankingWiringFactoryTest {
         fun `transactionRules forwards optional isSystem argument to resolver`() {
             val wiring = wiringFactory.build()
             val dataFetcher = wiring.dataFetchers["Query"]!!["transactionRules"]!!
-            whenever(transactionCategoryResolver.transactionRules(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any())).thenReturn(
+            whenever(
+                transactionCategoryResolver.transactionRules(anyOrNull(), anyOrNull(), anyOrNull(), anyOrNull(), any()),
+            ).thenReturn(
                 TransactionRuleConnectionDTO(
                     edges = emptyList(),
                     pageInfo = PageInfoDTO(false, false, null, null),

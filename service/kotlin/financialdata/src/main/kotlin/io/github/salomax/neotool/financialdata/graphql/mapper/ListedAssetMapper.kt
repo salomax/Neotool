@@ -14,7 +14,6 @@ import jakarta.inject.Singleton
 
 @Singleton
 class ListedAssetMapper {
-
     fun toAutocompleteConnectionDTO(assets: List<ListedAsset>): ListedAssetAutocompleteConnectionDTO =
         ListedAssetAutocompleteConnectionDTO(
             suggestions = assets.map { toAutocompleteItemDTO(it) },
@@ -32,18 +31,20 @@ class ListedAssetMapper {
 
     fun toConnectionDTO(connection: Connection<ListedAsset>): ListedAssetConnectionDTO =
         ListedAssetConnectionDTO(
-            edges = connection.edges.map { edge ->
-                ListedAssetEdgeDTO(
-                    node = toAssetDTO(edge.node),
-                    cursor = edge.cursor,
-                )
-            },
-            pageInfo = PageInfoDTO(
-                hasNextPage = connection.pageInfo.hasNextPage,
-                hasPreviousPage = connection.pageInfo.hasPreviousPage,
-                startCursor = connection.pageInfo.startCursor,
-                endCursor = connection.pageInfo.endCursor,
-            ),
+            edges =
+                connection.edges.map { edge ->
+                    ListedAssetEdgeDTO(
+                        node = toAssetDTO(edge.node),
+                        cursor = edge.cursor,
+                    )
+                },
+            pageInfo =
+                PageInfoDTO(
+                    hasNextPage = connection.pageInfo.hasNextPage,
+                    hasPreviousPage = connection.pageInfo.hasPreviousPage,
+                    startCursor = connection.pageInfo.startCursor,
+                    endCursor = connection.pageInfo.endCursor,
+                ),
             totalCount = connection.totalCount?.toInt(),
         )
 
@@ -71,6 +72,5 @@ class ListedAssetMapper {
             trades = price.trades,
         )
 
-    fun toPriceListDTO(prices: List<AssetDailyPrice>): List<AssetDailyPriceDTO> =
-        prices.map { toPriceDTO(it) }
+    fun toPriceListDTO(prices: List<AssetDailyPrice>): List<AssetDailyPriceDTO> = prices.map { toPriceDTO(it) }
 }

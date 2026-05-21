@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.repo.portfolio
 
-import io.github.salomax.neotool.banking.domain.portfolio.MarketDataSyncStatus
 import io.github.salomax.neotool.banking.model.portfolio.MarketDataSyncControlEntity
 import io.micronaut.data.annotation.Query
 import io.micronaut.data.annotation.Repository

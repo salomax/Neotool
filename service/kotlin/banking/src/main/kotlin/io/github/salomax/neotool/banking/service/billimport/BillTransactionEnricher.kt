@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewTransaction
+import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 
@@ -25,7 +26,11 @@ internal object BillTransactionEnricher {
         description: String?,
         descriptionRaw: String? = null,
     ): InstallmentInfo? {
-        val candidate = listOfNotNull(description, descriptionRaw).firstNotNullOfOrNull(::extractInstallment) ?: return null
+        val candidate =
+            listOfNotNull(
+                description,
+                descriptionRaw,
+            ).firstNotNullOfOrNull(::extractInstallment) ?: return null
         return InstallmentInfo(current = candidate.first, total = candidate.second)
     }
 

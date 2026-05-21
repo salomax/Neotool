@@ -6,9 +6,9 @@ import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
-import javax.sql.DataSource
 import java.time.LocalDate
 import java.util.UUID
+import javax.sql.DataSource
 
 @Singleton
 open class DefaultAssetDailyPriceRepository(

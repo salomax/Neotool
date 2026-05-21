@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.client.transaction.security
 
-import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.micronaut.context.annotation.Requires

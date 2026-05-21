@@ -31,11 +31,12 @@ class DashboardAnalyticsCalculatorTest {
         snapshotRepository = mock()
         portfolioQuotaRepository = mock()
         investmentPortfolioSummaryService = mock()
-        calculator = DashboardAnalyticsCalculator(
-            snapshotRepository = snapshotRepository,
-            portfolioQuotaRepository = portfolioQuotaRepository,
-            investmentPortfolioSummaryService = investmentPortfolioSummaryService,
-        )
+        calculator =
+            DashboardAnalyticsCalculator(
+                snapshotRepository = snapshotRepository,
+                portfolioQuotaRepository = portfolioQuotaRepository,
+                investmentPortfolioSummaryService = investmentPortfolioSummaryService,
+            )
     }
 
     @Test

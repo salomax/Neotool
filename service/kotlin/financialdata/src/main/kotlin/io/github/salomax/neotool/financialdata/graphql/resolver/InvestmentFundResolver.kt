@@ -42,11 +42,12 @@ class InvestmentFundResolver(
     }
 
     fun investmentFund(id: String): InvestmentFundDTO? {
-        val uuid = try {
-            UUID.fromString(id)
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid fund id: $id")
-        }
+        val uuid =
+            try {
+                UUID.fromString(id)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid fund id: $id")
+            }
         val fund = fundSearchService.findFundById(uuid) ?: return null
         return mapper.toFundDTO(fund)
     }

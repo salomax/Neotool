@@ -46,24 +46,26 @@ open class ListedAssetSearchService(
     ): Connection<ListedAsset> {
         val pageSize = PaginationConstants.validatePageSize(first)
 
-        val afterCursor = after?.let {
-            try {
-                CursorEncoder.decodeCompositeCursorToString(it)
-            } catch (e: Exception) {
-                throw IllegalArgumentException("Invalid cursor: $after", e)
+        val afterCursor =
+            after?.let {
+                try {
+                    CursorEncoder.decodeCompositeCursorToString(it)
+                } catch (e: Exception) {
+                    throw IllegalArgumentException("Invalid cursor: $after", e)
+                }
             }
-        }
 
         val normalizedQuery = query?.trim()?.takeIf { it.isNotBlank() }
         val hasQuery = normalizedQuery != null
 
-        val (results, totalCount) = assetRepository.searchAssets(
-            query = normalizedQuery,
-            assetType = assetType,
-            isActive = isActive,
-            first = pageSize + 1,
-            after = afterCursor,
-        )
+        val (results, totalCount) =
+            assetRepository.searchAssets(
+                query = normalizedQuery,
+                assetType = assetType,
+                isActive = isActive,
+                first = pageSize + 1,
+                after = afterCursor,
+            )
         val hasMore = results.size > pageSize
         val page = results.take(pageSize)
 
@@ -76,11 +78,12 @@ open class ListedAssetSearchService(
             items = page,
             hasMore = hasMore,
             encodeCursor = { asset ->
-                val fieldValues = if (hasQuery) {
-                    mapOf("ticker" to asset.ticker, "id" to asset.id.toString(), "simScore" to asset.simScore)
-                } else {
-                    mapOf("ticker" to asset.ticker, "id" to asset.id.toString())
-                }
+                val fieldValues =
+                    if (hasQuery) {
+                        mapOf("ticker" to asset.ticker, "id" to asset.id.toString(), "simScore" to asset.simScore)
+                    } else {
+                        mapOf("ticker" to asset.ticker, "id" to asset.id.toString())
+                    }
                 CursorEncoder.encodeCompositeCursor(
                     fieldValues = fieldValues,
                     id = asset.id.toString(),
@@ -92,8 +95,7 @@ open class ListedAssetSearchService(
 
     fun findAssetById(id: UUID): ListedAsset? = assetRepository.findAssetById(id)
 
-    fun findAssetByTicker(ticker: String): ListedAsset? =
-        assetRepository.findAssetByTicker(ticker.trim().uppercase())
+    fun findAssetByTicker(ticker: String): ListedAsset? = assetRepository.findAssetByTicker(ticker.trim().uppercase())
 
     fun findAssetsByTickers(tickers: Set<String>): List<ListedAsset> =
         assetRepository.findAssetsByTickers(

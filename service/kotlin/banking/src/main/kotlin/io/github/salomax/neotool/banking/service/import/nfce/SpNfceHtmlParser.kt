@@ -4,7 +4,6 @@ import io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
 import java.math.BigDecimal
-import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeFormatterBuilder
@@ -14,13 +13,14 @@ import java.time.temporal.ChronoField
  * dd/MM/yyyy HH:mm:ss with optional timezone offset (e.g. "-03:00").
  * SP SEFAZ returns datetime like "06/03/2026 10:36:02-03:00".
  */
-private val BR_DATETIME_FORMAT: DateTimeFormatter = DateTimeFormatterBuilder()
-    .appendPattern("dd/MM/yyyy HH:mm:ss")
-    .optionalStart()
-    .appendOffset("+HH:MM", "-03:00")
-    .optionalEnd()
-    .parseDefaulting(ChronoField.OFFSET_SECONDS, -3 * 3600L)
-    .toFormatter()
+private val BR_DATETIME_FORMAT: DateTimeFormatter =
+    DateTimeFormatterBuilder()
+        .appendPattern("dd/MM/yyyy HH:mm:ss")
+        .optionalStart()
+        .appendOffset("+HH:MM", "-03:00")
+        .optionalEnd()
+        .parseDefaulting(ChronoField.OFFSET_SECONDS, -3 * 3600L)
+        .toFormatter()
 
 /**
  * Parses the detailed HTML page returned by SP SEFAZ "Visualizar em Abas" postback.
@@ -31,39 +31,48 @@ private val BR_DATETIME_FORMAT: DateTimeFormatter = DateTimeFormatterBuilder()
  * All regex patterns use DOTALL + CASE_INSENSITIVE for robustness.
  */
 object SpNfceHtmlParser {
-
-    fun parse(rawHtml: String, chNFeFromUrl: String?): NfceData {
+    fun parse(
+        rawHtml: String,
+        chNFeFromUrl: String?,
+    ): NfceData {
         // Normalize non-breaking spaces (U+00A0) to regular spaces — SP SEFAZ uses NBSP in labels
         val html = rawHtml.replace('\u00A0', ' ')
 
-        val chNFe = chNFeFromUrl
-            ?: extractLabelValue(html, "Chave de [Aa]cesso")
-                ?.replace(Regex("""[\s\-./]"""), "")
-                ?.takeIf { it.matches(Regex("""\d{44}""")) }
-            ?: throw NfceInvalidException("SP HTML: chNFe not found")
+        val chNFe =
+            chNFeFromUrl
+                ?: extractLabelValue(html, "Chave de [Aa]cesso")
+                    ?.replace(Regex("""[\s\-./]"""), "")
+                    ?.takeIf { it.matches(Regex("""\d{44}""")) }
+                ?: throw NfceInvalidException("SP HTML: chNFe not found")
 
-        val dhEmiStr = extractLabelValue(html, "Data de Emiss.o")
-            ?: throw NfceInvalidException("SP HTML: dhEmi not found")
-        val dhEmi = try {
-            OffsetDateTime.parse(dhEmiStr.trim(), BR_DATETIME_FORMAT).toInstant()
-        } catch (e: Exception) {
-            throw NfceInvalidException("SP HTML: dhEmi invalid: $dhEmiStr", e)
-        }
+        val dhEmiStr =
+            extractLabelValue(html, "Data de Emiss.o")
+                ?: throw NfceInvalidException("SP HTML: dhEmi not found")
+        val dhEmi =
+            try {
+                OffsetDateTime.parse(dhEmiStr.trim(), BR_DATETIME_FORMAT).toInstant()
+            } catch (e: Exception) {
+                throw NfceInvalidException("SP HTML: dhEmi invalid: $dhEmiStr", e)
+            }
 
-        val vNFStr = extractLabelValue(html, "Valor Total da Nota Fiscal")
-            ?: extractLabelValue(html, "Valor total R\\$")
-            ?: throw NfceInvalidException("SP HTML: vNF not found")
-        val vNF = parseBrDecimal(vNFStr)
-            ?: throw NfceInvalidException("SP HTML: vNF invalid: $vNFStr")
+        val vNFStr =
+            extractLabelValue(html, "Valor Total da Nota Fiscal")
+                ?: extractLabelValue(html, "Valor total R\\$")
+                ?: throw NfceInvalidException("SP HTML: vNF not found")
+        val vNF =
+            parseBrDecimal(vNFStr)
+                ?: throw NfceInvalidException("SP HTML: vNF invalid: $vNFStr")
 
         // Extract emitente header section (first CNPJ/Nome in the HTML, before items)
-        val cnpjEmitente = extractLabelValue(html, "CNPJ")
-            ?.replace(Regex("""[.\-/]"""), "")
-            ?: throw NfceInvalidException("SP HTML: CNPJ not found")
+        val cnpjEmitente =
+            extractLabelValue(html, "CNPJ")
+                ?.replace(Regex("""[.\-/]"""), "")
+                ?: throw NfceInvalidException("SP HTML: CNPJ not found")
 
-        val nomeEmitente = extractLabelValue(html, "Nome / Raz.o Social")
-            ?: extractLabelValue(html, "Raz.o Social")
-            ?: ""
+        val nomeEmitente =
+            extractLabelValue(html, "Nome / Raz.o Social")
+                ?: extractLabelValue(html, "Raz.o Social")
+                ?: ""
         val nomeFantasiaEmitente = extractLabelValue(html, "Nome Fantasia")
         val inscricaoEstadualEmitente = extractLabelValue(html, "Inscri(?:ção|cao) Estadual")
 
@@ -83,13 +92,15 @@ object SpNfceHtmlParser {
             )
 
         // CPF do destinatário (comprador)
-        val cpfDestinatario = extractLabelValue(html, "CPF")
-            ?.replace(Regex("""[.\-]"""), "")
-            ?.takeIf { it.matches(Regex("""\d{11}""")) }
+        val cpfDestinatario =
+            extractLabelValue(html, "CPF")
+                ?.replace(Regex("""[.\-]"""), "")
+                ?.takeIf { it.matches(Regex("""\d{11}""")) }
 
         // Tributos totais (Lei 12.741/2012) — from summary page class or detail header
-        val vTotTribStr = extractFirst(html, """Tributos Totais Incidentes[^<]*</label>\s*<span[^>]*>\s*([^<]*?)\s*</span>""")
-            ?: extractLabelValue(html, "Valor Total de Tributos")
+        val vTotTribStr =
+            extractFirst(html, """Tributos Totais Incidentes[^<]*</label>\s*<span[^>]*>\s*([^<]*?)\s*</span>""")
+                ?: extractLabelValue(html, "Valor Total de Tributos")
         val vTotTrib = vTotTribStr?.let { parseBrDecimal(it) }
 
         val items = parseItems(html)
@@ -127,8 +138,9 @@ object SpNfceHtmlParser {
             val itemBlock = html.substring(startPos, endPos)
 
             val ncm = extractLabelValue(itemBlock, "C.digo NCM")?.trim() ?: ""
-            val cEAN = extractLabelValue(itemBlock, "(?:C.digo )?EAN Comercial")
-                ?.trim()?.takeIf { it.isNotBlank() && it != "SEM GTIN" }
+            val cEAN =
+                extractLabelValue(itemBlock, "(?:C.digo )?EAN Comercial")
+                    ?.trim()?.takeIf { it.isNotBlank() && it != "SEM GTIN" }
             val cProd = extractLabelValue(itemBlock, "C.digo do Produto")?.trim()
             val vUnComStr = extractLabelValue(itemBlock, "Valor unit.rio de comercializa..o")
             val vUnCom = vUnComStr?.let { parseBrDecimal(it) }
@@ -140,8 +152,9 @@ object SpNfceHtmlParser {
 
             // vProd from the inline table cell (fixo-prod-serv-vb)
             val vProdInline = extractFirst(itemBlock, """fixo-prod-serv-vb">\s*<span>([^<]+)</span>""")
-            val vProd = vProdInline?.let { parseBrDecimal(it) }
-                ?: (vUnCom?.multiply(qCom) ?: BigDecimal.ZERO)
+            val vProd =
+                vProdInline?.let { parseBrDecimal(it) }
+                    ?: (vUnCom?.multiply(qCom) ?: BigDecimal.ZERO)
 
             // Valor Aproximado dos Tributos por item (Lei 12.741/2012)
             val vTribItemStr = extractLabelValue(itemBlock, "Valor Aproximado dos Tributos")
@@ -171,20 +184,28 @@ object SpNfceHtmlParser {
      * Extracts the `<span>` value following a `<label>` whose text matches [labelPattern].
      * Handles trailing whitespace inside the label and multiline HTML.
      */
-    private fun extractLabelValue(text: String, labelPattern: String): String? {
+    private fun extractLabelValue(
+        text: String,
+        labelPattern: String,
+    ): String? {
         // Pattern: <label> ... labelText ... </label> \s* <span ...> value </span>
-        val pattern = Regex(
-            """$labelPattern\s*</label>\s*<span[^>]*>\s*([^<]*?)\s*</span>""",
-            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
-        )
+        val pattern =
+            Regex(
+                """$labelPattern\s*</label>\s*<span[^>]*>\s*([^<]*?)\s*</span>""",
+                setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+            )
         val match = pattern.find(text) ?: return null
         val value = match.groupValues[1].trim()
         return value.takeIf { it.isNotEmpty() }
     }
 
-    private fun extractFirst(text: String, pattern: String): String? {
-        val match = Regex(pattern, setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(text)
-            ?: return null
+    private fun extractFirst(
+        text: String,
+        pattern: String,
+    ): String? {
+        val match =
+            Regex(pattern, setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(text)
+                ?: return null
         val value = match.groupValues[1].trim()
         return value.takeIf { it.isNotEmpty() }
     }
@@ -225,9 +246,11 @@ object SpNfceHtmlParser {
         val shouldAppendLocality =
             !locality.isNullOrBlank() && (
                 baseAddress.isNullOrBlank() ||
-                    (!baseAddress.contains(municipality.orEmpty(), ignoreCase = true) ||
-                        !baseAddress.contains(state.orEmpty(), ignoreCase = true))
-                )
+                    (
+                        !baseAddress.contains(municipality.orEmpty(), ignoreCase = true) ||
+                            !baseAddress.contains(state.orEmpty(), ignoreCase = true)
+                    )
+            )
 
         return listOfNotNull(
             baseAddress,
@@ -264,12 +287,12 @@ object SpNfceHtmlParser {
     )
 
     internal fun parseBrDecimal(str: String): BigDecimal? {
-        val cleaned = str.trim()
-            .replace(".", "")    // thousand separator
-            .replace(",", ".")   // decimal separator
+        val cleaned =
+            str.trim()
+                .replace(".", "") // thousand separator
+                .replace(",", ".") // decimal separator
         return cleaned.toBigDecimalOrNull()
     }
 
-    private fun String.normalizePostalCode(): String? =
-        filter(Char::isDigit).takeIf { it.length == 8 }
+    private fun String.normalizePostalCode(): String? = filter(Char::isDigit).takeIf { it.length == 8 }
 }

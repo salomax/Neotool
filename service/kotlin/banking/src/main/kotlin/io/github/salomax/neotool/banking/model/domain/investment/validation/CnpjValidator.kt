@@ -9,7 +9,8 @@ object CnpjValidator {
         if (digits.all { it == digits.first() }) return false
 
         val firstCheck = calculateCheckDigit(digits.substring(0, 12), intArrayOf(5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
-        val secondCheck = calculateCheckDigit(digits.substring(0, 12) + firstCheck, intArrayOf(6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
+        val secondCheck =
+            calculateCheckDigit(digits.substring(0, 12) + firstCheck, intArrayOf(6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2))
 
         return digits == digits.substring(0, 12) + firstCheck + secondCheck
     }

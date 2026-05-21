@@ -31,6 +31,7 @@ open class GraphQLControllerBase(
     @Inject private val dataLoaderRegistryFactories: List<DataLoaderRegistryFactory> = emptyList(),
 ) {
     private val log = LoggerFactory.getLogger(GraphQLControllerBase::class.java)
+
     /**
      * Accepts a standard GraphQL request payload.
      *

@@ -3,9 +3,9 @@ package io.github.salomax.neotool.banking.repo.portfolio
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.model.portfolio.InvestmentPortfolioRecalculationJobEntity
 import io.micronaut.data.annotation.Query
-import io.micronaut.data.model.Pageable
 import io.micronaut.data.annotation.Repository
 import io.micronaut.data.jpa.repository.JpaRepository
+import io.micronaut.data.model.Pageable
 import java.time.Instant
 import java.util.UUID
 

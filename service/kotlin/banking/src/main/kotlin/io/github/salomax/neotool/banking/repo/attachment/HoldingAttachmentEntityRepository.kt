@@ -7,8 +7,23 @@ import java.util.UUID
 
 @Repository
 interface HoldingAttachmentEntityRepository : JpaRepository<HoldingAttachmentEntity, UUID> {
-    fun findByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): List<HoldingAttachmentEntity>
-    fun findByIdAndAccountId(id: UUID, accountId: UUID): HoldingAttachmentEntity?
-    fun countByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): Int
-    fun deleteByIdAndAccountId(id: UUID, accountId: UUID): Int
+    fun findByHoldingIdAndAccountId(
+        holdingId: UUID,
+        accountId: UUID,
+    ): List<HoldingAttachmentEntity>
+
+    fun findByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): HoldingAttachmentEntity?
+
+    fun countByHoldingIdAndAccountId(
+        holdingId: UUID,
+        accountId: UUID,
+    ): Int
+
+    fun deleteByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): Int
 }

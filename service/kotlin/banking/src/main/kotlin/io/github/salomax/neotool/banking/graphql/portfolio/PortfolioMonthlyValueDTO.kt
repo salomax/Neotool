@@ -6,4 +6,3 @@ data class PortfolioMonthlyValueDTO(
     val grossValue: Double,
     val isEstimated: Boolean,
 )
-

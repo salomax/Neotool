@@ -1,15 +1,8 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
-import io.github.salomax.neotool.banking.graphql.account.*
-import io.github.salomax.neotool.banking.graphql.billimport.*
-import io.github.salomax.neotool.banking.graphql.import.*
-import io.github.salomax.neotool.banking.graphql.investment.*
-import io.github.salomax.neotool.banking.graphql.issuer.*
-import io.github.salomax.neotool.banking.graphql.merchant.*
-import io.github.salomax.neotool.banking.graphql.transaction.*
-import io.github.salomax.neotool.banking.graphql.config.*
 import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach

@@ -1,23 +1,27 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
-import io.github.salomax.neotool.banking.service.transaction.*
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
-import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
-import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
+import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.MerchantService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
@@ -234,7 +238,11 @@ class TransactionServiceTest {
         @Test
         fun `fails when financialAccountId does not belong to caller accountId`() {
             whenever(financialAccountGuard.requireOwnership(financialAccountId, accountId))
-                .thenThrow(IllegalArgumentException("Financial account $financialAccountId does not belong to account $accountId"))
+                .thenThrow(
+                    IllegalArgumentException(
+                        "Financial account $financialAccountId does not belong to account $accountId",
+                    ),
+                )
             val command =
                 CreateTransactionCommand(
                     financialAccountId = financialAccountId,
@@ -1450,7 +1458,11 @@ class TransactionServiceTest {
         @Test
         fun `listByFinancialAccount throws when financialAccountId does not belong to accountId`() {
             whenever(financialAccountGuard.requireOwnership(financialAccountId, accountId))
-                .thenThrow(IllegalArgumentException("Financial account $financialAccountId does not belong to account $accountId"))
+                .thenThrow(
+                    IllegalArgumentException(
+                        "Financial account $financialAccountId does not belong to account $accountId",
+                    ),
+                )
 
             val ex =
                 assertThrows<IllegalArgumentException> {
@@ -2045,7 +2057,9 @@ class TransactionServiceTest {
 
             assertThat(result).isEmpty()
             val queryCaptor = argumentCaptor<TransactionListQuery>()
-            verify(transactionRepository).getFilteredCategoryBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.EXPENSE))
+            verify(
+                transactionRepository,
+            ).getFilteredCategoryBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.EXPENSE))
             assertThat(queryCaptor.firstValue.tags).containsExactly("Weekend")
             assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.DEBIT)
         }
@@ -2087,7 +2101,9 @@ class TransactionServiceTest {
             assertThat(result.first().tag).isEqualTo("Salary")
             assertThat(result.first().percentage).isEqualTo(100.0)
             val queryCaptor = argumentCaptor<TransactionListQuery>()
-            verify(transactionRepository).getFilteredTagBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.INCOME))
+            verify(
+                transactionRepository,
+            ).getFilteredTagBreakdown(queryCaptor.capture(), eq(CategoryApplicableTo.INCOME))
             assertThat(queryCaptor.firstValue.creditDebitType).isEqualTo(CreditDebitType.CREDIT)
         }
     }

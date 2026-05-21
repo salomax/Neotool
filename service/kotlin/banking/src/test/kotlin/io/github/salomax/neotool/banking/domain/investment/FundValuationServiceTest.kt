@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.domain.investment
 
-import io.github.salomax.neotool.banking.service.investment.*
+import io.github.salomax.neotool.banking.service.investment.FundValuationService
+import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
 import org.junit.jupiter.api.Test
@@ -11,7 +12,6 @@ import java.util.UUID
 
 @DisplayName("FundValuationService")
 class FundValuationServiceTest {
-
     private val service = FundValuationService()
 
     @Test

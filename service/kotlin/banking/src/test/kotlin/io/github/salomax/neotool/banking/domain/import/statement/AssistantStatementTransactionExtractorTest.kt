@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.statement
 
-import io.github.salomax.neotool.banking.service.import.statement.*
-import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName
@@ -48,8 +46,19 @@ class AssistantStatementTransactionExtractorTest {
                                 amountPattern = "([\\d.,]+)",
                                 decimalSeparator = "comma",
                                 signRule = "KEYWORD_BASED",
-                                ignoreLineKinds = listOf("DAY_TOTAL", "RUNNING_BALANCE", "SECTION_HEADER", "HEADER", "FOOTER"),
-                                examples = listOf("Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00"),
+                                ignoreLineKinds =
+                                    listOf(
+                                        "DAY_TOTAL",
+                                        "RUNNING_BALANCE",
+                                        "SECTION_HEADER",
+                                        "HEADER",
+                                        "FOOTER",
+                                    ),
+                                examples =
+                                    listOf(
+                                        "Transferência enviada pelo Pix Maria Jose da Silva - " +
+                                            "•••.311.704-•• - BCO 250,00",
+                                    ),
                                 defaultCreditDebitType = "DEBIT",
                             ),
                     ),
@@ -66,7 +75,13 @@ class AssistantStatementTransactionExtractorTest {
         assertThat(result.rows.map { it.creditDebitType }).containsOnly(CreditDebitType.DEBIT)
         assertThat(result.rows.map { it.description })
             .anySatisfy { description -> assertThat(description).contains("Antonio Carlos Guidoni", "BRASIL S.A.") }
-            .anySatisfy { description -> assertThat(description).contains("Marcos Afonso Salomao Junior", "XP Investimentos") }
-            .anySatisfy { description -> assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.") }
+            .anySatisfy {
+                    description ->
+                assertThat(description).contains("Marcos Afonso Salomao Junior", "XP Investimentos")
+            }
+            .anySatisfy {
+                    description ->
+                assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.")
+            }
     }
 }

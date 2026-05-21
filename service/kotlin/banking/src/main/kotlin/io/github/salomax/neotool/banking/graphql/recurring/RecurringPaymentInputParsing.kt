@@ -90,8 +90,7 @@ internal object RecurringPaymentInputParsing {
         (this[key] as? String)?.trim()?.takeIf { it.isNotEmpty() }
             ?: throw invalidInput(key, "is required")
 
-    private fun Map<String, Any?>.stringOrNull(key: String): String? =
-        (this[key] as? String)?.trim()
+    private fun Map<String, Any?>.stringOrNull(key: String): String? = (this[key] as? String)?.trim()
 
     private fun Map<String, Any?>.uuidOrNull(key: String): UUID? {
         val raw = this[key] as? String ?: return null

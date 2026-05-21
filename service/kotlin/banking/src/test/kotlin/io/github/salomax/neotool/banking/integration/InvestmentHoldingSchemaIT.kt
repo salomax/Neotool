@@ -147,11 +147,12 @@ class InvestmentHoldingSchemaIT : BankingPostgresIntegrationTest() {
                 """.trimIndent(),
             )
 
-            val insertedRows = insertHolding(
-                conn,
-                assetId = secondAssetId,
-                providerInvestmentId = providerInvestmentId,
-            )
+            val insertedRows =
+                insertHolding(
+                    conn,
+                    assetId = secondAssetId,
+                    providerInvestmentId = providerInvestmentId,
+                )
             assertThat(insertedRows).isEqualTo(1)
 
             conn.createStatement().executeQuery(

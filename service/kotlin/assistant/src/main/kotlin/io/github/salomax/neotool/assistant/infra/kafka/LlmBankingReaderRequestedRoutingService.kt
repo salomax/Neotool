@@ -34,7 +34,11 @@ class LlmBankingReaderRequestedRoutingService(
             try {
                 objectMapper.readValue(stripMarkdown(completionResult.content), BillExtractionMeta::class.java)
             } catch (ex: Exception) {
-                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                log.warn(
+                    "[banking-reader] job={} LLM_NON_JSON raw_content={}",
+                    request.job_id,
+                    completionResult.content,
+                )
                 throw BankingReaderProcessingException(
                     code = "LLM_NON_JSON",
                     message = "Model returned non-JSON output",
@@ -76,7 +80,11 @@ class LlmBankingReaderRequestedRoutingService(
             try {
                 objectMapper.readTree(stripMarkdown(completionResult.content))
             } catch (ex: Exception) {
-                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                log.warn(
+                    "[banking-reader] job={} LLM_NON_JSON raw_content={}",
+                    request.job_id,
+                    completionResult.content,
+                )
                 throw BankingReaderProcessingException(
                     code = "LLM_NON_JSON",
                     message = "Model returned non-JSON output",
@@ -111,7 +119,11 @@ class LlmBankingReaderRequestedRoutingService(
             try {
                 objectMapper.readValue(stripMarkdown(completionResult.content), StatementExtractionMeta::class.java)
             } catch (ex: Exception) {
-                log.warn("[banking-reader] job={} LLM_NON_JSON raw_content={}", request.job_id, completionResult.content)
+                log.warn(
+                    "[banking-reader] job={} LLM_NON_JSON raw_content={}",
+                    request.job_id,
+                    completionResult.content,
+                )
                 throw BankingReaderProcessingException(
                     code = "LLM_NON_JSON",
                     message = "Model returned non-JSON output",

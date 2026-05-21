@@ -1,20 +1,13 @@
 package io.github.salomax.neotool.banking.graphql.resolver
 
-import io.github.salomax.neotool.banking.graphql.account.*
-import io.github.salomax.neotool.banking.graphql.billimport.*
-import io.github.salomax.neotool.banking.graphql.import.*
-import io.github.salomax.neotool.banking.graphql.investment.*
-import io.github.salomax.neotool.banking.graphql.issuer.*
-import io.github.salomax.neotool.banking.graphql.merchant.*
-import io.github.salomax.neotool.banking.graphql.transaction.*
-import io.github.salomax.neotool.banking.graphql.config.*
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
 import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode
-import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
+import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.service.billimport.BillImportService
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -201,7 +194,9 @@ class BillImportResolverTest {
                 updatedAt = now,
             )
         whenever(billImportService.getJob(eq(jobId), eq(accountId))).thenReturn(awaiting)
-        whenever(billImportService.projectReviewPayload(eq(awaiting.reviewPayload), eq(accountId), eq(userId))).thenReturn(
+        whenever(
+            billImportService.projectReviewPayload(eq(awaiting.reviewPayload), eq(accountId), eq(userId)),
+        ).thenReturn(
             io.github.salomax.neotool.banking.domain.billimport.BillImportReview(
                 cards =
                     listOf(
@@ -242,7 +237,10 @@ class BillImportResolverTest {
             io.github.salomax.neotool.banking.domain.billimport.BillImportReview(
                 cards =
                     listOf(
-                        io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard(reviewCardId = "card-1", lastFourDigits = "1234"),
+                        io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard(
+                            reviewCardId = "card-1",
+                            lastFourDigits = "1234",
+                        ),
                     ),
             ),
         )

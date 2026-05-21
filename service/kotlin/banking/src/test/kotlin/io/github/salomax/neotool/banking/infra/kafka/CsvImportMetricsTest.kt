@@ -1,8 +1,6 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
-import io.github.salomax.neotool.banking.client.import.messaging.*
-import io.github.salomax.neotool.banking.job.import.*
-import io.github.salomax.neotool.banking.service.import.parser.*
+import io.github.salomax.neotool.banking.service.import.parser.CsvImportMetrics
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName

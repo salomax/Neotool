@@ -2,25 +2,21 @@ package io.github.salomax.neotool.banking.graphql.account
 
 import io.github.salomax.neotool.banking.domain.account.BankData
 import io.github.salomax.neotool.banking.domain.account.CardData
-import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.domain.account.CreditCardLevel
 import io.github.salomax.neotool.banking.domain.account.CreditCardNetwork
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.model.dto.account.UpdateField
-import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
+import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
 import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
-import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.account.UpdateField
+import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.service.account.FinancialAccountDataSinceService
-import io.github.salomax.neotool.banking.graphql.account.BankAccountDataDTO
-import io.github.salomax.neotool.banking.graphql.account.CardDataDTO
-import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
-import io.github.salomax.neotool.banking.graphql.account.YearMonthDTO
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.common.security.exception.AuthenticationRequiredException
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
@@ -54,7 +50,13 @@ class FinancialAccountResolver(
 
             account.toDTO(
                 issuer = issuersById[account.issuerId],
-                dataSince = dataSinceByAccountId[financialAccountId]?.let { YearMonthDTO(year = it.year, month = it.monthValue) },
+                dataSince =
+                    dataSinceByAccountId[financialAccountId]?.let {
+                        YearMonthDTO(
+                            year = it.year,
+                            month = it.monthValue,
+                        )
+                    },
             )
         }
     }
@@ -160,7 +162,9 @@ class FinancialAccountResolver(
         )
 
     private fun RequestPrincipal.resolveAccountId(): UUID =
-        currentAccountId ?: accountIds.firstOrNull() ?: throw AuthenticationRequiredException("No active account in token")
+        currentAccountId ?: accountIds.firstOrNull() ?: throw AuthenticationRequiredException(
+            "No active account in token",
+        )
 
     private fun getDate(
         map: Map<String, Any?>,

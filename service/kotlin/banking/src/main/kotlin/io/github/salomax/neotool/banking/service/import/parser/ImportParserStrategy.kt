@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction

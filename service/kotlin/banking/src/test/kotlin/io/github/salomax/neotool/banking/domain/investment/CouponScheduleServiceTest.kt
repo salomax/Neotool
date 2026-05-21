@@ -33,11 +33,12 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `legacy Tesouro schedule from maturity stepping back by frequency`() {
-        val h = holding(
-            issueDate = LocalDate.of(2025, 1, 10),
-            maturityDate = LocalDate.of(2025, 7, 10),
-            couponFrequency = CouponFrequency.QUARTERLY,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2025, 1, 10),
+                maturityDate = LocalDate.of(2025, 7, 10),
+                couponFrequency = CouponFrequency.QUARTERLY,
+            )
 
         val schedule =
             service.generateSchedule(
@@ -56,11 +57,12 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `matches interest payment within seven days on legacy schedule`() {
-        val h = holding(
-            issueDate = LocalDate.of(2025, 1, 1),
-            maturityDate = LocalDate.of(2025, 12, 31),
-            couponFrequency = CouponFrequency.SEMI_ANNUAL,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2025, 1, 1),
+                maturityDate = LocalDate.of(2025, 12, 31),
+                couponFrequency = CouponFrequency.SEMI_ANNUAL,
+            )
         val payment =
             InvestmentTransaction(
                 id = UUID.randomUUID(),
@@ -90,11 +92,12 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `returns empty schedule when tenor is shorter than coupon period legacy`() {
-        val h = holding(
-            issueDate = LocalDate.of(2025, 1, 1),
-            maturityDate = LocalDate.of(2025, 3, 1),
-            couponFrequency = CouponFrequency.SEMI_ANNUAL,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2025, 1, 1),
+                maturityDate = LocalDate.of(2025, 3, 1),
+                couponFrequency = CouponFrequency.SEMI_ANNUAL,
+            )
 
         val schedule =
             service.generateSchedule(
@@ -109,12 +112,13 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `BR-P2-1 NTN-B windows by calendar year parity first after issue excludes maturity`() {
-        val h = holding(
-            issueDate = LocalDate.of(2026, 4, 10),
-            maturityDate = LocalDate.of(2028, 8, 15),
-            couponFrequency = CouponFrequency.SEMI_ANNUAL,
-            indexer = Indexer.IPCA,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2026, 4, 10),
+                maturityDate = LocalDate.of(2028, 8, 15),
+                couponFrequency = CouponFrequency.SEMI_ANNUAL,
+                indexer = Indexer.IPCA,
+            )
         val schedule =
             service.generateSchedule(
                 h,
@@ -136,12 +140,13 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `BR-P2-2 NTN-F Jan and Jul first strictly after issue`() {
-        val h = holding(
-            issueDate = LocalDate.of(2026, 1, 2),
-            maturityDate = LocalDate.of(2027, 7, 1),
-            couponFrequency = CouponFrequency.SEMI_ANNUAL,
-            indexer = Indexer.PRE_FIXADO,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2026, 1, 2),
+                maturityDate = LocalDate.of(2027, 7, 1),
+                couponFrequency = CouponFrequency.SEMI_ANNUAL,
+                indexer = Indexer.PRE_FIXADO,
+            )
         val schedule =
             service.generateSchedule(
                 h,
@@ -158,12 +163,13 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `BR-P2-3 monthly private credit payment month after accrual partial first period`() {
-        val h = holding(
-            issueDate = LocalDate.of(2026, 1, 25),
-            maturityDate = LocalDate.of(2026, 5, 20),
-            couponFrequency = CouponFrequency.MONTHLY,
-            couponDayOfMonth = 15,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2026, 1, 25),
+                maturityDate = LocalDate.of(2026, 5, 20),
+                couponFrequency = CouponFrequency.MONTHLY,
+                couponDayOfMonth = 15,
+            )
         val schedule =
             service.generateSchedule(
                 h,
@@ -182,12 +188,13 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `BR-P2-3 semi-annual private credit matches spec example`() {
-        val h = holding(
-            issueDate = LocalDate.of(2026, 1, 10),
-            maturityDate = LocalDate.of(2028, 6, 30),
-            couponFrequency = CouponFrequency.SEMI_ANNUAL,
-            couponDayOfMonth = 15,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2026, 1, 10),
+                maturityDate = LocalDate.of(2028, 6, 30),
+                couponFrequency = CouponFrequency.SEMI_ANNUAL,
+                couponDayOfMonth = 15,
+            )
         val schedule =
             service.generateSchedule(
                 h,
@@ -203,12 +210,13 @@ class CouponScheduleServiceTest {
 
     @Test
     fun `findMatchingEntry uses asset type`() {
-        val h = holding(
-            issueDate = LocalDate.of(2026, 1, 25),
-            maturityDate = LocalDate.of(2027, 1, 1),
-            couponFrequency = CouponFrequency.MONTHLY,
-            couponDayOfMonth = 15,
-        )
+        val h =
+            holding(
+                issueDate = LocalDate.of(2026, 1, 25),
+                maturityDate = LocalDate.of(2027, 1, 1),
+                couponFrequency = CouponFrequency.MONTHLY,
+                couponDayOfMonth = 15,
+            )
         val entry =
             service.findMatchingEntry(
                 h,

@@ -5,13 +5,12 @@ import io.github.salomax.neotool.banking.domain.import.nfce.Product
 import io.github.salomax.neotool.banking.domain.import.nfce.ProductAlias
 import io.github.salomax.neotool.banking.domain.import.nfce.ProductVariant
 import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
-import io.github.salomax.neotool.banking.domain.import.nfce.UnmappedItemGroup
 import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductCommand
 import io.github.salomax.neotool.banking.model.dto.imports.nfce.CreateProductVariantCommand
-import io.github.salomax.neotool.banking.service.import.nfce.ProductAnalyticsService
-import io.github.salomax.neotool.banking.service.import.nfce.ProductCatalogService
 import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductCommand
 import io.github.salomax.neotool.banking.model.dto.imports.nfce.UpdateProductVariantCommand
+import io.github.salomax.neotool.banking.service.import.nfce.ProductAnalyticsService
+import io.github.salomax.neotool.banking.service.import.nfce.ProductCatalogService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -53,8 +52,16 @@ class ProductResolver(
     ): ProductDTO? {
         val accountId = requireAccountId(principal)
         val product = productCatalogService.getProduct(UUID.fromString(id), accountId) ?: return null
-        val variants = productCatalogService.listVariantsForProducts(accountId, listOf(requireNotNull(product.id)))[requireNotNull(product.id)].orEmpty()
-        val productSummary = productAnalyticsService.getProductSummaries(accountId, listOf(requireNotNull(product.id)))[requireNotNull(product.id)]
+        val variants =
+            productCatalogService.listVariantsForProducts(
+                accountId,
+                listOf(requireNotNull(product.id)),
+            )[requireNotNull(product.id)].orEmpty()
+        val productSummary =
+            productAnalyticsService.getProductSummaries(
+                accountId,
+                listOf(requireNotNull(product.id)),
+            )[requireNotNull(product.id)]
         val variantSummaries = productAnalyticsService.getVariantSummaries(accountId, variants.mapNotNull { it.id })
         return product.toDTO(variants, productSummary, variantSummaries)
     }
@@ -68,7 +75,10 @@ class ProductResolver(
         val accountId = requireAccountId(principal)
         val variants =
             if (productId != null) {
-                productCatalogService.listVariantsForProducts(accountId, listOf(UUID.fromString(productId))).values.flatten()
+                productCatalogService.listVariantsForProducts(
+                    accountId,
+                    listOf(UUID.fromString(productId)),
+                ).values.flatten()
             } else {
                 productCatalogService.searchVariants(accountId, search, limit ?: 12)
             }
@@ -107,25 +117,27 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ConsumptionTrendDTO {
         val accountId = requireAccountId(principal)
-        val trend = productAnalyticsService.getConsumptionTrend(
-            accountId = accountId,
-            productId = UUID.fromString(productId),
-            periodMonths = periodMonths ?: 6,
-        )
+        val trend =
+            productAnalyticsService.getConsumptionTrend(
+                accountId = accountId,
+                productId = UUID.fromString(productId),
+                periodMonths = periodMonths ?: 6,
+            )
         return ConsumptionTrendDTO(
             productId = trend.productId,
             periodMonths = trend.periodMonths,
             totalQuantity = trend.totalQuantity.toDouble(),
             totalSpent = trend.totalSpent.toDouble(),
             purchaseCount = trend.purchaseCount.toInt(),
-            months = trend.months.map { month ->
-                ConsumptionTrendPointDTO(
-                    month = month.month,
-                    totalQuantity = month.totalQuantity.toDouble(),
-                    totalSpent = month.totalSpent.toDouble(),
-                    purchaseCount = month.purchaseCount.toInt(),
-                )
-            },
+            months =
+                trend.months.map { month ->
+                    ConsumptionTrendPointDTO(
+                        month = month.month,
+                        totalQuantity = month.totalQuantity.toDouble(),
+                        totalSpent = month.totalSpent.toDouble(),
+                        purchaseCount = month.purchaseCount.toInt(),
+                    )
+                },
         )
     }
 
@@ -171,13 +183,14 @@ class ProductResolver(
                 ncmDescription = spending.ncmDescription,
                 totalSpent = spending.totalSpent.toDouble(),
                 itemCount = spending.itemCount.toInt(),
-                months = spending.months.map { month ->
-                    NcmMonthlySpendingDTO(
-                        month = month.month,
-                        totalSpent = month.totalSpent.toDouble(),
-                        itemCount = month.itemCount.toInt(),
-                    )
-                },
+                months =
+                    spending.months.map { month ->
+                        NcmMonthlySpendingDTO(
+                            month = month.month,
+                            totalSpent = month.totalSpent.toDouble(),
+                            itemCount = month.itemCount.toInt(),
+                        )
+                    },
             )
         }
     }
@@ -224,15 +237,17 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ProductDTO {
         val accountId = requireAccountId(principal)
-        val product = productCatalogService.createProduct(
-            accountId = accountId,
-            command = CreateProductCommand(
-                name = input.requiredString("name"),
-                ncmCode = input.optionalString("ncmCode"),
-                defaultUnit = input.optionalString("defaultUnit"),
-                category = input.optionalString("category"),
-            ),
-        )
+        val product =
+            productCatalogService.createProduct(
+                accountId = accountId,
+                command =
+                    CreateProductCommand(
+                        name = input.requiredString("name"),
+                        ncmCode = input.optionalString("ncmCode"),
+                        defaultUnit = input.optionalString("defaultUnit"),
+                        category = input.optionalString("category"),
+                    ),
+            )
         return product.toDTO(emptyList(), null, emptyMap())
     }
 
@@ -242,18 +257,28 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ProductDTO {
         val accountId = requireAccountId(principal)
-        val product = productCatalogService.updateProduct(
-            id = UUID.fromString(id),
-            accountId = accountId,
-            command = UpdateProductCommand(
-                name = input.optionalString("name"),
-                ncmCode = input.optionalString("ncmCode"),
-                defaultUnit = input.optionalString("defaultUnit"),
-                category = input.optionalString("category"),
-            ),
-        )
-        val variants = productCatalogService.listVariantsForProducts(accountId, listOf(requireNotNull(product.id)))[requireNotNull(product.id)].orEmpty()
-        val productSummary = productAnalyticsService.getProductSummaries(accountId, listOf(requireNotNull(product.id)))[requireNotNull(product.id)]
+        val product =
+            productCatalogService.updateProduct(
+                id = UUID.fromString(id),
+                accountId = accountId,
+                command =
+                    UpdateProductCommand(
+                        name = input.optionalString("name"),
+                        ncmCode = input.optionalString("ncmCode"),
+                        defaultUnit = input.optionalString("defaultUnit"),
+                        category = input.optionalString("category"),
+                    ),
+            )
+        val variants =
+            productCatalogService.listVariantsForProducts(
+                accountId,
+                listOf(requireNotNull(product.id)),
+            )[requireNotNull(product.id)].orEmpty()
+        val productSummary =
+            productAnalyticsService.getProductSummaries(
+                accountId,
+                listOf(requireNotNull(product.id)),
+            )[requireNotNull(product.id)]
         val variantSummaries = productAnalyticsService.getVariantSummaries(accountId, variants.mapNotNull { it.id })
         return product.toDTO(variants, productSummary, variantSummaries)
     }
@@ -263,19 +288,21 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ProductVariantDTO {
         val accountId = requireAccountId(principal)
-        val variant = productCatalogService.createVariant(
-            accountId = accountId,
-            command = CreateProductVariantCommand(
-                productId = UUID.fromString(input.requiredString("productId")),
-                name = input.requiredString("name"),
-                brand = input.optionalString("brand"),
-                ean = input.optionalString("ean"),
-                quantityValue = input.optionalBigDecimal("quantityValue"),
-                quantityUnit = input.optionalString("quantityUnit"),
-                normalizedQuantityValue = input.optionalBigDecimal("normalizedQuantityValue"),
-                normalizedQuantityUnit = input.optionalString("normalizedQuantityUnit"),
-            ),
-        )
+        val variant =
+            productCatalogService.createVariant(
+                accountId = accountId,
+                command =
+                    CreateProductVariantCommand(
+                        productId = UUID.fromString(input.requiredString("productId")),
+                        name = input.requiredString("name"),
+                        brand = input.optionalString("brand"),
+                        ean = input.optionalString("ean"),
+                        quantityValue = input.optionalBigDecimal("quantityValue"),
+                        quantityUnit = input.optionalString("quantityUnit"),
+                        normalizedQuantityValue = input.optionalBigDecimal("normalizedQuantityValue"),
+                        normalizedQuantityUnit = input.optionalString("normalizedQuantityUnit"),
+                    ),
+            )
         return variant.toDTO()
     }
 
@@ -285,22 +312,27 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ProductVariantDTO {
         val accountId = requireAccountId(principal)
-        val variant = productCatalogService.updateVariant(
-            id = UUID.fromString(id),
-            accountId = accountId,
-            command = UpdateProductVariantCommand(
-                productId = input.optionalString("productId")?.let(UUID::fromString),
-                name = input.optionalString("name"),
-                brand = input.optionalString("brand"),
-                ean = input.optionalString("ean"),
-                quantityValue = input.optionalBigDecimal("quantityValue"),
-                quantityUnit = input.optionalString("quantityUnit"),
-                normalizedQuantityValue = input.optionalBigDecimal("normalizedQuantityValue"),
-                normalizedQuantityUnit = input.optionalString("normalizedQuantityUnit"),
-            ),
-        )
+        val variant =
+            productCatalogService.updateVariant(
+                id = UUID.fromString(id),
+                accountId = accountId,
+                command =
+                    UpdateProductVariantCommand(
+                        productId = input.optionalString("productId")?.let(UUID::fromString),
+                        name = input.optionalString("name"),
+                        brand = input.optionalString("brand"),
+                        ean = input.optionalString("ean"),
+                        quantityValue = input.optionalBigDecimal("quantityValue"),
+                        quantityUnit = input.optionalString("quantityUnit"),
+                        normalizedQuantityValue = input.optionalBigDecimal("normalizedQuantityValue"),
+                        normalizedQuantityUnit = input.optionalString("normalizedQuantityUnit"),
+                    ),
+            )
         return variant.toDTO(
-            productAnalyticsService.getVariantSummaries(accountId, listOf(requireNotNull(variant.id)))[requireNotNull(variant.id)],
+            productAnalyticsService.getVariantSummaries(
+                accountId,
+                listOf(requireNotNull(variant.id)),
+            )[requireNotNull(variant.id)],
         )
     }
 
@@ -310,7 +342,12 @@ class ProductResolver(
         principal: RequestPrincipal,
     ): ProductAliasDTO {
         val accountId = requireAccountId(principal)
-        val alias = productCatalogService.mapRawDescriptionToVariant(accountId, rawDescription, UUID.fromString(variantId))
+        val alias =
+            productCatalogService.mapRawDescriptionToVariant(
+                accountId,
+                rawDescription,
+                UUID.fromString(variantId),
+            )
         val variant = productCatalogService.getVariant(alias.productVariantId, accountId)
         return alias.toDTO(variant?.toDTO())
     }
@@ -407,7 +444,11 @@ class ProductResolver(
     private fun PurchaseItem.toDTO(productVariant: ProductVariantDTO?): PurchaseItemDTO {
         val normalizedUnitPrice =
             if (productVariant?.normalizedQuantityValue != null && productVariant.normalizedQuantityValue > 0.0) {
-                effectivePrice.divide(BigDecimal.valueOf(productVariant.normalizedQuantityValue), 4, RoundingMode.HALF_UP).toDouble()
+                effectivePrice.divide(
+                    BigDecimal.valueOf(productVariant.normalizedQuantityValue),
+                    4,
+                    RoundingMode.HALF_UP,
+                ).toDouble()
             } else {
                 null
             }

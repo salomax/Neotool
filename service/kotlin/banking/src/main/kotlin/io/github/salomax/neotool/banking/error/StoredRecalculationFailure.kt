@@ -19,7 +19,10 @@ object StoredRecalculationFailure {
      * Fallback user-facing string when the UI does not translate [storedCode] yet.
      * Prefer i18n via [storedCode] on the client; avoid surfacing raw [errorDetails] when a code exists.
      */
-    fun displayMessage(storedCode: String?, errorDetails: String?): String? {
+    fun displayMessage(
+        storedCode: String?,
+        errorDetails: String?,
+    ): String? {
         val resolved = lookup(storedCode)
         if (resolved != null) return resolved.defaultMessage
         return errorDetails?.takeIf { it.isNotBlank() }

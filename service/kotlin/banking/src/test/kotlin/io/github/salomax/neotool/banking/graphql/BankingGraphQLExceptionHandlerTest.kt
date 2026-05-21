@@ -1,12 +1,12 @@
 package io.github.salomax.neotool.banking.graphql
 
-import io.github.salomax.neotool.banking.graphql.config.*
 import graphql.execution.DataFetcherExceptionHandlerParameters
 import graphql.execution.ExecutionStepInfo
 import graphql.execution.ResultPath
 import graphql.schema.DataFetchingEnvironment
 import io.github.salomax.neotool.banking.domain.transaction.DuplicateCategoryNameException
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.graphql.config.BankingGraphQLExceptionHandler
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName

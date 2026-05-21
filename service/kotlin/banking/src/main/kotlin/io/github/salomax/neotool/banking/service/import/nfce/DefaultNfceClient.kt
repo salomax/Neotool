@@ -1,6 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.nfce
 
-import io.github.salomax.neotool.banking.client.import.nfce.*
+import io.github.salomax.neotool.banking.client.import.nfce.NfceHttpFetcher
+import io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException
+import io.github.salomax.neotool.banking.client.import.nfce.NfceUnavailableException
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
 import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
 import jakarta.inject.Singleton
@@ -24,6 +26,7 @@ open class DefaultNfceClient(
     private val httpFetcher: NfceHttpFetcher,
 ) : NfceFetcher {
     override fun supportedUfCodes(): Set<String> = emptySet() // fallback — no specific UF
+
     override fun fetch(qrCodeUrl: String): NfceData {
         val chNFeFromUrl = CHNFE_PATTERN.find(qrCodeUrl)?.value
 
@@ -127,9 +130,10 @@ open class DefaultNfceClient(
 
         // Tributos totais (ICMSTot → vTotTrib)
         val vTotTribStr = textContent(icmsTot, "vTotTrib")
-        val vTotTrib = vTotTribStr?.let {
-            runCatching { BigDecimal(it.trim()) }.getOrNull()
-        }
+        val vTotTrib =
+            vTotTribStr?.let {
+                runCatching { BigDecimal(it.trim()) }.getOrNull()
+            }
 
         val items = mutableListOf<NfceItem>()
         val detList = doc.getElementsByTagNameNS("*", "det")
@@ -154,9 +158,10 @@ open class DefaultNfceClient(
             // Valor aproximado dos tributos por item (Lei 12.741)
             val imposto = firstElementByLocalName(det, "imposto")
             val vTribItemStr = textContent(imposto, "vTotTrib") ?: textContent(det, "vTotTrib")
-            val vTribItem = vTribItemStr?.let {
-                runCatching { BigDecimal(it.trim().replace(",", ".")) }.getOrNull()
-            }
+            val vTribItem =
+                vTribItemStr?.let {
+                    runCatching { BigDecimal(it.trim().replace(",", ".")) }.getOrNull()
+                }
             items.add(
                 NfceItem(
                     xProd = xProd, vProd = vProd, qCom = qCom, uCom = uCom, ncm = ncm,
@@ -215,8 +220,7 @@ open class DefaultNfceClient(
         ).joinToString(" • ").takeIf { it.isNotBlank() }
     }
 
-    private fun String.normalizePostalCode(): String? =
-        filter(Char::isDigit).takeIf { it.length == 8 }
+    private fun String.normalizePostalCode(): String? = filter(Char::isDigit).takeIf { it.length == 8 }
 
     private fun textContent(
         parent: Node?,

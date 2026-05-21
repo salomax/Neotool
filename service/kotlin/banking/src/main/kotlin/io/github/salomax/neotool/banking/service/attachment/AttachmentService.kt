@@ -1,14 +1,14 @@
 package io.github.salomax.neotool.banking.service.attachment
 
+import io.github.salomax.neotool.banking.client.assets.AssetsServiceClient
 import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
 import io.github.salomax.neotool.banking.domain.attachment.MAX_ATTACHMENTS_PER_RECORD
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.client.assets.AssetsServiceClient
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
@@ -32,8 +32,10 @@ open class AttachmentService(
 ) {
     // ── Transaction attachments ───────────────────────────────────────────────
 
-    fun listTransactionAttachments(transactionId: UUID, accountId: UUID): List<TransactionAttachment> =
-        transactionAttachmentRepository.findByTransactionId(transactionId, accountId)
+    fun listTransactionAttachments(
+        transactionId: UUID,
+        accountId: UUID,
+    ): List<TransactionAttachment> = transactionAttachmentRepository.findByTransactionId(transactionId, accountId)
 
     @Transactional
     open fun attachToTransaction(
@@ -62,13 +64,17 @@ open class AttachmentService(
     }
 
     @Transactional
-    open fun removeTransactionAttachment(attachmentId: UUID, accountId: UUID): Boolean {
-        val found = transactionAttachmentRepository.findById(attachmentId, accountId)
-            ?: throw NotFoundException(
-                errorCode = BankingErrorCode.ATTACHMENT_NOT_FOUND,
-                field = "attachmentId",
-                parameters = mapOf("attachmentId" to attachmentId.toString()),
-            )
+    open fun removeTransactionAttachment(
+        attachmentId: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val found =
+            transactionAttachmentRepository.findById(attachmentId, accountId)
+                ?: throw NotFoundException(
+                    errorCode = BankingErrorCode.ATTACHMENT_NOT_FOUND,
+                    field = "attachmentId",
+                    parameters = mapOf("attachmentId" to attachmentId.toString()),
+                )
         val deleted = transactionAttachmentRepository.delete(attachmentId, accountId)
         if (deleted) {
             assetsServiceClient.deleteAsset(found.assetId, delegatedBy = accountId.toString())
@@ -78,8 +84,10 @@ open class AttachmentService(
 
     // ── Holding attachments ───────────────────────────────────────────────────
 
-    fun listHoldingAttachments(holdingId: UUID, accountId: UUID): List<HoldingAttachment> =
-        holdingAttachmentRepository.findByHoldingId(holdingId, accountId)
+    fun listHoldingAttachments(
+        holdingId: UUID,
+        accountId: UUID,
+    ): List<HoldingAttachment> = holdingAttachmentRepository.findByHoldingId(holdingId, accountId)
 
     @Transactional
     open fun attachToHolding(
@@ -108,13 +116,17 @@ open class AttachmentService(
     }
 
     @Transactional
-    open fun removeHoldingAttachment(attachmentId: UUID, accountId: UUID): Boolean {
-        val found = holdingAttachmentRepository.findById(attachmentId, accountId)
-            ?: throw NotFoundException(
-                errorCode = BankingErrorCode.ATTACHMENT_NOT_FOUND,
-                field = "attachmentId",
-                parameters = mapOf("attachmentId" to attachmentId.toString()),
-            )
+    open fun removeHoldingAttachment(
+        attachmentId: UUID,
+        accountId: UUID,
+    ): Boolean {
+        val found =
+            holdingAttachmentRepository.findById(attachmentId, accountId)
+                ?: throw NotFoundException(
+                    errorCode = BankingErrorCode.ATTACHMENT_NOT_FOUND,
+                    field = "attachmentId",
+                    parameters = mapOf("attachmentId" to attachmentId.toString()),
+                )
         val deleted = holdingAttachmentRepository.delete(attachmentId, accountId)
         if (deleted) {
             assetsServiceClient.deleteAsset(found.assetId, delegatedBy = accountId.toString())

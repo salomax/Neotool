@@ -72,7 +72,8 @@ open class FundNavExportController(
                 }
             } catch (e: Exception) {
                 logger.error(e) {
-                    "Fund NAV export failed: from=$from to=$to cnpjs=${cnpjs?.size ?: 0} after=${after != null} gzip=$gzipEnabled"
+                    "Fund NAV export failed: from=$from to=$to " +
+                        "cnpjs=${cnpjs?.size ?: 0} after=${after != null} gzip=$gzipEnabled"
                 }
             }
         }

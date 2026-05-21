@@ -84,10 +84,11 @@ open class DashboardAnalyticsCalculator(
                 )
             }
 
-        val latestByAccountMonth = quotas
-            .groupBy { Triple(it.financialAccountId, it.quotaDate.year, it.quotaDate.monthValue) }
-            .mapValues { (_, monthRows) -> monthRows.maxBy { it.quotaDate } }
-            .values
+        val latestByAccountMonth =
+            quotas
+                .groupBy { Triple(it.financialAccountId, it.quotaDate.year, it.quotaDate.monthValue) }
+                .mapValues { (_, monthRows) -> monthRows.maxBy { it.quotaDate } }
+                .values
 
         return latestByAccountMonth
             .groupBy { Pair(it.quotaDate.year, it.quotaDate.monthValue) }
@@ -112,10 +113,11 @@ open class DashboardAnalyticsCalculator(
         endMonth: Int,
     ): DashboardPeriodSummary {
         val snapshots = findSnapshots(accountId, financialAccountId, startYear, startMonth, endYear, endMonth)
-        val byMonth = snapshots
-            .groupBy { Pair(it.year, it.month) }
-            .entries
-            .sortedWith(compareBy({ it.key.first }, { it.key.second }))
+        val byMonth =
+            snapshots
+                .groupBy { Pair(it.year, it.month) }
+                .entries
+                .sortedWith(compareBy({ it.key.first }, { it.key.second }))
 
         val totalIncome = snapshots.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalIncome }
         val totalExpenses = snapshots.fold(BigDecimal.ZERO) { acc, row -> acc + row.totalExpenses }
@@ -140,18 +142,20 @@ open class DashboardAnalyticsCalculator(
                 ?.fold(BigDecimal.ZERO) { acc, row -> acc + row.closingBalance }
                 ?: BigDecimal.ZERO
 
-        val portfolioValues = portfolioQuotaRepository.findOpeningAndClosingPortfolioValues(
-            accountId = accountId,
-            financialAccountId = financialAccountId,
-            startYear = startYear,
-            startMonth = startMonth,
-            endYear = endYear,
-            endMonth = endMonth,
-        )
-        val investmentHeadline = investmentPortfolioSummaryService.getHeadlineSummary(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-        )
+        val portfolioValues =
+            portfolioQuotaRepository.findOpeningAndClosingPortfolioValues(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                startYear = startYear,
+                startMonth = startMonth,
+                endYear = endYear,
+                endMonth = endMonth,
+            )
+        val investmentHeadline =
+            investmentPortfolioSummaryService.getHeadlineSummary(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+            )
 
         val avgMonthlyIncome =
             if (monthCount > 0) totalIncome.toDouble() / monthCount.toDouble() else 0.0

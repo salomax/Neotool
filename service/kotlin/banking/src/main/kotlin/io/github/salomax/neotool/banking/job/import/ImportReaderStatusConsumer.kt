@@ -1,25 +1,25 @@
 package io.github.salomax.neotool.banking.job.import
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedEvent
+import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedProducer
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.ImportJob
+import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.model.dto.imports.ImportJobStatusPayload
 import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
+import io.github.salomax.neotool.banking.model.dto.imports.ImportRowError
 import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationCounters
 import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationPreDecision
 import io.github.salomax.neotool.banking.model.dto.imports.ImportValidationQuality
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
-import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
-import io.github.salomax.neotool.banking.service.import.event.ImportEventBus
 import io.github.salomax.neotool.banking.service.import.ImportProcessor
-import io.github.salomax.neotool.banking.model.dto.imports.ImportRowError
 import io.github.salomax.neotool.banking.service.import.ImportValidationGate
-import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.service.import.event.ImportEventBus
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementExtractionMeta
 import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedEvent
-import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedProducer
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.micronaut.configuration.kafka.annotation.KafkaListener
 import io.micronaut.configuration.kafka.annotation.OffsetReset
@@ -329,7 +329,11 @@ open class ImportReaderStatusConsumer(
         val meta =
             runCatching { objectMapper.convertValue(llmOutput, AssistantStatementExtractionMeta::class.java) }
                 .getOrElse { error ->
-                    log.warn("Failed converting BANK_STATEMENT parser_config to statement meta: jobId={}", job.id, error)
+                    log.warn(
+                        "Failed converting BANK_STATEMENT parser_config to statement meta: jobId={}",
+                        job.id,
+                        error,
+                    )
                     return ParsedRowsResult(
                         rows = emptyList(),
                         invalidCount = 1,

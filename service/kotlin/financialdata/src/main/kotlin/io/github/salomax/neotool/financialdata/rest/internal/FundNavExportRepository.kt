@@ -46,11 +46,12 @@ class FundNavExportRepository(
               ${if (updatedSince != null) "AND adp.created_at >= ?" else ""}
               ${
                 if (hasCursor) {
-                    "AND (adp.price_date > ? OR (adp.price_date = ? AND (ia.fund_cnpj > ? OR (ia.fund_cnpj = ? AND ia.id::text > ?))))"
+                    "AND (adp.price_date > ? OR (adp.price_date = ? AND " +
+                        "(ia.fund_cnpj > ? OR (ia.fund_cnpj = ? AND ia.id::text > ?))))"
                 } else {
                     ""
                 }
-              }
+            }
             ORDER BY adp.price_date ASC, ia.fund_cnpj ASC, ia.id ASC
             """.trimIndent()
 

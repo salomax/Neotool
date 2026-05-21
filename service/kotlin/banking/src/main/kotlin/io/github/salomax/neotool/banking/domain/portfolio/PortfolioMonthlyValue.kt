@@ -6,4 +6,3 @@ data class PortfolioMonthlyValue(
     val grossValue: Double,
     val isEstimated: Boolean,
 )
-

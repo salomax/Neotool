@@ -2,7 +2,9 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
-import io.github.salomax.neotool.banking.service.transaction.*
+import io.github.salomax.neotool.banking.service.transaction.MerchantLogoHydrationService
+import io.github.salomax.neotool.banking.service.transaction.MerchantService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

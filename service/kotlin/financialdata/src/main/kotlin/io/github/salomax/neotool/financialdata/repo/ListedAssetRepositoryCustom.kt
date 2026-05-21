@@ -2,8 +2,8 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.AssetDailyPrice
-import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import io.github.salomax.neotool.financialdata.domain.ListedAsset
+import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -12,7 +12,6 @@ import java.util.UUID
  * Custom query contract for B3 investment asset search and detail operations.
  */
 interface ListedAssetRepositoryCustom {
-
     /**
      * Autocomplete search by ticker prefix first, then name trigram similarity.
      * Optionally filtered by [assetType] (e.g. "EQUITY", "FII").

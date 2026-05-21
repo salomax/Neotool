@@ -9,7 +9,6 @@ import java.math.BigDecimal
 
 @DisplayName("BrazilianFixedIncomeTaxRules")
 class BrazilianFixedIncomeTaxRulesTest {
-
     // ── IR ────────────────────────────────────────────────────────────────────
 
     @Test
@@ -24,11 +23,12 @@ class BrazilianFixedIncomeTaxRulesTest {
 
     @Test
     fun `computeIr returns zero for tax-exempt holding`() {
-        val ir = BrazilianFixedIncomeTaxRules.computeIr(
-            taxableGain = BigDecimal("500.00"),
-            calendarDays = 200,
-            isTaxExempt = true,
-        )
+        val ir =
+            BrazilianFixedIncomeTaxRules.computeIr(
+                taxableGain = BigDecimal("500.00"),
+                calendarDays = 200,
+                isTaxExempt = true,
+            )
         assertThat(ir).isEqualByComparingTo(BigDecimal.ZERO)
     }
 
@@ -77,7 +77,9 @@ class BrazilianFixedIncomeTaxRulesTest {
     @Test
     fun `computeIof returns zero when gain is zero or negative`() {
         assertThat(BrazilianFixedIncomeTaxRules.computeIof(BigDecimal.ZERO, 5)).isEqualByComparingTo(BigDecimal.ZERO)
-        assertThat(BrazilianFixedIncomeTaxRules.computeIof(BigDecimal("-1.00"), 5)).isEqualByComparingTo(BigDecimal.ZERO)
+        assertThat(
+            BrazilianFixedIncomeTaxRules.computeIof(BigDecimal("-1.00"), 5),
+        ).isEqualByComparingTo(BigDecimal.ZERO)
     }
 
     @Test

@@ -4,8 +4,8 @@ import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
-import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
+import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
 import io.github.salomax.neotool.banking.service.investment.FundValuationService
 import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import java.math.BigDecimal
@@ -13,8 +13,8 @@ import java.math.MathContext
 import java.math.RoundingMode
 import java.time.Instant
 import java.time.LocalDate
-import java.time.ZoneOffset
 import java.time.YearMonth
+import java.time.ZoneOffset
 
 // ── Domain model ─────────────────────────────────────────────────────────────
 
@@ -104,17 +104,18 @@ internal fun buildFundNavPerformancePoints(
                 continue
             }
 
-            val navAtPoint = nav.onOrBefore(pointDate) ?: continue  // no NAV yet — skip point
+            val navAtPoint = nav.onOrBefore(pointDate) ?: continue // no NAV yet — skip point
 
             // subList is a O(1) view; no copy, no re-sort needed (already sorted).
             val txsUpToPoint = chronologicalTx.subList(0, txIndex)
-            val valuation = runCatching {
-                fundValuationService.estimate(
-                    state,
-                    taxSnapshot.withNav(navAtPoint),
-                    txsUpToPoint,
-                )
-            }.getOrNull() ?: continue
+            val valuation =
+                runCatching {
+                    fundValuationService.estimate(
+                        state,
+                        taxSnapshot.withNav(navAtPoint),
+                        txsUpToPoint,
+                    )
+                }.getOrNull() ?: continue
 
             add(valuedPoint(commonFields, navAtPoint, valuation, state.quantity, mathContext))
         }
@@ -238,11 +239,12 @@ private fun performanceDatesForResolution(
 
 // ── Extension functions ───────────────────────────────────────────────────────
 
-private fun LocalDate.toUtcInstant(): Instant =
-    atStartOfDay().toInstant(ZoneOffset.UTC)
+private fun LocalDate.toUtcInstant(): Instant = atStartOfDay().toInstant(ZoneOffset.UTC)
 
-private fun BigDecimal.percentOf(base: BigDecimal, mathContext: MathContext): BigDecimal? =
-    if (base > BigDecimal.ZERO) divide(base, mathContext) else null
+private fun BigDecimal.percentOf(
+    base: BigDecimal,
+    mathContext: MathContext,
+): BigDecimal? = if (base > BigDecimal.ZERO) divide(base, mathContext) else null
 
 private fun FundMarketSnapshot.withNav(nav: Pair<LocalDate, BigDecimal>): FundMarketSnapshot =
     copy(latestNav = FundMarketNav(date = nav.first, closePrice = nav.second))

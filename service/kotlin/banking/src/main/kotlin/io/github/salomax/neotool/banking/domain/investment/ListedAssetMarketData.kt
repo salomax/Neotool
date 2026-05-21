@@ -19,17 +19,17 @@ data class ListedAssetMarketPrice(
 interface ListedAssetMarketDataProvider {
     fun getAssetsByTicker(tickers: Set<String>): Map<String, ListedAssetMarketData>
 
-    fun getLatestPricesByTicker(tickers: Set<String>): Map<String, ListedAssetMarketPrice>
-        =
+    fun getLatestPricesByTicker(tickers: Set<String>): Map<String, ListedAssetMarketPrice> =
         getAssetsByTicker(tickers)
             .mapNotNull { (ticker, data) ->
                 val closePrice = data.closePrice ?: return@mapNotNull null
                 val referenceDate = data.referenceDate ?: return@mapNotNull null
-                ticker to ListedAssetMarketPrice(
-                    ticker = data.ticker,
-                    closePrice = closePrice,
-                    referenceDate = referenceDate,
-                )
+                ticker to
+                    ListedAssetMarketPrice(
+                        ticker = data.ticker,
+                        closePrice = closePrice,
+                        referenceDate = referenceDate,
+                    )
             }
             .toMap()
 }

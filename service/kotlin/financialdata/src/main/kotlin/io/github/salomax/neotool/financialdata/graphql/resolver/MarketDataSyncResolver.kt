@@ -133,7 +133,16 @@ class MarketDataSyncResolver(
         tickers: List<String>?,
         isins: List<String>?,
     ): AssetCorporateEventConnectionDTO {
-        val connection = marketDataSyncService.assetCorporateEvents(from, to, tickers, isins, updatedSince, first, after)
+        val connection =
+            marketDataSyncService.assetCorporateEvents(
+                from,
+                to,
+                tickers,
+                isins,
+                updatedSince,
+                first,
+                after,
+            )
         return AssetCorporateEventConnectionDTO(
             edges =
                 connection.edges.map { edge ->

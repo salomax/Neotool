@@ -310,8 +310,9 @@ class FinancialDataMarketDataSyncClient(
             if (!response.errors.isNullOrEmpty()) {
                 throw IllegalStateException("financialdata sync query failed for $rootField: ${response.errors}")
             }
-            val connection = response.data?.get(rootField) as? Map<*, *>
-                ?: throw IllegalStateException("financialdata sync query returned no data for $rootField")
+            val connection =
+                response.data?.get(rootField) as? Map<*, *>
+                    ?: throw IllegalStateException("financialdata sync query returned no data for $rootField")
             val edges = (connection["edges"] as? List<*>)?.mapNotNull { it as? Map<*, *> }.orEmpty()
             if (edges.isNotEmpty()) {
                 consumer(edges)

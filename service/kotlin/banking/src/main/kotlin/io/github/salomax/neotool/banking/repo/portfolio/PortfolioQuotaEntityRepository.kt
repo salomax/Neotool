@@ -41,7 +41,6 @@ interface PortfolioQuotaEntityRepository : JpaRepository<InvestmentPortfolioQuot
     )
     fun findEarliestPortfolioDate(financialAccountId: UUID): LocalDate?
 
-
     @Query(
         """
         SELECT DISTINCT ON (dimension_type, dimension_key) *

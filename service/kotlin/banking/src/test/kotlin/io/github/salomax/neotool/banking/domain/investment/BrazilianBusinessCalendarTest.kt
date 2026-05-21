@@ -9,7 +9,6 @@ import java.time.Month
 
 @DisplayName("BrazilianBusinessCalendar")
 class BrazilianBusinessCalendarTest {
-
     @Test
     fun `last business day of May uses the legal month-end business day`() {
         assertThat(BrazilianBusinessCalendar.lastBusinessDay(2025, Month.MAY))

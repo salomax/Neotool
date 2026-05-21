@@ -35,7 +35,10 @@ class TransactionCategoryResolver(
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         val parentId = (input["parentId"] as? String)?.let(UUID::fromString)
         val name = input["name"] as? String ?: throw IllegalArgumentException("name is required")
-        val applicableToRaw = input["applicableTo"] as? String ?: throw IllegalArgumentException("applicableTo is required")
+        val applicableToRaw =
+            input["applicableTo"] as? String ?: throw IllegalArgumentException(
+                "applicableTo is required",
+            )
         val applicableTo = CategoryApplicableTo.valueOf(applicableToRaw)
         val icon = input["icon"] as? String
         val color = input["color"] as? String
@@ -203,8 +206,14 @@ class TransactionCategoryResolver(
         val categoryId = (input["categoryId"] as? String)?.let(UUID::fromString)
         val merchantId = (input["merchantId"] as? String)?.let(UUID::fromString)
         val pattern = input["pattern"] as? String ?: throw IllegalArgumentException("pattern is required")
-        val patternTypeRaw = input["patternType"] as? String ?: throw IllegalArgumentException("patternType is required")
-        val applicableToRaw = input["applicableTo"] as? String ?: throw IllegalArgumentException("applicableTo is required")
+        val patternTypeRaw =
+            input["patternType"] as? String ?: throw IllegalArgumentException(
+                "patternType is required",
+            )
+        val applicableToRaw =
+            input["applicableTo"] as? String ?: throw IllegalArgumentException(
+                "applicableTo is required",
+            )
         val priority = (input["priority"] as? Number)?.toInt()
 
         val created =

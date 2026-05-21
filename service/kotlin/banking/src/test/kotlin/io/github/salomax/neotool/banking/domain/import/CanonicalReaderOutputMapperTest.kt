@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.domain.import
 
-import io.github.salomax.neotool.banking.service.import.*
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.parser.CsvNubankParser
 import io.github.salomax.neotool.banking.service.import.parser.OFXParser
 import io.github.salomax.neotool.banking.service.import.parser.csv.GenericCsvReader

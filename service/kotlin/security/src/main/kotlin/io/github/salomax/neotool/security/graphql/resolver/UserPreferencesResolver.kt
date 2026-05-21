@@ -4,7 +4,6 @@ import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
 import io.github.salomax.neotool.security.service.preferences.UserPreferencesService
 import jakarta.inject.Singleton
-import java.util.UUID
 
 @Singleton
 class UserPreferencesResolver(

@@ -1,10 +1,11 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
@@ -95,14 +96,20 @@ class BillImportCommitPreparer(
                     val effectiveDueDate =
                         command.dueDate
                             ?: reviewCard.dueDate
-                            ?: account.cardData?.dueDay?.let { creditCardBillService.computeDueDate(effectiveClosingDate, it) }
+                            ?: account.cardData?.dueDay?.let {
+                                creditCardBillService.computeDueDate(
+                                    effectiveClosingDate,
+                                    it,
+                                )
+                            }
                             ?: throw ValidationException(
                                 CommonErrorCode.INVALID_INPUT,
                                 field = "dueDate",
                                 parameters =
                                     mapOf(
                                         "reason" to
-                                            "dueDate is required to import this bill when the selected card has no dueDay",
+                                            "dueDate is required to import this bill when the " +
+                                            "selected card has no dueDay",
                                     ),
                             )
 

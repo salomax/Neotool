@@ -1,35 +1,34 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
+import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.domain.investment.AssetType
-import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
 import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
-import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
-import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
+import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
+import io.github.salomax.neotool.banking.repo.investment.InvestmentTransactionRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.portfolio.AssetDailyPriceRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
-import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
@@ -120,12 +119,13 @@ class InvestmentQueryServiceTest {
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
             mapOf(
-                "PETR4" to ListedAssetMarketData(
-                    ticker = "PETR4",
-                    closePrice = BigDecimal("15.00"),
-                    referenceDate = LocalDate.of(2025, 12, 1),
-                    logoAssetId = "asset-logo-petr4",
-                ),
+                "PETR4" to
+                    ListedAssetMarketData(
+                        ticker = "PETR4",
+                        closePrice = BigDecimal("15.00"),
+                        referenceDate = LocalDate.of(2025, 12, 1),
+                        logoAssetId = "asset-logo-petr4",
+                    ),
             ),
         )
         whenever(investmentTransactionRepository.findByHoldingIds(emptyList(), accountId)).thenReturn(emptyList())
@@ -205,7 +205,9 @@ class InvestmentQueryServiceTest {
                 updatedAt = now,
             )
 
-        whenever(holdingRepository.findOpenByAccount(accountId)).thenReturn(listOf(fixedIncomeHolding, variableIncomeHolding))
+        whenever(
+            holdingRepository.findOpenByAccount(accountId),
+        ).thenReturn(listOf(fixedIncomeHolding, variableIncomeHolding))
         whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(financialAccount))
         whenever(issuerRepository.findByIds(emptySet())).thenReturn(emptyList())
         whenever(assetRepository.findByIds(setOf(fixedIncomeAssetId, variableIncomeAssetId))).thenReturn(
@@ -213,7 +215,9 @@ class InvestmentQueryServiceTest {
         )
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(emptySet())).thenReturn(emptyMap())
-        whenever(investmentTransactionRepository.findByHoldingIds(listOf(fixedIncomeHolding.id!!), accountId)).thenReturn(emptyList())
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(fixedIncomeHolding.id!!), accountId),
+        ).thenReturn(emptyList())
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
 
@@ -306,16 +310,21 @@ class InvestmentQueryServiceTest {
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
             mapOf(
-                "PETR4" to ListedAssetMarketData(
-                    ticker = "PETR4",
-                    closePrice = BigDecimal("12.00"),
-                    referenceDate = LocalDate.of(2025, 12, 1),
-                    logoAssetId = null,
-                ),
+                "PETR4" to
+                    ListedAssetMarketData(
+                        ticker = "PETR4",
+                        closePrice = BigDecimal("12.00"),
+                        referenceDate = LocalDate.of(2025, 12, 1),
+                        logoAssetId = null,
+                    ),
             ),
         )
-        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase, dividend))
-        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(listOf(purchase, dividend))
+        whenever(
+            investmentTransactionRepository.findByHolding(holdingId, accountId),
+        ).thenReturn(listOf(purchase, dividend))
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId),
+        ).thenReturn(listOf(purchase, dividend))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
 
@@ -394,16 +403,19 @@ class InvestmentQueryServiceTest {
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("VALE3"))).thenReturn(
             mapOf(
-                "VALE3" to ListedAssetMarketData(
-                    ticker = "VALE3",
-                    closePrice = BigDecimal("120.00"),
-                    referenceDate = LocalDate.of(2025, 12, 1),
-                    logoAssetId = null,
-                ),
+                "VALE3" to
+                    ListedAssetMarketData(
+                        ticker = "VALE3",
+                        closePrice = BigDecimal("120.00"),
+                        referenceDate = LocalDate.of(2025, 12, 1),
+                        logoAssetId = null,
+                    ),
             ),
         )
         whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase))
-        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(listOf(purchase))
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId),
+        ).thenReturn(listOf(purchase))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(null)
 
@@ -464,12 +476,13 @@ class InvestmentQueryServiceTest {
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
             mapOf(
-                "PETR4" to ListedAssetMarketData(
-                    ticker = "PETR4",
-                    closePrice = BigDecimal("15.00"),
-                    referenceDate = LocalDate.of(2025, 12, 1),
-                    logoAssetId = "asset-logo-petr4",
-                ),
+                "PETR4" to
+                    ListedAssetMarketData(
+                        ticker = "PETR4",
+                        closePrice = BigDecimal("15.00"),
+                        referenceDate = LocalDate.of(2025, 12, 1),
+                        logoAssetId = "asset-logo-petr4",
+                    ),
             ),
         )
         whenever(investmentTransactionRepository.findByHoldingIds(emptyList(), accountId)).thenReturn(emptyList())
@@ -569,10 +582,18 @@ class InvestmentQueryServiceTest {
         whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(listOf(asset))
         whenever(fundMarketDataProvider.getSnapshotsByCnpj(emptySet())).thenReturn(emptyMap())
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(emptySet())).thenReturn(emptyMap())
-        whenever(investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId)).thenReturn(listOf(purchaseTransaction))
+        whenever(
+            investmentTransactionRepository.findByHoldingIds(listOf(holdingId), accountId),
+        ).thenReturn(listOf(purchaseTransaction))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(mapOf(Indexer.IPCA to BigDecimal("0.0701")))
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(LocalDate.of(2026, 2, 1))
-        whenever(indicatorRateProvider.getMonthlySeriesRange(Indexer.IPCA, LocalDate.of(2024, 9, 23), LocalDate.of(2025, 12, 2)))
+        whenever(
+            indicatorRateProvider.getMonthlySeriesRange(
+                Indexer.IPCA,
+                LocalDate.of(2024, 9, 23),
+                LocalDate.of(2025, 12, 2),
+            ),
+        )
             .thenReturn(emptyList())
 
         val result = serviceWithRealValuation.getHoldings(financialAccountId = null, accountId = accountId)
@@ -653,18 +674,21 @@ class InvestmentQueryServiceTest {
 
         whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
-        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchaseTransaction))
+        whenever(
+            investmentTransactionRepository.findByHolding(holdingId, accountId),
+        ).thenReturn(listOf(purchaseTransaction))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(LocalDate.of(2025, 12, 2))
 
-        val result = performanceService.getHoldingPerformance(
-            id = holdingId,
-            accountId = accountId,
-            resolution = HoldingPerformanceResolution.MONTH,
-            fromDate = null,
-            toDate = null,
-            includeProjection = true,
-        )
+        val result =
+            performanceService.getHoldingPerformance(
+                id = holdingId,
+                accountId = accountId,
+                resolution = HoldingPerformanceResolution.MONTH,
+                fromDate = null,
+                toDate = null,
+                includeProjection = true,
+            )
 
         assertThat(result).isNotNull
         assertThat(result?.resolution).isEqualTo(HoldingPerformanceResolution.MONTH)
@@ -747,18 +771,21 @@ class InvestmentQueryServiceTest {
 
         whenever(holdingRepository.findById(holdingId, accountId)).thenReturn(holding)
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
-        whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchaseTransaction))
+        whenever(
+            investmentTransactionRepository.findByHolding(holdingId, accountId),
+        ).thenReturn(listOf(purchaseTransaction))
         whenever(indicatorRateProvider.getLatestRates()).thenReturn(emptyMap())
         whenever(indicatorRateProvider.getReferenceDate()).thenReturn(LocalDate.of(2026, 3, 27))
 
-        val result = performanceService.getHoldingPerformance(
-            id = holdingId,
-            accountId = accountId,
-            resolution = HoldingPerformanceResolution.MONTH,
-            fromDate = null,
-            toDate = null,
-            includeProjection = true,
-        )
+        val result =
+            performanceService.getHoldingPerformance(
+                id = holdingId,
+                accountId = accountId,
+                resolution = HoldingPerformanceResolution.MONTH,
+                fromDate = null,
+                toDate = null,
+                includeProjection = true,
+            )
 
         val pointDates = result?.points.orEmpty().map { LocalDate.ofInstant(it.timestamp, java.time.ZoneOffset.UTC) }
         val pointMonths = pointDates.map(YearMonth::from)
@@ -1044,7 +1071,13 @@ class InvestmentQueryServiceTest {
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase))
         whenever(assetDailyPriceRepository.findLatestBefore(assetId, LocalDate.of(2025, 1, 15))).thenReturn(null)
-        whenever(assetDailyPriceRepository.findByAssetAndDateRange(assetId, LocalDate.of(2025, 1, 15), LocalDate.of(2025, 3, 31))).thenReturn(
+        whenever(
+            assetDailyPriceRepository.findByAssetAndDateRange(
+                assetId,
+                LocalDate.of(2025, 1, 15),
+                LocalDate.of(2025, 3, 31),
+            ),
+        ).thenReturn(
             listOf(
                 InvestmentAssetDailyPrice(
                     assetId = assetId,
@@ -1068,11 +1101,12 @@ class InvestmentQueryServiceTest {
         )
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
             mapOf(
-                "PETR4" to ListedAssetMarketData(
-                    ticker = "PETR4",
-                    closePrice = BigDecimal("48.15"),
-                    referenceDate = LocalDate.of(2025, 3, 28),
-                ),
+                "PETR4" to
+                    ListedAssetMarketData(
+                        ticker = "PETR4",
+                        closePrice = BigDecimal("48.15"),
+                        referenceDate = LocalDate.of(2025, 3, 28),
+                    ),
             ),
         )
 
@@ -1164,7 +1198,13 @@ class InvestmentQueryServiceTest {
         whenever(assetRepository.findById(assetId)).thenReturn(asset)
         whenever(investmentTransactionRepository.findByHolding(holdingId, accountId)).thenReturn(listOf(purchase))
         whenever(assetDailyPriceRepository.findLatestBefore(assetId, LocalDate.of(2025, 1, 16))).thenReturn(null)
-        whenever(assetDailyPriceRepository.findByAssetAndDateRange(assetId, LocalDate.of(2025, 1, 16), LocalDate.of(2025, 1, 20))).thenReturn(
+        whenever(
+            assetDailyPriceRepository.findByAssetAndDateRange(
+                assetId,
+                LocalDate.of(2025, 1, 16),
+                LocalDate.of(2025, 1, 20),
+            ),
+        ).thenReturn(
             listOf(
                 InvestmentAssetDailyPrice(
                     assetId = assetId,
@@ -1182,11 +1222,12 @@ class InvestmentQueryServiceTest {
         )
         whenever(listedAssetMarketDataProvider.getAssetsByTicker(setOf("PETR4"))).thenReturn(
             mapOf(
-                "PETR4" to ListedAssetMarketData(
-                    ticker = "PETR4",
-                    closePrice = BigDecimal("11.80"),
-                    referenceDate = LocalDate.of(2025, 1, 17),
-                ),
+                "PETR4" to
+                    ListedAssetMarketData(
+                        ticker = "PETR4",
+                        closePrice = BigDecimal("11.80"),
+                        referenceDate = LocalDate.of(2025, 1, 17),
+                    ),
             ),
         )
 

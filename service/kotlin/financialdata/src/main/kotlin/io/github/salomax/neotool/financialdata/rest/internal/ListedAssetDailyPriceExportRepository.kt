@@ -47,11 +47,12 @@ class ListedAssetDailyPriceExportRepository(
               ${if (updatedSince != null) "AND adp.created_at >= ?" else ""}
               ${
                 if (hasCursor) {
-                    "AND (adp.price_date > ? OR (adp.price_date = ? AND (upper(ia.ticker) > ? OR (upper(ia.ticker) = ? AND ia.id::text > ?))))"
+                    "AND (adp.price_date > ? OR (adp.price_date = ? AND " +
+                        "(upper(ia.ticker) > ? OR (upper(ia.ticker) = ? AND ia.id::text > ?))))"
                 } else {
                     ""
                 }
-              }
+            }
             ORDER BY adp.price_date ASC, upper(ia.ticker) ASC, ia.id ASC
             """.trimIndent()
 

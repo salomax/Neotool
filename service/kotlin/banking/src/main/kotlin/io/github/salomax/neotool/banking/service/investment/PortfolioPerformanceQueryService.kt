@@ -1,26 +1,25 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
-import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkCode
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
 import io.github.salomax.neotool.banking.graphql.investment.BenchmarkPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPointDTO
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
-import io.github.salomax.neotool.banking.graphql.investment.PortfolioTwrDebugDTO
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceDTO
+import io.github.salomax.neotool.banking.graphql.investment.PortfolioTwrDebugDTO
+import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusDTO
 import io.github.salomax.neotool.banking.graphql.investment.TwrDailyStepDTO
 import io.github.salomax.neotool.banking.graphql.investment.TwrFlowEventDTO
 import io.github.salomax.neotool.banking.graphql.investment.TwrQuotaPointDTO
 import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
-import io.github.salomax.neotool.banking.error.StoredRecalculationFailure
-import io.github.salomax.neotool.banking.graphql.investment.RecalculationStatusDTO
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
@@ -61,12 +60,12 @@ class PortfolioPerformanceQueryService(
         return if (financialAccountId != null) {
             val series =
                 portfolioQuotaRepository.findByAccountAndDateRange(
-                financialAccountId = financialAccountId,
-                dimensionType = effectiveDimensionType,
-                dimensionKey = gridClassKey,
-                from = from,
-                to = today,
-            )
+                    financialAccountId = financialAccountId,
+                    dimensionType = effectiveDimensionType,
+                    dimensionKey = gridClassKey,
+                    from = from,
+                    to = today,
+                )
             if (series.size < 2) return emptyList()
             val aggregatedSeries = series.map { it.toAggregatedPoint() }
             val flowAmountsByDate =
@@ -320,11 +319,11 @@ class PortfolioPerformanceQueryService(
         } else {
             val window =
                 resolveConsolidatedValueWindow(
-                accountId = accountId,
-                dimensionType = PortfolioDimensionType.ASSET_GROUP,
+                    accountId = accountId,
+                    dimensionType = PortfolioDimensionType.ASSET_GROUP,
                     dimensionKey = groupKey,
                     period = period,
-            ) ?: return null
+                ) ?: return null
 
             computeTimeWeightedReturn(
                 series = window.series,
@@ -351,7 +350,8 @@ class PortfolioPerformanceQueryService(
                 message =
                     when (pendingJob.status) {
                         PortfolioRecalculationStatus.PENDING -> "Historical performance recalculation is queued."
-                        PortfolioRecalculationStatus.PROCESSING -> "Historical performance recalculation is in progress."
+                        PortfolioRecalculationStatus.PROCESSING ->
+                            "Historical performance recalculation is in progress."
                         else -> null
                     },
             )
@@ -390,26 +390,56 @@ class PortfolioPerformanceQueryService(
 
         val start =
             when (period) {
-                PerformancePeriodDTO.ALL -> findFirstQuota(scopedFinancialAccountId, dimensionType, dimensionKey, end.quotaDate)
+                PerformancePeriodDTO.ALL ->
+                    findFirstQuota(
+                        scopedFinancialAccountId,
+                        dimensionType,
+                        dimensionKey,
+                        end.quotaDate,
+                    )
                 PerformancePeriodDTO.YTD -> {
                     val boundary = end.quotaDate.withDayOfYear(1).minusDays(1)
                     findQuotaOnOrBefore(scopedFinancialAccountId, dimensionType, dimensionKey, boundary)
-                        ?: findFirstQuotaInRange(scopedFinancialAccountId, dimensionType, dimensionKey, boundary.plusDays(1), end.quotaDate)
+                        ?: findFirstQuotaInRange(
+                            scopedFinancialAccountId,
+                            dimensionType,
+                            dimensionKey,
+                            boundary.plusDays(1),
+                            end.quotaDate,
+                        )
                 }
                 PerformancePeriodDTO.MTD -> {
                     val boundary = end.quotaDate.withDayOfMonth(1).minusDays(1)
                     findQuotaOnOrBefore(scopedFinancialAccountId, dimensionType, dimensionKey, boundary)
-                        ?: findFirstQuotaInRange(scopedFinancialAccountId, dimensionType, dimensionKey, boundary.plusDays(1), end.quotaDate)
+                        ?: findFirstQuotaInRange(
+                            scopedFinancialAccountId,
+                            dimensionType,
+                            dimensionKey,
+                            boundary.plusDays(1),
+                            end.quotaDate,
+                        )
                 }
                 PerformancePeriodDTO.ONE_YEAR -> {
                     val boundary = end.quotaDate.minusYears(1)
                     findQuotaOnOrBefore(scopedFinancialAccountId, dimensionType, dimensionKey, boundary)
-                        ?: findFirstQuotaInRange(scopedFinancialAccountId, dimensionType, dimensionKey, boundary.plusDays(1), end.quotaDate)
+                        ?: findFirstQuotaInRange(
+                            scopedFinancialAccountId,
+                            dimensionType,
+                            dimensionKey,
+                            boundary.plusDays(1),
+                            end.quotaDate,
+                        )
                 }
                 PerformancePeriodDTO.THREE_YEARS -> {
                     val boundary = end.quotaDate.minusYears(3)
                     findQuotaOnOrBefore(scopedFinancialAccountId, dimensionType, dimensionKey, boundary)
-                        ?: findFirstQuotaInRange(scopedFinancialAccountId, dimensionType, dimensionKey, boundary.plusDays(1), end.quotaDate)
+                        ?: findFirstQuotaInRange(
+                            scopedFinancialAccountId,
+                            dimensionType,
+                            dimensionKey,
+                            boundary.plusDays(1),
+                            end.quotaDate,
+                        )
                 }
             } ?: return null
 
@@ -523,9 +553,9 @@ class PortfolioPerformanceQueryService(
         if (from.isAfter(to)) return emptyMap()
         val events =
             portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, from, to)
-            .asSequence()
-            .filterNot { it.sourceReferenceType == PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION }
-            .toList()
+                .asSequence()
+                .filterNot { it.sourceReferenceType == PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION }
+                .toList()
         if (events.isEmpty()) return emptyMap()
 
         val filteredHoldingIds = dimensionHoldingIds(financialAccountId, accountId, dimensionType, dimensionKey)
@@ -534,7 +564,12 @@ class PortfolioPerformanceQueryService(
         return events
             .asSequence()
             .filter { event ->
-                filteredHoldingIds == null || (event.relatedHoldingId != null && filteredHoldingIds.contains(event.relatedHoldingId))
+                filteredHoldingIds == null || (
+                    event.relatedHoldingId != null &&
+                        filteredHoldingIds.contains(
+                            event.relatedHoldingId,
+                        )
+                )
             }
             .mapNotNull { event -> event.toCanonicalNetFlowAmount()?.let { amount -> event.eventDate to amount } }
             .groupBy({ it.first }, { it.second })
@@ -650,7 +685,16 @@ class PortfolioPerformanceQueryService(
 
         val endDate = latestQuotasByAccount.minOf { it.quotaDate }
         val boundaryDate = boundaryDateFor(period, endDate)
-        val rangeStart = if (period == PerformancePeriodDTO.ALL) LocalDate.of(1970, 1, 1) else requireNotNull(boundaryDate)
+        val rangeStart =
+            if (period == PerformancePeriodDTO.ALL) {
+                LocalDate.of(
+                    1970,
+                    1,
+                    1,
+                )
+            } else {
+                requireNotNull(boundaryDate)
+            }
 
         val aggregatedSeries =
             financialAccountIds
@@ -803,7 +847,10 @@ class PortfolioPerformanceQueryService(
         const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"
     }
 
-    private fun gridClassSeriesStartDate(period: GridClassTwrPeriod, today: LocalDate): LocalDate =
+    private fun gridClassSeriesStartDate(
+        period: GridClassTwrPeriod,
+        today: LocalDate,
+    ): LocalDate =
         when (period) {
             GridClassTwrPeriod.SIX_MONTHS -> today.minusMonths(6)
             GridClassTwrPeriod.ONE_YEAR -> today.minusYears(1)

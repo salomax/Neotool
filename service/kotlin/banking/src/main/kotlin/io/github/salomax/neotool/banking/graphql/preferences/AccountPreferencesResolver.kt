@@ -7,7 +7,6 @@ import io.github.salomax.neotool.banking.graphql.preferences.dto.AccountPreferen
 import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
-import java.util.UUID
 
 @Singleton
 class AccountPreferencesResolver(

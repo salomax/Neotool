@@ -59,17 +59,32 @@ class InvestmentPortfolioSummaryService(
         buildSummary(
             financialAccountId = financialAccountId,
             accountId = accountId,
-            holdings = investmentQueryService.getHoldings(financialAccountId = financialAccountId, accountId = accountId),
-            cashBalance = investmentQueryService.getInvestmentCashBalance(financialAccountId = financialAccountId, accountId = accountId),
+            holdings =
+                investmentQueryService.getHoldings(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                ),
+            cashBalance =
+                investmentQueryService.getInvestmentCashBalance(
+                    financialAccountId = financialAccountId,
+                    accountId = accountId,
+                ),
             period = period,
         )
 
-    private fun getAggregateSummary(accountId: UUID, period: PerformancePeriodDTO): InvestmentPortfolioSummaryDTO =
+    private fun getAggregateSummary(
+        accountId: UUID,
+        period: PerformancePeriodDTO,
+    ): InvestmentPortfolioSummaryDTO =
         buildSummary(
             financialAccountId = null,
             accountId = accountId,
             holdings = investmentQueryService.getHoldings(financialAccountId = null, accountId = accountId),
-            cashBalance = investmentQueryService.getInvestmentCashBalance(financialAccountId = null, accountId = accountId),
+            cashBalance =
+                investmentQueryService.getInvestmentCashBalance(
+                    financialAccountId = null,
+                    accountId = accountId,
+                ),
             period = period,
         )
 

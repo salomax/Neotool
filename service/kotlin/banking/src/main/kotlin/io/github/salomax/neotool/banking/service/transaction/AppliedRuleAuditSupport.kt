@@ -60,5 +60,11 @@ internal object AppliedRuleAuditSupport {
     fun buildEntries(
         ruleIds: List<UUID>,
         appliedAt: Instant,
-    ): List<AppliedRuleAuditEntry> = ruleIds.distinct().map { AppliedRuleAuditEntry(ruleId = it, appliedAt = appliedAt) }
+    ): List<AppliedRuleAuditEntry> =
+        ruleIds.distinct().map {
+            AppliedRuleAuditEntry(
+                ruleId = it,
+                appliedAt = appliedAt,
+            )
+        }
 }

@@ -51,7 +51,10 @@ object HoldingPositionEvolution {
             InvestmentTransactionType.QUOTA_TRANSFER,
         )
 
-    fun evolve(state: Holding, input: PositionEvolutionInput): Holding {
+    fun evolve(
+        state: Holding,
+        input: PositionEvolutionInput,
+    ): Holding {
         val qty = input.quantity
         val price = input.unitPrice
         return when (input.type) {
@@ -64,7 +67,11 @@ object HoldingPositionEvolution {
                     if (state.quantity.signum() == 0) {
                         price
                     } else {
-                        (state.quantity * state.averageCost + qty * price).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                        (state.quantity * state.averageCost + qty * price).divide(
+                            newQty,
+                            COST_SCALE,
+                            RoundingMode.HALF_UP,
+                        )
                     }
                 state.copy(quantity = newQty, averageCost = newCost)
             }
@@ -85,7 +92,11 @@ object HoldingPositionEvolution {
                         if (state.quantity.signum() == 0) {
                             price
                         } else {
-                            (state.quantity * state.averageCost + qty * price).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                            (state.quantity * state.averageCost + qty * price).divide(
+                                newQty,
+                                COST_SCALE,
+                                RoundingMode.HALF_UP,
+                            )
                         }
                     state.copy(quantity = newQty, averageCost = newCost)
                 } else {
@@ -104,8 +115,11 @@ object HoldingPositionEvolution {
                 if (qty == null || qty <= BigDecimal.ZERO) return state
                 val newQty = state.quantity + qty
                 val newCost =
-                    if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (state.quantity * state.averageCost).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                    if (newQty.signum() == 0) {
+                        BigDecimal.ZERO
+                    } else {
+                        (state.quantity * state.averageCost).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                    }
                 state.copy(quantity = newQty, averageCost = newCost)
             }
 
@@ -113,8 +127,11 @@ object HoldingPositionEvolution {
                 if (qty == null || qty <= BigDecimal.ZERO) return state
                 val newQty = (state.quantity - qty).max(BigDecimal.ZERO)
                 val newCost =
-                    if (newQty.signum() == 0) BigDecimal.ZERO
-                    else (state.quantity * state.averageCost).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                    if (newQty.signum() == 0) {
+                        BigDecimal.ZERO
+                    } else {
+                        (state.quantity * state.averageCost).divide(newQty, COST_SCALE, RoundingMode.HALF_UP)
+                    }
                 state.copy(quantity = newQty, averageCost = newCost)
             }
 

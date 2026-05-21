@@ -2,6 +2,9 @@ package io.github.salomax.neotool.security.test.graphql
 
 import io.github.salomax.neotool.common.graphql.InputValidator
 import io.github.salomax.neotool.common.security.principal.AuthContext
+import io.github.salomax.neotool.security.domain.preferences.Language
+import io.github.salomax.neotool.security.domain.preferences.Theme
+import io.github.salomax.neotool.security.domain.preferences.UserPreferences
 import io.github.salomax.neotool.security.graphql.SecurityAuthResolver
 import io.github.salomax.neotool.security.graphql.dto.RequestPasswordResetPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.ResetPasswordPayloadDTO
@@ -32,12 +35,9 @@ import org.mockito.kotlin.never
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.time.Instant
 import java.util.UUID
 import org.mockito.ArgumentMatchers.any as anyArg
-import io.github.salomax.neotool.security.domain.preferences.Language
-import io.github.salomax.neotool.security.domain.preferences.Theme
-import io.github.salomax.neotool.security.domain.preferences.UserPreferences
-import java.time.Instant
 
 @DisplayName("SecurityAuthResolver Unit Tests")
 class SecurityAuthResolverTest {

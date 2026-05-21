@@ -1,31 +1,38 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
+import io.github.salomax.neotool.banking.client.assets.BillImportAssetStorage
+import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedProducer
+import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
+import io.github.salomax.neotool.banking.domain.billimport.BillImportJobStatus
+import io.github.salomax.neotool.banking.domain.billimport.BillImportMatchCandidate
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewTransaction
+import io.github.salomax.neotool.banking.domain.billimport.DateRange
+import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
+import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
-import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
-import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.client.assets.BillImportAssetStorage
-import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedProducer
-import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
-import io.github.salomax.neotool.common.error.BusinessRuleException
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.DomainException
@@ -39,7 +46,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.UUID
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
 
 private const val MAX_PDF_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 private const val RECORD_TYPE_CARD_SUMMARY = "PDF_CARD_SUMMARY"
@@ -122,7 +128,7 @@ open class BillImportService(
                 fileBytes = fileBytes,
                 password = password,
                 existing = existing,
-            )
+            ),
         )
     }
 
@@ -316,6 +322,7 @@ open class BillImportService(
                 val cycleAnchor = card.closingDate
                 var cardBillIdResolved = false
                 var cardBillId: UUID? = null
+
                 fun resolveCardBillId(): UUID? {
                     if (!cardBillIdResolved) {
                         cardBillId =
@@ -430,7 +437,7 @@ open class BillImportService(
                                     importFingerprintService.isDuplicateForBill(financialAccountId, billId, fingerprint)
                                 } else {
                                     importFingerprintService.isDuplicate(financialAccountId, fingerprint)
-                            }
+                                }
                             if (duplicate) return@forEach
 
                             val suggestion =
@@ -454,16 +461,18 @@ open class BillImportService(
                                 }
                             val (effectiveCategoryId, effectiveCategorySource, shouldLearnImplicitRule) =
                                 when {
-                                    tx.categorySource == CategorySource.MANUAL && tx.categoryId != null -> Triple(
-                                        tx.categoryId,
-                                        CategorySource.MANUAL,
-                                        true,
-                                    )
-                                    tx.categorySource == CategorySource.RULE && tx.categoryId != null -> Triple(
-                                        tx.categoryId,
-                                        CategorySource.RULE,
-                                        false,
-                                    )
+                                    tx.categorySource == CategorySource.MANUAL && tx.categoryId != null ->
+                                        Triple(
+                                            tx.categoryId,
+                                            CategorySource.MANUAL,
+                                            true,
+                                        )
+                                    tx.categorySource == CategorySource.RULE && tx.categoryId != null ->
+                                        Triple(
+                                            tx.categoryId,
+                                            CategorySource.RULE,
+                                            false,
+                                        )
                                     tx.categoryId == null -> {
                                         // Empty category => re-run rules on confirm (CAT-11 idempotency).
                                         Triple(
@@ -741,7 +750,12 @@ open class BillImportService(
                                 if (tx.isBillPayment) {
                                     tx.copy(categoryId = null, categorySource = null)
                                 } else {
-                                    val suggestion = categorizationService.suggestFromRules(rules, tx.description, tx.creditDebitType)
+                                    val suggestion =
+                                        categorizationService.suggestFromRules(
+                                            rules,
+                                            tx.description,
+                                            tx.creditDebitType,
+                                        )
                                     tx.copy(
                                         categoryId = suggestion?.categoryId,
                                         categorySource = suggestion?.let { CategorySource.RULE },
@@ -950,7 +964,10 @@ open class BillImportService(
                     val lastFour = normalizeLastFourDigits(record["card_last_four_digits"]?.toString().orEmpty())
                     val reviewCardId = record["review_card_id"]?.toString()?.takeIf { it.isNotBlank() }
                     val key = reviewCardId ?: lastFour.ifBlank { "__unknown_summary_$index" }
-                    val card = cards.getOrPut(key) { CanonicalCardAccumulator(reviewCardId = key, lastFourDigits = lastFour.ifBlank { null }) }
+                    val card =
+                        cards.getOrPut(key) {
+                            CanonicalCardAccumulator(reviewCardId = key, lastFourDigits = lastFour.ifBlank { null })
+                        }
                     card.reviewCardId = key
                     card.lastFourDigits = lastFour
                     card.declaredTotal = record["declared_total"].toBigDecimalOrNull() ?: card.declaredTotal
@@ -967,7 +984,10 @@ open class BillImportService(
                     val lastFour = normalizeLastFourDigits(record["card_last_four_digits"]?.toString().orEmpty())
                     val reviewCardId = record["review_card_id"]?.toString()?.takeIf { it.isNotBlank() }
                     val key = reviewCardId ?: lastFour.ifBlank { "__unknown_tx_$index" }
-                    val card = cards.getOrPut(key) { CanonicalCardAccumulator(reviewCardId = key, lastFourDigits = lastFour.ifBlank { null }) }
+                    val card =
+                        cards.getOrPut(key) {
+                            CanonicalCardAccumulator(reviewCardId = key, lastFourDigits = lastFour.ifBlank { null })
+                        }
                     card.reviewCardId = key
                     val transaction =
                         BillImportReviewTransaction(

@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.service.import.parser.*
-import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.DisplayName

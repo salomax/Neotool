@@ -1,24 +1,26 @@
 package io.github.salomax.neotool.banking.service.import
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
-import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
-import io.github.salomax.neotool.banking.model.dto.imports.ImportRowError
-import io.github.salomax.neotool.banking.shared.DateWindowPolicy
-import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
-import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
-import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
-import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
-import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.import.ImportJob
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
+import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
+import io.github.salomax.neotool.banking.model.dto.imports.ImportRowError
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
+import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
 import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal
@@ -38,7 +40,8 @@ private fun ImportSource.toTransactionSource(): TransactionSource =
         ImportSource.CSV_NUBANK,
         ImportSource.CSV_ITAU,
         ImportSource.CSV_BRADESCO,
-        ImportSource.CSV_SANTANDER -> TransactionSource.CSV
+        ImportSource.CSV_SANTANDER,
+        -> TransactionSource.CSV
         ImportSource.NFC_E -> TransactionSource.NFC_E
         ImportSource.RECEIPT_OCR -> TransactionSource.RECEIPT_OCR
         else -> TransactionSource.MANUAL // AUTO: format not yet determined
@@ -58,6 +61,7 @@ open class ImportProcessor(
     private val userRuleApplicationModeService: UserRuleApplicationModeService,
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
+
     /**
      * Processes each row: Level 1 (provider id) skip, Level 1b (fingerprint) skip,
      * Level 2 (cross-source) → duplicateCandidates without insert, else save.
@@ -103,7 +107,8 @@ open class ImportProcessor(
                     categorizationService.preloadRules(accountId)
                 } catch (e: Exception) {
                     logger.warn(
-                        "Failed to preload category rules; import will continue without auto-categorization (accountId={})",
+                        "Failed to preload category rules; import will continue without " +
+                            "auto-categorization (accountId={})",
                         accountId,
                         e,
                     )
@@ -208,7 +213,8 @@ open class ImportProcessor(
                             )
                         } catch (e: Exception) {
                             logger.warn(
-                                "Auto-categorization failed for import row; continuing without category (accountId={}, rowIndex={})",
+                                "Auto-categorization failed for import row; continuing without category " +
+                                    "(accountId={}, rowIndex={})",
                                 accountId,
                                 index,
                                 e,

@@ -5,7 +5,6 @@ import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
-import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
@@ -277,7 +276,10 @@ class PortfolioRecalculationService(
         )
     }
 
-    private fun buildTechnicalDetail(cause: Throwable?, maxLen: Int = 2000): String? {
+    private fun buildTechnicalDetail(
+        cause: Throwable?,
+        maxLen: Int = 2000,
+    ): String? {
         if (cause == null) return null
         val root = generateSequence(cause) { it.cause }.lastOrNull() ?: return null
         val raw = "${root.javaClass.simpleName}: ${root.message ?: ""}".trim()
@@ -289,7 +291,8 @@ class PortfolioRecalculationService(
             indicatorRateProvider.getLatestRates()
         } catch (e: Exception) {
             logger.warn(e) {
-                "Failed to fetch indicator rates — fixed income valuations will fall back to averageCost where applicable"
+                "Failed to fetch indicator rates — fixed income valuations will fall back to " +
+                    "averageCost where applicable"
             }
             emptyMap()
         }
@@ -308,7 +311,8 @@ class PortfolioRecalculationService(
                 indicatorRateProvider.getMonthlySeriesRange(indexer, from, today)
             } catch (e: Exception) {
                 logger.warn(e) {
-                    "Failed to fetch monthly series for indexer=$indexer — that indexer will use averageCost fallback in recalculation"
+                    "Failed to fetch monthly series for indexer=$indexer — that indexer will use " +
+                        "averageCost fallback in recalculation"
                 }
                 emptyList()
             }
@@ -320,7 +324,8 @@ class PortfolioRecalculationService(
         private const val PORTFOLIO_EVENT_SOURCE_BANKING_TRANSACTION = "BANKING_TRANSACTION"
 
         /** Stable identity for this JVM instance — in k8s this resolves to the pod name. */
-        val NODE_ID: String = runCatching { InetAddress.getLocalHost().hostName }
-            .getOrDefault(UUID.randomUUID().toString())
+        val NODE_ID: String =
+            runCatching { InetAddress.getLocalHost().hostName }
+                .getOrDefault(UUID.randomUUID().toString())
     }
 }

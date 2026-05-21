@@ -3,11 +3,11 @@ package io.github.salomax.neotool.banking.domain.billimport
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.databind.PropertyNamingStrategies
 import com.fasterxml.jackson.databind.annotation.JsonNaming
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
-import java.util.UUID
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import java.math.BigDecimal
 import java.time.LocalDate
+import java.util.UUID
 
 @JsonIgnoreProperties(ignoreUnknown = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)

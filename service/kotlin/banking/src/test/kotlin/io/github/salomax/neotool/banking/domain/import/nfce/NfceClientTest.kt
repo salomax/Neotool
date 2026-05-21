@@ -1,8 +1,10 @@
 package io.github.salomax.neotool.banking.domain.import.nfce
 
-import io.github.salomax.neotool.banking.service.import.nfce.*
-import io.github.salomax.neotool.banking.client.import.nfce.*
-import io.github.salomax.neotool.banking.service.import.*
+import io.github.salomax.neotool.banking.client.import.nfce.NfceHttpFetcher
+import io.github.salomax.neotool.banking.client.import.nfce.NfceHttpResponse
+import io.github.salomax.neotool.banking.client.import.nfce.NfceInvalidException
+import io.github.salomax.neotool.banking.client.import.nfce.NfceUnavailableException
+import io.github.salomax.neotool.banking.service.import.nfce.DefaultNfceClient
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

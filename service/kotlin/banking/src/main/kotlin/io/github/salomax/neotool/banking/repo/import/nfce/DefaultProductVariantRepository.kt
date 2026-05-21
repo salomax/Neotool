@@ -31,7 +31,10 @@ open class DefaultProductVariantRepository(
         if (productIds.isEmpty()) {
             emptyList()
         } else {
-            entityRepository.findByProductIdInAndAccountIdOrderByNameAsc(productIds, accountId).map(ProductVariantMapper::toDomain)
+            entityRepository.findByProductIdInAndAccountIdOrderByNameAsc(
+                productIds,
+                accountId,
+            ).map(ProductVariantMapper::toDomain)
         }
 
     override fun search(

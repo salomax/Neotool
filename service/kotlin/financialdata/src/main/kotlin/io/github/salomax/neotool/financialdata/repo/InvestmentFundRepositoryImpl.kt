@@ -26,7 +26,6 @@ import java.util.UUID
 open class InvestmentFundRepositoryImpl(
     private val entityManager: EntityManager,
 ) : InvestmentFundRepositoryCustom {
-
     // -------------------------------------------------------------------------
     // Autocomplete
     // -------------------------------------------------------------------------
@@ -36,7 +35,8 @@ open class InvestmentFundRepositoryImpl(
         query: String,
         limit: Int,
     ): List<InvestmentFund> {
-        val sql = """
+        val sql =
+            """
             WITH params AS (
                 SELECT
                     financial_data.normalize_fund_search_text(?::text) AS normalized_query,
@@ -77,7 +77,7 @@ open class InvestmentFundRepositoryImpl(
                 sim_score DESC,
                 ia.name ASC
             LIMIT ?
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         q.setParameter(1, query)
@@ -112,8 +112,8 @@ open class InvestmentFundRepositoryImpl(
         val likePattern = if (hasQuery) "%$query%" else null
         var p = 1
         if (hasQuery) {
-            q.setParameter(p++, query)        // SELECT similarity(name, ?)
-            q.setParameter(p++, likePattern)  // WHERE name ILIKE ?
+            q.setParameter(p++, query) // SELECT similarity(name, ?)
+            q.setParameter(p++, likePattern) // WHERE name ILIKE ?
         }
         if (hasAssetType) q.setParameter(p++, assetType)
         if (hasIsActive) q.setParameter(p++, isActive)
@@ -122,15 +122,15 @@ open class InvestmentFundRepositoryImpl(
             val cursorId = after.id
             if (hasQuery) {
                 val cursorSim = (after.fieldValues["simScore"] as? Number)?.toDouble() ?: 1.0
-                q.setParameter(p++, cursorSim)   // sim_score < ?
-                q.setParameter(p++, cursorSim)   // sim_score = ?
-                q.setParameter(p++, cursorName)  // name > ?
-                q.setParameter(p++, cursorName)  // name = ?
-                q.setParameter(p, cursorId)      // id > ?
+                q.setParameter(p++, cursorSim) // sim_score < ?
+                q.setParameter(p++, cursorSim) // sim_score = ?
+                q.setParameter(p++, cursorName) // name > ?
+                q.setParameter(p++, cursorName) // name = ?
+                q.setParameter(p, cursorId) // id > ?
             } else {
-                q.setParameter(p++, cursorName)  // name > ?
-                q.setParameter(p++, cursorName)  // name = ?
-                q.setParameter(p, cursorId)      // id > ?
+                q.setParameter(p++, cursorName) // name > ?
+                q.setParameter(p++, cursorName) // name = ?
+                q.setParameter(p, cursorId) // id > ?
             }
         }
         q.setMaxResults(first)
@@ -138,10 +138,11 @@ open class InvestmentFundRepositoryImpl(
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
         val totalCount = (rows.firstOrNull()?.get(9) as? Number)?.toLong() ?: 0L
-        val funds = rows.map { row ->
-            val simScore = (row[5] as? Number)?.toDouble() ?: 0.0
-            mapFundRow(row, includeNav = true, simScore = simScore)
-        }
+        val funds =
+            rows.map { row ->
+                val simScore = (row[5] as? Number)?.toDouble() ?: 0.0
+                mapFundRow(row, includeNav = true, simScore = simScore)
+            }
         return Pair(funds, totalCount)
     }
 
@@ -151,11 +152,12 @@ open class InvestmentFundRepositoryImpl(
         hasIsActive: Boolean,
         hasCursor: Boolean,
     ): String {
-        val similaritySelect = if (hasQuery) {
-            "financial_data.similarity(ia.name, ?::text) AS sim_score,"
-        } else {
-            "0.0 AS sim_score,"
-        }
+        val similaritySelect =
+            if (hasQuery) {
+                "financial_data.similarity(ia.name, ?::text) AS sim_score,"
+            } else {
+                "0.0 AS sim_score,"
+            }
 
         val queryFilter = if (hasQuery) "AND ia.name ILIKE ?" else ""
         val assetTypeFilter = if (hasAssetType) "AND ia.asset_type = ?" else ""
@@ -164,19 +166,23 @@ open class InvestmentFundRepositoryImpl(
         // Cursor filter matches the ORDER BY direction:
         //   hasQuery=true  → ORDER BY sim_score DESC, name ASC, id ASC
         //   hasQuery=false → ORDER BY name ASC, id ASC
-        val cursorFilter = if (hasCursor) {
-            if (hasQuery) {
-                "AND (sim_score < ? OR (sim_score = ? AND (ia.name > ? OR (ia.name = ? AND ia.id::text > ?))))"
+        val cursorFilter =
+            if (hasCursor) {
+                if (hasQuery) {
+                    "AND (sim_score < ? OR (sim_score = ? AND (ia.name > ? OR (ia.name = ? AND ia.id::text > ?))))"
+                } else {
+                    "AND (ia.name > ? OR (ia.name = ? AND ia.id::text > ?))"
+                }
             } else {
-                "AND (ia.name > ? OR (ia.name = ? AND ia.id::text > ?))"
+                ""
             }
-        } else ""
 
-        val orderBy = if (hasQuery) {
-            "ORDER BY sim_score DESC, ia.name ASC, ia.id ASC"
-        } else {
-            "ORDER BY ia.name ASC, ia.id ASC"
-        }
+        val orderBy =
+            if (hasQuery) {
+                "ORDER BY sim_score DESC, ia.name ASC, ia.id ASC"
+            } else {
+                "ORDER BY ia.name ASC, ia.id ASC"
+            }
 
         return """
             SELECT
@@ -205,7 +211,7 @@ open class InvestmentFundRepositoryImpl(
               $isActiveFilter
               $cursorFilter
             $orderBy
-        """.trimIndent()
+            """.trimIndent()
     }
 
     // -------------------------------------------------------------------------
@@ -214,7 +220,8 @@ open class InvestmentFundRepositoryImpl(
 
     @ReadOnly
     override fun findFundById(id: UUID): InvestmentFund? {
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.name,
@@ -234,7 +241,7 @@ open class InvestmentFundRepositoryImpl(
                 LIMIT 1
             ) nav ON true
             WHERE ia.id = ?::uuid
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         q.setParameter(1, id.toString())
@@ -259,7 +266,8 @@ open class InvestmentFundRepositoryImpl(
         val toFilter = if (to != null) "AND price_date <= ?" else ""
         val limit = last ?: 365
 
-        val sql = """
+        val sql =
+            """
             SELECT price_date, close_price, volume
             FROM financial_data.asset_daily_price
             WHERE asset_id = ?::uuid
@@ -267,7 +275,7 @@ open class InvestmentFundRepositoryImpl(
               $toFilter
             ORDER BY price_date DESC
             LIMIT ?
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         var p = 1
@@ -297,7 +305,8 @@ open class InvestmentFundRepositoryImpl(
     ): List<FundDailyNav> {
         if (from.isAfter(to)) return emptyList()
 
-        val sql = """
+        val sql =
+            """
             SELECT adp.price_date, adp.close_price, adp.volume
             FROM financial_data.investment_asset ia
             INNER JOIN financial_data.asset_daily_price adp ON adp.asset_id = ia.id
@@ -307,7 +316,7 @@ open class InvestmentFundRepositoryImpl(
               AND adp.price_date <= ?
             ORDER BY adp.price_date ASC
             LIMIT 20000
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         q.setParameter(1, normalizedCnpj)
@@ -331,7 +340,8 @@ open class InvestmentFundRepositoryImpl(
         if (normalized.isEmpty()) return emptyList()
 
         val placeholders = normalized.indices.joinToString(", ") { "?" }
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.fund_cnpj,
                 ia.asset_type,
@@ -348,7 +358,7 @@ open class InvestmentFundRepositoryImpl(
             ) nav ON true
             WHERE ia.source = 'CVM'
               AND ia.fund_cnpj IN ($placeholders)
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         normalized.forEachIndexed { index, cnpj -> q.setParameter(index + 1, cnpj) }
@@ -362,15 +372,16 @@ open class InvestmentFundRepositoryImpl(
                 cnpj = row[0] as String,
                 assetType = row[1] as String,
                 taxProfile = taxProfileFor(row[1] as String),
-                latestNav = if (navDate != null && navClose != null) {
-                    FundDailyNav(
-                        date = navDate.toLocalDate(),
-                        closePrice = navClose,
-                        totalNetAssets = row[4] as? BigDecimal,
-                    )
-                } else {
-                    null
-                },
+                latestNav =
+                    if (navDate != null && navClose != null) {
+                        FundDailyNav(
+                            date = navDate.toLocalDate(),
+                            closePrice = navClose,
+                            totalNetAssets = row[4] as? BigDecimal,
+                        )
+                    } else {
+                        null
+                    },
             )
         }
     }
@@ -390,7 +401,8 @@ open class InvestmentFundRepositoryImpl(
         val hasCursor = after != null
         val cnpjPlaceholders = normalizedCnpjs?.indices?.joinToString(", ") { "?" }.orEmpty()
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.fund_cnpj,
@@ -407,14 +419,15 @@ open class InvestmentFundRepositoryImpl(
               ${if (hasCnpjs) "AND ia.fund_cnpj IN ($cnpjPlaceholders)" else ""}
               ${if (hasUpdatedSince) "AND adp.created_at >= ?" else ""}
               ${
-            if (hasCursor) {
-                "AND (adp.price_date > ? OR (adp.price_date = ? AND (ia.fund_cnpj > ? OR (ia.fund_cnpj = ? AND ia.id::text > ?))))"
-            } else {
-                ""
+                if (hasCursor) {
+                    "AND (adp.price_date > ? OR (adp.price_date = ? AND " +
+                        "(ia.fund_cnpj > ? OR (ia.fund_cnpj = ? AND ia.id::text > ?))))"
+                } else {
+                    ""
+                }
             }
-        }
             ORDER BY adp.price_date ASC, ia.fund_cnpj ASC, ia.id ASC
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         var index = 1
@@ -460,19 +473,28 @@ open class InvestmentFundRepositoryImpl(
      *                                   nav_total_net_assets(8)
      * searchFunds adds total_count(9) via COUNT(*) OVER() — extracted separately before calling this.
      */
-    private fun mapFundRow(row: Array<Any?>, includeNav: Boolean, simScore: Double = 0.0): InvestmentFund {
-        val latestNav = if (includeNav) {
-            val navDate = row[6] as? java.sql.Date
-            val navClose = row[7] as? BigDecimal
-            if (navDate != null && navClose != null) {
-                FundDailyNav(
-                    date = navDate.toLocalDate(),
-                    closePrice = navClose,
-                    // volume stores CVM's VL_TOTAL (total net assets), not trading volume.
-                    totalNetAssets = row[8] as? BigDecimal,
-                )
-            } else null
-        } else null
+    private fun mapFundRow(
+        row: Array<Any?>,
+        includeNav: Boolean,
+        simScore: Double = 0.0,
+    ): InvestmentFund {
+        val latestNav =
+            if (includeNav) {
+                val navDate = row[6] as? java.sql.Date
+                val navClose = row[7] as? BigDecimal
+                if (navDate != null && navClose != null) {
+                    FundDailyNav(
+                        date = navDate.toLocalDate(),
+                        closePrice = navClose,
+                        // volume stores CVM's VL_TOTAL (total net assets), not trading volume.
+                        totalNetAssets = row[8] as? BigDecimal,
+                    )
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
 
         return InvestmentFund(
             id = UUID.fromString(row[0] as String),

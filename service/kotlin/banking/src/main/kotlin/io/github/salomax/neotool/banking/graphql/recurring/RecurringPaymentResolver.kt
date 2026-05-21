@@ -27,9 +27,10 @@ class RecurringPaymentResolver(
         principal: RequestPrincipal,
     ): List<RecurringPaymentDTO> {
         val accountId = requireAccountId(principal)
-        val parsedFinancialAccountId = financialAccountId?.takeIf { it.isNotBlank() }?.let {
-            parseUuid(it, "financialAccountId")
-        }
+        val parsedFinancialAccountId =
+            financialAccountId?.takeIf { it.isNotBlank() }?.let {
+                parseUuid(it, "financialAccountId")
+            }
         return recurringPaymentCommandService
             .listRecurringPayments(accountId, parsedFinancialAccountId)
             .map { it.toDto(accountId) }
@@ -72,7 +73,11 @@ class RecurringPaymentResolver(
         val accountId = requireAccountId(principal)
         val recurringPaymentId = parseUuid(id, "id")
         val command = RecurringPaymentInputParsing.parseUpdateInput(input)
-        return recurringPaymentCommandService.updateRecurringPayment(accountId, recurringPaymentId, command).toDto(accountId)
+        return recurringPaymentCommandService.updateRecurringPayment(
+            accountId,
+            recurringPaymentId,
+            command,
+        ).toDto(accountId)
     }
 
     fun pauseRecurringPayment(

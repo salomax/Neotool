@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.excel
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
 
 data class DeterministicExcelReaderInput(

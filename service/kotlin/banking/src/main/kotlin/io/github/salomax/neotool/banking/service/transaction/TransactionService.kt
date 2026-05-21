@@ -1,26 +1,40 @@
 package io.github.salomax.neotool.banking.service.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.*
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.transaction.BillStatus
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
+import io.github.salomax.neotool.banking.domain.transaction.CreateTransactionOutcome
+import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
+import io.github.salomax.neotool.banking.domain.transaction.TagTotal
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
+import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.transaction.SimilarTransactionEditPreview
 import io.github.salomax.neotool.banking.model.dto.transaction.SimilarTransactionEditResult
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
-import io.github.salomax.neotool.banking.shared.DateWindowPolicy
-import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.client.transaction.security.AccountMembershipValidationPort
-import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.shared.DateWindowPolicy
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
-import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
-import io.github.salomax.neotool.banking.service.account.FinancialAccountGuard
 import io.github.salomax.neotool.common.graphql.pagination.Connection
 import io.github.salomax.neotool.common.graphql.pagination.CursorEncoder
 import io.github.salomax.neotool.common.graphql.pagination.Edge
@@ -28,11 +42,11 @@ import io.github.salomax.neotool.common.graphql.pagination.PageInfo
 import io.github.salomax.neotool.common.graphql.pagination.PaginationConstants
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
-import org.slf4j.LoggerFactory
 
 /**
  * Domain service for [Transaction] and [TransactionCategory] operations.
@@ -189,7 +203,8 @@ open class TransactionService(
         val paginationFinishedAt = System.nanoTime()
         if (logger.isDebugEnabled) {
             logger.debug(
-                "transactions.service timings accountId={} offset={} limit={} rows={} totalCount={} normalizeMs={} setupMs={} categoryFilterMs={} repoMs={} paginationMs={} totalMs={}",
+                "transactions.service timings accountId={} offset={} limit={} rows={} totalCount={} " +
+                    "normalizeMs={} setupMs={} categoryFilterMs={} repoMs={} paginationMs={} totalMs={}",
                 accountId,
                 startIndex,
                 pageSize,
@@ -481,7 +496,8 @@ open class TransactionService(
                     )
                 } catch (e: Exception) {
                     logger.warn(
-                        "Rule engine suggestion failed; continuing without suggestion (accountId={}, txType={}, descriptionLength={})",
+                        "Rule engine suggestion failed; continuing without suggestion " +
+                            "(accountId={}, txType={}, descriptionLength={})",
                         accountId,
                         command.creditDebitType,
                         command.description.length,
@@ -617,8 +633,7 @@ open class TransactionService(
         command: CreateTransactionCommand,
         accountId: UUID,
         userId: UUID,
-    ): Transaction =
-        createTransactionOutcome(command, accountId, userId).transaction
+    ): Transaction = createTransactionOutcome(command, accountId, userId).transaction
 
     @Transactional
     open fun update(
@@ -704,10 +719,10 @@ open class TransactionService(
             try {
                 learnedRuleId =
                     transactionRuleEngine.learnFromManualAssignment(
-                    accountId = accountId,
-                    description = existing.description,
-                    categoryId = if (categoryChanged) command.categoryId else effectiveCategoryId,
-                    merchantId = if (merchantChanged) command.merchantId else existing.merchantId,
+                        accountId = accountId,
+                        description = existing.description,
+                        categoryId = if (categoryChanged) command.categoryId else effectiveCategoryId,
+                        merchantId = if (merchantChanged) command.merchantId else existing.merchantId,
                     )
             } catch (e: Exception) {
                 // Learning failure must not fail the update
@@ -776,7 +791,8 @@ open class TransactionService(
                         )
                     } catch (e: Exception) {
                         logger.warn(
-                            "Rule engine suggestion failed; continuing without enrichment (accountId={}, txType={}, descriptionLength={})",
+                            "Rule engine suggestion failed; continuing without enrichment " +
+                                "(accountId={}, txType={}, descriptionLength={})",
                             accountId,
                             enriched.creditDebitType,
                             descriptionForRules.length,
@@ -787,10 +803,11 @@ open class TransactionService(
 
                 if (suggestion != null) {
                     if (canApplyCategory && suggestion.categoryId != null) {
-                        enriched = enriched.copy(
-                            categoryId = suggestion.categoryId,
-                            categorySource = CategorySource.RULE,
-                        )
+                        enriched =
+                            enriched.copy(
+                                categoryId = suggestion.categoryId,
+                                categorySource = CategorySource.RULE,
+                            )
                         appliedCategoryFromSuggestion = true
                     }
                     if (canApplyMerchant && suggestion.merchantId != null) {
@@ -818,7 +835,7 @@ open class TransactionService(
                     if (appendedRuleIds.isNotEmpty()) {
                         appendedRuleHistory =
                             existing.appliedRuleHistory +
-                                AppliedRuleAuditSupport.buildEntries(appendedRuleIds, updateTimestamp)
+                            AppliedRuleAuditSupport.buildEntries(appendedRuleIds, updateTimestamp)
                     }
                 }
             }
@@ -1286,8 +1303,7 @@ open class TransactionService(
         accountId: UUID,
         description: String?,
         creditDebitType: CreditDebitType,
-    ): RuleSuggestion? =
-        transactionRuleEngine.suggest(accountId, description, creditDebitType)
+    ): RuleSuggestion? = transactionRuleEngine.suggest(accountId, description, creditDebitType)
 
     private fun Transaction.baseDescription(): String =
         descriptionRaw?.trim()?.takeIf { it.isNotEmpty() } ?: description

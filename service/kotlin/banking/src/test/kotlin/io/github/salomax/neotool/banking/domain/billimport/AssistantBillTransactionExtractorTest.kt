@@ -1,10 +1,6 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
-import io.github.salomax.neotool.banking.service.billimport.*
-import io.github.salomax.neotool.banking.domain.billimport.AssistantBillExtractionMeta
 import io.github.salomax.neotool.banking.service.billimport.AssistantBillTransactionExtractor
-import io.github.salomax.neotool.banking.domain.billimport.AssistantBillCardBlock
-import io.github.salomax.neotool.banking.domain.billimport.AssistantBillTransactionPattern
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
@@ -28,10 +24,19 @@ class AssistantBillTransactionExtractorTest {
         val meta =
             tableCardMeta(
                 closingDate = "2026-02-28",
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = "1234", declaredTotal = 85.99, anchorStart = "Cartão Final 1234"),
-                    AssistantBillCardBlock(lastFour = "5678", declaredTotal = 19.90, anchorStart = "Cartão Final 5678"),
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "1234",
+                            declaredTotal = 85.99,
+                            anchorStart = "Cartão Final 1234",
+                        ),
+                        AssistantBillCardBlock(
+                            lastFour = "5678",
+                            declaredTotal = 19.90,
+                            anchorStart = "Cartão Final 5678",
+                        ),
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -62,9 +67,14 @@ class AssistantBillTransactionExtractorTest {
         val meta =
             tableCardMeta(
                 closingDate = "2026-02-28",
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = "9999", declaredTotal = null, anchorStart = "Cartão Final 9999"),
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "9999",
+                            declaredTotal = null,
+                            anchorStart = "Cartão Final 9999",
+                        ),
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -79,9 +89,14 @@ class AssistantBillTransactionExtractorTest {
         val meta =
             tableCardMeta(
                 closingDate = "2026-02-28",
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "THIS ANCHOR DOES NOT EXIST"),
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "1234",
+                            declaredTotal = null,
+                            anchorStart = "THIS ANCHOR DOES NOT EXIST",
+                        ),
+                    ),
             )
 
         val result = extractor.extract("some text without anchor", meta)
@@ -104,9 +119,14 @@ class AssistantBillTransactionExtractorTest {
         val meta =
             tableCardMeta(
                 closingDate = "2026-02-01",
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "Cartão Final 1234"),
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "1234",
+                            declaredTotal = null,
+                            anchorStart = "Cartão Final 1234",
+                        ),
+                    ),
                 installmentPattern = """(\d{1,2})/(\d{1,2})""",
             )
 
@@ -136,16 +156,22 @@ class AssistantBillTransactionExtractorTest {
                 closingDate = "2026-02-28",
                 dueDate = "2026-03-15",
                 declaredTotal = null,
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = null, declaredTotal = null, anchorStart = "Compras no Crédito"),
-                ),
-                transactionPattern = AssistantBillTransactionPattern(
-                    dateFormat = "DD_MMM",
-                    lastFourPattern = """[^\w\s]+\s*(\d{4})""",
-                    currencySymbols = listOf("R$"),
-                    decimalSeparator = "comma",
-                    installmentPattern = null,
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = null,
+                            declaredTotal = null,
+                            anchorStart = "Compras no Crédito",
+                        ),
+                    ),
+                transactionPattern =
+                    AssistantBillTransactionPattern(
+                        dateFormat = "DD_MMM",
+                        lastFourPattern = """[^\w\s]+\s*(\d{4})""",
+                        currencySymbols = listOf("R$"),
+                        decimalSeparator = "comma",
+                        installmentPattern = null,
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -180,13 +206,14 @@ class AssistantBillTransactionExtractorTest {
                 dueDate = "2025-10-14",
                 declaredTotal = 416.11,
                 cardBlocks = emptyList(),
-                transactionPattern = AssistantBillTransactionPattern(
-                    dateFormat = "DD_MMM",
-                    lastFourPattern = """\*{4}(\d{4})""",
-                    currencySymbols = listOf("R$"),
-                    decimalSeparator = "comma",
-                    installmentPattern = """(\d{1,2})/(\d{1,2})""",
-                ),
+                transactionPattern =
+                    AssistantBillTransactionPattern(
+                        dateFormat = "DD_MMM",
+                        lastFourPattern = """\*{4}(\d{4})""",
+                        currencySymbols = listOf("R$"),
+                        decimalSeparator = "comma",
+                        installmentPattern = """(\d{1,2})/(\d{1,2})""",
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -225,13 +252,14 @@ class AssistantBillTransactionExtractorTest {
         val meta =
             tableCardMeta(
                 closingDate = "2026-02-12",
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(
-                        lastFour = "2945",
-                        declaredTotal = 151.25,
-                        anchorStart = "MARCIO ANTUNES DA ROCHA - 5428 XXXX XXXX 2945",
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "2945",
+                            declaredTotal = 151.25,
+                            anchorStart = "MARCIO ANTUNES DA ROCHA - 5428 XXXX XXXX 2945",
+                        ),
                     ),
-                ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -268,13 +296,14 @@ class AssistantBillTransactionExtractorTest {
                 dueDate = "2025-10-14",
                 declaredTotal = null,
                 cardBlocks = emptyList(),
-                transactionPattern = AssistantBillTransactionPattern(
-                    dateFormat = "DD_MMM",
-                    lastFourPattern = """\*{4}(\d{4})""",
-                    currencySymbols = listOf("R$"),
-                    decimalSeparator = "comma",
-                    installmentPattern = null,
-                ),
+                transactionPattern =
+                    AssistantBillTransactionPattern(
+                        dateFormat = "DD_MMM",
+                        lastFourPattern = """\*{4}(\d{4})""",
+                        currencySymbols = listOf("R$"),
+                        decimalSeparator = "comma",
+                        installmentPattern = null,
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -288,24 +317,38 @@ class AssistantBillTransactionExtractorTest {
 
     @Test
     fun `BRL transaction has currency_code BRL`() {
-        val rawText = """
+        val rawText =
+            """
             Cartão Final 1234
             10/02 SPOTIFY R${'$'} 21,90
-        """.trimIndent()
+            """.trimIndent()
         val tx = extractor.extract(rawText, simpleTableMeta("2026-02-28")).cards[0].transactions[0]
         assertThat(tx.currencyCode).isEqualTo("BRL")
     }
 
     @Test
     fun `USD transaction has currency_code USD`() {
-        val rawText = """
+        val rawText =
+            """
             Cartão Final 1234
             15/01 NETFLIX.COM US${'$'} 15,49
-        """.trimIndent()
-        val meta = tableCardMeta(
-            closingDate = "2026-02-28",
-            cardBlocks = listOf(AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "Cartão Final 1234")),
-        ).let { it.copy(transactionPattern = it.transactionPattern.copy(currencySymbols = listOf("R$", "US$"))) }
+            """.trimIndent()
+        val meta =
+            tableCardMeta(
+                closingDate = "2026-02-28",
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "1234",
+                            declaredTotal = null,
+                            anchorStart = "Cartão Final 1234",
+                        ),
+                    ),
+            ).let {
+                it.copy(
+                    transactionPattern = it.transactionPattern.copy(currencySymbols = listOf("R$", "US$")),
+                )
+            }
         val tx = extractor.extract(rawText, meta).cards[0].transactions[0]
         assertThat(tx.currencyCode).isEqualTo("USD")
         assertThat(tx.amount).isEqualTo(15.49)
@@ -374,17 +417,27 @@ class AssistantBillTransactionExtractorTest {
                 closingDate = "2026-02-01",
                 dueDate = "2026-02-15",
                 declaredTotal = null,
-                cardBlocks = listOf(
-                    AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "Cartão Final 1234"),
-                    AssistantBillCardBlock(lastFour = "5678", declaredTotal = null, anchorStart = "Cartão Final 5678"),
-                ),
-                transactionPattern = AssistantBillTransactionPattern(
-                    dateFormat = "DD_MMM",
-                    lastFourPattern = null,
-                    currencySymbols = listOf("R$"),
-                    decimalSeparator = "comma",
-                    installmentPattern = """(\d{1,2})/(\d{1,2})""",
-                ),
+                cardBlocks =
+                    listOf(
+                        AssistantBillCardBlock(
+                            lastFour = "1234",
+                            declaredTotal = null,
+                            anchorStart = "Cartão Final 1234",
+                        ),
+                        AssistantBillCardBlock(
+                            lastFour = "5678",
+                            declaredTotal = null,
+                            anchorStart = "Cartão Final 5678",
+                        ),
+                    ),
+                transactionPattern =
+                    AssistantBillTransactionPattern(
+                        dateFormat = "DD_MMM",
+                        lastFourPattern = null,
+                        currencySymbols = listOf("R$"),
+                        decimalSeparator = "comma",
+                        installmentPattern = """(\d{1,2})/(\d{1,2})""",
+                    ),
             )
 
         val result = extractor.extract(rawText, meta)
@@ -415,20 +468,22 @@ class AssistantBillTransactionExtractorTest {
             dueDate = "2026-03-15",
             declaredTotal = null,
             cardBlocks = cardBlocks,
-            transactionPattern = AssistantBillTransactionPattern(
-                dateFormat = "DD_MM",
-                lastFourPattern = null,
-                currencySymbols = listOf("R$"),
-                decimalSeparator = "comma",
-                installmentPattern = installmentPattern,
-            ),
+            transactionPattern =
+                AssistantBillTransactionPattern(
+                    dateFormat = "DD_MM",
+                    lastFourPattern = null,
+                    currencySymbols = listOf("R$"),
+                    decimalSeparator = "comma",
+                    installmentPattern = installmentPattern,
+                ),
         )
 
     private fun simpleTableMeta(closingDate: String): AssistantBillExtractionMeta =
         tableCardMeta(
             closingDate = closingDate,
-            cardBlocks = listOf(
-                AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "Cartão Final 1234"),
-            ),
+            cardBlocks =
+                listOf(
+                    AssistantBillCardBlock(lastFour = "1234", declaredTotal = null, anchorStart = "Cartão Final 1234"),
+                ),
         )
 }

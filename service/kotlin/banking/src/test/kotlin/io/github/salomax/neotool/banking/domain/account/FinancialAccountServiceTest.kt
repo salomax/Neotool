@@ -1,24 +1,23 @@
 package io.github.salomax.neotool.banking.domain.account
 
+import io.github.salomax.neotool.banking.domain.issuer.Issuer
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.account.BankDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
 import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.UpdateField
 import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.issuer.IssuerRepository
 import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionEntityRepository
-import io.github.salomax.neotool.banking.service.account.*
-import io.github.salomax.neotool.banking.service.transaction.*
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.service.transaction.TransactionService
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.domain.issuer.Issuer
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.NotFoundException
 import io.github.salomax.neotool.common.error.ValidationException
@@ -213,7 +212,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `create multi-card account clears masked number and last four digits`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             service.create(
                 CreateFinancialAccountCommand(
@@ -241,7 +242,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `create single-card account keeps normalized last four digits`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             service.create(
                 CreateFinancialAccountCommand(
@@ -282,7 +285,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `create voucher card defaults includeInNetWorth to false`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             service.create(
                 CreateFinancialAccountCommand(
@@ -302,7 +307,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `create voucher card allows overriding includeInNetWorth to true`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             service.create(
                 CreateFinancialAccountCommand(
@@ -323,7 +330,9 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `create credit card keeps includeInNetWorth default true`() {
-            whenever(financialAccountRepository.save(any())).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
+            whenever(
+                financialAccountRepository.save(any()),
+            ).thenAnswer { savedAccountFrom(it.arguments[0] as FinancialAccount) }
 
             service.create(
                 CreateFinancialAccountCommand(
@@ -522,13 +531,14 @@ class FinancialAccountServiceTest {
 
         @Test
         fun `switches from custom issuer to referenced issuer`() {
-            val existing = existingCardAccount().copy(
-                issuerId = null,
-                issuerName = "Issuer Manual",
-                issuerCountry = null,
-                issuerCompeCode = null,
-                issuerIspb = null,
-            )
+            val existing =
+                existingCardAccount().copy(
+                    issuerId = null,
+                    issuerName = "Issuer Manual",
+                    issuerCountry = null,
+                    issuerCompeCode = null,
+                    issuerIspb = null,
+                )
             whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existing)
             whenever(financialAccountRepository.update(any())).thenAnswer { it.arguments[0] as FinancialAccount }
             whenever(issuerRepository.findById(issuerId)).thenReturn(
@@ -735,7 +745,9 @@ class FinancialAccountServiceTest {
         @Test
         fun `delete account with no transactions and no bills soft-deletes account and cleans up children`() {
             whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
-            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(0)
+            whenever(
+                transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId),
+            ).thenReturn(0)
             whenever(creditCardBillEntityRepository.countOpenByFinancialAccountId(financialAccountId)).thenReturn(0)
             whenever(financialAccountRepository.softDelete(financialAccountId, accountId)).thenReturn(true)
 
@@ -750,7 +762,9 @@ class FinancialAccountServiceTest {
         @Test
         fun `delete account with active transactions throws validation exception`() {
             whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
-            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(2)
+            whenever(
+                transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId),
+            ).thenReturn(2)
 
             val ex = assertThrows<ValidationException> { service.delete(financialAccountId, accountId) }
 
@@ -764,7 +778,9 @@ class FinancialAccountServiceTest {
         @Test
         fun `delete account with open credit card bills throws validation exception`() {
             whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(existingAccount())
-            whenever(transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId)).thenReturn(0)
+            whenever(
+                transactionEntityRepository.countByFinancialAccountIdAndDeletedAtIsNull(financialAccountId),
+            ).thenReturn(0)
             whenever(creditCardBillEntityRepository.countOpenByFinancialAccountId(financialAccountId)).thenReturn(1)
 
             val ex = assertThrows<ValidationException> { service.delete(financialAccountId, accountId) }

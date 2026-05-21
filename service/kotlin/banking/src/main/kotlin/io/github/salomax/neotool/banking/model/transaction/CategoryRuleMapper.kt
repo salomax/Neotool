@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.model.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 
 /**
  * Maps between [TransactionRule] domain and [CategoryRuleEntity].
@@ -50,8 +50,7 @@ object CategoryRuleMapper {
             updatedAt = domain.updatedAt,
         )
 
-    private fun serializeTags(tags: List<String>): String =
-        objectMapper.writeValueAsString(tags)
+    private fun serializeTags(tags: List<String>): String = objectMapper.writeValueAsString(tags)
 
     private fun deserializeTags(json: String): List<String> =
         objectMapper.readValue(json, object : TypeReference<List<String>>() {})

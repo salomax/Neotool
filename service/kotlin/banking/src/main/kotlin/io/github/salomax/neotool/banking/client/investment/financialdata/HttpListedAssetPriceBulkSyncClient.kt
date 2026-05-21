@@ -2,7 +2,9 @@ package io.github.salomax.neotool.banking.client.investment.financialdata
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.common.service.ServiceTokenClient
+import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
+import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.io.BufferedReader
 import java.io.InputStream
@@ -17,18 +19,19 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.util.zip.GZIPInputStream
-import kotlinx.coroutines.runBlocking
-import io.micronaut.context.annotation.Property
 
 @Singleton
 open class HttpListedAssetPriceBulkSyncClient(
     @param:Property(name = "banking.financialdata-service.url")
     private val financialDataServiceUrl: String,
     @param:Property(
-        name = "banking.financialdata-service.listed-prices-export-path"
+        name = "banking.financialdata-service.listed-prices-export-path",
     )
     private val exportPath: String,
-    @param:Property(name = "banking.financialdata-service.target-audience", defaultValue = "neotool-financial-data-service")
+    @param:Property(
+        name = "banking.financialdata-service.target-audience",
+        defaultValue = "neotool-financial-data-service",
+    )
     private val targetAudience: String,
     @param:Property(name = "banking.market-data-sync.listed-prices.connect-timeout-seconds", defaultValue = "10")
     private val connectTimeoutSeconds: Long,

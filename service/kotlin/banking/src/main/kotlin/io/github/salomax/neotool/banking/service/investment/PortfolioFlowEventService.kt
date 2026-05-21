@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.micronaut.context.event.ApplicationEventPublisher
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
@@ -10,6 +9,7 @@ import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalcula
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
+import io.micronaut.context.event.ApplicationEventPublisher
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal

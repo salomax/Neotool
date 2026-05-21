@@ -8,14 +8,14 @@ import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActi
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionSeverity
 import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
@@ -151,27 +151,27 @@ open class InvestmentCashService(
             val peerTransaction =
                 when (type) {
                     InvestmentCashTransactionType.DEPOSIT ->
-                    createDepositWithPeer(
-                        custodianId = financialAccountId,
-                        peer = peer,
-                        amount = amount,
-                        date = date,
-                        description = descTrimmed,
-                        accountId = accountId,
-                        userId = userId,
-                        statusDefault = statusDefault,
-                    )
+                        createDepositWithPeer(
+                            custodianId = financialAccountId,
+                            peer = peer,
+                            amount = amount,
+                            date = date,
+                            description = descTrimmed,
+                            accountId = accountId,
+                            userId = userId,
+                            statusDefault = statusDefault,
+                        )
                     InvestmentCashTransactionType.WITHDRAWAL ->
-                    createWithdrawalWithPeer(
-                        custodianId = financialAccountId,
-                        peer = peer,
-                        amount = amount,
-                        date = date,
-                        description = descTrimmed,
-                        accountId = accountId,
-                        userId = userId,
-                        statusDefault = statusDefault,
-                    )
+                        createWithdrawalWithPeer(
+                            custodianId = financialAccountId,
+                            peer = peer,
+                            amount = amount,
+                            date = date,
+                            description = descTrimmed,
+                            accountId = accountId,
+                            userId = userId,
+                            statusDefault = statusDefault,
+                        )
                     InvestmentCashTransactionType.ADJUSTMENT -> error("unreachable")
                 }
             syncPortfolioFlowForManualCash(type, peerTransaction)

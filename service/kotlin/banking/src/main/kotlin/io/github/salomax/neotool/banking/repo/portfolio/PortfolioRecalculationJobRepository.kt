@@ -16,7 +16,10 @@ interface PortfolioRecalculationJobRepository {
      * Returns the claimed job, or null if another node already claimed it (status was not PENDING).
      * This is the single distributed lock: only one pod can win the UPDATE ... WHERE status='PENDING'.
      */
-    fun tryClaimJob(jobId: UUID, nodeId: String): PortfolioRecalculationJob?
+    fun tryClaimJob(
+        jobId: UUID,
+        nodeId: String,
+    ): PortfolioRecalculationJob?
 
     /**
      * Resets zombie jobs (PROCESSING with [lastHeartbeatAt] older than [staleThreshold]) back to PENDING

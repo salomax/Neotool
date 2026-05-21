@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceCapabilitiesDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
 import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformancePointDTO
@@ -8,7 +9,6 @@ import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceSu
 import io.github.salomax.neotool.banking.graphql.investment.PortfolioPerformanceSeriesDTO
 import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
 import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
-import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import jakarta.inject.Singleton
@@ -38,8 +38,9 @@ class PortfolioPerformanceSeriesService(
         includeProjection: Boolean,
         financialAccountId: UUID? = null,
     ): PortfolioPerformanceSeriesDTO {
-        val resolvedResolution = resolution.takeIf { it == HoldingPerformanceResolution.MONTH }
-            ?: HoldingPerformanceResolution.MONTH
+        val resolvedResolution =
+            resolution.takeIf { it == HoldingPerformanceResolution.MONTH }
+                ?: HoldingPerformanceResolution.MONTH
         val useOpenScope = shouldUseOpenHoldingsScope(groupKey, subgroupKey, assetTypes)
         val holdings =
             when {
@@ -57,11 +58,12 @@ class PortfolioPerformanceSeriesService(
         val assetsById = assetRepository.findByIds(holdings.map { it.assetId }.toSet()).associateBy { it.id!! }
         val subgroupAssetTypes = subgroupKey?.let(PortfolioPerformanceSubgroupMapping::assetTypesFor)
         val effectiveAssetTypes = if (!assetTypes.isNullOrEmpty()) assetTypes else subgroupAssetTypes
-        val selected = holdings.filter { holding ->
-            val asset = assetsById[holding.assetId] ?: return@filter false
-            (groupKey == null || AssetGroupMapping.groupKeyFor(asset.assetType) == groupKey) &&
-                (effectiveAssetTypes.isNullOrEmpty() || effectiveAssetTypes.contains(asset.assetType))
-        }
+        val selected =
+            holdings.filter { holding ->
+                val asset = assetsById[holding.assetId] ?: return@filter false
+                (groupKey == null || AssetGroupMapping.groupKeyFor(asset.assetType) == groupKey) &&
+                    (effectiveAssetTypes.isNullOrEmpty() || effectiveAssetTypes.contains(asset.assetType))
+            }
         if (selected.isEmpty()) return emptySeries(groupKey, resolvedResolution)
 
         val perHolding = mutableListOf<HoldingPerformanceDTO>()
@@ -72,15 +74,16 @@ class PortfolioPerformanceSeriesService(
                 excludedCount += 1
                 continue
             }
-            val performance = investmentQueryService.computeHoldingPerformance(
-                holding = holding,
-                asset = asset,
-                accountId = accountId,
-                resolution = resolvedResolution,
-                fromDate = null,
-                toDate = null,
-                includeProjection = includeProjection,
-            )
+            val performance =
+                investmentQueryService.computeHoldingPerformance(
+                    holding = holding,
+                    asset = asset,
+                    accountId = accountId,
+                    resolution = resolvedResolution,
+                    fromDate = null,
+                    toDate = null,
+                    includeProjection = includeProjection,
+                )
             if (performance == null || performance.points.isEmpty()) {
                 excludedCount += 1
                 continue
@@ -98,15 +101,19 @@ class PortfolioPerformanceSeriesService(
 
         val currencyCodes = perHolding.map { it.currencyCode }.toSet()
         if (currencyCodes.size > 1) {
-            throw IllegalStateException("Cannot aggregate performance across multiple currencies: ${currencyCodes.sorted()}")
+            throw IllegalStateException(
+                "Cannot aggregate performance across multiple currencies: ${currencyCodes.sorted()}",
+            )
         }
-        val pointsByMonth = perHolding
-            .flatMap { dto -> dto.points }
-            .groupBy { YearMonth.from(it.timestamp.atOffset(ZoneOffset.UTC)) }
+        val pointsByMonth =
+            perHolding
+                .flatMap { dto -> dto.points }
+                .groupBy { YearMonth.from(it.timestamp.atOffset(ZoneOffset.UTC)) }
 
-        val aggregatedPoints = pointsByMonth
-            .toSortedMap()
-            .map { (yearMonth, points) -> aggregateMonth(yearMonth, points) }
+        val aggregatedPoints =
+            pointsByMonth
+                .toSortedMap()
+                .map { (yearMonth, points) -> aggregateMonth(yearMonth, points) }
         val trimmedAggregatedPoints = trimLeadingInactiveMonths(aggregatedPoints)
 
         val latestHistorical = trimmedAggregatedPoints.lastOrNull { !it.isProjected } ?: trimmedAggregatedPoints.last()
@@ -119,24 +126,26 @@ class PortfolioPerformanceSeriesService(
             resolution = resolvedResolution,
             valuationSource = latestHistorical.valuationSource,
             valuationReferenceDate = latestHistorical.valuationReferenceDate,
-            capabilities = HoldingPerformanceCapabilitiesDTO(
-                supportsProjection = perHolding.any { it.capabilities.supportsProjection },
-                projectionDefaultEnabled = false,
-                supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
-                defaultResolution = HoldingPerformanceResolution.MONTH,
-            ),
-            summary = HoldingPerformanceSummaryDTO(
-                investedPrincipal = latestHistorical.investedPrincipal,
-                netContributions = latestHistorical.netContributions,
-                currentCostBasis = latestHistorical.currentCostBasis,
-                grossValue = latestHistorical.grossValue,
-                netValue = latestHistorical.netValue,
-                incomeTax = latestHistorical.incomeTax,
-                iof = latestHistorical.iof,
-                grossGain = latestHistorical.grossGain,
-                netGain = latestHistorical.netGain,
-                grossGainPercent = grossGainPercent,
-            ),
+            capabilities =
+                HoldingPerformanceCapabilitiesDTO(
+                    supportsProjection = perHolding.any { it.capabilities.supportsProjection },
+                    projectionDefaultEnabled = false,
+                    supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
+                    defaultResolution = HoldingPerformanceResolution.MONTH,
+                ),
+            summary =
+                HoldingPerformanceSummaryDTO(
+                    investedPrincipal = latestHistorical.investedPrincipal,
+                    netContributions = latestHistorical.netContributions,
+                    currentCostBasis = latestHistorical.currentCostBasis,
+                    grossValue = latestHistorical.grossValue,
+                    netValue = latestHistorical.netValue,
+                    incomeTax = latestHistorical.incomeTax,
+                    iof = latestHistorical.iof,
+                    grossGain = latestHistorical.grossGain,
+                    netGain = latestHistorical.netGain,
+                    grossGainPercent = grossGainPercent,
+                ),
             points = trimmedAggregatedPoints.map { it.point },
             excludedHoldingsCount = excludedCount,
             includedHoldingsCount = perHolding.size,
@@ -154,24 +163,26 @@ class PortfolioPerformanceSeriesService(
         resolution = resolution,
         valuationSource = ValuationSource.UNAVAILABLE,
         valuationReferenceDate = null,
-        capabilities = HoldingPerformanceCapabilitiesDTO(
-            supportsProjection = false,
-            projectionDefaultEnabled = false,
-            supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
-            defaultResolution = HoldingPerformanceResolution.MONTH,
-        ),
-        summary = HoldingPerformanceSummaryDTO(
-            investedPrincipal = 0.0,
-            netContributions = 0.0,
-            currentCostBasis = 0.0,
-            grossValue = 0.0,
-            netValue = 0.0,
-            incomeTax = 0.0,
-            iof = 0.0,
-            grossGain = 0.0,
-            netGain = 0.0,
-            grossGainPercent = 0.0,
-        ),
+        capabilities =
+            HoldingPerformanceCapabilitiesDTO(
+                supportsProjection = false,
+                projectionDefaultEnabled = false,
+                supportedResolutions = listOf(HoldingPerformanceResolution.MONTH),
+                defaultResolution = HoldingPerformanceResolution.MONTH,
+            ),
+        summary =
+            HoldingPerformanceSummaryDTO(
+                investedPrincipal = 0.0,
+                netContributions = 0.0,
+                currentCostBasis = 0.0,
+                grossValue = 0.0,
+                netValue = 0.0,
+                incomeTax = 0.0,
+                iof = 0.0,
+                grossGain = 0.0,
+                netGain = 0.0,
+                grossGainPercent = 0.0,
+            ),
         points = emptyList(),
         excludedHoldingsCount = excludedHoldingsCount,
         includedHoldingsCount = 0,
@@ -197,20 +208,21 @@ class PortfolioPerformanceSeriesService(
         yearMonth: YearMonth,
         points: List<HoldingPerformancePointDTO>,
     ): AggregatedMonth {
-        val point = HoldingPerformancePointDTO(
-            timestamp = yearMonth.atEndOfMonth().atTime(23, 59, 59).toInstant(ZoneOffset.UTC),
-            isProjected = points.any { it.isProjected },
-            investedPrincipal = sumNullable(points.map { it.investedPrincipal }),
-            netContributions = sumNullable(points.map { it.netContributions }),
-            currentCostBasis = sumNullable(points.map { it.currentCostBasis }),
-            grossValue = sumNullable(points.map { it.grossValue }),
-            netValue = sumNullable(points.map { it.netValue }),
-            incomeTax = sumNullable(points.map { it.incomeTax }),
-            iof = sumNullable(points.map { it.iof }),
-            grossGain = sumNullable(points.map { it.grossGain }),
-            netGain = sumNullable(points.map { it.netGain }),
-            quantity = null,
-        )
+        val point =
+            HoldingPerformancePointDTO(
+                timestamp = yearMonth.atEndOfMonth().atTime(23, 59, 59).toInstant(ZoneOffset.UTC),
+                isProjected = points.any { it.isProjected },
+                investedPrincipal = sumNullable(points.map { it.investedPrincipal }),
+                netContributions = sumNullable(points.map { it.netContributions }),
+                currentCostBasis = sumNullable(points.map { it.currentCostBasis }),
+                grossValue = sumNullable(points.map { it.grossValue }),
+                netValue = sumNullable(points.map { it.netValue }),
+                incomeTax = sumNullable(points.map { it.incomeTax }),
+                iof = sumNullable(points.map { it.iof }),
+                grossGain = sumNullable(points.map { it.grossGain }),
+                netGain = sumNullable(points.map { it.netGain }),
+                quantity = null,
+            )
         val latestDate = points.maxByOrNull { it.timestamp }?.timestamp
         return AggregatedMonth(
             point = point,
@@ -223,7 +235,12 @@ class PortfolioPerformanceSeriesService(
             iof = point.iof,
             grossGain = point.grossGain,
             netGain = point.netGain,
-            valuationSource = if (points.any { it.isProjected }) ValuationSource.ESTIMATED else ValuationSource.CALCULATED,
+            valuationSource =
+                if (points.any { it.isProjected }) {
+                    ValuationSource.ESTIMATED
+                } else {
+                    ValuationSource.CALCULATED
+                },
             valuationReferenceDate = latestDate?.atOffset(ZoneOffset.UTC)?.toLocalDate(),
             isProjected = point.isProjected,
         )
@@ -236,7 +253,10 @@ class PortfolioPerformanceSeriesService(
         }.round(mathContext).toDouble()
     }
 
-    private fun percent(numerator: Double?, denominator: Double?): Double? {
+    private fun percent(
+        numerator: Double?,
+        denominator: Double?,
+    ): Double? {
         if (numerator == null || denominator == null || denominator <= 0.0) return null
         return BigDecimal.valueOf(numerator)
             .divide(BigDecimal.valueOf(denominator), mathContext)

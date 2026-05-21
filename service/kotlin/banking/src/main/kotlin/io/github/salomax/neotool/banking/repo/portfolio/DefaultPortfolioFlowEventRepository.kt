@@ -80,7 +80,8 @@ open class DefaultPortfolioFlowEventRepository(
                 """.trimIndent()
             }
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 COALESCE(SUM(e.gross_amount) FILTER (WHERE e.event_type = 'DEPOSIT'), 0)    AS total_invested,
                 COALESCE(SUM(e.gross_amount) FILTER (WHERE e.event_type = 'WITHDRAWAL'), 0) AS total_withdrawn
@@ -89,7 +90,7 @@ open class DefaultPortfolioFlowEventRepository(
               AND e.related_holding_id IS NOT NULL
               AND e.event_date >= make_date(:startYear, :startMonth, 1)
               AND e.event_date <= make_date(:endYear, :endMonth, 1) + INTERVAL '1 month' - INTERVAL '1 day'
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter("accountId", accountId.toString())

@@ -10,7 +10,10 @@ data class BankingUserPreferences(
     val updatedAt: Instant,
 ) {
     companion object {
-        fun defaultsFor(userId: UUID, now: Instant = Instant.now()): BankingUserPreferences =
+        fun defaultsFor(
+            userId: UUID,
+            now: Instant = Instant.now(),
+        ): BankingUserPreferences =
             BankingUserPreferences(
                 userId = userId,
                 ruleApplicationMode = RuleApplicationMode.ALWAYS_PROMPT,

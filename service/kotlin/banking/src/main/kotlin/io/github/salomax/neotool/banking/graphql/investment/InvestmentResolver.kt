@@ -1,61 +1,52 @@
 package io.github.salomax.neotool.banking.graphql.investment
 
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
-import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.BrokerNote
 import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
-import io.github.salomax.neotool.banking.model.domain.investment.validation.CnpjValidator
-import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
-import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
-import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
-import io.github.salomax.neotool.banking.model.dto.investment.InvestmentCashTransactionCursor
-import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
-import io.github.salomax.neotool.banking.model.dto.investment.RecordAmortizationCommand
-import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
-import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
-import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
-import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
-import io.github.salomax.neotool.banking.service.investment.RecordAmortizationService
-import io.github.salomax.neotool.banking.service.investment.RecordStockLendingService
-import io.github.salomax.neotool.banking.service.investment.TransferCustodyService
 import io.github.salomax.neotool.banking.domain.investment.HoldingPricingMode
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentHoldingAssetClass
-import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
-import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
+import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionConnectionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
-import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
-import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
-import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSeriesService
-import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
-import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
-import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceQueryService
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.model.domain.investment.validation.CnpjValidator
+import io.github.salomax.neotool.banking.model.dto.investment.AssetGroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
+import io.github.salomax.neotool.banking.model.dto.investment.ConfirmWithholdingTaxCommand
+import io.github.salomax.neotool.banking.model.dto.investment.InvestmentCashTransactionCursor
 import io.github.salomax.neotool.banking.model.dto.investment.ManualFundValuation
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioPerformanceSubgroupMapping
+import io.github.salomax.neotool.banking.model.dto.investment.RecordAmortizationCommand
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
 import io.github.salomax.neotool.banking.model.dto.investment.UpdateInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.investment.AssetRepository
+import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
+import io.github.salomax.neotool.banking.service.investment.ConfirmWithholdingTaxService
+import io.github.salomax.neotool.banking.service.investment.InvestmentAssetService
+import io.github.salomax.neotool.banking.service.investment.InvestmentCashService
+import io.github.salomax.neotool.banking.service.investment.InvestmentCashTransactionType
+import io.github.salomax.neotool.banking.service.investment.InvestmentPortfolioSummaryService
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
-import io.github.salomax.neotool.banking.graphql.investment.BrokerNoteDTO
-import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceDTO
-import io.github.salomax.neotool.banking.graphql.investment.HoldingPerformanceResolution
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentAssetDTO
-import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPointDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingPerformanceDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentPortfolioSummaryDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
-import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
-import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
+import io.github.salomax.neotool.banking.service.investment.InvestmentTransactionService
+import io.github.salomax.neotool.banking.service.investment.PortfolioFlowEventService
+import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceQueryService
+import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSeriesService
+import io.github.salomax.neotool.banking.service.investment.RecordAmortizationService
+import io.github.salomax.neotool.banking.service.investment.RecordStockLendingService
+import io.github.salomax.neotool.banking.service.investment.TransferCustodyService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import java.math.BigDecimal
@@ -238,7 +229,15 @@ class InvestmentResolver(
         val requestedGroupKey =
             if (groupKey == null || AssetGroupMapping.isKnownGroupKey(groupKey)) groupKey else "__invalid_group_key__"
         val requestedSubgroupKey =
-            if (subgroupKey == null || PortfolioPerformanceSubgroupMapping.isKnownSubgroupKey(subgroupKey)) subgroupKey else "__invalid_subgroup_key__"
+            if (subgroupKey == null ||
+                PortfolioPerformanceSubgroupMapping.isKnownSubgroupKey(
+                    subgroupKey,
+                )
+            ) {
+                subgroupKey
+            } else {
+                "__invalid_subgroup_key__"
+            }
         val parsedAssetTypes =
             assetTypes
                 ?.mapNotNull { raw ->
@@ -280,8 +279,7 @@ class InvestmentResolver(
         )
     }
 
-    fun investmentAsset(id: String): InvestmentAssetDTO? =
-        assetRepository.findById(UUID.fromString(id))?.toDTO()
+    fun investmentAsset(id: String): InvestmentAssetDTO? = assetRepository.findById(UUID.fromString(id))?.toDTO()
 
     // ── Mutations ─────────────────────────────────────────────────────────────
 
@@ -606,12 +604,13 @@ class InvestmentResolver(
     ): Boolean {
         val accountId = requireAccountId(principal)
         val from = recalculateFrom?.let { LocalDate.parse(it) } ?: LocalDate.now().minusYears(10)
-        val accounts = if (financialAccountId != null) {
-            listOfNotNull(financialAccountRepository.findById(UUID.fromString(financialAccountId), accountId))
-        } else {
-            financialAccountRepository.findByAccountId(accountId)
-                .filter { account -> account.type == FinancialAccountType.INVESTMENT }
-        }
+        val accounts =
+            if (financialAccountId != null) {
+                listOfNotNull(financialAccountRepository.findById(UUID.fromString(financialAccountId), accountId))
+            } else {
+                financialAccountRepository.findByAccountId(accountId)
+                    .filter { account -> account.type == FinancialAccountType.INVESTMENT }
+            }
         for (account in accounts) {
             portfolioFlowEventService.requestRecalculation(
                 financialAccountId = account.id,
@@ -671,7 +670,7 @@ class InvestmentResolver(
             updatedAt = updatedAt,
         )
 
-    private fun io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction.toPendingActionDTO(): AccountPendingActionDTO =
+    private fun AccountPendingAction.toPendingActionDTO(): AccountPendingActionDTO =
         AccountPendingActionDTO(
             id = requireNotNull(id),
             type = type.name,
@@ -705,12 +704,13 @@ class InvestmentResolver(
         val brokerNoteMap = this["brokerNote"] as? Map<String, Any?>
         val manualValuationMap = this["manualValuation"] as? Map<String, Any?>
 
-        fun Any?.toLocalDateOrNull(): LocalDate? = when (this) {
-            null -> null
-            is LocalDate -> this
-            is String -> LocalDate.parse(this)
-            else -> null
-        }
+        fun Any?.toLocalDateOrNull(): LocalDate? =
+            when (this) {
+                null -> null
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> null
+            }
 
         return RecordInvestmentTransactionCommand(
             financialAccountId = UUID.fromString(this["financialAccountId"] as String),
@@ -727,8 +727,9 @@ class InvestmentResolver(
             indexerPercentage = (this["indexerPercentage"] as? Number)?.let { BigDecimal(it.toString()) },
             fixedAnnualRate = (this["fixedAnnualRate"] as? Number)?.let { BigDecimal(it.toString()) },
             priceFactor = (this["priceFactor"] as? Number)?.let { BigDecimal(it.toString()) },
-            tradeDate = this["tradeDate"].toLocalDateOrNull()
-                ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
+            tradeDate =
+                this["tradeDate"].toLocalDateOrNull()
+                    ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
             settlementDate = this["settlementDate"].toLocalDateOrNull(),
             source = InvestmentSource.MANUAL,
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
@@ -738,7 +739,14 @@ class InvestmentResolver(
             maturityDate = this["maturityDate"].toLocalDateOrNull(),
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = (this["isTaxExempt"] as? Boolean) ?: false,
-            couponFrequency = (this["couponFrequency"] as? String)?.let { runCatching { CouponFrequency.valueOf(it) }.getOrNull() },
+            couponFrequency =
+                (this["couponFrequency"] as? String)?.let {
+                    runCatching {
+                        CouponFrequency.valueOf(
+                            it,
+                        )
+                    }.getOrNull()
+                },
             couponDayOfMonth = (this["couponDayOfMonth"] as? Number)?.toInt(),
             providerInvestmentId = this["providerInvestmentId"] as? String,
             pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
@@ -749,11 +757,12 @@ class InvestmentResolver(
     private fun Map<String, Any?>.toManualFundValuation(): ManualFundValuation =
         ManualFundValuation(
             grossValue = BigDecimal((this["grossValue"] as Number).toString()),
-            valuedAt = when (val raw = this["valuedAt"]) {
-                is LocalDate -> raw
-                is String -> LocalDate.parse(raw)
-                else -> error("manualValuation.valuedAt must be a LocalDate or ISO-8601 string")
-            },
+            valuedAt =
+                when (val raw = this["valuedAt"]) {
+                    is LocalDate -> raw
+                    is String -> LocalDate.parse(raw)
+                    else -> error("manualValuation.valuedAt must be a LocalDate or ISO-8601 string")
+                },
         )
 
     @Suppress("UNCHECKED_CAST")
@@ -761,12 +770,13 @@ class InvestmentResolver(
         val brokerNoteMap = this["brokerNote"] as? Map<String, Any?>
         val manualValuationMap = this["manualValuation"] as? Map<String, Any?>
 
-        fun Any?.toLocalDateOrNull(): LocalDate? = when (this) {
-            null -> null
-            is LocalDate -> this
-            is String -> LocalDate.parse(this)
-            else -> null
-        }
+        fun Any?.toLocalDateOrNull(): LocalDate? =
+            when (this) {
+                null -> null
+                is LocalDate -> this
+                is String -> LocalDate.parse(this)
+                else -> null
+            }
 
         return UpdateInvestmentTransactionCommand(
             direction = InvestmentTransactionDirection.valueOf(this["direction"] as String),
@@ -781,8 +791,9 @@ class InvestmentResolver(
             indexerPercentage = (this["indexerPercentage"] as? Number)?.let { BigDecimal(it.toString()) },
             fixedAnnualRate = (this["fixedAnnualRate"] as? Number)?.let { BigDecimal(it.toString()) },
             priceFactor = (this["priceFactor"] as? Number)?.let { BigDecimal(it.toString()) },
-            tradeDate = this["tradeDate"].toLocalDateOrNull()
-                ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
+            tradeDate =
+                this["tradeDate"].toLocalDateOrNull()
+                    ?: error("tradeDate must be a LocalDate or ISO-8601 string"),
             settlementDate = this["settlementDate"].toLocalDateOrNull(),
             brokerNote = brokerNoteMap?.toBrokerNote(accountId),
             indexer = (this["indexer"] as? String)?.let { Indexer.valueOf(it) },
@@ -790,7 +801,14 @@ class InvestmentResolver(
             maturityDate = this["maturityDate"].toLocalDateOrNull(),
             gracePeriodDate = this["gracePeriodDate"].toLocalDateOrNull(),
             isTaxExempt = this["isTaxExempt"] as? Boolean,
-            couponFrequency = (this["couponFrequency"] as? String)?.let { runCatching { CouponFrequency.valueOf(it) }.getOrNull() },
+            couponFrequency =
+                (this["couponFrequency"] as? String)?.let {
+                    runCatching {
+                        CouponFrequency.valueOf(
+                            it,
+                        )
+                    }.getOrNull()
+                },
             couponDayOfMonth = (this["couponDayOfMonth"] as? Number)?.toInt(),
             pricingMode = (this["pricingMode"] as? String)?.let(HoldingPricingMode::valueOf),
             manualValuation = manualValuationMap?.toManualFundValuation(),
@@ -802,22 +820,30 @@ class InvestmentResolver(
         BrokerNote(
             brokerNoteNumber = this["brokerNoteNumber"] as? String,
             grossValue = BigDecimal((this["grossValue"] as Number).toString()),
-            brokerageFee = (this["brokerageFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            clearingSettlementFee = (this["clearingSettlementFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            clearingRegistrationFee = (this["clearingRegistrationFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            stockExchangeAssetTradeNoticeFee = (this["stockExchangeAssetTradeNoticeFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            stockExchangeFee = (this["stockExchangeFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            clearingCustodyFee = (this["clearingCustodyFee"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            incomeTax = (this["incomeTax"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
-            taxes = (this["taxes"] as? Number)
-                ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            brokerageFee =
+                (this["brokerageFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            clearingSettlementFee =
+                (this["clearingSettlementFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            clearingRegistrationFee =
+                (this["clearingRegistrationFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            stockExchangeAssetTradeNoticeFee =
+                (this["stockExchangeAssetTradeNoticeFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            stockExchangeFee =
+                (this["stockExchangeFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            clearingCustodyFee =
+                (this["clearingCustodyFee"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            incomeTax =
+                (this["incomeTax"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
+            taxes =
+                (this["taxes"] as? Number)
+                    ?.let { BigDecimal(it.toString()) } ?: BigDecimal.ZERO,
             netValue = BigDecimal((this["netValue"] as Number).toString()),
             accountId = accountId,
         )

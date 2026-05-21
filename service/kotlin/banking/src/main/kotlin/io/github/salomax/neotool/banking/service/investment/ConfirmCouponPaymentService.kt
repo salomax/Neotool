@@ -1,23 +1,19 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
-import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
+import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
 import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentCommand
 import io.github.salomax.neotool.banking.model.dto.investment.ConfirmCouponPaymentResult
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
-import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
-import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
-import io.github.salomax.neotool.banking.domain.pendingaction.PendingActionType
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
-import java.time.LocalDate
 import java.util.UUID
 
 @Singleton

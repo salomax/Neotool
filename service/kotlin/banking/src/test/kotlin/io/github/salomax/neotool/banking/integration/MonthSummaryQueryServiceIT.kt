@@ -1,18 +1,18 @@
 package io.github.salomax.neotool.banking.integration
 
-import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
-import io.github.salomax.neotool.banking.service.account.FinancialAccountService
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
-import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
-import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
+import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.account.FinancialAccountService
+import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import jakarta.transaction.Transactional
@@ -207,8 +207,12 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
 
         assertThat(summary.closingBalance).isEqualByComparingTo("321.00")
         assertThat(summary.openingBalance).isEqualByComparingTo("321.00")
-        assertThat(snapshotRepository.findByYearMonth(financialAccountId, importedMonth.year, importedMonth.monthValue)).isNotNull()
-        assertThat(snapshotRepository.findByYearMonth(financialAccountId, viewedMonth.year, viewedMonth.monthValue)).isNotNull()
+        assertThat(
+            snapshotRepository.findByYearMonth(financialAccountId, importedMonth.year, importedMonth.monthValue),
+        ).isNotNull()
+        assertThat(
+            snapshotRepository.findByYearMonth(financialAccountId, viewedMonth.year, viewedMonth.monthValue),
+        ).isNotNull()
     }
 
     @Test
@@ -388,5 +392,4 @@ open class MonthSummaryQueryServiceIT : BankingPostgresIntegrationTest() {
 
         assertThat(result).isEmpty()
     }
-
 }

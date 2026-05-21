@@ -13,7 +13,6 @@ import java.util.UUID
  * Custom query contract for InvestmentFund search and detail operations.
  */
 interface InvestmentFundRepositoryCustom {
-
     /**
      * Search funds for autocomplete suggestions.
      * Uses normalized fund search text/tokens so abbreviated and reordered queries can match.

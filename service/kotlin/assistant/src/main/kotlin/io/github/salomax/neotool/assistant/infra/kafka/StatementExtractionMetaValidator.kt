@@ -28,7 +28,9 @@ class StatementExtractionMetaValidator {
             parser.debitPatterns.isEmpty() &&
             parser.defaultCreditDebitType == null
         ) {
-            errors += "parser_config.sign_rule must be provided unless legacy credit/debit patterns or default_credit_debit_type are present"
+            errors +=
+                "parser_config.sign_rule must be provided unless legacy credit/debit patterns " +
+                "or default_credit_debit_type are present"
         }
         if (parser.layoutType == LAYOUT_DATE_GROUPED_MULTILINE && parser.dateHeaderPattern.isNullOrBlank()) {
             errors += "parser_config.date_header_pattern must be provided for DATE_GROUPED_MULTILINE"
@@ -38,7 +40,13 @@ class StatementExtractionMetaValidator {
         }
         validateRegex(parser.amountPattern, "parser_config.amount_pattern", errors)
         parser.dateHeaderPattern?.let { validateRegex(it, "parser_config.date_header_pattern", errors) }
-        parser.inlineTransactionDatePattern?.let { validateRegex(it, "parser_config.inline_transaction_date_pattern", errors) }
+        parser.inlineTransactionDatePattern?.let {
+            validateRegex(
+                it,
+                "parser_config.inline_transaction_date_pattern",
+                errors,
+            )
+        }
         parser.signRule?.let {
             if (it !in VALID_SIGN_RULES) {
                 errors += "parser_config.sign_rule must be one of $VALID_SIGN_RULES when present"
@@ -72,7 +80,11 @@ class StatementExtractionMetaValidator {
         return errors
     }
 
-    private fun validateIsoDate(value: String, field: String, errors: MutableList<String>) {
+    private fun validateIsoDate(
+        value: String,
+        field: String,
+        errors: MutableList<String>,
+    ) {
         if (value.isBlank()) {
             errors += "$field must not be blank"
             return
@@ -82,7 +94,11 @@ class StatementExtractionMetaValidator {
         }
     }
 
-    private fun validateRegex(pattern: String, field: String, errors: MutableList<String>) {
+    private fun validateRegex(
+        pattern: String,
+        field: String,
+        errors: MutableList<String>,
+    ) {
         if (pattern.isBlank()) {
             errors += "$field must not be blank"
             return

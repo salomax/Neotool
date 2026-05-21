@@ -28,10 +28,11 @@ open class FinancialAccountDataSinceService(
         val earliestPortfolioByAccount = portfolioQuotaRepository.findEarliestPortfolioDates(ids)
 
         return ids.mapNotNull { financialAccountId ->
-            val earliestDate = listOfNotNull(
-                earliestTransactionByAccount[financialAccountId],
-                earliestPortfolioByAccount[financialAccountId],
-            ).minOrNull()
+            val earliestDate =
+                listOfNotNull(
+                    earliestTransactionByAccount[financialAccountId],
+                    earliestPortfolioByAccount[financialAccountId],
+                ).minOrNull()
             earliestDate?.let { financialAccountId to it }
         }.toMap()
     }

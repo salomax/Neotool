@@ -27,8 +27,7 @@ open class DefaultAccountPendingActionRepository(
     override fun findById(
         id: UUID,
         accountId: UUID,
-    ): AccountPendingAction? =
-        entityRepository.findByIdAndAccountId(id, accountId)?.toDomain()
+    ): AccountPendingAction? = entityRepository.findByIdAndAccountId(id, accountId)?.toDomain()
 
     override fun findPendingByEntityAndType(
         entityType: String,

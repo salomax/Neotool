@@ -5,8 +5,8 @@ import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryEntityRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
@@ -29,7 +29,6 @@ import java.util.UUID
 
 @DisplayName("InvestmentCashService")
 class InvestmentCashServiceTest {
-
     private lateinit var financialAccountRepository: FinancialAccountRepository
     private lateinit var transactionCategoryEntityRepository: TransactionCategoryEntityRepository
     private lateinit var transactionService: TransactionService
@@ -66,19 +65,22 @@ class InvestmentCashServiceTest {
         transactionRepository = mock()
         pendingActionRepository = mock()
         portfolioFlowEventService = mock()
-        service = InvestmentCashService(
-            financialAccountRepository = financialAccountRepository,
-            transactionCategoryEntityRepository = transactionCategoryEntityRepository,
-            transactionService = transactionService,
-            accountPreferencesService = accountPreferencesService,
-            transactionRepository = transactionRepository,
-            pendingActionRepository = pendingActionRepository,
-            portfolioFlowEventService = portfolioFlowEventService,
-        )
+        service =
+            InvestmentCashService(
+                financialAccountRepository = financialAccountRepository,
+                transactionCategoryEntityRepository = transactionCategoryEntityRepository,
+                transactionService = transactionService,
+                accountPreferencesService = accountPreferencesService,
+                transactionRepository = transactionRepository,
+                pendingActionRepository = pendingActionRepository,
+                portfolioFlowEventService = portfolioFlowEventService,
+            )
 
         whenever(financialAccountRepository.findById(financialAccountId, accountId)).thenReturn(custodian)
         whenever(accountPreferencesService.get(accountId)).thenReturn(AccountPreferences.defaultsFor(accountId, now))
-        whenever(transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any())).thenReturn(UUID.randomUUID())
+        whenever(
+            transactionCategoryEntityRepository.findSystemSubcategoryId(any(), any()),
+        ).thenReturn(UUID.randomUUID())
         whenever(transactionService.create(any(), eq(accountId), eq(userId))).thenAnswer { invocation ->
             val cmd = invocation.getArgument<CreateTransactionCommand>(0)
             Transaction(

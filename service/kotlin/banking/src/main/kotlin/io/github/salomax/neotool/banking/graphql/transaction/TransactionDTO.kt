@@ -1,5 +1,6 @@
 package io.github.salomax.neotool.banking.graphql.transaction
 
+import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategorySource
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
@@ -7,7 +8,6 @@ import io.github.salomax.neotool.banking.domain.transaction.PatternType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import java.time.Instant
 import java.time.LocalDate

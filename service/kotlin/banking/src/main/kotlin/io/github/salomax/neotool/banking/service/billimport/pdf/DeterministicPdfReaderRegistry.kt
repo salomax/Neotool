@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.billimport.pdf
 
-import io.github.salomax.neotool.banking.domain.billimport.*
 import jakarta.inject.Singleton
 
 @Singleton

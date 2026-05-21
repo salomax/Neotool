@@ -1,6 +1,6 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.domain.billimport.AssistantBillExtractionMeta
 import jakarta.inject.Singleton
 import java.time.LocalDate
 
@@ -17,7 +17,9 @@ class AssistantBillMetaValidator {
             errors += "transaction_pattern.currency_symbols must not be empty"
         }
         if (pattern.decimalSeparator.lowercase() !in listOf("comma", "period")) {
-            errors += "transaction_pattern.decimal_separator must be 'comma' or 'period', got: '${pattern.decimalSeparator}'"
+            errors +=
+                "transaction_pattern.decimal_separator must be 'comma' or 'period', " +
+                "got: '${pattern.decimalSeparator}'"
         }
         pattern.lastFourPattern?.let { validateRegex(it, "transaction_pattern.last_four_pattern", errors) }
         pattern.installmentPattern?.let { validateRegex(it, "transaction_pattern.installment_pattern", errors) }
@@ -38,7 +40,11 @@ class AssistantBillMetaValidator {
         return errors
     }
 
-    private fun validateIsoDate(value: String, field: String, errors: MutableList<String>) {
+    private fun validateIsoDate(
+        value: String,
+        field: String,
+        errors: MutableList<String>,
+    ) {
         if (value.isBlank()) {
             errors += "$field must not be blank"
             return
@@ -48,7 +54,11 @@ class AssistantBillMetaValidator {
         }
     }
 
-    private fun validateRegex(pattern: String, field: String, errors: MutableList<String>) {
+    private fun validateRegex(
+        pattern: String,
+        field: String,
+        errors: MutableList<String>,
+    ) {
         runCatching { Regex(pattern) }.onFailure { e ->
             errors += "$field is not a valid regex: ${e.message}"
         }

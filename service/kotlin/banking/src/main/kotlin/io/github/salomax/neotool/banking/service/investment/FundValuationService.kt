@@ -1,6 +1,11 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.domain.investment.*
+import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
+import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
+import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianBusinessCalendar
 import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianFixedIncomeTaxRules
 import io.github.salomax.neotool.banking.model.dto.investment.FundValuationResult
@@ -27,14 +32,15 @@ class FundValuationService {
         return when (snapshot.taxProfile) {
             FundTaxProfile.UNKNOWN,
             FundTaxProfile.PENSION,
-            -> FundValuationResult(
-                grossValue = grossValue,
-                incomeTax = null,
-                iof = null,
-                netValue = null,
-                valuationSource = ValuationSource.MARKET_DATA,
-                valuationReferenceDate = nav.date,
-            )
+            ->
+                FundValuationResult(
+                    grossValue = grossValue,
+                    incomeTax = null,
+                    iof = null,
+                    netValue = null,
+                    valuationSource = ValuationSource.MARKET_DATA,
+                    valuationReferenceDate = nav.date,
+                )
 
             else -> {
                 val openLots = reconstructOpenLots(transactions)
@@ -49,9 +55,10 @@ class FundValuationService {
                     )
                 }
 
-                val withholdingPaid = openLots.fold(BigDecimal.ZERO) { acc, lot ->
-                    acc.add(lot.withholdingPaid, mathContext)
-                }
+                val withholdingPaid =
+                    openLots.fold(BigDecimal.ZERO) { acc, lot ->
+                        acc.add(lot.withholdingPaid, mathContext)
+                    }
 
                 var totalIof = BigDecimal.ZERO
                 var totalIrDue = BigDecimal.ZERO
@@ -115,11 +122,12 @@ class FundValuationService {
         tradeDate: LocalDate,
         referenceDate: LocalDate,
     ): BigDecimal {
-        val checkpointRate = when (taxProfile) {
-            FundTaxProfile.COME_COTAS_LONG -> BigDecimal("0.15")
-            FundTaxProfile.COME_COTAS_SHORT -> BigDecimal("0.20")
-            else -> return BigDecimal.ZERO
-        }
+        val checkpointRate =
+            when (taxProfile) {
+                FundTaxProfile.COME_COTAS_LONG -> BigDecimal("0.15")
+                FundTaxProfile.COME_COTAS_SHORT -> BigDecimal("0.20")
+                else -> return BigDecimal.ZERO
+            }
 
         val totalDays = calendarDaysBetween(tradeDate, referenceDate)
         if (totalDays <= 0) return BigDecimal.ZERO
@@ -154,27 +162,34 @@ class FundValuationService {
 
     private fun reconstructOpenLots(transactions: List<InvestmentTransaction>): List<OpenLot> {
         val openLots = ArrayDeque<OpenLot>()
-        transactions.sortedWith(compareBy<InvestmentTransaction> { it.tradeDate }.thenBy { it.createdAt }).forEach { tx ->
+        transactions.sortedWith(compareBy<InvestmentTransaction> { it.tradeDate }.thenBy { it.createdAt }).forEach {
+                tx ->
             when {
-                tx.type in setOf(
-                    InvestmentTransactionType.PURCHASE,
-                    InvestmentTransactionType.SUBSCRIPTION,
-                ) && tx.direction == InvestmentTransactionDirection.INFLOW && tx.quantity != null && tx.unitPrice != null -> {
+                tx.type in
+                    setOf(
+                        InvestmentTransactionType.PURCHASE,
+                        InvestmentTransactionType.SUBSCRIPTION,
+                    ) &&
+                    tx.direction == InvestmentTransactionDirection.INFLOW &&
+                    tx.quantity != null &&
+                    tx.unitPrice != null -> {
                     openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
                 }
 
-                tx.type in setOf(
-                    InvestmentTransactionType.SALE,
-                    InvestmentTransactionType.MATURITY,
-                ) && tx.quantity != null -> {
+                tx.type in
+                    setOf(
+                        InvestmentTransactionType.SALE,
+                        InvestmentTransactionType.MATURITY,
+                    ) && tx.quantity != null -> {
                     consumeLots(openLots, tx.quantity ?: BigDecimal.ZERO)
                 }
 
-                tx.type in setOf(
-                    InvestmentTransactionType.CUSTODY_TRANSFER,
-                    InvestmentTransactionType.OWNERSHIP_TRANSFER,
-                    InvestmentTransactionType.QUOTA_TRANSFER,
-                ) && tx.quantity != null -> {
+                tx.type in
+                    setOf(
+                        InvestmentTransactionType.CUSTODY_TRANSFER,
+                        InvestmentTransactionType.OWNERSHIP_TRANSFER,
+                        InvestmentTransactionType.QUOTA_TRANSFER,
+                    ) && tx.quantity != null -> {
                     if (tx.direction == InvestmentTransactionDirection.INFLOW && tx.unitPrice != null) {
                         openLots.addLast(OpenLot(tx.quantity, tx.unitPrice, tx.tradeDate))
                     } else if (tx.direction == InvestmentTransactionDirection.OUTFLOW) {
@@ -193,7 +208,10 @@ class FundValuationService {
         return openLots.toList()
     }
 
-    private fun consumeLots(openLots: ArrayDeque<OpenLot>, quantityToConsume: BigDecimal) {
+    private fun consumeLots(
+        openLots: ArrayDeque<OpenLot>,
+        quantityToConsume: BigDecimal,
+    ) {
         var remaining = quantityToConsume
         while (remaining > BigDecimal.ZERO && openLots.isNotEmpty()) {
             val lot = openLots.removeFirst()
@@ -213,7 +231,10 @@ class FundValuationService {
         }
     }
 
-    private fun allocateWithholding(openLots: ArrayDeque<OpenLot>, amount: BigDecimal) {
+    private fun allocateWithholding(
+        openLots: ArrayDeque<OpenLot>,
+        amount: BigDecimal,
+    ) {
         if (amount <= BigDecimal.ZERO || openLots.isEmpty()) return
 
         val lots = openLots.toList()

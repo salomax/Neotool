@@ -1,18 +1,19 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
+import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedEvent
+import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
+import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
+import io.github.salomax.neotool.banking.domain.billimport.ImportDocumentType
+import io.github.salomax.neotool.banking.job.import.ImportCallbackContext
+import io.github.salomax.neotool.banking.service.billimport.pdf.DeterministicPdfReaderRegistry
+import io.github.salomax.neotool.banking.service.billimport.pdf.DeterministicPdfReaderRouter
+import io.github.salomax.neotool.banking.service.billimport.pdf.NubankCreditCardBillPdfReader
 import io.github.salomax.neotool.banking.service.import.fingerprint.ExcelFingerprintClassifier
 import io.github.salomax.neotool.banking.service.import.fingerprint.FingerprintClassification
 import io.github.salomax.neotool.banking.service.import.fingerprint.FingerprintClassificationInput
 import io.github.salomax.neotool.banking.service.import.fingerprint.FingerprintClassifierRegistry
 import io.github.salomax.neotool.banking.service.import.fingerprint.FingerprintFileType
 import io.github.salomax.neotool.banking.service.import.fingerprint.PdfFingerprintClassifier
-import io.github.salomax.neotool.banking.service.billimport.pdf.DeterministicPdfReaderRegistry
-import io.github.salomax.neotool.banking.service.billimport.pdf.DeterministicPdfReaderRouter
-import io.github.salomax.neotool.banking.service.billimport.pdf.NubankCreditCardBillPdfReader
-import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedEvent
-import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
-import io.github.salomax.neotool.banking.job.import.ImportCallbackContext
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory

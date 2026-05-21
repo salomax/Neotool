@@ -27,8 +27,8 @@ import io.github.salomax.neotool.security.graphql.dataloader.RolePermissionsData
 import io.github.salomax.neotool.security.graphql.dataloader.UserGroupsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserPermissionsDataLoader
 import io.github.salomax.neotool.security.graphql.dataloader.UserRolesDataLoader
-import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.AccountDTO
+import io.github.salomax.neotool.security.graphql.dto.AuthorizationResultDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupDTO
 import io.github.salomax.neotool.security.graphql.dto.GroupEdgeDTO
@@ -46,14 +46,14 @@ import io.github.salomax.neotool.security.graphql.dto.SignUpPayloadDTO
 import io.github.salomax.neotool.security.graphql.dto.UserConnectionDTO
 import io.github.salomax.neotool.security.graphql.dto.UserDTO
 import io.github.salomax.neotool.security.graphql.dto.UserEdgeDTO
+import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
 import io.github.salomax.neotool.security.graphql.mapper.GroupManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.RoleManagementMapper
 import io.github.salomax.neotool.security.graphql.mapper.UserManagementMapper
+import io.github.salomax.neotool.security.graphql.resolver.AccountResolver
 import io.github.salomax.neotool.security.graphql.resolver.GroupManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.PermissionManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.RoleManagementResolver
-import io.github.salomax.neotool.security.graphql.dto.UserPreferencesDTO
-import io.github.salomax.neotool.security.graphql.resolver.AccountResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserManagementResolver
 import io.github.salomax.neotool.security.graphql.resolver.UserPreferencesResolver
 import jakarta.inject.Singleton
@@ -387,7 +387,7 @@ class SecurityWiringFactory(
                     val principal = env.principal()
                     val input =
                         env.getArgument<Map<String, Any?>>("input")
-                                ?: throw IllegalArgumentException("input is required")
+                            ?: throw IllegalArgumentException("input is required")
                     userPreferencesResolver.updateUserPreferences(input, principal)
                 },
             ).dataFetcher(

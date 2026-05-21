@@ -1,11 +1,9 @@
 package io.github.salomax.neotool.banking.graphql.attachment
 
-import io.github.salomax.neotool.banking.service.attachment.AttachmentService
+import io.github.salomax.neotool.banking.client.assets.AssetResult
 import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
-import io.github.salomax.neotool.banking.graphql.attachment.HoldingAttachmentDTO
-import io.github.salomax.neotool.banking.graphql.attachment.TransactionAttachmentDTO
-import io.github.salomax.neotool.banking.client.assets.AssetResult
+import io.github.salomax.neotool.banking.service.attachment.AttachmentService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
 import org.slf4j.LoggerFactory
@@ -19,7 +17,10 @@ class AttachmentResolver(
 
     // ── Transaction attachments ───────────────────────────────────────────────
 
-    fun transactionAttachments(transactionId: String, principal: RequestPrincipal): List<TransactionAttachmentDTO> {
+    fun transactionAttachments(
+        transactionId: String,
+        principal: RequestPrincipal,
+    ): List<TransactionAttachmentDTO> {
         val accountId = requireAccountId(principal)
         return attachmentService
             .listTransactionAttachments(UUID.fromString(transactionId), accountId)
@@ -34,7 +35,10 @@ class AttachmentResolver(
     fun mapAttachmentsToDTOs(attachments: List<TransactionAttachment>): List<TransactionAttachmentDTO> =
         attachments.map { it.toDTO(it.accountId) }
 
-    fun attachFileToTransaction(input: Map<String, Any?>, principal: RequestPrincipal): TransactionAttachmentDTO {
+    fun attachFileToTransaction(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): TransactionAttachmentDTO {
         val accountId = requireAccountId(principal)
         val transactionId = UUID.fromString(input["transactionId"] as String)
         val assetId = UUID.fromString(input["assetId"] as String)
@@ -43,21 +47,30 @@ class AttachmentResolver(
             .toDTO(accountId)
     }
 
-    fun removeTransactionAttachment(attachmentId: String, principal: RequestPrincipal): Boolean {
+    fun removeTransactionAttachment(
+        attachmentId: String,
+        principal: RequestPrincipal,
+    ): Boolean {
         val accountId = requireAccountId(principal)
         return attachmentService.removeTransactionAttachment(UUID.fromString(attachmentId), accountId)
     }
 
     // ── Holding attachments ───────────────────────────────────────────────────
 
-    fun holdingAttachments(holdingId: String, principal: RequestPrincipal): List<HoldingAttachmentDTO> {
+    fun holdingAttachments(
+        holdingId: String,
+        principal: RequestPrincipal,
+    ): List<HoldingAttachmentDTO> {
         val accountId = requireAccountId(principal)
         return attachmentService
             .listHoldingAttachments(UUID.fromString(holdingId), accountId)
             .map { it.toDTO(accountId) }
     }
 
-    fun attachFileToHolding(input: Map<String, Any?>, principal: RequestPrincipal): HoldingAttachmentDTO {
+    fun attachFileToHolding(
+        input: Map<String, Any?>,
+        principal: RequestPrincipal,
+    ): HoldingAttachmentDTO {
         val accountId = requireAccountId(principal)
         val holdingId = UUID.fromString(input["holdingId"] as String)
         val assetId = UUID.fromString(input["assetId"] as String)
@@ -66,7 +79,10 @@ class AttachmentResolver(
             .toDTO(accountId)
     }
 
-    fun removeHoldingAttachment(attachmentId: String, principal: RequestPrincipal): Boolean {
+    fun removeHoldingAttachment(
+        attachmentId: String,
+        principal: RequestPrincipal,
+    ): Boolean {
         val accountId = requireAccountId(principal)
         return attachmentService.removeHoldingAttachment(UUID.fromString(attachmentId), accountId)
     }
@@ -101,11 +117,20 @@ class AttachmentResolver(
         )
     }
 
-    private fun resolveAsset(assetId: UUID, accountId: UUID, attachmentId: UUID?): AssetResult? =
+    private fun resolveAsset(
+        assetId: UUID,
+        accountId: UUID,
+        attachmentId: UUID?,
+    ): AssetResult? =
         runCatching {
             attachmentService.resolveAssetMetadata(assetId, accountId)
         }.onFailure { e ->
-            log.warn("Failed to resolve asset metadata for assetId={} attachmentId={}: {}", assetId, attachmentId, e.message)
+            log.warn(
+                "Failed to resolve asset metadata for assetId={} attachmentId={}: {}",
+                assetId,
+                attachmentId,
+                e.message,
+            )
         }.getOrNull()
 
     private fun requireAccountId(principal: RequestPrincipal): UUID =

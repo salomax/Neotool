@@ -8,7 +8,6 @@ import java.util.UUID
 
 @Repository
 interface MerchantEntityRepository : JpaRepository<MerchantEntity, UUID> {
-
     /**
      * System merchants (global) + user-scoped merchants for [accountId].
      * Sorted: user-scoped first (account_id IS NOT NULL), then by name length DESC.

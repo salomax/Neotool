@@ -1,12 +1,15 @@
 package io.github.salomax.neotool.banking.service.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import jakarta.inject.Singleton
 import java.util.UUID
-
 
 @Singleton
 class DefaultTransactionRuleEngine(
@@ -152,7 +155,14 @@ class DefaultTransactionRuleEngine(
         tagsOverrideProvided: Boolean,
     ): UUID? {
         if (description.isNullOrBlank()) return null
-        if (categoryId == null && merchantId == null && descriptionOverride == null && !tagsOverrideProvided) return null
+        if (
+            categoryId == null &&
+            merchantId == null &&
+            descriptionOverride == null &&
+            !tagsOverrideProvided
+        ) {
+            return null
+        }
         val pattern = TransactionDescriptionNormalizer.normalize(description)
         val existing = ruleRepository.findImplicitByPattern(accountId, pattern)
         val now = java.time.Instant.now()
@@ -200,8 +210,7 @@ class DefaultTransactionRuleEngine(
         }
     }
 
-    internal fun normalize(s: String): String =
-        TransactionDescriptionNormalizer.normalize(s)
+    internal fun normalize(s: String): String = TransactionDescriptionNormalizer.normalize(s)
 
     private fun matches(
         normalized: String,

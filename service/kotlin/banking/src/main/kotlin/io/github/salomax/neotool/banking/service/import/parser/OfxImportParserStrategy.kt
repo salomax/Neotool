@@ -1,9 +1,7 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
-import io.github.salomax.neotool.banking.service.import.parser.OFXParser
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 
 class OfxImportParserStrategy : BaseImportParserStrategy(
     id = "ofx-parser",

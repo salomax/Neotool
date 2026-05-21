@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
-import io.github.salomax.neotool.banking.domain.import.*
 /**
  * Support score produced by a [BankCsvReader] for a given [CsvFingerprint].
  */

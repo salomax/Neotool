@@ -45,18 +45,20 @@ class RecurringMatchingServiceTest {
     @Test
     fun `findBestMatch returns null when only description signal matches and merchant does not`() {
         val txDate = LocalDate.now()
-        val transaction = postedTransaction(
-            date = txDate,
-            description = "Netflix.com",
-            merchantId = null,
-            amount = BigDecimal("200.00"),
-        )
-        val candidate = recurringTemplate(
-            name = "Netflix",
-            merchantId = UUID.randomUUID(),
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = txDate,
-        )
+        val transaction =
+            postedTransaction(
+                date = txDate,
+                description = "Netflix.com",
+                merchantId = null,
+                amount = BigDecimal("200.00"),
+            )
+        val candidate =
+            recurringTemplate(
+                name = "Netflix",
+                merchantId = UUID.randomUUID(),
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = txDate,
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(candidate))
 
         val matched = matchingService().findBestMatch(transaction)
@@ -68,18 +70,20 @@ class RecurringMatchingServiceTest {
     fun `findBestMatch returns template at exact threshold with description plus merchant`() {
         val txDate = LocalDate.now()
         val merchantId = UUID.randomUUID()
-        val transaction = postedTransaction(
-            date = txDate,
-            description = "Assinatura Netflix",
-            merchantId = merchantId,
-            amount = BigDecimal("500.00"),
-        )
-        val candidate = recurringTemplate(
-            name = "Netflix",
-            merchantId = merchantId,
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = txDate,
-        )
+        val transaction =
+            postedTransaction(
+                date = txDate,
+                description = "Assinatura Netflix",
+                merchantId = merchantId,
+                amount = BigDecimal("500.00"),
+            )
+        val candidate =
+            recurringTemplate(
+                name = "Netflix",
+                merchantId = merchantId,
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = txDate,
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(candidate))
 
         val matched = matchingService().findBestMatch(transaction)
@@ -90,18 +94,20 @@ class RecurringMatchingServiceTest {
     @Test
     fun `findBestMatch returns null when expectedAmount is null and only description matches`() {
         val txDate = LocalDate.now()
-        val transaction = postedTransaction(
-            date = txDate,
-            description = "Internet fibra",
-            merchantId = null,
-            amount = BigDecimal("999.00"),
-        )
-        val candidate = recurringTemplate(
-            name = "Internet",
-            merchantId = UUID.randomUUID(),
-            expectedAmount = null,
-            nextDueDate = txDate,
-        )
+        val transaction =
+            postedTransaction(
+                date = txDate,
+                description = "Internet fibra",
+                merchantId = null,
+                amount = BigDecimal("999.00"),
+            )
+        val candidate =
+            recurringTemplate(
+                name = "Internet",
+                merchantId = UUID.randomUUID(),
+                expectedAmount = null,
+                nextDueDate = txDate,
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(candidate))
 
         val matched = matchingService().findBestMatch(transaction)
@@ -113,18 +119,20 @@ class RecurringMatchingServiceTest {
     fun `findBestMatch bypasses date gate for past due template`() {
         val today = LocalDate.now()
         val merchantId = UUID.randomUUID()
-        val transaction = postedTransaction(
-            date = today,
-            description = "Conta de internet",
-            merchantId = merchantId,
-            amount = BigDecimal("80.00"),
-        )
-        val candidate = recurringTemplate(
-            name = "Internet",
-            merchantId = merchantId,
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = today.minusDays(31),
-        )
+        val transaction =
+            postedTransaction(
+                date = today,
+                description = "Conta de internet",
+                merchantId = merchantId,
+                amount = BigDecimal("80.00"),
+            )
+        val candidate =
+            recurringTemplate(
+                name = "Internet",
+                merchantId = merchantId,
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = today.minusDays(31),
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(candidate))
 
         val matched = matchingService(threshold = 0.55f).findBestMatch(transaction)
@@ -136,18 +144,20 @@ class RecurringMatchingServiceTest {
     fun `findBestMatch returns null when payment date is before past due nextDueDate`() {
         val today = LocalDate.now()
         val merchantId = UUID.randomUUID()
-        val transaction = postedTransaction(
-            date = today.minusDays(5),
-            description = "Conta de internet",
-            merchantId = merchantId,
-            amount = BigDecimal("80.00"),
-        )
-        val candidate = recurringTemplate(
-            name = "Internet",
-            merchantId = merchantId,
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = today.minusDays(3),
-        )
+        val transaction =
+            postedTransaction(
+                date = today.minusDays(5),
+                description = "Conta de internet",
+                merchantId = merchantId,
+                amount = BigDecimal("80.00"),
+            )
+        val candidate =
+            recurringTemplate(
+                name = "Internet",
+                merchantId = merchantId,
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = today.minusDays(3),
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(candidate))
 
         val matched = matchingService(threshold = 0.55f).findBestMatch(transaction)
@@ -159,24 +169,27 @@ class RecurringMatchingServiceTest {
     fun `findBestMatch uses nearest nextDueDate as tie breaker`() {
         val txDate = LocalDate.now()
         val merchantId = UUID.randomUUID()
-        val transaction = postedTransaction(
-            date = txDate,
-            description = "Academia",
-            merchantId = merchantId,
-            amount = BigDecimal("120.00"),
-        )
-        val farther = recurringTemplate(
-            name = "Academia",
-            merchantId = merchantId,
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = txDate.plusDays(4),
-        )
-        val nearest = recurringTemplate(
-            name = "Academia",
-            merchantId = merchantId,
-            expectedAmount = BigDecimal.ZERO,
-            nextDueDate = txDate.plusDays(1),
-        )
+        val transaction =
+            postedTransaction(
+                date = txDate,
+                description = "Academia",
+                merchantId = merchantId,
+                amount = BigDecimal("120.00"),
+            )
+        val farther =
+            recurringTemplate(
+                name = "Academia",
+                merchantId = merchantId,
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = txDate.plusDays(4),
+            )
+        val nearest =
+            recurringTemplate(
+                name = "Academia",
+                merchantId = merchantId,
+                expectedAmount = BigDecimal.ZERO,
+                nextDueDate = txDate.plusDays(1),
+            )
         whenever(recurringPaymentRepository.findAllByAccountId(accountId)).thenReturn(listOf(farther, nearest))
 
         val matched = matchingService().findBestMatch(transaction)

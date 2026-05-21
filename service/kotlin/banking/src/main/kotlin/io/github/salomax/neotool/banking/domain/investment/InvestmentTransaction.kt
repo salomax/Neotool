@@ -19,48 +19,50 @@ import java.util.UUID
  */
 data class InvestmentTransaction(
     val id: UUID? = null,
-
     // Ownership
     val holdingId: UUID,
-    val financialAccountId: UUID,         // Denormalized for fast tenant-level queries
+    // Denormalized for fast tenant-level queries
+    val financialAccountId: UUID,
     val accountId: UUID,
     val createdByUserId: UUID,
-
     // ── Classification ────────────────────────────────────────────────────────
     val direction: InvestmentTransactionDirection,
     val type: InvestmentTransactionType,
-    val typeAdditionalInfo: String? = null, // Required when type = OTHER
-
+    // Required when type = OTHER
+    val typeAdditionalInfo: String? = null,
     // ── Amounts ───────────────────────────────────────────────────────────────
-    val quantity: BigDecimal? = null,       // Null for DIVIDEND, INTEREST_PAYMENT, etc.
+    // Null for DIVIDEND, INTEREST_PAYMENT, etc.
+    val quantity: BigDecimal? = null,
     val unitPrice: BigDecimal? = null,
-    val grossValue: BigDecimal,             // Always required and positive
-    val netValue: BigDecimal? = null,       // grossValue − incomeTax − iof
-
+    // Always required and positive
+    val grossValue: BigDecimal,
+    // grossValue − incomeTax − iof
+    val netValue: BigDecimal? = null,
     // ── Brazilian taxes retained at source ────────────────────────────────────
-    val incomeTax: BigDecimal? = null,      // IR retido na operação
-    val iof: BigDecimal? = null,            // IOF retido (RF < 30 dias)
-
+    // IR retido na operação
+    val incomeTax: BigDecimal? = null,
+    // IOF retido (RF < 30 dias)
+    val iof: BigDecimal? = null,
     // ── Fixed income context ──────────────────────────────────────────────────
-    val indexerPercentage: BigDecimal? = null, // Rate applied in this transaction
-    val fixedAnnualRate: BigDecimal? = null,    // Canonical fixed leg rate (OFB: remunerationTransactionRate)
-
+    // Rate applied in this transaction
+    val indexerPercentage: BigDecimal? = null,
+    // Canonical fixed leg rate (OFB: remunerationTransactionRate)
+    val fixedAnnualRate: BigDecimal? = null,
     // ── Equity context ────────────────────────────────────────────────────────
-    val priceFactor: BigDecimal? = null,       // B3 price factor for this transaction
-
+    // B3 price factor for this transaction
+    val priceFactor: BigDecimal? = null,
     // ── Dates ─────────────────────────────────────────────────────────────────
-    val tradeDate: LocalDate,               // Fato gerador — used for IR month attribution
-    val settlementDate: LocalDate? = null,  // D+2 equities, D+1 RF
-
+    // Fato gerador — used for IR month attribution
+    val tradeDate: LocalDate,
+    // D+2 equities, D+1 RF
+    val settlementDate: LocalDate? = null,
     // ── Provenance ────────────────────────────────────────────────────────────
     val source: InvestmentSource = InvestmentSource.MANUAL,
     val providerTransactionId: String? = null,
     val importJobId: UUID? = null,
-
     val deletedAt: Instant? = null,
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
-
     // 1:1 broker note (renda variável only)
     val brokerNote: BrokerNote? = null,
 )
@@ -84,7 +86,8 @@ data class BrokerNote(
     val stockExchangeFee: BigDecimal = BigDecimal.ZERO,
     val clearingCustodyFee: BigDecimal = BigDecimal.ZERO,
     val incomeTax: BigDecimal = BigDecimal.ZERO,
-    val taxes: BigDecimal = BigDecimal.ZERO,  // ISS, emolumentos, outros
+    // ISS, emolumentos, outros
+    val taxes: BigDecimal = BigDecimal.ZERO,
     val netValue: BigDecimal,
     val createdAt: Instant = Instant.now(),
 )

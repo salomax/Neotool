@@ -11,8 +11,8 @@ import io.github.salomax.neotool.banking.graphql.import.ImportResolver
 import io.github.salomax.neotool.banking.graphql.import.ImportResultDTO
 import io.github.salomax.neotool.banking.graphql.import.TransactionImportDTO
 import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
-import io.github.salomax.neotool.banking.service.import.ImportJobService
 import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
+import io.github.salomax.neotool.banking.service.import.ImportJobService
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -482,7 +482,9 @@ class ImportResolverTest {
 
         @Test
         fun `accepts sao paulo nfce qr code url with raw pipe separators`() {
-            val qrCodeUrl = "https://www.nfce.fazenda.sp.gov.br/qrcode?p=35260357508426001654650010000196351001874400|3|1"
+            val qrCodeUrl =
+                "https://www.nfce.fazenda.sp.gov.br/qrcode?p=" +
+                    "35260357508426001654650010000196351001874400|3|1"
             val input =
                 mapOf(
                     "financialAccountId" to financialAccountId.toString(),

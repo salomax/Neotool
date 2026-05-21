@@ -11,7 +11,6 @@ import org.junit.jupiter.api.assertThrows
 
 @DisplayName("SpNfceFetcher")
 class SpNfceFetcherTest {
-
     private val fetcher = SpNfceFetcher()
 
     @Nested
@@ -41,9 +40,10 @@ class SpNfceFetcherTest {
         fun `throws NfceInvalidException when VIEWSTATE is missing`() {
             val htmlWithoutViewState = "<html><body>No form fields</body></html>"
 
-            val ex = assertThrows<NfceInvalidException> {
-                fetcher.fetchDetailedPage(htmlWithoutViewState, "https://example.com")
-            }
+            val ex =
+                assertThrows<NfceInvalidException> {
+                    fetcher.fetchDetailedPage(htmlWithoutViewState, "https://example.com")
+                }
             assertThat(ex.message).contains("__VIEWSTATE")
         }
     }

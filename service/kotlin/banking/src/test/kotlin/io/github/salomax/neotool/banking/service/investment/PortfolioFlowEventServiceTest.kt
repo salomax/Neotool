@@ -1,11 +1,11 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationRequestedEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
+import io.github.salomax.neotool.banking.model.dto.investment.PortfolioRecalculationRequestedEvent
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
@@ -26,7 +26,8 @@ class PortfolioFlowEventServiceTest {
     private val portfolioFlowEventRepository: PortfolioFlowEventRepository = mock()
     private val portfolioQuotaRepository: PortfolioQuotaRepository = mock()
     private val portfolioRecalculationJobRepository: PortfolioRecalculationJobRepository = mock()
-    private val recalculationRequestedEventPublisher: ApplicationEventPublisher<PortfolioRecalculationRequestedEvent> = mock()
+    private val recalculationRequestedEventPublisher: ApplicationEventPublisher<PortfolioRecalculationRequestedEvent> =
+        mock()
 
     private val service =
         PortfolioFlowEventService(
@@ -112,7 +113,9 @@ class PortfolioFlowEventServiceTest {
     @Test
     fun `deletes flow events by source reference`() {
         val sourceReferenceId = UUID.randomUUID()
-        whenever(portfolioFlowEventRepository.deleteBySourceReference(sourceReferenceId, "INVESTMENT_TRANSACTION")).thenReturn(1)
+        whenever(
+            portfolioFlowEventRepository.deleteBySourceReference(sourceReferenceId, "INVESTMENT_TRANSACTION"),
+        ).thenReturn(1)
 
         val deleted = service.deleteEventBySourceReference(sourceReferenceId, "INVESTMENT_TRANSACTION")
 
@@ -123,7 +126,9 @@ class PortfolioFlowEventServiceTest {
     fun `deleteEventsByRelatedHolding delegates to repository`() {
         val financialAccountId = UUID.randomUUID()
         val holdingId = UUID.randomUUID()
-        whenever(portfolioFlowEventRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, holdingId)).thenReturn(2)
+        whenever(
+            portfolioFlowEventRepository.deleteByFinancialAccountAndRelatedHoldingId(financialAccountId, holdingId),
+        ).thenReturn(2)
 
         val n = service.deleteEventsByRelatedHolding(financialAccountId, holdingId)
 
@@ -144,5 +149,4 @@ class PortfolioFlowEventServiceTest {
         totalQuotas = BigDecimal("100.00000000"),
         totalPortfolioValue = BigDecimal("1000.00"),
     )
-
 }

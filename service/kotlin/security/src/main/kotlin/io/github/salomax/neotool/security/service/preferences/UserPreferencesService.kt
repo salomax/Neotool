@@ -1,13 +1,13 @@
 package io.github.salomax.neotool.security.service.preferences
 
+import io.github.salomax.neotool.common.error.CommonErrorCode
+import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.security.domain.preferences.Language
 import io.github.salomax.neotool.security.domain.preferences.Theme
 import io.github.salomax.neotool.security.domain.preferences.UserPreferences
 import io.github.salomax.neotool.security.model.preferences.UserPreferencesEntity
 import io.github.salomax.neotool.security.model.preferences.UserPreferencesMapper
 import io.github.salomax.neotool.security.repo.UserPreferencesRepository
-import io.github.salomax.neotool.common.error.CommonErrorCode
-import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 import jakarta.transaction.Transactional
 import java.time.Instant
@@ -32,7 +32,13 @@ open class UserPreferencesService(
         firstDayOfWeek: Int?,
         keepMeConnected: Boolean?,
     ): UserPreferences {
-        if (language == null && theme == null && blurBalances == null && firstDayOfWeek == null && keepMeConnected == null) {
+        if (
+            language == null &&
+            theme == null &&
+            blurBalances == null &&
+            firstDayOfWeek == null &&
+            keepMeConnected == null
+        ) {
             throw ValidationException(CommonErrorCode.VALIDATION_ERROR, field = "input")
         }
         firstDayOfWeek?.let {

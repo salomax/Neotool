@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.service.investment
 
+import io.github.salomax.neotool.banking.client.investment.financialdata.EconomicIndicatorPointSyncNode
 import io.github.salomax.neotool.banking.client.investment.financialdata.FinancialDataMarketDataSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.FundNavBulkSyncClient
 import io.github.salomax.neotool.banking.client.investment.financialdata.ListedAssetPriceBulkSyncClient
-import io.github.salomax.neotool.banking.client.investment.financialdata.EconomicIndicatorPointSyncNode
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetCorporateEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
@@ -78,7 +78,12 @@ class MarketDataSyncService(
                 sourceLastRunAt = maxInstant(existing.sourceLastRunAt, event.lastRunAt),
                 lastEventId = event.eventId,
                 lastCursor = existing.lastCursor.takeIf { existing.lastEventId == event.eventId },
-                status = if (existing.status == MarketDataSyncStatus.FAILED) MarketDataSyncStatus.IDLE else existing.status,
+                status =
+                    if (existing.status == MarketDataSyncStatus.FAILED) {
+                        MarketDataSyncStatus.IDLE
+                    } else {
+                        existing.status
+                    },
                 updatedAt = now,
             )
 
@@ -212,8 +217,9 @@ class MarketDataSyncService(
         )
 
         logger.info {
-            "Listed asset bulk sync completed: eventId=${event.eventId} from=${event.fromDate} to=${event.lastDataDate} " +
-                "tickers=${assetsByTicker.size} rows=$processedRows resumed=${resumeCursor != null}"
+            "Listed asset bulk sync completed: eventId=${event.eventId} from=${event.fromDate} " +
+                "to=${event.lastDataDate} tickers=${assetsByTicker.size} rows=$processedRows " +
+                "resumed=${resumeCursor != null}"
         }
         return SyncExecutionResult(
             lastSyncedDate = maxSyncedDate,
@@ -450,7 +456,12 @@ class MarketDataSyncService(
     }
 
     private fun maybeRequestRecalculation(jobName: MarketDataSyncJobName) {
-        if (jobName == MarketDataSyncJobName.INDICATORS || jobName == MarketDataSyncJobName.B3_COTAHIST || jobName == MarketDataSyncJobName.CVM_NAV || jobName == MarketDataSyncJobName.B3_CORPORATE_EVENTS) {
+        if (
+            jobName == MarketDataSyncJobName.INDICATORS ||
+            jobName == MarketDataSyncJobName.B3_COTAHIST ||
+            jobName == MarketDataSyncJobName.CVM_NAV ||
+            jobName == MarketDataSyncJobName.B3_CORPORATE_EVENTS
+        ) {
             val readiness = marketDataReadinessService.valuationReadiness()
             val safeDate = readiness.safeValuationDate ?: return
             if (!readiness.isReady) return
@@ -483,9 +494,15 @@ class MarketDataSyncService(
     private fun toBenchmarkDaily(item: EconomicIndicatorPointSyncNode): MarketBenchmarkDaily? {
         val benchmarkCode =
             when {
-                item.indicator.equals("CDI", ignoreCase = true) && item.variation.equals("MONTHLY_CHANGE", ignoreCase = true) ->
+                item.indicator.equals(
+                    "CDI",
+                    ignoreCase = true,
+                ) && item.variation.equals("MONTHLY_CHANGE", ignoreCase = true) ->
                     MarketBenchmarkCode.CDI
-                item.indicator.equals("IPCA", ignoreCase = true) && item.variation.equals("MONTHLY_CHANGE", ignoreCase = true) ->
+                item.indicator.equals(
+                    "IPCA",
+                    ignoreCase = true,
+                ) && item.variation.equals("MONTHLY_CHANGE", ignoreCase = true) ->
                     MarketBenchmarkCode.IPCA
                 else -> null
             } ?: return null

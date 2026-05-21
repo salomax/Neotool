@@ -233,7 +233,9 @@ class MarketDataSyncServiceTest {
                 ),
             ),
         )
-        whenever(transactionRepository.findEarliestTransactionDate(financialAccountId)).thenReturn(LocalDate.of(2026, 2, 15))
+        whenever(
+            transactionRepository.findEarliestTransactionDate(financialAccountId),
+        ).thenReturn(LocalDate.of(2026, 2, 15))
         doAnswer { invocation ->
             val consumer = invocation.getArgument<(FundNavBulkSyncNode) -> Unit>(5)
             consumer(
@@ -364,7 +366,11 @@ class MarketDataSyncServiceTest {
         verify(assetDailyPriceRepository, times(2)).upsertAll(any())
         val controlsCaptor = argumentCaptor<MarketDataSyncControl>()
         verify(syncControlRepository, org.mockito.kotlin.atLeastOnce()).upsert(controlsCaptor.capture())
-        assertThat(controlsCaptor.allValues.any { it.status == MarketDataSyncStatus.SYNCING && it.lastCursor == "cursor-2" }).isTrue()
+        assertThat(
+            controlsCaptor.allValues.any {
+                it.status == MarketDataSyncStatus.SYNCING && it.lastCursor == "cursor-2"
+            },
+        ).isTrue()
         val finalControl = controlsCaptor.allValues.last()
         assertThat(finalControl.status).isEqualTo(MarketDataSyncStatus.SUCCESS)
         assertThat(finalControl.lastSyncedDate).isEqualTo(LocalDate.of(2026, 3, 31))

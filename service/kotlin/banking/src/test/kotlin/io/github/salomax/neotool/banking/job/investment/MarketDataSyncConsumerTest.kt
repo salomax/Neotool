@@ -5,9 +5,6 @@ import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.banking.client.investment.messaging.MarketDataJobSucceededEvent
 import io.github.salomax.neotool.banking.domain.portfolio.MarketDataSyncJobName
 import io.github.salomax.neotool.banking.service.investment.MarketDataSyncService
-import java.time.Instant
-import java.time.LocalDate
-import java.util.UUID
 import org.apache.kafka.clients.consumer.Consumer
 import org.apache.kafka.clients.consumer.OffsetAndMetadata
 import org.apache.kafka.common.TopicPartition
@@ -17,6 +14,9 @@ import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import java.time.Instant
+import java.time.LocalDate
+import java.util.UUID
 
 class MarketDataSyncConsumerTest {
     private val marketDataSyncService: MarketDataSyncService = mock()

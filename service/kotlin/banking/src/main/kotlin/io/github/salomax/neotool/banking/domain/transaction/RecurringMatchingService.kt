@@ -21,8 +21,9 @@ class RecurringMatchingService(
         if (transaction.type == TransactionType.BALANCE_ADJUSTMENT) return null
         if (transaction.recurringPaymentId != null) return null
 
-        val candidates = recurringPaymentRepository.findAllByAccountId(transaction.accountId)
-            .filter { it.status == RecurringPaymentStatus.ACTIVE && it.deletedAt == null }
+        val candidates =
+            recurringPaymentRepository.findAllByAccountId(transaction.accountId)
+                .filter { it.status == RecurringPaymentStatus.ACTIVE && it.deletedAt == null }
 
         return candidates
             .asSequence()
@@ -54,8 +55,9 @@ class RecurringMatchingService(
             // Legacy safety: invalid non-positive expectedAmount behaves like variable amount.
             s += 0.10f
         } else {
-            val pct = transaction.amount.subtract(expected).abs()
-                .divide(expected.abs(), 6, RoundingMode.HALF_UP)
+            val pct =
+                transaction.amount.subtract(expected).abs()
+                    .divide(expected.abs(), 6, RoundingMode.HALF_UP)
             if (pct <= BigDecimal("0.15")) s += 0.20f * (1f - pct.toFloat())
         }
 

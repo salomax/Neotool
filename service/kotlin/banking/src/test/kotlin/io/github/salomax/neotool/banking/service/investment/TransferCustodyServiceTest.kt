@@ -7,9 +7,9 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
 import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
-import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
@@ -142,7 +142,9 @@ class TransferCustodyServiceTest {
             ),
         ).thenReturn(true)
         whenever(assetRepository.findById(sourceAssetId)).thenReturn(stockAsset)
-        whenever(investmentTransactionService.record(any(), any(), any())).thenReturn(outflowTransaction, inflowTransaction)
+        whenever(
+            investmentTransactionService.record(any(), any(), any()),
+        ).thenReturn(outflowTransaction, inflowTransaction)
     }
 
     @Test
@@ -248,7 +250,9 @@ class TransferCustodyServiceTest {
 
     @Test
     fun `throws when destination financial account is same as source`() {
-        whenever(financialAccountRepository.existsByIdAndAccountId(sourceFinancialAccountId, accountId)).thenReturn(true)
+        whenever(
+            financialAccountRepository.existsByIdAndAccountId(sourceFinancialAccountId, accountId),
+        ).thenReturn(true)
         val command =
             TransferCustodyCommand(
                 sourceHoldingId = sourceHoldingId,
@@ -277,7 +281,9 @@ class TransferCustodyServiceTest {
 
         assertThatThrownBy { service.transfer(command, accountId, userId) }
             .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
-                assertThat(exception.errorCode).isEqualTo(BankingErrorCode.TRANSFER_CUSTODY_QUANTITY_EXCEEDS_SOURCE_HOLDING)
+                assertThat(
+                    exception.errorCode,
+                ).isEqualTo(BankingErrorCode.TRANSFER_CUSTODY_QUANTITY_EXCEEDS_SOURCE_HOLDING)
             }
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
@@ -383,7 +389,9 @@ class TransferCustodyServiceTest {
 
     @Test
     fun `throws when full transfer resolves to non positive source quantity`() {
-        whenever(holdingRepository.findById(sourceHoldingId, accountId)).thenReturn(sourceHolding.copy(quantity = BigDecimal.ZERO))
+        whenever(
+            holdingRepository.findById(sourceHoldingId, accountId),
+        ).thenReturn(sourceHolding.copy(quantity = BigDecimal.ZERO))
         val command =
             TransferCustodyCommand(
                 sourceHoldingId = sourceHoldingId,

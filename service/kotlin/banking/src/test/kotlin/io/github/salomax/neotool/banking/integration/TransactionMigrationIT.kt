@@ -115,11 +115,13 @@ class TransactionMigrationIT : BankingPostgresIntegrationTest() {
                     rs.next()
                     assertThat(rs.getInt("cnt")).isGreaterThanOrEqualTo(10000)
                 }
-                conn.createStatement().executeQuery("SELECT COUNT(*) FROM banking.ncm_codes WHERE code = '1006'").use { rs ->
+                conn.createStatement().executeQuery("SELECT COUNT(*) FROM banking.ncm_codes WHERE code = '1006'").use {
+                        rs ->
                     rs.next()
                     assertThat(rs.getInt(1)).isEqualTo(1)
                 }
-                conn.createStatement().executeQuery("SELECT depth FROM banking.ncm_codes WHERE code = '01012100'").use { rs ->
+                conn.createStatement().executeQuery("SELECT depth FROM banking.ncm_codes WHERE code = '01012100'").use {
+                        rs ->
                     rs.next()
                     assertThat(rs.getInt(1)).isEqualTo(4)
                 }

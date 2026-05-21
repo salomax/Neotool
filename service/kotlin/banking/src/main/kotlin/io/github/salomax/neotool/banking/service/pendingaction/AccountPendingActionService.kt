@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.service.pendingaction
 
-import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingAction
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionRepository
 import io.github.salomax.neotool.banking.domain.pendingaction.AccountPendingActionStatus
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.common.error.ValidationException
 import jakarta.inject.Singleton
 import java.time.Instant

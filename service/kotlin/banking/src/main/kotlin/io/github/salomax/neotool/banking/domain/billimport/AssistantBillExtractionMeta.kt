@@ -31,5 +31,6 @@ data class AssistantBillExtractionMeta(
     @param:JsonProperty("declared_total") val declaredTotal: Double? = null,
     /** Empty when card IDs appear inline per row and the extractor must parse the whole document. */
     @param:JsonProperty("card_blocks") val cardBlocks: List<AssistantBillCardBlock> = emptyList(),
-    @param:JsonProperty("transaction_pattern") val transactionPattern: AssistantBillTransactionPattern = AssistantBillTransactionPattern(),
+    @param:JsonProperty("transaction_pattern") val transactionPattern: AssistantBillTransactionPattern =
+        AssistantBillTransactionPattern(),
 )

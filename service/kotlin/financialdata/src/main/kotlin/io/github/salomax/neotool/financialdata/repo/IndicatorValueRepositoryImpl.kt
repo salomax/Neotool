@@ -138,7 +138,8 @@ open class IndicatorValueRepositoryImpl(
         val indicatorPlaceholders = normalizedIndicators?.indices?.joinToString(", ") { "?" }.orEmpty()
         val variationPlaceholders = normalizedVariations?.indices?.joinToString(", ") { "?" }.orEmpty()
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 v.id::text,
                 i.label,
@@ -158,14 +159,16 @@ open class IndicatorValueRepositoryImpl(
               ${if (hasVariations) "AND v.label IN ($variationPlaceholders)" else ""}
               ${if (hasUpdatedSince) "AND iv.updated_at >= ?" else ""}
               ${
-            if (hasCursor) {
-                "AND (iv.reference_date > ? OR (iv.reference_date = ? AND (i.label > ? OR (i.label = ? AND (v.label > ? OR (v.label = ? AND v.id::text > ?))))))"
-            } else {
-                ""
+                if (hasCursor) {
+                    "AND (iv.reference_date > ? OR (iv.reference_date = ? AND " +
+                        "(i.label > ? OR (i.label = ? AND (v.label > ? OR " +
+                        "(v.label = ? AND v.id::text > ?))))))"
+                } else {
+                    ""
+                }
             }
-        }
             ORDER BY iv.reference_date ASC, i.label ASC, v.label ASC, v.id ASC
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         var index = 1

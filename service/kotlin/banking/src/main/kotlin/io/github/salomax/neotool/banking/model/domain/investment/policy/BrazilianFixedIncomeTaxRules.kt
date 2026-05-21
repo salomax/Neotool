@@ -18,7 +18,6 @@ import java.math.RoundingMode
  * by valuation, simulation, and any other domain component that needs Brazilian tax math.
  */
 object BrazilianFixedIncomeTaxRules {
-
     private val MC = MathContext(12, RoundingMode.HALF_UP)
 
     // ── IR ────────────────────────────────────────────────────────────────────
@@ -77,8 +76,10 @@ object BrazilianFixedIncomeTaxRules {
     /** Regressive IOF rates indexed by (calendarDay - 1). Day 30+ → 0%. */
     private val IOF_TABLE =
         listOf(
-            BigDecimal("0.96"), // day 1
-            BigDecimal("0.93"), // day 2
+            // day 1
+            BigDecimal("0.96"),
+            // day 2
+            BigDecimal("0.93"),
             BigDecimal("0.90"),
             BigDecimal("0.86"),
             BigDecimal("0.83"),
@@ -105,7 +106,9 @@ object BrazilianFixedIncomeTaxRules {
             BigDecimal("0.13"),
             BigDecimal("0.10"),
             BigDecimal("0.06"),
-            BigDecimal("0.03"), // day 29
-            BigDecimal.ZERO,    // day 30
+            // day 29
+            BigDecimal("0.03"),
+            // day 30
+            BigDecimal.ZERO,
         )
 }

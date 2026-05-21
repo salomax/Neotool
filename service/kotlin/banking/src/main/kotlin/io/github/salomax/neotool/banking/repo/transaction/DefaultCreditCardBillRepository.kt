@@ -2,7 +2,6 @@ package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.BillStatus
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
-import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
 import io.github.salomax.neotool.banking.model.transaction.CreditCardBillMapper
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton

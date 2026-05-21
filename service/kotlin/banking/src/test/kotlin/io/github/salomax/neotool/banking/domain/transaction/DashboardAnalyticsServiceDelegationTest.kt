@@ -27,10 +27,11 @@ class DashboardAnalyticsServiceDelegationTest {
     fun setUp() {
         transactionRepository = mock()
         dashboardAnalyticsCalculator = mock()
-        service = DashboardAnalyticsService(
-            transactionRepository = transactionRepository,
-            dashboardAnalyticsCalculator = dashboardAnalyticsCalculator,
-        )
+        service =
+            DashboardAnalyticsService(
+                transactionRepository = transactionRepository,
+                dashboardAnalyticsCalculator = dashboardAnalyticsCalculator,
+            )
     }
 
     @Test
@@ -124,15 +125,16 @@ class DashboardAnalyticsServiceDelegationTest {
             ),
         )
 
-        val result = service.getCategoryBreakdownForRange(
-            accountId = accountId,
-            financialAccountId = financialAccountId,
-            startYear = 2025,
-            startMonth = 1,
-            endYear = 2025,
-            endMonth = 1,
-            applicableTo = CategoryApplicableTo.EXPENSE,
-        )
+        val result =
+            service.getCategoryBreakdownForRange(
+                accountId = accountId,
+                financialAccountId = financialAccountId,
+                startYear = 2025,
+                startMonth = 1,
+                endYear = 2025,
+                endMonth = 1,
+                applicableTo = CategoryApplicableTo.EXPENSE,
+            )
 
         assertThat(result).hasSize(2)
         assertThat(result[0].percentage).isEqualTo(75.0)

@@ -7,9 +7,28 @@ import java.util.UUID
 
 @Repository
 interface TransactionAttachmentEntityRepository : JpaRepository<TransactionAttachmentEntity, UUID> {
-    fun findByTransactionIdAndAccountId(transactionId: UUID, accountId: UUID): List<TransactionAttachmentEntity>
-    fun findByTransactionIdInAndAccountId(transactionIds: Collection<UUID>, accountId: UUID): List<TransactionAttachmentEntity>
-    fun findByIdAndAccountId(id: UUID, accountId: UUID): TransactionAttachmentEntity?
-    fun countByTransactionIdAndAccountId(transactionId: UUID, accountId: UUID): Int
-    fun deleteByIdAndAccountId(id: UUID, accountId: UUID): Int
+    fun findByTransactionIdAndAccountId(
+        transactionId: UUID,
+        accountId: UUID,
+    ): List<TransactionAttachmentEntity>
+
+    fun findByTransactionIdInAndAccountId(
+        transactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): List<TransactionAttachmentEntity>
+
+    fun findByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): TransactionAttachmentEntity?
+
+    fun countByTransactionIdAndAccountId(
+        transactionId: UUID,
+        accountId: UUID,
+    ): Int
+
+    fun deleteByIdAndAccountId(
+        id: UUID,
+        accountId: UUID,
+    ): Int
 }

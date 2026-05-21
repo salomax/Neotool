@@ -13,8 +13,7 @@ import java.util.UUID
 open class UserRuleApplicationModeService(
     private val repository: UserRuleApplicationModeRepository,
 ) {
-    open fun get(userId: UUID): RuleApplicationMode =
-        getPreferences(userId).ruleApplicationMode
+    open fun get(userId: UUID): RuleApplicationMode = getPreferences(userId).ruleApplicationMode
 
     open fun getPreferences(userId: UUID): BankingUserPreferences {
         val entity = repository.findById(userId).orElse(null) ?: return BankingUserPreferences.defaultsFor(userId)

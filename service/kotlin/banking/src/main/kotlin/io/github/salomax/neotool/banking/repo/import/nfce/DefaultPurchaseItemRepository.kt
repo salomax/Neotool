@@ -33,6 +33,9 @@ open class DefaultPurchaseItemRepository(
         rawDescription: String,
     ): List<PurchaseItem> =
         entityRepository
-            .findTop3ByAccountIdAndRawDescriptionAndProductVariantIdIsNullOrderByCreatedAtDesc(accountId, rawDescription)
+            .findTop3ByAccountIdAndRawDescriptionAndProductVariantIdIsNullOrderByCreatedAtDesc(
+                accountId,
+                rawDescription,
+            )
             .map(PurchaseItemMapper::toDomain)
 }

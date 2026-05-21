@@ -18,33 +18,31 @@ open class TransactionAttachmentEntity(
     @Generated(event = [EventType.INSERT])
     @Column(columnDefinition = "uuid", insertable = false, updatable = false)
     override val id: UUID? = null,
-
     @Column(name = "account_id", nullable = false)
     open var accountId: UUID,
-
     @Column(name = "transaction_id", nullable = false)
     open var transactionId: UUID,
-
     @Column(name = "asset_id", nullable = false)
     open var assetId: UUID,
-
     @Column(name = "created_at", nullable = false)
     open var createdAt: Instant = Instant.now(),
 ) : BaseEntity<UUID?>(id)
 
 object TransactionAttachmentMapper {
-    fun toDomain(entity: TransactionAttachmentEntity) = TransactionAttachment(
-        id = entity.id,
-        accountId = entity.accountId,
-        transactionId = entity.transactionId,
-        assetId = entity.assetId,
-        createdAt = entity.createdAt,
-    )
+    fun toDomain(entity: TransactionAttachmentEntity) =
+        TransactionAttachment(
+            id = entity.id,
+            accountId = entity.accountId,
+            transactionId = entity.transactionId,
+            assetId = entity.assetId,
+            createdAt = entity.createdAt,
+        )
 
-    fun toEntity(domain: TransactionAttachment) = TransactionAttachmentEntity(
-        accountId = domain.accountId,
-        transactionId = domain.transactionId,
-        assetId = domain.assetId,
-        createdAt = domain.createdAt,
-    )
+    fun toEntity(domain: TransactionAttachment) =
+        TransactionAttachmentEntity(
+            accountId = domain.accountId,
+            transactionId = domain.transactionId,
+            assetId = domain.assetId,
+            createdAt = domain.createdAt,
+        )
 }

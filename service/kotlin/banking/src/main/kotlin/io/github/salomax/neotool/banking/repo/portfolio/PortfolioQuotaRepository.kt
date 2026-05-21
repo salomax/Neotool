@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.repo.portfolio
 
-import io.github.salomax.neotool.banking.domain.portfolio.PortfolioValueWindow
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioValueWindow
 import java.time.LocalDate
 import java.util.UUID
 

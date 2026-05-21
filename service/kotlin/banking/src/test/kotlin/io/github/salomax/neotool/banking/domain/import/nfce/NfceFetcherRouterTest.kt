@@ -16,31 +16,32 @@ import java.time.Instant
 
 @DisplayName("NfceFetcherRouter")
 class NfceFetcherRouterTest {
-
     private val spFetcher: NfceFetcher = mock()
     private val defaultClient: DefaultNfceClient = mock()
 
-    private val spNfceData = NfceData(
-        chNFe = "35240112345678000199650010000012341123456789",
-        dhEmi = Instant.now(),
-        vNF = BigDecimal("100.00"),
-        cnpjEmitente = "12345678000199",
-        nomeEmitente = "Store SP",
-        municipio = "São Paulo",
-        uf = "SP",
-        items = emptyList(),
-    )
+    private val spNfceData =
+        NfceData(
+            chNFe = "35240112345678000199650010000012341123456789",
+            dhEmi = Instant.now(),
+            vNF = BigDecimal("100.00"),
+            cnpjEmitente = "12345678000199",
+            nomeEmitente = "Store SP",
+            municipio = "São Paulo",
+            uf = "SP",
+            items = emptyList(),
+        )
 
-    private val defaultNfceData = NfceData(
-        chNFe = "43240112345678000199650010000012341123456789",
-        dhEmi = Instant.now(),
-        vNF = BigDecimal("50.00"),
-        cnpjEmitente = "98765432000111",
-        nomeEmitente = "Store RS",
-        municipio = "Porto Alegre",
-        uf = "RS",
-        items = emptyList(),
-    )
+    private val defaultNfceData =
+        NfceData(
+            chNFe = "43240112345678000199650010000012341123456789",
+            dhEmi = Instant.now(),
+            vNF = BigDecimal("50.00"),
+            cnpjEmitente = "98765432000111",
+            nomeEmitente = "Store RS",
+            municipio = "Porto Alegre",
+            uf = "RS",
+            items = emptyList(),
+        )
 
     @Test
     fun `routes SP URL (UF 35) to SpNfceFetcher`() {

@@ -10,20 +10,21 @@ import java.math.BigDecimal
 import java.util.UUID
 
 class HoldingPositionEvolutionTest {
-
     private val accountId = UUID.randomUUID()
     private val faId = UUID.randomUUID()
     private val assetId = UUID.randomUUID()
 
-    private fun baseHolding(qty: String, avg: String) =
-        Holding(
-            financialAccountId = faId,
-            accountId = accountId,
-            assetId = assetId,
-            quantity = BigDecimal(qty),
-            averageCost = BigDecimal(avg),
-            source = InvestmentSource.MANUAL,
-        )
+    private fun baseHolding(
+        qty: String,
+        avg: String,
+    ) = Holding(
+        financialAccountId = faId,
+        accountId = accountId,
+        assetId = assetId,
+        quantity = BigDecimal(qty),
+        averageCost = BigDecimal(avg),
+        source = InvestmentSource.MANUAL,
+    )
 
     @Test
     fun `purchase increases quantity and weighted average cost`() {

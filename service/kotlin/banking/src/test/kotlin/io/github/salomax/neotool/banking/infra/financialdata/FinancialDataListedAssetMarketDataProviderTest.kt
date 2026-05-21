@@ -14,33 +14,36 @@ import java.time.LocalDate
 
 @DisplayName("FinancialDataListedAssetMarketDataProvider")
 class FinancialDataListedAssetMarketDataProviderTest {
-
     @Test
     fun `loads multiple tickers in one graphql request`() {
         runBlocking {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "investmentAssetsByTickers" to listOf(
-                            mapOf(
-                                "ticker" to "PETR4",
-                                "logoAsset" to mapOf("id" to "logo-petr4"),
-                                "latestPrice" to mapOf(
-                                    "date" to "2026-03-24",
-                                    "closePrice" to 31.45,
+                    data =
+                        mapOf(
+                            "investmentAssetsByTickers" to
+                                listOf(
+                                    mapOf(
+                                        "ticker" to "PETR4",
+                                        "logoAsset" to mapOf("id" to "logo-petr4"),
+                                        "latestPrice" to
+                                            mapOf(
+                                                "date" to "2026-03-24",
+                                                "closePrice" to 31.45,
+                                            ),
+                                    ),
+                                    mapOf(
+                                        "ticker" to "VALE3",
+                                        "logoAsset" to mapOf("id" to "logo-vale3"),
+                                        "latestPrice" to
+                                            mapOf(
+                                                "date" to "2026-03-24",
+                                                "closePrice" to 62.10,
+                                            ),
+                                    ),
                                 ),
-                            ),
-                            mapOf(
-                                "ticker" to "VALE3",
-                                "logoAsset" to mapOf("id" to "logo-vale3"),
-                                "latestPrice" to mapOf(
-                                    "date" to "2026-03-24",
-                                    "closePrice" to 62.10,
-                                ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataListedAssetMarketDataProvider(client)
@@ -66,9 +69,10 @@ class FinancialDataListedAssetMarketDataProviderTest {
                 client.query(match { it.contains("investmentAssetsByTickers") }, any(), any(), any())
             } returns
                 GraphQLResponse(
-                    errors = listOf(
-                        mapOf("message" to "Cannot query field 'investmentAssetsByTickers' on type 'Query'."),
-                    ),
+                    errors =
+                        listOf(
+                            mapOf("message" to "Cannot query field 'investmentAssetsByTickers' on type 'Query'."),
+                        ),
                 )
             coEvery {
                 client.query(
@@ -79,16 +83,19 @@ class FinancialDataListedAssetMarketDataProviderTest {
                 )
             } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "investmentAssetByTicker" to mapOf(
-                            "ticker" to "PETR4",
-                            "logoAsset" to mapOf("id" to "logo-petr4"),
-                            "latestPrice" to mapOf(
-                                "date" to "2026-03-24",
-                                "closePrice" to 31.45,
-                            ),
+                    data =
+                        mapOf(
+                            "investmentAssetByTicker" to
+                                mapOf(
+                                    "ticker" to "PETR4",
+                                    "logoAsset" to mapOf("id" to "logo-petr4"),
+                                    "latestPrice" to
+                                        mapOf(
+                                            "date" to "2026-03-24",
+                                            "closePrice" to 31.45,
+                                        ),
+                                ),
                         ),
-                    ),
                 )
             coEvery {
                 client.query(
@@ -99,16 +106,19 @@ class FinancialDataListedAssetMarketDataProviderTest {
                 )
             } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "investmentAssetByTicker" to mapOf(
-                            "ticker" to "VALE3",
-                            "logoAsset" to mapOf("id" to "logo-vale3"),
-                            "latestPrice" to mapOf(
-                                "date" to "2026-03-24",
-                                "closePrice" to 62.10,
-                            ),
+                    data =
+                        mapOf(
+                            "investmentAssetByTicker" to
+                                mapOf(
+                                    "ticker" to "VALE3",
+                                    "logoAsset" to mapOf("id" to "logo-vale3"),
+                                    "latestPrice" to
+                                        mapOf(
+                                            "date" to "2026-03-24",
+                                            "closePrice" to 62.10,
+                                        ),
+                                ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataListedAssetMarketDataProvider(client)

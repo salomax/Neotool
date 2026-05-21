@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import io.github.salomax.neotool.common.service.ServiceTokenClient
 import io.micronaut.context.annotation.Property
 import jakarta.inject.Singleton
+import kotlinx.coroutines.runBlocking
+import mu.KotlinLogging
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -17,8 +19,6 @@ import java.time.Duration
 import java.time.Instant
 import java.time.LocalDate
 import java.util.zip.GZIPInputStream
-import kotlinx.coroutines.runBlocking
-import mu.KotlinLogging
 
 @Singleton
 open class HttpFundNavBulkSyncClient(
@@ -26,7 +26,10 @@ open class HttpFundNavBulkSyncClient(
     private val financialDataServiceUrl: String,
     @param:Property(name = "banking.financialdata-service.fund-navs-export-path")
     private val exportPath: String,
-    @param:Property(name = "banking.financialdata-service.target-audience", defaultValue = "neotool-financial-data-service")
+    @param:Property(
+        name = "banking.financialdata-service.target-audience",
+        defaultValue = "neotool-financial-data-service",
+    )
     private val targetAudience: String,
     @param:Property(name = "banking.market-data-sync.fund-navs.connect-timeout-seconds", defaultValue = "10")
     private val connectTimeoutSeconds: Long,
@@ -85,7 +88,8 @@ open class HttpFundNavBulkSyncClient(
         }
 
         logger.info {
-            "Fund NAV bulk sync stream consumed successfully: from=$from to=$to cnpjs=${cnpjs?.size ?: 0} after=${after != null}"
+            "Fund NAV bulk sync stream consumed successfully: from=$from to=$to " +
+                "cnpjs=${cnpjs?.size ?: 0} after=${after != null}"
         }
     }
 

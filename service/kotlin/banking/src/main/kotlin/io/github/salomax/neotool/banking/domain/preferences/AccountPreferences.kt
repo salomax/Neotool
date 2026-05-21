@@ -11,7 +11,10 @@ data class AccountPreferences(
     val updatedAt: Instant,
 ) {
     companion object {
-        fun defaultsFor(accountId: UUID, now: Instant = Instant.now()): AccountPreferences =
+        fun defaultsFor(
+            accountId: UUID,
+            now: Instant = Instant.now(),
+        ): AccountPreferences =
             AccountPreferences(
                 accountId = accountId,
                 defaultTransactionStatus = TransactionStatus.POSTED,

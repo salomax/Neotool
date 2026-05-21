@@ -1,12 +1,27 @@
 package io.github.salomax.neotool.banking.domain.import
 
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducer
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileRequestedEvent
+import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
+import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
 import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
-import io.github.salomax.neotool.banking.service.import.*
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
@@ -14,26 +29,12 @@ import io.github.salomax.neotool.banking.repo.import.nfce.ProductAliasEntityRepo
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductVariantEntityRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemRepository
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
-import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
-import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
-import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducer
-import io.github.salomax.neotool.banking.client.import.messaging.ImportFileRequestedEvent
+import io.github.salomax.neotool.banking.service.import.ImportJobService
+import io.github.salomax.neotool.banking.service.import.ImportProcessor
+import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
+import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.ConflictException
 import org.assertj.core.api.Assertions.assertThat
@@ -485,7 +486,8 @@ class ImportJobServiceTest {
                 RuntimeException(
                     "duplicate",
                     PSQLException(
-                        "duplicate key value violates unique constraint \"uq_document_import_jobs_transaction_account_hash\"",
+                        "duplicate key value violates unique constraint " +
+                            "\"uq_document_import_jobs_transaction_account_hash\"",
                         PSQLState.UNIQUE_VIOLATION,
                     ),
                 ),
@@ -682,7 +684,9 @@ class ImportJobServiceTest {
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = savedTransactionId)
             }
-            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
+            whenever(
+                nfceDocumentRepository.save(any()),
+            ).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
             whenever(purchaseItemRepository.saveAll(any())).thenAnswer { it.getArgument<List<PurchaseItem>>(0) }
             whenever(nfceDocumentRepository.findByTransactionId(any(), any())).thenAnswer { inv ->
                 val txId = inv.arguments[0] as UUID
@@ -740,9 +744,23 @@ class ImportJobServiceTest {
                     uf = "SP",
                     items =
                         listOf(
-                            NfceItem("ITEM EAN", BigDecimal("10.00"), BigDecimal.ONE, "UN", "10063021", cEAN = "789111"),
+                            NfceItem(
+                                "ITEM EAN",
+                                BigDecimal("10.00"),
+                                BigDecimal.ONE,
+                                "UN",
+                                "10063021",
+                                cEAN = "789111",
+                            ),
                             NfceItem("ITEM ALIAS", BigDecimal("20.00"), BigDecimal.ONE, "UN", "10063021"),
-                            NfceItem("ITEM CPROD", BigDecimal("30.00"), BigDecimal.ONE, "UN", "10063021", cProd = "CP-1"),
+                            NfceItem(
+                                "ITEM CPROD",
+                                BigDecimal("30.00"),
+                                BigDecimal.ONE,
+                                "UN",
+                                "10063021",
+                                cProd = "CP-1",
+                            ),
                             NfceItem("ITEM NOVO", BigDecimal("0.00"), BigDecimal.ONE, "UN", ""),
                         ),
                 )
@@ -926,7 +944,9 @@ class ImportJobServiceTest {
                     items = emptyList(),
                 )
             whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
-            whenever(sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)))
+            whenever(
+                sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)),
+            )
                 .thenReturn(false)
             whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(null)
             whenever(
@@ -1047,14 +1067,22 @@ class ImportJobServiceTest {
             whenever(nfceClient.fetch(qrCodeUrl)).thenReturn(nfce)
             whenever(importJobRepository.findByFileHash(financialAccountId, chNFe)).thenReturn(existingJob)
             whenever(transactionRepository.existsByImportJobId(existingJobId)).thenReturn(false)
-            whenever(sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL))).thenReturn(false)
+            whenever(
+                sameSourceDedupService.isDuplicate(eq(financialAccountId), eq(chNFe), eq(TransactionSource.MANUAL)),
+            ).thenReturn(false)
             whenever(importJobRepository.update(any())).thenReturn(pendingJob, completedJob)
-            whenever(transactionRepository.clearProviderTransactionIdForDeleted(financialAccountId, chNFe)).thenReturn(1)
+            whenever(
+                transactionRepository.clearProviderTransactionIdForDeleted(financialAccountId, chNFe),
+            ).thenReturn(1)
             whenever(transactionRepository.save(any())).thenAnswer {
                 it.getArgument<Transaction>(0).copy(id = UUID.randomUUID())
             }
-            whenever(nfceDocumentRepository.deleteByAccessKeyAndAccountIdForDeletedTransactions(eq(chNFe), eq(accountId))).thenReturn(1)
-            whenever(nfceDocumentRepository.save(any())).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
+            whenever(
+                nfceDocumentRepository.deleteByAccessKeyAndAccountIdForDeletedTransactions(eq(chNFe), eq(accountId)),
+            ).thenReturn(1)
+            whenever(
+                nfceDocumentRepository.save(any()),
+            ).thenAnswer { it.getArgument<NfceDocument>(0).copy(id = UUID.randomUUID()) }
             whenever(nfceDocumentRepository.findByTransactionId(any(), eq(accountId))).thenAnswer {
                 NfceDocument(
                     id = UUID.randomUUID(),

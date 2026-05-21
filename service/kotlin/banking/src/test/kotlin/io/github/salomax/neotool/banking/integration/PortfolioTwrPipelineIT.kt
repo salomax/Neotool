@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.integration
 
+import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType

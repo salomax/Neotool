@@ -1,7 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.excel
 
-import io.github.salomax.neotool.banking.service.import.excel.*
-import io.github.salomax.neotool.banking.service.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.service.import.fingerprint.ExcelFingerprintClassifier
 import org.assertj.core.api.Assertions.assertThat

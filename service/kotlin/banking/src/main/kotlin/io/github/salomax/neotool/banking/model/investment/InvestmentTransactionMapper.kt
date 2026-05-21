@@ -39,33 +39,34 @@ object InvestmentTransactionMapper {
         )
 
     fun toEntity(domain: InvestmentTransaction): InvestmentTransactionEntity {
-        val entity = InvestmentTransactionEntity(
-            id = domain.id,
-            holdingId = domain.holdingId,
-            financialAccountId = domain.financialAccountId,
-            accountId = domain.accountId,
-            createdByUserId = domain.createdByUserId,
-            direction = domain.direction,
-            type = domain.type,
-            typeAdditionalInfo = domain.typeAdditionalInfo,
-            quantity = domain.quantity,
-            unitPrice = domain.unitPrice,
-            grossValue = domain.grossValue,
-            netValue = domain.netValue,
-            incomeTax = domain.incomeTax,
-            iof = domain.iof,
-            indexerPercentage = domain.indexerPercentage,
-            fixedAnnualRate = domain.fixedAnnualRate,
-            priceFactor = domain.priceFactor,
-            tradeDate = domain.tradeDate,
-            settlementDate = domain.settlementDate,
-            source = domain.source,
-            providerTransactionId = domain.providerTransactionId,
-            importJobId = domain.importJobId,
-            deletedAt = domain.deletedAt,
-            createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt,
-        )
+        val entity =
+            InvestmentTransactionEntity(
+                id = domain.id,
+                holdingId = domain.holdingId,
+                financialAccountId = domain.financialAccountId,
+                accountId = domain.accountId,
+                createdByUserId = domain.createdByUserId,
+                direction = domain.direction,
+                type = domain.type,
+                typeAdditionalInfo = domain.typeAdditionalInfo,
+                quantity = domain.quantity,
+                unitPrice = domain.unitPrice,
+                grossValue = domain.grossValue,
+                netValue = domain.netValue,
+                incomeTax = domain.incomeTax,
+                iof = domain.iof,
+                indexerPercentage = domain.indexerPercentage,
+                fixedAnnualRate = domain.fixedAnnualRate,
+                priceFactor = domain.priceFactor,
+                tradeDate = domain.tradeDate,
+                settlementDate = domain.settlementDate,
+                source = domain.source,
+                providerTransactionId = domain.providerTransactionId,
+                importJobId = domain.importJobId,
+                deletedAt = domain.deletedAt,
+                createdAt = domain.createdAt,
+                updatedAt = domain.updatedAt,
+            )
         domain.brokerNote?.let { note ->
             val noteEntity = toEntity(note)
             noteEntity.investmentTransaction = entity

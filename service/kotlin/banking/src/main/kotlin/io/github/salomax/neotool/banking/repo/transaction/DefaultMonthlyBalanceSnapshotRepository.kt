@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
 import io.github.salomax.neotool.banking.domain.transaction.MonthlyBalanceSnapshot
-import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.model.transaction.MonthlyBalanceSnapshotMapper
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager

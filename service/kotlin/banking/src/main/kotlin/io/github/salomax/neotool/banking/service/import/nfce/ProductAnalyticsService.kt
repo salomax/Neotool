@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.nfce
 
-import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductVariantRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -81,12 +81,13 @@ open class ProductAnalyticsService(
         if (productIds.isEmpty()) return emptyMap()
         return purchaseItemEntityRepository.summarizeProducts(accountId, productIds)
             .associate { row ->
-                row.getProductId() to ProductSummary(
-                    productId = row.getProductId(),
-                    averagePrice = row.getAveragePrice(),
-                    totalSpent = row.getTotalSpent() ?: BigDecimal.ZERO,
-                    purchaseCount = row.getPurchaseCount(),
-                )
+                row.getProductId() to
+                    ProductSummary(
+                        productId = row.getProductId(),
+                        averagePrice = row.getAveragePrice(),
+                        totalSpent = row.getTotalSpent() ?: BigDecimal.ZERO,
+                        purchaseCount = row.getPurchaseCount(),
+                    )
             }
     }
 
@@ -97,10 +98,11 @@ open class ProductAnalyticsService(
         if (variantIds.isEmpty()) return emptyMap()
         return purchaseItemEntityRepository.summarizeVariants(accountId, variantIds)
             .associate { row ->
-                row.getVariantId() to VariantPriceSummary(
-                    variantId = row.getVariantId(),
-                    averageUnitPrice = row.getAverageUnitPrice(),
-                )
+                row.getVariantId() to
+                    VariantPriceSummary(
+                        variantId = row.getVariantId(),
+                        averageUnitPrice = row.getAverageUnitPrice(),
+                    )
             }
     }
 
@@ -113,7 +115,8 @@ open class ProductAnalyticsService(
     ): List<PricePoint> {
         requireNotNull(productRepository.findById(productId, accountId)) { "Product not found" }
         if (variantId != null) {
-            val variant = requireNotNull(productVariantRepository.findById(variantId, accountId)) { "Variant not found" }
+            val variant =
+                requireNotNull(productVariantRepository.findById(variantId, accountId)) { "Variant not found" }
             require(variant.productId == productId) { "Variant does not belong to product" }
         }
         return purchaseItemEntityRepository.findPriceHistory(accountId, productId, variantId, startDate, endDate)
@@ -139,24 +142,26 @@ open class ProductAnalyticsService(
         val startMonth = currentMonth.minusMonths((normalizedMonths - 1).toLong())
         val startDate = startMonth.atDay(1)
 
-        val pointsByMonth = purchaseItemEntityRepository.findConsumptionTrend(accountId, productId, startDate)
-            .associateBy { YearMonth.from(it.getMonth()) }
+        val pointsByMonth =
+            purchaseItemEntityRepository.findConsumptionTrend(accountId, productId, startDate)
+                .associateBy { YearMonth.from(it.getMonth()) }
 
-        val months = buildList {
-            var cursor = startMonth
-            repeat(normalizedMonths) {
-                val row = pointsByMonth[cursor]
-                add(
-                    ConsumptionTrendPoint(
-                        month = cursor.atDay(1),
-                        totalQuantity = row?.getTotalQuantity() ?: BigDecimal.ZERO,
-                        totalSpent = row?.getTotalSpent() ?: BigDecimal.ZERO,
-                        purchaseCount = row?.getPurchaseCount() ?: 0L,
-                    ),
-                )
-                cursor = cursor.plusMonths(1)
+        val months =
+            buildList {
+                var cursor = startMonth
+                repeat(normalizedMonths) {
+                    val row = pointsByMonth[cursor]
+                    add(
+                        ConsumptionTrendPoint(
+                            month = cursor.atDay(1),
+                            totalQuantity = row?.getTotalQuantity() ?: BigDecimal.ZERO,
+                            totalSpent = row?.getTotalSpent() ?: BigDecimal.ZERO,
+                            purchaseCount = row?.getPurchaseCount() ?: 0L,
+                        ),
+                    )
+                    cursor = cursor.plusMonths(1)
+                }
             }
-        }
 
         return ConsumptionTrend(
             productId = productId,
@@ -198,15 +203,16 @@ open class ProductAnalyticsService(
         val rows = purchaseItemEntityRepository.findSpendingByNcm(accountId, depth, startDate, endDate)
         return rows.groupBy { it.getNcmCode() }
             .map { (ncmCode, groupedRows) ->
-                val months = groupedRows
-                    .sortedBy { it.getMonth() }
-                    .map { row ->
-                        NcmMonthlySpending(
-                            month = row.getMonth(),
-                            totalSpent = row.getTotalSpent() ?: BigDecimal.ZERO,
-                            itemCount = row.getItemCount(),
-                        )
-                    }
+                val months =
+                    groupedRows
+                        .sortedBy { it.getMonth() }
+                        .map { row ->
+                            NcmMonthlySpending(
+                                month = row.getMonth(),
+                                totalSpent = row.getTotalSpent() ?: BigDecimal.ZERO,
+                                itemCount = row.getItemCount(),
+                            )
+                        }
                 NcmSpending(
                     ncmCode = ncmCode,
                     ncmDescription = groupedRows.firstOrNull()?.getNcmDescription(),

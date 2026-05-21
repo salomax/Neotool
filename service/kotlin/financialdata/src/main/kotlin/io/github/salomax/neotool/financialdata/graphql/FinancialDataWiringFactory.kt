@@ -7,6 +7,7 @@ import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValid
 import io.github.salomax.neotool.common.graphql.GraphQLResolverRegistry
 import io.github.salomax.neotool.common.graphql.GraphQLWiringFactory
 import io.github.salomax.neotool.financialdata.graphql.dataloader.IndicatorSeriesDataLoader
+import io.github.salomax.neotool.financialdata.graphql.dto.AssetDailyPriceDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenFinanceInstitutionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteConnectionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionAutocompleteItemDTO
@@ -19,7 +20,19 @@ import io.github.salomax.neotool.financialdata.graphql.dto.BacenInstitutionSumma
 import io.github.salomax.neotool.financialdata.graphql.dto.DataRestrictionDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.EconomicIndicatorVariationSeriesDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.InstitutionRatingDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteItemDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetConnectionDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetDTO
+import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetEdgeDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.PageInfoDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterReportsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.QuarterValueDTO
@@ -28,19 +41,6 @@ import io.github.salomax.neotool.financialdata.graphql.dto.ReportAccountDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDescriptorDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportDetailsDTO
 import io.github.salomax.neotool.financialdata.graphql.dto.ReportsAvailabilityDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.AssetDailyPriceDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.FundDailyNavDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetAutocompleteItemDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.ListedAssetEdgeDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundAutocompleteItemDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundConnectionDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundEdgeDTO
-import io.github.salomax.neotool.financialdata.graphql.dto.InvestmentFundMarketSnapshotDTO
 import io.github.salomax.neotool.financialdata.graphql.resolver.BacenInstitutionDetailResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FinancialInstitutionRatingResolver
 import io.github.salomax.neotool.financialdata.graphql.resolver.FixedIncomeComparisonResolver
@@ -168,8 +168,9 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "searchInvestmentFundsAutocomplete",
                 createValidatedDataFetcher { env ->
-                    val query: String = env.getArgument<String?>("query")
-                        ?: throw IllegalArgumentException("query is required")
+                    val query: String =
+                        env.getArgument<String?>("query")
+                            ?: throw IllegalArgumentException("query is required")
                     investmentFundResolver.searchInvestmentFundsAutocomplete(query)
                 },
             )
@@ -187,28 +188,33 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "investmentFund",
                 createValidatedDataFetcher { env ->
-                    val id: String = env.getArgument<String?>("id")
-                        ?: throw IllegalArgumentException("id is required")
+                    val id: String =
+                        env.getArgument<String?>("id")
+                            ?: throw IllegalArgumentException("id is required")
                     investmentFundResolver.investmentFund(id)
                 },
             )
             .dataFetcher(
                 "investmentFundMarketSnapshots",
                 createValidatedDataFetcher { env ->
-                    val cnpjs = env.getArgument<List<String>?>("cnpjs")
-                        ?: throw IllegalArgumentException("cnpjs is required")
+                    val cnpjs =
+                        env.getArgument<List<String>?>("cnpjs")
+                            ?: throw IllegalArgumentException("cnpjs is required")
                     investmentFundResolver.investmentFundMarketSnapshots(cnpjs)
                 },
             )
             .dataFetcher(
                 "fundNavSeries",
                 createValidatedDataFetcher { env ->
-                    val cnpj = env.getArgument<String?>("cnpj")
-                        ?: throw IllegalArgumentException("cnpj is required")
-                    val from = env.getArgument<LocalDate?>("from")
-                        ?: throw IllegalArgumentException("from is required")
-                    val to = env.getArgument<LocalDate?>("to")
-                        ?: throw IllegalArgumentException("to is required")
+                    val cnpj =
+                        env.getArgument<String?>("cnpj")
+                            ?: throw IllegalArgumentException("cnpj is required")
+                    val from =
+                        env.getArgument<LocalDate?>("from")
+                            ?: throw IllegalArgumentException("from is required")
+                    val to =
+                        env.getArgument<LocalDate?>("to")
+                            ?: throw IllegalArgumentException("to is required")
                     investmentFundResolver.fundNavSeries(cnpj, from, to)
                 },
             )
@@ -216,10 +222,12 @@ class FinancialDataWiringFactory(
                 "fundDailyNavs",
                 createValidatedDataFetcher { env ->
                     marketDataSyncResolver.fundDailyNavs(
-                        from = env.getArgument<LocalDate?>("from")
-                            ?: throw IllegalArgumentException("from is required"),
-                        to = env.getArgument<LocalDate?>("to")
-                            ?: throw IllegalArgumentException("to is required"),
+                        from =
+                            env.getArgument<LocalDate?>("from")
+                                ?: throw IllegalArgumentException("from is required"),
+                        to =
+                            env.getArgument<LocalDate?>("to")
+                                ?: throw IllegalArgumentException("to is required"),
                         first = env.getArgument<Int?>("first"),
                         after = env.getArgument<String?>("after"),
                         updatedSince = env.getArgument<Instant?>("updatedSince"),
@@ -230,8 +238,9 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "searchInvestmentAssetsAutocomplete",
                 createValidatedDataFetcher { env ->
-                    val query: String = env.getArgument<String?>("query")
-                        ?: throw IllegalArgumentException("query is required")
+                    val query: String =
+                        env.getArgument<String?>("query")
+                            ?: throw IllegalArgumentException("query is required")
                     val assetType = env.getArgument<String?>("assetType")
                     investmentAssetResolver.searchInvestmentAssetsAutocomplete(query, assetType)
                 },
@@ -250,16 +259,18 @@ class FinancialDataWiringFactory(
             .dataFetcher(
                 "investmentAssetByTicker",
                 createValidatedDataFetcher { env ->
-                    val ticker: String = env.getArgument<String?>("ticker")
-                        ?: throw IllegalArgumentException("ticker is required")
+                    val ticker: String =
+                        env.getArgument<String?>("ticker")
+                            ?: throw IllegalArgumentException("ticker is required")
                     investmentAssetResolver.investmentAssetByTicker(ticker)
                 },
             )
             .dataFetcher(
                 "investmentAssetsByTickers",
                 createValidatedDataFetcher { env ->
-                    val tickers: List<String> = env.getArgument<List<String>?>("tickers")
-                        ?: throw IllegalArgumentException("tickers is required")
+                    val tickers: List<String> =
+                        env.getArgument<List<String>?>("tickers")
+                            ?: throw IllegalArgumentException("tickers is required")
                     investmentAssetResolver.investmentAssetsByTickers(tickers)
                 },
             )
@@ -267,10 +278,12 @@ class FinancialDataWiringFactory(
                 "listedAssetDailyPrices",
                 createValidatedDataFetcher { env ->
                     marketDataSyncResolver.listedAssetDailyPrices(
-                        from = env.getArgument<LocalDate?>("from")
-                            ?: throw IllegalArgumentException("from is required"),
-                        to = env.getArgument<LocalDate?>("to")
-                            ?: throw IllegalArgumentException("to is required"),
+                        from =
+                            env.getArgument<LocalDate?>("from")
+                                ?: throw IllegalArgumentException("from is required"),
+                        to =
+                            env.getArgument<LocalDate?>("to")
+                                ?: throw IllegalArgumentException("to is required"),
                         first = env.getArgument<Int?>("first"),
                         after = env.getArgument<String?>("after"),
                         updatedSince = env.getArgument<Instant?>("updatedSince"),
@@ -282,10 +295,12 @@ class FinancialDataWiringFactory(
                 "economicIndicatorVariationPoints",
                 createValidatedDataFetcher { env ->
                     marketDataSyncResolver.economicIndicatorVariationPoints(
-                        from = env.getArgument<LocalDate?>("from")
-                            ?: throw IllegalArgumentException("from is required"),
-                        to = env.getArgument<LocalDate?>("to")
-                            ?: throw IllegalArgumentException("to is required"),
+                        from =
+                            env.getArgument<LocalDate?>("from")
+                                ?: throw IllegalArgumentException("from is required"),
+                        to =
+                            env.getArgument<LocalDate?>("to")
+                                ?: throw IllegalArgumentException("to is required"),
                         first = env.getArgument<Int?>("first"),
                         after = env.getArgument<String?>("after"),
                         updatedSince = env.getArgument<Instant?>("updatedSince"),
@@ -298,10 +313,12 @@ class FinancialDataWiringFactory(
                 "assetCorporateEvents",
                 createValidatedDataFetcher { env ->
                     marketDataSyncResolver.assetCorporateEvents(
-                        from = env.getArgument<LocalDate?>("from")
-                            ?: throw IllegalArgumentException("from is required"),
-                        to = env.getArgument<LocalDate?>("to")
-                            ?: throw IllegalArgumentException("to is required"),
+                        from =
+                            env.getArgument<LocalDate?>("from")
+                                ?: throw IllegalArgumentException("from is required"),
+                        to =
+                            env.getArgument<LocalDate?>("to")
+                                ?: throw IllegalArgumentException("to is required"),
                         first = env.getArgument<Int?>("first"),
                         after = env.getArgument<String?>("after"),
                         updatedSince = env.getArgument<Instant?>("updatedSince"),
@@ -323,806 +340,807 @@ class FinancialDataWiringFactory(
     }
 
     override fun registerCustomTypeResolvers(builder: RuntimeWiring.Builder): RuntimeWiring.Builder {
-        val withBaseTypes = builder
-            // EconomicIndicator type resolvers
-            .type("EconomicIndicator") { type ->
-                type.dataFetcher(
-                    "variations",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        indicatorResolver.variations(env)
-                    },
-                )
-            }
-            // EconomicIndicatorVariation type resolvers
-            .type("EconomicIndicatorVariation") { type ->
-                type.dataFetcher(
-                    "series",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val source =
-                            env.getSource<EconomicIndicatorVariationDTO>()
-                                ?: throw IllegalStateException("Source is null")
-                        val indicatorLabel =
-                            source.indicatorLabel
-                                ?: throw IllegalStateException("Indicator label is missing")
+        val withBaseTypes =
+            builder
+                // EconomicIndicator type resolvers
+                .type("EconomicIndicator") { type ->
+                    type.dataFetcher(
+                        "variations",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            indicatorResolver.variations(env)
+                        },
+                    )
+                }
+                // EconomicIndicatorVariation type resolvers
+                .type("EconomicIndicatorVariation") { type ->
+                    type.dataFetcher(
+                        "series",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val source =
+                                env.getSource<EconomicIndicatorVariationDTO>()
+                                    ?: throw IllegalStateException("Source is null")
+                            val indicatorLabel =
+                                source.indicatorLabel
+                                    ?: throw IllegalStateException("Indicator label is missing")
 
-                        val range = env.getArgument<Map<String, Any>?>("range")
-                        val limit = env.getArgument<Int?>("limit")
+                            val range = env.getArgument<Map<String, Any>?>("range")
+                            val limit = env.getArgument<Int?>("limit")
 
-                        val fromDateStr = range?.get("from")
-                        val toDateStr = range?.get("to")
+                            val fromDateStr = range?.get("from")
+                            val toDateStr = range?.get("to")
 
-                        val (from, to) =
-                            if (fromDateStr == null && toDateStr == null) {
-                                val now = LocalDate.now()
-                                now.minusYears(5) to now
-                            } else {
-                                val f =
-                                    if (fromDateStr is String) {
-                                        LocalDate.parse(fromDateStr)
-                                    } else {
-                                        LocalDate.of(1900, 1, 1)
-                                    }
-                                val t =
-                                    if (toDateStr is String) {
-                                        LocalDate.parse(toDateStr)
-                                    } else {
-                                        LocalDate.now()
-                                    }
-                                f to t
-                            }
+                            val (from, to) =
+                                if (fromDateStr == null && toDateStr == null) {
+                                    val now = LocalDate.now()
+                                    now.minusYears(5) to now
+                                } else {
+                                    val f =
+                                        if (fromDateStr is String) {
+                                            LocalDate.parse(fromDateStr)
+                                        } else {
+                                            LocalDate.of(1900, 1, 1)
+                                        }
+                                    val t =
+                                        if (toDateStr is String) {
+                                            LocalDate.parse(toDateStr)
+                                        } else {
+                                            LocalDate.now()
+                                        }
+                                    f to t
+                                }
 
-                        val dataLoader =
-                            env.getDataLoader<
-                                IndicatorSeriesDataLoader.Key,
-                                EconomicIndicatorVariationSeriesDTO?,
-                            >(IndicatorSeriesDataLoader.KEY)
-                                ?: throw IllegalStateException(
-                                    "DataLoader ${IndicatorSeriesDataLoader.KEY} not found",
-                                )
+                            val dataLoader =
+                                env.getDataLoader<
+                                    IndicatorSeriesDataLoader.Key,
+                                    EconomicIndicatorVariationSeriesDTO?,
+                                >(IndicatorSeriesDataLoader.KEY)
+                                    ?: throw IllegalStateException(
+                                        "DataLoader ${IndicatorSeriesDataLoader.KEY} not found",
+                                    )
 
-                        dataLoader.load(
-                            IndicatorSeriesDataLoader.Key(
-                                indicator = indicatorLabel,
-                                variation = source.label,
-                                from = from,
-                                to = to,
-                                limit = limit,
-                            ),
+                            dataLoader.load(
+                                IndicatorSeriesDataLoader.Key(
+                                    indicator = indicatorLabel,
+                                    variation = source.label,
+                                    from = from,
+                                    to = to,
+                                    limit = limit,
+                                ),
+                            )
+                        },
+                    )
+                }
+                // PageInfo type resolvers
+                .type("PageInfo") { type ->
+                    type.dataFetcher(
+                        "hasNextPage",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val pageInfo = env.getSource<PageInfoDTO>()
+                            pageInfo?.hasNextPage ?: false
+                        },
+                    )
+                        .dataFetcher(
+                            "hasPreviousPage",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.hasPreviousPage ?: false
+                            },
                         )
-                    },
-                )
-            }
-            // PageInfo type resolvers
-            .type("PageInfo") { type ->
-                type.dataFetcher(
-                    "hasNextPage",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val pageInfo = env.getSource<PageInfoDTO>()
-                        pageInfo?.hasNextPage ?: false
-                    },
-                )
-                    .dataFetcher(
-                        "hasPreviousPage",
+                        .dataFetcher(
+                            "startCursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.startCursor
+                            },
+                        )
+                        .dataFetcher(
+                            "endCursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.endCursor
+                            },
+                        )
+                }
+                // FinancialDataPageInfo: same shape as PageInfo, used by BacenInstitutionSlugConnection
+                // so the router only calls this subgraph (no shared type with SECURITY).
+                .type("FinancialDataPageInfo") { type ->
+                    type.dataFetcher(
+                        "hasNextPage",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.hasPreviousPage ?: false
+                            pageInfo?.hasNextPage ?: false
                         },
                     )
-                    .dataFetcher(
-                        "startCursor",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.startCursor
-                        },
-                    )
-                    .dataFetcher(
-                        "endCursor",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.endCursor
-                        },
-                    )
-            }
-            // FinancialDataPageInfo: same shape as PageInfo, used by BacenInstitutionSlugConnection
-            // so the router only calls this subgraph (no shared type with SECURITY).
-            .type("FinancialDataPageInfo") { type ->
-                type.dataFetcher(
-                    "hasNextPage",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val pageInfo = env.getSource<PageInfoDTO>()
-                        pageInfo?.hasNextPage ?: false
-                    },
-                )
-                    .dataFetcher(
-                        "hasPreviousPage",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.hasPreviousPage ?: false
-                        },
-                    )
-                    .dataFetcher(
-                        "startCursor",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.startCursor
-                        },
-                    )
-                    .dataFetcher(
-                        "endCursor",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val pageInfo = env.getSource<PageInfoDTO>()
-                            pageInfo?.endCursor
-                        },
-                    )
-            }
-            // BacenInstitutionEdge type resolvers
-            .type("BacenInstitutionEdge") { type ->
-                type.dataFetcher(
-                    "node",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val edge = env.getSource<BacenInstitutionEdgeDTO>()
-                        edge?.node
-                    },
-                )
-                    .dataFetcher(
-                        "cursor",
+                        .dataFetcher(
+                            "hasPreviousPage",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.hasPreviousPage ?: false
+                            },
+                        )
+                        .dataFetcher(
+                            "startCursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.startCursor
+                            },
+                        )
+                        .dataFetcher(
+                            "endCursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val pageInfo = env.getSource<PageInfoDTO>()
+                                pageInfo?.endCursor
+                            },
+                        )
+                }
+                // BacenInstitutionEdge type resolvers
+                .type("BacenInstitutionEdge") { type ->
+                    type.dataFetcher(
+                        "node",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val edge = env.getSource<BacenInstitutionEdgeDTO>()
-                            edge?.cursor
+                            edge?.node
                         },
                     )
-            }
-            // BacenInstitutionSummaryItem type resolvers
-            .type("BacenInstitutionSummaryItem") { type ->
-                type.dataFetcher(
-                    "id",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                        item?.id
-                    },
-                )
-                    .dataFetcher(
-                        "name",
+                        .dataFetcher(
+                            "cursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val edge = env.getSource<BacenInstitutionEdgeDTO>()
+                                edge?.cursor
+                            },
+                        )
+                }
+                // BacenInstitutionSummaryItem type resolvers
+                .type("BacenInstitutionSummaryItem") { type ->
+                    type.dataFetcher(
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                            item?.id
+                        },
+                    )
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "legalName",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.legalName
+                            },
+                        )
+                        .dataFetcher(
+                            "tradeName",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.tradeName
+                            },
+                        )
+                        .dataFetcher(
+                            "logoAsset",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                // Return Asset reference for federation
+                                // Federation will resolve the Asset entity using the ID
+                                item?.assetId?.let { assetId ->
+                                    mapOf(
+                                        "__typename" to "Asset",
+                                        "id" to assetId,
+                                    )
+                                }
+                            },
+                        )
+                        .dataFetcher(
+                            "profit",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.profit
+                            },
+                        )
+                        .dataFetcher(
+                            "equity",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.equity
+                            },
+                        )
+                        .dataFetcher(
+                            "yoyEquityGrowth",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.yoyEquityGrowth
+                            },
+                        )
+                        .dataFetcher(
+                            "tipoConsolidadoBancario",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.tipoConsolidadoBancario
+                            },
+                        )
+                        .dataFetcher(
+                            "basileiaIndex",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.basileiaIndex
+                            },
+                        )
+                        .dataFetcher(
+                            "bacenInstitutionType",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.bacenInstitutionType
+                            },
+                        )
+                        .dataFetcher(
+                            "institutionType",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.institutionType?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "dataRestriction",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val item = env.getSource<BacenInstitutionSummaryItemDTO>()
+                                item?.dataRestriction
+                            },
+                        )
+                }
+                // BacenInstitutionAutocompleteItem type resolvers
+                .type("BacenInstitutionAutocompleteItem") { type ->
+                    type.dataFetcher(
+                        "name",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val item = env.getSource<BacenInstitutionAutocompleteItemDTO>()
                             item?.name
                         },
                     )
-                    .dataFetcher(
-                        "legalName",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.legalName
-                        },
-                    )
-                    .dataFetcher(
-                        "tradeName",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.tradeName
-                        },
-                    )
-                    .dataFetcher(
-                        "logoAsset",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            // Return Asset reference for federation
-                            // Federation will resolve the Asset entity using the ID
-                            item?.assetId?.let { assetId ->
-                                mapOf(
-                                    "__typename" to "Asset",
-                                    "id" to assetId,
-                                )
-                            }
-                        },
-                    )
-                    .dataFetcher(
-                        "profit",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.profit
-                        },
-                    )
-                    .dataFetcher(
-                        "equity",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.equity
-                        },
-                    )
-                    .dataFetcher(
-                        "yoyEquityGrowth",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.yoyEquityGrowth
-                        },
-                    )
-                    .dataFetcher(
-                        "tipoConsolidadoBancario",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.tipoConsolidadoBancario
-                        },
-                    )
-                    .dataFetcher(
-                        "basileiaIndex",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.basileiaIndex
-                        },
-                    )
-                    .dataFetcher(
-                        "bacenInstitutionType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.bacenInstitutionType
-                        },
-                    )
-                    .dataFetcher(
-                        "institutionType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.institutionType?.name
-                        },
-                    )
-                    .dataFetcher(
-                        "dataRestriction",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val item = env.getSource<BacenInstitutionSummaryItemDTO>()
-                            item?.dataRestriction
-                        },
-                    )
-            }
-            // BacenInstitutionAutocompleteItem type resolvers
-            .type("BacenInstitutionAutocompleteItem") { type ->
-                type.dataFetcher(
-                    "name",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val item = env.getSource<BacenInstitutionAutocompleteItemDTO>()
-                        item?.name
-                    },
-                )
-            }
-            // BacenInstitutionConnection type resolvers
-            .type("BacenInstitutionConnection") { type ->
-                type.dataFetcher(
-                    "edges",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<BacenInstitutionConnectionDTO>()
-                        connection?.edges
-                    },
-                )
-                    .dataFetcher(
-                        "pageInfo",
+                }
+                // BacenInstitutionConnection type resolvers
+                .type("BacenInstitutionConnection") { type ->
+                    type.dataFetcher(
+                        "edges",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val connection = env.getSource<BacenInstitutionConnectionDTO>()
-                            connection?.pageInfo
+                            connection?.edges
                         },
                     )
-                    .dataFetcher(
-                        "totalCount",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val connection = env.getSource<BacenInstitutionConnectionDTO>()
-                            connection?.totalCount
-                        },
-                    )
-            }
-            // BacenInstitutionSlugConnection type resolvers
-            .type("BacenInstitutionSlugConnection") { type ->
-                type.dataFetcher(
-                    "edges",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<BacenInstitutionSlugConnectionDTO>()
-                        connection?.edges
-                    },
-                )
-                    .dataFetcher(
-                        "pageInfo",
+                        .dataFetcher(
+                            "pageInfo",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val connection = env.getSource<BacenInstitutionConnectionDTO>()
+                                connection?.pageInfo
+                            },
+                        )
+                        .dataFetcher(
+                            "totalCount",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val connection = env.getSource<BacenInstitutionConnectionDTO>()
+                                connection?.totalCount
+                            },
+                        )
+                }
+                // BacenInstitutionSlugConnection type resolvers
+                .type("BacenInstitutionSlugConnection") { type ->
+                    type.dataFetcher(
+                        "edges",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val connection = env.getSource<BacenInstitutionSlugConnectionDTO>()
-                            connection?.pageInfo
+                            connection?.edges
                         },
                     )
-            }
-            // BacenInstitutionSlugEdge type resolvers
-            .type("BacenInstitutionSlugEdge") { type ->
-                type.dataFetcher(
-                    "node",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val edge = env.getSource<BacenInstitutionSlugEdgeDTO>()
-                        edge?.node
-                    },
-                )
-                    .dataFetcher(
-                        "cursor",
+                        .dataFetcher(
+                            "pageInfo",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val connection = env.getSource<BacenInstitutionSlugConnectionDTO>()
+                                connection?.pageInfo
+                            },
+                        )
+                }
+                // BacenInstitutionSlugEdge type resolvers
+                .type("BacenInstitutionSlugEdge") { type ->
+                    type.dataFetcher(
+                        "node",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val edge = env.getSource<BacenInstitutionSlugEdgeDTO>()
-                            edge?.cursor
+                            edge?.node
                         },
                     )
-            }
-            // BacenInstitutionSlug type resolvers
-            .type("BacenInstitutionSlug") { type ->
-                type.dataFetcher(
-                    "id",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val slug = env.getSource<BacenInstitutionSlugDTO>()
-                        slug?.id
-                    },
-                )
-                    .dataFetcher(
-                        "name",
+                        .dataFetcher(
+                            "cursor",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val edge = env.getSource<BacenInstitutionSlugEdgeDTO>()
+                                edge?.cursor
+                            },
+                        )
+                }
+                // BacenInstitutionSlug type resolvers
+                .type("BacenInstitutionSlug") { type ->
+                    type.dataFetcher(
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val slug = env.getSource<BacenInstitutionSlugDTO>()
-                            slug?.name
+                            slug?.id
                         },
                     )
-                    .dataFetcher(
-                        "updatedAt",
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val slug = env.getSource<BacenInstitutionSlugDTO>()
+                                slug?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "updatedAt",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val slug = env.getSource<BacenInstitutionSlugDTO>()
+                                slug?.updatedAt?.atOffset(ZoneOffset.UTC)
+                            },
+                        )
+                }
+                // BacenInstitutionAutocompleteConnection type resolvers
+                .type("BacenInstitutionAutocompleteConnection") { type ->
+                    type.dataFetcher(
+                        "suggestions",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val slug = env.getSource<BacenInstitutionSlugDTO>()
-                            slug?.updatedAt?.atOffset(ZoneOffset.UTC)
+                            val connection = env.getSource<BacenInstitutionAutocompleteConnectionDTO>()
+                            connection?.suggestions
                         },
                     )
-            }
-            // BacenInstitutionAutocompleteConnection type resolvers
-            .type("BacenInstitutionAutocompleteConnection") { type ->
-                type.dataFetcher(
-                    "suggestions",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val connection = env.getSource<BacenInstitutionAutocompleteConnectionDTO>()
-                        connection?.suggestions
-                    },
-                )
-            }
-            // Asset type resolver - for federation entity references
-            .type("Asset") { type ->
-                type.dataFetcher(
-                    "id",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        // Asset reference is returned as a map with __typename and id
-                        val assetRef = env.getSource<Map<String, Any>>()
-                        assetRef?.get("id") as? String
-                    },
-                )
-            }
-            // BacenFinanceInstitution type resolvers
-            .type("BacenFinanceInstitution") { type ->
-                // Base fields from BacenInstitutionSummaryItem
-                type.dataFetcher(
-                    "id",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                        institution?.id
-                    },
-                )
-                    .dataFetcher(
-                        "name",
+                }
+                // Asset type resolver - for federation entity references
+                .type("Asset") { type ->
+                    type.dataFetcher(
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.name
+                            // Asset reference is returned as a map with __typename and id
+                            val assetRef = env.getSource<Map<String, Any>>()
+                            assetRef?.get("id") as? String
                         },
                     )
-                    .dataFetcher(
-                        "legalName",
+                }
+                // BacenFinanceInstitution type resolvers
+                .type("BacenFinanceInstitution") { type ->
+                    // Base fields from BacenInstitutionSummaryItem
+                    type.dataFetcher(
+                        "id",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.legalName
+                            institution?.id
                         },
                     )
-                    .dataFetcher(
-                        "tradeName",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.tradeName
-                        },
-                    )
-                    .dataFetcher(
-                        "logoAsset",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.assetId?.let { assetId ->
-                                mapOf(
-                                    "__typename" to "Asset",
-                                    "id" to assetId,
-                                )
-                            }
-                        },
-                    )
-                    .dataFetcher(
-                        "profit",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.profit
-                        },
-                    )
-                    .dataFetcher(
-                        "equity",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.equity
-                        },
-                    )
-                    .dataFetcher(
-                        "yoyEquityGrowth",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.yoyEquityGrowth
-                        },
-                    )
-                    .dataFetcher(
-                        "basileiaIndex",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.basileiaIndex
-                        },
-                    )
-                    .dataFetcher(
-                        "institutionType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.institutionType?.name
-                        },
-                    )
-                    .dataFetcher(
-                        "tipoConsolidadoBancario",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.tipoConsolidadoBancario?.name
-                        },
-                    )
-                    // New fields specific to BacenFinanceInstitution
-                    .dataFetcher(
-                        "quarter",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.quarter
-                        },
-                    )
-                    .dataFetcher(
-                        "updatedAt",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.updatedAt?.atOffset(ZoneOffset.UTC)
-                        },
-                    )
-                    .dataFetcher(
-                        "asset",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            // Return Asset reference for federation
-                            // Federation will resolve the Asset entity using the ID
-                            institution?.assetId?.let { assetId ->
-                                mapOf(
-                                    "__typename" to "Asset",
-                                    "id" to assetId,
-                                )
-                            }
-                        },
-                    )
-                    .dataFetcher(
-                        "website",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.website
-                        },
-                    )
-                    .dataFetcher(
-                        "socialNetworks",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.socialNetworks
-                        },
-                    )
-                    .dataFetcher(
-                        "mainActivity",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.mainActivity
-                        },
-                    )
-                    .dataFetcher(
-                        "address",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.address
-                        },
-                    )
-                    .dataFetcher(
-                        "founded",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.founded
-                        },
-                    )
-                    .dataFetcher(
-                        "controlType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.controlType?.name
-                        },
-                    )
-                    .dataFetcher(
-                        "institutionBankType",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.institutionBankType?.name
-                        },
-                    )
-                    .dataFetcher(
-                        "mobilizacaoIndex",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.mobilizacaoIndex
-                        },
-                    )
-                    .dataFetcher(
-                        "totalAssets",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.totalAssets
-                        },
-                    )
-                    .dataFetcher(
-                        "funding",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.funding
-                        },
-                    )
-                    .dataFetcher(
-                        "loanPortfolio",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.loanPortfolio
-                        },
-                    )
-                    .dataFetcher(
-                        "rwaReferenceEquity",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.rwaReferenceEquity
-                        },
-                    )
-                    .dataFetcher(
-                        "dataRestriction",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val institution = env.getSource<BacenFinanceInstitutionDTO>()
-                            institution?.dataRestriction
-                        },
-                    )
-                    .dataFetcher(
-                        "reportsSummary",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            institutionDetailResolver.reportsSummary(env)
-                        },
-                    )
-                    .dataFetcher(
-                        "reportDetails",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            institutionDetailResolver.reportDetails(env)
-                        },
-                    )
-                    .dataFetcher(
-                        "ratings",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            ratingResolver.ratings(env)
-                        },
-                    )
-                    .dataFetcher(
-                        "ratingHistory",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            ratingResolver.ratingHistory(env)
-                        },
-                    )
-            }
-            // DataRestriction type resolvers
-            .type("DataRestriction") { type ->
-                type.dataFetcher(
-                    "isRestricted",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val restriction = env.getSource<DataRestrictionDTO>()
-                        restriction?.isRestricted
-                    },
-                )
-                    .dataFetcher(
-                        "reason",
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "legalName",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.legalName
+                            },
+                        )
+                        .dataFetcher(
+                            "tradeName",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.tradeName
+                            },
+                        )
+                        .dataFetcher(
+                            "logoAsset",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.assetId?.let { assetId ->
+                                    mapOf(
+                                        "__typename" to "Asset",
+                                        "id" to assetId,
+                                    )
+                                }
+                            },
+                        )
+                        .dataFetcher(
+                            "profit",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.profit
+                            },
+                        )
+                        .dataFetcher(
+                            "equity",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.equity
+                            },
+                        )
+                        .dataFetcher(
+                            "yoyEquityGrowth",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.yoyEquityGrowth
+                            },
+                        )
+                        .dataFetcher(
+                            "basileiaIndex",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.basileiaIndex
+                            },
+                        )
+                        .dataFetcher(
+                            "institutionType",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.institutionType?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "tipoConsolidadoBancario",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.tipoConsolidadoBancario?.name
+                            },
+                        )
+                        // New fields specific to BacenFinanceInstitution
+                        .dataFetcher(
+                            "quarter",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.quarter
+                            },
+                        )
+                        .dataFetcher(
+                            "updatedAt",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.updatedAt?.atOffset(ZoneOffset.UTC)
+                            },
+                        )
+                        .dataFetcher(
+                            "asset",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                // Return Asset reference for federation
+                                // Federation will resolve the Asset entity using the ID
+                                institution?.assetId?.let { assetId ->
+                                    mapOf(
+                                        "__typename" to "Asset",
+                                        "id" to assetId,
+                                    )
+                                }
+                            },
+                        )
+                        .dataFetcher(
+                            "website",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.website
+                            },
+                        )
+                        .dataFetcher(
+                            "socialNetworks",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.socialNetworks
+                            },
+                        )
+                        .dataFetcher(
+                            "mainActivity",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.mainActivity
+                            },
+                        )
+                        .dataFetcher(
+                            "address",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.address
+                            },
+                        )
+                        .dataFetcher(
+                            "founded",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.founded
+                            },
+                        )
+                        .dataFetcher(
+                            "controlType",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.controlType?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "institutionBankType",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.institutionBankType?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "mobilizacaoIndex",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.mobilizacaoIndex
+                            },
+                        )
+                        .dataFetcher(
+                            "totalAssets",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.totalAssets
+                            },
+                        )
+                        .dataFetcher(
+                            "funding",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.funding
+                            },
+                        )
+                        .dataFetcher(
+                            "loanPortfolio",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.loanPortfolio
+                            },
+                        )
+                        .dataFetcher(
+                            "rwaReferenceEquity",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.rwaReferenceEquity
+                            },
+                        )
+                        .dataFetcher(
+                            "dataRestriction",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val institution = env.getSource<BacenFinanceInstitutionDTO>()
+                                institution?.dataRestriction
+                            },
+                        )
+                        .dataFetcher(
+                            "reportsSummary",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                institutionDetailResolver.reportsSummary(env)
+                            },
+                        )
+                        .dataFetcher(
+                            "reportDetails",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                institutionDetailResolver.reportDetails(env)
+                            },
+                        )
+                        .dataFetcher(
+                            "ratings",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                ratingResolver.ratings(env)
+                            },
+                        )
+                        .dataFetcher(
+                            "ratingHistory",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                ratingResolver.ratingHistory(env)
+                            },
+                        )
+                }
+                // DataRestriction type resolvers
+                .type("DataRestriction") { type ->
+                    type.dataFetcher(
+                        "isRestricted",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val restriction = env.getSource<DataRestrictionDTO>()
-                            restriction?.reason
+                            restriction?.isRestricted
                         },
                     )
-            }
-            // ReportsAvailability type resolvers
-            .type("ReportsAvailability") { type ->
-                type.dataFetcher(
-                    "quarters",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val availability = env.getSource<ReportsAvailabilityDTO>()
-                        availability?.quarters
-                    },
-                )
-            }
-            // QuarterReports type resolvers
-            .type("QuarterReports") { type ->
-                type.dataFetcher(
-                    "quarter",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val quarterReports = env.getSource<QuarterReportsDTO>()
-                        quarterReports?.quarter
-                    },
-                )
-                    .dataFetcher(
-                        "reports",
+                        .dataFetcher(
+                            "reason",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val restriction = env.getSource<DataRestrictionDTO>()
+                                restriction?.reason
+                            },
+                        )
+                }
+                // ReportsAvailability type resolvers
+                .type("ReportsAvailability") { type ->
+                    type.dataFetcher(
+                        "quarters",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val availability = env.getSource<ReportsAvailabilityDTO>()
+                            availability?.quarters
+                        },
+                    )
+                }
+                // QuarterReports type resolvers
+                .type("QuarterReports") { type ->
+                    type.dataFetcher(
+                        "quarter",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val quarterReports = env.getSource<QuarterReportsDTO>()
-                            quarterReports?.reports
+                            quarterReports?.quarter
                         },
                     )
-            }
-            // ReportDescriptor type resolvers
-            .type("ReportDescriptor") { type ->
-                type.dataFetcher(
-                    "reportId",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val descriptor = env.getSource<ReportDescriptorDTO>()
-                        descriptor?.reportId
-                    },
-                )
-                    .dataFetcher(
-                        "name",
+                        .dataFetcher(
+                            "reports",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val quarterReports = env.getSource<QuarterReportsDTO>()
+                                quarterReports?.reports
+                            },
+                        )
+                }
+                // ReportDescriptor type resolvers
+                .type("ReportDescriptor") { type ->
+                    type.dataFetcher(
+                        "reportId",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val descriptor = env.getSource<ReportDescriptorDTO>()
-                            descriptor?.name
+                            descriptor?.reportId
                         },
                     )
-                    .dataFetcher(
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val descriptor = env.getSource<ReportDescriptorDTO>()
+                                descriptor?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "group",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val descriptor = env.getSource<ReportDescriptorDTO>()
+                                descriptor?.group
+                            },
+                        )
+                        .dataFetcher(
+                            "id",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val descriptor = env.getSource<ReportDescriptorDTO>()
+                                descriptor?.accountId
+                            },
+                        )
+                }
+                // ReportDetails type resolvers
+                .type("ReportDetails") { type ->
+                    type.dataFetcher(
+                        "reportId",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val details = env.getSource<ReportDetailsDTO>()
+                            details?.reportId
+                        },
+                    )
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val details = env.getSource<ReportDetailsDTO>()
+                                details?.name
+                            },
+                        )
+                        .dataFetcher(
+                            "accounts",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val details = env.getSource<ReportDetailsDTO>()
+                                details?.accounts
+                            },
+                        )
+                }
+                // ReportAccount type resolvers
+                .type("ReportAccount") { type ->
+                    type.dataFetcher(
                         "group",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val descriptor = env.getSource<ReportDescriptorDTO>()
-                            descriptor?.group
-                        },
-                    )
-                    .dataFetcher(
-                        "id",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val descriptor = env.getSource<ReportDescriptorDTO>()
-                            descriptor?.accountId
-                        },
-                    )
-            }
-            // ReportDetails type resolvers
-            .type("ReportDetails") { type ->
-                type.dataFetcher(
-                    "reportId",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val details = env.getSource<ReportDetailsDTO>()
-                        details?.reportId
-                    },
-                )
-                    .dataFetcher(
-                        "name",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val details = env.getSource<ReportDetailsDTO>()
-                            details?.name
-                        },
-                    )
-                    .dataFetcher(
-                        "accounts",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val details = env.getSource<ReportDetailsDTO>()
-                            details?.accounts
-                        },
-                    )
-            }
-            // ReportAccount type resolvers
-            .type("ReportAccount") { type ->
-                type.dataFetcher(
-                    "group",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val account = env.getSource<ReportAccountDTO>()
-                        account?.group
-                    },
-                )
-                    .dataFetcher(
-                        "id",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val account = env.getSource<ReportAccountDTO>()
-                            account?.accountId
+                            account?.group
                         },
                     )
-                    .dataFetcher(
-                        "name",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val account = env.getSource<ReportAccountDTO>()
-                            account?.accountName
-                        },
-                    )
-                    .dataFetcher(
-                        "valuesByQuarter",
-                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                            val account = env.getSource<ReportAccountDTO>()
-                            account?.valuesByQuarter
-                        },
-                    )
-            }
-            // QuarterValue type resolvers
-            .type("QuarterValue") { type ->
-                type.dataFetcher(
-                    "quarter",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val value = env.getSource<QuarterValueDTO>()
-                        value?.quarter
-                    },
-                )
-                    .dataFetcher(
-                        "value",
+                        .dataFetcher(
+                            "id",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val account = env.getSource<ReportAccountDTO>()
+                                account?.accountId
+                            },
+                        )
+                        .dataFetcher(
+                            "name",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val account = env.getSource<ReportAccountDTO>()
+                                account?.accountName
+                            },
+                        )
+                        .dataFetcher(
+                            "valuesByQuarter",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val account = env.getSource<ReportAccountDTO>()
+                                account?.valuesByQuarter
+                            },
+                        )
+                }
+                // QuarterValue type resolvers
+                .type("QuarterValue") { type ->
+                    type.dataFetcher(
+                        "quarter",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
                             val value = env.getSource<QuarterValueDTO>()
-                            value?.value
+                            value?.quarter
                         },
                     )
-            }
-            .type("InstitutionRating") { type ->
-                type.dataFetcher(
-                    "updatedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val rating = env.getSource<InstitutionRatingDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
-            .type("RatingHistory") { type ->
-                type.dataFetcher(
-                    "changedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val history = env.getSource<RatingHistoryDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        history?.changedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
-            .type("InstitutionRating") { type ->
-                type.dataFetcher(
-                    "updatedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val rating = env.getSource<InstitutionRatingDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
-            .type("RatingHistory") { type ->
-                type.dataFetcher(
-                    "changedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val history = env.getSource<RatingHistoryDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        history?.changedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
-            .type("InstitutionRating") { type ->
-                type.dataFetcher(
-                    "updatedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val rating = env.getSource<InstitutionRatingDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        rating?.updatedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
-            .type("RatingHistory") { type ->
-                type.dataFetcher(
-                    "changedAt",
-                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                        val history = env.getSource<RatingHistoryDTO>()
-                        // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
-                        history?.changedAt?.atOffset(ZoneOffset.UTC)
-                    },
-                )
-            }
+                        .dataFetcher(
+                            "value",
+                            createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                                val value = env.getSource<QuarterValueDTO>()
+                                value?.value
+                            },
+                        )
+                }
+                .type("InstitutionRating") { type ->
+                    type.dataFetcher(
+                        "updatedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val rating = env.getSource<InstitutionRatingDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
+                .type("RatingHistory") { type ->
+                    type.dataFetcher(
+                        "changedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val history = env.getSource<RatingHistoryDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            history?.changedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
+                .type("InstitutionRating") { type ->
+                    type.dataFetcher(
+                        "updatedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val rating = env.getSource<InstitutionRatingDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
+                .type("RatingHistory") { type ->
+                    type.dataFetcher(
+                        "changedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val history = env.getSource<RatingHistoryDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            history?.changedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
+                .type("InstitutionRating") { type ->
+                    type.dataFetcher(
+                        "updatedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val rating = env.getSource<InstitutionRatingDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            rating?.updatedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
+                .type("RatingHistory") { type ->
+                    type.dataFetcher(
+                        "changedAt",
+                        createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                            val history = env.getSource<RatingHistoryDTO>()
+                            // Convert Instant to OffsetDateTime for GraphQL DateTime scalar
+                            history?.changedAt?.atOffset(ZoneOffset.UTC)
+                        },
+                    )
+                }
         return registerInvestmentFundTypeResolvers(withBaseTypes)
     }
 
@@ -1138,31 +1156,127 @@ class FinancialDataWiringFactory(
             }
             .type("InvestmentFundAutocompleteItem") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.id })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.name })
-                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.cnpj })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.assetType })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundAutocompleteItemDTO>()?.isActive })
+                    .dataFetcher(
+                        "id",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundAutocompleteItemDTO>()?.id
+                        },
+                    )
+                    .dataFetcher(
+                        "name",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundAutocompleteItemDTO>()?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "cnpj",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundAutocompleteItemDTO>()?.cnpj
+                        },
+                    )
+                    .dataFetcher(
+                        "assetType",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundAutocompleteItemDTO>()?.assetType
+                        },
+                    )
+                    .dataFetcher(
+                        "isActive",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundAutocompleteItemDTO>()?.isActive
+                        },
+                    )
             }
             .type("InvestmentFundConnection") { type ->
                 type
-                    .dataFetcher("edges", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.edges ?: emptyList() })
-                    .dataFetcher("pageInfo", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.pageInfo })
-                    .dataFetcher("totalCount", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundConnectionDTO>()?.totalCount })
+                    .dataFetcher(
+                        "edges",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundConnectionDTO>()?.edges ?: emptyList()
+                        },
+                    )
+                    .dataFetcher(
+                        "pageInfo",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundConnectionDTO>()?.pageInfo
+                        },
+                    )
+                    .dataFetcher(
+                        "totalCount",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundConnectionDTO>()?.totalCount
+                        },
+                    )
             }
             .type("InvestmentFundEdge") { type ->
                 type
-                    .dataFetcher("node", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundEdgeDTO>()?.node })
-                    .dataFetcher("cursor", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundEdgeDTO>()?.cursor })
+                    .dataFetcher(
+                        "node",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundEdgeDTO>()?.node
+                        },
+                    )
+                    .dataFetcher(
+                        "cursor",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundEdgeDTO>()?.cursor
+                        },
+                    )
             }
             .type("InvestmentFund") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.id })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.name })
-                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.cnpj })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.assetType })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.isActive })
-                    .dataFetcher("latestNav", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundDTO>()?.latestNav })
+                    .dataFetcher(
+                        "id",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.id
+                        },
+                    )
+                    .dataFetcher(
+                        "name",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "cnpj",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.cnpj
+                        },
+                    )
+                    .dataFetcher(
+                        "assetType",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.assetType
+                        },
+                    )
+                    .dataFetcher(
+                        "isActive",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.isActive
+                        },
+                    )
+                    .dataFetcher(
+                        "latestNav",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundDTO>()?.latestNav
+                        },
+                    )
                     .dataFetcher(
                         "priceHistory",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -1182,29 +1296,104 @@ class FinancialDataWiringFactory(
             }
             .type("InvestmentFundMarketSnapshot") { type ->
                 type
-                    .dataFetcher("cnpj", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.cnpj })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.assetType })
-                    .dataFetcher("taxProfile", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.taxProfile })
-                    .dataFetcher("latestNav", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<InvestmentFundMarketSnapshotDTO>()?.latestNav })
+                    .dataFetcher(
+                        "cnpj",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundMarketSnapshotDTO>()?.cnpj
+                        },
+                    )
+                    .dataFetcher(
+                        "assetType",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundMarketSnapshotDTO>()?.assetType
+                        },
+                    )
+                    .dataFetcher(
+                        "taxProfile",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundMarketSnapshotDTO>()?.taxProfile
+                        },
+                    )
+                    .dataFetcher(
+                        "latestNav",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<InvestmentFundMarketSnapshotDTO>()?.latestNav
+                        },
+                    )
             }
             .type("FundDailyNav") { type ->
                 type
-                    .dataFetcher("date", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.date })
-                    .dataFetcher("closePrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.closePrice })
-                    .dataFetcher("totalNetAssets", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<FundDailyNavDTO>()?.totalNetAssets })
+                    .dataFetcher(
+                        "date",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<FundDailyNavDTO>()?.date
+                        },
+                    )
+                    .dataFetcher(
+                        "closePrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<FundDailyNavDTO>()?.closePrice
+                        },
+                    )
+                    .dataFetcher(
+                        "totalNetAssets",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<FundDailyNavDTO>()?.totalNetAssets
+                        },
+                    )
             }
             .type("ListedAssetAutocompleteConnection") { type ->
-                type.dataFetcher("suggestions", createValidatedDataFetcher { env: DataFetchingEnvironment ->
-                    env.getSource<ListedAssetAutocompleteConnectionDTO>()?.suggestions ?: emptyList()
-                })
+                type.dataFetcher(
+                    "suggestions",
+                    createValidatedDataFetcher { env: DataFetchingEnvironment ->
+                        env.getSource<ListedAssetAutocompleteConnectionDTO>()?.suggestions ?: emptyList()
+                    },
+                )
             }
             .type("ListedAssetAutocompleteItem") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.id })
-                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.ticker })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.name })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.assetType })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetAutocompleteItemDTO>()?.isActive })
+                    .dataFetcher(
+                        "id",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.id
+                        },
+                    )
+                    .dataFetcher(
+                        "ticker",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.ticker
+                        },
+                    )
+                    .dataFetcher(
+                        "name",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "assetType",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.assetType
+                        },
+                    )
+                    .dataFetcher(
+                        "isActive",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetAutocompleteItemDTO>()?.isActive
+                        },
+                    )
                     .dataFetcher(
                         "logoAsset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -1219,23 +1408,89 @@ class FinancialDataWiringFactory(
             }
             .type("ListedAssetConnection") { type ->
                 type
-                    .dataFetcher("edges", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.edges ?: emptyList() })
-                    .dataFetcher("pageInfo", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.pageInfo })
-                    .dataFetcher("totalCount", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetConnectionDTO>()?.totalCount })
+                    .dataFetcher(
+                        "edges",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetConnectionDTO>()?.edges ?: emptyList()
+                        },
+                    )
+                    .dataFetcher(
+                        "pageInfo",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetConnectionDTO>()?.pageInfo
+                        },
+                    )
+                    .dataFetcher(
+                        "totalCount",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetConnectionDTO>()?.totalCount
+                        },
+                    )
             }
             .type("ListedAssetEdge") { type ->
                 type
-                    .dataFetcher("node", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetEdgeDTO>()?.node })
-                    .dataFetcher("cursor", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetEdgeDTO>()?.cursor })
+                    .dataFetcher(
+                        "node",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetEdgeDTO>()?.node
+                        },
+                    )
+                    .dataFetcher(
+                        "cursor",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetEdgeDTO>()?.cursor
+                        },
+                    )
             }
             .type("ListedAsset") { type ->
                 type
-                    .dataFetcher("id", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.id })
-                    .dataFetcher("ticker", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.ticker })
-                    .dataFetcher("name", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.name })
-                    .dataFetcher("assetType", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.assetType })
-                    .dataFetcher("exchange", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.exchange })
-                    .dataFetcher("isActive", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.isActive })
+                    .dataFetcher(
+                        "id",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.id
+                        },
+                    )
+                    .dataFetcher(
+                        "ticker",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.ticker
+                        },
+                    )
+                    .dataFetcher(
+                        "name",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.name
+                        },
+                    )
+                    .dataFetcher(
+                        "assetType",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.assetType
+                        },
+                    )
+                    .dataFetcher(
+                        "exchange",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.exchange
+                        },
+                    )
+                    .dataFetcher(
+                        "isActive",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.isActive
+                        },
+                    )
                     .dataFetcher(
                         "logoAsset",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -1247,7 +1502,13 @@ class FinancialDataWiringFactory(
                             }
                         },
                     )
-                    .dataFetcher("latestPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<ListedAssetDTO>()?.latestPrice })
+                    .dataFetcher(
+                        "latestPrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<ListedAssetDTO>()?.latestPrice
+                        },
+                    )
                     .dataFetcher(
                         "priceHistory",
                         createValidatedDataFetcher { env: DataFetchingEnvironment ->
@@ -1265,14 +1526,62 @@ class FinancialDataWiringFactory(
             }
             .type("AssetDailyPrice") { type ->
                 type
-                    .dataFetcher("date", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.date })
-                    .dataFetcher("openPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.openPrice })
-                    .dataFetcher("highPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.highPrice })
-                    .dataFetcher("lowPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.lowPrice })
-                    .dataFetcher("closePrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.closePrice })
-                    .dataFetcher("avgPrice", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.avgPrice })
-                    .dataFetcher("volume", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.volume })
-                    .dataFetcher("trades", createValidatedDataFetcher { env: DataFetchingEnvironment -> env.getSource<AssetDailyPriceDTO>()?.trades })
+                    .dataFetcher(
+                        "date",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.date
+                        },
+                    )
+                    .dataFetcher(
+                        "openPrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.openPrice
+                        },
+                    )
+                    .dataFetcher(
+                        "highPrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.highPrice
+                        },
+                    )
+                    .dataFetcher(
+                        "lowPrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.lowPrice
+                        },
+                    )
+                    .dataFetcher(
+                        "closePrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.closePrice
+                        },
+                    )
+                    .dataFetcher(
+                        "avgPrice",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.avgPrice
+                        },
+                    )
+                    .dataFetcher(
+                        "volume",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.volume
+                        },
+                    )
+                    .dataFetcher(
+                        "trades",
+                        createValidatedDataFetcher {
+                                env: DataFetchingEnvironment ->
+                            env.getSource<AssetDailyPriceDTO>()?.trades
+                        },
+                    )
             }
     }
 }

@@ -6,6 +6,8 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
+import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyResult
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.service.investment.ConfirmCouponPaymentService
@@ -20,8 +22,6 @@ import io.github.salomax.neotool.banking.service.investment.PortfolioPerformance
 import io.github.salomax.neotool.banking.service.investment.PortfolioPerformanceSeriesService
 import io.github.salomax.neotool.banking.service.investment.RecordAmortizationService
 import io.github.salomax.neotool.banking.service.investment.RecordStockLendingService
-import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyCommand
-import io.github.salomax.neotool.banking.model.dto.investment.TransferCustodyResult
 import io.github.salomax.neotool.banking.service.investment.TransferCustodyService
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
@@ -113,8 +113,16 @@ class InvestmentResolverTransferCustodyTest {
     fun `maps input into command and returns DTO for partial transfer`() {
         whenever(transferCustodyService.transfer(any(), eq(accountId), eq(userId))).thenReturn(
             TransferCustodyResult(
-                outflowTransaction = transaction(direction = InvestmentTransactionDirection.OUTFLOW, quantity = BigDecimal("12.5")),
-                inflowTransaction = transaction(direction = InvestmentTransactionDirection.INFLOW, quantity = BigDecimal("12.5")),
+                outflowTransaction =
+                    transaction(
+                        direction = InvestmentTransactionDirection.OUTFLOW,
+                        quantity = BigDecimal("12.5"),
+                    ),
+                inflowTransaction =
+                    transaction(
+                        direction = InvestmentTransactionDirection.INFLOW,
+                        quantity = BigDecimal("12.5"),
+                    ),
             ),
         )
         val input =
@@ -141,8 +149,16 @@ class InvestmentResolverTransferCustodyTest {
     fun `keeps quantity null for full transfer when input omits quantity`() {
         whenever(transferCustodyService.transfer(any(), eq(accountId), eq(userId))).thenReturn(
             TransferCustodyResult(
-                outflowTransaction = transaction(direction = InvestmentTransactionDirection.OUTFLOW, quantity = BigDecimal("100")),
-                inflowTransaction = transaction(direction = InvestmentTransactionDirection.INFLOW, quantity = BigDecimal("100")),
+                outflowTransaction =
+                    transaction(
+                        direction = InvestmentTransactionDirection.OUTFLOW,
+                        quantity = BigDecimal("100"),
+                    ),
+                inflowTransaction =
+                    transaction(
+                        direction = InvestmentTransactionDirection.INFLOW,
+                        quantity = BigDecimal("100"),
+                    ),
             ),
         )
         val input =

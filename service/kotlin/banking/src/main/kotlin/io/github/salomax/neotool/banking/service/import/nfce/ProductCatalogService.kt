@@ -64,7 +64,11 @@ open class ProductCatalogService(
     fun getVariantsByIds(
         accountId: UUID,
         ids: Collection<UUID>,
-    ): Map<UUID, ProductVariant> = productVariantRepository.findByIds(ids, accountId).associateBy { requireNotNull(it.id) }
+    ): Map<UUID, ProductVariant> =
+        productVariantRepository.findByIds(
+            ids,
+            accountId,
+        ).associateBy { requireNotNull(it.id) }
 
     fun getProductsByIds(
         accountId: UUID,
@@ -145,12 +149,13 @@ open class ProductCatalogService(
         val now = Instant.now()
         val name = command.name.trim()
         require(name.isNotBlank()) { "Variant name must not be blank" }
-        val normalized = normalizeQuantity(
-            quantityValue = command.quantityValue,
-            quantityUnit = command.quantityUnit,
-            normalizedQuantityValue = command.normalizedQuantityValue,
-            normalizedQuantityUnit = command.normalizedQuantityUnit,
-        )
+        val normalized =
+            normalizeQuantity(
+                quantityValue = command.quantityValue,
+                quantityUnit = command.quantityUnit,
+                normalizedQuantityValue = command.normalizedQuantityValue,
+                normalizedQuantityUnit = command.normalizedQuantityUnit,
+            )
         return productVariantRepository.save(
             ProductVariant(
                 productId = requireNotNull(product.id),
@@ -179,12 +184,17 @@ open class ProductCatalogService(
         requireNotNull(productRepository.findById(targetProductId, accountId)) { "Product not found" }
         val quantityValue = command.quantityValue ?: existing.quantityValue
         val quantityUnit = command.quantityUnit.normalizeText(existing.quantityUnit, uppercase = true)
-        val normalized = normalizeQuantity(
-            quantityValue = quantityValue,
-            quantityUnit = quantityUnit,
-            normalizedQuantityValue = command.normalizedQuantityValue ?: existing.normalizedQuantityValue,
-            normalizedQuantityUnit = command.normalizedQuantityUnit.normalizeText(existing.normalizedQuantityUnit, uppercase = true),
-        )
+        val normalized =
+            normalizeQuantity(
+                quantityValue = quantityValue,
+                quantityUnit = quantityUnit,
+                normalizedQuantityValue = command.normalizedQuantityValue ?: existing.normalizedQuantityValue,
+                normalizedQuantityUnit =
+                    command.normalizedQuantityUnit.normalizeText(
+                        existing.normalizedQuantityUnit,
+                        uppercase = true,
+                    ),
+            )
         val updatedName = command.name?.trim()?.takeIf { it.isNotEmpty() } ?: existing.name
         require(updatedName.isNotBlank()) { "Variant name must not be blank" }
         return productVariantRepository.save(
@@ -212,19 +222,24 @@ open class ProductCatalogService(
         val normalizedDescription = rawDescription.trim()
         require(normalizedDescription.isNotBlank()) { "rawDescription must not be blank" }
         val existing = productAliasRepository.findByAccountIdAndRawDescription(accountId, normalizedDescription)
-        val alias = productAliasRepository.save(
-            ProductAlias(
-                id = existing?.id,
-                productVariantId = requireNotNull(variant.id),
-                accountId = accountId,
-                rawDescription = normalizedDescription,
-                source = ProductAliasSource.MANUAL,
-                confidence = null,
-                confirmed = true,
-                createdAt = existing?.createdAt ?: Instant.now(),
-            ),
+        val alias =
+            productAliasRepository.save(
+                ProductAlias(
+                    id = existing?.id,
+                    productVariantId = requireNotNull(variant.id),
+                    accountId = accountId,
+                    rawDescription = normalizedDescription,
+                    source = ProductAliasSource.MANUAL,
+                    confidence = null,
+                    confirmed = true,
+                    createdAt = existing?.createdAt ?: Instant.now(),
+                ),
+            )
+        purchaseItemEntityRepository.mapUnmappedItemsToVariant(
+            accountId,
+            normalizedDescription,
+            requireNotNull(alias.productVariantId),
         )
-        purchaseItemEntityRepository.mapUnmappedItemsToVariant(accountId, normalizedDescription, requireNotNull(alias.productVariantId))
         return alias
     }
 

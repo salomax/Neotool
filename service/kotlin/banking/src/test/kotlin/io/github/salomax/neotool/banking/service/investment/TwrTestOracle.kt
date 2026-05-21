@@ -51,11 +51,12 @@ object TwrTestOracle {
             PortfolioFlowEventType.CORPORATE_ACTION -> null
         }
 
-    fun aggregateNetFlowByDate(
-        rows: List<OracleFlowPoint>,
-    ): Map<LocalDate, BigDecimal> =
+    fun aggregateNetFlowByDate(rows: List<OracleFlowPoint>): Map<LocalDate, BigDecimal> =
         rows.asSequence()
-            .mapNotNull { row -> canonicalNetFlow(row.eventType, row.grossAmount)?.let { amount -> row.date to amount } }
+            .mapNotNull {
+                    row ->
+                canonicalNetFlow(row.eventType, row.grossAmount)?.let { amount -> row.date to amount }
+            }
             .groupBy({ it.first }, { it.second })
             .mapValues { (_, values) -> values.fold(BigDecimal.ZERO, BigDecimal::add) }
 

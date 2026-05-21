@@ -2,7 +2,7 @@ package io.github.salomax.neotool.banking.domain.transaction
 
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
-import io.github.salomax.neotool.banking.service.transaction.*
+import io.github.salomax.neotool.banking.service.transaction.DefaultTransactionRuleEngine
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName
@@ -55,7 +55,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "  São Paulo - Supermercado!!!  ", CreditDebitType.DEBIT)
 
@@ -79,7 +81,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "IFOOD*BR  LTDA", CreditDebitType.DEBIT)
 
@@ -103,7 +107,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "Mercado Extra Vila Madalena", CreditDebitType.DEBIT)
 
@@ -127,7 +133,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.INCOME,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "PIX Fulano", CreditDebitType.CREDIT)
 
@@ -151,7 +159,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(matchedRule))
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion = service.suggest(accountId, "UBER trip 1234", CreditDebitType.DEBIT)
 
@@ -221,7 +231,9 @@ class DefaultCategorizationServiceTest {
                 )
             whenever(ruleRepository.findRulesForAccount(accountId)).thenReturn(listOf(incomeRule, expenseRule))
             whenever(categoryRepository.findById(incomeRule.categoryId!!)).thenReturn(category(incomeRule.categoryId!!))
-            whenever(categoryRepository.findById(expenseRule.categoryId!!)).thenReturn(category(expenseRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(expenseRule.categoryId!!),
+            ).thenReturn(category(expenseRule.categoryId!!))
 
             val debitSuggestion = service.suggest(accountId, "Mercado Central", CreditDebitType.DEBIT)
             val creditSuggestion = service.suggest(accountId, "Salário empresa", CreditDebitType.CREDIT)
@@ -313,7 +325,9 @@ class DefaultCategorizationServiceTest {
                     applicableTo = CategoryApplicableTo.EXPENSE,
                 )
             val rules = listOf(matchedRule)
-            whenever(categoryRepository.findById(matchedRule.categoryId!!)).thenReturn(category(matchedRule.categoryId!!))
+            whenever(
+                categoryRepository.findById(matchedRule.categoryId!!),
+            ).thenReturn(category(matchedRule.categoryId!!))
 
             val suggestion =
                 service.suggestFromRulesRecordingMatch(rules, "Pagamento PIX loja", CreditDebitType.DEBIT)

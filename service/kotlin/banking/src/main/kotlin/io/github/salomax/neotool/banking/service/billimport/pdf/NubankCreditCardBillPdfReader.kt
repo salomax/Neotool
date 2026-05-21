@@ -1,11 +1,10 @@
 package io.github.salomax.neotool.banking.service.billimport.pdf
 
-import io.github.salomax.neotool.banking.domain.billimport.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
-import io.github.salomax.neotool.banking.service.billimport.BillTransactionEnricher
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.billimport.BillTransactionEnricher
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate

@@ -5,8 +5,8 @@ import io.github.salomax.neotool.banking.domain.transaction.MerchantLogoCacheEnt
 import io.github.salomax.neotool.banking.domain.transaction.MerchantSearchPage
 import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
 import io.github.salomax.neotool.banking.model.dto.transaction.MerchantCursorCodec
-import io.github.salomax.neotool.banking.model.transaction.MerchantMapper
 import io.github.salomax.neotool.banking.model.transaction.MerchantLogoCacheEntity
+import io.github.salomax.neotool.banking.model.transaction.MerchantMapper
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.Instant
@@ -18,7 +18,6 @@ open class DefaultMerchantRepository(
     private val merchantRepo: MerchantEntityRepository,
     private val logoCacheRepo: MerchantLogoCacheEntityRepository,
 ) : MerchantRepository {
-
     override fun findAllForAccount(accountId: UUID): List<Merchant> =
         merchantRepo.findAllForAccount(accountId).map(MerchantMapper::toDomain)
 
@@ -54,7 +53,11 @@ open class DefaultMerchantRepository(
 
         return MerchantSearchPage(
             items = pageItems,
-            totalCount = merchantRepo.countForAccountBySearchLike(accountId, searchLikePattern).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
+            totalCount =
+                merchantRepo.countForAccountBySearchLike(
+                    accountId,
+                    searchLikePattern,
+                ).coerceAtMost(Int.MAX_VALUE.toLong()).toInt(),
             hasNextPage = hasNextPage,
             hasPreviousPage = false,
             startCursor = startCursor,
@@ -65,8 +68,7 @@ open class DefaultMerchantRepository(
     override fun findUserMerchantsForAccount(accountId: UUID): List<Merchant> =
         merchantRepo.findUserMerchantsForAccount(accountId).map(MerchantMapper::toDomain)
 
-    override fun findById(id: UUID): Merchant? =
-        merchantRepo.findById(id).orElse(null)?.let(MerchantMapper::toDomain)
+    override fun findById(id: UUID): Merchant? = merchantRepo.findById(id).orElse(null)?.let(MerchantMapper::toDomain)
 
     override fun findByIds(ids: Collection<UUID>): List<Merchant> =
         if (ids.isEmpty()) {
@@ -80,8 +82,7 @@ open class DefaultMerchantRepository(
         return MerchantMapper.toDomain(merchantRepo.save(entity))
     }
 
-    override fun findLogoAssetIdByDomain(domain: String): UUID? =
-        logoCacheRepo.findByDomain(domain)?.assetId
+    override fun findLogoAssetIdByDomain(domain: String): UUID? = logoCacheRepo.findByDomain(domain)?.assetId
 
     override fun findLogoCacheByDomain(domain: String): MerchantLogoCacheEntry? =
         logoCacheRepo.findByDomainIgnoreCase(domain)?.let { cache ->

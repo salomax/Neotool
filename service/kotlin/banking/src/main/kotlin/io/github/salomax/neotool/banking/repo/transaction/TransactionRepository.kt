@@ -1,9 +1,18 @@
 package io.github.salomax.neotool.banking.repo.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategoryBreakdownRow
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.MonthTransactionTotals
+import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
+import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
+import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import java.math.BigDecimal
 import java.time.LocalDate
-import java.time.Instant
 import java.util.UUID
 
 /**

@@ -14,35 +14,31 @@ import java.time.Instant
  */
 data class Asset(
     val id: java.util.UUID? = null,
-
     // Identity
-    val ticker: String? = null,           // B3 ticker (PETR4, MXRF11). Null for RF/funds.
-    val isinCode: String? = null,         // ISO 6166, 12 chars. Null when not available.
+    // B3 ticker (PETR4, MXRF11). Null for RF/funds.
+    val ticker: String? = null,
+    // ISO 6166, 12 chars. Null when not available.
+    val isinCode: String? = null,
     val name: String,
-
     // Classification
     val assetType: AssetType,
-    val exchange: String? = null,         // B3, NYSE, etc. Null for non-exchange assets.
+    // B3, NYSE, etc. Null for non-exchange assets.
+    val exchange: String? = null,
     val currencyCode: String = "BRL",
-
     // Issuer (RF and funds)
     val issuerCnpj: String? = null,
     val issuerName: String? = null,
-
     // Fund-specific
     val fundCnpj: String? = null,
     val anbimaCategory: AnbimaCategory? = null,
     val anbimaClass: String? = null,
     val anbimaSubclass: String? = null,
-
     // Equity-specific
     // priceFactor: B3 pricing multiplier. Most assets = 1.
     // Some debentures quoted per 1000 units use 0.001.
     val priceFactor: BigDecimal = BigDecimal.ONE,
-
     // External reference
     val providerId: String? = null,
-
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 )

@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.client.investment.financialdata
 
-import io.github.salomax.neotool.banking.client.investment.financialdata.*
 import io.github.salomax.neotool.banking.domain.investment.Indexer
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
@@ -15,7 +14,6 @@ import java.time.LocalDate
 
 @DisplayName("FinancialDataIndicatorRateProvider")
 class FinancialDataIndicatorRateProviderTest {
-
     @Test
     @DisplayName("uses the expected variation and normalizes percentage values into decimals")
     fun usesExpectedVariationAndNormalizesPercentages() {
@@ -23,29 +21,34 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            indicator(
-                                label = "CDI",
-                                variations = listOf(
-                                    variation("MONTHLY_CHANGE", "Percentage (%)", "2026-03-12", 1.05),
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
+                                    indicator(
+                                        label = "CDI",
+                                        variations =
+                                            listOf(
+                                                variation("MONTHLY_CHANGE", "Percentage (%)", "2026-03-12", 1.05),
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                                            ),
+                                    ),
+                                    indicator(
+                                        label = "IPCA",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-10", 5.32),
+                                            ),
+                                    ),
+                                    indicator(
+                                        label = "SELIC",
+                                        variations =
+                                            listOf(
+                                                variation("TARGET_RATE", "Percentage (% a.a.)", "2026-03-12", 14.25),
+                                            ),
+                                    ),
                                 ),
-                            ),
-                            indicator(
-                                label = "IPCA",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-10", 5.32),
-                                ),
-                            ),
-                            indicator(
-                                label = "SELIC",
-                                variations = listOf(
-                                    variation("TARGET_RATE", "Percentage (% a.a.)", "2026-03-12", 14.25),
-                                ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)
@@ -66,22 +69,26 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            indicator(
-                                label = "DI_OVER",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.42),
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
+                                    indicator(
+                                        label = "DI_OVER",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.42),
+                                            ),
+                                    ),
+                                    indicator(
+                                        label = "UNKNOWN_LABEL",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 99.99),
+                                            ),
+                                    ),
                                 ),
-                            ),
-                            indicator(
-                                label = "UNKNOWN_LABEL",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 99.99),
-                                ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)
@@ -114,16 +121,19 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            indicator(
-                                label = "CDI",
-                                variations = listOf(
-                                    variation("MONTHLY_CHANGE", "Percentage (%)", "2026-03-12", 1.05),
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
+                                    indicator(
+                                        label = "CDI",
+                                        variations =
+                                            listOf(
+                                                variation("MONTHLY_CHANGE", "Percentage (%)", "2026-03-12", 1.05),
+                                            ),
+                                    ),
                                 ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)
@@ -139,16 +149,19 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            indicator(
-                                label = "CDI",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
+                                    indicator(
+                                        label = "CDI",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                                            ),
+                                    ),
                                 ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)
@@ -166,22 +179,26 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            indicator(
-                                label = "CDI",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
+                                    indicator(
+                                        label = "CDI",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.67),
+                                            ),
+                                    ),
+                                    indicator(
+                                        label = "DI_OVER",
+                                        variations =
+                                            listOf(
+                                                variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.42),
+                                            ),
+                                    ),
                                 ),
-                            ),
-                            indicator(
-                                label = "DI_OVER",
-                                variations = listOf(
-                                    variation("ROLLING_12M", "Percentage (%)", "2026-03-12", 13.42),
-                                ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)
@@ -200,33 +217,36 @@ class FinancialDataIndicatorRateProviderTest {
             val client = mockk<GraphQLServiceClient>()
             coEvery { client.query(any(), any(), any(), any()) } returns
                 GraphQLResponse(
-                    data = mapOf(
-                        "economicIndicators" to listOf(
-                            mapOf(
-                                "label" to "CDI",
-                                "variations" to listOf(
+                    data =
+                        mapOf(
+                            "economicIndicators" to
+                                listOf(
                                     mapOf(
-                                        "label" to "MONTHLY_CHANGE",
-                                        "series" to
-                                            mapOf(
-                                                "unit" to "Percentage (%)",
-                                                "values" to
-                                                    listOf(
+                                        "label" to "CDI",
+                                        "variations" to
+                                            listOf(
+                                                mapOf(
+                                                    "label" to "MONTHLY_CHANGE",
+                                                    "series" to
                                                         mapOf(
-                                                            "referenceDate" to "2024-02-01",
-                                                            "value" to 0.8,
+                                                            "unit" to "Percentage (%)",
+                                                            "values" to
+                                                                listOf(
+                                                                    mapOf(
+                                                                        "referenceDate" to "2024-02-01",
+                                                                        "value" to 0.8,
+                                                                    ),
+                                                                    mapOf(
+                                                                        "referenceDate" to "2024-03-01",
+                                                                        "value" to 0.83,
+                                                                    ),
+                                                                ),
                                                         ),
-                                                        mapOf(
-                                                            "referenceDate" to "2024-03-01",
-                                                            "value" to 0.83,
-                                                        ),
-                                                    ),
+                                                ),
                                             ),
                                     ),
                                 ),
-                            ),
                         ),
-                    ),
                 )
 
             val provider = FinancialDataIndicatorRateProvider(client)

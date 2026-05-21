@@ -1,9 +1,14 @@
 package io.github.salomax.neotool.banking.service.billimport
 
-import io.github.salomax.neotool.banking.domain.billimport.*
 import com.fasterxml.jackson.databind.ObjectMapper
-import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedTransaction
+import io.github.salomax.neotool.banking.domain.billimport.AssistantBillExtractionMeta
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReview
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewCard
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewMode
+import io.github.salomax.neotool.banking.domain.billimport.BillImportReviewTransaction
+import io.github.salomax.neotool.banking.domain.billimport.InstallmentInfo
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.model.dto.billimport.AssistantExtractedTransaction
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.time.LocalDate
@@ -46,7 +51,10 @@ class AssistantBillReviewBuilder(
             }
 
         val reviewMode =
-            if (meta.transactionPattern.lastFourPattern != null && reviewCards.none { !it.lastFourDigits.isNullOrBlank() }) {
+            if (
+                meta.transactionPattern.lastFourPattern != null &&
+                reviewCards.none { !it.lastFourDigits.isNullOrBlank() }
+            ) {
                 BillImportReviewMode.TX_CARD_ASSIGNMENT
             } else {
                 BillImportReviewMode.CARD_BUCKET_MATCHING

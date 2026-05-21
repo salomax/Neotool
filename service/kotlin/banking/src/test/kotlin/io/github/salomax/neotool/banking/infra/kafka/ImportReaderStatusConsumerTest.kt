@@ -1,21 +1,20 @@
 package io.github.salomax.neotool.banking.infra.kafka
 
-import io.github.salomax.neotool.banking.client.import.messaging.*
-import io.github.salomax.neotool.banking.job.import.*
-import io.github.salomax.neotool.banking.service.import.parser.*
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.salomax.neotool.banking.client.import.messaging.ImportJobCompletedProducer
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
-import io.github.salomax.neotool.banking.service.import.ImportProcessor
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.job.import.ImportReaderStatusConsumer
 import io.github.salomax.neotool.banking.model.dto.imports.ImportProcessingResult
 import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
-import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
+import io.github.salomax.neotool.banking.service.import.ImportProcessor
 import io.github.salomax.neotool.banking.service.import.ImportValidationGate
-import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
-import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
 import io.github.salomax.neotool.banking.service.import.event.ImportEventBus
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.service.import.statement.AssistantStatementTransactionExtractor
 import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
@@ -254,7 +253,9 @@ class ImportReaderStatusConsumerTest {
         val rowsCaptor = argumentCaptor<List<ParsedTransaction>>()
         verify(importProcessor).process(eq(job), rowsCaptor.capture(), eq(false))
         assertThat(rowsCaptor.firstValue).hasSize(3)
-        assertThat(rowsCaptor.firstValue.map { it.date.toString() }).containsExactly("2025-01-07", "2025-01-08", "2025-01-08")
+        assertThat(
+            rowsCaptor.firstValue.map { it.date.toString() },
+        ).containsExactly("2025-01-07", "2025-01-08", "2025-01-08")
         assertThat(rowsCaptor.firstValue.map { it.amount }).containsExactly(
             "550.00".toBigDecimal(),
             "1000.00".toBigDecimal(),
@@ -263,8 +264,14 @@ class ImportReaderStatusConsumerTest {
         assertThat(rowsCaptor.firstValue.map { it.creditDebitType }).containsOnly(CreditDebitType.DEBIT)
         assertThat(rowsCaptor.firstValue.map { it.description })
             .anySatisfy { description -> assertThat(description).contains("Antonio Carlos Guidoni", "BRASIL S.A.") }
-            .anySatisfy { description -> assertThat(description).contains("Marcos Afonso Salomao Junior", "XP Investimentos") }
-            .anySatisfy { description -> assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.") }
+            .anySatisfy {
+                    description ->
+                assertThat(description).contains("Marcos Afonso Salomao Junior", "XP Investimentos")
+            }
+            .anySatisfy {
+                    description ->
+                assertThat(description).contains("LILIAN PRISCILLA ONISHI SALOMAO", "BCO DO BRASIL S.A.")
+            }
     }
 
     @Test
@@ -482,8 +489,18 @@ class ImportReaderStatusConsumerTest {
                             "amount_pattern" to "([\\d.,]+)",
                             "decimal_separator" to "comma",
                             "sign_rule" to "KEYWORD_BASED",
-                            "ignore_line_kinds" to listOf("DAY_TOTAL", "RUNNING_BALANCE", "SECTION_HEADER", "HEADER", "FOOTER"),
-                            "examples" to listOf("Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00"),
+                            "ignore_line_kinds" to
+                                listOf(
+                                    "DAY_TOTAL",
+                                    "RUNNING_BALANCE",
+                                    "SECTION_HEADER",
+                                    "HEADER",
+                                    "FOOTER",
+                                ),
+                            "examples" to
+                                listOf(
+                                    "Transferência enviada pelo Pix Maria Jose da Silva - •••.311.704-•• - BCO 250,00",
+                                ),
                             "default_credit_debit_type" to "DEBIT",
                         ),
                     "warnings" to emptyList<String>(),

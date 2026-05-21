@@ -1,18 +1,28 @@
 package io.github.salomax.neotool.banking.service.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.*
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategoryNotFoundException
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.DuplicateTransactionRuleException
+import io.github.salomax.neotool.banking.domain.transaction.InvalidRegexPatternException
+import io.github.salomax.neotool.banking.domain.transaction.MerchantNotFoundException
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
+import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotDeletableException
+import io.github.salomax.neotool.banking.domain.transaction.SystemTransactionRuleNotEditableException
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRuleNotFoundException
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
 import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionRuleInput
-import io.github.salomax.neotool.banking.model.domain.transaction.TransactionDescriptionNormalizer
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
-import io.github.salomax.neotool.banking.service.transaction.AppliedRuleAuditSupport
-import io.github.salomax.neotool.banking.domain.transaction.CategorySource
-import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import jakarta.inject.Singleton
 import java.time.Instant
 import java.util.UUID
@@ -336,8 +346,10 @@ open class TransactionRuleService(
      *   "uber*trip" contains "uber" → true   ('*' is not a letter)
      *   "uber99" contains "uber"   → true    ('9' is not a letter)
      */
-    private fun containsWholeWord(text: String, word: String): Boolean =
-        Regex("(?<![a-z])${Regex.escape(word)}(?![a-z])").containsMatchIn(text)
+    private fun containsWholeWord(
+        text: String,
+        word: String,
+    ): Boolean = Regex("(?<![a-z])${Regex.escape(word)}(?![a-z])").containsMatchIn(text)
 
     private fun requireCategoryAccessible(
         categoryId: UUID,

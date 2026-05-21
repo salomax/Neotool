@@ -10,11 +10,11 @@ import io.github.salomax.neotool.banking.repo.transaction.RecurringPaymentReposi
 import io.micronaut.context.annotation.Requires
 import io.micronaut.scheduling.annotation.Scheduled
 import jakarta.inject.Singleton
+import mu.KotlinLogging
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
-import mu.KotlinLogging
 
 @Singleton
 @Requires(property = "banking.recurring-reminders.enabled", notEquals = "false")

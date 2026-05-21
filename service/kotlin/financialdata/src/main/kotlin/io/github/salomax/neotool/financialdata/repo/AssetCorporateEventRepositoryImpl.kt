@@ -15,7 +15,6 @@ import java.util.UUID
 open class AssetCorporateEventRepositoryImpl(
     private val entityManager: EntityManager,
 ) : AssetCorporateEventRepository {
-
     @ReadOnly
     override fun findStockEventsForSync(
         from: LocalDate,
@@ -35,7 +34,8 @@ open class AssetCorporateEventRepositoryImpl(
         val tickerPlaceholders = normalizedTickers?.indices?.joinToString(", ") { "?" }.orEmpty()
         val isinPlaceholders = normalizedIsins?.indices?.joinToString(", ") { "?" }.orEmpty()
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 se.id::text,
                 se.asset_id::text,
@@ -59,14 +59,17 @@ open class AssetCorporateEventRepositoryImpl(
               ${if (hasIsins) "AND upper(se.isin_code) IN ($isinPlaceholders)" else ""}
               ${if (hasUpdatedSince) "AND se.updated_at >= ?" else ""}
               ${
-            if (hasCursor) {
-                "AND (se.last_date_prior > ? OR (se.last_date_prior = ? AND (se.isin_code > ? OR (se.isin_code = ? AND (se.event_type > ? OR (se.event_type = ? AND (se.approved_on > ? OR (se.approved_on = ? AND se.id::text > ?))))))))"
-            } else {
-                ""
+                if (hasCursor) {
+                    "AND (se.last_date_prior > ? OR (se.last_date_prior = ? AND " +
+                        "(se.isin_code > ? OR (se.isin_code = ? AND (se.event_type > ? OR " +
+                        "(se.event_type = ? AND (se.approved_on > ? OR " +
+                        "(se.approved_on = ? AND se.id::text > ?))))))))"
+                } else {
+                    ""
+                }
             }
-        }
             ORDER BY se.last_date_prior ASC, se.isin_code ASC, se.event_type ASC, se.approved_on ASC, se.id ASC
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         var index = 1

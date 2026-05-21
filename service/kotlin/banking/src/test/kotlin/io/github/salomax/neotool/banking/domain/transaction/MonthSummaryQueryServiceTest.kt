@@ -1,8 +1,9 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
@@ -41,7 +42,13 @@ class MonthSummaryQueryServiceTest {
         snapshotRepository = mock()
         transactionRepository = mock()
         snapshotComputationService = mock()
-        service = MonthSummaryQueryService(snapshotRepository, transactionRepository, snapshotComputationService, mock())
+        service =
+            MonthSummaryQueryService(
+                snapshotRepository,
+                transactionRepository,
+                snapshotComputationService,
+                mock(),
+            )
         whenever(transactionRepository.getCategoryBreakdownForAccounts(any(), any(), any(), any(), any()))
             .thenReturn(emptyList())
         whenever(transactionRepository.getTagBreakdownForAccounts(any(), any(), any(), any(), any()))
@@ -264,7 +271,8 @@ class MonthSummaryQueryServiceTest {
         @Test
         fun `missing snapshot recomputes from earliest transaction month when no clean snapshot exists`() {
             val requested = YearMonth.of(2026, 1)
-            val computed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("123.45"))
+            val computed =
+                snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("123.45"))
 
             whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))
                 .thenReturn(null)
@@ -284,7 +292,8 @@ class MonthSummaryQueryServiceTest {
         @Test
         fun `missing snapshot recomputes from requested month when it is before earliest transaction`() {
             val requested = YearMonth.of(2025, 12)
-            val computed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal.ZERO)
+            val computed =
+                snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal.ZERO)
 
             whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))
                 .thenReturn(null)
@@ -305,7 +314,8 @@ class MonthSummaryQueryServiceTest {
         fun `dirty snapshot recomputes from month after latest clean snapshot`() {
             val requested = YearMonth.of(2026, 1)
             val dirty = snapshot(year = requested.year, month = requested.monthValue, isDirty = true)
-            val healed = snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("88.00"))
+            val healed =
+                snapshot(year = requested.year, month = requested.monthValue, closingBalance = BigDecimal("88.00"))
             val priorClean = snapshot(year = 2025, month = 10, closingBalance = BigDecimal("77.00"))
 
             whenever(snapshotRepository.findByYearMonth(financialAccountId, requested.year, requested.monthValue))

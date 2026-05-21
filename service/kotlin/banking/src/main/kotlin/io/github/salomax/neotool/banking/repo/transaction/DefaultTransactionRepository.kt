@@ -9,9 +9,6 @@ import io.github.salomax.neotool.banking.domain.transaction.MonthTransferTotals
 import io.github.salomax.neotool.banking.domain.transaction.TagBreakdownRow
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionBelongsToOption
-import io.github.salomax.neotool.banking.repo.transaction.TransactionListQuery
-import io.github.salomax.neotool.banking.repo.transaction.TransactionPageResult
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.model.transaction.TransactionEntity
 import io.github.salomax.neotool.banking.model.transaction.TransactionMapper
 import io.github.salomax.neotool.banking.model.transaction.TransactionTagEntity
@@ -20,11 +17,11 @@ import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
 import jakarta.persistence.PersistenceContext
 import jakarta.persistence.Query
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
-import org.slf4j.LoggerFactory
 
 /**
  * Default implementation of [TransactionRepository] using JPA.
@@ -208,27 +205,30 @@ open class DefaultTransactionRepository(
         if (financialAccountIds.isEmpty()) return emptyMap()
         val ids = financialAccountIds.toList()
         val placeholders = ids.indices.joinToString(", ") { "CAST(:p$it AS uuid)" }
-        val sql = """
+        val sql =
+            """
             SELECT financial_account_id, MIN(date)
               FROM banking.transactions
              WHERE financial_account_id IN ($placeholders)
                AND deleted_at IS NULL
              GROUP BY financial_account_id
-        """.trimIndent()
+            """.trimIndent()
         val query = entityManager.createNativeQuery(sql)
         ids.forEachIndexed { i, id -> query.setParameter("p$i", id.toString()) }
         @Suppress("UNCHECKED_CAST")
         val rows = query.resultList as List<Array<Any?>>
         return rows.associate { row ->
-            val financialAccountId = when (val raw = row[0]) {
-                is UUID -> raw
-                else -> UUID.fromString(raw.toString())
-            }
-            val earliestDate = when (val raw = row[1]) {
-                is LocalDate -> raw
-                is java.sql.Date -> raw.toLocalDate()
-                else -> LocalDate.parse(raw.toString())
-            }
+            val financialAccountId =
+                when (val raw = row[0]) {
+                    is UUID -> raw
+                    else -> UUID.fromString(raw.toString())
+                }
+            val earliestDate =
+                when (val raw = row[1]) {
+                    is LocalDate -> raw
+                    is java.sql.Date -> raw.toLocalDate()
+                    else -> LocalDate.parse(raw.toString())
+                }
             financialAccountId to earliestDate
         }
     }
@@ -293,8 +293,8 @@ open class DefaultTransactionRepository(
                 uncategorizedOnly = false,
                 creditDebitType =
                     when (applicableTo) {
-                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
-                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                         else -> null
                     },
                 types = null,
@@ -330,8 +330,8 @@ open class DefaultTransactionRepository(
                 uncategorizedOnly = false,
                 creditDebitType =
                     when (applicableTo) {
-                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
-                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                         else -> null
                     },
                 types = null,
@@ -370,8 +370,8 @@ open class DefaultTransactionRepository(
                 uncategorizedOnly = false,
                 creditDebitType =
                     when (applicableTo) {
-                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
-                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                         else -> null
                     },
                 types = null,
@@ -404,6 +404,7 @@ open class DefaultTransactionRepository(
             } else {
                 ""
             }
+
         @Suppress("UNCHECKED_CAST")
         val rows =
             applyParameters(
@@ -489,8 +490,8 @@ open class DefaultTransactionRepository(
                 uncategorizedOnly = false,
                 creditDebitType =
                     when (applicableTo) {
-                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
-                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                         else -> null
                     },
                 types = null,
@@ -525,8 +526,8 @@ open class DefaultTransactionRepository(
                 uncategorizedOnly = false,
                 creditDebitType =
                     when (applicableTo) {
-                        CategoryApplicableTo.INCOME -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.CREDIT
-                        CategoryApplicableTo.EXPENSE -> io.github.salomax.neotool.banking.domain.transaction.CreditDebitType.DEBIT
+                        CategoryApplicableTo.INCOME -> CreditDebitType.CREDIT
+                        CategoryApplicableTo.EXPENSE -> CreditDebitType.DEBIT
                         else -> null
                     },
                 types = null,
@@ -609,6 +610,7 @@ open class DefaultTransactionRepository(
         val countSql = buildTransactionsCountSql(query)
 
         val pageQueryStartedAt = System.nanoTime()
+
         @Suppress("UNCHECKED_CAST")
         val entities =
             applyParameters(
@@ -619,11 +621,17 @@ open class DefaultTransactionRepository(
         val items = withTags(entities.map(TransactionMapper::toDomain), query.accountId)
         val tagsFinishedAt = System.nanoTime()
         val totalCount =
-            (applyParameters(entityManager.createNativeQuery(countSql.sql), countSql.params).singleResult as Number).toLong()
+            (
+                applyParameters(
+                    entityManager.createNativeQuery(countSql.sql),
+                    countSql.params,
+                ).singleResult as Number
+            ).toLong()
         val countFinishedAt = System.nanoTime()
         if (logger.isDebugEnabled) {
             logger.debug(
-                "transactions.repo timings accountId={} offset={} limit={} rows={} totalCount={} pageQueryMs={} tagsMs={} countMs={} totalMs={}",
+                "transactions.repo timings accountId={} offset={} limit={} rows={} totalCount={} " +
+                    "pageQueryMs={} tagsMs={} countMs={} totalMs={}",
                 query.accountId,
                 query.offset,
                 query.limit,
@@ -678,12 +686,14 @@ open class DefaultTransactionRepository(
         baseDescription: String,
         creditDebitType: CreditDebitType,
     ): Int =
-        (entityManager.createNativeQuery(SIMILAR_NON_MANUAL_COUNT_SQL)
-            .setParameter("accountId", accountId)
-            .setParameter("excludeTransactionId", excludeTransactionId)
-            .setParameter("baseDescription", baseDescription)
-            .setParameter("creditDebitType", creditDebitType.name)
-            .singleResult as Number)
+        (
+            entityManager.createNativeQuery(SIMILAR_NON_MANUAL_COUNT_SQL)
+                .setParameter("accountId", accountId)
+                .setParameter("excludeTransactionId", excludeTransactionId)
+                .setParameter("baseDescription", baseDescription)
+                .setParameter("creditDebitType", creditDebitType.name)
+                .singleResult as Number
+        )
             .toInt()
 
     @Transactional(readOnly = true)
@@ -855,7 +865,8 @@ open class DefaultTransactionRepository(
         }
         if (afterDate != null && afterId != null) {
             sql.append(
-                " AND (t.date < CAST(:afterDate AS date) OR (t.date = CAST(:afterDate AS date) AND t.id < CAST(:afterId AS uuid))) ",
+                " AND (t.date < CAST(:afterDate AS date) OR " +
+                    "(t.date = CAST(:afterDate AS date) AND t.id < CAST(:afterId AS uuid))) ",
             )
         }
         sql.append(" ORDER BY t.date DESC, t.id DESC LIMIT :lim ")
@@ -1099,7 +1110,10 @@ open class DefaultTransactionRepository(
         params: MutableMap<String, Any?>,
     ): String {
         params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
-        params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
+        params["endDateExclusive"] =
+            requireNotNull(query.endDateExclusive) {
+                "endDateExclusive is required for period queries"
+            }
         val conditions = buildCommonConditions(query, params).toMutableList()
         conditions += "(t.installment_number IS NULL OR t.installment_number <= 1)"
         conditions += "t.date >= :startDate"
@@ -1117,7 +1131,10 @@ open class DefaultTransactionRepository(
         params: MutableMap<String, Any?>,
     ): String {
         params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
-        params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
+        params["endDateExclusive"] =
+            requireNotNull(query.endDateExclusive) {
+                "endDateExclusive is required for period queries"
+            }
         val conditions = buildCommonConditions(query, params).toMutableList()
         conditions += "t.installment_number > 1"
         conditions += "b.due_date >= :startDate"
@@ -1134,7 +1151,10 @@ open class DefaultTransactionRepository(
         params: MutableMap<String, Any?>,
     ): String {
         params["startDate"] = requireNotNull(query.startDate) { "startDate is required for period queries" }
-        params["endDateExclusive"] = requireNotNull(query.endDateExclusive) { "endDateExclusive is required for period queries" }
+        params["endDateExclusive"] =
+            requireNotNull(query.endDateExclusive) {
+                "endDateExclusive is required for period queries"
+            }
         val conditions = buildCommonConditions(query, params).toMutableList()
         conditions += "t.installment_number > 1"
         conditions += "t.bill_id IS NULL"
@@ -1150,16 +1170,23 @@ open class DefaultTransactionRepository(
         query: TransactionListQuery,
         params: MutableMap<String, Any?>,
     ): List<String> {
-        val conditions = mutableListOf(
-            "t.account_id = :accountId",
-            "t.deleted_at IS NULL",
-        )
+        val conditions =
+            mutableListOf(
+                "t.account_id = :accountId",
+                "t.deleted_at IS NULL",
+            )
         query.financialAccountId?.let {
             params["financialAccountId"] = it
             conditions += "t.financial_account_id = :financialAccountId"
         }
         if (!query.includedFinancialAccountIds.isNullOrEmpty()) {
-            conditions += buildInClause("t.financial_account_id", "includedFinancialAccountId", query.includedFinancialAccountIds, params)
+            conditions +=
+                buildInClause(
+                    "t.financial_account_id",
+                    "includedFinancialAccountId",
+                    query.includedFinancialAccountIds,
+                    params,
+                )
         }
         query.belongsToUserId?.let {
             params["belongsToUserId"] = it
@@ -1270,5 +1297,4 @@ open class DefaultTransactionRepository(
         val sql: String,
         val params: Map<String, Any?>,
     )
-
 }

@@ -1,8 +1,13 @@
 package io.github.salomax.neotool.banking.service.transaction
 
-import io.github.salomax.neotool.banking.domain.transaction.*
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.DuplicateTransactionRuleException
+import io.github.salomax.neotool.banking.domain.transaction.Merchant
+import io.github.salomax.neotool.banking.domain.transaction.MerchantSearchPage
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
+import io.github.salomax.neotool.banking.domain.transaction.TopMerchantRow
 import io.github.salomax.neotool.banking.model.domain.transaction.MerchantWebsiteNormalizer
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionRuleInput
 import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRuleRepository
 import jakarta.inject.Singleton
@@ -26,8 +31,7 @@ open class MerchantService(
      * Returns all merchants visible to [accountId] (system + user-scoped),
      * suitable for display in a picker or search.
      */
-    fun listForAccount(accountId: UUID): List<Merchant> =
-        merchantRepository.findAllForAccount(accountId)
+    fun listForAccount(accountId: UUID): List<Merchant> = merchantRepository.findAllForAccount(accountId)
 
     fun search(
         accountId: UUID,
@@ -87,13 +91,14 @@ open class MerchantService(
         // Ignore duplicates in case a rule for the same pattern already exists.
         try {
             ruleService.create(
-                input = CreateTransactionRuleInput(
-                    merchantId = merchant.id,
-                    pattern = normalizedName,
-                    patternType = PatternType.CONTAINS,
-                    applicableTo = CategoryApplicableTo.ANY,
-                    priority = 40,
-                ),
+                input =
+                    CreateTransactionRuleInput(
+                        merchantId = merchant.id,
+                        pattern = normalizedName,
+                        patternType = PatternType.CONTAINS,
+                        applicableTo = CategoryApplicableTo.ANY,
+                        priority = 40,
+                    ),
                 accountId = accountId,
             )
         } catch (_: DuplicateTransactionRuleException) {

@@ -51,7 +51,9 @@ class InvestmentPortfolioSummaryServiceTest {
                 ),
             ),
         )
-        whenever(investmentQueryService.getInvestmentCashBalance(financialAccountId, accountId)).thenReturn(BigDecimal("250.00"))
+        whenever(
+            investmentQueryService.getInvestmentCashBalance(financialAccountId, accountId),
+        ).thenReturn(BigDecimal("250.00"))
         whenever(
             portfolioPerformanceQueryService.getPortfolioPerformance(
                 financialAccountId = financialAccountId,
@@ -69,9 +71,23 @@ class InvestmentPortfolioSummaryServiceTest {
                 hasEstimatedValues = true,
             ),
         )
-        whenever(portfolioPerformanceQueryService.getAssetGroupPerformance(financialAccountId, accountId, "variableIncome", PerformancePeriodDTO.YTD))
+        whenever(
+            portfolioPerformanceQueryService.getAssetGroupPerformance(
+                financialAccountId,
+                accountId,
+                "variableIncome",
+                PerformancePeriodDTO.YTD,
+            ),
+        )
             .thenReturn(0.12)
-        whenever(portfolioPerformanceQueryService.getAssetGroupPerformance(financialAccountId, accountId, "fixedIncome", PerformancePeriodDTO.YTD))
+        whenever(
+            portfolioPerformanceQueryService.getAssetGroupPerformance(
+                financialAccountId,
+                accountId,
+                "fixedIncome",
+                PerformancePeriodDTO.YTD,
+            ),
+        )
             .thenReturn(0.04)
         whenever(portfolioPerformanceQueryService.getRecalculationStatus(accountId)).thenReturn(
             RecalculationStatusDTO(
@@ -105,7 +121,9 @@ class InvestmentPortfolioSummaryServiceTest {
         assertThat(summary.performance.twr).isEqualTo(0.0845)
         assertThat(summary.performance.benchmarks).singleElement().extracting("code").isEqualTo("CDI")
         assertThat(summary.recalculationStatus.isCalculating).isTrue()
-        verify(portfolioPerformanceQueryService).getPortfolioPerformance(financialAccountId, accountId, PerformancePeriodDTO.YTD, true)
+        verify(
+            portfolioPerformanceQueryService,
+        ).getPortfolioPerformance(financialAccountId, accountId, PerformancePeriodDTO.YTD, true)
         verify(portfolioPerformanceQueryService).getRecalculationStatus(accountId)
     }
 
@@ -125,25 +143,26 @@ class InvestmentPortfolioSummaryServiceTest {
             financialAccountId = UUID.randomUUID(),
             accountId = UUID.randomUUID(),
             assetId = UUID.randomUUID(),
-            asset = InvestmentAssetDTO(
-                id = UUID.randomUUID(),
-                ticker = null,
-                isinCode = null,
-                name = assetType.name,
-                assetType = assetType,
-                exchange = null,
-                currencyCode = "BRL",
-                issuerCnpj = null,
-                issuerName = null,
-                fundCnpj = null,
-                anbimaCategory = null,
-                anbimaClass = null,
-                anbimaSubclass = null,
-                logoAsset = null,
-                priceFactor = 1.0,
-                createdAt = now,
-                updatedAt = now,
-            ),
+            asset =
+                InvestmentAssetDTO(
+                    id = UUID.randomUUID(),
+                    ticker = null,
+                    isinCode = null,
+                    name = assetType.name,
+                    assetType = assetType,
+                    exchange = null,
+                    currencyCode = "BRL",
+                    issuerCnpj = null,
+                    issuerName = null,
+                    fundCnpj = null,
+                    anbimaCategory = null,
+                    anbimaClass = null,
+                    anbimaSubclass = null,
+                    logoAsset = null,
+                    priceFactor = 1.0,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
             financialAccount = null,
             quantity = quantity,
             averageCost = averageCost,

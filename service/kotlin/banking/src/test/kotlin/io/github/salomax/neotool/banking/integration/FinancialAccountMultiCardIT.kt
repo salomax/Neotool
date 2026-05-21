@@ -1,10 +1,10 @@
 package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.account.CardData
-import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
-import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.model.dto.account.CardDataPatch
+import io.github.salomax.neotool.banking.model.dto.account.CreateFinancialAccountCommand
 import io.github.salomax.neotool.banking.model.dto.account.UpdateField
 import io.github.salomax.neotool.banking.model.dto.account.UpdateFinancialAccountCommand
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository

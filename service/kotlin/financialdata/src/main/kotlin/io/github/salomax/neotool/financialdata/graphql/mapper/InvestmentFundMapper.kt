@@ -16,7 +16,6 @@ import jakarta.inject.Singleton
 
 @Singleton
 class InvestmentFundMapper {
-
     fun toAutocompleteConnectionDTO(funds: List<InvestmentFund>): InvestmentFundAutocompleteConnectionDTO =
         InvestmentFundAutocompleteConnectionDTO(
             suggestions = funds.map { toAutocompleteItemDTO(it) },
@@ -33,18 +32,20 @@ class InvestmentFundMapper {
 
     fun toConnectionDTO(connection: Connection<InvestmentFund>): InvestmentFundConnectionDTO =
         InvestmentFundConnectionDTO(
-            edges = connection.edges.map { edge ->
-                InvestmentFundEdgeDTO(
-                    node = toFundDTO(edge.node),
-                    cursor = edge.cursor,
-                )
-            },
-            pageInfo = PageInfoDTO(
-                hasNextPage = connection.pageInfo.hasNextPage,
-                hasPreviousPage = connection.pageInfo.hasPreviousPage,
-                startCursor = connection.pageInfo.startCursor,
-                endCursor = connection.pageInfo.endCursor,
-            ),
+            edges =
+                connection.edges.map { edge ->
+                    InvestmentFundEdgeDTO(
+                        node = toFundDTO(edge.node),
+                        cursor = edge.cursor,
+                    )
+                },
+            pageInfo =
+                PageInfoDTO(
+                    hasNextPage = connection.pageInfo.hasNextPage,
+                    hasPreviousPage = connection.pageInfo.hasPreviousPage,
+                    startCursor = connection.pageInfo.startCursor,
+                    endCursor = connection.pageInfo.endCursor,
+                ),
             totalCount = connection.totalCount?.toInt(),
         )
 
@@ -65,8 +66,7 @@ class InvestmentFundMapper {
             totalNetAssets = nav.totalNetAssets?.toDouble(),
         )
 
-    fun toNavListDTO(navList: List<FundDailyNav>): List<FundDailyNavDTO> =
-        navList.map { toNavDTO(it) }
+    fun toNavListDTO(navList: List<FundDailyNav>): List<FundDailyNavDTO> = navList.map { toNavDTO(it) }
 
     fun toMarketSnapshotDTO(snapshot: InvestmentFundMarketSnapshot): InvestmentFundMarketSnapshotDTO =
         InvestmentFundMarketSnapshotDTO(

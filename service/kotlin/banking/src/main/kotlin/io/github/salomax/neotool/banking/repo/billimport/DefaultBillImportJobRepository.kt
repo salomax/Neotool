@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.repo.billimport
 
 import io.github.salomax.neotool.banking.domain.billimport.BillImportJob
-import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
 import io.github.salomax.neotool.banking.model.billimport.BillImportJobEntity
 import io.github.salomax.neotool.banking.model.billimport.BillImportJobMapper
 import io.micronaut.transaction.annotation.Transactional
@@ -24,10 +23,17 @@ open class DefaultBillImportJobRepository(
         accountId: UUID,
         fileHash: String,
     ): BillImportJob? =
-        entityRepository.findByAccountIdAndFileHashAndJobKind(accountId, fileHash, jobKind)?.let(BillImportJobMapper::toDomain)
+        entityRepository.findByAccountIdAndFileHashAndJobKind(
+            accountId,
+            fileHash,
+            jobKind,
+        )?.let(BillImportJobMapper::toDomain)
 
     override fun findByAccount(accountId: UUID): List<BillImportJob> =
-        entityRepository.findByAccountIdAndJobKindOrderByCreatedAtDesc(accountId, jobKind).map(BillImportJobMapper::toDomain)
+        entityRepository.findByAccountIdAndJobKindOrderByCreatedAtDesc(
+            accountId,
+            jobKind,
+        ).map(BillImportJobMapper::toDomain)
 
     override fun findByFinancialAccount(
         financialAccountId: UUID,

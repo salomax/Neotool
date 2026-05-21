@@ -1,23 +1,16 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.import.isCsvSource
-import io.github.salomax.neotool.banking.service.import.parser.CsvBancoDoBrasilParser
-import io.github.salomax.neotool.banking.service.import.parser.CsvBradescoParser
-import io.github.salomax.neotool.banking.service.import.parser.CsvItauParser
-import io.github.salomax.neotool.banking.service.import.parser.CsvNubankParser
-import io.github.salomax.neotool.banking.service.import.parser.CsvSantanderParser
+import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvFingerprintBuilder
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvReaderRegistry
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvReaderSelectionMode
 import io.github.salomax.neotool.banking.service.import.parser.csv.GenericCsvReader
-import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.service.import.parser.CsvImportMetrics
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import org.slf4j.LoggerFactory
 

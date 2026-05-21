@@ -1,10 +1,9 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.domain.import.ImportSource
-import io.github.salomax.neotool.banking.service.import.excel.ExcelExtractionService
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
 import io.github.salomax.neotool.banking.service.import.excel.ExcelDeterministicRoutingService
+import io.github.salomax.neotool.banking.service.import.excel.ExcelExtractionService
 import io.github.salomax.neotool.banking.service.import.fingerprint.FingerprintFileType
 
 private const val ASSISTANT_DOCUMENT_TYPE_BANK_STATEMENT = "BANK_STATEMENT"

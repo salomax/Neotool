@@ -1,7 +1,6 @@
 package io.github.salomax.neotool.banking.client.investment.financialdata
 
 import io.github.salomax.neotool.banking.domain.investment.Indexer
-import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
 import jakarta.inject.Singleton
@@ -17,18 +16,19 @@ import java.util.concurrent.atomic.AtomicReference
 class FinancialDataIndicatorRateProvider(
     private val graphQLServiceClient: GraphQLServiceClient,
 ) : IndicatorRateProvider {
-
     private val logger = KotlinLogging.logger {}
 
     private val cacheRef = AtomicReference<CachedRates?>()
 
-    override fun getLatestRates(): Map<Indexer, BigDecimal> =
-        getOrLoad().rates
+    override fun getLatestRates(): Map<Indexer, BigDecimal> = getOrLoad().rates
 
-    override fun getReferenceDate(): LocalDate? =
-        getOrLoad().referenceDate
+    override fun getReferenceDate(): LocalDate? = getOrLoad().referenceDate
 
-    override fun getMonthlySeriesRange(indexer: Indexer, from: LocalDate, to: LocalDate): List<Pair<LocalDate, BigDecimal>> {
+    override fun getMonthlySeriesRange(
+        indexer: Indexer,
+        from: LocalDate,
+        to: LocalDate,
+    ): List<Pair<LocalDate, BigDecimal>> {
         val indicatorLabel = monthlySeriesIndicatorLabel(indexer) ?: return emptyList()
         return try {
             fetchMonthlySeries(indicatorLabel, from, to)

@@ -1,44 +1,48 @@
 package io.github.salomax.neotool.banking.domain.billimport
 
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
-import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
-import io.github.salomax.neotool.banking.service.billimport.*
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
-import io.github.salomax.neotool.banking.domain.account.CardData
-import io.github.salomax.neotool.banking.domain.account.FinancialAccount
-import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
-import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
-import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
-import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
-import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
-import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
-import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
-import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
-import io.github.salomax.neotool.banking.domain.transaction.BillStatus
-import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
-import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
-import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
-import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
-import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.CategorySource
-import io.github.salomax.neotool.banking.domain.transaction.PatternType
-import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
-import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetStorage
 import io.github.salomax.neotool.banking.client.assets.BillImportAssetUploadResult
 import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedEvent
 import io.github.salomax.neotool.banking.client.import.extractor.PdfExtractorSubmittedProducer
 import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedEvent
 import io.github.salomax.neotool.banking.client.import.messaging.AssistantBankingReaderRequestedProducer
+import io.github.salomax.neotool.banking.domain.account.CardData
+import io.github.salomax.neotool.banking.domain.account.FinancialAccount
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
+import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
+import io.github.salomax.neotool.banking.domain.import.CanonicalProcessorType
+import io.github.salomax.neotool.banking.domain.import.CanonicalReaderOutput
+import io.github.salomax.neotool.banking.domain.preferences.RuleApplicationMode
+import io.github.salomax.neotool.banking.domain.transaction.BillStatus
+import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
+import io.github.salomax.neotool.banking.domain.transaction.CategorySource
+import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.PatternType
+import io.github.salomax.neotool.banking.domain.transaction.RuleSuggestion
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillImportCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewCardCommand
+import io.github.salomax.neotool.banking.model.dto.billimport.ConfirmBillReviewTransactionCommand
+import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
+import io.github.salomax.neotool.banking.repo.billimport.BillImportJobRepository
+import io.github.salomax.neotool.banking.repo.transaction.CreditCardBillRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.billimport.AssistantBillMetaValidator
+import io.github.salomax.neotool.banking.service.billimport.AssistantBillReviewBuilder
+import io.github.salomax.neotool.banking.service.billimport.AssistantBillTransactionExtractor
+import io.github.salomax.neotool.banking.service.billimport.BillImportCommitPreparer
+import io.github.salomax.neotool.banking.service.billimport.BillImportService
+import io.github.salomax.neotool.banking.service.import.CanonicalReaderOutputMapper
+import io.github.salomax.neotool.banking.service.import.dedup.ImportFingerprintService
+import io.github.salomax.neotool.banking.service.preferences.UserRuleApplicationModeService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
 import io.github.salomax.neotool.common.error.ConflictException
 import io.github.salomax.neotool.common.error.ValidationException
 import org.apache.poi.ss.usermodel.Workbook
@@ -58,12 +62,12 @@ import org.mockito.kotlin.eq
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.same
+import org.mockito.kotlin.spy
 import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.mockito.kotlin.spy
-import java.math.BigDecimal
 import java.io.ByteArrayOutputStream
+import java.math.BigDecimal
 import java.time.Instant
 import java.time.LocalDate
 import java.util.UUID
@@ -119,7 +123,12 @@ class BillImportServiceTest {
                 snapshotComputationService = snapshotComputationService,
                 creditCardBillService = creditCardBillService,
                 billImportCommitPreparer = billImportCommitPreparer,
-                assistantBillReviewBuilder = AssistantBillReviewBuilder(objectMapper, AssistantBillMetaValidator(), AssistantBillTransactionExtractor()),
+                assistantBillReviewBuilder =
+                    AssistantBillReviewBuilder(
+                        objectMapper,
+                        AssistantBillMetaValidator(),
+                        AssistantBillTransactionExtractor(),
+                    ),
                 billAssetStorage = billAssetStorage,
                 submittedProducer = submittedProducer,
                 assistantRequestProducer = assistantRequestProducer,
@@ -802,7 +811,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             whenever(categorizationService.preloadRules(accountId)).thenReturn(preloadedRules)
             whenever(
@@ -822,12 +833,16 @@ class BillImportServiceTest {
             whenever(importFingerprintService.computeForBill(any(), any(), any(), any())).thenReturn("fp-1")
             whenever(importFingerprintService.isDuplicateForBill(any(), any(), any())).thenReturn(false)
 
-            doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), eq(TransactionType.CARD))
+            doReturn(
+                billA,
+            ).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), eq(TransactionType.CARD))
             doReturn(
                 creditCardBill(billA, cardA, dueDate = LocalDate.of(2026, 2, 15)),
             ).whenever(creditCardBillService).requireBillForAccount(eq(billA), eq(accountId))
 
-            whenever(transactionRepository.save(any())).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
+            whenever(
+                transactionRepository.save(any()),
+            ).thenAnswer { it.getArgument<Transaction>(0).copy(id = UUID.randomUUID()) }
 
             val result = service.confirmBillImport(accountId, userId, command)
 
@@ -943,7 +958,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             doReturn(billJan).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
@@ -1048,7 +1065,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
@@ -1098,7 +1117,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(any(), any(), any(), any())
             doReturn(
@@ -1147,7 +1168,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
             doReturn(billA).whenever(creditCardBillService).resolveBillForReviewedCycle(
                 any(),
@@ -1203,7 +1226,9 @@ class BillImportServiceTest {
                 )
 
             whenever(repository.findById(jobId, accountId)).thenReturn(job)
-            whenever(financialAccountRepository.findByAccountId(accountId)).thenReturn(listOf(cardAccount(cardA, "1234")))
+            whenever(
+                financialAccountRepository.findByAccountId(accountId),
+            ).thenReturn(listOf(cardAccount(cardA, "1234")))
 
             val ex =
                 assertThrows<ValidationException> {
@@ -1473,7 +1498,9 @@ class BillImportServiceTest {
                 21/01 PAGAMENTO DE FATURA-INTERNET -99,10
                 1 24/01 HORTIFRUTI UNIAO 75,77
                 """.trimIndent()
-            whenever(repository.findById(jobId, accountId)).thenReturn(baseJob(jobId).copy(extractedText = extractedText))
+            whenever(
+                repository.findById(jobId, accountId),
+            ).thenReturn(baseJob(jobId).copy(extractedText = extractedText))
             whenever(
                 financialAccountRepository.findCardAccountsByLastFourDigits(accountId, "1234"),
             ).thenReturn(emptyList())
@@ -1519,7 +1546,9 @@ class BillImportServiceTest {
                 03 OUT •••• 1769 Netflix.Com R$ 44,90
                 08 SET Pagamento em 08 SET −R$ 418,33
                 """.trimIndent()
-            whenever(repository.findById(jobId, accountId)).thenReturn(baseJob(jobId).copy(extractedText = extractedText))
+            whenever(
+                repository.findById(jobId, accountId),
+            ).thenReturn(baseJob(jobId).copy(extractedText = extractedText))
             whenever(repository.update(any())).thenAnswer { it.getArgument(0) }
 
             service.markAwaitingReview(
@@ -1549,7 +1578,9 @@ class BillImportServiceTest {
             assertThat(payload.cards).hasSize(5)
             assertThat(payload.cards.mapNotNull { it.lastFourDigits })
                 .containsExactly("4416", "1639", "5954", "1769")
-            assertThat(payload.cards.first { it.lastFourDigits == "1639" }.transactions.single().installment?.current).isEqualTo(4)
+            assertThat(
+                payload.cards.first { it.lastFourDigits == "1639" }.transactions.single().installment?.current,
+            ).isEqualTo(4)
         }
 
         @Test
@@ -1697,7 +1728,9 @@ class BillImportServiceTest {
             service.markFailed(
                 jobId = jobId,
                 accountId = accountId,
-                errorMessage = "assistant_banking_reader_failed: SCHEMA_VALIDATION_FAILED - output did not match contract",
+                errorMessage =
+                    "assistant_banking_reader_failed: SCHEMA_VALIDATION_FAILED - " +
+                        "output did not match contract",
                 errorDetails = details,
             )
 
@@ -1773,8 +1806,16 @@ class BillImportServiceTest {
                 statementPeriod = DateRange(LocalDate.of(2026, 1, 8), LocalDate.of(2026, 2, 7)),
                 cards =
                     listOf(
-                        BillImportReviewCard(reviewCardId = "card-1", lastFourDigits = "1234", transactions = emptyList()),
-                        BillImportReviewCard(reviewCardId = "card-2", lastFourDigits = "5678", transactions = emptyList()),
+                        BillImportReviewCard(
+                            reviewCardId = "card-1",
+                            lastFourDigits = "1234",
+                            transactions = emptyList(),
+                        ),
+                        BillImportReviewCard(
+                            reviewCardId = "card-2",
+                            lastFourDigits = "5678",
+                            transactions = emptyList(),
+                        ),
                     ),
             )
         return BillImportJob(
@@ -1884,8 +1925,16 @@ class BillImportServiceTest {
             jobId = jobId,
             cards =
                 listOf(
-                    ConfirmBillReviewCardCommand(reviewCardId = "card-1", financialAccountId = cardA, transactions = txsA),
-                    ConfirmBillReviewCardCommand(reviewCardId = "card-2", financialAccountId = cardB, transactions = txsB),
+                    ConfirmBillReviewCardCommand(
+                        reviewCardId = "card-1",
+                        financialAccountId = cardA,
+                        transactions = txsA,
+                    ),
+                    ConfirmBillReviewCardCommand(
+                        reviewCardId = "card-2",
+                        financialAccountId = cardB,
+                        transactions = txsB,
+                    ),
                 ),
         )
     }

@@ -5,6 +5,7 @@ import io.github.salomax.neotool.banking.service.transaction.MerchantLogoHydrati
 import io.github.salomax.neotool.banking.service.transaction.MerchantService
 import io.github.salomax.neotool.common.security.principal.PrincipalType
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
@@ -12,7 +13,6 @@ import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
-import org.assertj.core.api.Assertions.assertThat
 import java.util.UUID
 
 class MerchantResolverTest {

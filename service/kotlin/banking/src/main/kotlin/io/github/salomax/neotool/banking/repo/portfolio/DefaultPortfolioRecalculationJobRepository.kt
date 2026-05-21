@@ -40,13 +40,15 @@ open class DefaultPortfolioRecalculationJobRepository(
             ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
 
     @Transactional
-    override fun tryClaimJob(jobId: UUID, nodeId: String): PortfolioRecalculationJob? =
+    override fun tryClaimJob(
+        jobId: UUID,
+        nodeId: String,
+    ): PortfolioRecalculationJob? =
         entityRepository.tryClaimJob(jobId, nodeId)
             ?.let(InvestmentPortfolioRecalculationJobMapper::toDomain)
 
     @Transactional
-    override fun releaseZombieJobs(staleThreshold: Instant): Int =
-        entityRepository.releaseZombieJobs(staleThreshold)
+    override fun releaseZombieJobs(staleThreshold: Instant): Int = entityRepository.releaseZombieJobs(staleThreshold)
 
     override fun findOldestPending(limit: Int): List<PortfolioRecalculationJob> {
         val safeLimit = limit.coerceAtLeast(1)

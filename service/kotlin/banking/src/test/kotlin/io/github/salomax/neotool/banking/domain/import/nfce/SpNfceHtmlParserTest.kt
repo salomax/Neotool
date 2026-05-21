@@ -11,7 +11,6 @@ import java.math.BigDecimal
 
 @DisplayName("SpNfceHtmlParser")
 class SpNfceHtmlParserTest {
-
     private val chNFe = "35240112345678000199650010000012341123456789"
 
     private fun minimalSpHtml(
@@ -66,7 +65,7 @@ class SpNfceHtmlParserTest {
         $itemsHtml
         </body>
         </html>
-    """.trimIndent()
+        """.trimIndent()
 
     private fun itemHtml(
         xProd: String = "ARROZ TIPO 1 5KG",
@@ -88,9 +87,20 @@ class SpNfceHtmlParserTest {
         val vProdBlock = """<label>Valor do Produto</label><span class="vprod">$vProd</span>"""
         val qComBlock = """<label>Quantidade Comercial</label><span class="qcom">$qCom</span>"""
         val uComBlock = """<label>Unidade Comercial</label><span class="ucom">$uCom</span>"""
-        val vDescBlock = if (vDesc != null) """<label>Valor do Desconto</label><span class="vdesc">$vDesc</span>""" else ""
-        val vTribBlock = if (vTribItem != null) """<label>Valor Aproximado dos Tributos</label><span class="vtrib">$vTribItem</span>""" else ""
-        return "$descBlock\n$ncmBlock\n$eanBlock\n$prodBlock\n$vUnComBlock\n$vProdBlock\n$qComBlock\n$uComBlock\n$vDescBlock\n$vTribBlock"
+        val vDescBlock =
+            if (vDesc != null) {
+                """<label>Valor do Desconto</label><span class="vdesc">$vDesc</span>"""
+            } else {
+                ""
+            }
+        val vTribBlock =
+            if (vTribItem != null) {
+                """<label>Valor Aproximado dos Tributos</label><span class="vtrib">$vTribItem</span>"""
+            } else {
+                ""
+            }
+        return "$descBlock\n$ncmBlock\n$eanBlock\n$prodBlock\n$vUnComBlock\n$vProdBlock\n" +
+            "$qComBlock\n$uComBlock\n$vDescBlock\n$vTribBlock"
     }
 
     @Nested
@@ -283,8 +293,9 @@ class SpNfceHtmlParserTest {
 
         @Test
         fun `parses multiple items with correct nItem sequence`() {
-            val items = itemHtml(xProd = "ITEM A", vProd = "10,00") + "\n" +
-                itemHtml(xProd = "ITEM B", vProd = "20,00")
+            val items =
+                itemHtml(xProd = "ITEM A", vProd = "10,00") + "\n" +
+                    itemHtml(xProd = "ITEM B", vProd = "20,00")
             val html = minimalSpHtml(itemsHtml = items)
             val result = SpNfceHtmlParser.parse(html, chNFe)
 
@@ -305,15 +316,17 @@ class SpNfceHtmlParserTest {
 
         @Test
         fun `parses item with KG unit and fractional quantity`() {
-            val html = minimalSpHtml(
-                itemsHtml = itemHtml(
-                    xProd = "BANANA NANICA",
-                    qCom = "1,2340",
-                    uCom = "KG",
-                    vUnCom = "5,99",
-                    vProd = "7,39",
-                ),
-            )
+            val html =
+                minimalSpHtml(
+                    itemsHtml =
+                        itemHtml(
+                            xProd = "BANANA NANICA",
+                            qCom = "1,2340",
+                            uCom = "KG",
+                            vUnCom = "5,99",
+                            vProd = "7,39",
+                        ),
+                )
             val result = SpNfceHtmlParser.parse(html, chNFe)
 
             val item = result.items[0]
@@ -328,13 +341,14 @@ class SpNfceHtmlParserTest {
     inner class ErrorTests {
         @Test
         fun `throws NfceInvalidException when dhEmi is missing`() {
-            val html = """
+            val html =
+                """
                 <html>
                 <label>Chave de Acesso</label><span>$chNFe</span>
                 <label>Valor Total da Nota Fiscal</label><span>100,00</span>
                 <label>CNPJ</label><span>12345678000199</span>
                 </html>
-            """.trimIndent()
+                """.trimIndent()
 
             val ex = assertThrows<NfceInvalidException> { SpNfceHtmlParser.parse(html, chNFe) }
             assertThat(ex.message).contains("dhEmi")
@@ -342,13 +356,14 @@ class SpNfceHtmlParserTest {
 
         @Test
         fun `throws NfceInvalidException when vNF is missing`() {
-            val html = """
+            val html =
+                """
                 <html>
                 <label>Chave de Acesso</label><span>$chNFe</span>
                 <label>Data de Emissão</label><span>15/01/2024 10:30:00</span>
                 <label>CNPJ</label><span>12345678000199</span>
                 </html>
-            """.trimIndent()
+                """.trimIndent()
 
             val ex = assertThrows<NfceInvalidException> { SpNfceHtmlParser.parse(html, chNFe) }
             assertThat(ex.message).contains("vNF")
@@ -356,13 +371,14 @@ class SpNfceHtmlParserTest {
 
         @Test
         fun `throws NfceInvalidException when CNPJ is missing`() {
-            val html = """
+            val html =
+                """
                 <html>
                 <label>Chave de Acesso</label><span>$chNFe</span>
                 <label>Data de Emissão</label><span>15/01/2024 10:30:00</span>
                 <label>Valor Total da Nota Fiscal</label><span>100,00</span>
                 </html>
-            """.trimIndent()
+                """.trimIndent()
 
             val ex = assertThrows<NfceInvalidException> { SpNfceHtmlParser.parse(html, chNFe) }
             assertThat(ex.message).contains("CNPJ")
@@ -370,13 +386,14 @@ class SpNfceHtmlParserTest {
 
         @Test
         fun `throws NfceInvalidException when chNFe missing from both URL and HTML`() {
-            val html = """
+            val html =
+                """
                 <html>
                 <label>Data de Emissão</label><span>15/01/2024 10:30:00</span>
                 <label>Valor Total da Nota Fiscal</label><span>100,00</span>
                 <label>CNPJ</label><span>12345678000199</span>
                 </html>
-            """.trimIndent()
+                """.trimIndent()
 
             val ex = assertThrows<NfceInvalidException> { SpNfceHtmlParser.parse(html, null) }
             assertThat(ex.message).contains("chNFe")

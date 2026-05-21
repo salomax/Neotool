@@ -1,8 +1,27 @@
 package io.github.salomax.neotool.banking.service.import
 
-import io.github.salomax.neotool.banking.domain.import.*
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducer
+import io.github.salomax.neotool.banking.client.import.messaging.ImportFileRequestedEvent
+import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
+import io.github.salomax.neotool.banking.domain.import.DuplicateResolution
+import io.github.salomax.neotool.banking.domain.import.ImportJob
+import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
+import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.import.isCsvSource
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
+import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
+import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.domain.transaction.Transaction
+import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
+import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
+import io.github.salomax.neotool.banking.domain.transaction.TransactionType
+import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.model.dto.imports.ImportDuplicateCandidate
 import io.github.salomax.neotool.banking.model.dto.imports.ImportReviewPayloadMapper
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
@@ -12,26 +31,12 @@ import io.github.salomax.neotool.banking.repo.import.nfce.ProductAliasEntityRepo
 import io.github.salomax.neotool.banking.repo.import.nfce.ProductVariantEntityRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemEntityRepository
 import io.github.salomax.neotool.banking.repo.import.nfce.PurchaseItemRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
 import io.github.salomax.neotool.banking.service.import.dedup.CrossSourceDedupService
 import io.github.salomax.neotool.banking.service.import.dedup.SameSourceDedupService
-import io.github.salomax.neotool.banking.client.import.nfce.NfceClient
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceData
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceDocument
-import io.github.salomax.neotool.banking.domain.import.nfce.NfceItem
-import io.github.salomax.neotool.banking.domain.import.nfce.PurchaseItem
-import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
-import io.github.salomax.neotool.banking.domain.transaction.Transaction
-import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
-import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
-import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
-import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.client.import.messaging.ImportFileProducer
-import io.github.salomax.neotool.banking.client.import.messaging.ImportFileRequestedEvent
 import io.github.salomax.neotool.banking.service.import.parser.ImportFileFormat
 import io.github.salomax.neotool.banking.service.import.parser.ImportFormatDiscoveryService
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.ConflictException
 import jakarta.inject.Singleton
@@ -39,8 +44,8 @@ import jakarta.transaction.Transactional
 import org.hibernate.exception.ConstraintViolationException
 import org.postgresql.util.PSQLException
 import org.slf4j.LoggerFactory
-import java.security.MessageDigest
 import java.math.RoundingMode
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -352,6 +357,7 @@ open class ImportJobService(
         val candidate = candidates[index]
         val isNfceReview = job.source == ImportSource.NFC_E
         var nfceCache: NfceData? = null
+
         fun loadNfceIfNeeded(): NfceData {
             check(isNfceReview) { "NFC-e review data requested for non-NFC-e job" }
             return nfceCache ?: loadNfceReviewData(job).also { nfceCache = it }
@@ -362,7 +368,9 @@ open class ImportJobService(
                 if (isNfceReview) {
                     val existing =
                         candidate.candidates.firstOrNull()
-                            ?: throw IllegalStateException("NFC-e review candidate must contain one existing transaction")
+                            ?: throw IllegalStateException(
+                                "NFC-e review candidate must contain one existing transaction",
+                            )
                     linkNfceToExistingTransaction(
                         job = job,
                         existing = existing,
@@ -410,7 +418,13 @@ open class ImportJobService(
             val fromDate =
                 when {
                     isNfceReview ->
-                        (candidate.candidates.map { it.date } + LocalDate.ofInstant(loadNfceIfNeeded().dhEmi, ZoneId.systemDefault())).min()
+                        (
+                            candidate.candidates.map { it.date } +
+                                LocalDate.ofInstant(
+                                    loadNfceIfNeeded().dhEmi,
+                                    ZoneId.systemDefault(),
+                                )
+                        ).min()
                     resolution == DuplicateResolution.USE_INCOMING ->
                         (candidate.candidates.map { it.date } + candidate.parsed.date).min()
                     else -> candidate.parsed.date
@@ -794,14 +808,16 @@ open class ImportJobService(
             )
         if (clearedProviderIds > 0) {
             log.info(
-                "Cleared provider_transaction_id on {} deleted transactions before NFC-e reimport: financialAccountId={}, providerTransactionId={}",
+                "Cleared provider_transaction_id on {} deleted transactions before NFC-e reimport: " +
+                    "financialAccountId={}, providerTransactionId={}",
                 clearedProviderIds,
                 job.financialAccountId,
                 nfce.chNFe,
             )
         }
         val jobId = requireNotNull(job.id) { "ImportJob must have id after save" }
-        val transaction = nfceToTransaction(nfce, job.financialAccountId, job.accountId, job.createdByUserId, jobId, now)
+        val transaction =
+            nfceToTransaction(nfce, job.financialAccountId, job.accountId, job.createdByUserId, jobId, now)
         val savedTransaction = transactionRepository.save(transaction)
         val transactionId = requireNotNull(savedTransaction.id) { "Transaction must have id after save" }
         try {
@@ -814,7 +830,8 @@ open class ImportJobService(
             )
         } catch (e: Exception) {
             log.error(
-                "Failed to persist NFC-e artifacts: financialAccountId={}, accountId={}, transactionId={}, accessKey={}",
+                "Failed to persist NFC-e artifacts: financialAccountId={}, accountId={}, " +
+                    "transactionId={}, accessKey={}",
                 job.financialAccountId,
                 job.accountId,
                 transactionId,
@@ -847,12 +864,14 @@ open class ImportJobService(
                 providerTransactionId = nfce.chNFe,
                 importJobId = requireNotNull(job.id),
                 sourceData =
-                    (existing.sourceData ?: emptyMap()) + mapOf(
-                        "nfce" to mapOf(
-                            "accessKey" to nfce.chNFe,
-                            "qrCodeUrl" to qrCodeUrl,
+                    (existing.sourceData ?: emptyMap()) +
+                        mapOf(
+                            "nfce" to
+                                mapOf(
+                                    "accessKey" to nfce.chNFe,
+                                    "qrCodeUrl" to qrCodeUrl,
+                                ),
                         ),
-                    ),
                 updatedAt = now,
             )
         val saved = transactionRepository.update(updated)
@@ -912,24 +931,24 @@ open class ImportJobService(
         val savedItems =
             purchaseItemRepository.saveAll(
                 nfce.items.mapIndexed { index, item ->
-                PurchaseItem(
-                    transactionId = transactionId,
-                    accountId = accountId,
-                    productVariantId = resolveProductVariant(item, nfce.cnpjEmitente, accountId),
-                    sequence = item.nItem ?: (index + 1),
-                    rawDescription = item.xProd,
-                    ncmCode = item.ncm.takeIf { it.isNotBlank() },
-                    ean = item.cEAN,
-                    issuerProductCode = item.cProd,
-                    quantity = item.qCom,
-                    unit = item.uCom,
-                    unitPrice = resolveUnitPrice(item),
-                    totalPrice = item.vProd,
-                    discount = item.vDesc,
-                    effectivePrice = item.vProd - (item.vDesc ?: java.math.BigDecimal.ZERO),
-                    taxAmount = item.vTribItem,
-                    createdAt = now,
-                )
+                    PurchaseItem(
+                        transactionId = transactionId,
+                        accountId = accountId,
+                        productVariantId = resolveProductVariant(item, nfce.cnpjEmitente, accountId),
+                        sequence = item.nItem ?: (index + 1),
+                        rawDescription = item.xProd,
+                        ncmCode = item.ncm.takeIf { it.isNotBlank() },
+                        ean = item.cEAN,
+                        issuerProductCode = item.cProd,
+                        quantity = item.qCom,
+                        unit = item.uCom,
+                        unitPrice = resolveUnitPrice(item),
+                        totalPrice = item.vProd,
+                        discount = item.vDesc,
+                        effectivePrice = item.vProd - (item.vDesc ?: java.math.BigDecimal.ZERO),
+                        taxAmount = item.vTribItem,
+                        createdAt = now,
+                    )
                 },
             )
 
@@ -937,7 +956,8 @@ open class ImportJobService(
             "NFC-e document was not persisted for transactionId=$transactionId accessKey=${nfce.chNFe}"
         }
         check(savedItems.size == nfce.items.size) {
-            "NFC-e purchase items were not fully persisted for transactionId=$transactionId accessKey=${nfce.chNFe}: expected=${nfce.items.size}, actual=${savedItems.size}"
+            "NFC-e purchase items were not fully persisted for transactionId=$transactionId " +
+                "accessKey=${nfce.chNFe}: expected=${nfce.items.size}, actual=${savedItems.size}"
         }
     }
 
@@ -946,8 +966,7 @@ open class ImportJobService(
         return objectMapper.readValue(raw, NfceReviewMetadata::class.java)
     }
 
-    private fun loadNfceReviewData(job: ImportJob): NfceData =
-        nfceClient.fetch(loadNfceReviewMetadata(job).qrCodeUrl)
+    private fun loadNfceReviewData(job: ImportJob): NfceData = nfceClient.fetch(loadNfceReviewMetadata(job).qrCodeUrl)
 
     private fun shouldReuseExistingNfceJob(existingJob: ImportJob): Boolean {
         val existingJobId = existingJob.id ?: return false
@@ -963,7 +982,9 @@ open class ImportJobService(
             productVariantEntityRepository.findByEan(ean)?.id?.let { return it }
         }
 
-        productAliasEntityRepository.findByAccountIdAndRawDescription(accountId, item.xProd)?.productVariantId?.let { return it }
+        productAliasEntityRepository.findByAccountIdAndRawDescription(accountId, item.xProd)?.productVariantId?.let {
+            return it
+        }
 
         item.cProd?.let { issuerProductCode ->
             purchaseItemEntityRepository.findFirstResolvedByCnpjAndProduct(

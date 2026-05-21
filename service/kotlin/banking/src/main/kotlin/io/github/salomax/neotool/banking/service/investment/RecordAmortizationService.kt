@@ -16,7 +16,6 @@ import io.github.salomax.neotool.common.error.ValidationException
 import io.micronaut.transaction.annotation.Transactional
 import jakarta.inject.Singleton
 import java.math.BigDecimal
-import java.time.LocalDate
 import java.util.UUID
 
 private val AMORTIZABLE_ASSET_TYPES: Set<AssetType> =

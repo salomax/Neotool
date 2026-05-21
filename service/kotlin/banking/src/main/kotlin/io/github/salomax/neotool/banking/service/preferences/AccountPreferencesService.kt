@@ -3,15 +3,15 @@ package io.github.salomax.neotool.banking.service.preferences
 import io.github.salomax.neotool.banking.domain.preferences.AccountPreferences
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.error.BankingErrorCode
-import io.github.salomax.neotool.banking.repo.preferences.AccountPreferencesRepository
-import io.github.salomax.neotool.banking.model.preferences.AccountPreferencesMapper
 import io.github.salomax.neotool.banking.model.preferences.AccountPreferencesEntity
+import io.github.salomax.neotool.banking.model.preferences.AccountPreferencesMapper
+import io.github.salomax.neotool.banking.repo.preferences.AccountPreferencesRepository
 import io.github.salomax.neotool.common.error.BusinessRuleException
 import io.github.salomax.neotool.common.error.CommonErrorCode
 import io.github.salomax.neotool.common.error.ValidationException
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
-import jakarta.inject.Singleton
 import io.micronaut.transaction.annotation.Transactional
+import jakarta.inject.Singleton
 import java.time.Instant
 import java.util.UUID
 

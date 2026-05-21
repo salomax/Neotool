@@ -1,9 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.statement
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
-import io.github.salomax.neotool.banking.model.dto.imports.AssistantStatementExtractionResult
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.model.dto.imports.AssistantStatementExtractionResult
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.text.Normalizer
@@ -95,7 +94,14 @@ class AssistantStatementTransactionExtractor {
             val headerDateText = extractFirstCapture(dateHeaderRegexes, line)
             if (headerDateText != null) {
                 flushCurrentBlock()
-                currentDate = parseConfiguredDate(headerDateText, config.dateFormat, anchorDate, warnings, "date_header")
+                currentDate =
+                    parseConfiguredDate(
+                        headerDateText,
+                        config.dateFormat,
+                        anchorDate,
+                        warnings,
+                        "date_header",
+                    )
                 return@forEach
             }
 
@@ -298,7 +304,7 @@ class AssistantStatementTransactionExtractor {
                 else -> error("Unsupported date format: $dateFormat")
             }
         }.onFailure {
-            warnings += "invalid_${context}:${raw.take(80)}"
+            warnings += "invalid_$context:${raw.take(80)}"
         }.getOrNull()
 
     private fun parseDdMmmYyyy(
@@ -424,7 +430,11 @@ class AssistantStatementTransactionExtractor {
         if (!currentBlockOpen && "FOOTER" in ignoreLineKinds && FOOTER_KEYWORDS.any { normalized.contains(it) }) {
             return true
         }
-        if (!currentBlockOpen && "SECTION_HEADER" in ignoreLineKinds && SECTION_HEADER_KEYWORDS.any { normalized.contains(it) }) {
+        if (!currentBlockOpen && "SECTION_HEADER" in ignoreLineKinds &&
+            SECTION_HEADER_KEYWORDS.any {
+                normalized.contains(it)
+            }
+        ) {
             return true
         }
         return false
@@ -448,8 +458,7 @@ class AssistantStatementTransactionExtractor {
         return null
     }
 
-    private fun normalizeIgnoreLineKinds(kinds: List<String>): Set<String> =
-        kinds.map(::normalizeToken).toSet()
+    private fun normalizeIgnoreLineKinds(kinds: List<String>): Set<String> = kinds.map(::normalizeToken).toSet()
 
     private fun normalizeForSearch(text: String): String {
         val nfd = Normalizer.normalize(text.uppercase(), Normalizer.Form.NFD)

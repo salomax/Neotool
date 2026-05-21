@@ -1,6 +1,10 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.domain.investment.*
+import io.github.salomax.neotool.banking.domain.investment.CouponFrequency
+import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.investment.Indexer
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
+import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
 import io.github.salomax.neotool.banking.model.domain.investment.policy.BrazilianFixedIncomeTaxRules
 import io.github.salomax.neotool.banking.model.dto.investment.HoldingValuationResult
 import jakarta.inject.Singleton
@@ -41,14 +45,19 @@ class FixedIncomeValuationService(
             return unavailable()
         }
 
-        val indexer = holding.indexer ?: run {
-            logger.debug { "Holding ${holding.id}: indexer is null → UNAVAILABLE" }
-            return unavailable()
-        }
-        val issueDate = holding.issueDate ?: run {
-            logger.debug { "Holding ${holding.id}: issueDate is null → UNAVAILABLE (set issueDate or record with tradeDate so it defaults)" }
-            return unavailable()
-        }
+        val indexer =
+            holding.indexer ?: run {
+                logger.debug { "Holding ${holding.id}: indexer is null → UNAVAILABLE" }
+                return unavailable()
+            }
+        val issueDate =
+            holding.issueDate ?: run {
+                logger.debug {
+                    "Holding ${holding.id}: issueDate is null → UNAVAILABLE " +
+                        "(set issueDate or record with tradeDate so it defaults)"
+                }
+                return unavailable()
+            }
         val accrualContext = resolveAccrualContext(holding, issueDate, asOfDate, transactions)
 
         val today = asOfDate
@@ -88,9 +97,13 @@ class FixedIncomeValuationService(
                     val indexerPct =
                         holding.indexerPercentage
                             ?: run {
-                                logger.warn { "Holding ${holding.id}: indexerPercentage is null for $indexer; defaulting to 100%. Consider fixing data quality." }
+                                logger.warn {
+                                    "Holding ${holding.id}: indexerPercentage is null for $indexer; " +
+                                        "defaulting to 100%. Consider fixing data quality."
+                                }
                                 BigDecimal.ONE
                             }
+
                     fun fallbackDailyAccrual(): BigDecimal? {
                         val annualRate = indicatorRates[indexer] ?: return null
                         return accrualDailyIndexed(
@@ -102,7 +115,8 @@ class FixedIncomeValuationService(
                     }
                     val historicalSeries = monthlySeries[indexer]
                     if (!historicalSeries.isNullOrEmpty()) {
-                        val historicalCoverageEnd = minOf(endDate, monthlySeriesCoverageEnd(historicalSeries) ?: endDate)
+                        val historicalCoverageEnd =
+                            minOf(endDate, monthlySeriesCoverageEnd(historicalSeries) ?: endDate)
                         val historicalGross =
                             accrualMonthlyIndexed(
                                 principal = principal,
@@ -113,10 +127,14 @@ class FixedIncomeValuationService(
                             )
                         if (historicalGross != null) {
                             if (allowRateProjectionPastSeries && endDate.isAfter(historicalCoverageEnd)) {
-                                val annualRate = indicatorRates[indexer] ?: run {
-                                    logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
-                                    return unavailable()
-                                }
+                                val annualRate =
+                                    indicatorRates[indexer] ?: run {
+                                        logger.debug {
+                                            "Holding ${holding.id}: no $indexer rate; " +
+                                                "mapSize=${indicatorRates.size} → UNAVAILABLE"
+                                        }
+                                        return unavailable()
+                                    }
                                 accrualDailyIndexed(
                                     principal = historicalGross,
                                     annualRate = annualRate,
@@ -128,13 +146,19 @@ class FixedIncomeValuationService(
                             }
                         } else {
                             fallbackDailyAccrual() ?: run {
-                                logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
+                                logger.debug {
+                                    "Holding ${holding.id}: no $indexer rate; " +
+                                        "mapSize=${indicatorRates.size} → UNAVAILABLE"
+                                }
                                 return unavailable()
                             }
                         }
                     } else {
                         fallbackDailyAccrual() ?: run {
-                            logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
+                            logger.debug {
+                                "Holding ${holding.id}: no $indexer rate; " +
+                                    "mapSize=${indicatorRates.size} → UNAVAILABLE"
+                            }
                             return unavailable()
                         }
                     }
@@ -148,6 +172,7 @@ class FixedIncomeValuationService(
                 Indexer.TR,
                 -> {
                     val spreadRate = holding.fixedAnnualRate ?: holding.indexerPercentage ?: BigDecimal.ZERO
+
                     fun fallbackIndexedAccrual(): BigDecimal? {
                         val indicatorRate = indicatorRates[indexer] ?: return null
                         val indexedGross = accrualPreFixed(principal, indicatorRate, businessDays)
@@ -183,10 +208,14 @@ class FixedIncomeValuationService(
                         val indexedGross =
                             if (indexedGrossWithSeries != null) {
                                 if (allowRateProjectionPastSeries && endDate.isAfter(historicalCoverageEnd)) {
-                                    val indicatorRate = indicatorRates[indexer] ?: run {
-                                        logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
-                                        return unavailable()
-                                    }
+                                    val indicatorRate =
+                                        indicatorRates[indexer] ?: run {
+                                            logger.debug {
+                                                "Holding ${holding.id}: no indicator rate for $indexer " +
+                                                    "(map size=${indicatorRates.size}) → UNAVAILABLE"
+                                            }
+                                            return unavailable()
+                                        }
                                     accrualPreFixed(
                                         principal = indexedGrossWithSeries,
                                         annualRate = indicatorRate,
@@ -200,7 +229,10 @@ class FixedIncomeValuationService(
                             }
                         if (indexedGross == null) {
                             fallbackIndexedAccrual() ?: run {
-                                logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
+                                logger.debug {
+                                    "Holding ${holding.id}: no $indexer rate; " +
+                                        "mapSize=${indicatorRates.size} → UNAVAILABLE"
+                                }
                                 return unavailable()
                             }
                         } else {
@@ -213,7 +245,10 @@ class FixedIncomeValuationService(
                         }
                     } else {
                         fallbackIndexedAccrual() ?: run {
-                            logger.debug { "Holding ${holding.id}: no indicator rate for $indexer (map size=${indicatorRates.size}) → UNAVAILABLE" }
+                            logger.debug {
+                                "Holding ${holding.id}: no $indexer rate; " +
+                                    "mapSize=${indicatorRates.size} → UNAVAILABLE"
+                            }
                             return unavailable()
                         }
                     }
@@ -277,8 +312,7 @@ class FixedIncomeValuationService(
         return ChronoUnit.DAYS.between(start, end).toInt()
     }
 
-    private fun principal(holding: Holding): BigDecimal =
-        holding.quantity.multiply(holding.averageCost, mathContext)
+    private fun principal(holding: Holding): BigDecimal = holding.quantity.multiply(holding.averageCost, mathContext)
 
     private data class AccrualContext(
         val accrualStart: LocalDate,
@@ -440,5 +474,4 @@ class FixedIncomeValuationService(
             valuationSource = ValuationSource.UNAVAILABLE,
             valuationReferenceDate = null,
         )
-
 }

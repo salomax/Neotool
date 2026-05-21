@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.client.assets
 
-import io.github.salomax.neotool.banking.client.assets.ImportFileStoragePort
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.common.error.ConflictException
 import io.micronaut.context.annotation.Property

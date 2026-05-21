@@ -1,55 +1,40 @@
 package io.github.salomax.neotool.banking.graphql.transaction
 
-import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
 import io.github.salomax.neotool.banking.domain.transaction.CategoryApplicableTo
 import io.github.salomax.neotool.banking.domain.transaction.CategoryTotal
-import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditCardBill
-import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
-import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
-import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
-import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
-import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
-import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
 import io.github.salomax.neotool.banking.domain.transaction.TagTotal
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionCategory
-import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
-import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
-import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
-import io.github.salomax.neotool.banking.service.transaction.TransactionService
+import io.github.salomax.neotool.banking.domain.transaction.TransactionRule
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
-import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
-import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
-import io.github.salomax.neotool.banking.graphql.transaction.CategoryTotalDTO
-import io.github.salomax.neotool.banking.graphql.transaction.CreditCardBillDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
-import io.github.salomax.neotool.banking.graphql.transaction.MonthSummaryDTO
-import io.github.salomax.neotool.banking.graphql.transaction.PageInfoDTO
-import io.github.salomax.neotool.banking.graphql.transaction.SimilarTransactionEditPreviewDTO
-import io.github.salomax.neotool.banking.graphql.transaction.SimilarTransactionEditResultDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionBelongsToOptionDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionConnectionDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
-import io.github.salomax.neotool.banking.graphql.transaction.CreateTransactionPayloadDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionRuleDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionEdgeDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TagTotalDTO
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionTagOptionDTO
 import io.github.salomax.neotool.banking.graphql.portfolio.PortfolioMonthlyValueDTO
+import io.github.salomax.neotool.banking.model.dto.transaction.BulkCategorizeResult
+import io.github.salomax.neotool.banking.model.dto.transaction.CreateTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.transaction.UpdateTransactionCommand
+import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
+import io.github.salomax.neotool.banking.repo.import.nfce.NfceDocumentRepository
+import io.github.salomax.neotool.banking.repo.transaction.MerchantRepository
+import io.github.salomax.neotool.banking.repo.transaction.TransactionCategoryRepository
+import io.github.salomax.neotool.banking.service.preferences.AccountPreferencesService
+import io.github.salomax.neotool.banking.service.transaction.CreditCardBillService
+import io.github.salomax.neotool.banking.service.transaction.DashboardAnalyticsService
+import io.github.salomax.neotool.banking.service.transaction.MonthSummaryQueryService
+import io.github.salomax.neotool.banking.service.transaction.TransactionRuleEngine
+import io.github.salomax.neotool.banking.service.transaction.TransactionService
 import io.github.salomax.neotool.common.security.principal.RequestPrincipal
 import jakarta.inject.Singleton
+import org.slf4j.LoggerFactory
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.time.OffsetDateTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeParseException
 import java.util.UUID
-import org.slf4j.LoggerFactory
 
 /**
  * GraphQL resolver for [Transaction] and [TransactionCategory] queries and mutations.
@@ -152,12 +137,13 @@ class TransactionResolver(
                 val tx = edge.node
                 val category = categories[tx.categoryId]
                 val merchant = merchantDTOs[tx.merchantId]
-                val dto = tx.toDTO(
-                    category,
-                    merchant,
-                    nfceLinkedTransactionIds.contains(tx.id),
-                    attachmentsByTxId[tx.id] ?: emptyList(),
-                )
+                val dto =
+                    tx.toDTO(
+                        category,
+                        merchant,
+                        nfceLinkedTransactionIds.contains(tx.id),
+                        attachmentsByTxId[tx.id] ?: emptyList(),
+                    )
                 TransactionEdgeDTO(
                     node = dto,
                     cursor = edge.cursor,
@@ -175,7 +161,9 @@ class TransactionResolver(
         val responseFinishedAt = System.nanoTime()
         if (logger.isDebugEnabled) {
             logger.debug(
-                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} categoriesMs={} merchantsMs={} nfceMs={} attachmentsMs={} dtoMapMs={} responseMs={} totalMs={}",
+                "transactions.resolver timings accountId={} edgeCount={} totalCount={} listMs={} " +
+                    "categoriesMs={} merchantsMs={} nfceMs={} attachmentsMs={} dtoMapMs={} " +
+                    "responseMs={} totalMs={}",
                 accountId,
                 connection.edges.size,
                 connection.totalCount,
@@ -340,14 +328,15 @@ class TransactionResolver(
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
         require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
-        val summary = dashboardAnalyticsService.getDashboardPeriodSummary(
-            accountId = accountId,
-            financialAccountId = financialAccountId?.let { UUID.fromString(it) },
-            startYear = startYear,
-            startMonth = startMonth,
-            endYear = endYear,
-            endMonth = endMonth,
-        )
+        val summary =
+            dashboardAnalyticsService.getDashboardPeriodSummary(
+                accountId = accountId,
+                financialAccountId = financialAccountId?.let { UUID.fromString(it) },
+                startYear = startYear,
+                startMonth = startMonth,
+                endYear = endYear,
+                endMonth = endMonth,
+            )
         return DashboardPeriodSummaryDTO(
             totalIncome = summary.totalIncome,
             totalExpenses = summary.totalExpenses,
@@ -383,8 +372,9 @@ class TransactionResolver(
         val accountId = requireNotNull(principal.currentAccountId) { "No active account in token" }
         require(startMonth in 1..12) { "startMonth must be between 1 and 12" }
         require(endMonth in 1..12) { "endMonth must be between 1 and 12" }
-        val applicableToEnum = applicableTo?.let { CategoryApplicableTo.valueOf(it) }
-            ?: CategoryApplicableTo.EXPENSE
+        val applicableToEnum =
+            applicableTo?.let { CategoryApplicableTo.valueOf(it) }
+                ?: CategoryApplicableTo.EXPENSE
         return dashboardAnalyticsService.getCategoryBreakdownForRange(
             accountId = accountId,
             financialAccountId = financialAccountId?.let { UUID.fromString(it) },
@@ -753,7 +743,10 @@ class TransactionResolver(
             payeeMcc = payeeMcc,
             billPostDate = billPostDate,
             appliedRuleIds = appliedRuleIds,
-            appliedRuleHistory = appliedRuleHistory.map { AppliedRuleHistoryEntryDTO(ruleId = it.ruleId, appliedAt = it.appliedAt) },
+            appliedRuleHistory =
+                appliedRuleHistory.map {
+                    AppliedRuleHistoryEntryDTO(ruleId = it.ruleId, appliedAt = it.appliedAt)
+                },
             createdAt = createdAt,
             updatedAt = updatedAt,
         )
@@ -791,7 +784,10 @@ class TransactionResolver(
                     sector = merchant.sector,
                     isSystem = merchant.isSystem,
                     isOwned = merchant.accountId != null,
-                    logoAsset = merchant.domain?.let(logoAssetIds::get)?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
+                    logoAsset =
+                        merchant.domain?.let(
+                            logoAssetIds::get,
+                        )?.let { mapOf("__typename" to "Asset", "id" to it.toString()) },
                 )
         }
     }

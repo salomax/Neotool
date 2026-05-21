@@ -35,8 +35,11 @@ class HistoricalHoldingTimeline(
 
     private var cursor: Int = 0
     private var currentState: Holding =
-        if (transactions.isEmpty()) baseHolding
-        else baseHolding.copy(quantity = BigDecimal.ZERO, averageCost = BigDecimal.ZERO)
+        if (transactions.isEmpty()) {
+            baseHolding
+        } else {
+            baseHolding.copy(quantity = BigDecimal.ZERO, averageCost = BigDecimal.ZERO)
+        }
 
     fun advanceTo(date: LocalDate) {
         while (cursor < transactions.size && !transactions[cursor].tradeDate.isAfter(date)) {
@@ -59,10 +62,16 @@ class HistoricalHoldingTimeline(
     private fun normalizeDayInputs(dayTransactions: List<InvestmentTransaction>): List<PositionEvolutionInput> {
         val orderedDayTransactions =
             dayTransactions.sortedWith(
-                compareBy<InvestmentTransaction>({ it.createdAt }, { it.id.toString() }, { it.type.name }, { it.direction.name }),
+                compareBy<InvestmentTransaction>(
+                    { it.createdAt },
+                    { it.id.toString() },
+                    { it.type.name },
+                    { it.direction.name },
+                ),
             )
 
-        val (costAddingTransactions, passthroughTransactions) = orderedDayTransactions.partition { it.isCostAddingInflow() }
+        val (costAddingTransactions, passthroughTransactions) =
+            orderedDayTransactions.partition { it.isCostAddingInflow() }
 
         val aggregatedCostAddingInput = aggregateCostAddingInputs(costAddingTransactions)
         return buildList {
@@ -83,7 +92,12 @@ class HistoricalHoldingTimeline(
             }
         val weightedUnitPrice = weightedCost.divide(totalQuantity, MATH_CONTEXT)
         val firstType = transactions.first().type
-        val aggregatedType = if (transactions.all { it.type == firstType }) firstType else InvestmentTransactionType.PURCHASE
+        val aggregatedType =
+            if (transactions.all { it.type == firstType }) {
+                firstType
+            } else {
+                InvestmentTransactionType.PURCHASE
+            }
 
         return PositionEvolutionInput(
             type = aggregatedType,
@@ -95,7 +109,8 @@ class HistoricalHoldingTimeline(
 
     private fun InvestmentTransaction.isCostAddingInflow(): Boolean {
         if (direction != InvestmentTransactionDirection.INFLOW) return false
-        if (quantity == null || unitPrice == null || quantity <= BigDecimal.ZERO || unitPrice <= BigDecimal.ZERO) return false
+        if (quantity == null || unitPrice == null) return false
+        if (quantity <= BigDecimal.ZERO || unitPrice <= BigDecimal.ZERO) return false
         return type in COST_ADDING_INFLOW_TYPES
     }
 
@@ -113,7 +128,11 @@ class HistoricalHoldingTimeline(
         val exactPrice = priceMap?.get(date)
         if (exactPrice != null) {
             return DailyGroupValuation(
-                totalValue = currentState.quantity.multiply(exactPrice.closePrice, MATH_CONTEXT).multiply(asset.priceFactor, MATH_CONTEXT),
+                totalValue =
+                    currentState.quantity.multiply(
+                        exactPrice.closePrice,
+                        MATH_CONTEXT,
+                    ).multiply(asset.priceFactor, MATH_CONTEXT),
                 hasEstimatedValues = false,
             )
         }
@@ -121,7 +140,11 @@ class HistoricalHoldingTimeline(
         val fallbackPrice = priceMap?.floorEntry(date)?.value
         if (fallbackPrice != null) {
             return DailyGroupValuation(
-                totalValue = currentState.quantity.multiply(fallbackPrice.closePrice, MATH_CONTEXT).multiply(asset.priceFactor, MATH_CONTEXT),
+                totalValue =
+                    currentState.quantity.multiply(
+                        fallbackPrice.closePrice,
+                        MATH_CONTEXT,
+                    ).multiply(asset.priceFactor, MATH_CONTEXT),
                 hasEstimatedValues = true,
             )
         }
@@ -137,7 +160,10 @@ class HistoricalHoldingTimeline(
                     allowRateProjectionPastSeries = true,
                 )
             result.grossValue?.let {
-                return DailyGroupValuation(totalValue = it, hasEstimatedValues = result.valuationSource == ValuationSource.ESTIMATED)
+                return DailyGroupValuation(
+                    totalValue = it,
+                    hasEstimatedValues = result.valuationSource == ValuationSource.ESTIMATED,
+                )
             }
         }
 

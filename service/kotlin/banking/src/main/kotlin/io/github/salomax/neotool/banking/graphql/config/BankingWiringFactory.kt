@@ -5,30 +5,30 @@ import graphql.schema.idl.TypeRuntimeWiring
 import io.github.salomax.neotool.banking.domain.issuer.IssuerCategory
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
-import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
-import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
-import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
-import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
-import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
-import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.account.FinancialAccountResolver
-import io.github.salomax.neotool.banking.graphql.import.ImportResolver
-import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
-import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
-import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
-import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
+import io.github.salomax.neotool.banking.graphql.attachment.AttachmentResolver
 import io.github.salomax.neotool.banking.graphql.billimport.BillImportResolver
+import io.github.salomax.neotool.banking.graphql.import.ImportResolver
+import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentHoldingDTO
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentResolver
+import io.github.salomax.neotool.banking.graphql.investment.InvestmentTransactionDTO
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerDTO
+import io.github.salomax.neotool.banking.graphql.issuer.IssuerResolver
+import io.github.salomax.neotool.banking.graphql.merchant.MerchantDTO
 import io.github.salomax.neotool.banking.graphql.merchant.MerchantResolver
+import io.github.salomax.neotool.banking.graphql.pendingaction.AccountPendingActionDTO
+import io.github.salomax.neotool.banking.graphql.pendingaction.PendingActionResolver
+import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
+import io.github.salomax.neotool.banking.graphql.preferences.BankingUserPreferencesResolver
 import io.github.salomax.neotool.banking.graphql.product.ProductResolver
 import io.github.salomax.neotool.banking.graphql.recurring.RecurringPaymentResolver
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionCategoryResolver
+import io.github.salomax.neotool.banking.graphql.transaction.TransactionDTO
 import io.github.salomax.neotool.banking.graphql.transaction.TransactionResolver
 import io.github.salomax.neotool.banking.service.investment.InvestmentQueryService
-import io.github.salomax.neotool.banking.graphql.preferences.AccountPreferencesResolver
+import io.github.salomax.neotool.banking.shared.BankingPermissions
 import io.github.salomax.neotool.common.graphql.AuthenticatedGraphQLWiringFactory
 import io.github.salomax.neotool.common.graphql.GraphQLArgumentUtils.createValidatedDataFetcher
 import io.github.salomax.neotool.common.security.authorization.AuthorizationChecker
@@ -149,8 +149,9 @@ class BankingWiringFactory(
                 "recurringPayment",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         recurringPaymentResolver.recurringPayment(id, principal)
                     }
                 },
@@ -262,8 +263,9 @@ class BankingWiringFactory(
                 "transactionRulesByIds",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
-                        val ids = env.getArgument<List<String>>("ids")
-                            ?: throw IllegalArgumentException("ids is required")
+                        val ids =
+                            env.getArgument<List<String>>("ids")
+                                ?: throw IllegalArgumentException("ids is required")
                         transactionCategoryResolver.transactionRulesByIds(ids, principal)
                     }
                 },
@@ -272,8 +274,9 @@ class BankingWiringFactory(
                 "transactionRuleHistoricalMatchCount",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         transactionCategoryResolver.transactionRuleHistoricalMatchCount(id, principal)
                     }
                 },
@@ -282,12 +285,15 @@ class BankingWiringFactory(
                 "previewTransactionRule",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_VIEW) { _ ->
-                        val pattern = env.getArgument<String>("pattern")
-                            ?: throw IllegalArgumentException("pattern is required")
-                        val patternType = env.getArgument<String>("patternType")
-                            ?: throw IllegalArgumentException("patternType is required")
-                        val sample = env.getArgument<String>("sample")
-                            ?: throw IllegalArgumentException("sample is required")
+                        val pattern =
+                            env.getArgument<String>("pattern")
+                                ?: throw IllegalArgumentException("pattern is required")
+                        val patternType =
+                            env.getArgument<String>("patternType")
+                                ?: throw IllegalArgumentException("patternType is required")
+                        val sample =
+                            env.getArgument<String>("sample")
+                                ?: throw IllegalArgumentException("sample is required")
                         transactionCategoryResolver.previewTransactionRule(pattern, patternType, sample)
                     }
                 },
@@ -330,14 +336,18 @@ class BankingWiringFactory(
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         transactionResolver.cashFlowSeries(
                             financialAccountId = env.getArgument("financialAccountId"),
-                            startYear = env.getArgument<Int>("startYear")
-                                ?: throw IllegalArgumentException("startYear is required"),
-                            startMonth = env.getArgument<Int>("startMonth")
-                                ?: throw IllegalArgumentException("startMonth is required"),
-                            endYear = env.getArgument<Int>("endYear")
-                                ?: throw IllegalArgumentException("endYear is required"),
-                            endMonth = env.getArgument<Int>("endMonth")
-                                ?: throw IllegalArgumentException("endMonth is required"),
+                            startYear =
+                                env.getArgument<Int>("startYear")
+                                    ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth =
+                                env.getArgument<Int>("startMonth")
+                                    ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear =
+                                env.getArgument<Int>("endYear")
+                                    ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth =
+                                env.getArgument<Int>("endMonth")
+                                    ?: throw IllegalArgumentException("endMonth is required"),
                             principal = principal,
                         )
                     }
@@ -349,14 +359,18 @@ class BankingWiringFactory(
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         transactionResolver.dashboardPeriodSummary(
                             financialAccountId = env.getArgument("financialAccountId"),
-                            startYear = env.getArgument<Int>("startYear")
-                                ?: throw IllegalArgumentException("startYear is required"),
-                            startMonth = env.getArgument<Int>("startMonth")
-                                ?: throw IllegalArgumentException("startMonth is required"),
-                            endYear = env.getArgument<Int>("endYear")
-                                ?: throw IllegalArgumentException("endYear is required"),
-                            endMonth = env.getArgument<Int>("endMonth")
-                                ?: throw IllegalArgumentException("endMonth is required"),
+                            startYear =
+                                env.getArgument<Int>("startYear")
+                                    ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth =
+                                env.getArgument<Int>("startMonth")
+                                    ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear =
+                                env.getArgument<Int>("endYear")
+                                    ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth =
+                                env.getArgument<Int>("endMonth")
+                                    ?: throw IllegalArgumentException("endMonth is required"),
                             principal = principal,
                         )
                     }
@@ -368,14 +382,18 @@ class BankingWiringFactory(
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         transactionResolver.categoryBreakdownForRange(
                             financialAccountId = env.getArgument("financialAccountId"),
-                            startYear = env.getArgument<Int>("startYear")
-                                ?: throw IllegalArgumentException("startYear is required"),
-                            startMonth = env.getArgument<Int>("startMonth")
-                                ?: throw IllegalArgumentException("startMonth is required"),
-                            endYear = env.getArgument<Int>("endYear")
-                                ?: throw IllegalArgumentException("endYear is required"),
-                            endMonth = env.getArgument<Int>("endMonth")
-                                ?: throw IllegalArgumentException("endMonth is required"),
+                            startYear =
+                                env.getArgument<Int>("startYear")
+                                    ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth =
+                                env.getArgument<Int>("startMonth")
+                                    ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear =
+                                env.getArgument<Int>("endYear")
+                                    ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth =
+                                env.getArgument<Int>("endMonth")
+                                    ?: throw IllegalArgumentException("endMonth is required"),
                             applicableTo = env.getArgument("applicableTo"),
                             principal = principal,
                         )
@@ -388,14 +406,18 @@ class BankingWiringFactory(
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
                         transactionResolver.portfolioNetWorthSeries(
                             financialAccountId = env.getArgument("financialAccountId"),
-                            startYear = env.getArgument<Int>("startYear")
-                                ?: throw IllegalArgumentException("startYear is required"),
-                            startMonth = env.getArgument<Int>("startMonth")
-                                ?: throw IllegalArgumentException("startMonth is required"),
-                            endYear = env.getArgument<Int>("endYear")
-                                ?: throw IllegalArgumentException("endYear is required"),
-                            endMonth = env.getArgument<Int>("endMonth")
-                                ?: throw IllegalArgumentException("endMonth is required"),
+                            startYear =
+                                env.getArgument<Int>("startYear")
+                                    ?: throw IllegalArgumentException("startYear is required"),
+                            startMonth =
+                                env.getArgument<Int>("startMonth")
+                                    ?: throw IllegalArgumentException("startMonth is required"),
+                            endYear =
+                                env.getArgument<Int>("endYear")
+                                    ?: throw IllegalArgumentException("endYear is required"),
+                            endMonth =
+                                env.getArgument<Int>("endMonth")
+                                    ?: throw IllegalArgumentException("endMonth is required"),
                             principal = principal,
                         )
                     }
@@ -612,7 +634,14 @@ class BankingWiringFactory(
                         val fromDate = parseLocalDateArgument("fromDate")
                         val toDate = parseLocalDateArgument("toDate")
                         val includeProjection = env.getArgument<Boolean?>("includeProjection")
-                        investmentResolver.holdingPerformance(holdingId, resolution, fromDate, toDate, includeProjection, principal)
+                        investmentResolver.holdingPerformance(
+                            holdingId,
+                            resolution,
+                            fromDate,
+                            toDate,
+                            includeProjection,
+                            principal,
+                        )
                     }
                 },
             )
@@ -692,8 +721,9 @@ class BankingWiringFactory(
                 "product",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         productResolver.product(id, principal)
                     }
                 },
@@ -715,8 +745,9 @@ class BankingWiringFactory(
                 "purchaseItems",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val transactionId = env.getArgument<String>("transactionId")
-                            ?: throw IllegalArgumentException("transactionId is required")
+                        val transactionId =
+                            env.getArgument<String>("transactionId")
+                                ?: throw IllegalArgumentException("transactionId is required")
                         productResolver.purchaseItems(transactionId, principal)
                     }
                 },
@@ -725,8 +756,9 @@ class BankingWiringFactory(
                 "nfceDocument",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val transactionId = env.getArgument<String>("transactionId")
-                            ?: throw IllegalArgumentException("transactionId is required")
+                        val transactionId =
+                            env.getArgument<String>("transactionId")
+                                ?: throw IllegalArgumentException("transactionId is required")
                         productResolver.nfceDocument(transactionId, principal)
                     }
                 },
@@ -743,8 +775,9 @@ class BankingWiringFactory(
                 "productPriceHistory",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val productId = env.getArgument<String>("productId")
-                            ?: throw IllegalArgumentException("productId is required")
+                        val productId =
+                            env.getArgument<String>("productId")
+                                ?: throw IllegalArgumentException("productId is required")
                         productResolver.productPriceHistory(
                             productId = productId,
                             variantId = env.getArgument("variantId"),
@@ -759,8 +792,9 @@ class BankingWiringFactory(
                 "productConsumptionTrend",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val productId = env.getArgument<String>("productId")
-                            ?: throw IllegalArgumentException("productId is required")
+                        val productId =
+                            env.getArgument<String>("productId")
+                                ?: throw IllegalArgumentException("productId is required")
                         productResolver.productConsumptionTrend(
                             productId = productId,
                             periodMonths = env.getArgument("periodMonths"),
@@ -773,8 +807,9 @@ class BankingWiringFactory(
                 "productStoreComparison",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_VIEW) { principal ->
-                        val productId = env.getArgument<String>("productId")
-                            ?: throw IllegalArgumentException("productId is required")
+                        val productId =
+                            env.getArgument<String>("productId")
+                                ?: throw IllegalArgumentException("productId is required")
                         productResolver.productStoreComparison(
                             productId = productId,
                             startDate = env.getArgument("startDate"),
@@ -980,7 +1015,11 @@ class BankingWiringFactory(
                         val recurringPaymentId =
                             env.getArgument<String>("recurringPaymentId")
                                 ?: throw IllegalArgumentException("recurringPaymentId is required")
-                        recurringPaymentResolver.linkTransactionToRecurring(transactionId, recurringPaymentId, principal)
+                        recurringPaymentResolver.linkTransactionToRecurring(
+                            transactionId,
+                            recurringPaymentId,
+                            principal,
+                        )
                     }
                 },
             )
@@ -1290,8 +1329,9 @@ class BankingWiringFactory(
                 "updateProduct",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -1314,8 +1354,9 @@ class BankingWiringFactory(
                 "updateProductVariant",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val id = env.getArgument<String>("id")
-                            ?: throw IllegalArgumentException("id is required")
+                        val id =
+                            env.getArgument<String>("id")
+                                ?: throw IllegalArgumentException("id is required")
                         val input =
                             env.getArgument<Map<String, Any?>>("input")
                                 ?: throw IllegalArgumentException("input is required")
@@ -1327,10 +1368,12 @@ class BankingWiringFactory(
                 "mapItemToVariant",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val rawDescription = env.getArgument<String>("rawDescription")
-                            ?: throw IllegalArgumentException("rawDescription is required")
-                        val variantId = env.getArgument<String>("variantId")
-                            ?: throw IllegalArgumentException("variantId is required")
+                        val rawDescription =
+                            env.getArgument<String>("rawDescription")
+                                ?: throw IllegalArgumentException("rawDescription is required")
+                        val variantId =
+                            env.getArgument<String>("variantId")
+                                ?: throw IllegalArgumentException("variantId is required")
                         productResolver.mapItemToVariant(rawDescription, variantId, principal)
                     }
                 },
@@ -1339,8 +1382,9 @@ class BankingWiringFactory(
                 "unmapItem",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_TRANSACTION_UPDATE) { principal ->
-                        val aliasId = env.getArgument<String>("aliasId")
-                            ?: throw IllegalArgumentException("aliasId is required")
+                        val aliasId =
+                            env.getArgument<String>("aliasId")
+                                ?: throw IllegalArgumentException("aliasId is required")
                         productResolver.unmapItem(aliasId, principal)
                     }
                 },
@@ -1407,8 +1451,9 @@ class BankingWiringFactory(
                 "reorderTransactionRules",
                 createValidatedDataFetcher { env ->
                     env.withPermission(BankingPermissions.BANKING_CATEGORY_MANAGE) { principal ->
-                        val ids = env.getArgument<List<String>>("ids")
-                            ?: throw IllegalArgumentException("ids is required")
+                        val ids =
+                            env.getArgument<List<String>>("ids")
+                                ?: throw IllegalArgumentException("ids is required")
                         transactionCategoryResolver.reorderTransactionRules(ids, principal)
                     }
                 },
@@ -1634,8 +1679,9 @@ class BankingWiringFactory(
                 type.dataFetcher(
                     "attachments",
                     createValidatedDataFetcher { env ->
-                        val transaction = env.getSource<TransactionDTO>()
-                            ?: return@createValidatedDataFetcher emptyList<Any>()
+                        val transaction =
+                            env.getSource<TransactionDTO>()
+                                ?: return@createValidatedDataFetcher emptyList<Any>()
                         // Fast path: attachments were pre-loaded in the batch list query.
                         // The parent Transaction was already permission-checked — no redundant check here.
                         val preloaded = transaction.attachments

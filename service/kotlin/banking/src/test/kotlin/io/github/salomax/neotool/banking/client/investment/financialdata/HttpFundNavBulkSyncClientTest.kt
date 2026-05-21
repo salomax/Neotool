@@ -4,10 +4,6 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.common.service.ServiceTokenClient
-import java.io.ByteArrayOutputStream
-import java.math.BigDecimal
-import java.time.LocalDate
-import java.util.zip.GZIPOutputStream
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -15,6 +11,10 @@ import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
+import java.io.ByteArrayOutputStream
+import java.math.BigDecimal
+import java.time.LocalDate
+import java.util.zip.GZIPOutputStream
 
 class HttpFundNavBulkSyncClientTest {
     private val serviceTokenClient: ServiceTokenClient = mock()
@@ -26,7 +26,9 @@ class HttpFundNavBulkSyncClientTest {
         mockServer.start(18094)
         try {
             runBlocking {
-                whenever(serviceTokenClient.getServiceToken("neotool-financial-data-service")).thenReturn("service-token")
+                whenever(
+                    serviceTokenClient.getServiceToken("neotool-financial-data-service"),
+                ).thenReturn("service-token")
             }
             mockServer.enqueue(
                 MockResponse()

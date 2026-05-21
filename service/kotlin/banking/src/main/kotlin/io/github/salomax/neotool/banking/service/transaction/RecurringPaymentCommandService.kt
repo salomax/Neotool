@@ -92,7 +92,12 @@ class RecurringPaymentCommandService(
         val existing = requireRecurringPayment(accountId, recurringPaymentId)
         val updated =
             existing.copy(
-                financialAccountId = if (input.financialAccountIdDefined) input.financialAccountId else existing.financialAccountId,
+                financialAccountId =
+                    if (input.financialAccountIdDefined) {
+                        input.financialAccountId
+                    } else {
+                        existing.financialAccountId
+                    },
                 name = input.name ?: existing.name,
                 creditDebitType = input.creditDebitType ?: existing.creditDebitType,
                 expectedAmount = if (input.expectedAmountDefined) input.expectedAmount else existing.expectedAmount,
@@ -115,7 +120,10 @@ class RecurringPaymentCommandService(
         recurringPaymentId: UUID,
     ): RecurringPayment {
         val existing = requireRecurringPayment(accountId, recurringPaymentId)
-        val updated = recurringPaymentRepository.update(existing.copy(status = RecurringPaymentStatus.PAUSED, updatedAt = Instant.now()))
+        val updated =
+            recurringPaymentRepository.update(
+                existing.copy(status = RecurringPaymentStatus.PAUSED, updatedAt = Instant.now()),
+            )
         updated.id?.let(transactionRepository::deleteFutureByRecurringPaymentId)
         return updated
     }

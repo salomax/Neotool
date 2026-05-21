@@ -2,8 +2,8 @@ package io.github.salomax.neotool.financialdata.repo
 
 import io.github.salomax.neotool.common.graphql.pagination.CompositeCursor
 import io.github.salomax.neotool.financialdata.domain.AssetDailyPrice
-import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import io.github.salomax.neotool.financialdata.domain.ListedAsset
+import io.github.salomax.neotool.financialdata.domain.ListedAssetDailyPriceSyncItem
 import io.micronaut.transaction.annotation.ReadOnly
 import jakarta.inject.Singleton
 import jakarta.persistence.EntityManager
@@ -24,7 +24,6 @@ import java.util.UUID
 open class ListedAssetRepositoryImpl(
     private val entityManager: EntityManager,
 ) : ListedAssetRepositoryCustom {
-
     // -------------------------------------------------------------------------
     // Autocomplete
     // -------------------------------------------------------------------------
@@ -36,7 +35,8 @@ open class ListedAssetRepositoryImpl(
         limit: Int,
     ): List<ListedAsset> {
         val assetTypeFilter = if (assetType != null) "AND ia.asset_type = ?" else ""
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.ticker,
@@ -71,18 +71,18 @@ open class ListedAssetRepositoryImpl(
                 financial_data.similarity(ia.name, ?::text) DESC,
                 ia.ticker ASC
             LIMIT ?
-        """.trimIndent()
+            """.trimIndent()
 
         val likeContains = "%$query%"
         val likePrefix = "$query%"
         val q = entityManager.createNativeQuery(sql)
         var p = 1
-        q.setParameter(p++, likeContains)  // ticker ILIKE
-        q.setParameter(p++, likeContains)  // name ILIKE
+        q.setParameter(p++, likeContains) // ticker ILIKE
+        q.setParameter(p++, likeContains) // name ILIKE
         if (assetType != null) q.setParameter(p++, assetType)
-        q.setParameter(p++, query)          // exact ticker match
-        q.setParameter(p++, likePrefix)     // ticker prefix
-        q.setParameter(p++, query)          // similarity on name
+        q.setParameter(p++, query) // exact ticker match
+        q.setParameter(p++, likePrefix) // ticker prefix
+        q.setParameter(p++, query) // similarity on name
         q.setParameter(p, limit)
 
         @Suppress("UNCHECKED_CAST")
@@ -113,9 +113,9 @@ open class ListedAssetRepositoryImpl(
         val likePattern = if (hasQuery) "%$query%" else null
         var p = 1
         if (hasQuery) {
-            q.setParameter(p++, query)        // SELECT similarity(name, ?)
-            q.setParameter(p++, likePattern)  // WHERE ticker ILIKE ?
-            q.setParameter(p++, likePattern)  // OR name ILIKE ?
+            q.setParameter(p++, query) // SELECT similarity(name, ?)
+            q.setParameter(p++, likePattern) // WHERE ticker ILIKE ?
+            q.setParameter(p++, likePattern) // OR name ILIKE ?
         }
         if (hasAssetType) q.setParameter(p++, assetType)
         if (hasIsActive) q.setParameter(p++, isActive)
@@ -140,10 +140,11 @@ open class ListedAssetRepositoryImpl(
         @Suppress("UNCHECKED_CAST")
         val rows = q.resultList as List<Array<Any?>>
         val totalCount = (rows.firstOrNull()?.get(13) as? Number)?.toLong() ?: 0L
-        val assets = rows.map { row ->
-            val simScore = (row[7] as? Number)?.toDouble() ?: 0.0
-            mapAssetRow(row, includePrice = true, simScore = simScore)
-        }
+        val assets =
+            rows.map { row ->
+                val simScore = (row[7] as? Number)?.toDouble() ?: 0.0
+                mapAssetRow(row, includePrice = true, simScore = simScore)
+            }
         return Pair(assets, totalCount)
     }
 
@@ -153,29 +154,34 @@ open class ListedAssetRepositoryImpl(
         hasIsActive: Boolean,
         hasCursor: Boolean,
     ): String {
-        val similaritySelect = if (hasQuery) {
-            "financial_data.similarity(ia.name, ?::text) AS sim_score,"
-        } else {
-            "0.0 AS sim_score,"
-        }
+        val similaritySelect =
+            if (hasQuery) {
+                "financial_data.similarity(ia.name, ?::text) AS sim_score,"
+            } else {
+                "0.0 AS sim_score,"
+            }
 
         val queryFilter = if (hasQuery) "AND (ia.ticker ILIKE ? OR ia.name ILIKE ?)" else ""
         val assetTypeFilter = if (hasAssetType) "AND ia.asset_type = ?" else ""
         val isActiveFilter = if (hasIsActive) "AND ia.is_active = ?" else ""
 
-        val cursorFilter = if (hasCursor) {
-            if (hasQuery) {
-                "AND (sim_score < ? OR (sim_score = ? AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))))"
+        val cursorFilter =
+            if (hasCursor) {
+                if (hasQuery) {
+                    "AND (sim_score < ? OR (sim_score = ? AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))))"
+                } else {
+                    "AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))"
+                }
             } else {
-                "AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))"
+                ""
             }
-        } else ""
 
-        val orderBy = if (hasQuery) {
-            "ORDER BY sim_score DESC, ia.ticker ASC, ia.id ASC"
-        } else {
-            "ORDER BY ia.ticker ASC, ia.id ASC"
-        }
+        val orderBy =
+            if (hasQuery) {
+                "ORDER BY sim_score DESC, ia.ticker ASC, ia.id ASC"
+            } else {
+                "ORDER BY ia.ticker ASC, ia.id ASC"
+            }
 
         // Columns:
         // id(0), ticker(1), name(2), asset_type(3), exchange(4), is_active(5),
@@ -224,7 +230,7 @@ open class ListedAssetRepositoryImpl(
               $isActiveFilter
               $cursorFilter
             $orderBy
-        """.trimIndent()
+            """.trimIndent()
     }
 
     // -------------------------------------------------------------------------
@@ -233,7 +239,8 @@ open class ListedAssetRepositoryImpl(
 
     @ReadOnly
     override fun findAssetById(id: UUID): ListedAsset? {
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.ticker,
@@ -269,7 +276,7 @@ open class ListedAssetRepositoryImpl(
                 LIMIT 1
             ) p ON true
             WHERE ia.id = ?::uuid
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         q.setParameter(1, id.toString())
@@ -281,7 +288,8 @@ open class ListedAssetRepositoryImpl(
 
     @ReadOnly
     override fun findAssetByTicker(ticker: String): ListedAsset? {
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.ticker,
@@ -318,7 +326,7 @@ open class ListedAssetRepositoryImpl(
             ) p ON true
             WHERE upper(ia.ticker) = upper(?)
               AND ia.source = 'B3'
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         q.setParameter(1, ticker)
@@ -334,7 +342,8 @@ open class ListedAssetRepositoryImpl(
         if (normalized.isEmpty()) return emptyList()
 
         val placeholders = List(normalized.size) { "?" }.joinToString(", ")
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.ticker,
@@ -371,7 +380,7 @@ open class ListedAssetRepositoryImpl(
             ) p ON true
             WHERE upper(ia.ticker) IN ($placeholders)
               AND ia.source = 'B3'
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         normalized.forEachIndexed { index, ticker ->
@@ -398,7 +407,8 @@ open class ListedAssetRepositoryImpl(
         val toFilter = if (to != null) "AND price_date <= ?" else ""
         val limit = last ?: 365
 
-        val sql = """
+        val sql =
+            """
             SELECT price_date, open_price, high_price, low_price, close_price, avg_price, volume, trades
             FROM financial_data.asset_daily_price
             WHERE asset_id = ?::uuid
@@ -406,7 +416,7 @@ open class ListedAssetRepositoryImpl(
               $toFilter
             ORDER BY price_date ASC
             LIMIT ?
-        """.trimIndent()
+            """.trimIndent()
 
         val q = entityManager.createNativeQuery(sql)
         var p = 1
@@ -446,7 +456,8 @@ open class ListedAssetRepositoryImpl(
         val hasCursor = after != null
         val tickerPlaceholders = normalizedTickers?.indices?.joinToString(", ") { "?" }.orEmpty()
 
-        val sql = """
+        val sql =
+            """
             SELECT
                 ia.id::text,
                 ia.ticker,
@@ -469,14 +480,15 @@ open class ListedAssetRepositoryImpl(
               ${if (hasTickers) "AND upper(ia.ticker) IN ($tickerPlaceholders)" else ""}
               ${if (hasUpdatedSince) "AND adp.created_at >= ?" else ""}
               ${
-            if (hasCursor) {
-                "AND (adp.price_date > ? OR (adp.price_date = ? AND (ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))))"
-            } else {
-                ""
+                if (hasCursor) {
+                    "AND (adp.price_date > ? OR (adp.price_date = ? AND " +
+                        "(ia.ticker > ? OR (ia.ticker = ? AND ia.id::text > ?))))"
+                } else {
+                    ""
+                }
             }
-        }
             ORDER BY adp.price_date ASC, ia.ticker ASC, ia.id ASC
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         var index = 1
@@ -526,23 +538,32 @@ open class ListedAssetRepositoryImpl(
      * List/detail  (includePrice=true):  same + logo_asset_id(6), sim_score(7), price_date(8), open(9), high(10), low(11), close(12)
      * searchAssets adds total_count(13) via COUNT(*) OVER() — extracted separately before calling this.
      */
-    private fun mapAssetRow(row: Array<Any?>, includePrice: Boolean, simScore: Double = 0.0): ListedAsset {
-        val latestPrice = if (includePrice) {
-            val priceDate = row[8] as? java.sql.Date
-            val closePrice = row[12] as? BigDecimal
-            if (priceDate != null && closePrice != null) {
-                AssetDailyPrice(
-                    date = priceDate.toLocalDate(),
-                    openPrice = row[9] as? BigDecimal,
-                    highPrice = row[10] as? BigDecimal,
-                    lowPrice = row[11] as? BigDecimal,
-                    closePrice = closePrice,
-                    avgPrice = null,
-                    volume = null,
-                    trades = null,
-                )
-            } else null
-        } else null
+    private fun mapAssetRow(
+        row: Array<Any?>,
+        includePrice: Boolean,
+        simScore: Double = 0.0,
+    ): ListedAsset {
+        val latestPrice =
+            if (includePrice) {
+                val priceDate = row[8] as? java.sql.Date
+                val closePrice = row[12] as? BigDecimal
+                if (priceDate != null && closePrice != null) {
+                    AssetDailyPrice(
+                        date = priceDate.toLocalDate(),
+                        openPrice = row[9] as? BigDecimal,
+                        highPrice = row[10] as? BigDecimal,
+                        lowPrice = row[11] as? BigDecimal,
+                        closePrice = closePrice,
+                        avgPrice = null,
+                        volume = null,
+                        trades = null,
+                    )
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
 
         val logoAssetId = if (row.size > 6) row[6] as? String else null
 

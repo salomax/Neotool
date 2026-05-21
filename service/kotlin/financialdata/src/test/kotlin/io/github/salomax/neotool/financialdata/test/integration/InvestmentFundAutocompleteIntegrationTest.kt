@@ -43,7 +43,9 @@ class InvestmentFundAutocompleteIntegrationTest : BaseIntegrationTest(), Postgre
             )
             insertFund(
                 cnpj = "22328519000100",
-                name = "V8 MERCURY FUNDO DE INVESTIMENTO FINANCEIRO RENDA FIXA CRÉDITO PRIVADO LONGO PRAZO - RESP LIMITADA",
+                name =
+                    "V8 MERCURY FUNDO DE INVESTIMENTO FINANCEIRO RENDA FIXA CRÉDITO PRIVADO " +
+                        "LONGO PRAZO - RESP LIMITADA",
                 assetType = "FIXED_INCOME_FUND",
             )
             insertFund(

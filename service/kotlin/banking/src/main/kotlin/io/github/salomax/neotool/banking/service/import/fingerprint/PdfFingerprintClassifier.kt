@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.fingerprint
 
-import io.github.salomax.neotool.banking.domain.import.*
 import jakarta.inject.Singleton
 import java.util.Locale
 

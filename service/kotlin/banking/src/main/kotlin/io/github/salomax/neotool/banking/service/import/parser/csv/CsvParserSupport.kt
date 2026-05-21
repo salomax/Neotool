@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
-import io.github.salomax.neotool.banking.domain.import.*
 import java.math.BigDecimal
 import java.text.Normalizer
 import java.time.LocalDate

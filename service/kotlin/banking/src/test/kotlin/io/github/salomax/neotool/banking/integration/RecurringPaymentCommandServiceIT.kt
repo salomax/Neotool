@@ -2,7 +2,6 @@ package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.RecurringFrequency
-import io.github.salomax.neotool.banking.domain.transaction.RecurringPaymentStatus
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType

@@ -3,18 +3,18 @@ package io.github.salomax.neotool.banking.service.investment
 import io.github.salomax.neotool.banking.client.investment.financialdata.IndicatorRateProvider
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
+import io.github.salomax.neotool.banking.domain.investment.Holding
 import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
-import io.github.salomax.neotool.banking.domain.portfolio.InvestmentAssetDailyPrice
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioValueWindow
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
@@ -40,7 +40,6 @@ import java.util.UUID
  * manual check (save metrics after holding 2, add 3, delete 3, metrics return).
  */
 class PortfolioRecalculationTwrAfterHoldingDeleteTest {
-
     private val financialAccountId = UUID.randomUUID()
     private val accountId = UUID.randomUUID()
     private val userId = UUID.randomUUID()
@@ -213,13 +212,17 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
             val byAccount = portfolioRows.groupBy { it.financialAccountId }
             val opening =
                 byAccount.values.fold(BigDecimal.ZERO) { acc, quotas ->
-                    acc + (quotas.filter { it.quotaDate < from }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
-                        ?: BigDecimal.ZERO)
+                    acc + (
+                        quotas.filter { it.quotaDate < from }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
+                            ?: BigDecimal.ZERO
+                    )
                 }
             val closing =
                 byAccount.values.fold(BigDecimal.ZERO) { acc, quotas ->
-                    acc + (quotas.filter { !it.quotaDate.isAfter(to) }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
-                        ?: BigDecimal.ZERO)
+                    acc + (
+                        quotas.filter { !it.quotaDate.isAfter(to) }.maxByOrNull { it.quotaDate }?.totalPortfolioValue
+                            ?: BigDecimal.ZERO
+                    )
                 }
             return PortfolioValueWindow(
                 openingPortfolioValue = opening,
@@ -227,7 +230,10 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
             )
         }
 
-        override fun deleteFromDate(financialAccountId: UUID, from: LocalDate): Int {
+        override fun deleteFromDate(
+            financialAccountId: UUID,
+            from: LocalDate,
+        ): Int {
             val before = rows.size
             rows.removeAll { it.financialAccountId == financialAccountId && !it.quotaDate.isBefore(from) }
             return before - rows.size
@@ -239,16 +245,18 @@ class PortfolioRecalculationTwrAfterHoldingDeleteTest {
                 .sortedBy { it.quotaDate }
     }
 
-    private fun holding(id: UUID, assetId: UUID) =
-        Holding(
-            id = id,
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            assetId = assetId,
-            quantity = BigDecimal.ZERO,
-            averageCost = BigDecimal.ZERO,
-            source = InvestmentSource.MANUAL,
-        )
+    private fun holding(
+        id: UUID,
+        assetId: UUID,
+    ) = Holding(
+        id = id,
+        financialAccountId = financialAccountId,
+        accountId = accountId,
+        assetId = assetId,
+        quantity = BigDecimal.ZERO,
+        averageCost = BigDecimal.ZERO,
+        source = InvestmentSource.MANUAL,
+    )
 
     private fun purchaseTx(
         id: UUID,

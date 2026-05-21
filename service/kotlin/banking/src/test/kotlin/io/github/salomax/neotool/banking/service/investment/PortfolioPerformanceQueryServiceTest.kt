@@ -1,24 +1,23 @@
 package io.github.salomax.neotool.banking.service.investment
 
-import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.domain.account.FinancialAccount
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountSubtype
 import io.github.salomax.neotool.banking.domain.account.FinancialAccountType
 import io.github.salomax.neotool.banking.domain.investment.Asset
 import io.github.salomax.neotool.banking.domain.investment.AssetType
 import io.github.salomax.neotool.banking.domain.investment.Holding
+import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkCode
 import io.github.salomax.neotool.banking.domain.portfolio.MarketBenchmarkDaily
-import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
-import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
-import org.junit.jupiter.api.Assumptions.assumeTrue
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationJob
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioRecalculationStatus
 import io.github.salomax.neotool.banking.error.BankingErrorCode
 import io.github.salomax.neotool.banking.graphql.investment.GridClassTwrPeriod
 import io.github.salomax.neotool.banking.graphql.investment.PerformancePeriodDTO
+import io.github.salomax.neotool.banking.model.dto.investment.GridClassMapping
 import io.github.salomax.neotool.banking.repo.account.FinancialAccountRepository
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
@@ -27,6 +26,7 @@ import io.github.salomax.neotool.banking.repo.portfolio.PortfolioFlowEventReposi
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioQuotaRepository
 import io.github.salomax.neotool.banking.repo.portfolio.PortfolioRecalculationJobRepository
 import org.assertj.core.api.Assertions.assertThat
+import org.junit.jupiter.api.Assumptions.assumeTrue
 import org.junit.jupiter.api.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.eq
@@ -120,11 +120,29 @@ class PortfolioPerformanceQueryServiceTest {
                 benchmark(MarketBenchmarkCode.CDI, endQuotaDate, "1.0200000000"),
             ),
         )
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IBOV,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IPCA,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IFIX,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
 
         val performance =
@@ -201,13 +219,37 @@ class PortfolioPerformanceQueryServiceTest {
                 to = endQuotaDate,
             ),
         ).thenReturn(listOf(startQuota, endQuota))
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.CDI, startQuotaDate.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.CDI,
+                startQuotaDate.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, startQuotaDate.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IBOV,
+                startQuotaDate.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, startQuotaDate.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IPCA,
+                startQuotaDate.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, startQuotaDate.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IFIX,
+                startQuotaDate.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
 
         val performance =
@@ -301,17 +343,53 @@ class PortfolioPerformanceQueryServiceTest {
                 quota(financialAccountIdB, endQuotaDate, "1.10000000", "220.00"),
             ),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdA, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdA,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdB, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdB,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.CDI, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.CDI,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IBOV,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IPCA,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, yearStartBoundary.plusDays(1), endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IFIX,
+                yearStartBoundary.plusDays(1),
+                endQuotaDate,
+            ),
+        )
             .thenReturn(emptyList())
 
         val performance =
@@ -374,7 +452,9 @@ class PortfolioPerformanceQueryServiceTest {
 
         assertThat(status.isCalculating).isFalse()
         assertThat(status.errorCode).isEqualTo(BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.code)
-        assertThat(status.message).isEqualTo(BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.defaultMessage)
+        assertThat(
+            status.message,
+        ).isEqualTo(BankingErrorCode.PORTFOLIO_RECALCULATION_CONSOLIDATED_NOT_SUPPORTED.defaultMessage)
     }
 
     @Test
@@ -489,7 +569,13 @@ class PortfolioPerformanceQueryServiceTest {
         whenever(assetRepository.findByIds(setOf(assetId))).thenReturn(
             listOf(asset(assetId, AssetType.CDB)),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, boundaryDate.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountId,
+                boundaryDate.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(
                 listOf(
                     InvestmentPortfolioFlowEvent(
@@ -547,29 +633,71 @@ class PortfolioPerformanceQueryServiceTest {
             listOf(financialAccount(accountId, financialAccountId)),
         )
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountId, endDate, "0.21562325", "3126.53"))
         whenever(
-            portfolioQuotaRepository.findByAccountAndDateRange(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, ytdBoundary, endDate),
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                ytdBoundary,
+                endDate,
+            ),
         ).thenReturn(
             listOf(
                 quota(financialAccountId, ytdBoundary, "1.22341305", "17739.47"),
                 quota(financialAccountId, endDate, "0.21562325", "3126.53"),
             ),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, ytdBoundary.plusDays(1), endDate))
-            .thenReturn(emptyList<InvestmentPortfolioFlowEvent>()) // No WITHDRAWAL event — this is the bug
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.CDI, ytdBoundary.plusDays(1), endDate)).thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, ytdBoundary.plusDays(1), endDate)).thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, ytdBoundary.plusDays(1), endDate)).thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, ytdBoundary.plusDays(1), endDate)).thenReturn(emptyList())
-
-        val performance = service.getPortfolioPerformance(
-            financialAccountId = null,
-            accountId = accountId,
-            period = PerformancePeriodDTO.YTD,
-            hasEstimatedValuesFallback = false,
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountId,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
         )
+            .thenReturn(emptyList<InvestmentPortfolioFlowEvent>()) // No WITHDRAWAL event — this is the bug
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.CDI,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        ).thenReturn(emptyList())
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IBOV,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        ).thenReturn(emptyList())
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IPCA,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        ).thenReturn(emptyList())
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(
+                MarketBenchmarkCode.IFIX,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        ).thenReturn(emptyList())
+
+        val performance =
+            service.getPortfolioPerformance(
+                financialAccountId = null,
+                accountId = accountId,
+                period = PerformancePeriodDTO.YTD,
+                hasEstimatedValuesFallback = false,
+            )
 
         // TWR is -82.38% because the quota dropped from 1.2234 to 0.2156 without a flow event
         // FIX: deleteHolding should create a WITHDRAWAL flow event so quota is preserved
@@ -588,18 +716,36 @@ class PortfolioPerformanceQueryServiceTest {
             listOf(financialAccount(accountId, financialAccountId)),
         )
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountId, endDate, "1.23500000", "3163.00"))
         whenever(
-            portfolioQuotaRepository.findByAccountAndDateRange(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, ytdBoundary, endDate),
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                ytdBoundary,
+                endDate,
+            ),
         ).thenReturn(
             listOf(
                 quota(financialAccountId, ytdBoundary, "1.22341305", "17739.47"),
-                quota(financialAccountId, deletionDate, "1.22600000", "3136.00"), // After deletion + withdrawal
+                // After deletion + withdrawal
+                quota(financialAccountId, deletionDate, "1.22600000", "3136.00"),
                 quota(financialAccountId, endDate, "1.23500000", "3163.00"),
             ),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, ytdBoundary.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountId,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(
                 listOf(
                     io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent(
@@ -616,12 +762,13 @@ class PortfolioPerformanceQueryServiceTest {
             )
         whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(any(), any(), any())).thenReturn(emptyList())
 
-        val performance = service.getPortfolioPerformance(
-            financialAccountId = null,
-            accountId = accountId,
-            period = PerformancePeriodDTO.YTD,
-            hasEstimatedValuesFallback = false,
-        )
+        val performance =
+            service.getPortfolioPerformance(
+                financialAccountId = null,
+                accountId = accountId,
+                period = PerformancePeriodDTO.YTD,
+                hasEstimatedValuesFallback = false,
+            )
 
         // With a proper WITHDRAWAL flow event, TWR correctly reflects only the investment return (~1%)
         assertThat(performance.twr!!).isGreaterThan(0.0)
@@ -639,20 +786,32 @@ class PortfolioPerformanceQueryServiceTest {
             listOf(financialAccount(accountId, financialAccountId)),
         )
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountId, endDate, "1.00000000", "10000.00"))
         whenever(
-            portfolioQuotaRepository.findByAccountAndDateRange(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, ytdBoundary, endDate),
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                ytdBoundary,
+                endDate,
+            ),
         ).thenReturn(
             listOf(quota(financialAccountId, endDate, "1.00000000", "10000.00")),
         )
 
-        val performance = service.getPortfolioPerformance(
-            financialAccountId = null,
-            accountId = accountId,
-            period = PerformancePeriodDTO.YTD,
-            hasEstimatedValuesFallback = false,
-        )
+        val performance =
+            service.getPortfolioPerformance(
+                financialAccountId = null,
+                accountId = accountId,
+                period = PerformancePeriodDTO.YTD,
+                hasEstimatedValuesFallback = false,
+            )
 
         assertThat(performance.twr).isNull()
     }
@@ -667,13 +826,29 @@ class PortfolioPerformanceQueryServiceTest {
         val endDate = LocalDate.of(2026, 4, 3)
 
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountId, endDate, "1.10440000", "3126.53"))
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, oneYearBoundary),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                oneYearBoundary,
+            ),
         ).thenReturn(quota(financialAccountId, oneYearBoundary, "1.02440000", "2900.00"))
         whenever(
-            portfolioQuotaRepository.findByAccountAndDateRange(financialAccountId, PortfolioDimensionType.PORTFOLIO, null, oneYearBoundary, endDate),
+            portfolioQuotaRepository.findByAccountAndDateRange(
+                financialAccountId,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                oneYearBoundary,
+                endDate,
+            ),
         ).thenReturn(
             listOf(
                 quota(financialAccountId, oneYearBoundary, "1.02440000", "2900.00"),
@@ -682,12 +857,13 @@ class PortfolioPerformanceQueryServiceTest {
         )
         whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(any(), any(), any())).thenReturn(emptyList())
 
-        val performance = service.getPortfolioPerformance(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            period = PerformancePeriodDTO.ONE_YEAR,
-            hasEstimatedValuesFallback = false,
-        )
+        val performance =
+            service.getPortfolioPerformance(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                period = PerformancePeriodDTO.ONE_YEAR,
+                hasEstimatedValuesFallback = false,
+            )
 
         // (1.1044 / 1.0244) - 1 ≈ 7.8%
         assertThat(performance.twr!!).isGreaterThan(0.07)
@@ -746,13 +922,21 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         ).thenReturn(series)
         val benchFrom = startQuota.quotaDate.plusDays(1)
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.CDI, benchFrom, endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.CDI, benchFrom, endQuotaDate),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, benchFrom, endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IBOV, benchFrom, endQuotaDate),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, benchFrom, endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IPCA, benchFrom, endQuotaDate),
+        )
             .thenReturn(emptyList())
-        whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, benchFrom, endQuotaDate))
+        whenever(
+            marketBenchmarkDailyRepository.findByCodeAndDateRange(MarketBenchmarkCode.IFIX, benchFrom, endQuotaDate),
+        )
             .thenReturn(emptyList())
 
         val performance =
@@ -854,10 +1038,20 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         )
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountIdA, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountIdA,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountIdA, endDate, "1.05000000", "105.00"))
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountIdB, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountIdB,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountIdB, endDate, "1.05000000", "210.00"))
         whenever(
             portfolioQuotaRepository.findByAccountAndDateRange(
@@ -889,9 +1083,21 @@ class PortfolioPerformanceQueryServiceTest {
                 quota(financialAccountIdB, endDate, "1.05000000", "210.00"),
             ),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdA, ytdBoundary.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdA,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdB, ytdBoundary.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdB,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(
                 listOf(
                     InvestmentPortfolioFlowEvent(
@@ -1116,7 +1322,13 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         ).thenReturn(listOf(startQuota, endQuota))
         whenever(holdingRepository.findByFinancialAccount(financialAccountId, accountId)).thenReturn(emptyList())
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountId, firstGroupQuotaDate.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountId,
+                firstGroupQuotaDate.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(emptyList())
 
         val twr =
@@ -1172,13 +1384,28 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         )
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountIdA, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountIdA,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountIdA, endDate, "1.20000000", "120.00"))
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountIdB, PortfolioDimensionType.PORTFOLIO, null, LocalDate.now()),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountIdB,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                LocalDate.now(),
+            ),
         ).thenReturn(quota(financialAccountIdB, endDate, "1.05000000", "210.00"))
         whenever(
-            portfolioQuotaRepository.findLatestBefore(financialAccountIdA, PortfolioDimensionType.PORTFOLIO, null, ytdBoundary),
+            portfolioQuotaRepository.findLatestBefore(
+                financialAccountIdA,
+                PortfolioDimensionType.PORTFOLIO,
+                null,
+                ytdBoundary,
+            ),
         ).thenReturn(quota(financialAccountIdA, ytdBoundary, "1.00000000", "100.00"))
         whenever(
             portfolioQuotaRepository.findByAccountAndDateRange(
@@ -1208,9 +1435,21 @@ class PortfolioPerformanceQueryServiceTest {
                 quota(financialAccountIdB, endDate, "1.05000000", "210.00"),
             ),
         )
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdA, ytdBoundary.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdA,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(emptyList())
-        whenever(portfolioFlowEventRepository.findByAccountAndDateRange(financialAccountIdB, ytdBoundary.plusDays(1), endDate))
+        whenever(
+            portfolioFlowEventRepository.findByAccountAndDateRange(
+                financialAccountIdB,
+                ytdBoundary.plusDays(1),
+                endDate,
+            ),
+        )
             .thenReturn(emptyList())
         whenever(marketBenchmarkDailyRepository.findByCodeAndDateRange(any(), any(), any())).thenReturn(emptyList())
 
@@ -1236,11 +1475,12 @@ class PortfolioPerformanceQueryServiceTest {
 
     @Test
     fun `grid class series returns empty for unknown key`() {
-        val result = service.getGridClassTwrSeries(
-            financialAccountId = UUID.randomUUID(),
-            accountId = UUID.randomUUID(),
-            gridClassKey = "unknown",
-        )
+        val result =
+            service.getGridClassTwrSeries(
+                financialAccountId = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                gridClassKey = "unknown",
+            )
 
         assertThat(result).isEmpty()
     }
@@ -1263,16 +1503,31 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         ).thenReturn(
             listOf(
-                quota(financialAccountId, d1, "1.00000000", "100.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.FIXED_INCOME),
-                quota(financialAccountId, d2, "1.05000000", "105.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.FIXED_INCOME),
+                quota(
+                    financialAccountId,
+                    d1,
+                    "1.00000000",
+                    "100.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.FIXED_INCOME,
+                ),
+                quota(
+                    financialAccountId,
+                    d2,
+                    "1.05000000",
+                    "105.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.FIXED_INCOME,
+                ),
             ),
         )
 
-        val result = service.getGridClassTwrSeries(
-            financialAccountId = financialAccountId,
-            accountId = accountId,
-            gridClassKey = GridClassMapping.FIXED_INCOME,
-        )
+        val result =
+            service.getGridClassTwrSeries(
+                financialAccountId = financialAccountId,
+                accountId = accountId,
+                gridClassKey = GridClassMapping.FIXED_INCOME,
+            )
 
         assertThat(result).hasSize(2)
         assertThat(result.map { it.date }).containsExactly(d1, d2)
@@ -1281,11 +1536,12 @@ class PortfolioPerformanceQueryServiceTest {
 
     @Test
     fun `grid class cash series returns empty because cash is outside holdings-only TWR universe`() {
-        val result = service.getGridClassTwrSeries(
-            financialAccountId = UUID.randomUUID(),
-            accountId = UUID.randomUUID(),
-            gridClassKey = GridClassMapping.CASH,
-        )
+        val result =
+            service.getGridClassTwrSeries(
+                financialAccountId = UUID.randomUUID(),
+                accountId = UUID.randomUUID(),
+                gridClassKey = GridClassMapping.CASH,
+            )
 
         assertThat(result).isEmpty()
     }
@@ -1315,18 +1571,47 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         ).thenReturn(
             listOf(
-                quota(financialAccountIdA, d1, "1.00000000", "100.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
-                quota(financialAccountIdA, d2, "1.10000000", "110.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
-                quota(financialAccountIdB, d1, "1.00000000", "50.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
-                quota(financialAccountIdB, d2, "1.10000000", "55.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(
+                    financialAccountIdA,
+                    d1,
+                    "1.00000000",
+                    "100.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
+                quota(
+                    financialAccountIdA,
+                    d2,
+                    "1.10000000",
+                    "110.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
+                quota(
+                    financialAccountIdB,
+                    d1,
+                    "1.00000000",
+                    "50.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
+                quota(
+                    financialAccountIdB,
+                    d2,
+                    "1.10000000",
+                    "55.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
             ),
         )
 
-        val result = service.getGridClassTwrSeries(
-            financialAccountId = null,
-            accountId = accountId,
-            gridClassKey = GridClassMapping.STOCKS,
-        )
+        val result =
+            service.getGridClassTwrSeries(
+                financialAccountId = null,
+                accountId = accountId,
+                gridClassKey = GridClassMapping.STOCKS,
+            )
 
         assertThat(result.map { it.date }).containsExactly(d1, d2)
         assertThat(result.map { it.quotaValue.firstDecimal() }).containsExactly(1.0, 1.1)
@@ -1449,17 +1734,32 @@ class PortfolioPerformanceQueryServiceTest {
             ),
         ).thenReturn(
             listOf(
-                quota(financialAccountId, d1, "9.00000000", "90.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
-                quota(financialAccountId, d2, "10.80000000", "108.00", dimensionType = PortfolioDimensionType.GRID_CLASS, dimensionKey = GridClassMapping.STOCKS),
+                quota(
+                    financialAccountId,
+                    d1,
+                    "9.00000000",
+                    "90.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
+                quota(
+                    financialAccountId,
+                    d2,
+                    "10.80000000",
+                    "108.00",
+                    dimensionType = PortfolioDimensionType.GRID_CLASS,
+                    dimensionKey = GridClassMapping.STOCKS,
+                ),
             ),
         )
 
-        val result = service.getGridClassTwrSeries(
-            financialAccountId = null,
-            accountId = accountId,
-            gridClassKey = GridClassMapping.STOCKS,
-            period = GridClassTwrPeriod.ONE_YEAR,
-        )
+        val result =
+            service.getGridClassTwrSeries(
+                financialAccountId = null,
+                accountId = accountId,
+                gridClassKey = GridClassMapping.STOCKS,
+                period = GridClassTwrPeriod.ONE_YEAR,
+            )
 
         assertThat(result.map { it.date }).containsExactly(d1, d2)
         assertThat(result.map { it.quotaValue.firstDecimal() }).containsExactly(1.0, 1.2)
@@ -1537,7 +1837,6 @@ class PortfolioPerformanceQueryServiceTest {
         createdAt = Instant.parse("2025-01-01T00:00:00Z"),
         updatedAt = Instant.parse("2025-01-01T00:00:00Z"),
     )
-
 }
 
 private fun Double.firstDecimal(): Double = (this * 10.0).toInt() / 10.0

@@ -1,6 +1,7 @@
 package io.github.salomax.neotool.banking.domain.investment
 
-import io.github.salomax.neotool.banking.service.investment.*
+import io.github.salomax.neotool.banking.service.investment.FixedIncomeValuationService
+import io.github.salomax.neotool.banking.service.investment.ValuationSource
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.within
 import org.junit.jupiter.api.DisplayName
@@ -11,7 +12,6 @@ import java.util.UUID
 
 @DisplayName("FixedIncomeValuationService")
 class FixedIncomeValuationServiceTest {
-
     private val startDate = LocalDate.of(2024, 1, 1)
 
     private fun holding(
@@ -468,15 +468,17 @@ class FixedIncomeValuationServiceTest {
                 source = InvestmentSource.MANUAL,
             )
 
-        val withCoupon = service.estimate(
-            holding = holding,
-            indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
-            transactions = listOf(lastCouponPayment),
-        )
-        val withoutCoupon = service.estimate(
-            holding = holding,
-            indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
-        )
+        val withCoupon =
+            service.estimate(
+                holding = holding,
+                indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
+                transactions = listOf(lastCouponPayment),
+            )
+        val withoutCoupon =
+            service.estimate(
+                holding = holding,
+                indicatorRates = mapOf(Indexer.CDI to BigDecimal("0.12")),
+            )
 
         assertThat(withCoupon.grossValue).isNotNull
         assertThat(withoutCoupon.grossValue).isNotNull

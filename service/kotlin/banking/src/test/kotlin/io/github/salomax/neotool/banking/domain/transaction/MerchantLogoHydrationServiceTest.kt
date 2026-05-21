@@ -94,7 +94,9 @@ class MerchantLogoHydrationServiceTest {
 
         verify(presignedUrlHttpClient).put("https://upload.example.com", byteArrayOf(1, 2, 3), "image/png")
         verify(assetsServiceClient).confirmAssetUpload(UUID.fromString("00000000-0000-0000-0000-000000000010"), null)
-        verify(merchantRepository).upsertLogoCache(eq("netflix.com"), eq(UUID.fromString("00000000-0000-0000-0000-000000000010")), any())
+        verify(
+            merchantRepository,
+        ).upsertLogoCache(eq("netflix.com"), eq(UUID.fromString("00000000-0000-0000-0000-000000000010")), any())
     }
 
     @Test
@@ -119,7 +121,9 @@ class MerchantLogoHydrationServiceTest {
         service.hydrateForDomain("netflix.com")
 
         verify(assetsServiceClient).confirmAssetUpload(UUID.fromString("00000000-0000-0000-0000-000000000099"), null)
-        verify(merchantRepository).upsertLogoCache(eq("netflix.com"), eq(UUID.fromString("00000000-0000-0000-0000-000000000099")), any())
+        verify(
+            merchantRepository,
+        ).upsertLogoCache(eq("netflix.com"), eq(UUID.fromString("00000000-0000-0000-0000-000000000099")), any())
     }
 
     @Test

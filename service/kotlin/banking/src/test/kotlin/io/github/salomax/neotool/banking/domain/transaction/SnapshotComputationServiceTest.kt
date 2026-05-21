@@ -1,8 +1,8 @@
 package io.github.salomax.neotool.banking.domain.transaction
 
-import io.github.salomax.neotool.banking.service.transaction.*
 import io.github.salomax.neotool.banking.repo.transaction.MonthlyBalanceSnapshotRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
+import io.github.salomax.neotool.banking.service.transaction.SnapshotComputationService
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.DisplayName

@@ -7,14 +7,14 @@ import io.github.salomax.neotool.banking.domain.investment.InvestmentSource
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransaction
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionDirection
 import io.github.salomax.neotool.banking.domain.investment.InvestmentTransactionType
-import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
-import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 import io.github.salomax.neotool.banking.domain.transaction.Transaction
 import io.github.salomax.neotool.banking.domain.transaction.TransactionSource
 import io.github.salomax.neotool.banking.domain.transaction.TransactionStatus
 import io.github.salomax.neotool.banking.domain.transaction.TransactionType
 import io.github.salomax.neotool.banking.error.BankingErrorCode
+import io.github.salomax.neotool.banking.model.dto.investment.RecordInvestmentTransactionCommand
+import io.github.salomax.neotool.banking.model.dto.investment.RecordStockLendingCommand
 import io.github.salomax.neotool.banking.repo.investment.AssetRepository
 import io.github.salomax.neotool.banking.repo.investment.HoldingRepository
 import io.github.salomax.neotool.banking.repo.transaction.TransactionRepository
@@ -194,7 +194,9 @@ class RecordStockLendingServiceTest {
 
         assertThatThrownBy { service.confirm(command, accountId, userId) }
             .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
-                assertThat(exception.errorCode).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_ASSET_TYPE_NOT_SUPPORTED)
+                assertThat(
+                    exception.errorCode,
+                ).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_ASSET_TYPE_NOT_SUPPORTED)
             }
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
@@ -214,7 +216,9 @@ class RecordStockLendingServiceTest {
 
         assertThatThrownBy { service.confirm(command, accountId, userId) }
             .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
-                assertThat(exception.errorCode).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_GROSS_VALUE_MUST_BE_POSITIVE)
+                assertThat(
+                    exception.errorCode,
+                ).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_GROSS_VALUE_MUST_BE_POSITIVE)
             }
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
@@ -234,7 +238,9 @@ class RecordStockLendingServiceTest {
 
         assertThatThrownBy { service.confirm(command, accountId, userId) }
             .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
-                assertThat(exception.errorCode).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_NET_VALUE_EXCEEDS_GROSS_VALUE)
+                assertThat(
+                    exception.errorCode,
+                ).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_NET_VALUE_EXCEEDS_GROSS_VALUE)
             }
 
         verify(investmentTransactionService, never()).record(any(), any(), any())
@@ -254,7 +260,9 @@ class RecordStockLendingServiceTest {
 
         assertThatThrownBy { service.confirm(command, accountId, userId) }
             .isInstanceOfSatisfying(ValidationException::class.java) { exception ->
-                assertThat(exception.errorCode).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_INCOME_TAX_MUST_BE_NON_NEGATIVE)
+                assertThat(
+                    exception.errorCode,
+                ).isEqualTo(BankingErrorCode.RECORD_STOCK_LENDING_INCOME_TAX_MUST_BE_NON_NEGATIVE)
             }
 
         verify(investmentTransactionService, never()).record(any(), any(), any())

@@ -13,7 +13,6 @@ import jakarta.persistence.PersistenceContext
 import java.time.LocalDate
 import java.util.UUID
 
-
 @Singleton
 open class DefaultPortfolioQuotaRepository(
     private val entityRepository: PortfolioQuotaEntityRepository,
@@ -65,28 +64,31 @@ open class DefaultPortfolioQuotaRepository(
         if (financialAccountIds.isEmpty()) return emptyMap()
         val ids = financialAccountIds.toList()
         val placeholders = ids.indices.joinToString(", ") { "CAST(:p$it AS uuid)" }
-        val sql = """
+        val sql =
+            """
             SELECT financial_account_id, MIN(quota_date)
               FROM banking.investment_portfolio_quota
              WHERE financial_account_id IN ($placeholders)
                AND dimension_type = 'PORTFOLIO'
                AND dimension_key = ''
              GROUP BY financial_account_id
-        """.trimIndent()
+            """.trimIndent()
         val query = entityManager.createNativeQuery(sql)
         ids.forEachIndexed { i, id -> query.setParameter("p$i", id.toString()) }
         @Suppress("UNCHECKED_CAST")
         val rows = query.resultList as List<Array<Any?>>
         return rows.associate { row ->
-            val financialAccountId = when (val raw = row[0]) {
-                is UUID -> raw
-                else -> UUID.fromString(raw.toString())
-            }
-            val earliestDate = when (val raw = row[1]) {
-                is LocalDate -> raw
-                is java.sql.Date -> raw.toLocalDate()
-                else -> LocalDate.parse(raw.toString())
-            }
+            val financialAccountId =
+                when (val raw = row[0]) {
+                    is UUID -> raw
+                    else -> UUID.fromString(raw.toString())
+                }
+            val earliestDate =
+                when (val raw = row[1]) {
+                    is LocalDate -> raw
+                    is java.sql.Date -> raw.toLocalDate()
+                    else -> LocalDate.parse(raw.toString())
+                }
             financialAccountId to earliestDate
         }
     }
@@ -147,10 +149,11 @@ open class DefaultPortfolioQuotaRepository(
     }
 
     private fun buildBatchUpsertSql(size: Int): String {
-        val values = (0 until size).joinToString(",\n        ") { i ->
-            "(:financialAccountId$i, :dimensionType$i, :dimensionKey$i, :quotaDate$i, " +
-                ":quotaValue$i, :totalQuotas$i, :totalPortfolioValue$i, :hasEstimatedValues$i, NOW(), NOW())"
-        }
+        val values =
+            (0 until size).joinToString(",\n        ") { i ->
+                "(:financialAccountId$i, :dimensionType$i, :dimensionKey$i, :quotaDate$i, " +
+                    ":quotaValue$i, :totalQuotas$i, :totalPortfolioValue$i, :hasEstimatedValues$i, NOW(), NOW())"
+            }
         return """
             INSERT INTO banking.investment_portfolio_quota
                 (financial_account_id, dimension_type, dimension_key, quota_date,
@@ -165,7 +168,7 @@ open class DefaultPortfolioQuotaRepository(
                 total_portfolio_value = EXCLUDED.total_portfolio_value,
                 has_estimated_values  = EXCLUDED.has_estimated_values,
                 updated_at            = NOW()
-        """.trimIndent()
+            """.trimIndent()
     }
 
     override fun findByTenantAndDateRange(
@@ -202,7 +205,8 @@ open class DefaultPortfolioQuotaRepository(
                 "account_id = CAST(:accountId AS uuid)"
             }
 
-        val sql = """
+        val sql =
+            """
             WITH accounts AS (
                 SELECT id
                 FROM banking.financial_accounts
@@ -237,7 +241,7 @@ open class DefaultPortfolioQuotaRepository(
                 COALESCE(SUM(c.closing_value), 0) AS closing_portfolio_value
             FROM opening o
             FULL OUTER JOIN closing c USING (financial_account_id)
-        """.trimIndent()
+            """.trimIndent()
 
         val query = entityManager.createNativeQuery(sql)
         query.setParameter("accountId", accountId.toString())

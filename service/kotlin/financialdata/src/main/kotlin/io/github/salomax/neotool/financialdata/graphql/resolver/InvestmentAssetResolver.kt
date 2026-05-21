@@ -18,7 +18,6 @@ class InvestmentAssetResolver(
     private val assetSearchService: ListedAssetSearchService,
     private val mapper: ListedAssetMapper,
 ) {
-
     fun searchInvestmentAssetsAutocomplete(
         query: String,
         assetType: String?,
@@ -40,11 +39,12 @@ class InvestmentAssetResolver(
     }
 
     fun investmentAsset(id: String): ListedAssetDTO? {
-        val uuid = try {
-            UUID.fromString(id)
-        } catch (e: IllegalArgumentException) {
-            throw IllegalArgumentException("Invalid asset id: $id")
-        }
+        val uuid =
+            try {
+                UUID.fromString(id)
+            } catch (e: IllegalArgumentException) {
+                throw IllegalArgumentException("Invalid asset id: $id")
+            }
         return assetSearchService.findAssetById(uuid)?.let { mapper.toAssetDTO(it) }
     }
 

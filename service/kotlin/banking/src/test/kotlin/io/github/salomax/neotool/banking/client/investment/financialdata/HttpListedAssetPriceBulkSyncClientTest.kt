@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.github.salomax.neotool.common.service.ServiceTokenClient
+import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.assertj.core.api.Assertions.assertThat
@@ -14,7 +15,6 @@ import java.io.ByteArrayOutputStream
 import java.math.BigDecimal
 import java.time.LocalDate
 import java.util.zip.GZIPOutputStream
-import kotlinx.coroutines.runBlocking
 
 class HttpListedAssetPriceBulkSyncClientTest {
     private val serviceTokenClient: ServiceTokenClient = mock()
@@ -26,17 +26,23 @@ class HttpListedAssetPriceBulkSyncClientTest {
         mockServer.start(18093)
         try {
             runBlocking {
-                whenever(serviceTokenClient.getServiceToken("neotool-financial-data-service")).thenReturn("service-token")
+                whenever(
+                    serviceTokenClient.getServiceToken("neotool-financial-data-service"),
+                ).thenReturn("service-token")
             }
             mockServer.enqueue(
                 MockResponse()
                     .setResponseCode(200)
                     .addHeader("Content-Type", "application/x-ndjson")
                     .addHeader("Content-Encoding", "gzip")
-                    .setBody(gzipBody("""
-                        {"cursor":"cursor-1","ticker":"PETR4","isinCode":null,"date":"2026-01-31","closePrice":31.10,"updatedAt":"2026-04-08T10:00:00Z"}
-                        {"cursor":"cursor-2","ticker":"PETR4","isinCode":null,"date":"2026-02-28","closePrice":33.20,"updatedAt":"2026-04-08T10:00:01Z"}
-                    """.trimIndent()))
+                    .setBody(
+                        gzipBody(
+                            """
+                            {"cursor":"cursor-1","ticker":"PETR4","isinCode":null,"date":"2026-01-31","closePrice":31.10,"updatedAt":"2026-04-08T10:00:00Z"}
+                            {"cursor":"cursor-2","ticker":"PETR4","isinCode":null,"date":"2026-02-28","closePrice":33.20,"updatedAt":"2026-04-08T10:00:01Z"}
+                            """.trimIndent(),
+                        ),
+                    ),
             )
 
             val client =

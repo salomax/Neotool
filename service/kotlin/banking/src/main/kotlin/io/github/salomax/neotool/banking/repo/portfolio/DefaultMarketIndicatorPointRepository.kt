@@ -26,7 +26,8 @@ open class DefaultMarketIndicatorPointRepository(
         return entityRepository.findByKey(point.indicatorLabel, point.variationLabel, point.referenceDate)
             ?.let(MarketIndicatorPointMapper::toDomain)
             ?: throw IllegalStateException(
-                "Market indicator point upsert failed for ${point.indicatorLabel}/${point.variationLabel} @ ${point.referenceDate}",
+                "Market indicator point upsert failed for ${point.indicatorLabel}/" +
+                    "${point.variationLabel} @ ${point.referenceDate}",
             )
     }
 }

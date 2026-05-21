@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.statement
 
-import io.github.salomax.neotool.banking.domain.import.*
 import com.fasterxml.jackson.annotation.JsonProperty
 
 data class AssistantStatementPeriod(
@@ -27,6 +26,7 @@ data class AssistantStatementParserConfig(
 data class AssistantStatementExtractionMeta(
     @param:JsonProperty("bank_name") val bankName: String? = null,
     @param:JsonProperty("statement_period") val statementPeriod: AssistantStatementPeriod? = null,
-    @param:JsonProperty("parser_config") val parserConfig: AssistantStatementParserConfig = AssistantStatementParserConfig(),
+    @param:JsonProperty("parser_config") val parserConfig: AssistantStatementParserConfig =
+        AssistantStatementParserConfig(),
     @param:JsonProperty("warnings") val warnings: List<String> = emptyList(),
 )

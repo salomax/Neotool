@@ -1,9 +1,9 @@
 package io.github.salomax.neotool.banking.integration
 
 import io.github.salomax.neotool.banking.domain.import.ImportJob
-import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.github.salomax.neotool.banking.domain.import.ImportJobStatus
 import io.github.salomax.neotool.banking.domain.import.ImportSource
+import io.github.salomax.neotool.banking.repo.import.ImportJobRepository
 import io.micronaut.test.extensions.junit5.annotation.MicronautTest
 import jakarta.inject.Inject
 import org.assertj.core.api.Assertions.assertThat

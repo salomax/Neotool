@@ -291,8 +291,12 @@ class LlmBankingReaderRequestedRoutingServiceTest {
             verify(completionService).generateCompletion(inputCaptor.capture(), eq(request.callback_context.account_id))
         }
         assertThat(inputCaptor.firstValue.purpose).isEqualTo("banking_reader_bank_statement")
-        assertThat(inputCaptor.firstValue.messages.first().content).contains("A single date heading may apply to multiple consecutive transaction blocks")
-        assertThat(inputCaptor.firstValue.messages.first().content).contains("Do not merge adjacent PIX/TED/transfer transactions that share the same day")
+        assertThat(
+            inputCaptor.firstValue.messages.first().content,
+        ).contains("A single date heading may apply to multiple consecutive transaction blocks")
+        assertThat(
+            inputCaptor.firstValue.messages.first().content,
+        ).contains("Do not merge adjacent PIX/TED/transfer transactions that share the same day")
         assertThat(inputCaptor.firstValue.messages.first().content).contains("Do NOT extract final transactions")
         assertThat(inputCaptor.firstValue.messages.first().content).contains("parser_config")
 

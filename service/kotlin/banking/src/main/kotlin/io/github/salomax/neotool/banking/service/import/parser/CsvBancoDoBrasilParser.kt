@@ -1,15 +1,14 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
+import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import io.github.salomax.neotool.banking.service.import.parser.csv.BankCsvReader
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvAmountPattern
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvDatePattern
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvFingerprint
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvParserSupport
 import io.github.salomax.neotool.banking.service.import.parser.csv.CsvReaderMatch
-import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
 
 /**
  * Reader for Banco do Brasil account statement CSV layout.

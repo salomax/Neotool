@@ -20,58 +20,56 @@ import java.util.UUID
  */
 data class Holding(
     val id: UUID? = null,
-
     // Ownership
-    val financialAccountId: UUID,         // The custodian account (type = INVESTMENT)
+    // The custodian account (type = INVESTMENT)
+    val financialAccountId: UUID,
     val accountId: UUID,
-
     // Asset reference
     val assetId: UUID,
-
     // ── Position ──────────────────────────────────────────────────────────────
     // quantity >= 0. When 0, the position is closed (row is kept for history).
     val quantity: BigDecimal,
-
     // averageCost: weighted average purchase price per unit (custo médio ponderado).
     // Recalculated by the service on every PURCHASE and SALE.
     val averageCost: BigDecimal = BigDecimal.ZERO,
-
     // ── Fixed income position-specific terms ──────────────────────────────────
     // Null for equities, FIIs, ETFs, BDRs.
     val indexer: Indexer? = null,
-    val indexerPercentage: BigDecimal? = null,  // 1.15 = 115% CDI
-    val fixedAnnualRate: BigDecimal? = null,    // Fixed leg / spread / pre-fixed total, depending on indexer
+    // 1.15 = 115% CDI
+    val indexerPercentage: BigDecimal? = null,
+    // Fixed leg / spread / pre-fixed total, depending on indexer
+    val fixedAnnualRate: BigDecimal? = null,
     val issueDate: LocalDate? = null,
     val maturityDate: LocalDate? = null,
     val gracePeriodDate: LocalDate? = null,
-    val isTaxExempt: Boolean = false,           // LCI, LCA, CRI, CRA are exempt for PF
+    // LCI, LCA, CRI, CRA are exempt for PF
+    val isTaxExempt: Boolean = false,
     val couponFrequency: CouponFrequency? = null,
     /** Day of month (1–31) on which coupon cash settles. Null for AT_MATURITY and Tesouro (BR-P2-5). */
     val couponDayOfMonth: Int? = null,
-
     // ── Provider-cached valuations ────────────────────────────────────────────
     // Updated on Open Finance sync. Null until first sync.
-    val grossValue: BigDecimal? = null,          // quantity × current gross unit price
-    val netValue: BigDecimal? = null,            // grossValue − incomeTax − iof
-    val incomeTax: BigDecimal? = null,           // IR provisionado
-    val iof: BigDecimal? = null,                 // IOF provisionado (redemptions < 30 days)
+    // quantity × current gross unit price
+    val grossValue: BigDecimal? = null,
+    // grossValue − incomeTax − iof
+    val netValue: BigDecimal? = null,
+    // IR provisionado
+    val incomeTax: BigDecimal? = null,
+    // IOF provisionado (redemptions < 30 days)
+    val iof: BigDecimal? = null,
     val lastValuedAt: Instant? = null,
-
     // ── Manual fund valuation ────────────────────────────────────────────────
     val pricingMode: HoldingPricingMode? = null,
     val manualGrossValue: BigDecimal? = null,
     val manualValuedAt: LocalDate? = null,
-
     // ── Provenance ────────────────────────────────────────────────────────────
     val source: InvestmentSource = InvestmentSource.MANUAL,
-    val providerInvestmentId: String? = null,   // OFB investmentId / Pluggy id / Belvo id
-
+    // OFB investmentId / Pluggy id / Belvo id
+    val providerInvestmentId: String? = null,
     val deletedAt: Instant? = null,
-
     /** Set when the position is fully closed with an explicit reason (maturity, early redemption, transfer). */
     val closedAt: LocalDate? = null,
     val closeReason: HoldingCloseReason? = null,
-
     val createdAt: Instant = Instant.now(),
     val updatedAt: Instant = Instant.now(),
 )

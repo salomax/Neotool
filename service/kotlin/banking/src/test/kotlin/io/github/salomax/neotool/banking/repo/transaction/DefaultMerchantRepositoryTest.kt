@@ -28,7 +28,9 @@ class DefaultMerchantRepositoryTest {
     fun `searchForAccount applies case-insensitive contains search`() {
         val searchLikePattern = "%uber%"
         whenever(merchantEntityRepository.countForAccountBySearchLike(accountId, searchLikePattern)).thenReturn(2)
-        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21)).thenReturn(
+        whenever(
+            merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21),
+        ).thenReturn(
             listOf(
                 entity(name = "Uber"),
                 entity(name = "Uber Eats"),
@@ -46,7 +48,9 @@ class DefaultMerchantRepositoryTest {
     fun `searchForAccount returns empty page when no match`() {
         val searchLikePattern = "%uber%"
         whenever(merchantEntityRepository.countForAccountBySearchLike(accountId, searchLikePattern)).thenReturn(0)
-        whenever(merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21)).thenReturn(emptyList())
+        whenever(
+            merchantEntityRepository.searchPageForAccount(accountId, searchLikePattern, null, null, 21),
+        ).thenReturn(emptyList())
 
         val page = repository.searchForAccount(accountId, "uber", null, 20)
 

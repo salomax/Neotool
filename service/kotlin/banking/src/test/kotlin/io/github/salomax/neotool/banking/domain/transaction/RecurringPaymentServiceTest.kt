@@ -24,11 +24,12 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `computeNextDueDate MONTHLY clamps Jan 31 to Feb end`() {
-        val template = recurringTemplate(
-            frequency = RecurringFrequency.MONTHLY,
-            dayOfMonth = 31,
-            nextDueDate = LocalDate.of(2025, 1, 31),
-        )
+        val template =
+            recurringTemplate(
+                frequency = RecurringFrequency.MONTHLY,
+                dayOfMonth = 31,
+                nextDueDate = LocalDate.of(2025, 1, 31),
+            )
 
         val next = service.computeNextDueDate(template)
 
@@ -37,11 +38,12 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `computeNextDueDate MONTHLY clamps Mar 31 to Apr 30`() {
-        val template = recurringTemplate(
-            frequency = RecurringFrequency.MONTHLY,
-            dayOfMonth = 31,
-            nextDueDate = LocalDate.of(2025, 3, 31),
-        )
+        val template =
+            recurringTemplate(
+                frequency = RecurringFrequency.MONTHLY,
+                dayOfMonth = 31,
+                nextDueDate = LocalDate.of(2025, 3, 31),
+            )
 
         val next = service.computeNextDueDate(template)
 
@@ -50,11 +52,12 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `computeNextDueDate WEEKLY uses weekly default interval`() {
-        val template = recurringTemplate(
-            frequency = RecurringFrequency.WEEKLY,
-            intervalDays = null,
-            nextDueDate = LocalDate.of(2025, 3, 1),
-        )
+        val template =
+            recurringTemplate(
+                frequency = RecurringFrequency.WEEKLY,
+                intervalDays = null,
+                nextDueDate = LocalDate.of(2025, 3, 1),
+            )
 
         val next = service.computeNextDueDate(template)
 
@@ -63,11 +66,12 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `computeNextDueDate CUSTOM uses provided intervalDays`() {
-        val template = recurringTemplate(
-            frequency = RecurringFrequency.CUSTOM,
-            intervalDays = 14,
-            nextDueDate = LocalDate.of(2025, 3, 1),
-        )
+        val template =
+            recurringTemplate(
+                frequency = RecurringFrequency.CUSTOM,
+                intervalDays = 14,
+                nextDueDate = LocalDate.of(2025, 3, 1),
+            )
 
         val next = service.computeNextDueDate(template)
 
@@ -76,12 +80,13 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `confirmPayment on due date advances one cycle`() {
-        val template = recurringTemplate(
-            id = UUID.randomUUID(),
-            frequency = RecurringFrequency.MONTHLY,
-            dayOfMonth = 10,
-            nextDueDate = LocalDate.of(2025, 5, 10),
-        )
+        val template =
+            recurringTemplate(
+                id = UUID.randomUUID(),
+                frequency = RecurringFrequency.MONTHLY,
+                dayOfMonth = 10,
+                nextDueDate = LocalDate.of(2025, 5, 10),
+            )
         val updateCaptor = argumentCaptor<RecurringPayment>()
         whenever(repository.update(updateCaptor.capture())).thenAnswer { it.arguments[0] as RecurringPayment }
 
@@ -94,12 +99,13 @@ class RecurringPaymentServiceTest {
 
     @Test
     fun `confirmPayment for delayed payment advances multiple cycles`() {
-        val template = recurringTemplate(
-            id = UUID.randomUUID(),
-            frequency = RecurringFrequency.MONTHLY,
-            dayOfMonth = 10,
-            nextDueDate = LocalDate.of(2025, 5, 10),
-        )
+        val template =
+            recurringTemplate(
+                id = UUID.randomUUID(),
+                frequency = RecurringFrequency.MONTHLY,
+                dayOfMonth = 10,
+                nextDueDate = LocalDate.of(2025, 5, 10),
+            )
         val updateCaptor = argumentCaptor<RecurringPayment>()
         whenever(repository.update(updateCaptor.capture())).thenAnswer { it.arguments[0] as RecurringPayment }
 

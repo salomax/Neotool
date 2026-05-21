@@ -1,9 +1,8 @@
 package io.github.salomax.neotool.banking.service.import.parser
 
-import io.github.salomax.neotool.banking.domain.import.*
-import io.github.salomax.neotool.banking.model.dto.imports.OfxParseResult
 import io.github.salomax.neotool.banking.domain.import.ParsedTransaction
 import io.github.salomax.neotool.banking.domain.transaction.CreditDebitType
+import io.github.salomax.neotool.banking.model.dto.imports.OfxParseResult
 import org.w3c.dom.Document
 import org.w3c.dom.Node
 import java.math.BigDecimal
@@ -129,7 +128,11 @@ object OFXParser {
             val doc = builder.parse(bytes.inputStream())
             ParsedOfxDocument(
                 rows = extractStmtTrnFromDocument(doc),
-                accountIdentifier = doc.firstTagText("CCACCTFROM", "ACCTID") ?: doc.firstTagText("BANKACCTFROM", "ACCTID"),
+                accountIdentifier =
+                    doc.firstTagText(
+                        "CCACCTFROM",
+                        "ACCTID",
+                    ) ?: doc.firstTagText("BANKACCTFROM", "ACCTID"),
                 statementFrom = doc.firstTagText("BANKTRANLIST", "DTSTART")?.let(::parseOfxDateOnly),
                 statementTo = doc.firstTagText("BANKTRANLIST", "DTEND")?.let(::parseOfxDateOnly),
             )
@@ -178,7 +181,10 @@ object OFXParser {
     private fun extractSgmlTagValue(
         text: String,
         tag: String,
-    ): String? = Regex("(?is)<$tag>\\s*([^<\\r\\n]+)").find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
+    ): String? =
+        Regex(
+            "(?is)<$tag>\\s*([^<\\r\\n]+)",
+        ).find(text)?.groupValues?.get(1)?.trim()?.takeIf { it.isNotEmpty() }
 
     private fun mapToParsedTransaction(map: Map<String, String>): ParsedTransaction? {
         val dtPosted = map["DTPOSTED"] ?: return null
@@ -236,8 +242,7 @@ object OFXParser {
         }
     }
 
-    private fun parseOfxDateOnly(value: String): LocalDate? =
-        runCatching { parseDtPosted(value).first }.getOrNull()
+    private fun parseOfxDateOnly(value: String): LocalDate? = runCatching { parseDtPosted(value).first }.getOrNull()
 
     private fun Document.firstTagText(
         parentTag: String,

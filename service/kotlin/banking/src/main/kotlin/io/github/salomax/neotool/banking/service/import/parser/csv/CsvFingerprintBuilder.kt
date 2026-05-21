@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.service.import.parser.csv
 
-import io.github.salomax.neotool.banking.domain.import.*
 import io.github.salomax.neotool.banking.model.domain.imports.ImportTextDecoder
 import java.text.Normalizer
 import kotlin.math.max

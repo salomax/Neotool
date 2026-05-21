@@ -28,12 +28,20 @@ open class DefaultProductRepository(
         accountId: UUID,
         search: String?,
         category: String?,
-    ): List<Product> = entityRepository.listForAccount(accountId, search?.trim(), category?.trim()).map(ProductMapper::toDomain)
+    ): List<Product> =
+        entityRepository.listForAccount(
+            accountId,
+            search?.trim(),
+            category?.trim(),
+        ).map(ProductMapper::toDomain)
 
     override fun findByName(
         accountId: UUID,
         name: String,
     ): Product? = entityRepository.findByAccountIdAndExactName(accountId, name.trim())?.let(ProductMapper::toDomain)
 
-    override fun save(product: Product): Product = entityRepository.save(ProductMapper.toEntity(product)).let(ProductMapper::toDomain)
+    override fun save(product: Product): Product =
+        entityRepository.save(
+            ProductMapper.toEntity(product),
+        ).let(ProductMapper::toDomain)
 }

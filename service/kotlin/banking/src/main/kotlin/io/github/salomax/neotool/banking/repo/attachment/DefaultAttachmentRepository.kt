@@ -1,9 +1,7 @@
 package io.github.salomax.neotool.banking.repo.attachment
 
 import io.github.salomax.neotool.banking.domain.attachment.HoldingAttachment
-import io.github.salomax.neotool.banking.repo.attachment.HoldingAttachmentRepository
 import io.github.salomax.neotool.banking.domain.attachment.TransactionAttachment
-import io.github.salomax.neotool.banking.repo.attachment.TransactionAttachmentRepository
 import io.github.salomax.neotool.banking.model.attachment.HoldingAttachmentMapper
 import io.github.salomax.neotool.banking.model.attachment.TransactionAttachmentMapper
 import io.micronaut.transaction.annotation.Transactional
@@ -14,24 +12,34 @@ import java.util.UUID
 open class DefaultTransactionAttachmentRepository(
     private val entityRepository: TransactionAttachmentEntityRepository,
 ) : TransactionAttachmentRepository {
-
-    override fun findByTransactionId(transactionId: UUID, accountId: UUID): List<TransactionAttachment> =
+    override fun findByTransactionId(
+        transactionId: UUID,
+        accountId: UUID,
+    ): List<TransactionAttachment> =
         entityRepository.findByTransactionIdAndAccountId(transactionId, accountId)
             .map(TransactionAttachmentMapper::toDomain)
 
-    override fun findByTransactionIds(transactionIds: Collection<UUID>, accountId: UUID): Map<UUID, List<TransactionAttachment>> {
+    override fun findByTransactionIds(
+        transactionIds: Collection<UUID>,
+        accountId: UUID,
+    ): Map<UUID, List<TransactionAttachment>> {
         if (transactionIds.isEmpty()) return emptyMap()
         return entityRepository.findByTransactionIdInAndAccountId(transactionIds, accountId)
             .map(TransactionAttachmentMapper::toDomain)
             .groupBy { it.transactionId }
     }
 
-    override fun findById(id: UUID, accountId: UUID): TransactionAttachment? =
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): TransactionAttachment? =
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(TransactionAttachmentMapper::toDomain)
 
-    override fun countByTransactionId(transactionId: UUID, accountId: UUID): Int =
-        entityRepository.countByTransactionIdAndAccountId(transactionId, accountId)
+    override fun countByTransactionId(
+        transactionId: UUID,
+        accountId: UUID,
+    ): Int = entityRepository.countByTransactionIdAndAccountId(transactionId, accountId)
 
     @Transactional
     override fun save(attachment: TransactionAttachment): TransactionAttachment {
@@ -40,25 +48,34 @@ open class DefaultTransactionAttachmentRepository(
     }
 
     @Transactional
-    override fun delete(id: UUID, accountId: UUID): Boolean =
-        entityRepository.deleteByIdAndAccountId(id, accountId) > 0
+    override fun delete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean = entityRepository.deleteByIdAndAccountId(id, accountId) > 0
 }
 
 @Singleton
 open class DefaultHoldingAttachmentRepository(
     private val entityRepository: HoldingAttachmentEntityRepository,
 ) : HoldingAttachmentRepository {
-
-    override fun findByHoldingId(holdingId: UUID, accountId: UUID): List<HoldingAttachment> =
+    override fun findByHoldingId(
+        holdingId: UUID,
+        accountId: UUID,
+    ): List<HoldingAttachment> =
         entityRepository.findByHoldingIdAndAccountId(holdingId, accountId)
             .map(HoldingAttachmentMapper::toDomain)
 
-    override fun findById(id: UUID, accountId: UUID): HoldingAttachment? =
+    override fun findById(
+        id: UUID,
+        accountId: UUID,
+    ): HoldingAttachment? =
         entityRepository.findByIdAndAccountId(id, accountId)
             ?.let(HoldingAttachmentMapper::toDomain)
 
-    override fun countByHoldingId(holdingId: UUID, accountId: UUID): Int =
-        entityRepository.countByHoldingIdAndAccountId(holdingId, accountId)
+    override fun countByHoldingId(
+        holdingId: UUID,
+        accountId: UUID,
+    ): Int = entityRepository.countByHoldingIdAndAccountId(holdingId, accountId)
 
     @Transactional
     override fun save(attachment: HoldingAttachment): HoldingAttachment {
@@ -67,11 +84,16 @@ open class DefaultHoldingAttachmentRepository(
     }
 
     @Transactional
-    override fun delete(id: UUID, accountId: UUID): Boolean =
-        entityRepository.deleteByIdAndAccountId(id, accountId) > 0
+    override fun delete(
+        id: UUID,
+        accountId: UUID,
+    ): Boolean = entityRepository.deleteByIdAndAccountId(id, accountId) > 0
 
     @Transactional
-    override fun deleteByHoldingIdAndAccountId(holdingId: UUID, accountId: UUID): Int =
+    override fun deleteByHoldingIdAndAccountId(
+        holdingId: UUID,
+        accountId: UUID,
+    ): Int =
         entityRepository.findByHoldingIdAndAccountId(holdingId, accountId).sumOf { entity ->
             val attachmentId = requireNotNull(entity.id) { "holding attachment id must not be null" }
             entityRepository.deleteByIdAndAccountId(attachmentId, accountId)

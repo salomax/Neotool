@@ -1,6 +1,5 @@
 package io.github.salomax.neotool.banking.client.investment.financialdata
 
-import io.github.salomax.neotool.banking.client.investment.financialdata.FundMarketDataProvider
 import io.github.salomax.neotool.banking.domain.investment.FundMarketNav
 import io.github.salomax.neotool.banking.domain.investment.FundMarketSnapshot
 import io.github.salomax.neotool.banking.domain.investment.FundTaxProfile
@@ -106,21 +105,24 @@ class FinancialDataFundMarketDataProvider(
             val item = raw as? Map<*, *> ?: return@mapNotNull null
             val cnpj = item["cnpj"] as? String ?: return@mapNotNull null
             val latestNav = item["latestNav"] as? Map<*, *>
-            cnpj to FundMarketSnapshot(
-                fundCnpj = cnpj,
-                assetType = item["assetType"] as? String ?: "UNKNOWN",
-                taxProfile = (item["taxProfile"] as? String)?.let {
-                    runCatching { FundTaxProfile.valueOf(it) }.getOrDefault(FundTaxProfile.UNKNOWN)
-                } ?: FundTaxProfile.UNKNOWN,
-                latestNav = latestNav?.let {
-                    val date = it["date"] as? String ?: return@let null
-                    val closePrice = it["closePrice"] as? Number ?: return@let null
-                    FundMarketNav(
-                        date = LocalDate.parse(date, DateTimeFormatter.ISO_DATE),
-                        closePrice = BigDecimal(closePrice.toString()),
-                    )
-                },
-            )
+            cnpj to
+                FundMarketSnapshot(
+                    fundCnpj = cnpj,
+                    assetType = item["assetType"] as? String ?: "UNKNOWN",
+                    taxProfile =
+                        (item["taxProfile"] as? String)?.let {
+                            runCatching { FundTaxProfile.valueOf(it) }.getOrDefault(FundTaxProfile.UNKNOWN)
+                        } ?: FundTaxProfile.UNKNOWN,
+                    latestNav =
+                        latestNav?.let {
+                            val date = it["date"] as? String ?: return@let null
+                            val closePrice = it["closePrice"] as? Number ?: return@let null
+                            FundMarketNav(
+                                date = LocalDate.parse(date, DateTimeFormatter.ISO_DATE),
+                                closePrice = BigDecimal(closePrice.toString()),
+                            )
+                        },
+                )
         }.toMap().also {
             if (it.isEmpty()) {
                 logger.debug { "No fund market snapshots returned for ${cnpjs.size} CNPJs" }

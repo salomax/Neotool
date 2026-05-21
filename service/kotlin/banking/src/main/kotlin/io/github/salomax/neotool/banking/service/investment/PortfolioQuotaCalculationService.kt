@@ -3,6 +3,7 @@ package io.github.salomax.neotool.banking.service.investment
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioFlowEvent
 import io.github.salomax.neotool.banking.domain.portfolio.InvestmentPortfolioQuota
 import io.github.salomax.neotool.banking.domain.portfolio.PortfolioDimensionType
+import io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType
 import jakarta.inject.Singleton
 import java.math.BigDecimal
 import java.math.RoundingMode
@@ -207,12 +208,12 @@ class PortfolioQuotaCalculationService {
 
     private fun signedFlowAmount(event: InvestmentPortfolioFlowEvent): BigDecimal =
         when (event.eventType) {
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DEPOSIT -> event.grossAmount
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.WITHDRAWAL,
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.INCOME_TAX,
+            PortfolioFlowEventType.DEPOSIT -> event.grossAmount
+            PortfolioFlowEventType.WITHDRAWAL,
+            PortfolioFlowEventType.INCOME_TAX,
             -> event.grossAmount.negate()
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.DIVIDEND -> event.grossAmount.negate()
-            io.github.salomax.neotool.banking.domain.portfolio.PortfolioFlowEventType.CORPORATE_ACTION -> BigDecimal.ZERO
+            PortfolioFlowEventType.DIVIDEND -> event.grossAmount.negate()
+            PortfolioFlowEventType.CORPORATE_ACTION -> BigDecimal.ZERO
         }
 
     private companion object {

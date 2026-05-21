@@ -4,10 +4,10 @@ import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketData
 import io.github.salomax.neotool.banking.domain.investment.ListedAssetMarketDataProvider
 import io.github.salomax.neotool.common.service.GraphQLResponse
 import io.github.salomax.neotool.common.service.GraphQLServiceClient
+import jakarta.inject.Singleton
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
-import jakarta.inject.Singleton
 import kotlinx.coroutines.runBlocking
 import mu.KotlinLogging
 import java.math.BigDecimal
@@ -21,6 +21,7 @@ class FinancialDataListedAssetMarketDataProvider(
 ) : ListedAssetMarketDataProvider {
     private val logger = KotlinLogging.logger {}
     private val cache = ConcurrentHashMap<String, CachedAssetData>()
+
     @Volatile
     private var bulkQuerySupport = BulkQuerySupport.UNKNOWN
 
@@ -91,7 +92,10 @@ class FinancialDataListedAssetMarketDataProvider(
         val items = response.data?.get("investmentAssetsByTickers") as? List<*>
         if (items != null) {
             if (!response.errors.isNullOrEmpty()) {
-                logger.warn { "Bulk listed asset query returned GraphQL errors with partial data; using available listed-asset data" }
+                logger.warn {
+                    "Bulk listed asset query returned GraphQL errors with partial data; " +
+                        "using available listed-asset data"
+                }
             }
             bulkQuerySupport = BulkQuerySupport.SUPPORTED
             return items.mapNotNull(::parseListedAssetData).toMap()
@@ -99,7 +103,10 @@ class FinancialDataListedAssetMarketDataProvider(
 
         if (response.isBulkQueryUnsupported()) {
             bulkQuerySupport = BulkQuerySupport.UNSUPPORTED
-            logger.warn { "Bulk listed asset query is unavailable in the current GraphQL schema; falling back to per-ticker lookups" }
+            logger.warn {
+                "Bulk listed asset query is unavailable in the current GraphQL schema; " +
+                    "falling back to per-ticker lookups"
+            }
             return null
         }
 
@@ -166,12 +173,13 @@ class FinancialDataListedAssetMarketDataProvider(
         val closePrice = latestPrice?.get("closePrice") as? Number
 
         return runCatching {
-            resolvedTicker to ListedAssetMarketData(
-                ticker = resolvedTicker,
-                closePrice = closePrice?.let { BigDecimal(it.toString()) },
-                referenceDate = priceDate?.let { LocalDate.parse(it, DateTimeFormatter.ISO_DATE) },
-                logoAssetId = logoAssetId,
-            )
+            resolvedTicker to
+                ListedAssetMarketData(
+                    ticker = resolvedTicker,
+                    closePrice = closePrice?.let { BigDecimal(it.toString()) },
+                    referenceDate = priceDate?.let { LocalDate.parse(it, DateTimeFormatter.ISO_DATE) },
+                    logoAssetId = logoAssetId,
+                )
         }.onFailure { error ->
             logger.warn(error) { "Failed to parse listed asset data for ticker $resolvedTicker" }
         }.getOrNull()
@@ -190,7 +198,7 @@ class FinancialDataListedAssetMarketDataProvider(
                     message.contains("Cannot query field", ignoreCase = true) ||
                         message.contains("validation error", ignoreCase = true) ||
                         message.contains("validation failed", ignoreCase = true)
-                    )
+                )
         }
 
     private companion object {
