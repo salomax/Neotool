@@ -46,6 +46,7 @@ export const FIXED_INCOME_HOLDING_DETAIL = gql`
       financialAccount {
         id
         name
+        currencyCode
         issuerName
         issuer {
           id

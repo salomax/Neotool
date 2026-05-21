@@ -563,10 +563,8 @@ export function InvestmentHoldingDetailDrawer({
         : t("investments.detailDrawer.timeline.outflowLabel");
     const tradeDateLabel = formatLocalDate(deletingTransaction.tradeDate, locale, { dateStyle: "medium" });
     const currencyCode =
-      fixedIncomeViewModel?.currencyCode ??
-      fundViewModel?.currencyCode ??
-      fixedIncomeData?.investmentHolding?.asset.currencyCode ??
-      fundData?.investmentHolding?.asset.currencyCode ??
+      fundData?.investmentHolding?.financialAccount?.currencyCode ??
+      fixedIncomeData?.investmentHolding?.financialAccount?.currencyCode ??
       "BRL";
     const valueLabel = new Intl.NumberFormat(locale, { style: "currency", currency: currencyCode }).format(
       deletingTransaction.grossValue,
@@ -574,10 +572,8 @@ export function InvestmentHoldingDetailDrawer({
     return `${directionLabel} · ${tradeDateLabel} · ${valueLabel}`;
   }, [
     deletingTransaction,
-    fixedIncomeData?.investmentHolding?.asset.currencyCode,
-    fixedIncomeViewModel?.currencyCode,
-    fundData?.investmentHolding?.asset.currencyCode,
-    fundViewModel?.currencyCode,
+    fixedIncomeData?.investmentHolding?.financialAccount?.currencyCode,
+    fundData?.investmentHolding?.financialAccount?.currencyCode,
     locale,
     t,
   ]);
@@ -835,10 +831,8 @@ export function InvestmentHoldingDetailDrawer({
   }, [actionHoldingRow, editorAsset, editorAssetClass, onOpenTransactionEditor]);
 
   const movementCurrencyCode =
-    fixedIncomeViewModel?.currencyCode ??
-    fundViewModel?.currencyCode ??
-    fixedIncomeData?.investmentHolding?.asset.currencyCode ??
-    fundData?.investmentHolding?.asset.currencyCode ??
+    fundData?.investmentHolding?.financialAccount?.currencyCode ??
+    fixedIncomeData?.investmentHolding?.financialAccount?.currencyCode ??
     "BRL";
 
   const buyDirectionLabel =

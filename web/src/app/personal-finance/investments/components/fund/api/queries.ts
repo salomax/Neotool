@@ -22,6 +22,7 @@ export const FUND_HOLDING_DETAIL = gql`
       financialAccount {
         id
         name
+        currencyCode
         issuer {
           id
           name

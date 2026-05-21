@@ -18,7 +18,7 @@ import {
   useTheme,
 } from '@mui/material';
 import type { Theme } from '@mui/material/styles';
-import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
+import { Amount } from '@/shared/components/ui/data-display';
 import { EmptyState } from '@/shared/components/ui/feedback';
 import { Label } from '@/shared/components/ui/primitives/Label';
 import { useTranslation } from '@/shared/i18n';
@@ -171,6 +171,13 @@ export function MovimentacoesTab({
               {sortedTransactions.map((transaction, index) => {
                 const isFirst = index === 0;
                 const isLast = index === sortedTransactions.length - 1;
+                const rawValue = transaction.netValue ?? transaction.grossValue;
+                const signedValue =
+                  typeof rawValue === 'number' && Number.isFinite(rawValue)
+                    ? transaction.direction === 'INFLOW'
+                      ? Math.abs(rawValue)
+                      : -Math.abs(rawValue)
+                    : null;
                 return (
                   <TableRow
                     key={transaction.id}
@@ -197,19 +204,23 @@ export function MovimentacoesTab({
                       </Typography>
                     </TableCell>
                     <TableCell align="right">
-                      <CurrencyAmountParts
+                      <Amount
                         value={transaction.unitPrice ?? null}
                         currency={currencyCode}
                         locale={locale}
                         variant="body2"
+                        fontWeight="regular"
+                        tone="neutral"
                       />
                     </TableCell>
                     <TableCell align="right">
-                      <CurrencyAmountParts
-                        value={transaction.netValue ?? transaction.grossValue}
+                      <Amount
+                        value={signedValue}
                         currency={currencyCode}
                         locale={locale}
                         variant="body2"
+                        fontWeight="medium"
+                        tone={transaction.direction === 'INFLOW' ? 'positive' : 'negative'}
                       />
                     </TableCell>
                     <TableCell align="center" padding="none" sx={{ px: 1 }}>
