@@ -3,7 +3,7 @@
 import * as React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Divider, Stack, Tab, TextField, Typography } from "@mui/material";
-import { Controller, FormProvider, useForm } from "react-hook-form";
+import { Controller, FormProvider, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 import { AssetType } from "@/lib/graphql/types/__generated__/graphql";
 import { FormStack } from "@/shared/components/ui/forms/components/FormStack";
@@ -103,7 +103,7 @@ export function FundAssetGate({ onContinue, onCancel }: NewHoldingSelectGateProp
     defaultValues,
   });
 
-  const listingMode = methods.watch("listingMode");
+  const listingMode = useWatch({ control: methods.control, name: "listingMode" });
 
   const formId = "fund-asset-gate-form";
 

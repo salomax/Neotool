@@ -173,9 +173,7 @@ describe('InlineTransactionForm — create validation', () => {
     await user.click(screen.getByTestId('tx-save-btn'));
 
     expect(createTransaction).not.toHaveBeenCalled();
-    expect(
-      screen.getByTestId('inline-transaction-form').querySelector('[data-field-error="description"]'),
-    ).toBeTruthy();
+    expect(screen.getByTestId('tx-description-input')).toHaveAttribute('aria-invalid', 'true');
     expect(screen.getByText('financeTransactions.validation.required')).toBeInTheDocument();
   });
 });

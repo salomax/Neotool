@@ -16,8 +16,19 @@ const mockToast = {
 };
 
 vi.mock('@apollo/client/react', () => ({
+  useQuery: vi.fn(() => ({
+    data: {
+      financialAccounts: [],
+      transactionCategories: [],
+    },
+    loading: false,
+    error: null,
+  })),
   useMutation: vi.fn(() => [vi.fn(), { loading: false, error: null }]),
-  useLazyQuery: vi.fn(() => [vi.fn(), { loading: false, data: null, error: null }]),
+  useLazyQuery: vi.fn(() => [
+    vi.fn().mockResolvedValue({ data: {} }),
+    { loading: false, data: null, error: null },
+  ]),
   useApolloClient: vi.fn(() => ({
     readQuery: vi.fn(() => {
       throw new Error('no cache');
@@ -60,6 +71,7 @@ vi.mock('../../../components/FilePreviewDialog', () => ({
 
 vi.mock('@/shared/components/ui/feedback', () => ({
   ConfirmationDialog: () => null,
+  ErrorAlert: ({ error }: { error?: Error | null }) => (error ? <div>{error.message}</div> : null),
 }));
 
 vi.mock('../SimilarEditDialog', () => ({
@@ -96,7 +108,13 @@ describe.sequential('TransactionTable', () => {
     vi.clearAllMocks();
     lastRuleDrawerProps = null;
     lastApplyDialogProps = null;
-    vi.mocked(mockUseLazyQuery).mockImplementation(() => [vi.fn(), { loading: false, data: null, error: null }] as any);
+    vi.mocked(mockUseLazyQuery).mockImplementation(
+      () =>
+        [
+          vi.fn().mockResolvedValue({ data: {} }),
+          { loading: false, data: null, error: null },
+        ] as any,
+    );
   });
 
   it('renders table with accessible name and makes +N tags control focusable', () => {

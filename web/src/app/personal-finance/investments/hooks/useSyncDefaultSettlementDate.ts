@@ -31,7 +31,7 @@ export function useSyncDefaultSettlementDate<TFieldValues extends FieldValues>({
     const next = coerceInvestmentSettlementDate(assetKind, tradeDate, undefined);
     setValue(settlementField, next as never, {
       shouldDirty: false,
-      shouldValidate: true,
+      shouldValidate: false,
     });
   }, [assetKind, enabled, settlementField, setValue, tradeDate]);
 }

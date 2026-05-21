@@ -803,7 +803,7 @@ export function RecordFixedIncomeDrawer({
                 settlementDateTestId="record-settlement-date"
               />
 
-              <FormRowStack alignItems="flex-start">
+              <FormRowStack alignItems="flex-end">
                 <Box sx={{ flex: 1, minWidth: 0 }}>
                   <DatePickerField
                     name="maturityDate"
@@ -812,6 +812,13 @@ export function RecordFixedIncomeDrawer({
                     minDate={watchedTradeDate}
                     maxDate={maxMaturityDate.toDate()}
                     data-testid="record-maturity-date"
+                  />
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <CheckboxField
+                    name="isTaxExempt"
+                    label={t("investments.recordHolding.fields.isTaxExempt")}
+                    data-testid="record-tax-exempt-checkbox"
                   />
                 </Box>
               </FormRowStack>
@@ -841,12 +848,6 @@ export function RecordFixedIncomeDrawer({
                   />
                 </Box>
               </FormRowStack>
-
-              <CheckboxField
-                name="isTaxExempt"
-                label={t("investments.recordHolding.fields.isTaxExempt")}
-                data-testid="record-tax-exempt-checkbox"
-              />
 
               <Divider />
 

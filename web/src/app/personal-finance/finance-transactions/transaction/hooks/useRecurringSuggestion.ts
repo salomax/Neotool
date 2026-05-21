@@ -72,7 +72,7 @@ export function useRecurringSuggestion({
     return () => {
       cancelled = true;
     };
-  }, [menuTransaction?.id, fetchRecurringSuggestion]);
+  }, [menuTransaction, fetchRecurringSuggestion]);
 
   const handleLinkRecurringPayment = useCallback(async (tx: Transaction, recurringPaymentId: string) => {
     if (!tx.id) return;

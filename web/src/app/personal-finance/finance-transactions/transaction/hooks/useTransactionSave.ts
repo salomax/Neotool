@@ -234,6 +234,7 @@ export function useTransactionSave({
   const handleSave = useCallback(async () => {
     setSubmitAttempted(true);
     if (hasFieldErrors(validationErrors)) return;
+    if (amount === undefined || date === null) return;
 
     const isTransferIn = creditDebitType === 'TRANSFER_IN';
     const isTransferOut = creditDebitType === 'TRANSFER_OUT';
@@ -352,7 +353,7 @@ export function useTransactionSave({
     }
   }, [
     validationErrors,
-    amount, date, accountId, isBalanceAdjustmentEdit, description, isDateInvalidForSave,
+    amount, date, accountId, isBalanceAdjustmentEdit, description,
     creditDebitType, initialValues, categoryId, merchantId, tags,
     loadSimilarEditPreview, updateTransaction, applyTransactionEditToSimilar, createTransaction,
     bankingUserPreferences.ruleApplicationMode,

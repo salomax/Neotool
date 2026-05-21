@@ -1,7 +1,7 @@
 'use client';
 
 import { Box, Divider, Skeleton, Stack, Typography, useTheme } from '@mui/material';
-import { useState,useMemo } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from '@/shared/i18n';
 import { personalFinanceTranslations } from '../i18n';
 import { CurrencyAmountParts } from '@/shared/components/ui/data-display';
@@ -62,7 +62,6 @@ export interface RecurringPaymentsSummaryPanelProps {
 export function RecurringPaymentsSummaryPanel({ rows, loading, error, onRetry }: RecurringPaymentsSummaryPanelProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const theme = useTheme();
-  const [distributionMode, setDistributionMode] = useState<DistributionMode>('category');
 
   const metrics = useMemo(() => computeRecurringSummaryMetrics(rows), [rows]);
   const categoryTotals = useMemo(() => buildRecurringCategoryTotals(rows), [rows]);

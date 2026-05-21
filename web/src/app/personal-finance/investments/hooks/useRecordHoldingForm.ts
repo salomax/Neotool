@@ -122,7 +122,7 @@ export function useRecordHoldingForm<TFields extends FieldValues>(
         config.onSuccess?.();
       })(e);
     },
-    [config.editTransaction, config.financialAccountId, config.onBuildInput, config.onBuildUpdateInput, config.onSuccess, config.successToastMessage, form, recordMutation, refetchQueries, toast, t, updateMutation],
+    [config, form, recordMutation, refetchQueries, toast, t, updateMutation],
   );
 
   return {

@@ -323,7 +323,7 @@ export function RecordFundHoldingDrawer({
       },
       { shouldDirty: false, shouldValidate: true },
     );
-  }, [isEdit, methods, open, prefillHolding]);
+  }, [embedded, isEdit, methods, open, prefillHolding]);
 
   useEffect(() => {
     if (isEdit || embedded || isLockedGate) return;

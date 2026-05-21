@@ -14,7 +14,7 @@ const fund = (id: string) => ({
   isActive: true,
 });
 
-describe("newHoldingFlowRecentStorage", () => {
+describe.sequential("newHoldingFlowRecentStorage", () => {
   beforeEach(() => {
     localStorage.clear();
   });

@@ -66,12 +66,15 @@ function formatAmount(value: number, currency = "BRL"): string {
 }
 
 function formatDate(dateString: string): string {
-  const [, m, d] = dateString.split("-");
-  return `${parseInt(d)}/${MONTHS_PT[parseInt(m) - 1]}`;
+  const [, m = "1", d = "1"] = dateString.split("-");
+  return `${parseInt(d, 10)}/${MONTHS_PT[parseInt(m, 10) - 1]}`;
 }
 
 function daysUntil(dateString: string): number {
-  const [y, m, d] = dateString.split("-").map(Number);
+  const [yStr, mStr, dStr] = dateString.split("-");
+  const y = Number(yStr);
+  const m = Number(mStr);
+  const d = Number(dStr);
   const now = new Date();
   const base = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
   const due = new Date(y, m - 1, d).getTime();

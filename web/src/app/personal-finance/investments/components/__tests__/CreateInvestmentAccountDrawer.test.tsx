@@ -289,79 +289,16 @@ describe.sequential('CreateInvestmentAccountDrawer', () => {
     expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.dueDay')).not.toBeInTheDocument();
   });
 
-  it('submits initialBalance and initialBalanceDate when both are provided', async () => {
-    const user = userEvent.setup();
+  it('does not render bank or initial balance fields', () => {
     renderDrawer();
 
-    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
-    await act(async () => {
-      await user.selectOptions(issuerSelect, 'issuer-xp');
-    });
-
-    const initialBalanceInput = screen.getByLabelText('financeTransactions.createAccount.step2.fields.initialBalance');
-    await act(async () => {
-      await user.type(initialBalanceInput, '250');
-    });
-
-    const initialBalanceDateInput = await screen.findByLabelText(
-      /financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i,
-    );
-    await act(async () => {
-      await user.type(initialBalanceDateInput, '2026-01-01');
-    });
-
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAccount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: {
-            input: expect.objectContaining({
-              initialBalance: 250,
-              initialBalanceDate: '2026-01-01',
-            }),
-          },
-        }),
-      );
-    });
-  });
-
-  it('submits bankData when bank fields are provided', async () => {
-    const user = userEvent.setup();
-    renderDrawer();
-
-    const issuerSelect = screen.getByLabelText('issuer-autocomplete-options');
-    await act(async () => {
-      await user.selectOptions(issuerSelect, 'issuer-xp');
-    });
-
-    await act(async () => {
-      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.branchCode'), '0001');
-      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.accountNumber'), '123456');
-      await user.type(screen.getByLabelText('financeTransactions.createAccount.step2.fields.checkDigit'), '7');
-    });
-
-    await act(async () => {
-      await user.click(screen.getByRole('button', { name: 'investments.createAccount.actions.submit' }));
-    });
-
-    await waitFor(() => {
-      expect(mockCreateAccount).toHaveBeenCalledWith(
-        expect.objectContaining({
-          variables: {
-            input: expect.objectContaining({
-              bankData: {
-                branchCode: '0001',
-                number: '123456',
-                checkDigit: '7',
-              },
-            }),
-          },
-        }),
-      );
-    });
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.branchCode')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.accountNumber')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.checkDigit')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('financeTransactions.createAccount.step2.fields.initialBalance')).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText(/financeTransactions\.createAccount\.step2\.fields\.initialBalanceDate/i),
+    ).not.toBeInTheDocument();
   });
 
   it('submits INVESTMENT account with selected issuerId and triggers callbacks', async () => {

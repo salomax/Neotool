@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogActions,
@@ -36,15 +36,22 @@ interface ConfirmPaymentDialogProps {
   onConfirm: (paymentDate: Date) => void;
 }
 
-export function ConfirmPaymentDialog({
+interface ConfirmPaymentDialogBodyProps {
+  row: RecurringPaymentRecord;
+  loading: boolean;
+  onClose: () => void;
+  onConfirm: (paymentDate: Date) => void;
+}
+
+function ConfirmPaymentDialogBody({
   row,
-  loading = false,
+  loading,
   onClose,
   onConfirm,
-}: ConfirmPaymentDialogProps) {
+}: ConfirmPaymentDialogBodyProps) {
   const { t } = useTranslation(personalFinanceTranslations);
   const { t: tCommon, i18n: i18nInstance } = useReactI18nTranslation('common');
-  const [dateValue, setDateValue] = useState<Dayjs | null>(dayjs());
+  const [dateValue, setDateValue] = useState<Dayjs | null>(() => dayjs());
 
   const { adapterLocale, dateFormat } = useMemo(() => {
     const lang = i18nInstance.language?.toLowerCase() ?? 'pt';
@@ -66,23 +73,12 @@ export function ConfirmPaymentDialog({
 
   const maxDate = useMemo(() => dayjs().endOf('day'), []);
 
-  useEffect(() => {
-    if (row) setDateValue(dayjs());
-  }, [row?.id]);
-
   return (
-    <Dialog
-      open={Boolean(row)}
-      onClose={() => {
-        if (!loading) onClose();
-      }}
-      maxWidth="xs"
-      fullWidth
-    >
+    <>
       <DialogTitle>{t('recurringPayments.confirmPaymentDialog.title')}</DialogTitle>
       <DialogContent>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          {t('recurringPayments.confirmPaymentDialog.description', { name: row?.name ?? '' })}
+          {t('recurringPayments.confirmPaymentDialog.description', { name: row.name })}
         </Typography>
         <LocalizationProvider
           dateAdapter={AdapterDayjs}
@@ -122,6 +118,34 @@ export function ConfirmPaymentDialog({
           {t('recurringPayments.confirmPaymentDialog.confirm')}
         </Button>
       </DialogActions>
+    </>
+  );
+}
+
+export function ConfirmPaymentDialog({
+  row,
+  loading = false,
+  onClose,
+  onConfirm,
+}: ConfirmPaymentDialogProps) {
+  return (
+    <Dialog
+      open={Boolean(row)}
+      onClose={() => {
+        if (!loading) onClose();
+      }}
+      maxWidth="xs"
+      fullWidth
+    >
+      {row ? (
+        <ConfirmPaymentDialogBody
+          key={row.id}
+          row={row}
+          loading={loading}
+          onClose={onClose}
+          onConfirm={onConfirm}
+        />
+      ) : null}
     </Dialog>
   );
 }

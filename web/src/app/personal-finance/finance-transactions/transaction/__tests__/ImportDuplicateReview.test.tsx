@@ -75,11 +75,13 @@ const jobWithCandidates = {
 
 const mockClientQuery = vi.fn();
 
+// Stable reference — a new object each render retriggers ImportDuplicateReview's
+// useEffect([apolloClient, jobIds]) and causes an infinite fetch / OOM loop.
+const mockApolloClient = { query: mockClientQuery };
+
 vi.mock('@apollo/client/react', () => ({
   useMutation: vi.fn(),
-  useApolloClient: () => ({
-    query: mockClientQuery,
-  }),
+  useApolloClient: () => mockApolloClient,
 }));
 
 vi.mock('@/shared/providers', () => ({
