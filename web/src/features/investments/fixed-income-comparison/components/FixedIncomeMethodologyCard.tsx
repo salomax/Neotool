@@ -8,6 +8,7 @@ import { useTranslation, i18n } from "@/shared/i18n";
 import { investmentsTranslations } from "@/shared/i18n/domains/investments";
 import { formatMetricValue } from "@/shared/utils/formatMetricValue";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
+import { FormSectionLabel } from "./FormSectionLabel";
 
 export interface FixedIncomeMethodologyCardProps {
   result?: FixedIncomeComparisonQuery["fixedIncomeComparison"] | null;
@@ -54,7 +55,7 @@ export function FixedIncomeMethodologyCard({
 
   if (loading) {
     return (
-      <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
+      <Card variant="outlined" hoverable={false} sx={{ p: 3, mb: 3, boxShadow: "none" }}>
         <Skeleton
           variant="rectangular"
           height={210}
@@ -83,156 +84,152 @@ export function FixedIncomeMethodologyCard({
   );
 
   return (
-    <Card variant="outlined" sx={{ p: 3, mb: 3 }}>
-      <Box
-        sx={{
-          borderBottom: 1,
-          borderColor: "divider",
-          pb: 2,
-          mb: 4,
-        }}
-      >
-        <Typography
-          variant="h6"
-          component="h2"
-          sx={{ fontWeight: 700 }}
-        >
-          {t(`${ns}.methodologyTitle`)}
-        </Typography>
+    <>
+      <Box sx={{ px: 2, pt: 3 }}>
+        <FormSectionLabel sx={{ fontSize: 14 }}>{t(`${ns}.methodologyTitle`)}</FormSectionLabel>
       </Box>
-
-      <Box
+      <Card
+        variant="outlined"
+        hoverable={false}
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr" },
-          gap: { xs: 3, md: 6 },
+          p: 3,
+          mb: 3,
+          boxShadow: "none",
+          "& .MuiTypography-root": { fontSize: 14 },
+          "& .MuiChip-label": { fontSize: 14 },
         }}
       >
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography
-            variant="overline"
-            sx={{
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "text.secondary",
-            }}
-          >
-            {t(`${ns}.methodologyDayCountTitle`)}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ lineHeight: 1.6 }}
-          >
-            {t(`${ns}.methodologyRuleDayCount`, {
-              accrualLabel,
-              businessDays: dayCount.businessDays,
-              calendarDays: dayCount.calendarDays,
-            })}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ lineHeight: 1.6 }}
-          >
-            {t(`${ns}.methodologyRuleTargetNetAtEndDate`)}
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ lineHeight: 1.6 }}
-          >
-            {t(`${ns}.methodologyRuleTax`, {
-              appliesOnProfitOnly: tax.appliesOnProfitOnly
-                ? t(`${ns}.methodologyTaxAppliesOnProfitOnly`)
-                : t(`${ns}.methodologyTaxAppliesOnGrossValue`),
-            })}
-          </Typography>
-        </Box>
-
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <Typography
-            variant="overline"
-            sx={{
-              letterSpacing: "0.12em",
-              textTransform: "uppercase",
-              color: "text.secondary",
-            }}
-          >
-            {t(`${ns}.methodologyTaxTableTitle`)}
-          </Typography>
-          <Chip
-            size="small"
-            color="primary"
-            variant="outlined"
-            sx={{
-              alignSelf: "flex-start",
-              maxWidth: { xs: "100%", sm: 360 },
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            label={t(`${ns}.methodologyActiveBracketLabel`, {
-              range: activeBracketLabel,
-              rate: formatPercent(tax.activeBracket.rateDecimal, locale),
-            })}
-          />
-          <Box
-            sx={{
-              mt: 1,
-              borderRadius: 2,
-              border: 1,
-              borderColor: "divider",
-              overflow: "hidden",
-            }}
-          >
-            {sortedBrackets.map((bracket, index) => {
-              const rowKey = `${bracket.fromCalendarDays}-${bracket.toCalendarDays ?? "null"}`;
-              const isActive = rowKey === activeBracketKey;
-              const rangeLabel = bracketRangeLabel(
-                bracket.fromCalendarDays,
-                bracket.toCalendarDays,
-                t,
-                ns
-              );
-              const isLast = index === sortedBrackets.length - 1;
-
-              return (
-                <Box
-                  key={rowKey}
-                  sx={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    px: 2,
-                    py: 1.5,
-                    borderBottom: isLast ? "none" : "1px solid",
-                    borderBottomColor: "divider",
-                    bgcolor: isActive ? "action.hover" : "background.paper",
-                  }}
-                >
-                  <Typography
-                    variant="body2"
-                    sx={{ color: "text.secondary", fontWeight: isActive ? 600 : 400 }}
-                  >
-                    {rangeLabel}
-                  </Typography>
-                  <Typography
-                    variant="body2"
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: { xs: "1fr", md: "1.1fr 1fr" },
+            gap: { xs: 3, md: 6 },
+          }}
+        >
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              {t(`${ns}.methodologyDayCountTitle`, "Convenção de Dias")}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ lineHeight: 1.6 }}
+            >
+              {t(`${ns}.methodologyRuleDayCount`, {
+                accrualLabel,
+                businessDays: dayCount.businessDays,
+                calendarDays: dayCount.calendarDays,
+              })}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ lineHeight: 1.6 }}
+            >
+              {t(`${ns}.methodologyRuleTargetNetAtEndDate`)}
+            </Typography>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ lineHeight: 1.6 }}
+            >
+              {t(`${ns}.methodologyRuleTax`, {
+                appliesOnProfitOnly: tax.appliesOnProfitOnly
+                  ? t(`${ns}.methodologyTaxAppliesOnProfitOnly`)
+                  : t(`${ns}.methodologyTaxAppliesOnGrossValue`),
+              })}
+            </Typography>
+          </Box>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography
+              variant="overline"
+              sx={{
+                letterSpacing: "0.12em",
+                textTransform: "uppercase",
+                color: "text.secondary",
+              }}
+            >
+              {t(`${ns}.methodologyTaxTableTitle`)}
+            </Typography>
+            <Chip
+              size="small"
+              color="primary"
+              variant="outlined"
+              sx={{
+                alignSelf: "flex-start",
+                maxWidth: { xs: "100%", sm: 360 },
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+              label={t(`${ns}.methodologyActiveBracketLabel`, {
+                range: activeBracketLabel,
+                rate: formatPercent(tax.activeBracket.rateDecimal, locale),
+              })}
+            />
+            <Box
+              sx={{
+                mt: 1,
+                borderRadius: 2,
+                border: 1,
+                borderColor: "divider",
+                overflow: "hidden",
+              }}
+            >
+              {sortedBrackets.map((bracket, index) => {
+                const rowKey = `${bracket.fromCalendarDays}-${bracket.toCalendarDays ?? "null"}`;
+                const isActive = rowKey === activeBracketKey;
+                const rangeLabel = bracketRangeLabel(
+                  bracket.fromCalendarDays,
+                  bracket.toCalendarDays,
+                  t,
+                  ns
+                );
+                const isLast = index === sortedBrackets.length - 1;
+                return (
+                  <Box
+                    key={rowKey}
                     sx={{
-                      fontWeight: 700,
-                      color: isActive ? "primary.main" : "text.primary",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      px: 2,
+                      py: 1.5,
+                      borderBottom: isLast ? "none" : "1px solid",
+                      borderBottomColor: "divider",
+                      bgcolor: isActive ? "action.hover" : "background.paper",
                     }}
                   >
-                    {formatPercent(bracket.rateDecimal, locale)}
-                  </Typography>
-                </Box>
-              );
-            })}
+                    <Typography
+                      variant="body2"
+                      sx={{ color: "text.secondary", fontWeight: isActive ? 600 : 400 }}
+                    >
+                      {rangeLabel}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 700,
+                        color: isActive ? "primary.main" : "text.primary",
+                      }}
+                    >
+                      {formatPercent(bracket.rateDecimal, locale)}
+                    </Typography>
+                  </Box>
+                );
+              })}
+            </Box>
           </Box>
         </Box>
-      </Box>
-    </Card>
+      </Card>
+    </>
   );
 }
 

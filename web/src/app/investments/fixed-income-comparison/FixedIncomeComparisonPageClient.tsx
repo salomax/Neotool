@@ -38,7 +38,7 @@ export default function FixedIncomeComparisonPageClient() {
 
   return (
     <Page component="main">
-      <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Container maxWidth="xl">
         <Grid
           container
           spacing={4}

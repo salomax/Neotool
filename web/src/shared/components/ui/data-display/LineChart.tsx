@@ -205,10 +205,13 @@ export interface LineChartProps {
   showXAxisTitle?: boolean;
   showYAxisTitles?: boolean;
   showGrid?: boolean;
+  showHorizontalGridLines?: boolean;
+  showVerticalGridLines?: boolean;
   showDots?: boolean;
   showValueLabels?: boolean;
   showTooltip?: boolean;
   showLegend?: boolean;
+  yAxisLabelsInside?: boolean;
   strokeWidth?: number;
   showArea?: boolean;
   scale?: boolean;
@@ -488,6 +491,7 @@ const CustomTooltip: React.FC<CustomTooltipProps> = ({
         borderRadius: `${radius}px`,
         boxShadow: theme.shadows[2],
         p: 1.5,
+        borderRadius: 2,
       }}
     >
       <Label sx={{ mb: 0 }}>{String(formattedLabel)}</Label>
@@ -693,10 +697,13 @@ export const LineChart: React.FC<LineChartProps> = ({
   showXAxisTitle = false,
   showYAxisTitles = false,
   showGrid = true,
+  showHorizontalGridLines = true,
+  showVerticalGridLines = false,
   showDots = true,
   showValueLabels = false,
   showTooltip = true,
   showLegend = true,
+  yAxisLabelsInside = false,
   strokeWidth = 2,
   showArea = true,
   scale = false,
@@ -1110,6 +1117,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="left"
+                      mirror={yAxisLabelsInside}
                       padding={axisPadding}
                       mirror={axis.ticksInside === true}
                       tickMargin={axis.ticksInside ? 6 : undefined}
@@ -1130,6 +1138,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                       key={axis.id}
                       yAxisId={axis.id}
                       orientation="right"
+                      mirror={yAxisLabelsInside}
                       padding={axisPadding}
                       mirror={axis.ticksInside === true}
                       tickMargin={axis.ticksInside ? 6 : undefined}
@@ -1148,6 +1157,7 @@ export const LineChart: React.FC<LineChartProps> = ({
                 </>
               ) : (
                 <YAxis
+                  mirror={yAxisLabelsInside}
                   padding={axisPadding}
                   mirror={false}
                   axisLine={{ stroke: theme.palette.divider }}

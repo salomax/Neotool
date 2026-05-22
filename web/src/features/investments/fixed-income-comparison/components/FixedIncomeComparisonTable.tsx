@@ -10,6 +10,7 @@ import {
   TableHead,
   TableRow,
   Chip,
+  Divider,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import Card from "@/shared/components/ui/primitives/Card";
@@ -20,17 +21,51 @@ import { investmentsTranslations } from "@/shared/i18n/domains/investments";
 import { formatMetricValue } from "@/shared/utils/formatMetricValue";
 import type { FixedIncomeComparisonQuery } from "../api/queries.generated";
 import type { FixedIncomeRateModel } from "@/lib/graphql/types/__generated__/graphql";
+import { FormSectionLabel } from "./FormSectionLabel";
 
 export interface FixedIncomeComparisonTableProps {
   result?: FixedIncomeComparisonQuery["fixedIncomeComparison"] | null;
   loading?: boolean;
 }
 
+function formatCurrencyFull(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "BRL",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatCurrencyParts(
   value: number,
   locale: string
 ): { prefix: string; main: string; suffix: string } {
-  return formatMetricValue(value, "currency", { locale });
+  const parts = formatMetricValue(value, "currency", { locale });
+  const absoluteValue = Math.abs(value);
+  const abbreviationDivisor =
+    absoluteValue >= 1_000_000_000_000
+      ? 1_000_000_000_000
+      : absoluteValue >= 1_000_000_000
+      ? 1_000_000_000
+      : absoluteValue >= 1_000_000
+      ? 1_000_000
+      : null;
+
+  if (!abbreviationDivisor) {
+    return parts;
+  }
+
+  const abbreviatedValue = absoluteValue / abbreviationDivisor;
+  const formattedMain = abbreviatedValue.toLocaleString(locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
+  return {
+    ...parts,
+    main: value < 0 ? `-${formattedMain}` : formattedMain,
+  };
 }
 
 function formatPercentageParts(
@@ -94,7 +129,7 @@ export function FixedIncomeComparisonTable({
     if (!result?.rows?.length) return null;
 
     const { rows, methodology, summary } = result;
-    const { calendarDays, businessDays } = methodology.dayCount;
+    const { businessDays } = methodology.dayCount;
     const baseRateModel = summary.baseRateModel as FixedIncomeRateModel;
     
     const sortedRows = [...rows].sort((a, b) => {
@@ -107,25 +142,25 @@ export function FixedIncomeComparisonTable({
       return aOrder - bOrder;
     });
 
-    const years = Math.round(calendarDays / 365) || 1;
-    const yearsLabel =
-      years === 1 ? t(`${ns}.comparisonTableYear`) : t(`${ns}.comparisonTableYears`);
-    const businessDaysLabel = t(`${ns}.comparisonTableBusinessDays`);
-    const durationText = t(`${ns}.comparisonTableDuration`, {
-      years,
-      yearsLabel,
+    const durationText = t(`${ns}.comparisonTablePeriodDays`, {
       businessDays,
-      businessDaysLabel,
     });
 
-    return { sortedRows, durationText, baseRateModel };
+    const totalAmountText = formatCurrencyFull(summary.net, locale);
+    const durationWithTotalText = t(`${ns}.comparisonTableDurationWithTotal`, {
+      period: durationText,
+      totalAmount: totalAmountText,
+    });
+
+    return { sortedRows, durationWithTotalText, baseRateModel };
   }, [result, t, ns]);
 
   if (loading) {
     return (
       <Card
         variant="outlined"
-        sx={{ p: 3, mb: 3 }}
+        hoverable={false}
+        sx={{ p: 3, mb: 3, boxShadow: "none" }}
       >
         <Box
           sx={{
@@ -158,207 +193,221 @@ export function FixedIncomeComparisonTable({
     return null;
   }
 
-  const { sortedRows, durationText } = content;
+  const { sortedRows, durationWithTotalText } = content;
 
   const headerCellSx = {
-    fontWeight: 700,
-    color: "primary.main",
-    textTransform: "uppercase" as const,
-    letterSpacing: "0.04em",
     py: 1.5,
     px: 2,
   };
 
   return (
-    <Card
-      variant="outlined"
-      sx={{
-        mb: 3,
-        borderRadius: 2,
-        overflow: "hidden",
-      }}
-    >
-      <Box
+    <>
+          <Box
         sx={{
           display: "flex",
           flexWrap: "wrap",
-          alignItems: "center",
           justifyContent: "space-between",
           gap: 2,
-          px: 3,
-          py: 3,
-          borderBottom: "1px solid",
-          borderColor: "divider",
+          px: 2,
+          pt: 3,
         }}
       >
-        <Typography
-          variant="h6"
-          component="h2"
-          sx={{ fontWeight: 700, color: "text.primary" }}
-        >
-          {t(`${ns}.comparisonTableTitle`)}
-        </Typography>
+        <FormSectionLabel sx={{ fontSize: 14 }}>{t(`${ns}.comparisonTableTitle`)}</FormSectionLabel>
         <Chip
-          label={durationText}
+          label={durationWithTotalText}
           size="small"
           sx={{
             bgcolor: (theme) => alpha(theme.palette.primary.main, 0.12),
             color: "primary.main",
-            fontWeight: 700,
-            textTransform: "uppercase",
-            letterSpacing: "0.04em",
+            "& .MuiChip-label": { fontSize: 12 },
           }}
         />
       </Box>
-      <TableContainer
+      <Card
+        variant="outlined"
+        hoverable={false}
         sx={{
-          overflowX: "auto",
+          mb: 3,
+          borderRadius: 2,
+          bgcolor: "none",
+          boxShadow: "none",
+          overflow: "hidden",
+          "& .MuiTypography-root": { fontSize: 14 },
         }}
       >
-        <Table
-          name="fixed-income-comparison"
+        <TableContainer
           sx={{
-            border: "none",
-            "& .MuiTableCell-root": {
-              borderBottom: "none",
-            },
-            "& .MuiTableBody-root .MuiTableRow-root": {
-              bgcolor: "background.paper",
-              transition: "background-color 0.15s ease-in-out",
-            },
-            "& .MuiTableBody-root .MuiTableRow-root:hover": {
-              bgcolor: "action.hover",
-            },
-            "& .MuiTableBody-root .MuiTableCell-root": {
-              py: 1.5,
-              px: 2.5,
-            },
-            "& .MuiTableHead-root .MuiTableCell-root": {
-              py: 1.5,
-              px: 2.5,
-            },
+            overflowX: "auto",
           }}
         >
-          <TableHead>
-            <TableRow
-              sx={{
+          <Table
+            name="fixed-income-comparison"
+            sx={{
+              border: "none",
+              "& .MuiTableCell-root": { fontSize: 14, borderBottom: "none" },
+              "& .MuiTableBody-root .MuiTableRow-root": {
+                bgcolor: "transparent",
+                transition: "background-color 0.15s ease-in-out",
+              },
+              "& .MuiTableBody-root .MuiTableRow-root:hover": {
                 bgcolor: "action.hover",
-              }}
-            >
-              <TableCell align="left" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnInvestment`)}
-              </TableCell>
-              <TableCell align="right" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnRate`)}
-              </TableCell>
-              <TableCell align="right" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnGross`)}
-              </TableCell>
-              <TableCell align="right" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnIr`)}
-              </TableCell>
-              <TableCell align="right" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnNet`)}
-              </TableCell>
-              <TableCell align="right" sx={headerCellSx}>
-                {t(`${ns}.comparisonTableColumnRealGain`)}
-              </TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {sortedRows.map((row, index) => {
-              const grossParts = formatCurrencyParts(row.gross, locale);
-              const netParts = formatCurrencyParts(row.net, locale);
-              const gainParts = formatPercentageParts(
-                row.realGainPercent,
-                locale
-              );
-              const irExempt = row.isExempt;
-              const investmentLabel = getInvestmentLabel(
-                row.productGroup,
-                t,
-                ns
-              );
-              const rateDisplay = formatRateDisplay(
-                row.equivalentRateBps,
-                row.rateModel as FixedIncomeRateModel,
-                locale,
-                t,
-                ns
-              );
-
-              return (
-                <TableRow key={`${row.label}-${row.rateModel}-${index}`}>
-                  <TableCell
-                    align="left"
-                    sx={{
-                      fontWeight: 700,
-                      color: "primary.main",
-                    }}
+              },
+              "& .MuiTableBody-root .MuiTableCell-root": {
+                py: 1.5,
+                px: 2.5,
+              },
+              "& .MuiTableHead-root .MuiTableCell-root": {
+                py: 1.5,
+                px: 2.5,
+              },
+            }}
+          >
+            <TableHead sx={{ borderBottom: "1px solid", borderColor: "divider" }}>
+              <TableRow>
+                <TableCell align="left" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
                   >
-                    {investmentLabel}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>
-                    {rateDisplay}
-                  </TableCell>
-                  <TableCell align="right">
-                    {[grossParts.prefix, grossParts.main, grossParts.suffix]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </TableCell>
-                  <TableCell align="right">
-                    {irExempt ? (
-                      <Typography
-                        component="span"
-                        sx={{ color: "success.main", fontWeight: 600 }}
-                      >
-                        {t(`${ns}.comparisonTableIrExempt`)}
-                      </Typography>
-                    ) : (
-                      <Typography
-                        component="span"
-                        sx={{ color: "error.main" }}
-                      >
-                        -{" "}
-                        {[
-                          formatCurrencyParts(Math.abs(row.ir), locale).prefix,
-                          formatCurrencyParts(Math.abs(row.ir), locale).main,
-                          formatCurrencyParts(Math.abs(row.ir), locale).suffix,
-                        ]
-                          .filter(Boolean)
-                          .join(" ")}
-                      </Typography>
-                    )}
-                  </TableCell>
-                  <TableCell align="right" sx={{ fontWeight: 700 }}>
-                    {[netParts.prefix, netParts.main, netParts.suffix]
-                      .filter(Boolean)
-                      .join(" ")}
-                  </TableCell>
-                  <TableCell align="right">
-                    <Chip
-                      size="small"
-                      label={`+${gainParts.main}${gainParts.suffix}`}
+                    {t(`${ns}.comparisonTableColumnInvestment`)}
+                  </FormSectionLabel>
+                </TableCell>
+                <TableCell align="right" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
+                  >
+                    {t(`${ns}.comparisonTableColumnRate`)}
+                  </FormSectionLabel>
+                </TableCell>
+                <TableCell align="right" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
+                  >
+                    {t(`${ns}.comparisonTableColumnGross`)}
+                  </FormSectionLabel>
+                </TableCell>
+                <TableCell align="right" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
+                  >
+                    {t(`${ns}.comparisonTableColumnIr`)}
+                  </FormSectionLabel>
+                </TableCell>
+                <TableCell align="right" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
+                  >
+                    {t(`${ns}.comparisonTableColumnNet`)}
+                  </FormSectionLabel>
+                </TableCell>
+                <TableCell align="right" sx={headerCellSx}>
+                  <FormSectionLabel
+                    mb={0}
+                    sx={{ display: "inline-block", fontSize: 14 }}
+                  >
+                    {t(`${ns}.comparisonTableColumnRealGain`)}
+                  </FormSectionLabel>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {sortedRows.map((row, index) => {
+                const grossParts = formatCurrencyParts(row.gross, locale);
+                const netParts = formatCurrencyParts(row.net, locale);
+                const gainParts = formatPercentageParts(
+                  row.realGainPercent,
+                  locale
+                );
+                const irExempt = row.isExempt;
+                const investmentLabel = getInvestmentLabel(
+                  row.productGroup,
+                  t,
+                  ns
+                );
+                const rateDisplay = formatRateDisplay(
+                  row.equivalentRateBps,
+                  row.rateModel as FixedIncomeRateModel,
+                  locale,
+                  t,
+                  ns
+                );
+                return (
+                  <TableRow key={`${row.label}-${row.rateModel}-${index}`}>
+                    <TableCell
+                      align="left"
                       sx={{
-                        bgcolor: (theme) =>
-                          (theme as any).custom?.palette?.successLightBg ??
-                          theme.palette.success.light + "40",
-                        color: "success.dark",
-                        fontWeight: 700,
-                        "& .MuiChip-label": {
-                          px: 1,
-                          py: 0.25,
-                          fontSize: 11,
-                        },
+                        
+                        color: "primary.main",
                       }}
-                    />
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-    </Card>
+                    >
+                      {investmentLabel}
+                    </TableCell>
+                    <TableCell align="right" sx={{  }}>
+                      {rateDisplay}
+                    </TableCell>
+                    <TableCell align="right">
+                      {[grossParts.prefix, grossParts.main, grossParts.suffix]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </TableCell>
+                    <TableCell align="right">
+                      {irExempt ? (
+                        <Typography
+                          component="span"
+                          sx={{ color: "success.main",  }}
+                        >
+                          {t(`${ns}.comparisonTableIrExempt`)}
+                        </Typography>
+                      ) : (
+                        <Typography
+                          component="span"
+                          sx={{ color: "error.main" }}
+                        >
+                          -{" "}
+                          {[
+                            formatCurrencyParts(Math.abs(row.ir), locale).prefix,
+                            formatCurrencyParts(Math.abs(row.ir), locale).main,
+                            formatCurrencyParts(Math.abs(row.ir), locale).suffix,
+                          ]
+                            .filter(Boolean)
+                            .join(" ")}
+                        </Typography>
+                      )}
+                    </TableCell>
+                    <TableCell align="right" sx={{  }}>
+                      {[netParts.prefix, netParts.main, netParts.suffix]
+                        .filter(Boolean)
+                        .join(" ")}
+                    </TableCell>
+                    <TableCell align="right">
+                      <Chip
+                        size="small"
+                        label={`+${gainParts.main}${gainParts.suffix}`}
+                        sx={{
+                          bgcolor: (theme) =>
+                            (theme as any).custom?.palette?.successLightBg ??
+                            theme.palette.success.light + "40",
+                          color: "success.dark",
+                          
+                          "& .MuiChip-label": {
+                            px: 1,
+                            py: 0.25,
+                            fontSize: 11,
+                          },
+                        }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Card>
+    </>
   );
 }

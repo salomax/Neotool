@@ -32,6 +32,9 @@ out/
 *.hprof
 mobile/*.zip
 
+.venv/
+.trae/
+
 # Certificates
 *.pem
 *.key
